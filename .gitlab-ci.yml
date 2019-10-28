@@ -1,0 +1,21 @@
+image: golang:1.12.10
+
+cache:
+  paths:
+    - /apt-cache
+    - /go/src/github.com
+    - /go/src/golang.org
+    - /go/src/google.golang.org
+    - /go/src/gopkg.in
+
+before_script:
+  - make dep
+
+stages:
+  - test
+
+test:
+  stage: test
+  script:
+    - make vet
+    - make test

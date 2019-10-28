@@ -1,0 +1,37 @@
+# 2019 © Postgres.ai
+
+# Meta information and params for Joe's tips.
+
+params:
+  buffersHitReadSeqScan: 50
+  buffersReadBigMax: 100
+  buffersHitBigMax: 1000
+  addLimitMinRows: 10000
+  tempWrittenBlocksMin: 0
+  indexNeededFilteredMin: 100
+  vacuumAnalyzeNeededFetchesMin: 0
+tips:
+  - code: "SEQSCAN_USED"
+    name: "SeqScan is used"
+    description: "Consider adding an index"
+    detailsUrl: "https://docs.gitlab.com/ee/development/understanding_explain_plans.html#optimising-queries"
+  - code: "TOO_MUCH_DATA"
+    name: "Query processes too much data to return a relatively small number of rows."
+    description: "Reduce data cardinality as early as possible during the execution, using one or several of the following techniques: new indexes, partitioning, query rewriting, denormalization."
+    detailsUrl: "http://momjian.us/main/writings/pgsql/hw_performance/"
+  - code: "ADD_LIMIT"
+    name: "Add LIMIT"
+    description: "The number of rows in the result set is too big. Limit number of rows."
+    detailsUrl: "WIP-todo-tip-add-limit"
+  - code: "TEMP_BUF_WRITTEN"
+    name: "Temporary buffers written"
+    description: "Raise `work_mem` (currently, the recipe is: `exec alter system set work_mem to '100MB'`, then `exec select pg_reload_conf()`)"
+    detailsUrl: "WIP-todo-tip-temp-buf-written"
+  - code: "INDEX_NEEDED"
+    name: "Index needed"
+    description: "Recommend the creation of another index [wip]"
+    detailsUrl: "https://postgres.ai/#todo-tip-index-needed"
+  - code: "VACUUM_ANALYZE_NEEDED"
+    name: "VACUUM ANALYZE needed"
+    description: "Visibility map(s) for the table(s) involved in the query are outdated. For better performance: 1) run `VACUUM ANALYZE` on them, 2) perform autovacuum tuning."
+    detailsUrl: "WIP-todo-tip-vacuum-analyze-needed"

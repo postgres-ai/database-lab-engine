@@ -1,0 +1,16 @@
+# Copy the following to: ./config/provisioning.yaml
+
+mode: "aws"
+aws:
+  ec2:
+    awsKeyName: "awskey3"
+    awsKeyPath: "/home/xxx/.ssh/xxx.pem"
+    awsInstanceType: "i3.large"
+    awsRegion: "us-east-1"
+    awsZone: "a"
+    awsBlockDurationMinutes: 60
+  ebsVolumeId: "vol-xxx"
+  sshTunnelPort: 10799
+debug: true
+pgVersion: "11"
+initialSnapshot: "db_state_1"

@@ -1,0 +1,9 @@
+.DS_Store
+
+/bin/
+/db-lab-run/
+
+# Deploy contains Kubernetes configs with secrets, remove from .gitignore when generalized.
+/deploy/
+
+/config/provisioning.yaml
