@@ -126,9 +126,27 @@ func IsValidConfig(c Config) bool {
 }
 
 func (s *Session) GetConnStr(dbname string) string {
-	connStr := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		s.Host, s.Port, s.User, s.Password, dbname)
+	connStr := "sslmode=disable"
+
+	if len(s.Host) > 0 {
+		connStr += " host=" + s.Host
+	}
+
+	if s.Port > 0 {
+		connStr += fmt.Sprintf(" port=%d", s.Port)
+	}
+
+	if len(s.User) > 0 {
+		connStr += " user=" + s.User
+	}
+
+	if len(s.Password) > 0 {
+		connStr += " password=" + s.Password
+	}
+
+	if len(dbname) > 0 {
+		connStr += " dbname=" + dbname
+	}
 
 	return connStr
 }

@@ -41,21 +41,12 @@ var opts struct {
 	// HTTP Server.
 	ServerPort uint `short:"s" long:"http-port" description:"HTTP server port" env:"SERVER_PORT" default:"3000"`
 
-	QuotaLimit    uint `long:"quota-limit" description:"limit request rates to up to 2x of this number" env:"QUOTA_LIMIT" default:"10"`
-	QuotaInterval uint `long:"quota-interval" description:"an time interval (in seconds) to apply a quota-limit" env:"QUOTA_INTERVAL" default:"60"`
-
 	IdleInterval uint `long:"idle-interval" description:"an time interval (in seconds) before user session can be stoped due to idle" env:"IDLE_INTERVAL" default:"3600"`
 
 	// Platform.
 	ApiUrl         string `long:"api-url" description:"Postgres.ai platform API base URL" env:"API_URL" default:"https://postgres.ai/api/general"`
 	ApiToken       string `long:"api-token" description:"Postgres.ai platform API token" env:"API_TOKEN"`
 	ApiProject     string `long:"api-project" description:"Postgres.ai platform project to assign user sessions" env:"API_PROJECT"`
-	HistoryEnabled bool   `long:"history-enabled" description:"send command and queries history to Postgres.ai platform for collaboration and visualization" env:"HISTORY_ENABLED"`
-
-	// Dev.
-	DevGitCommitHash string `long:"git-commit-hash" env:"GIT_COMMIT_HASH" default:""`
-	DevGitBranch     string `long:"git-branch" env:"GIT_BRANCH" default:""`
-	DevGitModified   bool   `long:"git-modified" env:"GIT_MODIFIED"`
 
 	ShowHelp func() error `long:"help" description:"Show this help message"`
 }
@@ -240,19 +231,4 @@ func getConfigPath(name string) string {
 	dir, _ := filepath.Abs(filepath.Dir(bindir))
 	path := dir + string(os.PathSeparator) + "config" + string(os.PathSeparator) + name
 	return path
-}
-
-func formatBotVersion(commit string, branch string, modified bool) string {
-	if len(commit) < 7 {
-		return "unknown"
-	}
-
-	modifiedStr := ""
-	if modified {
-		modifiedStr = " (modified)"
-	}
-
-	commitShort := commit[:7]
-
-	return fmt.Sprintf("%s@%s%s", commitShort, branch, modifiedStr)
 }

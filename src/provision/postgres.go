@@ -91,8 +91,6 @@ func PostgresStart(r Runner, c *PgConfig) error {
 		return fmt.Errorf("Postgres start: log touch %v %v", err, out)
 	}
 
-	// TODO(anatoly): pgdata = pgdata + config.PgdataSubpath.
-
 	// pg_ctl status mode checks whether a server is running in the specified data directory.
 	_, err = pgctlStatus(r, c)
 	if err != nil {

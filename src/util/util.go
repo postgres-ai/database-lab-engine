@@ -82,7 +82,7 @@ func RunInterval(d time.Duration, fn func()) chan struct{} {
 }
 
 func DurationToString(value time.Duration) string {
-	return MillisecondsToString(float64(value / 10000000))
+	return MillisecondsToString(float64(value / 1000000))
 }
 
 func MillisecondsToString(value float64) string {
