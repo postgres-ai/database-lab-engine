@@ -28,7 +28,7 @@ type Snapshot struct {
 }
 
 type Clone struct {
-	Id          string   `json:"mode"`
+	Id          string   `json:"id"`
 	Name        string   `json:"name"`
 	Project     string   `json:"project"`
 	Snapshot    string   `json:"snapshot"`
@@ -47,7 +47,6 @@ type InstanceStatus struct {
 	ExpectedCloningTime float64    `json:"expectedCloningTime"`
 	NumClones           uint64     `json:"numClones"`
 	Clones              []Clone    `json:"clones"`
-	Snapshots           []Snapshot `json:"snapshots"`
 }
 
 type Error struct {
