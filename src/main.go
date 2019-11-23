@@ -15,56 +15,19 @@ import (
 	"os"
 	"path/filepath"
 
-	"./bot"
-	"./chatapi"
-	"./ec2ctrl"
 	"./log"
-	"./pgexplain"
-	"./provision"
+
+	"./srv"
 
 	"github.com/jessevdk/go-flags"
 	"gopkg.in/yaml.v2"
 )
 
 var opts struct {
-	// Chat API.
-	AccessToken       string `short:"t" long:"token" description:"\"Bot User OAuth Access Token\" which starts with \"xoxb-\"" env:"CHAT_TOKEN" required:"true"`
-	VerificationToken string `short:"v" long:"verification-token" description:"callback URL verification token" env:"CHAT_VERIFICATION_TOKEN" required:"true"`
-
-	// Database.
-	DbHost     string `short:"h" long:"host" description:"database server host" env:"DB_HOST" default:"localhost"`
-	DbPort     uint   `short:"p" long:"port" description:"database server port" env:"DB_PORT" default:"5432"`
-	DbUser     string `short:"U" long:"username" description:"database user name" env:"DB_USER" default:"postgres"`
-	DbPassword string `short:"P" long:"password" description:"database password" env:"DB_PASSWORD" default:"postgres"`
-	DbName     string `short:"d" long:"dbname" description:"database name to connect to" env:"DB_NAME" default:"db"`
-
-	// HTTP Server.
-	ServerPort uint `short:"s" long:"http-port" description:"HTTP server port" env:"SERVER_PORT" default:"3000"`
-
-	IdleInterval uint `long:"idle-interval" description:"an time interval (in seconds) before user session can be stoped due to idle" env:"IDLE_INTERVAL" default:"3600"`
-
-	// Platform.
-	ApiUrl         string `long:"api-url" description:"Postgres.ai platform API base URL" env:"API_URL" default:"https://postgres.ai/api/general"`
-	ApiToken       string `long:"api-token" description:"Postgres.ai platform API token" env:"API_TOKEN"`
-	ApiProject     string `long:"api-project" description:"Postgres.ai platform project to assign user sessions" env:"API_PROJECT"`
+	VerificationToken string `short:"v" long:"verification-token" description:"callback URL verification token" env:"VERIFICATION_TOKEN" required:"true"`
+	DbPassword        string `short:"P" long:"password" description:"database password" env:"DB_PASSWORD" default:"postgres"`
 
 	ShowHelp func() error `long:"help" description:"Show this help message"`
-}
-
-// TODO(anatoly): Refactor configs and envs.
-type ProvisionConfig struct {
-	Mode    string                  `yaml:"mode"`
-	Aws     provision.AwsConfig     `yaml:"aws"`
-	Local   provision.LocalConfig   `yaml:"local"`
-	MuLocal provision.MuLocalConfig `yaml:"mulocal"`
-	Debug   bool                    `yaml:"debug"`
-
-	ZfsPool         string `yaml:"zfsPool"`
-	InitialSnapshot string `yaml:"initialSnapshot"`
-
-	PgVersion    string `yaml:"pgVersion"`
-	PgBindir     string `yaml:"pgBindir"`
-	PgDataSubdir string `yaml:"pgDataSubdir"`
 }
 
 func main() {
@@ -80,82 +43,9 @@ func main() {
 		return
 	}
 
-	// Load and validate configuration files.
-	explainConfig, err := loadExplainConfig()
-	if err != nil {
-		log.Err("Unable to load explain config", err)
-		return
-	}
-	provisionConfig, err := loadProvisionConfig()
-	if err != nil {
-		log.Err("Unable to load provision config", err)
-		return
-	}
-	log.DEBUG = provisionConfig.Debug
-	provConf := provision.Config{
-		Mode:    provisionConfig.Mode,
-		Aws:     provisionConfig.Aws,
-		Local:   provisionConfig.Local,
-		MuLocal: provisionConfig.MuLocal,
-		Debug:   provisionConfig.Debug,
+	log.DEBUG = true
 
-		// ZFS.
-		ZfsPool:         provisionConfig.ZfsPool,
-		InitialSnapshot: provisionConfig.InitialSnapshot,
-
-		// TODO(anatoly): Use opts.DbPort, opts.DbHost for local and direct mode.
-		DbHost:     opts.DbHost,
-		DbUsername: opts.DbUser,
-		DbPassword: opts.DbPassword,
-		DbName:     opts.DbName,
-
-		PgVersion:    provisionConfig.PgVersion,
-		PgBindir:     provisionConfig.PgBindir,
-		PgDataSubdir: provisionConfig.PgDataSubdir,
-	}
-	if !provision.IsValidConfig(provConf) {
-		log.Err("Wrong configuration format.")
-		os.Exit(1)
-	}
-
-	// Initialize provisioning.
-	prov, err := provision.NewProvision(provConf)
-	if err != nil {
-		log.Fatal("Provision constuct failed", err)
-	}
-
-	err = prov.Init()
-	if err != nil {
-		log.Fatal("Provision init error", err)
-	}
-	log.Dbg("Provision init ok", err)
-
-	log.Dbg("git: ", opts.DevGitCommitHash, opts.DevGitBranch, opts.DevGitModified)
-
-	version := formatBotVersion(opts.DevGitCommitHash, opts.DevGitBranch,
-		opts.DevGitModified)
-
-	config := bot.Config{
-		Port:          opts.ServerPort,
-		Explain:       explainConfig,
-		QuotaLimit:    opts.QuotaLimit,
-		QuotaInterval: opts.QuotaInterval,
-		IdleInterval:  opts.IdleInterval,
-
-		DbName: opts.DbName,
-
-		ApiUrl:         opts.ApiUrl,
-		ApiToken:       opts.ApiToken,
-		ApiProject:     opts.ApiProject,
-		HistoryEnabled: opts.HistoryEnabled,
-
-		Version: version,
-	}
-
-	var chat = chatapi.NewChat(opts.AccessToken, opts.VerificationToken)
-
-	joeBot := bot.NewBot(config, chat, prov)
-	joeBot.RunServer()
+	srv.RunServer()
 }
 
 func parseArgs() ([]string, error) {
@@ -174,41 +64,6 @@ func parseArgs() ([]string, error) {
 	}
 
 	return parser.Parse()
-}
-
-func loadExplainConfig() (pgexplain.ExplainConfig, error) {
-	var config pgexplain.ExplainConfig
-
-	err := loadConfig(&config, "explain.yaml")
-	if err != nil {
-		return config, err
-	}
-
-	return config, nil
-}
-
-func loadProvisionConfig() (ProvisionConfig, error) {
-	var config = ProvisionConfig{
-		Aws: provision.AwsConfig{
-			Ec2: ec2ctrl.Ec2Configuration{
-				AwsInstanceType: "r4.large",
-				AwsRegion:       "us-east-1",
-				AwsZone:         "a",
-			},
-		},
-		Mode:            "aws",
-		Debug:           true,
-		PgVersion:       "9.6",
-		ZfsPool:         "zpool",
-		InitialSnapshot: "db_state_1",
-	}
-
-	err := loadConfig(&config, "provisioning.yaml")
-	if err != nil {
-		return config, err
-	}
-
-	return config, nil
 }
 
 func loadConfig(config interface{}, name string) error {

@@ -1,9 +1,0 @@
-# Copy the following to: ./config/provisioning.yaml
-
-mode: "local"
-debug: true
-pgVersion: "11"
-pgBindir: "/usr/lib/postgresql/9.6/bin"
-pgDataSubdir: "/pgdata"
-zfsPool: "joepool"
-initialSnapshot: "db_state_1"

@@ -1,0 +1,64 @@
+# Copy the following to: ./config/provisioning.yaml
+
+# API.
+server:
+  verificationToken: "xxx"
+  port: 3000
+
+# Layer 1. Provisioning: source.
+source:
+  mode: "manual"
+  #mode: "WAL-G"
+  #mode: "Barman"
+  #mode: "pgBackRest"
+
+# Layer 2. The platform for DB Lab.
+provisioning:
+  mode: "local"
+  #mode: "aws"
+  #mode: "gcp"
+
+# Layer 3. Snapshots/Clones support (Storage / FS).
+storage:
+  mode: "zfs"
+  zfs:
+    pool: "db_lab_pool"
+    initialSnapshot: "db_state_1"
+
+# Layer 4. Thin provisioning control.
+cloning:
+  mode: "local"
+  local:
+    portPool:
+      from: 6000
+      to: 6100
+  autoDelete: true
+  idleTime: 120
+
+# Layer 5. SQL interface.
+db:
+  host: "localhost"
+  username: "postgres"
+  password: "postgres"
+  pgVersion: "11"
+  pgBindir: "/usr/lib/postgresql/9.6/bin"
+  pgDataSubdir: "/pgdata"
+debug: true
+
+
+#######
+create clone
+status
+reset clone
+delete clone
+
+
+
+
+set up instance
+set up disks
+set up source
+set up snapshots
+provision clones
+
+
