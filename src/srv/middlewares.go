@@ -19,7 +19,7 @@ func (s *Server) authorized(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get(VERIFICATION_TOKEN_HEADER)
 		if len(token) == 0 || s.Config.VerificationToken != token {
-			w.WriteHeader(http.StatusUnauthorized)
+			failUnauthorized(w, r)
 			return
 		}
 

@@ -121,7 +121,7 @@ func getClone(w http.ResponseWriter, r *http.Request) {
 
 	clone, _, ok := findClone(cloneId)
 	if !ok {
-		notFound(w, r)
+		failNotFound(w, r)
 		log.Dbg(fmt.Sprintf("The clone with ID %s was not found", cloneId))
 		return
 	}
@@ -138,7 +138,7 @@ func resetClone(w http.ResponseWriter, r *http.Request) {
 
 	_, _, ok := findClone(cloneId)
 	if !ok {
-		notFound(w, r)
+		failNotFound(w, r)
 		log.Dbg(fmt.Sprintf("The clone with ID %s was not found", cloneId))
 	}
 
@@ -151,7 +151,7 @@ func stopClone(w http.ResponseWriter, r *http.Request) {
 
 	_, ind, ok := findClone(cloneId)
 	if !ok {
-		notFound(w, r)
+		failNotFound(w, r)
 		log.Dbg(fmt.Sprintf("The clone with ID %s was not found", cloneId))
 		return
 	}
@@ -240,7 +240,7 @@ func RunServer() error {
 	router.HandleFunc("/", getHelp(helpRoutes))
 
 	// Show not found error for all other possible routes.
-	router.NotFoundHandler = http.HandlerFunc(notFound)
+	router.NotFoundHandler = http.HandlerFunc(failNotFound)
 
 	// Set up global middlewares.
 	router.Use(logging)
