@@ -45,7 +45,11 @@ func main() {
 
 	log.DEBUG = true
 
-	srv.RunServer()
+	server := srv.NewServer(srv.Config{
+		VerificationToken: opts.VerificationToken,
+		Port:              3000,
+	})
+	server.Run()
 }
 
 func parseArgs() ([]string, error) {

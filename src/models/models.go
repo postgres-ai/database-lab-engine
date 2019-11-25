@@ -28,26 +28,26 @@ type Snapshot struct {
 }
 
 type Clone struct {
-	Id          string   `json:"id"`
-	Name        string   `json:"name"`
-	Project     string   `json:"project"`
-	Snapshot    string   `json:"snapshot"`
-	CloneSize   uint64   `json:"cloneSize"`
-	CloningTime uint64   `json:"cloningTime"`
-	Protected   bool     `json:"protected"`
-	DeleteAt    string   `json:"deleteAt"`
-	CreatedAt   string   `json:"createdAt"`
-	Status      Status   `json:"status"`
-	Db          Database `json:"db"`
+	Id          string    `json:"id"`
+	Name        string    `json:"name"`
+	Project     string    `json:"project"`
+	Snapshot    string    `json:"snapshot"`
+	CloneSize   uint64    `json:"cloneSize"`
+	CloningTime uint64    `json:"cloningTime"`
+	Protected   bool      `json:"protected"`
+	DeleteAt    string    `json:"deleteAt"`
+	CreatedAt   string    `json:"createdAt"`
+	Status      *Status   `json:"status"`
+	Db          *Database `json:"db"`
 }
 
 type InstanceStatus struct {
-	Status              Status  `json:"status"`
-	Disk                Disk    `json:"disk"`
-	DataSize            uint64  `json:"dataSize"`
-	ExpectedCloningTime float64 `json:"expectedCloningTime"`
-	NumClones           uint64  `json:"numClones"`
-	Clones              []Clone `json:"clones"`
+	Status              *Status  `json:"status"`
+	Disk                *Disk    `json:"disk"`
+	DataSize            uint64   `json:"dataSize"`
+	ExpectedCloningTime float64  `json:"expectedCloningTime"`
+	NumClones           uint64   `json:"numClones"`
+	Clones              []*Clone `json:"clones"`
 }
 
 type Error struct {
