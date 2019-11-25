@@ -13,6 +13,21 @@ import (
 	"github.com/rs/xid"
 )
 
+type Config struct {
+	VerificationToken string
+	Port              uint
+}
+
+type Server struct {
+	Config *Config
+	Clones []*m.Clone
+}
+
+type Route struct {
+	Route   string   `json:"route"`
+	Methods []string `json:"methods"`
+}
+
 var clones = []m.Clone{
 	{
 		Id:          "xxx",
@@ -96,12 +111,17 @@ func startClone(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
+func updateClone(w http.ResponseWriter, r *http.Request) {
+	// TODO(anatoly): Update fields:
+	// - Protected
+}
+
 func getClone(w http.ResponseWriter, r *http.Request) {
 	cloneId := mux.Vars(r)["id"]
 
 	clone, _, ok := findClone(cloneId)
 	if !ok {
-		http.NotFound(w, r)
+		notFound(w, r)
 		log.Dbg(fmt.Sprintf("The clone with ID %s was not found", cloneId))
 		return
 	}
@@ -118,7 +138,7 @@ func resetClone(w http.ResponseWriter, r *http.Request) {
 
 	_, _, ok := findClone(cloneId)
 	if !ok {
-		http.NotFound(w, r)
+		notFound(w, r)
 		log.Dbg(fmt.Sprintf("The clone with ID %s was not found", cloneId))
 	}
 
@@ -131,7 +151,7 @@ func stopClone(w http.ResponseWriter, r *http.Request) {
 
 	_, ind, ok := findClone(cloneId)
 	if !ok {
-		http.NotFound(w, r)
+		notFound(w, r)
 		log.Dbg(fmt.Sprintf("The clone with ID %s was not found", cloneId))
 		return
 	}
@@ -168,17 +188,68 @@ func findClone(cloneId string) (m.Clone, int, bool) {
 	return m.Clone{}, 0, false
 }
 
-func RunServer() {
-	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/status", getInstanceStatus).Methods("GET")
-	router.HandleFunc("/snapshots", getSnapshots).Methods("GET")
-	router.HandleFunc("/clone", startClone).Methods("POST")
-	router.HandleFunc("/clone/{id}/reset", resetClone).Methods("POST")
-	router.HandleFunc("/clone/{id}", getClone).Methods("GET")
-	router.HandleFunc("/clone/{id}", stopClone).Methods("DELETE")
+func getHelp(routes []Route) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		b, err := json.MarshalIndent(routes, "", "  ")
+		if err != nil {
+			log.Err(err)
+		}
+		w.Write(b)
+	}
+}
 
+func getHelpRoutes(router *mux.Router) ([]Route, error) {
+	routes := make([]Route, 0)
+	err := router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		pathTemplate, err := route.GetPathTemplate()
+		if err != nil {
+			return err
+		}
+
+		methods, err := route.GetMethods()
+		if err != nil {
+			return err
+		}
+
+		routes = append(routes, Route{
+			Route:   pathTemplate,
+			Methods: methods,
+		})
+
+		return nil
+	})
+
+	return routes, err
+}
+
+func RunServer() error {
+	router := mux.NewRouter().StrictSlash(true)
+	router.HandleFunc("/status", getInstanceStatus).Methods(http.MethodGet)
+	router.HandleFunc("/snapshots", getSnapshots).Methods(http.MethodGet)
+	router.HandleFunc("/clone", startClone).Methods(http.MethodPost)
+	router.HandleFunc("/clone/{id}/reset", resetClone).Methods(http.MethodPost)
+	router.HandleFunc("/clone/{id}", getClone).Methods(http.MethodGet)
+	router.HandleFunc("/clone/{id}", updateClone).Methods(http.MethodPatch)
+	router.HandleFunc("/clone/{id}", stopClone).Methods(http.MethodDelete)
+
+	// Show available routes on index page.
+	helpRoutes, err := getHelpRoutes(router)
+	if err != nil {
+		return err
+	}
+	router.HandleFunc("/", getHelp(helpRoutes))
+
+	// Show not found error for all other possible routes.
+	router.NotFoundHandler = http.HandlerFunc(notFound)
+
+	// Set up global middlewares.
+	router.Use(logging)
+
+	// Start server.
 	port := 3000
 	log.Msg(fmt.Sprintf("Server start listening on localhost:%d", port))
-	err := http.ListenAndServe(fmt.Sprintf(":%d", port), router)
+	err = http.ListenAndServe(fmt.Sprintf(":%d", port), router)
 	log.Err("HTTP server error:", err)
+
+	return err
 }

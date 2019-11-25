@@ -42,11 +42,12 @@ type Clone struct {
 }
 
 type InstanceStatus struct {
-	Status              Status     `json:"status"`
-	Disk                Disk       `json:"disk"`
-	ExpectedCloningTime float64    `json:"expectedCloningTime"`
-	NumClones           uint64     `json:"numClones"`
-	Clones              []Clone    `json:"clones"`
+	Status              Status  `json:"status"`
+	Disk                Disk    `json:"disk"`
+	DataSize            uint64  `json:"dataSize"`
+	ExpectedCloningTime float64 `json:"expectedCloningTime"`
+	NumClones           uint64  `json:"numClones"`
+	Clones              []Clone `json:"clones"`
 }
 
 type Error struct {
