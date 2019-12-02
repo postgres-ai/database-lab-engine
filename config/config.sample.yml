@@ -1,0 +1,24 @@
+# Copy the following to: ./config/config.yaml
+
+server:
+  verificationToken: "xxx"
+  port: 3000
+
+provision:
+  mode: "zfs"
+  zfs:
+    pool: "db_lab_pool"
+    initialSnapshot: "db_state_1"
+    portPool:
+      from: 6000
+      to: 6100
+  pgVersion: "9.6"
+  pgBindir: "/usr/lib/postgresql/9.6/bin"
+  pgDataSubdir: "/pgdata"
+
+cloning:
+  autoDelete: true
+  idleTime: 120
+  accessHost: "localhost"
+
+debug: true
