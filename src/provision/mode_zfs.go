@@ -263,7 +263,7 @@ func (j *provisionModeZfs) GetDiskState() (*Disk, error) {
 }
 
 func (j *provisionModeZfs) getDataSize() (uint64, error) {
-	out, err := j.runner.Run("sudo du -d0 -b /zfspool")
+	/*out, err := j.runner.Run("sudo du -d0 -b /zfspool")
 	if err != nil {
 		log.Err("GetDataSize:", err)
 		return 0, err
@@ -282,7 +282,8 @@ func (j *provisionModeZfs) getDataSize() (uint64, error) {
 		return 0, err
 	}
 
-	return nbytes, nil
+	return nbytes, nil*/
+	return 0, nil
 }
 
 func (j *provisionModeZfs) RunPsql(session *Session, command string) (string, error) {
