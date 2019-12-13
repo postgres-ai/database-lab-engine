@@ -14,6 +14,10 @@ import (
 	"../util"
 )
 
+const (
+	MOUNT_PREFIX = "/var/lib/postgresql/dblab/clones/"
+)
+
 type ZfsListEntry struct {
 	Name string
 
@@ -72,9 +76,9 @@ func ZfsCreateClone(r Runner, pool string, name string, snapshot string) error {
 	}
 
 	cmd := "sudo zfs clone " + pool + "@" + snapshot + " " +
-		pool + "/" + name + " -o mountpoint=/" + name + " && " +
+		pool + "/" + name + " -o mountpoint=" + MOUNT_PREFIX + name + " && " +
 		// TODO(anatoly): Refactor using of chown.
-		"sudo chown -R postgres /" + name
+		"sudo chown -R postgres " + MOUNT_PREFIX + name
 
 	out, err := r.Run(cmd)
 	if err != nil {

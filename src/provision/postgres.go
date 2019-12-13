@@ -18,7 +18,7 @@ import (
 	"../util"
 )
 
-const LOGS_PREFIX = "dblab_postgres_"
+const LOGS_PREFIX = "/var/lib/postgresql/dblab/logs/dblab_"
 
 // We use pg_stop -D ... -m immediate stop because we need to shut down
 // Postgres faster and completely get rid of this instance. So we don't care
@@ -82,10 +82,9 @@ func PostgresStart(r Runner, c *PgConfig) error {
 	log.Dbg("Starting Postgres...")
 
 	portStr := c.getPortStr()
-	logdir := "/var/log/" + LOGS_PREFIX + portStr + ".log"
+	logdir := LOGS_PREFIX + portStr + ".log"
 
-	createLogsCmd := "sudo touch " + logdir + " && " +
-		"sudo chown postgres " + logdir
+	createLogsCmd := "sudo -u postgres -s touch " + logdir
 	out, err := r.Run(createLogsCmd, true)
 	if err != nil {
 		return fmt.Errorf("Postgres start: log touch %v %v", err, out)
