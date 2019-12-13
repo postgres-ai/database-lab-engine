@@ -247,15 +247,16 @@ func (j *provisionModeZfs) GetDiskState() (*Disk, error) {
 		return &Disk{}, err
 	}
 
-	dataSize, err := j.getDataSize()
+	// TODO(anatoly): "sudo du -d0 -b /zfspool" [sudo] password.
+	/*dataSize, err := j.getDataSize()
 	if err != nil {
 		return &Disk{}, err
-	}
+	}*/
 
 	disk := &Disk{
 		Size:     poolEntry.Available + poolEntry.Used,
 		Free:     poolEntry.Available,
-		DataSize: dataSize,
+		DataSize: 0,
 	}
 
 	return disk, nil
