@@ -183,7 +183,8 @@ func ZfsListDetails(r Runner, pool string) ([]*ZfsListEntry, error) {
 		}
 
 		used, err1 := strconv.ParseUint(fields[1], 10, 64)
-		compressRatio, err2 := strconv.ParseFloat(fields[3], 64)
+		ratioStr := strings.ReplaceAll(fields[3], "x", "")
+		compressRatio, err2 := strconv.ParseFloat(ratioStr, 64)
 		available, err3 := strconv.ParseUint(fields[4], 10, 64)
 		// TODO(anatoly): Time.
 		creation, err4 := strconv.ParseUint(fields[7], 10, 64)
