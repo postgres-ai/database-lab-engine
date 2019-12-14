@@ -210,3 +210,7 @@ func ZfsListDetails(r Runner, pool string) ([]*ZfsListEntry, error) {
 
 	return entries, nil
 }
+
+func ZfsGetMountPrefix() string {
+	return MOUNT_PREFIX
+}

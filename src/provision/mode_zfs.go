@@ -367,7 +367,7 @@ func (j *provisionModeZfs) getPgConfig(name string, port uint) *PgConfig {
 	return &PgConfig{
 		Version:  j.config.PgVersion,
 		Bindir:   j.config.PgBindir,
-		Datadir:  MOUNT_PREFIX + name + j.config.PgDataSubdir,
+		Datadir:  ZfsGetMountPrefix() + name + j.config.PgDataSubdir,
 		Host:     "localhost",
 		Port:     port,
 		Name:     "postgres",
