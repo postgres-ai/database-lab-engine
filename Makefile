@@ -43,4 +43,3 @@ run:
 	go run ${LDFLAGS} ./src/*
 
 .PHONY: all dep main test vet fmt clean run
-

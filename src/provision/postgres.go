@@ -18,9 +18,7 @@ import (
 	"../util"
 )
 
-const LOGS_PREFIX = "dblab_postgres_"
-
-// We use pg_stop -D ... -m immediate stop because we need to shut down
+// We use pg_ctl -D ... -m immediate stop because we need to shut down
 // Postgres faster and completely get rid of this instance. So we don't care
 // about its state.
 const MODE_IMMEDIATE = "immediate"
@@ -39,6 +37,18 @@ type PgConfig struct {
 	// The specified user must exist. The user will not be created automatically.
 	Username string
 	Password string
+
+	LogsPrefix string
+}
+
+func (c PgConfig) getPortStr() string {
+	return strconv.FormatUint(uint64(c.Port), 10)
+}
+
+func (c PgConfig) getLogsDir() string {
+	portStr := c.getPortStr()
+	prefix := c.LogsPrefix
+	return prefix + "dblab_" + portStr + ".log"
 }
 
 func (c PgConfig) getBindir() string {
@@ -48,10 +58,6 @@ func (c PgConfig) getBindir() string {
 
 	// By default, we assume that we are working on Ubuntu/Debian.
 	return fmt.Sprintf("/usr/lib/postgresql/%s/bin", c.Version)
-}
-
-func (c PgConfig) getPortStr() string {
-	return strconv.FormatUint(uint64(c.Port), 10)
 }
 
 func (c PgConfig) getUsername() string {
@@ -81,28 +87,29 @@ func (c PgConfig) getDbName() string {
 func PostgresStart(r Runner, c *PgConfig) error {
 	log.Dbg("Starting Postgres...")
 
-	portStr := c.getPortStr()
-	logdir := "/var/log/" + LOGS_PREFIX + portStr + ".log"
+	logsDir := c.getLogsDir()
 
-	createLogsCmd := "sudo touch " + logdir + " && " +
-		"sudo chown postgres " + logdir
+	createLogsCmd := "sudo -u postgres -s touch " + logsDir
 	out, err := r.Run(createLogsCmd, true)
 	if err != nil {
 		return fmt.Errorf("Postgres start: log touch %v %v", err, out)
 	}
 
-	// pg_ctl status mode checks whether a server is running in the specified data directory.
+	// pg_ctl status mode checks whether a server is running
+	// in the specified data directory.
 	_, err = pgctlStatus(r, c)
 	if err != nil {
 		if rerr, ok := err.(RunnerError); ok {
 			switch rerr.ExitStatus {
-			// If an accessible data directory is not specified, the process returns an exit status of 4.
+			// If an accessible data directory is not specified,
+			// the process returns an exit status of 4.
 			case 4:
 				return fmt.Errorf("Cannot access PGDATA: %v", rerr)
 
-			// If the server is not running, the process returns an exit status of 3.
+			// If the server is not running, the process
+			// returns an exit status of 3.
 			case 3:
-				_, err = pgctlStart(r, logdir, c)
+				_, err = pgctlStart(r, logsDir, c)
 				if err != nil {
 					return err
 				}
@@ -167,16 +174,19 @@ func PostgresStop(r Runner, c *PgConfig) error {
 	first := true
 	cnt := 0
 	for true {
-		// pg_ctl status mode checks whether a server is running in the specified data directory.
+		// pg_ctl status mode checks whether a server is running
+		// in the specified data directory.
 		_, err = pgctlStatus(r, c)
 		if err != nil {
 			if rerr, ok := err.(RunnerError); ok {
 				switch rerr.ExitStatus {
-				// If an accessible data directory is not specified, the process returns an exit status of 4.
+				// If an accessible data directory is not specified,
+				// the process returns an exit status of 4.
 				case 4:
 					return fmt.Errorf("Cannot access PGDATA. %v", rerr)
 
-				// If the server is not running, the process returns an exit status of 3.
+				// If the server is not running, the process
+				// returns an exit status of 3.
 				case 3:
 					// Postgres stopped.
 					return nil
@@ -220,11 +230,11 @@ func PostgresList(r Runner, prefix string) ([]string, error) {
 	return util.Unique(re.FindAllString(out, -1)), nil
 }
 
-func pgctlStart(r Runner, logdir string, c *PgConfig) (string, error) {
+func pgctlStart(r Runner, logsDir string, c *PgConfig) (string, error) {
 	startCmd := `sudo --user postgres ` +
 		c.getBindir() + `/pg_ctl ` +
 		`--pgdata /` + c.Datadir + ` ` +
-		`--log ` + logdir + ` ` +
+		`--log ` + logsDir + ` ` +
 		`-o "-p ` + c.getPortStr() + `" ` +
 		`start`
 

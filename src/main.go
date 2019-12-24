@@ -65,15 +65,23 @@ func main() {
 		return
 	}
 
+	if len(opts.DbPassword) > 0 {
+		cfg.Provision.DbPassword = opts.DbPassword
+	}
+
 	provision, err := p.NewProvision(cfg.Provision)
 	if err != nil {
 		log.Fatal("Error in \"provision\" config:", err)
 		return
 	}
 
-	cloning := c.NewCloning(&cfg.Cloning, provision)
-	err = cloning.Run()
+	cloning, err := c.NewCloning(&cfg.Cloning, provision)
 	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	if err = cloning.Run(); err != nil {
 		log.Fatal(err)
 		return
 	}
@@ -89,8 +97,10 @@ func main() {
 func parseArgs() ([]string, error) {
 	var parser = flags.NewParser(&opts, flags.Default & ^flags.HelpFlag)
 
-	// jessevdk/go-flags lib doesn't allow to use short flag -h because it's binded to usage help.
-	// We need to hack it a bit to use -h for as a hostname option. See https://github.com/jessevdk/go-flags/issues/240
+	// jessevdk/go-flags lib doesn't allow to use short flag -h because
+	// it's binded to usage help. We need to hack it a bit to use -h
+	// for as a hostname option.
+	// See https://github.com/jessevdk/go-flags/issues/240
 	opts.ShowHelp = func() error {
 		var b bytes.Buffer
 
@@ -105,7 +115,12 @@ func parseArgs() ([]string, error) {
 }
 
 func loadConfig(config interface{}, name string) error {
-	b, err := ioutil.ReadFile(getConfigPath(name))
+	path, err := getConfigPath(name)
+	if err != nil {
+		return err
+	}
+
+	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("Error loading %s config file.", name)
 	}
@@ -119,9 +134,18 @@ func loadConfig(config interface{}, name string) error {
 	return nil
 }
 
-func getConfigPath(name string) string {
-	bindir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
-	dir, _ := filepath.Abs(filepath.Dir(bindir))
-	path := dir + string(os.PathSeparator) + "config" + string(os.PathSeparator) + name
-	return path
+func getConfigPath(name string) (string, error) {
+	bindir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		return "", err
+	}
+
+	dir, err := filepath.Abs(filepath.Dir(bindir))
+	if err != nil {
+		return "", err
+	}
+
+	path := dir + string(os.PathSeparator) + "config" +
+		string(os.PathSeparator) + name
+	return path, nil
 }

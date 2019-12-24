@@ -10,7 +10,7 @@ const VERIFICATION_TOKEN_HEADER = "Verification-Token"
 
 func logging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Msg(r.Method, r.RequestURI)
+		log.Msg("-> ", r.Method, r.RequestURI)
 		next.ServeHTTP(w, r)
 	})
 }
