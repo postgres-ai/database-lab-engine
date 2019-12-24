@@ -12,11 +12,14 @@ provision:
     portPool:
       from: 6000
       to: 6100
+    mountDir: /var/lib/postgresql/dblab/clones
+    logsDir: /var/lib/postgresql/dblab/logs
   pgVersion: "9.6"
   pgBindir: "/usr/lib/postgresql/9.6/bin"
   pgDataSubdir: "/pgdata"
 
 cloning:
+  mode: "base"
   autoDelete: true
   idleTime: 120
   accessHost: "localhost"

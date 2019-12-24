@@ -9,6 +9,7 @@ package provision
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"../log"
 )
@@ -35,6 +36,10 @@ type Session struct {
 	Port     uint
 	User     string
 	Password string
+
+	// For user-defined username and password.
+	ephemeralUser     string
+	ephemeralPassword string
 }
 
 type Config struct {
@@ -59,19 +64,31 @@ type Disk struct {
 	DataSize uint64
 }
 
+type Snapshot struct {
+	Id          string
+	CreatedAt   time.Time
+	DataStateAt time.Time
+}
+
+type SessionState struct {
+	CloneSize uint64
+}
+
 type Provision interface {
 	Init() error
 	Reinit() error
 
-	StartSession(...string) (*Session, error)
+	StartSession(string, string, ...string) (*Session, error)
 	StopSession(*Session) error
 	ResetSession(*Session, ...string) error
 
 	CreateSnapshot(string) error
+	GetSnapshots() ([]*Snapshot, error)
 
 	RunPsql(*Session, string) (string, error)
 
 	GetDiskState() (*Disk, error)
+	GetSessionState(*Session) (*SessionState, error)
 }
 
 type provision struct {

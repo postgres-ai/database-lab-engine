@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"../log"
 	"../util"
 )
 
@@ -18,17 +19,17 @@ type ZfsListEntry struct {
 	Name string
 
 	// Read-only property that identifies the amount of disk space consumed
-	//by a dataset and all its descendents.
+	// by a dataset and all its descendents.
 	Used uint64
 
 	// Controls the mount point used for this file system. When the mountpoint
 	// property is changed for a file system, the file system and
 	// any descendents that inherit the mount point are unmounted.
 	// If the new value is legacy, then they remain unmounted. Otherwise,
-	// they are automatically remounted in the new location if the property
+	// they are automatically remounted in a new location if the property
 	// was previously legacy or none, or if they were mounted before
 	// the property was changed. In addition, any shared file systems are
-	//unshared and shared in the new location.
+	// unshared and shared in the new location.
 	MountPoint string
 
 	// Read-only property that identifies the compression ratio achieved for
@@ -59,9 +60,15 @@ type ZfsListEntry struct {
 	// Read-only property that identifies the date and time that a dataset
 	// was created.
 	Creation time.Time
+
+	// DB Lab custom fields.
+
+	// Data state timestamp.
+	DataStateAt time.Time
 }
 
-func ZfsCreateClone(r Runner, pool string, name string, snapshot string) error {
+func ZfsCreateClone(r Runner, pool string, name string, snapshot string,
+	mountDir string) error {
 	exists, err := ZfsCloneExists(r, name)
 	if err != nil {
 		return err
@@ -72,9 +79,8 @@ func ZfsCreateClone(r Runner, pool string, name string, snapshot string) error {
 	}
 
 	cmd := "sudo zfs clone " + pool + "@" + snapshot + " " +
-		pool + "/" + name + " -o mountpoint=/" + name + " && " +
-		// TODO(anatoly): Refactor using of chown.
-		"sudo chown -R postgres /" + name
+		pool + "/" + name + " -o mountpoint=" + mountDir + name + " && " +
+		"sudo chown -R postgres " + mountDir + name
 
 	out, err := r.Run(cmd)
 	if err != nil {
@@ -150,14 +156,23 @@ func ZfsRollbackSnapshot(r Runner, pool string, snapshot string) error {
 	return nil
 }
 
-func ZfsListDetails(r Runner, pool string) ([]*ZfsListEntry, error) {
+func ZfsListFilesystems(r Runner, pool string) ([]*ZfsListEntry, error) {
+	return ZfsListDetails(r, pool, "filesystem")
+}
+
+func ZfsListSnapshots(r Runner, pool string) ([]*ZfsListEntry, error) {
+	return ZfsListDetails(r, pool, "snapshot")
+}
+
+// TODO(anatoly): Return map.
+func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, error) {
 	// TODO(anatoly): Generalize.
-	numberFields := 8
+	numberFields := 9
 	listCmd := "sudo zfs list " +
-		"-po name,used,mountpoint,compressratio,available,type,origin,creation " +
-		"-t filesystem " +
-		"-r " + pool + " " +
-		"-d 1"
+		"-po name,used,mountpoint,compressratio,available,type," +
+		"origin,creation,dblab:datastateat " +
+		"-t " + dsType + " " +
+		"-r " + pool
 
 	out, err := r.Run(listCmd, true)
 	if err != nil {
@@ -178,13 +193,35 @@ func ZfsListDetails(r Runner, pool string) ([]*ZfsListEntry, error) {
 			return nil, fmt.Errorf("ZFS error: wrong format.")
 		}
 
-		used, err1 := strconv.ParseUint(fields[1], 10, 64)
-		compressRatio, err2 := strconv.ParseFloat(fields[3], 64)
-		available, err3 := strconv.ParseUint(fields[4], 10, 64)
-		// TODO(anatoly): Time.
-		creation, err4 := strconv.ParseUint(fields[7], 10, 64)
-		if err1 != nil || err2 != nil || err3 != nil || err4 != nil {
-			return nil, fmt.Errorf("ZFS error: cannot parse output.")
+		var err1, err2, err3, err4, err5 error
+		var used, available, creation, dataStateAt uint64
+		var compressRatio float64
+
+		if fields[1] != "-" {
+			used, err1 = strconv.ParseUint(fields[1], 10, 64)
+		}
+
+		if fields[3] != "-" {
+			ratioStr := strings.ReplaceAll(fields[3], "x", "")
+			compressRatio, err2 = strconv.ParseFloat(ratioStr, 64)
+		}
+		if fields[4] != "-" {
+			available, err3 = strconv.ParseUint(fields[4], 10, 64)
+		}
+
+		if fields[7] != "-" {
+			creation, err4 = strconv.ParseUint(fields[7], 10, 64)
+		}
+
+		if fields[8] != "-" {
+			dataStateAt, err5 = strconv.ParseUint(fields[8], 10, 64)
+			log.Dbg("dataStateAt:", dataStateAt)
+		}
+
+		if err1 != nil || err2 != nil || err3 != nil || err4 != nil ||
+			err5 != nil {
+			return nil, fmt.Errorf("ZFS error: cannot parse output.\n"+
+				"Command: %s.\nOutput: %s.", listCmd, out)
 		}
 
 		entries[i-1] = &ZfsListEntry{
@@ -196,12 +233,9 @@ func ZfsListDetails(r Runner, pool string) ([]*ZfsListEntry, error) {
 			Type:          fields[5],
 			Origin:        fields[6],
 			Creation:      time.Unix(int64(creation), 0),
+			DataStateAt:   time.Unix(int64(dataStateAt), 0),
 		}
 	}
-
-	fmt.Printf("%+v", entries)
-
-	// TODO(anatoly): Implement.
 
 	return entries, nil
 }

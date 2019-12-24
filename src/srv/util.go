@@ -63,7 +63,7 @@ func readJson(r *http.Request, v interface{}) error {
 		return err
 	}
 
-	log.Dbg("request:", string(reqBody))
+	log.Dbg("Request:", string(reqBody))
 
 	err = json.Unmarshal(reqBody, v)
 	if err != nil {

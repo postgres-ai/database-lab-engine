@@ -17,7 +17,7 @@ type Config struct {
 
 type Server struct {
 	Config  *Config
-	Cloning *c.Cloning
+	Cloning c.Cloning
 }
 
 type Route struct {
@@ -26,7 +26,7 @@ type Route struct {
 }
 
 // Initializes Server instance with provided configuration.
-func NewServer(cfg *Config, cloning *c.Cloning) *Server {
+func NewServer(cfg *Config, cloning c.Cloning) *Server {
 	// TODO(anatoly): Stop using mock data.
 	server := &Server{
 		Config:  cfg,
@@ -45,15 +45,15 @@ func (s *Server) Run() error {
 	r.HandleFunc("/snapshots",
 		s.authorized(s.getSnapshots())).Methods(http.MethodGet)
 	r.HandleFunc("/clone",
-		s.authorized(s.startClone())).Methods(http.MethodPost)
-	r.HandleFunc("/clone/{id}/reset",
-		s.authorized(s.resetClone())).Methods(http.MethodPost)
+		s.authorized(s.createClone())).Methods(http.MethodPost)
 	r.HandleFunc("/clone/{id}",
-		s.authorized(s.getClone())).Methods(http.MethodGet)
+		s.authorized(s.destroyClone())).Methods(http.MethodDelete)
 	r.HandleFunc("/clone/{id}",
 		s.authorized(s.patchClone())).Methods(http.MethodPatch)
 	r.HandleFunc("/clone/{id}",
-		s.authorized(s.stopClone())).Methods(http.MethodDelete)
+		s.authorized(s.getClone())).Methods(http.MethodGet)
+	r.HandleFunc("/clone/{id}/reset",
+		s.authorized(s.resetClone())).Methods(http.MethodPost)
 
 	// Show available routes on index page.
 	helpRoutes, err := getHelpRoutes(r)

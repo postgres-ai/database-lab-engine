@@ -17,7 +17,7 @@ func (s *Server) getInstanceStatus() http.HandlerFunc {
 
 		_, err = writeJson(w, status)
 		if err != nil {
-			failInternalServer(w, r)
+			failInternalServer(w, r, err.Error())
 		}
 	}
 }
@@ -27,12 +27,12 @@ func (s *Server) getSnapshots() http.HandlerFunc {
 		snapshots := s.Cloning.GetSnapshots()
 		_, err := writeJson(w, snapshots)
 		if err != nil {
-			failInternalServer(w, r)
+			failInternalServer(w, r, err.Error())
 		}
 	}
 }
 
-func (s *Server) startClone() http.HandlerFunc {
+func (s *Server) createClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var newClone m.Clone
 		err := readJson(r, &newClone)
@@ -45,7 +45,7 @@ func (s *Server) startClone() http.HandlerFunc {
 		if err != nil {
 			log.Err("Create clone", err)
 			// TODO(anatoly): Improve error processing.
-			failInternalServer(w, r)
+			failInternalServer(w, r, err.Error())
 			return
 		}
 
@@ -53,24 +53,42 @@ func (s *Server) startClone() http.HandlerFunc {
 		_, err = writeJson(w, newClone)
 		if err != nil {
 			log.Err(err)
-			failInternalServer(w, r)
+			failInternalServer(w, r, err.Error())
 		}
+		log.Dbg(fmt.Sprintf("Clone ID=%s is being created", newClone.Id))
 	}
 }
 
-func (s *Server) resetClone() http.HandlerFunc {
+func (s *Server) destroyClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cloneId := mux.Vars(r)["id"]
 
-		_, ok := s.Cloning.GetClone(cloneId)
-		if !ok {
-			failNotFound(w, r)
+		err := s.Cloning.DestroyClone(cloneId)
+		if err != nil {
+			// TODO(anatoly): Not found case.
+			failInternalServer(w, r, err.Error())
+			return
+		}
+		log.Dbg(fmt.Sprintf("Clone ID=%s is being deleted", cloneId))
+	}
+}
+
+func (s *Server) patchClone() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cloneId := mux.Vars(r)["id"]
+
+		var patchClone *m.Clone
+		err := readJson(r, &patchClone)
+		if err != nil {
+			failBadRequest(w, r)
 			return
 		}
 
-		// TODO(anatoly): Reset clone.
-
-		log.Dbg(fmt.Sprintf("The clone with ID %s has been reset successfully", cloneId))
+		err = s.Cloning.UpdateClone(cloneId, patchClone)
+		if err != nil {
+			failInternalServer(w, r, err.Error())
+			return
+		}
 	}
 }
 
@@ -86,30 +104,22 @@ func (s *Server) getClone() http.HandlerFunc {
 
 		_, err := writeJson(w, clone)
 		if err != nil {
-			failInternalServer(w, r)
+			failInternalServer(w, r, err.Error())
 		}
 	}
 }
 
-func (s *Server) patchClone() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO(anatoly): Update fields:
-		// - Protected
-	}
-}
-
-func (s *Server) stopClone() http.HandlerFunc {
+func (s *Server) resetClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cloneId := mux.Vars(r)["id"]
 
-		err := s.Cloning.DestroyClone(cloneId)
+		err := s.Cloning.ResetClone(cloneId)
 		if err != nil {
-			// TODO(anatoly): Not found case.
-			failInternalServer(w, r)
+			failInternalServer(w, r, err.Error())
 			return
 		}
 
-		log.Dbg(fmt.Sprintf("The clone with ID %s has been deleted successfully", cloneId))
+		log.Dbg(fmt.Sprintf("Clone ID=%s is being reset", cloneId))
 	}
 }
 
