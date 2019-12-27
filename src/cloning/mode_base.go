@@ -122,7 +122,7 @@ func (c *baseCloning) CreateClone(clone *m.Clone) error {
 		clone.Db.ConnStr = fmt.Sprintf("host=%s port=%s username=%s",
 			clone.Db.Host, clone.Db.Port, clone.Db.Username)
 
-		clone.Snapshot = c.snapshots[len(c.snapshots)-1].DataStateAt
+		clone.Snapshot = c.snapshots[len(c.snapshots)-1]
 
 		// TODO(anatoly): Remove mock data.
 		clone.CloneSize = 10
@@ -198,7 +198,7 @@ func (c *baseCloning) UpdateClone(id string, patch *m.Clone) error {
 		return err
 	}
 
-	if len(patch.Snapshot) > 0 {
+	if patch.Snapshot != nil {
 		err := fmt.Errorf("Snapshot cannot be changed.")
 		log.Err(err)
 		return err

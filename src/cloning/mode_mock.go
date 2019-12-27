@@ -43,10 +43,12 @@ func NewMockCloning(cfg *Config) Cloning {
 
 func NewMockClone() *m.Clone {
 	db := &m.Database{}
+	snapshot := &m.Snapshot{}
+
 	return &m.Clone{
 		Id:          "id",
 		Name:        "name",
-		Snapshot:    "snapshot",
+		Snapshot:    snapshot,
 		CloneSize:   1000,
 		CloningTime: 10.0,
 		Protected:   false,

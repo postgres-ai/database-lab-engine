@@ -7,7 +7,7 @@ package models
 type Clone struct {
 	Id          string    `json:"id"`
 	Name        string    `json:"name"`
-	Snapshot    string    `json:"snapshot"`
+	Snapshot    *Snapshot `json:"snapshot"`
 	CloneSize   uint64    `json:"cloneSize"`
 	CloningTime float64   `json:"cloningTime"`
 	Protected   bool      `json:"protected"`

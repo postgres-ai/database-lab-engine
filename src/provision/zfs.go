@@ -78,9 +78,9 @@ func ZfsCreateClone(r Runner, pool string, name string, snapshot string,
 		return nil
 	}
 
-	cmd := "sudo zfs clone " + pool + "@" + snapshot + " " +
+	cmd := "sudo -n zfs clone " + pool + "@" + snapshot + " " +
 		pool + "/" + name + " -o mountpoint=" + mountDir + name + " && " +
-		"sudo chown -R postgres " + mountDir + name
+		"sudo --non-interactive chown -R postgres " + mountDir + name
 
 	out, err := r.Run(cmd)
 	if err != nil {
@@ -100,7 +100,13 @@ func ZfsDestroyClone(r Runner, pool string, name string) error {
 		return nil
 	}
 
-	cmd := fmt.Sprintf("sudo zfs destroy %s/%s", pool, name)
+	// Delete the clone and all snapshots and clones depending on it.
+	// TODO(anatoly): right now, we are using this function only for
+	// deleting thin clones created by users. If we are going to use
+	// this function to delete clones used during the preparation
+	// of baseline snapshots, we need to omit `-R`, to avoid
+	// unexpected deletion of users' clones.
+	cmd := fmt.Sprintf("sudo -n zfs destroy %s/%s -R", pool, name)
 
 	_, err = r.Run(cmd)
 	if err != nil {
@@ -111,7 +117,7 @@ func ZfsDestroyClone(r Runner, pool string, name string) error {
 }
 
 func ZfsCloneExists(r Runner, name string) (bool, error) {
-	listZfsClonesCmd := fmt.Sprintf(`sudo zfs list`)
+	listZfsClonesCmd := fmt.Sprintf(`sudo -n zfs list`)
 
 	out, err := r.Run(listZfsClonesCmd, false)
 	if err != nil {
@@ -122,7 +128,7 @@ func ZfsCloneExists(r Runner, name string) (bool, error) {
 }
 
 func ZfsListClones(r Runner, prefix string) ([]string, error) {
-	listZfsClonesCmd := fmt.Sprintf(`sudo zfs list`)
+	listZfsClonesCmd := fmt.Sprintf(`sudo -n zfs list`)
 
 	re := regexp.MustCompile(fmt.Sprintf(`(%s[0-9]+)`, prefix))
 
@@ -135,7 +141,7 @@ func ZfsListClones(r Runner, prefix string) ([]string, error) {
 }
 
 func ZfsCreateSnapshot(r Runner, pool string, snapshot string) error {
-	cmd := fmt.Sprintf("sudo zfs snapshot -r %s@%s", pool, snapshot)
+	cmd := fmt.Sprintf("sudo -n zfs snapshot -r %s@%s", pool, snapshot)
 
 	_, err := r.Run(cmd, true)
 	if err != nil {
@@ -146,7 +152,7 @@ func ZfsCreateSnapshot(r Runner, pool string, snapshot string) error {
 }
 
 func ZfsRollbackSnapshot(r Runner, pool string, snapshot string) error {
-	cmd := fmt.Sprintf("sudo zfs rollback -f -r %s@%s", pool, snapshot)
+	cmd := fmt.Sprintf("sudo -n zfs rollback -f -r %s@%s", pool, snapshot)
 
 	_, err := r.Run(cmd, true)
 	if err != nil {
@@ -168,7 +174,7 @@ func ZfsListSnapshots(r Runner, pool string) ([]*ZfsListEntry, error) {
 func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, error) {
 	// TODO(anatoly): Generalize.
 	numberFields := 9
-	listCmd := "sudo zfs list " +
+	listCmd := "sudo -n zfs list " +
 		"-po name,used,mountpoint,compressratio,available,type," +
 		"origin,creation,dblab:datastateat " +
 		"-t " + dsType + " " +

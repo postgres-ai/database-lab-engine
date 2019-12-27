@@ -1,6 +1,8 @@
 #!/bin/bash
 # 2019 © Postgres.ai
 
+set -euxo pipefail
+
 # Script for manual creation of ZFS snapshot from PG replica instance.
 # Default values provided for Ubuntu FS layout.
 
@@ -13,7 +15,6 @@ now=$(date +%Y%m%d%H%M%S)
 # Name of the ZFS pool which contains PGDATA.
 zfs_pool=${ZFS_POOL:-"datastore/postgresql"}
 # Sudirectory in which PGDATA is located.
-# TODO(anatoly): Can it be detected automatically?
 pgdata_subdir=${PGDATA_SUBDIR:-"/9.6/main"}
 
 # Clone configuration.
@@ -41,19 +42,47 @@ pg_db=${PGDB:-"postgres"}
 # Name of resulting snapshot after PGDATA manipulation.
 snapshot_name="snapshot_${now}"
 
+# TODO: decide: do we need to stop the shadow Postgres instance?
+# OR: we can tell the shadow Postgres: select pg_start_backup('database-lab-snapshot');
+# .. and in the very end: select pg_stop_backup();
+
 sudo zfs snapshot -r ${zfs_pool}@${snapshot_name}${pre}
-sudo zfs clone ${zfs_pool}@{snapshot_name}${pre} ${clone_full_name} -o mountpoint=${clone_dir}
+sudo zfs clone ${zfs_pool}@${snapshot_name}${pre} ${clone_full_name} -o mountpoint=${clone_dir}
 
 cd /tmp # To avoid errors about lack of permissions.
 
-rm -rf ${clone_pgdata_dir}/postmaster.pid # Questionable -- it's better to have snapshot created with Postgres being down.
-echo "primary_conninfo = ''" >> ${clone_pgdata_dir}/recovery.conf # We do not need to receive new data from anywhere.
-echo "restore_command = ''" >> ${clone_pgdata_dir}/recovery.conf # We do not need to receive new data from anywhere.
-echo "trigger_file = '/tmp/trigger_${clone_port}'" >> ${clone_pgdata_dir}/recovery.conf
+sudo -u postgres sh -f - <<SH
+rm -rf ${clone_pgdata_dir}/postmaster.pid # Questionable -- it's better to have snapshot created with Postgres being down
+
+# We do not want to deal with postgresql.conf symlink (if any)
+cat ${clone_pgdata_dir}/postgresql.conf > ${clone_pgdata_dir}/postgresql_real.conf
+chmod 600 ${clone_pgdata_dir}/postgresql_real.conf
+rm ${clone_pgdata_dir}/postgresql.conf
+mv ${clone_pgdata_dir}/postgresql_real.conf ${clone_pgdata_dir}/postgresql.conf
+
+### ADJUST CONFIGS ###
+### postgresql.conf
+echo "external_pid_file='${clone_pgdata_dir}/postmaster.pid'" >>  ${clone_pgdata_dir}/postgresql.conf
+echo "data_directory='${clone_pgdata_dir}'" >> ${clone_pgdata_dir}/postgresql.conf
+echo "log_directory='${clone_pgdata_dir}/pg_log'"
+# TODO: adjust log settings, memory setting
+
+### recovery.conf
+echo "standby_mode = 'on'" > ${clone_pgdata_dir}/recovery.conf # overriding
+echo "primary_conninfo = ''" >> ${clone_pgdata_dir}/recovery.conf
+echo "restore_command = ''" >> ${clone_pgdata_dir}/recovery.conf
+
+### pg_hba.conf
+echo "host all all 127.0.0.1/32 trust" > ${clone_pgdata_dir}/pg_hba.conf
+
+### pg_ident.conf
+echo "" > ${clone_pgdata_dir}/pg_ident.conf
+SH
 
 sudo -u postgres ${pg_bin_dir}/pg_ctl \
-  -o "-p ${clone_port} -c 'shared_buffers=4096' -c 'external_pid_file=${clone_pgdata_dir}/postmaster.pid'" \
-  -D ${clone_pgdata_dir} \
+  -D "${clone_pgdata_dir}" \
+  -o "-p ${clone_port} -c 'shared_buffers=4096'" \
+  -W \
   start
 
 # Now we are going to wait until we can connect to the server.
@@ -62,8 +91,8 @@ sudo -u postgres ${pg_bin_dir}/pg_ctl \
 # Alternatively, we could use pg_ctl's "-w" option above (instead of manual checking).
 
 failed=true
-for i in {1..${ntries}}; do
-  if [[ $(psql -p $clone_port -U ${pg_username} -D ${pg_db} -h localhost -XAtc 'select pg_is_in_recovery()') == "t" ]]; then
+for i in {1..1000}; do
+  if [[ $(${pg_bin_dir}/psql -p $clone_port -U ${pg_username} -d ${pg_db} -h localhost -XAtc 'select pg_is_in_recovery()') == "t" ]]; then
     failed=false
     break
   fi
@@ -72,23 +101,21 @@ for i in {1..${ntries}}; do
 done
 
 if $failed; then
-  >&2 echo "Failed to start Postgres to master"
+  >&2 echo "Failed to start Postgres (in standby mode)"
   exit 1
 fi
 
 # Save data state timestamp.
 #   - if we had a replica, we can use `select pg_last_xact_replay_timestamp()`,
 #   - if it is a master initially, the DB state timestamp must be provided by user in unix time format.
-data_state_at=$(psql -p ${clone_port} -U ${pg_username} -D ${pg_db} -h localhost -XAtc 'select extract(epoch from pg_last_xact_replay_timestamp())')
+data_state_at=$(${pg_bin_dir}/psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h localhost -XAtc 'select extract(epoch from pg_last_xact_replay_timestamp())')
 
 # Promote to the master. Again, it may take a while.
-sudo -u postgres ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} promote
-
-sudo -u postgres touch /tmp/trigger_${clone_port}
+sudo -u postgres ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -W promote
 
 failed=true
-for i in {1..${ntries}}; do
-  if [[ $(psql -p ${clone_port} -U ${pg_username} -D ${pg_db} -h localhost -XAtc 'select pg_is_in_recovery()') == "f" ]]; then
+for i in {1..1000}; do
+  if [[ $(${pg_bin_dir}/psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h localhost -XAtc 'select pg_is_in_recovery()') == "f" ]]; then
     failed=false
     break
   fi
@@ -102,15 +129,19 @@ if $failed; then
 fi
 
 # Finally, stop Postgres and create the base snapshot ready to be used for thin provisioning
-sudo -u postgres ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} stop
+sudo -u postgres ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -w stop
 # todo: check that it's stopped, similiraly as above
+
+# Finally, we don't wan't to want 'trust', we need to use password always.
+# Note, that this line overrides the whole pg_hba.conf
+sudo -u postgres sh -c "echo \"host all all 127.0.0.1/32 md5\" > ${clone_pgdata_dir}/pg_hba.conf"
 
 sudo zfs snapshot -r ${clone_full_name}@${snapshot_name}
 sudo zfs set dblab:datastateat="${data_state_at}" ${clone_full_name}@${snapshot_name}
 
 # Snapshot "datastore/postgresql/db_state_1_pre@db_state_1" is ready and can be used for thin provisioning
 
-rm -rf /tmp/trigger_${clone_port}
+sudo -u postgres rm -rf /tmp/trigger_${clone_port}
 
 # Return to previous working directory.
 cd -
