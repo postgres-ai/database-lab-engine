@@ -28,11 +28,70 @@ be needed for further configuration (`initialSnapshot` option in
 
 
 ## Run
+Deploy a Database Lab instance in your infrastructure. You would need to:
+1. Create `config/config.yml` (see example in `config/`).
+1. Build `make all` and launch Database Lab with some token for REST API
+authorization `./bin/dblab -v some-token`
+(or, with log: `./bin/dblab -v some-token 2>&1 | tee -a dblab.log`).
 
-Deploy DB Lab instance in your infrastructure. You would need to:
-1. Create `config/config.yml` (see sample in `config/`).
-1. Build `make all` and run DB Lab with some token for REST API authorization
-`./bin/dblab -v some-token` (or, with log: `./bin/dblab -v some-token 2>&1 | tee -a dblab.log`).
+
+## Usage
+### Check connection availability
+Access your Database Lab instance and check its status performing `GET /status`
+HTTP request.
+```bash
+curl -X GET -H "Verification-Token: some-token" -i https://host/status
+```
+
+If the Database Lab instance is functioning normally, you will get the status
+code `OK`, and the response will have the following format:
+```json
+{
+  "status": {
+    "code": "OK",
+    "message": "Instance is ready"
+  },
+  ...
+}
+```
+
+### Request clone creation
+When your Database Lab instance is up and running you can use it to create thin
+clones, work with them, delete the existing clones, and see the list of
+existing clones. To create a thin clone, you need to make a `POST /clone`
+request and fill all the required fields, as illustrated below:
+
+```bash
+curl -X POST -H "Verification-Token: some-token" \
+  -d '{"name":"clone1", "db":{"username":"new_user", "password":"some_password"}}' \
+  -i https://host/clone
+```
+
+We will get clone ID and status `CREATING`, we should make consequential
+`GET /status` and wait until status became `OK`.
+```json
+{
+  "id": "bo200eumq8of32ck5e2g",
+  "name": "clone1",
+  "status": {
+    "code": "CREATING",
+    "message": "Clone is being created."
+  },
+  "db": {
+    "host": "internal_host",
+    "port": "6000",
+    "username": "new_user"
+  },
+  ...
+}
+```
+
+### Connect
+When the status is `OK` we are ready to connect to the clone's Postgres
+database. For example, using `psql`:
+```bash
+psql -h internal_host -p 6000 -U new_user # will ask for a password unless it's set in either PGPASSWORD or .pgpass
+```
 
 
 ## REST API
@@ -47,7 +106,7 @@ Clone statuses:
 - `DELETING` - clone is being deleted.
 - `FATAL` - fatal error happened (details in status message).
 
-Basic models:
+Models:
 ```
 Clone
 {
@@ -80,7 +139,7 @@ Error
 }
 ```
 
-REST API:
+API routes:
 ```
 Get DB Lab instance status and list clones
 GET /status
