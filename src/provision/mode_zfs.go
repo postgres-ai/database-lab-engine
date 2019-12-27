@@ -346,10 +346,10 @@ func (j *provisionModeZfs) GetDiskState() (*Disk, error) {
 	for _, entry := range entries {
 		if entry.Name == parentPool {
 			parentPoolEntry = entry
-		} else if entry.Name == j.config.ModeZfs.ZfsPool {
+		}
+		if entry.Name == j.config.ModeZfs.ZfsPool {
 			poolEntry = entry
 		}
-
 		if parentPoolEntry != nil && poolEntry != nil {
 			break
 		}
