@@ -231,39 +231,42 @@ func PostgresList(r Runner, prefix string) ([]string, error) {
 }
 
 func pgctlStart(r Runner, logsDir string, c *PgConfig) (string, error) {
-	startCmd := `sudo --user postgres ` +
+	startCmd := `sudo --user postgres --non-interactive ` +
 		c.getBindir() + `/pg_ctl ` +
-		`--pgdata /` + c.Datadir + ` ` +
+		`--pgdata ` + c.Datadir + ` ` +
 		`--log ` + logsDir + ` ` +
 		`-o "-p ` + c.getPortStr() + `" ` +
+		`--no-wait ` +
 		`start`
 
 	return r.Run(startCmd, true)
 }
 
 func pgctlStop(r Runner, mode string, c *PgConfig) (string, error) {
-	stopCmd := "sudo --user postgres " +
-		c.getBindir() + "/pg_ctl " +
-		"--pgdata /" + c.Datadir + " " +
-		"--mode " + mode + " " +
-		"stop"
+	stopCmd := `sudo --user postgres --non-interactive ` +
+		c.getBindir() + `/pg_ctl ` +
+		`--pgdata /` + c.Datadir + ` ` +
+		`--mode ` + mode + ` ` +
+		`--no-wait ` +
+		`stop`
 
 	return r.Run(stopCmd, true)
 }
 
 func pgctlStatus(r Runner, c *PgConfig) (string, error) {
-	statusCmd := `sudo --user postgres ` +
+	statusCmd := `sudo --user postgres --non-interactive ` +
 		c.getBindir() + `/pg_ctl ` +
-		`--pgdata /` + c.Datadir + ` ` +
+		`--pgdata ` + c.Datadir + ` ` +
 		`status`
 
 	return r.Run(statusCmd, true)
 }
 
 func pgctlPromote(r Runner, c *PgConfig) (string, error) {
-	startCmd := `sudo --user postgres ` +
+	startCmd := `sudo --user postgres --non-interactive ` +
 		c.getBindir() + `/pg_ctl ` +
-		`--pgdata /` + c.Datadir + ` ` +
+		`--pgdata ` + c.Datadir + ` ` +
+		`--no-wait ` +
 		`promote`
 
 	return r.Run(startCmd, true)
@@ -300,13 +303,13 @@ func runPsql(r Runner, command string, c *PgConfig, formatted bool, useFile bool
 	}
 
 	psqlCmd := `PGPASSWORD=` + c.getPassword() + ` ` +
-		`sudo --user postgres ` +
 		c.getBindir() + `/psql ` +
 		host +
 		`--dbname ` + c.getDbName() + ` ` +
 		`--port ` + c.getPortStr() + ` ` +
 		`--username ` + c.getUsername() + ` ` +
 		`-X` + params + ` ` +
+		`--no-password ` +
 		commandParam
 
 	out, err := r.Run(psqlCmd)

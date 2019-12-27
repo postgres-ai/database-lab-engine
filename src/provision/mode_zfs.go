@@ -128,7 +128,7 @@ func (j *provisionModeZfs) StartSession(username string, password string,
 
 	name := j.getName(port)
 
-	log.Dbg(fmt.Sprintf("Starting session for port: %d.", port))
+	log.Dbg(fmt.Sprintf(`Starting session for port: %d.`, port))
 
 	err = ZfsCreateClone(j.runner, j.config.ModeZfs.ZfsPool, name, snapshot,
 		j.config.ModeZfs.MountDir)
@@ -138,12 +138,12 @@ func (j *provisionModeZfs) StartSession(username string, password string,
 
 	err = PostgresStart(j.runner, j.getPgConfig(name, port))
 	if err != nil {
-		log.Err("StartSession:", err)
+		log.Err(`StartSession:`, err)
 		log.Dbg(`Reverting "StartSession"...`)
 
 		rerr := ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name)
 		if rerr != nil {
-			log.Err("Revert:", rerr)
+			log.Err(`Revert:`, rerr)
 		}
 
 		return nil, err
@@ -151,7 +151,7 @@ func (j *provisionModeZfs) StartSession(username string, password string,
 
 	err = j.prepareDb(username, password, j.getPgConfig(name, port))
 	if err != nil {
-		log.Err("StartSession:", err)
+		log.Err(`StartSession:`, err)
 		log.Dbg(`Reverting "StartSession"...`)
 
 		rerr := PostgresStop(j.runner, j.getPgConfig(name, 0))
@@ -161,7 +161,7 @@ func (j *provisionModeZfs) StartSession(username string, password string,
 
 		rerr = ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name)
 		if rerr != nil {
-			log.Err("Revert:", rerr)
+			log.Err(`Revert:`, rerr)
 		}
 
 		return nil, err
@@ -169,17 +169,17 @@ func (j *provisionModeZfs) StartSession(username string, password string,
 
 	err = j.setPort(port, true)
 	if err != nil {
-		log.Err("StartSession:", err)
+		log.Err(`StartSession:`, err)
 		log.Dbg(`Reverting "StartSession"...`)
 
 		rerr := PostgresStop(j.runner, j.getPgConfig(name, 0))
 		if rerr != nil {
-			log.Err("Revert:", rerr)
+			log.Err(`Revert:`, rerr)
 		}
 
 		rerr = ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name)
 		if rerr != nil {
-			log.Err("Revert:", rerr)
+			log.Err(`Revert:`, rerr)
 		}
 
 		return nil, err
