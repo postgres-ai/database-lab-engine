@@ -37,7 +37,7 @@ type Cloning interface {
 	ResetClone(string) error
 
 	GetInstanceState() (*m.InstanceStatus, error)
-	GetSnapshots() []*m.Snapshot
+	GetSnapshots() ([]*m.Snapshot, error)
 	GetClones() []*m.Clone
 }
 
@@ -50,6 +50,8 @@ type CloneWrapper struct {
 
 	username string
 	password string
+
+	snapshot *m.Snapshot
 }
 
 func NewCloning(config *Config, provision p.Provision) (Cloning, error) {
