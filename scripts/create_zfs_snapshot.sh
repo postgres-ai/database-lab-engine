@@ -64,13 +64,17 @@ mv ${clone_pgdata_dir}/postgresql_real.conf ${clone_pgdata_dir}/postgresql.conf
 ### postgresql.conf
 echo "external_pid_file='${clone_pgdata_dir}/postmaster.pid'" >>  ${clone_pgdata_dir}/postgresql.conf
 echo "data_directory='${clone_pgdata_dir}'" >> ${clone_pgdata_dir}/postgresql.conf
-echo "log_directory='${clone_pgdata_dir}/pg_log'"
+echo "log_directory='${clone_pgdata_dir}/log'" >> ${clone_pgdata_dir}/postgresql.conf
+# TODO: improve secirity aspects
+echo "listen_addresses = '*'" >> ${clone_pgdata_dir}/postgresql.conf
 # TODO: adjust log settings, memory setting
 
 ### recovery.conf
-echo "standby_mode = 'on'" > ${clone_pgdata_dir}/recovery.conf # overriding
-echo "primary_conninfo = ''" >> ${clone_pgdata_dir}/recovery.conf
-echo "restore_command = ''" >> ${clone_pgdata_dir}/recovery.conf
+#echo "standby_mode = 'on'" > ${clone_pgdata_dir}/recovery.conf # overriding
+#echo "primary_conninfo = ''" >> ${clone_pgdata_dir}/recovery.conf
+#echo "restore_command = ''" >> ${clone_pgdata_dir}/recovery.conf
+
+touch ${clone_pgdata_dir}/standby.signal
 
 ### pg_hba.conf
 echo "host all all 127.0.0.1/32 trust" > ${clone_pgdata_dir}/pg_hba.conf
@@ -106,9 +110,15 @@ if $failed; then
 fi
 
 # Save data state timestamp.
-#   - if we had a replica, we can use `select pg_last_xact_replay_timestamp()`,
+#   - if we had a replica, we can use `pg_last_xact_replay_timestamp()`,
 #   - if it is a master initially, the DB state timestamp must be provided by user in unix time format.
-data_state_at=$(${pg_bin_dir}/psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h localhost -XAtc 'select extract(epoch from pg_last_xact_replay_timestamp())')
+if [[ ! -z ${DATA_STATE_AT+x} ]]; then
+  # For testing, use:
+  #    DATA_STATE_AT=$(TZ=UTC date '+%Y%m%d%H%M%S')
+  data_state_at="${DATA_STATE_AT}"
+else
+  data_state_at=$(${pg_bin_dir}/psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h localhost -XAtc 'select extract(epoch from pg_last_xact_replay_timestamp())')
+fi
 
 # Promote to the master. Again, it may take a while.
 sudo -u postgres ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -W promote
@@ -134,7 +144,8 @@ sudo -u postgres ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -w stop
 
 # Finally, we don't wan't to want 'trust', we need to use password always.
 # Note, that this line overrides the whole pg_hba.conf
-sudo -u postgres sh -c "echo \"host all all 127.0.0.1/32 md5\" > ${clone_pgdata_dir}/pg_hba.conf"
+sudo -u postgres sh -c "echo \"host all postgres 127.0.0.1/32 trust\" > ${clone_pgdata_dir}/pg_hba.conf"
+sudo -u postgres sh -c "echo \"host all all all md5\" >> ${clone_pgdata_dir}/pg_hba.conf"
 
 sudo zfs snapshot -r ${clone_full_name}@${snapshot_name}
 sudo zfs set dblab:datastateat="${data_state_at}" ${clone_full_name}@${snapshot_name}

@@ -112,8 +112,8 @@ func (c *mockCloning) GetInstanceState() (*m.InstanceStatus, error) {
 	return c.instanceStatus, nil
 }
 
-func (c *mockCloning) GetSnapshots() []*m.Snapshot {
-	return c.snapshots
+func (c *mockCloning) GetSnapshots() ([]*m.Snapshot, error) {
+	return c.snapshots, nil
 }
 
 func (c *mockCloning) GetClones() []*m.Clone {

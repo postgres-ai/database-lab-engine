@@ -78,7 +78,7 @@ func ZfsCreateClone(r Runner, pool string, name string, snapshot string,
 		return nil
 	}
 
-	cmd := "sudo -n zfs clone " + pool + "@" + snapshot + " " +
+	cmd := "sudo -n zfs clone " + snapshot + " " +
 		pool + "/" + name + " -o mountpoint=" + mountDir + name + " && " +
 		"sudo --non-interactive chown -R postgres " + mountDir + name
 
@@ -141,7 +141,7 @@ func ZfsListClones(r Runner, prefix string) ([]string, error) {
 }
 
 func ZfsCreateSnapshot(r Runner, pool string, snapshot string) error {
-	cmd := fmt.Sprintf("sudo -n zfs snapshot -r %s@%s", pool, snapshot)
+	cmd := fmt.Sprintf("sudo -n zfs snapshot -r %s", snapshot)
 
 	_, err := r.Run(cmd, true)
 	if err != nil {
@@ -152,7 +152,7 @@ func ZfsCreateSnapshot(r Runner, pool string, snapshot string) error {
 }
 
 func ZfsRollbackSnapshot(r Runner, pool string, snapshot string) error {
-	cmd := fmt.Sprintf("sudo -n zfs rollback -f -r %s@%s", pool, snapshot)
+	cmd := fmt.Sprintf("sudo -n zfs rollback -f -r %s", snapshot)
 
 	_, err := r.Run(cmd, true)
 	if err != nil {
@@ -177,6 +177,7 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 	listCmd := "sudo -n zfs list " +
 		"-po name,used,mountpoint,compressratio,available,type," +
 		"origin,creation,dblab:datastateat " +
+		"-S dblab:datastateat -S creation " + // Order DESC.
 		"-t " + dsType + " " +
 		"-r " + pool
 
@@ -196,7 +197,7 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 	for i := 1; i < len(lines); i++ {
 		fields := strings.Fields(lines[i])
 		if len(fields) != numberFields {
-			return nil, fmt.Errorf("ZFS error: wrong format.")
+			return nil, fmt.Errorf("ZFS error: some fields are empty. First of all, check dblab:datastateat.")
 		}
 
 		var err1, err2, err3, err4, err5 error

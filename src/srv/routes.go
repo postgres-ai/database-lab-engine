@@ -24,8 +24,12 @@ func (s *Server) getInstanceStatus() http.HandlerFunc {
 
 func (s *Server) getSnapshots() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		snapshots := s.Cloning.GetSnapshots()
-		_, err := writeJson(w, snapshots)
+		snapshots, err := s.Cloning.GetSnapshots()
+		if err != nil {
+			failInternalServer(w, r, err.Error())
+		}
+
+		_, err = writeJson(w, snapshots)
 		if err != nil {
 			failInternalServer(w, r, err.Error())
 		}

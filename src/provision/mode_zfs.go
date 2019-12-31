@@ -24,11 +24,11 @@ type ModeZfsPortPool struct {
 }
 
 type ModeZfsConfig struct {
-	PortPool        ModeZfsPortPool `yaml:"portPool"`
-	ZfsPool         string          `yaml:"pool"`
-	InitialSnapshot string          `yaml:"initialSnapshot"`
-	LogsDir         string          `yaml:"logsDir"`
-	MountDir        string          `yaml:"mountDir"`
+	PortPool             ModeZfsPortPool `yaml:"portPool"`
+	ZfsPool              string          `yaml:"pool"`
+	LogsDir              string          `yaml:"logsDir"`
+	MountDir             string          `yaml:"mountDir"`
+	SnapshotFilterSuffix string          `yaml:"snapshotFilterSuffix"`
 }
 
 type provisionModeZfs struct {
@@ -115,9 +115,20 @@ func (j *provisionModeZfs) Reinit() error {
 
 func (j *provisionModeZfs) StartSession(username string, password string,
 	options ...string) (*Session, error) {
-	snapshot := j.config.ModeZfs.InitialSnapshot
-	if len(options) > 0 {
-		snapshot = options[0]
+	snapshotId := ""
+	if len(options) > 0 && len(options[0]) > 0 {
+		snapshotId = options[0]
+	} else {
+		snapshots, err := j.GetSnapshots()
+		if err != nil {
+			return nil, err
+		}
+		if len(snapshots) == 0 {
+			err := fmt.Errorf("Cannot start session: no snapshots available.")
+			return nil, err
+		}
+
+		snapshotId = snapshots[0].Id
 	}
 
 	// TODO(anatoly): Synchronization or port allocation statuses.
@@ -130,7 +141,7 @@ func (j *provisionModeZfs) StartSession(username string, password string,
 
 	log.Dbg(fmt.Sprintf(`Starting session for port: %d.`, port))
 
-	err = ZfsCreateClone(j.runner, j.config.ModeZfs.ZfsPool, name, snapshot,
+	err = ZfsCreateClone(j.runner, j.config.ModeZfs.ZfsPool, name, snapshotId,
 		j.config.ModeZfs.MountDir)
 	if err != nil {
 		return nil, err
@@ -224,9 +235,19 @@ func (j *provisionModeZfs) StopSession(session *Session) error {
 func (j *provisionModeZfs) ResetSession(session *Session, options ...string) error {
 	name := j.getName(session.Port)
 
-	snapshot := j.config.ModeZfs.InitialSnapshot
-	if len(options) > 0 {
-		snapshot = options[0]
+	snapshotId := ""
+	if len(options) > 0 && len(options[0]) > 0 {
+		snapshotId = options[0]
+	} else {
+		snapshots, err := j.GetSnapshots()
+		if err != nil {
+			return err
+		}
+		if len(snapshots) == 0 {
+			return fmt.Errorf("Cannot reset session: no snapshots available.")
+		}
+
+		snapshotId = snapshots[0].Id
 	}
 
 	err := PostgresStop(j.runner, j.getPgConfig(name, 0))
@@ -250,7 +271,7 @@ func (j *provisionModeZfs) ResetSession(session *Session, options ...string) err
 		return err
 	}
 
-	err = ZfsCreateClone(j.runner, j.config.ModeZfs.ZfsPool, name, snapshot,
+	err = ZfsCreateClone(j.runner, j.config.ModeZfs.ZfsPool, name, snapshotId,
 		j.config.ModeZfs.MountDir)
 	if err != nil {
 		log.Err(`ResetSession:`, err)
@@ -310,25 +331,22 @@ func (j *provisionModeZfs) GetSnapshots() ([]*Snapshot, error) {
 		return []*Snapshot{}, err
 	}
 
-	// Currently DB Lab does not provide an option to choose snapshot other
-	// the one specified in the configuration. So it does not make sense
-	// to list other snapshots.
-	// TODO(anatoly): List all snapshots when snapshot setting become available.
-
-	snapshotName := j.config.ModeZfs.ZfsPool + "@" +
-		j.config.ModeZfs.InitialSnapshot
-
-	snapshot := &Snapshot{}
+	snapshots := make([]*Snapshot, 0, len(entries))
 	for _, entry := range entries {
-		if entry.Name == snapshotName {
-			snapshot.Id = snapshotName
-			snapshot.CreatedAt = entry.Creation
-			snapshot.DataStateAt = entry.DataStateAt
-			break
+		if strings.HasSuffix(entry.Name, j.config.ModeZfs.SnapshotFilterSuffix) {
+			continue
 		}
+
+		snapshot := &Snapshot{
+			Id:          entry.Name,
+			CreatedAt:   entry.Creation,
+			DataStateAt: entry.DataStateAt,
+		}
+
+		snapshots = append(snapshots, snapshot)
 	}
 
-	return []*Snapshot{snapshot}, nil
+	return snapshots, nil
 }
 
 func (j *provisionModeZfs) GetDiskState() (*Disk, error) {
@@ -406,6 +424,12 @@ func (j *provisionModeZfs) GetSessionState(s *Session) (*SessionState, error) {
 	return state, nil
 }
 
+func (j *provisionModeZfs) RunPsql(session *Session, command string) (string, error) {
+	pgConf := j.getPgConfig(session.Name, session.Port)
+	return runPsqlStrict(j.runner, command, pgConf)
+}
+
+// Other methods.
 func (j *provisionModeZfs) getDataSize(mountDir string) (uint64, error) {
 	log.Dbg("getDataSize: " + mountDir)
 	out, err := j.runner.Run("sudo du -d0 -b " + mountDir)
@@ -430,12 +454,6 @@ func (j *provisionModeZfs) getDataSize(mountDir string) (uint64, error) {
 	return nbytes, nil
 }
 
-func (j *provisionModeZfs) RunPsql(session *Session, command string) (string, error) {
-	pgConf := j.getPgConfig(session.Name, session.Port)
-	return runPsqlStrict(j.runner, command, pgConf)
-}
-
-// Other methods.
 func (j *provisionModeZfs) initPortPool() error {
 	// Init session pool.
 	portOpts := j.config.ModeZfs.PortPool

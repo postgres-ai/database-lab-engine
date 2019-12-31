@@ -30,7 +30,7 @@ import (
 )
 
 var opts struct {
-	VerificationToken string `short:"v" long:"verification-token" description:"callback URL verification token" env:"VERIFICATION_TOKEN" required:"true"`
+	VerificationToken string `short:"v" long:"verification-token" description:"callback URL verification token" env:"VERIFICATION_TOKEN"`
 	DbPassword        string `description:"database password" env:"DB_PASSWORD" default:"postgres"`
 
 	ShowHelp func() error `long:"help" description:"Show this help message"`

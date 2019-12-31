@@ -59,13 +59,6 @@ func (c *baseCloning) Run() error {
 		return err
 	}
 
-	// TODO(anatoly): Update snapshots dynamically.
-	err = c.fetchSnapshots()
-	if err != nil {
-		log.Err("CloningRun:", err)
-		return err
-	}
-
 	// TODO(anatoly): Run interval for stopping idle sessions.
 
 	return nil
@@ -101,8 +94,16 @@ func (c *baseCloning) CreateClone(clone *m.Clone) error {
 	w.password = clone.Db.Password
 	clone.Db.Password = ""
 
+	w.snapshot = clone.Snapshot
+
 	go func() {
-		session, err := c.provision.StartSession(w.username, w.password)
+		snapshotId := ""
+		if w.snapshot != nil && len(w.snapshot.Id) > 0 {
+			snapshotId = w.snapshot.Id
+		}
+
+		session, err := c.provision.StartSession(w.username, w.password,
+			snapshotId)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
 			log.Err("Failed to create clone:", err)
@@ -278,7 +279,12 @@ func (c *baseCloning) ResetClone(id string) error {
 	}
 
 	go func() {
-		err := c.provision.ResetSession(w.session)
+		snapshotId := ""
+		if w.snapshot != nil && len(w.snapshot.Id) > 0 {
+			snapshotId = w.snapshot.Id
+		}
+
+		err := c.provision.ResetSession(w.session, snapshotId)
 		if err != nil {
 			log.Err("Failed to reset clone:", err)
 			w.clone.Status = statusFatal
@@ -302,12 +308,20 @@ func (c *baseCloning) GetInstanceState() (*m.InstanceStatus, error) {
 	c.instanceStatus.DataSize = disk.DataSize
 	c.instanceStatus.ExpectedCloningTime = c.getExpectedCloningTime()
 	c.instanceStatus.Clones = c.GetClones()
+	c.instanceStatus.NumClones = uint64(len(c.instanceStatus.Clones))
 
 	return c.instanceStatus, nil
 }
 
-func (c *baseCloning) GetSnapshots() []*m.Snapshot {
-	return c.snapshots
+func (c *baseCloning) GetSnapshots() ([]*m.Snapshot, error) {
+	// TODO(anatoly): Update snapshots dynamically.
+	err := c.fetchSnapshots()
+	if err != nil {
+		log.Err("CloningRun:", err)
+		return []*m.Snapshot{}, err
+	}
+
+	return c.snapshots, nil
 }
 
 func (c *baseCloning) GetClones() []*m.Clone {

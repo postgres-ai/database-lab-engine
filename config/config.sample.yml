@@ -14,6 +14,7 @@ provision:
       to: 6100
     mountDir: /var/lib/postgresql/dblab/clones
     logsDir: /var/lib/postgresql/dblab/logs
+    snapshotFilterSuffix: "_pre"
   pgVersion: "9.6"
   pgBindir: "/usr/lib/postgresql/9.6/bin"
   pgDataSubdir: "/pgdata"
