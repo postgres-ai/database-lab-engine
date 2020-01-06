@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"../log"
 	"../util"
 )
 
@@ -201,28 +200,37 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 		}
 
 		var err1, err2, err3, err4, err5 error
-		var used, available, creation, dataStateAt uint64
+		var used, available uint64
+		var creation, dataStateAt time.Time
 		var compressRatio float64
 
+		// Used.
 		if fields[1] != "-" {
 			used, err1 = strconv.ParseUint(fields[1], 10, 64)
 		}
 
+		// Compressratio.
 		if fields[3] != "-" {
 			ratioStr := strings.ReplaceAll(fields[3], "x", "")
 			compressRatio, err2 = strconv.ParseFloat(ratioStr, 64)
 		}
+
+		// Available.
 		if fields[4] != "-" {
 			available, err3 = strconv.ParseUint(fields[4], 10, 64)
 		}
 
+		// Creation.
 		if fields[7] != "-" {
-			creation, err4 = strconv.ParseUint(fields[7], 10, 64)
+			creationInt, err4 := strconv.ParseInt(fields[7], 10, 64)
+			if err4 == nil {
+				creation = time.Unix(creationInt, 0)
+			}
 		}
 
+		// Dblab:datastateat.
 		if fields[8] != "-" {
-			dataStateAt, err5 = strconv.ParseUint(fields[8], 10, 64)
-			log.Dbg("dataStateAt:", dataStateAt)
+			dataStateAt, err5 = time.Parse(fields[8], "20060102030405")
 		}
 
 		if err1 != nil || err2 != nil || err3 != nil || err4 != nil ||
@@ -239,8 +247,8 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 			Available:     available,
 			Type:          fields[5],
 			Origin:        fields[6],
-			Creation:      time.Unix(int64(creation), 0),
-			DataStateAt:   time.Unix(int64(dataStateAt), 0),
+			Creation:      creation,
+			DataStateAt:   dataStateAt,
 		}
 	}
 

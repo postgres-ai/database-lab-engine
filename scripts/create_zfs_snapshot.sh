@@ -117,7 +117,13 @@ if [[ ! -z ${DATA_STATE_AT+x} ]]; then
   #    DATA_STATE_AT=$(TZ=UTC date '+%Y%m%d%H%M%S')
   data_state_at="${DATA_STATE_AT}"
 else
-  data_state_at=$(${pg_bin_dir}/psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h localhost -XAtc 'select extract(epoch from pg_last_xact_replay_timestamp())')
+  data_state_at=$(${pg_bin_dir}/psql \
+    -p ${clone_port} \
+    -U ${pg_username} \
+    -d ${pg_db} \
+    -h localhost \
+    -XAt \
+    -c "select to_char(pg_last_xact_replay_timestamp() at time zone 'UTC', 'YYYYMMDDHH24MISS')")
 fi
 
 # Promote to the master. Again, it may take a while.
