@@ -1,4 +1,4 @@
-# Copy the following to: ./config/config.yaml
+# Copy the following to: ./configs/config.yaml
 
 server:
   verificationToken: "xxx"
@@ -7,22 +7,21 @@ server:
 provision:
   mode: "zfs"
   zfs:
-    pool: "db_lab_pool"
-    initialSnapshot: "db_state_1"
+    pool: "dblab_pool"
     portPool:
       from: 6000
       to: 6100
     mountDir: /var/lib/postgresql/dblab/clones
     logsDir: /var/lib/postgresql/dblab/logs
     snapshotFilterSuffix: "_pre"
-  pgVersion: "9.6"
-  pgBindir: "/usr/lib/postgresql/9.6/bin"
-  pgDataSubdir: "/pgdata"
+  pgBindir: "/usr/lib/postgresql/12/bin"
+  pgDataSubdir: "/"
+  pgVersion: "12"
 
 cloning:
   mode: "base"
+  accessHost: "localhost"
   autoDelete: true
   idleTime: 120
-  accessHost: "localhost"
 
 debug: true

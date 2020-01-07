@@ -232,7 +232,7 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 
 		// Dblab:datastateat.
 		if fields[8] != "-" {
-			dataStateAt, err5 = time.Parse(fields[8], "20060102030405")
+			dataStateAt, err5 = time.Parse("20060102030405", fields[8])
 		}
 
 		if err1 != nil || err2 != nil || err3 != nil || err4 != nil ||

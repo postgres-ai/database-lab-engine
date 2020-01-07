@@ -54,7 +54,7 @@ func getConfigPath(name string) (string, error) {
 		return "", err
 	}
 
-	path := dir + string(os.PathSeparator) + "config" +
+	path := dir + string(os.PathSeparator) + "configs" +
 		string(os.PathSeparator) + name
 
 	return path, nil

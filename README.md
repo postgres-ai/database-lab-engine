@@ -23,13 +23,13 @@ the production Postgres database (e.g. using WAL-E, WAL-G or Barman archive).
 1. Shutdown Postgres, create a new ZFS snapshot
 (`sudo zfs snapshot -r  zpool@db_state_1`) and remember its name. It will
 be needed for further configuration (`initialSnapshot` option in
-`config/config.yml`).
+`configs/config.yml`).
 1. Start Postgres.
 
 
 ## Run
 Deploy a Database Lab instance in your infrastructure. You would need to:
-1. Create `config/config.yml` (see example in `config/`).
+1. Create `configs/config.yml` (see example in `configs/`).
 1. Build `make all` and launch Database Lab with some token for REST API
 authorization `./bin/dblab -v some-token`
 (or, with log: `./bin/dblab -v some-token 2>&1 | tee -a dblab.log`).
