@@ -1,0 +1,110 @@
+run:
+  timeout: 1m
+  issues-exit-code: 1
+  tests: true
+  skip-dirs:
+    - vendor
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+
+linters-settings:
+  errcheck:
+    check-type-assertions: false
+    check-blank: false
+    exclude: ./errcheck_excludes.txt
+  golint:
+    min-confidence: 0.8
+  gofmt:
+    simplify: true
+  goimports:
+    local-prefixes: gitlab.com/postgres-ai/database-lab
+  maligned:
+    suggest-new: true
+  dupl:
+    threshold: 120
+  goconst:
+    min-len: 3
+    min-occurrences: 5
+  lll:
+    line-length: 140
+    tab-width: 1
+  unused:
+    check-exported: false
+  unparam:
+    check-exported: false
+  nakedret:
+    max-func-lines: 20
+  prealloc:
+    simple: true
+    range-loops: true
+    for-loops: true
+  gocritic:
+    disabled-checks:
+      - regexpMust
+      - rangeValCopy
+      - appendAssign
+      - hugeParam
+    enabled-tags:
+      - performance
+
+linters:
+  enable:
+    - deadcode
+    - depguard
+    - dupl
+    - errcheck
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - goimports
+    - golint
+    - gomnd
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - maligned
+    - megacheck
+    - misspell
+    - prealloc
+    - structcheck
+    - stylecheck
+    - unconvert
+    - varcheck
+    - unused
+    - unparam
+    - wsl
+  enable-all: false
+  disable:
+    - gosec
+    - interfacer
+    - gocyclo # currently unmaintained
+  presets:
+  fast: false
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - gocyclo
+        - lll
+        - errcheck
+
+    # Exclude "error strings should not end with punctuation or a newline" for legacy reasons
+    - linters:
+        - stylecheck
+      text: "ST1005:"
+
+#    # Exclude "package comment" as unnececcary
+    - linters:
+        - stylecheck
+      text: "ST1000:"
+
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  new-from-rev: 67c2feac

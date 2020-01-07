@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"gitlab.com/postgres-ai/database-lab/src/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
 
 	"github.com/gorilla/mux"
 )
@@ -36,27 +36,27 @@ func getHelpRoutes(router *mux.Router) ([]Route, error) {
 	return routes, err
 }
 
-// Respond with JSON.
-func writeJson(w http.ResponseWriter, v interface{}) (int, error) {
+// writeJSON responds with JSON.
+func writeJSON(w http.ResponseWriter, v interface{}) error {
 	b, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		log.Err(err)
-		return 0, err
+		return err
 	}
 
-	n, err := w.Write(b)
+	_, err = w.Write(b)
 	if err != nil {
 		log.Err(err)
-		return 0, err
+		return err
 	}
 
 	log.Dbg("Response:", v)
 
-	return n, nil
+	return nil
 }
 
-// Read JSON from request.
-func readJson(r *http.Request, v interface{}) error {
+// readJSON reads JSON from request.
+func readJSON(r *http.Request, v interface{}) error {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Err(err, "\n", string(reqBody))

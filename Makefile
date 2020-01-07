@@ -19,19 +19,24 @@ LDFLAGS = -ldflags "-s -w \
 	-X main.buildTime=${BUILD_TIME}"
 
 # Build the project
-all: clean dep vet main
+all: clean run-lint build
 
 dep:
 	go mod download
 
-main:
-	GOARCH=${GOARCH} go build ${LDFLAGS} -o bin/${BINARY} ./src/
+build-lint:
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.22.2
+
+run-lint:
+	golangci-lint run
+
+lint: build-lint run-lint
+
+build:
+	GOARCH=${GOARCH} go build ${LDFLAGS} -o bin/${BINARY} ./cmd/database-lab/
 
 test:
-	go test ./src/...
-
-vet:
-	go vet ./src/...
+	go test ./pkg/...
 
 fmt:
 	go fmt $$(go list ./... | grep -v /vendor/)
@@ -40,6 +45,6 @@ clean:
 	-rm -f bin/*
 
 run:
-	go run ${LDFLAGS} ./src/*
+	go run ${LDFLAGS} ./cmd/database-lab/*
 
-.PHONY: all dep main test vet fmt clean run
+.PHONY: all dep build test vet fmt clean run

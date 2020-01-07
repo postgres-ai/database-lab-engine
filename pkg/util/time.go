@@ -10,6 +10,17 @@ import (
 	"time"
 )
 
+// TODO (akartasov): Check if functions are being used.
+
+const (
+	// MillisecondsInSecond defines a number of milliseconds in an one second.
+	MillisecondsInSecond = 1000
+
+	// MillisecondsInMinute defines a number of milliseconds in an one minute.
+	MillisecondsInMinute = 60000
+)
+
+// SecondsAgo returns a number of seconds elapsed from the current time.
 func SecondsAgo(ts time.Time) uint {
 	now := time.Now()
 
@@ -26,11 +37,12 @@ func DurationToString(value time.Duration) string {
 }
 
 func MillisecondsToString(value float64) string {
-	if value < 1000 {
+	switch {
+	case value < MillisecondsInSecond:
 		return fmt.Sprintf("%.3f ms", value)
-	} else if value < 60000 {
+	case value < MillisecondsInMinute:
 		return fmt.Sprintf("%.3f s", value/1000.0)
-	} else {
+	default:
 		return fmt.Sprintf("%.3f min", value/60000.0)
 	}
 }

@@ -14,14 +14,14 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/postgres-ai/database-lab/src/log"
-	"gitlab.com/postgres-ai/database-lab/src/util"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/util"
 )
 
 // We use pg_ctl -D ... -m immediate stop because we need to shut down
 // Postgres faster and completely get rid of this instance. So we don't care
 // about its state.
-const MODE_IMMEDIATE = "immediate"
+const ModeImmediate = "immediate"
 
 type PgConfig struct {
 	Version string
@@ -124,7 +124,8 @@ func PostgresStart(r Runner, c *PgConfig) error {
 	// Waiting for server to become ready and promoting if needed.
 	first := true
 	cnt := 0
-	for true {
+
+	for {
 		out, err = runPsql(r, "select pg_is_in_recovery()", c, false, false)
 
 		if err == nil {
@@ -173,7 +174,8 @@ func PostgresStop(r Runner, c *PgConfig) error {
 
 	first := true
 	cnt := 0
-	for true {
+
+	for {
 		// pg_ctl status mode checks whether a server is running
 		// in the specified data directory.
 		_, err = pgctlStatus(r, c)
@@ -201,7 +203,7 @@ func PostgresStop(r Runner, c *PgConfig) error {
 		if first {
 			first = false
 
-			_, err = pgctlStop(r, MODE_IMMEDIATE, c)
+			_, err = pgctlStop(r, ModeImmediate, c)
 			if err != nil {
 				return err
 			}
@@ -213,8 +215,6 @@ func PostgresStop(r Runner, c *PgConfig) error {
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
-
-	panic(fmt.Errorf("Postgres stop: unreachable code."))
 }
 
 func PostgresList(r Runner, prefix string) ([]string, error) {
@@ -315,7 +315,7 @@ func runPsql(r Runner, command string, c *PgConfig, formatted bool, useFile bool
 	out, err := r.Run(psqlCmd)
 
 	if useFile {
-		os.Remove(filename)
+		err = os.Remove(filename)
 	}
 
 	return out, err
@@ -338,7 +338,7 @@ func runPsqlStrict(r Runner, command string, c *PgConfig) (string, error) {
 	// backslash command (even without space separator),
 	// e.g. `\d table1\d table2`.
 
-	// Remove all backslashes except the one in the beggining.
+	// Remove all backslashes except the one in the beginning.
 	command = string(command[0]) + strings.ReplaceAll(command[1:], "\\", "")
 
 	// Semicolumn creates possibility to run consequent command.

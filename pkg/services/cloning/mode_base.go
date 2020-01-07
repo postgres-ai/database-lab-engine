@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/postgres-ai/database-lab/src/log"
-	"gitlab.com/postgres-ai/database-lab/src/models"
-	"gitlab.com/postgres-ai/database-lab/src/provision"
-	"gitlab.com/postgres-ai/database-lab/src/util"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
+	"gitlab.com/postgres-ai/database-lab/pkg/util"
 
 	"github.com/rs/xid"
 )
@@ -27,7 +27,7 @@ type baseCloning struct {
 }
 
 // TODO(anatoly): Delete idle clones.
-
+// NewBaseCloning instances a new base Cloning.
 func NewBaseCloning(cfg *Config, provision provision.Provision) Cloning {
 	var instanceStatusActualStatus = &models.Status{
 		Code:    "OK",
@@ -81,9 +81,9 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		return fmt.Errorf("Missing DB password.")
 	}
 
-	clone.Id = xid.New().String()
+	clone.ID = xid.New().String()
 	w := NewCloneWrapper(clone)
-	c.clones[clone.Id] = w
+	c.clones[clone.ID] = w
 
 	clone.Status = statusCreating
 
@@ -97,13 +97,12 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 	w.snapshot = clone.Snapshot
 
 	go func() {
-		snapshotId := ""
-		if w.snapshot != nil && len(w.snapshot.Id) > 0 {
-			snapshotId = w.snapshot.Id
+		snapshotID := ""
+		if w.snapshot != nil && len(w.snapshot.ID) > 0 {
+			snapshotID = w.snapshot.ID
 		}
 
-		session, err := c.provision.StartSession(w.username, w.password,
-			snapshotId)
+		session, err := c.provision.StartSession(w.username, w.password, snapshotID)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
 			log.Err("Failed to create clone:", err)
@@ -160,7 +159,7 @@ func (c *baseCloning) DestroyClone(id string) error {
 			return
 		}
 
-		delete(c.clones, w.clone.Id)
+		delete(c.clones, w.clone.ID)
 	}()
 
 	return nil
@@ -191,9 +190,8 @@ func (c *baseCloning) GetClone(id string) (*models.Clone, bool) {
 
 func (c *baseCloning) UpdateClone(id string, patch *models.Clone) error {
 	// TODO(anatoly): Nullable fields?
-
 	// Check unmodifiable fields.
-	if len(patch.Id) > 0 {
+	if len(patch.ID) > 0 {
 		err := fmt.Errorf("ID cannot be changed.")
 		log.Err(err)
 		return err
@@ -279,12 +277,12 @@ func (c *baseCloning) ResetClone(id string) error {
 	}
 
 	go func() {
-		snapshotId := ""
-		if w.snapshot != nil && len(w.snapshot.Id) > 0 {
-			snapshotId = w.snapshot.Id
+		snapshotID := ""
+		if w.snapshot != nil && len(w.snapshot.ID) > 0 {
+			snapshotID = w.snapshot.ID
 		}
 
-		err := c.provision.ResetSession(w.session, snapshotId)
+		err := c.provision.ResetSession(w.session, snapshotID)
 		if err != nil {
 			log.Err("Failed to reset clone:", err)
 			w.clone.Status = statusFatal
@@ -356,7 +354,7 @@ func (c *baseCloning) fetchSnapshots() error {
 
 	for i, entry := range entries {
 		snapshots[i] = &models.Snapshot{
-			Id:          entry.Id,
+			ID:          entry.ID,
 			CreatedAt:   util.FormatTime(entry.CreatedAt),
 			DataStateAt: util.FormatTime(entry.DataStateAt),
 		}
