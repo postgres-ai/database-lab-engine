@@ -5,7 +5,7 @@
 package models
 
 type Clone struct {
-	Id          string    `json:"id"`
+	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	Snapshot    *Snapshot `json:"snapshot"`
 	CloneSize   uint64    `json:"cloneSize"`

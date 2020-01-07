@@ -14,5 +14,9 @@ stages:
 test:
   stage: test
   script:
-    - make vet
     - make test
+
+lint:
+  stage: test
+  script:
+    - make lint

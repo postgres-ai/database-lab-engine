@@ -8,10 +8,11 @@ import (
 	"fmt"
 	"strings"
 
-	"gitlab.com/postgres-ai/database-lab/src/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
 )
 
-const RESET_PASSWORDS_QUERY = `do $$
+// ResetPasswordsQuery provides a template for a reset password query.
+const ResetPasswordsQuery = `do $$
 declare
   rec record;
   sql text;
@@ -33,7 +34,8 @@ end
 $$;
 `
 
-const RESET_PASSWORDS_QUERY_WHERE = ` and rolname not in (%s)`
+// ResetPasswordsQueryWhere provides a template for a reset password where clause.
+const ResetPasswordsQueryWhere = ` and rolname not in (%s)`
 
 func PostgresResetAllPasswords(r Runner, c *PgConfig, whitelistUsers []string) error {
 	optionalWhere := ""
@@ -44,10 +46,11 @@ func PostgresResetAllPasswords(r Runner, c *PgConfig, whitelistUsers []string) e
 			}
 			optionalWhere += fmt.Sprintf("'%s'", user)
 		}
-		optionalWhere = fmt.Sprintf(RESET_PASSWORDS_QUERY_WHERE, optionalWhere)
+
+		optionalWhere = fmt.Sprintf(ResetPasswordsQueryWhere, optionalWhere)
 	}
 
-	query := strings.Replace(RESET_PASSWORDS_QUERY,
+	query := strings.Replace(ResetPasswordsQuery,
 		"{{OPTIONAL_WHERE}}", optionalWhere, 1)
 	out, err := runPsql(r, query, c, false, true)
 	if err != nil {

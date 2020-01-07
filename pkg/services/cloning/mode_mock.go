@@ -7,8 +7,8 @@ package cloning
 import (
 	"fmt"
 
-	"gitlab.com/postgres-ai/database-lab/src/log"
-	"gitlab.com/postgres-ai/database-lab/src/models"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/models"
 )
 
 type mockCloning struct {
@@ -19,6 +19,7 @@ type mockCloning struct {
 	snapshots      []*models.Snapshot
 }
 
+// NewMockCloning instances a new mock Cloning.
 func NewMockCloning(cfg *Config) Cloning {
 	var instanceStatusActualStatus = &models.Status{
 		Code:    "OK",
@@ -41,12 +42,13 @@ func NewMockCloning(cfg *Config) Cloning {
 	return cloning
 }
 
+// NewMockClone instances a new Clone model.
 func NewMockClone() *models.Clone {
 	db := &models.Database{}
 	snapshot := &models.Snapshot{}
 
 	return &models.Clone{
-		Id:          "id",
+		ID:          "id",
 		Name:        "name",
 		Snapshot:    snapshot,
 		CloneSize:   1000,

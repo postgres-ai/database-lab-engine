@@ -11,7 +11,7 @@ import (
 
 func TestSecondsAgo(t *testing.T) {
 	ts1 := time.Date(2010, time.December, 10, 10, 10, 10, 0, time.UTC)
-	if SecondsAgo(ts1) <= 0 {
+	if SecondsAgo(ts1) == 0 {
 		t.FailNow()
 	}
 

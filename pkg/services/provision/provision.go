@@ -11,24 +11,25 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/postgres-ai/database-lab/src/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
 )
 
 const (
-	MODE_ZFS = "zfs"
+	// ModeZfs defines provisioning for ZFS.
+	ModeZfs = "zfs"
 )
 
 type NoRoomError string
 
 type State struct {
-	InstanceId        string
-	InstanceIp        string
-	DockerContainerId string
-	SessionId         string
+	InstanceID        string
+	InstanceIP        string
+	DockerContainerID string
+	SessionID         string
 }
 
 type Session struct {
-	Id   string
+	ID   string
 	Name string
 
 	// Database.
@@ -65,7 +66,7 @@ type Disk struct {
 }
 
 type Snapshot struct {
-	Id          string
+	ID          string
 	CreatedAt   time.Time
 	DataStateAt time.Time
 }
@@ -92,12 +93,13 @@ type Provision interface {
 }
 
 type provision struct {
-	config Config
+	config Config //nolint
 }
 
 func NewProvision(config Config) (Provision, error) {
+	// nolint
 	switch config.Mode {
-	case MODE_ZFS:
+	case ModeZfs:
 		log.Dbg("Using ZFS mode.")
 		return NewProvisionModeZfs(config)
 	}
@@ -119,7 +121,7 @@ func IsValidConfig(c Config) bool {
 	}
 
 	switch c.Mode {
-	case MODE_ZFS:
+	case ModeZfs:
 		result = result && isValidConfigModeZfs(c)
 	default:
 		log.Err("Unsupported mode specified.")

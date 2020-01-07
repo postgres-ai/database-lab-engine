@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"gitlab.com/postgres-ai/database-lab/src/log"
-	"gitlab.com/postgres-ai/database-lab/src/models"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/models"
 
 	"github.com/gorilla/mux"
 )
@@ -14,8 +14,11 @@ import (
 func (s *Server) getInstanceStatus() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		status, err := s.Cloning.GetInstanceState()
+		if err != nil {
+			failInternalServer(w, r, err.Error())
+		}
 
-		_, err = writeJson(w, status)
+		err = writeJSON(w, status)
 		if err != nil {
 			failInternalServer(w, r, err.Error())
 		}
@@ -29,7 +32,7 @@ func (s *Server) getSnapshots() http.HandlerFunc {
 			failInternalServer(w, r, err.Error())
 		}
 
-		_, err = writeJson(w, snapshots)
+		err = writeJSON(w, snapshots)
 		if err != nil {
 			failInternalServer(w, r, err.Error())
 		}
@@ -39,7 +42,7 @@ func (s *Server) getSnapshots() http.HandlerFunc {
 func (s *Server) createClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var newClone models.Clone
-		err := readJson(r, &newClone)
+		err := readJSON(r, &newClone)
 		if err != nil {
 			failBadRequest(w, r)
 			return
@@ -54,41 +57,43 @@ func (s *Server) createClone() http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		_, err = writeJson(w, newClone)
+		err = writeJSON(w, newClone)
 		if err != nil {
 			log.Err(err)
 			failInternalServer(w, r, err.Error())
 		}
-		log.Dbg(fmt.Sprintf("Clone ID=%s is being created", newClone.Id))
+
+		log.Dbg(fmt.Sprintf("Clone ID=%s is being created", newClone.ID))
 	}
 }
 
 func (s *Server) destroyClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cloneId := mux.Vars(r)["id"]
+		cloneID := mux.Vars(r)["id"]
 
-		err := s.Cloning.DestroyClone(cloneId)
+		err := s.Cloning.DestroyClone(cloneID)
 		if err != nil {
 			// TODO(anatoly): Not found case.
 			failInternalServer(w, r, err.Error())
 			return
 		}
-		log.Dbg(fmt.Sprintf("Clone ID=%s is being deleted", cloneId))
+
+		log.Dbg(fmt.Sprintf("Clone ID=%s is being deleted", cloneID))
 	}
 }
 
 func (s *Server) patchClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cloneId := mux.Vars(r)["id"]
+		cloneID := mux.Vars(r)["id"]
 
 		var patchClone *models.Clone
-		err := readJson(r, &patchClone)
+		err := readJSON(r, &patchClone)
 		if err != nil {
 			failBadRequest(w, r)
 			return
 		}
 
-		err = s.Cloning.UpdateClone(cloneId, patchClone)
+		err = s.Cloning.UpdateClone(cloneID, patchClone)
 		if err != nil {
 			failInternalServer(w, r, err.Error())
 			return
@@ -98,15 +103,15 @@ func (s *Server) patchClone() http.HandlerFunc {
 
 func (s *Server) getClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cloneId := mux.Vars(r)["id"]
+		cloneID := mux.Vars(r)["id"]
 
-		clone, ok := s.Cloning.GetClone(cloneId)
+		clone, ok := s.Cloning.GetClone(cloneID)
 		if !ok {
 			failNotFound(w, r)
 			return
 		}
 
-		_, err := writeJson(w, clone)
+		err := writeJSON(w, clone)
 		if err != nil {
 			failInternalServer(w, r, err.Error())
 		}
@@ -115,15 +120,15 @@ func (s *Server) getClone() http.HandlerFunc {
 
 func (s *Server) resetClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cloneId := mux.Vars(r)["id"]
+		cloneID := mux.Vars(r)["id"]
 
-		err := s.Cloning.ResetClone(cloneId)
+		err := s.Cloning.ResetClone(cloneID)
 		if err != nil {
 			failInternalServer(w, r, err.Error())
 			return
 		}
 
-		log.Dbg(fmt.Sprintf("Clone ID=%s is being reset", cloneId))
+		log.Dbg(fmt.Sprintf("Clone ID=%s is being reset", cloneID))
 	}
 }
 
@@ -133,6 +138,9 @@ func getHelp(routes []Route) http.HandlerFunc {
 		if err != nil {
 			log.Err(err)
 		}
-		w.Write(b)
+
+		if _, err = w.Write(b); err != nil {
+			log.Err(err)
+		}
 	}
 }

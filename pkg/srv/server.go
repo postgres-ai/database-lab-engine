@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"gitlab.com/postgres-ai/database-lab/src/cloning"
-	"gitlab.com/postgres-ai/database-lab/src/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
 
 	"github.com/gorilla/mux"
 )

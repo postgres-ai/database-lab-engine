@@ -8,14 +8,20 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/postgres-ai/database-lab/src/log"
-	"gitlab.com/postgres-ai/database-lab/src/models"
-	"gitlab.com/postgres-ai/database-lab/src/provision"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 )
 
-const MODE_BASE = "base"
-const MODE_MOCK = "mock"
+const (
+	// ModeBase defines a base mode of cloning.
+	ModeBase = "base"
 
+	// ModeMock defines a mock mode of cloning.
+	ModeMock = "mock"
+)
+
+// Config contains a cloning configuration.
 type Config struct {
 	Mode       string `yaml:"mode"`
 	AutoDelete bool   `yaml:"autoDelete"`
@@ -27,6 +33,7 @@ type cloning struct {
 	Config *Config
 }
 
+// Cloning defines a Cloning service interface.
 type Cloning interface {
 	Run() error
 
@@ -41,6 +48,7 @@ type Cloning interface {
 	GetClones() []*models.Clone
 }
 
+// CloneWrapper represents a cloning service wrapper.
 type CloneWrapper struct {
 	clone   *models.Clone
 	session *provision.Session
@@ -54,19 +62,21 @@ type CloneWrapper struct {
 	snapshot *models.Snapshot
 }
 
+// NewCloning returns a cloning interface depends on configuration mode.
 func NewCloning(config *Config, provision provision.Provision) (Cloning, error) {
 	switch config.Mode {
-	case "", MODE_BASE:
+	case "", ModeBase:
 		log.Dbg("Using base cloning mode.")
 		return NewBaseCloning(config, provision), nil
-	case MODE_MOCK:
+	case ModeMock:
 		log.Dbg("Using mock cloning mode.")
 		return nil, nil
 	}
 
-	return nil, fmt.Errorf("Unsupported mode specified.")
+	return nil, fmt.Errorf("unsupported mode specified")
 }
 
+// NewCloneWrapper constructs a new CloneWrapper.
 func NewCloneWrapper(clone *models.Clone) *CloneWrapper {
 	w := &CloneWrapper{
 		clone: clone,

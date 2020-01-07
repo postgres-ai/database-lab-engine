@@ -14,18 +14,14 @@ package main
 
 import (
 	"bytes"
-	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 
-	"gitlab.com/postgres-ai/database-lab/src/cloning"
-	"gitlab.com/postgres-ai/database-lab/src/log"
-	"gitlab.com/postgres-ai/database-lab/src/provision"
-	"gitlab.com/postgres-ai/database-lab/src/srv"
+	"gitlab.com/postgres-ai/database-lab/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
+	"gitlab.com/postgres-ai/database-lab/pkg/srv"
 
 	"github.com/jessevdk/go-flags"
-	"gopkg.in/yaml.v2"
 )
 
 var opts struct {
@@ -33,13 +29,6 @@ var opts struct {
 	DbPassword        string `description:"database password" env:"DB_PASSWORD" default:"postgres"`
 
 	ShowHelp func() error `long:"help" description:"Show this help message"`
-}
-
-type Config struct {
-	Server    srv.Config       `yaml:"server"`
-	Provision provision.Config `yaml:"provision"`
-	Cloning   cloning.Config   `yaml:"cloning"`
-	Debug     bool             `yaml:"debug"`
 }
 
 func main() {
@@ -57,30 +46,31 @@ func main() {
 
 	log.DEBUG = true
 
-	cfg := Config{}
-	err = loadConfig(&cfg, "config.yml")
+	cfg, err := config.LoadConfig("config.yml")
 	if err != nil {
 		log.Fatal("Config parse error:", err)
 		return
 	}
 
+	log.Dbg("Config loaded", cfg)
+
 	if len(opts.DbPassword) > 0 {
 		cfg.Provision.DbPassword = opts.DbPassword
 	}
 
-	provision, err := provision.NewProvision(cfg.Provision)
+	provisionSvc, err := provision.NewProvision(cfg.Provision)
 	if err != nil {
 		log.Fatal("Error in \"provision\" config:", err)
 		return
 	}
 
-	cloning, err := cloning.NewCloning(&cfg.Cloning, provision)
+	cloningSvc, err := cloning.NewCloning(&cfg.Cloning, provisionSvc)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
 
-	if err = cloning.Run(); err != nil {
+	if err = cloningSvc.Run(); err != nil {
 		log.Fatal(err)
 		return
 	}
@@ -89,8 +79,10 @@ func main() {
 		cfg.Server.VerificationToken = opts.VerificationToken
 	}
 
-	server := srv.NewServer(&cfg.Server, cloning)
-	server.Run()
+	server := srv.NewServer(&cfg.Server, cloningSvc)
+	if err = server.Run(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func parseArgs() ([]string, error) {
@@ -111,40 +103,4 @@ func parseArgs() ([]string, error) {
 	}
 
 	return parser.Parse()
-}
-
-func loadConfig(config interface{}, name string) error {
-	path, err := getConfigPath(name)
-	if err != nil {
-		return err
-	}
-
-	b, err := ioutil.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("Error loading %s config file.", name)
-	}
-
-	err = yaml.Unmarshal(b, config)
-	if err != nil {
-		return fmt.Errorf("Error parsing %s config.", name)
-	}
-
-	log.Dbg("Config loaded", name, config)
-	return nil
-}
-
-func getConfigPath(name string) (string, error) {
-	bindir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		return "", err
-	}
-
-	dir, err := filepath.Abs(filepath.Dir(bindir))
-	if err != nil {
-		return "", err
-	}
-
-	path := dir + string(os.PathSeparator) + "config" +
-		string(os.PathSeparator) + name
-	return path, nil
 }

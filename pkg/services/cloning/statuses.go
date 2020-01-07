@@ -5,7 +5,7 @@
 package cloning
 
 import (
-	"gitlab.com/postgres-ai/database-lab/src/models"
+	"gitlab.com/postgres-ai/database-lab/pkg/models"
 )
 
 var statusOk = &models.Status{

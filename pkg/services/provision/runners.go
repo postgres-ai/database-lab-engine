@@ -12,12 +12,15 @@ import (
 	"strings"
 	"syscall"
 
-	"gitlab.com/postgres-ai/database-lab/src/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
 )
 
 const (
-	LOGS_ENABLED_DEFAULT = true
-	HIDDEN               = "HIDDEN"
+	// LogsEnabledDefault defines logs enabling.
+	LogsEnabledDefault = true
+
+	// Hidden marks a hidden output.
+	Hidden = "HIDDEN"
 )
 
 type Runner interface {
@@ -83,7 +86,7 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 
 	logsEnabled := parseOptions(options...)
 
-	logCommand := HIDDEN
+	logCommand := Hidden
 	if logsEnabled {
 		logCommand = command
 	}
@@ -102,7 +105,7 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
-	// Psql with the file option returns error reponse to stderr with
+	// Psql with the file option returns error response to stderr with
 	// success exit code. In that case err will be nil, but we need
 	// to treat the case as error and read proper output.
 	err := cmd.Run()
@@ -120,7 +123,7 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 
 	outFormatted := strings.Trim(out.String(), " \n")
 
-	logOut := HIDDEN
+	logOut := Hidden
 	if logsEnabled {
 		logOut = outFormatted
 	}
@@ -132,7 +135,7 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 
 // Utils.
 func parseOptions(options ...bool) bool {
-	logsEnabled := LOGS_ENABLED_DEFAULT
+	logsEnabled := LogsEnabledDefault
 	if len(options) > 0 {
 		logsEnabled = options[0]
 	}

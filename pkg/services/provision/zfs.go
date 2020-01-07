@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/postgres-ai/database-lab/src/util"
+	"gitlab.com/postgres-ai/database-lab/pkg/util"
 )
 
 type ZfsListEntry struct {
@@ -199,10 +199,12 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 			return nil, fmt.Errorf("ZFS error: some fields are empty. First of all, check dblab:datastateat.")
 		}
 
-		var err1, err2, err3, err4, err5 error
-		var used, available uint64
-		var creation, dataStateAt time.Time
-		var compressRatio float64
+		var (
+			err1, err2, err3, err4, err5 error
+			used, available              uint64
+			creation, dataStateAt        time.Time
+			compressRatio                float64
+		)
 
 		// Used.
 		if fields[1] != "-" {

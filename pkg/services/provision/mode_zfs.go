@@ -9,13 +9,24 @@ import (
 	"strconv"
 	"strings"
 
-	"gitlab.com/postgres-ai/database-lab/src/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
 )
 
 const (
-	CLONE_PREFIX = "dblab_clone_"
-	SLASH        = "/"
-	DEFAULT_HOST = "localhost"
+	// ClonePrefix defines a Database Lab clone prefix.
+	ClonePrefix = "dblab_clone_"
+
+	// Slash represents a slash symbol.
+	Slash = "/"
+
+	// DefaultHost defines a default host name.
+	DefaultHost = "localhost"
+
+	// DefaultUsername defines a default user name.
+	DefaultUsername = "postgres"
+
+	// DefaultPassword defines a default password.
+	DefaultPassword = "postgres"
 )
 
 type ModeZfsPortPool struct {
@@ -53,19 +64,19 @@ func NewProvisionModeZfs(config Config) (Provision, error) {
 		p.config.ModeZfs.MountDir = "/var/lib/postgresql/dblab/clones/"
 	}
 
-	if !strings.HasSuffix(p.config.ModeZfs.LogsDir, SLASH) {
-		p.config.ModeZfs.LogsDir += SLASH
+	if !strings.HasSuffix(p.config.ModeZfs.LogsDir, Slash) {
+		p.config.ModeZfs.LogsDir += Slash
 	}
 
-	if !strings.HasSuffix(p.config.ModeZfs.MountDir, SLASH) {
-		p.config.ModeZfs.MountDir += SLASH
+	if !strings.HasSuffix(p.config.ModeZfs.MountDir, Slash) {
+		p.config.ModeZfs.MountDir += Slash
 	}
 
 	if len(p.config.DbUsername) == 0 {
-		p.config.DbUsername = "postgres"
+		p.config.DbUsername = DefaultUsername
 	}
 	if len(p.config.DbPassword) == 0 {
-		p.config.DbPassword = "postgres"
+		p.config.DbPassword = DefaultPassword
 	}
 
 	return p, nil
@@ -76,17 +87,17 @@ func isValidConfigModeZfs(config Config) bool {
 
 	portPool := config.ModeZfs.PortPool
 
-	if portPool.From <= 0 {
+	if portPool.From == 0 {
 		log.Err(`Wrong configuration: "portPool.from" must be defined and be greather than 0.`)
 		result = false
 	}
 
-	if portPool.To <= 0 {
+	if portPool.To == 0 {
 		log.Err(`Wrong configuration: "portPool.to" must be defined and be greather than 0.`)
 		result = false
 	}
 
-	if portPool.To-portPool.From <= 0 {
+	if portPool.To <= portPool.From {
 		log.Err(`Wrong configuration: port pool must consist of at least one port.`)
 		result = false
 	}
@@ -115,9 +126,9 @@ func (j *provisionModeZfs) Reinit() error {
 
 func (j *provisionModeZfs) StartSession(username string, password string,
 	options ...string) (*Session, error) {
-	snapshotId := ""
+	snapshotID := ""
 	if len(options) > 0 && len(options[0]) > 0 {
-		snapshotId = options[0]
+		snapshotID = options[0]
 	} else {
 		snapshots, err := j.GetSnapshots()
 		if err != nil {
@@ -128,7 +139,7 @@ func (j *provisionModeZfs) StartSession(username string, password string,
 			return nil, err
 		}
 
-		snapshotId = snapshots[0].Id
+		snapshotID = snapshots[0].ID
 	}
 
 	// TODO(anatoly): Synchronization or port allocation statuses.
@@ -141,7 +152,7 @@ func (j *provisionModeZfs) StartSession(username string, password string,
 
 	log.Dbg(fmt.Sprintf(`Starting session for port: %d.`, port))
 
-	err = ZfsCreateClone(j.runner, j.config.ModeZfs.ZfsPool, name, snapshotId,
+	err = ZfsCreateClone(j.runner, j.config.ModeZfs.ZfsPool, name, snapshotID,
 		j.config.ModeZfs.MountDir)
 	if err != nil {
 		return nil, err
@@ -199,9 +210,9 @@ func (j *provisionModeZfs) StartSession(username string, password string,
 	j.sessionCounter++
 
 	session := &Session{
-		Id: strconv.FormatUint(uint64(j.sessionCounter), 10),
+		ID: strconv.FormatUint(uint64(j.sessionCounter), 10),
 
-		Host:              DEFAULT_HOST,
+		Host:              DefaultHost,
 		Port:              port,
 		User:              j.config.DbUsername,
 		Password:          j.config.DbPassword,
@@ -235,9 +246,9 @@ func (j *provisionModeZfs) StopSession(session *Session) error {
 func (j *provisionModeZfs) ResetSession(session *Session, options ...string) error {
 	name := j.getName(session.Port)
 
-	snapshotId := ""
+	snapshotID := ""
 	if len(options) > 0 && len(options[0]) > 0 {
-		snapshotId = options[0]
+		snapshotID = options[0]
 	} else {
 		snapshots, err := j.GetSnapshots()
 		if err != nil {
@@ -247,7 +258,7 @@ func (j *provisionModeZfs) ResetSession(session *Session, options ...string) err
 			return fmt.Errorf("Cannot reset session: no snapshots available.")
 		}
 
-		snapshotId = snapshots[0].Id
+		snapshotID = snapshots[0].ID
 	}
 
 	err := PostgresStop(j.runner, j.getPgConfig(name, 0))
@@ -271,7 +282,7 @@ func (j *provisionModeZfs) ResetSession(session *Session, options ...string) err
 		return err
 	}
 
-	err = ZfsCreateClone(j.runner, j.config.ModeZfs.ZfsPool, name, snapshotId,
+	err = ZfsCreateClone(j.runner, j.config.ModeZfs.ZfsPool, name, snapshotID,
 		j.config.ModeZfs.MountDir)
 	if err != nil {
 		log.Err(`ResetSession:`, err)
@@ -338,7 +349,7 @@ func (j *provisionModeZfs) GetSnapshots() ([]*Snapshot, error) {
 		}
 
 		snapshot := &Snapshot{
-			Id:          entry.Name,
+			ID:          entry.Name,
 			CreatedAt:   entry.Creation,
 			DataStateAt: entry.DataStateAt,
 		}
@@ -490,7 +501,7 @@ func (j *provisionModeZfs) setPort(port uint, bind bool) error {
 }
 
 func (j *provisionModeZfs) stopAllSessions() error {
-	insts, err := PostgresList(j.runner, CLONE_PREFIX)
+	insts, err := PostgresList(j.runner, ClonePrefix)
 	if err != nil {
 		return err
 	}
@@ -504,7 +515,7 @@ func (j *provisionModeZfs) stopAllSessions() error {
 		}
 	}
 
-	clones, err := ZfsListClones(j.runner, CLONE_PREFIX)
+	clones, err := ZfsListClones(j.runner, ClonePrefix)
 	if err != nil {
 		return err
 	}
@@ -522,7 +533,7 @@ func (j *provisionModeZfs) stopAllSessions() error {
 }
 
 func (j *provisionModeZfs) getName(port uint) string {
-	return CLONE_PREFIX + strconv.FormatUint(uint64(port), 10)
+	return ClonePrefix + strconv.FormatUint(uint64(port), 10)
 }
 
 func (j *provisionModeZfs) getPgConfig(name string, port uint) *PgConfig {
@@ -530,7 +541,7 @@ func (j *provisionModeZfs) getPgConfig(name string, port uint) *PgConfig {
 		Version:    j.config.PgVersion,
 		Bindir:     j.config.PgBindir,
 		Datadir:    j.config.ModeZfs.MountDir + name + j.config.PgDataSubdir,
-		Host:       DEFAULT_HOST,
+		Host:       DefaultHost,
 		Port:       port,
 		Name:       "postgres",
 		Username:   j.config.DbUsername,
