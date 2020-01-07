@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"../log"
+	"gitlab.com/postgres-ai/database-lab/src/log"
 
 	"github.com/gorilla/mux"
 )

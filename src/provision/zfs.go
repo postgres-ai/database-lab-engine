@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"../util"
+	"gitlab.com/postgres-ai/database-lab/src/util"
 )
 
 type ZfsListEntry struct {

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"syscall"
 
-	"../log"
+	"gitlab.com/postgres-ai/database-lab/src/log"
 )
 
 const (

@@ -5,30 +5,30 @@
 package cloning
 
 import (
-	m "../models"
+	"gitlab.com/postgres-ai/database-lab/src/models"
 )
 
-var statusOk = &m.Status{
+var statusOk = &models.Status{
 	Code:    "OK",
 	Message: "Clone is ready to accept Postgres connections.",
 }
 
-var statusCreating = &m.Status{
+var statusCreating = &models.Status{
 	Code:    "CREATING",
 	Message: "Clone is being created.",
 }
 
-var statusResetting = &m.Status{
+var statusResetting = &models.Status{
 	Code:    "RESETTING",
 	Message: "Clone is being reset.",
 }
 
-var statusDeleting = &m.Status{
+var statusDeleting = &models.Status{
 	Code:    "DELETING",
 	Message: "Clone is being deleted.",
 }
 
-var statusFatal = &m.Status{
+var statusFatal = &models.Status{
 	Code:    "FATAL",
 	Message: "Cloning failure.",
 }

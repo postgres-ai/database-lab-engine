@@ -1,15 +1,12 @@
-image: golang:1.12.10
+image: golang:1.13
 
 cache:
   paths:
     - /apt-cache
-    - /go/src/github.com
-    - /go/src/golang.org
-    - /go/src/google.golang.org
-    - /go/src/gopkg.in
+    - /go/pkg/mod
 
 before_script:
-  - make dep
+  - go mod download
 
 stages:
   - test

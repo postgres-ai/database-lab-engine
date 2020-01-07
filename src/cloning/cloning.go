@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"time"
 
-	"../log"
-	m "../models"
-	p "../provision"
+	"gitlab.com/postgres-ai/database-lab/src/log"
+	"gitlab.com/postgres-ai/database-lab/src/models"
+	"gitlab.com/postgres-ai/database-lab/src/provision"
 )
 
 const MODE_BASE = "base"
@@ -30,20 +30,20 @@ type cloning struct {
 type Cloning interface {
 	Run() error
 
-	CreateClone(*m.Clone) error
+	CreateClone(*models.Clone) error
 	DestroyClone(string) error
-	GetClone(string) (*m.Clone, bool)
-	UpdateClone(string, *m.Clone) error
+	GetClone(string) (*models.Clone, bool)
+	UpdateClone(string, *models.Clone) error
 	ResetClone(string) error
 
-	GetInstanceState() (*m.InstanceStatus, error)
-	GetSnapshots() ([]*m.Snapshot, error)
-	GetClones() []*m.Clone
+	GetInstanceState() (*models.InstanceStatus, error)
+	GetSnapshots() ([]*models.Snapshot, error)
+	GetClones() []*models.Clone
 }
 
 type CloneWrapper struct {
-	clone   *m.Clone
-	session *p.Session
+	clone   *models.Clone
+	session *provision.Session
 
 	timeCreatedAt time.Time
 	timeStartedAt time.Time
@@ -51,10 +51,10 @@ type CloneWrapper struct {
 	username string
 	password string
 
-	snapshot *m.Snapshot
+	snapshot *models.Snapshot
 }
 
-func NewCloning(config *Config, provision p.Provision) (Cloning, error) {
+func NewCloning(config *Config, provision provision.Provision) (Cloning, error) {
 	switch config.Mode {
 	case "", MODE_BASE:
 		log.Dbg("Using base cloning mode.")
@@ -67,13 +67,13 @@ func NewCloning(config *Config, provision p.Provision) (Cloning, error) {
 	return nil, fmt.Errorf("Unsupported mode specified.")
 }
 
-func NewCloneWrapper(clone *m.Clone) *CloneWrapper {
+func NewCloneWrapper(clone *models.Clone) *CloneWrapper {
 	w := &CloneWrapper{
 		clone: clone,
 	}
 
 	if clone.Db == nil {
-		clone.Db = &m.Database{}
+		clone.Db = &models.Database{}
 	}
 
 	return w
