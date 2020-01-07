@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"time"
 
-	"../log"
-	m "../models"
-	p "../provision"
-	"../util"
+	"gitlab.com/postgres-ai/database-lab/src/log"
+	"gitlab.com/postgres-ai/database-lab/src/models"
+	"gitlab.com/postgres-ai/database-lab/src/provision"
+	"gitlab.com/postgres-ai/database-lab/src/util"
 
 	"github.com/rs/xid"
 )
@@ -20,26 +20,26 @@ type baseCloning struct {
 	cloning
 
 	clones         map[string]*CloneWrapper
-	instanceStatus *m.InstanceStatus
-	snapshots      []*m.Snapshot
+	instanceStatus *models.InstanceStatus
+	snapshots      []*models.Snapshot
 
-	provision p.Provision
+	provision provision.Provision
 }
 
 // TODO(anatoly): Delete idle clones.
 
-func NewBaseCloning(cfg *Config, provision p.Provision) Cloning {
-	var instanceStatusActualStatus = &m.Status{
+func NewBaseCloning(cfg *Config, provision provision.Provision) Cloning {
+	var instanceStatusActualStatus = &models.Status{
 		Code:    "OK",
 		Message: "Instance is ready",
 	}
 
-	var fs = &m.FileSystem{}
+	var fs = &models.FileSystem{}
 
-	var instanceStatus = m.InstanceStatus{
+	var instanceStatus = models.InstanceStatus{
 		Status:     instanceStatusActualStatus,
 		FileSystem: fs,
-		Clones:     make([]*m.Clone, 0),
+		Clones:     make([]*models.Clone, 0),
 	}
 
 	cloning := &baseCloning{}
@@ -64,7 +64,7 @@ func (c *baseCloning) Run() error {
 	return nil
 }
 
-func (c *baseCloning) CreateClone(clone *m.Clone) error {
+func (c *baseCloning) CreateClone(clone *models.Clone) error {
 	if len(clone.Name) == 0 {
 		return fmt.Errorf("Missing clone name.")
 	}
@@ -166,10 +166,10 @@ func (c *baseCloning) DestroyClone(id string) error {
 	return nil
 }
 
-func (c *baseCloning) GetClone(id string) (*m.Clone, bool) {
+func (c *baseCloning) GetClone(id string) (*models.Clone, bool) {
 	w, ok := c.clones[id]
 	if !ok {
-		return &m.Clone{}, false
+		return &models.Clone{}, false
 	}
 
 	if w.session == nil {
@@ -181,7 +181,7 @@ func (c *baseCloning) GetClone(id string) (*m.Clone, bool) {
 	if err != nil {
 		log.Err(err)
 		// TODO(anatoly): Error processing.
-		return &m.Clone{}, false
+		return &models.Clone{}, false
 	}
 
 	w.clone.CloneSize = sessionState.CloneSize
@@ -189,7 +189,7 @@ func (c *baseCloning) GetClone(id string) (*m.Clone, bool) {
 	return w.clone, true
 }
 
-func (c *baseCloning) UpdateClone(id string, patch *m.Clone) error {
+func (c *baseCloning) UpdateClone(id string, patch *models.Clone) error {
 	// TODO(anatoly): Nullable fields?
 
 	// Check unmodifiable fields.
@@ -297,10 +297,10 @@ func (c *baseCloning) ResetClone(id string) error {
 	return nil
 }
 
-func (c *baseCloning) GetInstanceState() (*m.InstanceStatus, error) {
+func (c *baseCloning) GetInstanceState() (*models.InstanceStatus, error) {
 	disk, err := c.provision.GetDiskState()
 	if err != nil {
-		return &m.InstanceStatus{}, err
+		return &models.InstanceStatus{}, err
 	}
 
 	c.instanceStatus.FileSystem.Size = disk.Size
@@ -313,19 +313,19 @@ func (c *baseCloning) GetInstanceState() (*m.InstanceStatus, error) {
 	return c.instanceStatus, nil
 }
 
-func (c *baseCloning) GetSnapshots() ([]*m.Snapshot, error) {
+func (c *baseCloning) GetSnapshots() ([]*models.Snapshot, error) {
 	// TODO(anatoly): Update snapshots dynamically.
 	err := c.fetchSnapshots()
 	if err != nil {
 		log.Err("CloningRun:", err)
-		return []*m.Snapshot{}, err
+		return []*models.Snapshot{}, err
 	}
 
 	return c.snapshots, nil
 }
 
-func (c *baseCloning) GetClones() []*m.Clone {
-	clones := make([]*m.Clone, 0)
+func (c *baseCloning) GetClones() []*models.Clone {
+	clones := make([]*models.Clone, 0)
 	for _, clone := range c.clones {
 		clones = append(clones, clone.clone)
 	}
@@ -352,10 +352,10 @@ func (c *baseCloning) fetchSnapshots() error {
 		return err
 	}
 
-	snapshots := make([]*m.Snapshot, len(entries))
+	snapshots := make([]*models.Snapshot, len(entries))
 
 	for i, entry := range entries {
-		snapshots[i] = &m.Snapshot{
+		snapshots[i] = &models.Snapshot{
 			Id:          entry.Id,
 			CreatedAt:   util.FormatTime(entry.CreatedAt),
 			DataStateAt: util.FormatTime(entry.DataStateAt),

@@ -7,45 +7,45 @@ package cloning
 import (
 	"fmt"
 
-	"../log"
-	m "../models"
+	"gitlab.com/postgres-ai/database-lab/src/log"
+	"gitlab.com/postgres-ai/database-lab/src/models"
 )
 
 type mockCloning struct {
 	cloning
 
-	clones         map[string]*m.Clone
-	instanceStatus *m.InstanceStatus
-	snapshots      []*m.Snapshot
+	clones         map[string]*models.Clone
+	instanceStatus *models.InstanceStatus
+	snapshots      []*models.Snapshot
 }
 
 func NewMockCloning(cfg *Config) Cloning {
-	var instanceStatusActualStatus = &m.Status{
+	var instanceStatusActualStatus = &models.Status{
 		Code:    "OK",
 		Message: "Instance is ready",
 	}
 
-	var fs = &m.FileSystem{}
+	var fs = &models.FileSystem{}
 
-	var instanceStatus = m.InstanceStatus{
+	var instanceStatus = models.InstanceStatus{
 		Status:     instanceStatusActualStatus,
 		FileSystem: fs,
-		Clones:     make([]*m.Clone, 0),
+		Clones:     make([]*models.Clone, 0),
 	}
 
 	cloning := &mockCloning{}
 	cloning.Config = cfg
-	cloning.clones = make(map[string]*m.Clone)
+	cloning.clones = make(map[string]*models.Clone)
 	cloning.instanceStatus = &instanceStatus
 
 	return cloning
 }
 
-func NewMockClone() *m.Clone {
-	db := &m.Database{}
-	snapshot := &m.Snapshot{}
+func NewMockClone() *models.Clone {
+	db := &models.Database{}
+	snapshot := &models.Snapshot{}
 
-	return &m.Clone{
+	return &models.Clone{
 		Id:          "id",
 		Name:        "name",
 		Snapshot:    snapshot,
@@ -63,7 +63,7 @@ func (c *mockCloning) Run() error {
 	return nil
 }
 
-func (c *mockCloning) CreateClone(clone *m.Clone) error {
+func (c *mockCloning) CreateClone(clone *models.Clone) error {
 	if len(clone.Name) == 0 {
 		return fmt.Errorf("Missing required fields.")
 	}
@@ -81,12 +81,12 @@ func (c *mockCloning) DestroyClone(id string) error {
 	return nil
 }
 
-func (c *mockCloning) GetClone(id string) (*m.Clone, bool) {
+func (c *mockCloning) GetClone(id string) (*models.Clone, bool) {
 	clone, ok := c.clones[id]
 	return clone, ok
 }
 
-func (c *mockCloning) UpdateClone(id string, patch *m.Clone) error {
+func (c *mockCloning) UpdateClone(id string, patch *models.Clone) error {
 	_, ok := c.clones[id]
 	if !ok {
 		err := fmt.Errorf("Clone not found.")
@@ -108,16 +108,16 @@ func (c *mockCloning) ResetClone(id string) error {
 	return nil
 }
 
-func (c *mockCloning) GetInstanceState() (*m.InstanceStatus, error) {
+func (c *mockCloning) GetInstanceState() (*models.InstanceStatus, error) {
 	return c.instanceStatus, nil
 }
 
-func (c *mockCloning) GetSnapshots() ([]*m.Snapshot, error) {
+func (c *mockCloning) GetSnapshots() ([]*models.Snapshot, error) {
 	return c.snapshots, nil
 }
 
-func (c *mockCloning) GetClones() []*m.Clone {
-	clones := make([]*m.Clone, 0)
+func (c *mockCloning) GetClones() []*models.Clone {
+	clones := make([]*models.Clone, 0)
 	for _, clone := range c.clones {
 		clones = append(clones, clone)
 	}

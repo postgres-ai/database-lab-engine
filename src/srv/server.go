@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	c "../cloning"
-	"../log"
+	"gitlab.com/postgres-ai/database-lab/src/cloning"
+	"gitlab.com/postgres-ai/database-lab/src/log"
 
 	"github.com/gorilla/mux"
 )
@@ -17,7 +17,7 @@ type Config struct {
 
 type Server struct {
 	Config  *Config
-	Cloning c.Cloning
+	Cloning cloning.Cloning
 }
 
 type Route struct {
@@ -26,7 +26,7 @@ type Route struct {
 }
 
 // Initializes Server instance with provided configuration.
-func NewServer(cfg *Config, cloning c.Cloning) *Server {
+func NewServer(cfg *Config, cloning cloning.Cloning) *Server {
 	// TODO(anatoly): Stop using mock data.
 	server := &Server{
 		Config:  cfg,

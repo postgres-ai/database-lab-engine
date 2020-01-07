@@ -22,13 +22,13 @@ LDFLAGS = -ldflags "-s -w \
 all: clean dep vet main
 
 dep:
-	go get -v -d -t ./...
+	go mod download
 
 main:
 	GOARCH=${GOARCH} go build ${LDFLAGS} -o bin/${BINARY} ./src/
 
 test:
-	go test ./src/
+	go test ./src/...
 
 vet:
 	go vet ./src/...

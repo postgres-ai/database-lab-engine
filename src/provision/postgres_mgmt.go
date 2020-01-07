@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"../log"
+	"gitlab.com/postgres-ai/database-lab/src/log"
 )
 
 const RESET_PASSWORDS_QUERY = `do $$

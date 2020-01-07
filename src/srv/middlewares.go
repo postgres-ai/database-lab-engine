@@ -3,7 +3,7 @@ package srv
 import (
 	"net/http"
 
-	"../log"
+	"gitlab.com/postgres-ai/database-lab/src/log"
 )
 
 const VERIFICATION_TOKEN_HEADER = "Verification-Token"

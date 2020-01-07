@@ -19,11 +19,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"./log"
-
-	c "./cloning"
-	p "./provision"
-	s "./srv"
+	"gitlab.com/postgres-ai/database-lab/src/cloning"
+	"gitlab.com/postgres-ai/database-lab/src/log"
+	"gitlab.com/postgres-ai/database-lab/src/provision"
+	"gitlab.com/postgres-ai/database-lab/src/srv"
 
 	"github.com/jessevdk/go-flags"
 	"gopkg.in/yaml.v2"
@@ -37,10 +36,10 @@ var opts struct {
 }
 
 type Config struct {
-	Server    s.Config `yaml:"server"`
-	Provision p.Config `yaml:"provision"`
-	Cloning   c.Config `yaml:"cloning"`
-	Debug     bool     `yaml:"debug"`
+	Server    srv.Config       `yaml:"server"`
+	Provision provision.Config `yaml:"provision"`
+	Cloning   cloning.Config   `yaml:"cloning"`
+	Debug     bool             `yaml:"debug"`
 }
 
 func main() {
@@ -69,13 +68,13 @@ func main() {
 		cfg.Provision.DbPassword = opts.DbPassword
 	}
 
-	provision, err := p.NewProvision(cfg.Provision)
+	provision, err := provision.NewProvision(cfg.Provision)
 	if err != nil {
 		log.Fatal("Error in \"provision\" config:", err)
 		return
 	}
 
-	cloning, err := c.NewCloning(&cfg.Cloning, provision)
+	cloning, err := cloning.NewCloning(&cfg.Cloning, provision)
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -90,7 +89,7 @@ func main() {
 		cfg.Server.VerificationToken = opts.VerificationToken
 	}
 
-	server := s.NewServer(&cfg.Server, cloning)
+	server := srv.NewServer(&cfg.Server, cloning)
 	server.Run()
 }
 

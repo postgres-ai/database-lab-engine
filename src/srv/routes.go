@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"../log"
-	m "../models"
+	"gitlab.com/postgres-ai/database-lab/src/log"
+	"gitlab.com/postgres-ai/database-lab/src/models"
 
 	"github.com/gorilla/mux"
 )
@@ -38,7 +38,7 @@ func (s *Server) getSnapshots() http.HandlerFunc {
 
 func (s *Server) createClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var newClone m.Clone
+		var newClone models.Clone
 		err := readJson(r, &newClone)
 		if err != nil {
 			failBadRequest(w, r)
@@ -81,7 +81,7 @@ func (s *Server) patchClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cloneId := mux.Vars(r)["id"]
 
-		var patchClone *m.Clone
+		var patchClone *models.Clone
 		err := readJson(r, &patchClone)
 		if err != nil {
 			failBadRequest(w, r)

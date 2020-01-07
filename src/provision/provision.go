@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"../log"
+	"gitlab.com/postgres-ai/database-lab/src/log"
 )
 
 const (
