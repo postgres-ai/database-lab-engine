@@ -315,7 +315,7 @@ func runPsql(r Runner, command string, c *PgConfig, formatted bool, useFile bool
 	out, err := r.Run(psqlCmd)
 
 	if useFile {
-		err = os.Remove(filename)
+		_ = os.Remove(filename)
 	}
 
 	return out, err
