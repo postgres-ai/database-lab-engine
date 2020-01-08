@@ -2,6 +2,7 @@
 2019 © Postgres.ai
 */
 
+// Package cloning provides a cloning service.
 package cloning
 
 import (

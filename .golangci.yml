@@ -98,11 +98,6 @@ issues:
         - stylecheck
       text: "ST1005:"
 
-#    # Exclude "package comment" as unnececcary
-    - linters:
-        - stylecheck
-      text: "ST1000:"
-
   exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0

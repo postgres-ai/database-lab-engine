@@ -1,3 +1,8 @@
+/*
+2019 © Postgres.ai
+*/
+
+// Package config provides access to the Database Lab configuration.
 package config
 
 import (
