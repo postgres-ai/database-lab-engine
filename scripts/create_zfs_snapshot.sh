@@ -77,7 +77,8 @@ echo "listen_addresses = '*'" >> ${clone_pgdata_dir}/postgresql.conf
 touch ${clone_pgdata_dir}/standby.signal
 
 ### pg_hba.conf
-echo "host all all 127.0.0.1/32 trust" > ${clone_pgdata_dir}/pg_hba.conf
+echo "local all all trust" > ${clone_pgdata_dir}/pg_hba.conf
+echo "host all all 0.0.0.0/0 md5" >> ${clone_pgdata_dir}/pg_hba.conf
 
 ### pg_ident.conf
 echo "" > ${clone_pgdata_dir}/pg_ident.conf

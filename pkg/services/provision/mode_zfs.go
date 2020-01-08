@@ -27,6 +27,15 @@ const (
 
 	// DefaultPassword defines a default password.
 	DefaultPassword = "postgres"
+
+	// UseUnixSocket defines the need to connect to Postgres using Unix sockets.
+	UseUnixSocket = true
+
+	// UnixSocketDir defines directory of Postgres Unix sockets.
+	UnixSocketDir = "/var/run/postgresql/"
+
+	// UnixSocketPrefix defines filename prefix of Postgres Unix sockets.
+	UnixSocketPrefix = ".s.PGSQL."
 )
 
 type ModeZfsPortPool struct {
@@ -537,11 +546,16 @@ func (j *provisionModeZfs) getName(port uint) string {
 }
 
 func (j *provisionModeZfs) getPgConfig(name string, port uint) *PgConfig {
+	host := DefaultHost
+	if UseUnixSocket {
+		host = UnixSocketDir + UnixSocketPrefix + fmt.Sprintf("%d", port)
+	}
+
 	return &PgConfig{
 		Version:    j.config.PgVersion,
 		Bindir:     j.config.PgBindir,
 		Datadir:    j.config.ModeZfs.MountDir + name + j.config.PgDataSubdir,
-		Host:       DefaultHost,
+		Host:       host,
 		Port:       port,
 		Name:       "postgres",
 		Username:   j.config.DbUsername,
