@@ -14,14 +14,27 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
 )
 
-// We use pg_ctl -D ... -m immediate stop because we need to shut down
-// Postgres faster and completely get rid of this instance. So we don't care
-// about its state.
-const ModeImmediate = "immediate"
+const (
+	// modeImmediate defines an immediate mode.
+	// We use pg_ctl -D ... -m immediate stop because we need to shut down
+	// Postgres faster and completely get rid of this instance. So we don't care
+	// about its state.
+	modeImmediate = "immediate"
+
+	// codeServerIsNotRunning defines a Postgres exit status code.
+	// If the server is not running, the process returns an exit status of 3.
+	codeServerIsNotRunning = 3
+
+	// codeUnaccessibleDataDirectory defines a Postgres exit status code.
+	// If an accessible data directory is not specified, the process returns an exit status of 4.
+	codeUnaccessibleDataDirectory = 4
+)
 
 type PgConfig struct {
 	Version string
@@ -92,32 +105,27 @@ func PostgresStart(r Runner, c *PgConfig) error {
 	createLogsCmd := "sudo -u postgres -s touch " + logsDir
 	out, err := r.Run(createLogsCmd, true)
 	if err != nil {
-		return fmt.Errorf("Postgres start: log touch %v %v", err, out)
+		return errors.Wrapf(err, "postgres start: log touch %v", out)
 	}
 
 	// pg_ctl status mode checks whether a server is running
 	// in the specified data directory.
-	_, err = pgctlStatus(r, c)
-	if err != nil {
-		if rerr, ok := err.(RunnerError); ok {
-			switch rerr.ExitStatus {
-			// If an accessible data directory is not specified,
-			// the process returns an exit status of 4.
-			case 4:
-				return fmt.Errorf("Cannot access PGDATA: %v", rerr)
+	if _, err = pgctlStatus(r, c); err != nil {
+		if runnerError, ok := err.(RunnerError); ok {
+			switch runnerError.ExitStatus {
+			case codeUnaccessibleDataDirectory:
+				return errors.Wrap(runnerError, "cannot access PGDATA")
 
-			// If the server is not running, the process
-			// returns an exit status of 3.
-			case 3:
-				_, err = pgctlStart(r, logsDir, c)
-				if err != nil {
-					return err
+			case codeServerIsNotRunning:
+				if _, err = pgctlStart(r, logsDir, c); err != nil {
+					return errors.Wrap(err, "failed to start via pgctl")
 				}
 
 			default:
-				return rerr
+				return errors.Wrap(runnerError, "an unknown runner error")
 			}
 		}
+		// TODO(akartasov): check non-RunnerError
 	}
 	// No errors – assume that the server is running.
 
@@ -142,9 +150,8 @@ func PostgresStart(r Runner, c *PgConfig) error {
 
 				_, err = pgctlPromote(r, c)
 				if err != nil {
-					rerr := PostgresStop(r, c)
-					if rerr != nil {
-						log.Err(err)
+					if runnerError := PostgresStop(r, c); runnerError != nil {
+						log.Err(runnerError)
 					}
 
 					return err
@@ -154,12 +161,11 @@ func PostgresStart(r Runner, c *PgConfig) error {
 
 		cnt++
 		if cnt > 360 { // 3 minutes
-			rerr := PostgresStop(r, c)
-			if rerr != nil {
-				log.Err(err)
+			if runnerErr := PostgresStop(r, c); runnerErr != nil {
+				log.Err(runnerErr)
 			}
 
-			return fmt.Errorf("Postgres could not be promoted within 3 minutes.")
+			return errors.Wrap(err, "postgres could not be promoted within 3 minutes")
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -180,38 +186,34 @@ func PostgresStop(r Runner, c *PgConfig) error {
 		// in the specified data directory.
 		_, err = pgctlStatus(r, c)
 		if err != nil {
-			if rerr, ok := err.(RunnerError); ok {
-				switch rerr.ExitStatus {
-				// If an accessible data directory is not specified,
-				// the process returns an exit status of 4.
-				case 4:
-					return fmt.Errorf("Cannot access PGDATA. %v", rerr)
+			if runnerError, ok := err.(RunnerError); ok {
+				switch runnerError.ExitStatus {
+				case codeUnaccessibleDataDirectory:
+					return errors.Wrap(runnerError, "cannot access PGDATA")
 
-				// If the server is not running, the process
-				// returns an exit status of 3.
-				case 3:
+				case codeServerIsNotRunning:
 					// Postgres stopped.
 					return nil
 
 				default:
-					return rerr
+					return errors.Wrap(runnerError, "an unknown runner error")
 				}
 			}
+			// TODO(akartasov): check non-RunnerError
 		}
 		// No errors – assume that the server is running.
 
 		if first {
 			first = false
 
-			_, err = pgctlStop(r, ModeImmediate, c)
-			if err != nil {
-				return err
+			if _, pgctlErr := pgctlStop(r, modeImmediate, c); pgctlErr != nil {
+				return errors.Wrap(pgctlErr, "failed to stop via pgctl")
 			}
 		}
 
 		cnt++
 		if cnt > 360 { // 3 minutes
-			return fmt.Errorf("Postgres could not be stopped within 3 minutes.")
+			return errors.Wrap(err, "postgres could not be stopped within 3 minutes")
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -222,7 +224,7 @@ func PostgresList(r Runner, prefix string) ([]string, error) {
 
 	out, err := r.Run(listProcsCmd, false)
 	if err != nil {
-		return []string{}, err
+		return nil, errors.Wrap(err, "failed to list processes")
 	}
 
 	re := regexp.MustCompile(fmt.Sprintf(`(%s[0-9]+)`, prefix))
@@ -294,9 +296,8 @@ func runPsql(r Runner, command string, c *PgConfig, formatted bool, useFile bool
 
 		filename := fmt.Sprintf("/tmp/psql-query-%d", uid)
 
-		err := ioutil.WriteFile(filename, []byte(command), 0644)
-		if err != nil {
-			return "", err
+		if err := ioutil.WriteFile(filename, []byte(command), 0644); err != nil {
+			return "", errors.Wrap(err, "failed to write file")
 		}
 
 		commandParam = fmt.Sprintf(`-f %s`, filename)
@@ -318,7 +319,7 @@ func runPsql(r Runner, command string, c *PgConfig, formatted bool, useFile bool
 		_ = os.Remove(filename)
 	}
 
-	return out, err
+	return out, errors.Wrap(err, "psql error")
 }
 
 // Use for user defined commands to DB. Currently we only need
@@ -327,7 +328,7 @@ func runPsql(r Runner, command string, c *PgConfig, formatted bool, useFile bool
 func runPsqlStrict(r Runner, command string, c *PgConfig) (string, error) {
 	command = strings.Trim(command, " \n")
 	if len(command) == 0 {
-		return "", fmt.Errorf("Empty command.")
+		return "", errors.New("empty command")
 	}
 
 	// Psql file option (-f) allows to run any number of commands.
@@ -351,10 +352,10 @@ func runPsqlStrict(r Runner, command string, c *PgConfig) (string, error) {
 	out, err := runPsql(r, command, c, true, true)
 	if err != nil {
 		if rerr, ok := err.(RunnerError); ok {
-			return "", fmt.Errorf("Pqsl error: %s.", rerr.Stderr)
+			return "", errors.Wrapf(rerr, "runner pqsl error: %s", rerr.Stderr)
 		}
 
-		return "", fmt.Errorf("Psql error.")
+		return "", errors.Wrap(err, "psql error")
 	}
 
 	return out, nil

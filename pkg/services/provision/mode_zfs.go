@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 )
 
@@ -118,12 +120,12 @@ func isValidConfigModeZfs(config Config) bool {
 func (j *provisionModeZfs) Init() error {
 	err := j.stopAllSessions()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to stop all session")
 	}
 
 	err = j.initPortPool()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to init port pool")
 	}
 
 	return nil
@@ -133,28 +135,16 @@ func (j *provisionModeZfs) Reinit() error {
 	return fmt.Errorf(`"Reinit" method is unsupported in "ZFS" mode.`)
 }
 
-func (j *provisionModeZfs) StartSession(username string, password string,
-	options ...string) (*Session, error) {
-	snapshotID := ""
-	if len(options) > 0 && len(options[0]) > 0 {
-		snapshotID = options[0]
-	} else {
-		snapshots, err := j.GetSnapshots()
-		if err != nil {
-			return nil, err
-		}
-		if len(snapshots) == 0 {
-			err := fmt.Errorf("Cannot start session: no snapshots available.")
-			return nil, err
-		}
-
-		snapshotID = snapshots[0].ID
+func (j *provisionModeZfs) StartSession(username string, password string, options ...string) (*Session, error) {
+	snapshotID, err := j.getSnapshotID(options...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get snapshots")
 	}
 
 	// TODO(anatoly): Synchronization or port allocation statuses.
 	port, err := j.getFreePort()
 	if err != nil {
-		return nil, err
+		return nil, errors.New("failed to get a free port")
 	}
 
 	name := j.getName(port)
@@ -164,56 +154,48 @@ func (j *provisionModeZfs) StartSession(username string, password string,
 	err = ZfsCreateClone(j.runner, j.config.ModeZfs.ZfsPool, name, snapshotID,
 		j.config.ModeZfs.MountDir)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create a clone")
 	}
 
 	err = PostgresStart(j.runner, j.getPgConfig(name, port))
 	if err != nil {
-		log.Err(`StartSession:`, err)
 		log.Dbg(`Reverting "StartSession"...`)
 
-		rerr := ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name)
-		if rerr != nil {
-			log.Err(`Revert:`, rerr)
+		if runnerErr := ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name); runnerErr != nil {
+			log.Err(`Revert:`, runnerErr)
 		}
 
-		return nil, err
+		return nil, errors.Wrap(err, "failed to start Postgres")
 	}
 
 	err = j.prepareDb(username, password, j.getPgConfig(name, port))
 	if err != nil {
-		log.Err(`StartSession:`, err)
 		log.Dbg(`Reverting "StartSession"...`)
 
-		rerr := PostgresStop(j.runner, j.getPgConfig(name, 0))
-		if rerr != nil {
-			log.Err("Revert:", rerr)
+		if runnerErr := PostgresStop(j.runner, j.getPgConfig(name, 0)); runnerErr != nil {
+			log.Err("Revert:", runnerErr)
 		}
 
-		rerr = ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name)
-		if rerr != nil {
-			log.Err(`Revert:`, rerr)
+		if runnerErr := ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name); runnerErr != nil {
+			log.Err(`Revert:`, runnerErr)
 		}
 
-		return nil, err
+		return nil, errors.Wrap(err, "failed to prepare a database")
 	}
 
 	err = j.setPort(port, true)
 	if err != nil {
-		log.Err(`StartSession:`, err)
 		log.Dbg(`Reverting "StartSession"...`)
 
-		rerr := PostgresStop(j.runner, j.getPgConfig(name, 0))
-		if rerr != nil {
-			log.Err(`Revert:`, rerr)
+		if runnerErr := PostgresStop(j.runner, j.getPgConfig(name, 0)); runnerErr != nil {
+			log.Err(`Revert:`, runnerErr)
 		}
 
-		rerr = ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name)
-		if rerr != nil {
-			log.Err(`Revert:`, rerr)
+		if runnerErr := ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name); runnerErr != nil {
+			log.Err(`Revert:`, runnerErr)
 		}
 
-		return nil, err
+		return nil, errors.Wrap(err, "failed to set a port")
 	}
 
 	j.sessionCounter++
@@ -228,6 +210,7 @@ func (j *provisionModeZfs) StartSession(username string, password string,
 		ephemeralUser:     username,
 		ephemeralPassword: password,
 	}
+
 	return session, nil
 }
 
@@ -236,17 +219,17 @@ func (j *provisionModeZfs) StopSession(session *Session) error {
 
 	err := PostgresStop(j.runner, j.getPgConfig(name, 0))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to stop Postgres")
 	}
 
 	err = ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to destroy a clone")
 	}
 
 	err = j.setPort(session.Port, false)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to unbind a port")
 	}
 
 	return nil
@@ -255,84 +238,61 @@ func (j *provisionModeZfs) StopSession(session *Session) error {
 func (j *provisionModeZfs) ResetSession(session *Session, options ...string) error {
 	name := j.getName(session.Port)
 
-	snapshotID := ""
-	if len(options) > 0 && len(options[0]) > 0 {
-		snapshotID = options[0]
-	} else {
-		snapshots, err := j.GetSnapshots()
-		if err != nil {
-			return err
-		}
-		if len(snapshots) == 0 {
-			return fmt.Errorf("Cannot reset session: no snapshots available.")
-		}
-
-		snapshotID = snapshots[0].ID
+	snapshotID, err := j.getSnapshotID(options...)
+	if err != nil {
+		return errors.Wrap(err, "failed to get snapshots")
 	}
 
-	err := PostgresStop(j.runner, j.getPgConfig(name, 0))
+	err = PostgresStop(j.runner, j.getPgConfig(name, 0))
 	if err != nil {
-		log.Err(`ResetSession:`, err)
 		log.Dbg(`Reverting "ResetSession"...`)
 
-		rerr := ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name)
-		if rerr != nil {
-			log.Err(`Revert:`, rerr)
+		if runnerErr := ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name); runnerErr != nil {
+			log.Err(`Revert:`, runnerErr)
 		}
 
-		return err
+		return errors.Wrap(err, "failed to stop Postgres")
 	}
 
 	err = ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name)
 	if err != nil {
-		log.Err(`ResetSession:`, err)
-		log.Dbg(`Reverting "ResetSession"...`)
-
-		return err
+		return errors.Wrap(err, "failed to destroy clone")
 	}
 
 	err = ZfsCreateClone(j.runner, j.config.ModeZfs.ZfsPool, name, snapshotID,
 		j.config.ModeZfs.MountDir)
 	if err != nil {
-		log.Err(`ResetSession:`, err)
-		return err
+		return errors.Wrap(err, "failed to create a clone")
 	}
 
 	err = PostgresStart(j.runner, j.getPgConfig(name, session.Port))
 	if err != nil {
-		log.Err(`ResetSession:`, err)
 		log.Dbg(`Reverting "ResetSession"...`)
 
-		rerr := PostgresStop(j.runner, j.getPgConfig(name, 0))
-		if rerr != nil {
-			log.Err(`Revert:`, rerr)
+		if runnerErr := PostgresStop(j.runner, j.getPgConfig(name, 0)); runnerErr != nil {
+			log.Err(`Revert:`, runnerErr)
 		}
 
-		rerr = ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name)
-		if rerr != nil {
-			log.Err(`Revert:`, rerr)
+		if runnerErr := ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name); runnerErr != nil {
+			log.Err(`Revert:`, runnerErr)
 		}
 
-		return err
+		return errors.Wrap(err, "failed to start Postgres")
 	}
 
-	err = j.prepareDb(session.ephemeralUser, session.ephemeralPassword,
-		j.getPgConfig(name, session.Port))
+	err = j.prepareDb(session.ephemeralUser, session.ephemeralPassword, j.getPgConfig(name, session.Port))
 	if err != nil {
-		log.Err(`ResetSession:`, err)
 		log.Dbg(`Reverting "ResetSession"...`)
 
-		rerr := PostgresStop(j.runner, j.getPgConfig(name, 0))
-		if rerr != nil {
-			log.Err(`Revert:`, rerr)
+		if runnerErr := PostgresStop(j.runner, j.getPgConfig(name, 0)); runnerErr != nil {
+			log.Err(`Revert:`, runnerErr)
 		}
 
-		rerr = ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name)
-		if rerr != nil {
-			log.Err(`Revert:`, rerr)
+		if runnerErr := ZfsDestroyClone(j.runner, j.config.ModeZfs.ZfsPool, name); runnerErr != nil {
+			log.Err(`Revert:`, runnerErr)
 		}
 
-		return err
+		return errors.Wrap(err, "failed to prepare a database")
 	}
 
 	return nil
@@ -341,14 +301,13 @@ func (j *provisionModeZfs) ResetSession(session *Session, options ...string) err
 // Make a new snapshot.
 func (j *provisionModeZfs) CreateSnapshot(name string) error {
 	// TODO(anatoly): Implement.
-	return fmt.Errorf(`"CreateSnapshot" method is unsupported in "ZFS" mode.`)
+	return errors.New(`"CreateSnapshot" method is unsupported in "ZFS" mode`)
 }
 
 func (j *provisionModeZfs) GetSnapshots() ([]*Snapshot, error) {
 	entries, err := ZfsListSnapshots(j.runner, j.config.ModeZfs.ZfsPool)
 	if err != nil {
-		log.Err("GetSnapshots:", err)
-		return []*Snapshot{}, err
+		return nil, errors.Wrap(err, "failed to list snapshots")
 	}
 
 	snapshots := make([]*Snapshot, 0, len(entries))
@@ -375,8 +334,7 @@ func (j *provisionModeZfs) GetDiskState() (*Disk, error) {
 
 	entries, err := ZfsListFilesystems(j.runner, parentPool)
 	if err != nil {
-		log.Err("GetDiskState:", err)
-		return &Disk{}, err
+		return nil, errors.Wrap(err, "failed to list filesystems")
 	}
 
 	var parentPoolEntry *ZfsListEntry
@@ -394,14 +352,12 @@ func (j *provisionModeZfs) GetDiskState() (*Disk, error) {
 	}
 
 	if parentPoolEntry == nil || poolEntry == nil {
-		err := fmt.Errorf("Cannot get disk state. Pool entries not found.")
-		log.Err("GetDiskState:", err)
-		return &Disk{}, err
+		return nil, errors.New("cannot get disk state: pool entries not found")
 	}
 
 	dataSize, err := j.getDataSize(poolEntry.MountPoint)
 	if err != nil {
-		return &Disk{}, err
+		return nil, errors.Wrap(err, "failed to get data size")
 	}
 
 	disk := &Disk{
@@ -420,8 +376,7 @@ func (j *provisionModeZfs) GetSessionState(s *Session) (*SessionState, error) {
 
 	entries, err := ZfsListFilesystems(j.runner, j.config.ModeZfs.ZfsPool)
 	if err != nil {
-		log.Err("GetSessionState:", err)
-		return &SessionState{}, err
+		return nil, errors.Wrap(err, "failed to list filesystems")
 	}
 
 	entryName := j.config.ModeZfs.ZfsPool + "/" + j.getName(s.Port)
@@ -434,10 +389,7 @@ func (j *provisionModeZfs) GetSessionState(s *Session) (*SessionState, error) {
 	}
 
 	if sEntry == nil {
-		err := fmt.Errorf("Cannot get session state. " +
-			"Specified ZFS pool does not exist.")
-		log.Err("GetSessionState:", err)
-		return &SessionState{}, err
+		return nil, errors.New("cannot get session state: specified ZFS pool does not exist")
 	}
 
 	state.CloneSize = sEntry.Used
@@ -454,24 +406,40 @@ func (j *provisionModeZfs) getDataSize(mountDir string) (uint64, error) {
 	log.Dbg("getDataSize: " + mountDir)
 	out, err := j.runner.Run("sudo du -d0 -b " + mountDir)
 	if err != nil {
-		log.Err("GetDataSize:", err)
-		return 0, err
+		return 0, errors.Wrap(err, "failed to run command")
 	}
 
 	split := strings.SplitN(out, "\t", 2)
 	if len(split) != 2 {
-		err := fmt.Errorf(`Wrong format for "du".`)
-		log.Err(err)
-		return 0, err
+		return 0, errors.New(`wrong format for "du"`)
 	}
 
 	nbytes, err := strconv.ParseUint(split[0], 10, 64)
 	if err != nil {
-		log.Err("GetDataSize:", err)
-		return 0, err
+		return 0, errors.Wrap(err, "failed to parse data size")
 	}
 
 	return nbytes, nil
+}
+
+func (j *provisionModeZfs) getSnapshotID(options ...string) (string, error) {
+	snapshotID := ""
+	if len(options) > 0 && len(options[0]) > 0 {
+		snapshotID = options[0]
+	} else {
+		snapshots, err := j.GetSnapshots()
+		if err != nil {
+			return "", errors.Wrap(err, "failed to get snapshots")
+		}
+
+		if len(snapshots) == 0 {
+			return "", errors.New("no snapshots available")
+		}
+
+		snapshotID = snapshots[0].ID
+	}
+
+	return snapshotID, nil
 }
 
 func (j *provisionModeZfs) initPortPool() error {
@@ -493,14 +461,14 @@ func (j *provisionModeZfs) getFreePort() (uint, error) {
 		}
 	}
 
-	return 0, NewNoRoomError("No available ports.")
+	return 0, errors.WithStack(NewNoRoomError("no available ports"))
 }
 
 func (j *provisionModeZfs) setPort(port uint, bind bool) error {
 	portOpts := j.config.ModeZfs.PortPool
 
 	if port < portOpts.From || port >= portOpts.To {
-		return fmt.Errorf("Port %d is out of bounds of the port pool.", port)
+		return errors.Errorf("port %d is out of bounds of the port pool", port)
 	}
 
 	index := port - portOpts.From
@@ -512,15 +480,14 @@ func (j *provisionModeZfs) setPort(port uint, bind bool) error {
 func (j *provisionModeZfs) stopAllSessions() error {
 	insts, err := PostgresList(j.runner, ClonePrefix)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to list Postgres")
 	}
 
 	log.Dbg("Postgres instances running:", insts)
 
 	for _, inst := range insts {
-		err = PostgresStop(j.runner, j.getPgConfig(inst, 0))
-		if err != nil {
-			return err
+		if err = PostgresStop(j.runner, j.getPgConfig(inst, 0)); err != nil {
+			return errors.Wrap(err, "failed to stop Postgres")
 		}
 	}
 
@@ -564,17 +531,15 @@ func (j *provisionModeZfs) getPgConfig(name string, port uint) *PgConfig {
 	}
 }
 
-func (j *provisionModeZfs) prepareDb(username string, password string,
-	pgConf *PgConfig) error {
+func (j *provisionModeZfs) prepareDb(username string, password string, pgConf *PgConfig) error {
 	whitelist := []string{j.config.DbUsername}
-	err := PostgresResetAllPasswords(j.runner, pgConf, whitelist)
-	if err != nil {
-		return err
+
+	if err := PostgresResetAllPasswords(j.runner, pgConf, whitelist); err != nil {
+		return errors.Wrap(err, "failed to reset all passwords")
 	}
 
-	err = PostgresCreateUser(j.runner, pgConf, username, password)
-	if err != nil {
-		return err
+	if err := PostgresCreateUser(j.runner, pgConf, username, password); err != nil {
+		return errors.Wrap(err, "failed to create user")
 	}
 
 	return nil

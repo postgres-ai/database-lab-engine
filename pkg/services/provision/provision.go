@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 )
 
@@ -19,7 +21,10 @@ const (
 	ModeZfs = "zfs"
 )
 
-type NoRoomError string
+// NoRoomError defines a specific error type.
+type NoRoomError struct {
+	msg string
+}
 
 type State struct {
 	InstanceID        string
@@ -93,7 +98,7 @@ type Provision interface {
 }
 
 type provision struct {
-	config Config //nolint
+	config Config
 }
 
 func NewProvision(config Config) (Provision, error) {
@@ -104,7 +109,7 @@ func NewProvision(config Config) (Provision, error) {
 		return NewProvisionModeZfs(config)
 	}
 
-	return nil, fmt.Errorf("Unsupported mode specified.")
+	return nil, errors.New("unsupported mode specified")
 }
 
 // Check validity of a configuration and show a message for each violation.
@@ -157,18 +162,12 @@ func (s *Session) GetConnStr(dbname string) string {
 	return connStr
 }
 
-func NewNoRoomError(options ...string) error {
-	// TODO(anatoly): Change message.
-	msg := "Session cannot be started because there is no room"
-	if len(options) > 0 {
-		msg += ": " + options[0] + "."
-	} else {
-		msg += "."
-	}
-
-	return NoRoomError(msg)
+// NewNoRoomError instances a new NoRoomError.
+func NewNoRoomError(errorMessage string) error {
+	return &NoRoomError{msg: errorMessage}
 }
 
-func (f NoRoomError) Error() string {
-	return string(f)
+func (e *NoRoomError) Error() string {
+	// TODO(anatoly): Change message.
+	return "session cannot be started because there is no room: " + e.msg
 }

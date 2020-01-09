@@ -5,9 +5,8 @@
 package cloning
 
 import (
-	"fmt"
+	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
 )
 
@@ -42,6 +41,11 @@ func NewMockCloning(cfg *Config) Cloning {
 	return cloning
 }
 
+const (
+	mockCloneSize   = 1000
+	mockCloningTime = 10.0
+)
+
 // NewMockClone instances a new Clone model.
 func NewMockClone() *models.Clone {
 	db := &models.Database{}
@@ -51,8 +55,8 @@ func NewMockClone() *models.Clone {
 		ID:          "id",
 		Name:        "name",
 		Snapshot:    snapshot,
-		CloneSize:   1000,
-		CloningTime: 10.0,
+		CloneSize:   mockCloneSize,
+		CloningTime: mockCloningTime,
 		Protected:   false,
 		DeleteAt:    "10000",
 		CreatedAt:   "10000",
@@ -67,44 +71,40 @@ func (c *mockCloning) Run() error {
 
 func (c *mockCloning) CreateClone(clone *models.Clone) error {
 	if len(clone.Name) == 0 {
-		return fmt.Errorf("Missing required fields.")
+		return errors.New("missing required fields")
 	}
+
 	return nil
 }
 
 func (c *mockCloning) DestroyClone(id string) error {
-	_, ok := c.clones[id]
-	if !ok {
-		err := fmt.Errorf("Clone not found.")
-		log.Err(err)
-		return err
+	if _, ok := c.clones[id]; !ok {
+		return errors.New("clone not found")
 	}
 
 	return nil
 }
 
-func (c *mockCloning) GetClone(id string) (*models.Clone, bool) {
+func (c *mockCloning) GetClone(id string) (*models.Clone, error) {
 	clone, ok := c.clones[id]
-	return clone, ok
+	if !ok {
+		return nil, errors.New("clone not found")
+	}
+
+	return clone, nil
 }
 
 func (c *mockCloning) UpdateClone(id string, patch *models.Clone) error {
-	_, ok := c.clones[id]
-	if !ok {
-		err := fmt.Errorf("Clone not found.")
-		log.Err(err)
-		return err
+	if _, ok := c.clones[id]; !ok {
+		return errors.New("clone not found")
 	}
 
 	return nil
 }
 
 func (c *mockCloning) ResetClone(id string) error {
-	_, ok := c.clones[id]
-	if !ok {
-		err := fmt.Errorf("Clone not found.")
-		log.Err(err)
-		return err
+	if _, ok := c.clones[id]; !ok {
+		return errors.New("clone not found")
 	}
 
 	return nil
@@ -119,9 +119,10 @@ func (c *mockCloning) GetSnapshots() ([]*models.Snapshot, error) {
 }
 
 func (c *mockCloning) GetClones() []*models.Clone {
-	clones := make([]*models.Clone, 0)
+	clones := make([]*models.Clone, 0, len(c.clones))
 	for _, clone := range c.clones {
 		clones = append(clones, clone)
 	}
+
 	return clones
 }
