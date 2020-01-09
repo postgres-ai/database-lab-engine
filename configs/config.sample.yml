@@ -11,8 +11,8 @@ provision:
     portPool:
       from: 6000
       to: 6100
-    mountDir: /var/lib/postgresql/dblab/clones
-    logsDir: /var/lib/postgresql/dblab/logs
+    mountDir: /var/lib/dblab/clones
+    logsDir: /var/lib/dblab/logs
     snapshotFilterSuffix: "_pre"
   pgBindir: "/usr/lib/postgresql/12/bin"
   pgDataSubdir: "/"
