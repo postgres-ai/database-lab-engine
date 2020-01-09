@@ -9,18 +9,20 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
 
 func (s *Server) getInstanceStatus() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		status, err := s.Cloning.GetInstanceState()
 		if err != nil {
-			failInternalServer(w, r, err.Error())
+			failInternalServer(w, r, err)
+			return
 		}
 
-		err = writeJSON(w, status)
-		if err != nil {
-			failInternalServer(w, r, err.Error())
+		if err = writeJSON(w, http.StatusOK, status); err != nil {
+			failInternalServer(w, r, err)
+			return
 		}
 	}
 }
@@ -29,12 +31,13 @@ func (s *Server) getSnapshots() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		snapshots, err := s.Cloning.GetSnapshots()
 		if err != nil {
-			failInternalServer(w, r, err.Error())
+			failInternalServer(w, r, err)
+			return
 		}
 
-		err = writeJSON(w, snapshots)
-		if err != nil {
-			failInternalServer(w, r, err.Error())
+		if err = writeJSON(w, http.StatusOK, snapshots); err != nil {
+			failInternalServer(w, r, err)
+			return
 		}
 	}
 }
@@ -42,25 +45,21 @@ func (s *Server) getSnapshots() http.HandlerFunc {
 func (s *Server) createClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var newClone models.Clone
-		err := readJSON(r, &newClone)
-		if err != nil {
-			failBadRequest(w, r)
-			return
-		}
-
-		err = s.Cloning.CreateClone(&newClone)
-		if err != nil {
-			log.Err("Create clone", err)
-			// TODO(anatoly): Improve error processing.
-			failInternalServer(w, r, err.Error())
-			return
-		}
-
-		w.WriteHeader(http.StatusCreated)
-		err = writeJSON(w, newClone)
-		if err != nil {
+		if err := readJSON(r, &newClone); err != nil {
 			log.Err(err)
-			failInternalServer(w, r, err.Error())
+			failBadRequest(w, r)
+
+			return
+		}
+
+		if err := s.Cloning.CreateClone(&newClone); err != nil {
+			failInternalServer(w, r, errors.Wrap(err, "failed to create clone"))
+			return
+		}
+
+		if err := writeJSON(w, http.StatusCreated, newClone); err != nil {
+			failInternalServer(w, r, err)
+			return
 		}
 
 		log.Dbg(fmt.Sprintf("Clone ID=%s is being created", newClone.ID))
@@ -71,10 +70,9 @@ func (s *Server) destroyClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cloneID := mux.Vars(r)["id"]
 
-		err := s.Cloning.DestroyClone(cloneID)
-		if err != nil {
+		if err := s.Cloning.DestroyClone(cloneID); err != nil {
 			// TODO(anatoly): Not found case.
-			failInternalServer(w, r, err.Error())
+			failInternalServer(w, r, errors.Wrap(err, "failed to destroy clone"))
 			return
 		}
 
@@ -87,15 +85,15 @@ func (s *Server) patchClone() http.HandlerFunc {
 		cloneID := mux.Vars(r)["id"]
 
 		var patchClone *models.Clone
-		err := readJSON(r, &patchClone)
-		if err != nil {
+		if err := readJSON(r, &patchClone); err != nil {
+			log.Err(err)
 			failBadRequest(w, r)
+
 			return
 		}
 
-		err = s.Cloning.UpdateClone(cloneID, patchClone)
-		if err != nil {
-			failInternalServer(w, r, err.Error())
+		if err := s.Cloning.UpdateClone(cloneID, patchClone); err != nil {
+			failInternalServer(w, r, errors.Wrap(err, "failed to update clone"))
 			return
 		}
 	}
@@ -105,15 +103,17 @@ func (s *Server) getClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cloneID := mux.Vars(r)["id"]
 
-		clone, ok := s.Cloning.GetClone(cloneID)
-		if !ok {
+		clone, err := s.Cloning.GetClone(cloneID)
+		if err != nil {
+			log.Errf("failed to get clone: %+v", err)
 			failNotFound(w, r)
+
 			return
 		}
 
-		err := writeJSON(w, clone)
-		if err != nil {
-			failInternalServer(w, r, err.Error())
+		if err := writeJSON(w, http.StatusOK, clone); err != nil {
+			failInternalServer(w, r, err)
+			return
 		}
 	}
 }
@@ -122,9 +122,8 @@ func (s *Server) resetClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cloneID := mux.Vars(r)["id"]
 
-		err := s.Cloning.ResetClone(cloneID)
-		if err != nil {
-			failInternalServer(w, r, err.Error())
+		if err := s.Cloning.ResetClone(cloneID); err != nil {
+			failInternalServer(w, r, errors.Wrap(err, "failed to reset clone"))
 			return
 		}
 
@@ -137,10 +136,12 @@ func getHelp(routes []Route) http.HandlerFunc {
 		b, err := json.MarshalIndent(routes, "", "  ")
 		if err != nil {
 			log.Err(err)
+			return
 		}
 
 		if _, err = w.Write(b); err != nil {
 			log.Err(err)
+			return
 		}
 	}
 }

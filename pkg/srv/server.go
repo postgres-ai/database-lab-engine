@@ -1,8 +1,15 @@
+/*
+2019 © Postgres.ai
+*/
+
+// Package srv contains API routes and handlers.
 package srv
 
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
@@ -58,7 +65,7 @@ func (s *Server) Run() error {
 	// Show available routes on index page.
 	helpRoutes, err := getHelpRoutes(r)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get help routes")
 	}
 	r.HandleFunc("/", getHelp(helpRoutes))
 
@@ -69,7 +76,6 @@ func (s *Server) Run() error {
 	port := s.Config.Port
 	log.Msg(fmt.Sprintf("Server started listening on localhost:%d.", port))
 	err = http.ListenAndServe(fmt.Sprintf(":%d", port), logging(r))
-	log.Err("HTTP server error:", err)
 
-	return err
+	return errors.WithMessage(err, "HTTP server error")
 }

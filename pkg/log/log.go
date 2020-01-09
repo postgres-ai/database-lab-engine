@@ -83,6 +83,11 @@ func Err(v ...interface{}) {
 	log.Println("[ERROR] " + prepareMessage(v...))
 }
 
+// Errf outputs formatted log.
+func Errf(format string, v ...interface{}) {
+	log.Printf("[ERROR] "+format, v)
+}
+
 // Messages for security audit.
 func Audit(v ...interface{}) {
 	log.Println("[AUDIT] " + prepareMessage(v...))
@@ -90,4 +95,9 @@ func Audit(v ...interface{}) {
 
 func Fatal(v ...interface{}) {
 	log.Fatal("[FATAL] " + prepareMessage(v...))
+}
+
+// Fatalf prints an error with a stack trace.
+func Fatalf(err error) {
+	log.Fatalf("[FATAL] %+v", err)
 }

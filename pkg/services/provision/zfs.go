@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
 )
 
@@ -66,11 +68,11 @@ type ZfsListEntry struct {
 	DataStateAt time.Time
 }
 
-func ZfsCreateClone(r Runner, pool string, name string, snapshot string,
-	mountDir string) error {
+// ZfsCreateClone creates a new ZFS clone.
+func ZfsCreateClone(r Runner, pool string, name string, snapshot string, mountDir string) error {
 	exists, err := ZfsCloneExists(r, name)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "clone does not exist")
 	}
 
 	if exists {
@@ -83,7 +85,7 @@ func ZfsCreateClone(r Runner, pool string, name string, snapshot string,
 
 	out, err := r.Run(cmd)
 	if err != nil {
-		return fmt.Errorf("zfs clone error %v %v", err, out)
+		return errors.Wrapf(err, "zfs clone error. Out: %v", out)
 	}
 
 	return nil
@@ -92,7 +94,7 @@ func ZfsCreateClone(r Runner, pool string, name string, snapshot string,
 func ZfsDestroyClone(r Runner, pool string, name string) error {
 	exists, err := ZfsCloneExists(r, name)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "clone does not exist")
 	}
 
 	if !exists {
@@ -107,9 +109,8 @@ func ZfsDestroyClone(r Runner, pool string, name string) error {
 	// unexpected deletion of users' clones.
 	cmd := fmt.Sprintf("sudo -n zfs destroy %s/%s -R", pool, name)
 
-	_, err = r.Run(cmd)
-	if err != nil {
-		return err
+	if _, err = r.Run(cmd); err != nil {
+		return errors.Wrap(err, "failed to run command")
 	}
 
 	return nil
@@ -120,7 +121,7 @@ func ZfsCloneExists(r Runner, name string) (bool, error) {
 
 	out, err := r.Run(listZfsClonesCmd, false)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "failed to list clones")
 	}
 
 	return strings.Contains(out, name), nil
@@ -133,7 +134,7 @@ func ZfsListClones(r Runner, prefix string) ([]string, error) {
 
 	out, err := r.Run(listZfsClonesCmd, false)
 	if err != nil {
-		return []string{}, err
+		return nil, errors.Wrap(err, "failed to list clones")
 	}
 
 	return util.Unique(re.FindAllString(out, -1)), nil
@@ -142,9 +143,8 @@ func ZfsListClones(r Runner, prefix string) ([]string, error) {
 func ZfsCreateSnapshot(r Runner, pool string, snapshot string) error {
 	cmd := fmt.Sprintf("sudo -n zfs snapshot -r %s", snapshot)
 
-	_, err := r.Run(cmd, true)
-	if err != nil {
-		return err
+	if _, err := r.Run(cmd, true); err != nil {
+		return errors.Wrap(err, "failed to create a snapshot")
 	}
 
 	return nil
@@ -153,9 +153,8 @@ func ZfsCreateSnapshot(r Runner, pool string, snapshot string) error {
 func ZfsRollbackSnapshot(r Runner, pool string, snapshot string) error {
 	cmd := fmt.Sprintf("sudo -n zfs rollback -f -r %s", snapshot)
 
-	_, err := r.Run(cmd, true)
-	if err != nil {
-		return err
+	if _, err := r.Run(cmd, true); err != nil {
+		return errors.Wrap(err, "failed to rollback a snapshot")
 	}
 
 	return nil
@@ -182,21 +181,21 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 
 	out, err := r.Run(listCmd, true)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to list details")
 	}
 
 	lines := strings.Split(out, "\n")
 
 	// First line is header.
 	if len(lines) < 2 {
-		return nil, fmt.Errorf("ZFS error: no \"%s\" filesystem.", pool)
+		return nil, errors.Errorf(`ZFS error: no "%s" filesystem`, pool)
 	}
 
 	entries := make([]*ZfsListEntry, len(lines)-1)
 	for i := 1; i < len(lines); i++ {
 		fields := strings.Fields(lines[i])
 		if len(fields) != numberFields {
-			return nil, fmt.Errorf("ZFS error: some fields are empty. First of all, check dblab:datastateat.")
+			return nil, errors.Errorf("ZFS error: some fields are empty. First of all, check dblab:datastateat")
 		}
 
 		var (
@@ -237,8 +236,7 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 
 		if err1 != nil || err2 != nil || err3 != nil || err4 != nil ||
 			err5 != nil {
-			return nil, fmt.Errorf("ZFS error: cannot parse output.\n"+
-				"Command: %s.\nOutput: %s.", listCmd, out)
+			return nil, errors.Errorf("ZFS error: cannot parse output.\nCommand: %s.\nOutput: %s", listCmd, out)
 		}
 
 		entries[i-1] = &ZfsListEntry{

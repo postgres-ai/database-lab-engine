@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 )
 
@@ -54,8 +56,7 @@ func PostgresResetAllPasswords(r Runner, c *PgConfig, whitelistUsers []string) e
 		"{{OPTIONAL_WHERE}}", optionalWhere, 1)
 	out, err := runPsql(r, query, c, false, true)
 	if err != nil {
-		log.Err("ResetAllPasswords:", err)
-		return err
+		return errors.Wrap(err, "failed to run psql")
 	}
 
 	log.Dbg("ResetAllPasswords:", out)
@@ -68,8 +69,7 @@ func PostgresCreateUser(r Runner, c *PgConfig, username string, password string)
 
 	out, err := runPsql(r, query, c, false, true)
 	if err != nil {
-		log.Err("AddUser:", err)
-		return err
+		return errors.Wrap(err, "failed to run psql")
 	}
 
 	log.Dbg("AddUser:", out)

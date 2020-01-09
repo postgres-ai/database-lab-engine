@@ -6,8 +6,9 @@
 package cloning
 
 import (
-	"fmt"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
@@ -40,7 +41,7 @@ type Cloning interface {
 
 	CreateClone(*models.Clone) error
 	DestroyClone(string) error
-	GetClone(string) (*models.Clone, bool)
+	GetClone(string) (*models.Clone, error)
 	UpdateClone(string, *models.Clone) error
 	ResetClone(string) error
 
@@ -74,7 +75,7 @@ func NewCloning(config *Config, provision provision.Provision) (Cloning, error) 
 		return nil, nil
 	}
 
-	return nil, fmt.Errorf("unsupported mode specified")
+	return nil, errors.New("unsupported mode specified")
 }
 
 // NewCloneWrapper constructs a new CloneWrapper.

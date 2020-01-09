@@ -8,6 +8,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
 
 // Router traversal in order to get a list of all routes.
@@ -17,12 +18,12 @@ func getHelpRoutes(router *mux.Router) ([]Route, error) {
 		ancestors []*mux.Route) error {
 		pathTemplate, err := route.GetPathTemplate()
 		if err != nil {
-			return err
+			return errors.WithMessage(err, "failed to get path template")
 		}
 
 		methods, err := route.GetMethods()
 		if err != nil {
-			return err
+			return errors.WithMessage(err, "failed to get route methods")
 		}
 
 		routes = append(routes, Route{
@@ -37,17 +38,17 @@ func getHelpRoutes(router *mux.Router) ([]Route, error) {
 }
 
 // writeJSON responds with JSON.
-func writeJSON(w http.ResponseWriter, v interface{}) error {
+func writeJSON(w http.ResponseWriter, httpStatusCode int, v interface{}) error {
 	b, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		log.Err(err)
-		return err
+		return errors.Wrap(err, "failed to marshal response")
 	}
 
-	_, err = w.Write(b)
-	if err != nil {
-		log.Err(err)
-		return err
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(httpStatusCode)
+
+	if _, err = w.Write(b); err != nil {
+		return errors.Wrap(err, "failed to write response")
 	}
 
 	log.Dbg("Response:", v)
@@ -59,16 +60,13 @@ func writeJSON(w http.ResponseWriter, v interface{}) error {
 func readJSON(r *http.Request, v interface{}) error {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Err(err, "\n", string(reqBody))
-		return err
+		return errors.Wrap(err, "failed to read a request body")
 	}
 
 	log.Dbg("Request:", string(reqBody))
 
-	err = json.Unmarshal(reqBody, v)
-	if err != nil {
-		log.Err(err, "\n", string(reqBody))
-		return err
+	if err = json.Unmarshal(reqBody, v); err != nil {
+		return errors.Wrapf(err, "failed to unmarshal json: %s", string(reqBody))
 	}
 
 	log.Dbg("Request:", v)

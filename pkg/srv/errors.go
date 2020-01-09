@@ -1,15 +1,17 @@
 package srv
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
+
+	"github.com/pkg/errors"
 )
 
 func failNotFound(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusNotFound)
-
 	errorNotFound := models.Error{
 		Code:    "NOT_FOUND",
 		Message: "Not found.",
@@ -17,13 +19,12 @@ func failNotFound(w http.ResponseWriter, _ *http.Request) {
 		Hint:    "Specify your request.",
 	}
 
-	_ = writeJSON(w, errorNotFound)
+	_ = writeJSON(w, http.StatusNotFound, errorNotFound)
+
 	log.Dbg("Not found")
 }
 
 func failUnauthorized(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusUnauthorized)
-
 	errorUnauthorized := models.Error{
 		Code:    "UNAUTHORIZED",
 		Message: "Unauthorized.",
@@ -31,13 +32,12 @@ func failUnauthorized(w http.ResponseWriter, _ *http.Request) {
 		Hint:    "Check your verification token.",
 	}
 
-	_ = writeJSON(w, errorUnauthorized)
+	_ = writeJSON(w, http.StatusUnauthorized, errorUnauthorized)
+
 	log.Dbg("Unauthorized")
 }
 
 func failBadRequest(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusBadRequest)
-
 	errorBadRequest := models.Error{
 		Code:    "BAD_REQUEST",
 		Message: "Wrong request format.",
@@ -45,20 +45,33 @@ func failBadRequest(w http.ResponseWriter, _ *http.Request) {
 		Hint:    "Check request params.",
 	}
 
-	_ = writeJSON(w, errorBadRequest)
+	_ = writeJSON(w, http.StatusBadRequest, errorBadRequest)
+
 	log.Dbg("Bad request")
 }
 
-func failInternalServer(w http.ResponseWriter, _ *http.Request, detail string) {
-	w.WriteHeader(http.StatusInternalServerError)
+func failInternalServer(w http.ResponseWriter, r *http.Request, err error) {
+	log.Err(errDetailsMsg(r, err, models.ErrCodeInternal))
 
 	errorInternalServer := models.Error{
-		Code:    "INTERNAL_ERROR",
+		Code:    models.ErrCodeInternal,
 		Message: "Internal server error.",
-		Detail:  detail,
+		Detail:  errors.Cause(err).Error(),
 		Hint:    "",
 	}
 
-	_ = writeJSON(w, errorInternalServer)
+	w.WriteHeader(http.StatusInternalServerError)
+	_ = writeJSON(w, http.StatusInternalServerError, errorInternalServer)
+
 	log.Dbg("Internal server error")
+}
+
+func errDetailsMsg(r *http.Request, err error, errCode string) string {
+	queryString := r.URL.String()
+	if queryUnescape, e := url.QueryUnescape(queryString); e == nil {
+		queryString = queryUnescape
+	}
+
+	return fmt.Sprintf("[%s] - %s %s - %+v",
+		errCode, r.Method, queryString, err)
 }

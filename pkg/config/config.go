@@ -15,6 +15,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 	"gitlab.com/postgres-ai/database-lab/pkg/srv"
 
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -28,20 +29,18 @@ type Config struct {
 
 // LoadConfig instances a new Config by configuration filename.
 func LoadConfig(name string) (*Config, error) {
-	cfg := &Config{}
-
 	path, err := getConfigPath(name)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get config path")
 	}
 
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("error loading %s config file", name)
+		return nil, errors.Errorf("error loading %s config file", name)
 	}
 
-	err = yaml.Unmarshal(b, cfg)
-	if err != nil {
+	cfg := &Config{}
+	if err := yaml.Unmarshal(b, cfg); err != nil {
 		return nil, fmt.Errorf("error parsing %s config", name)
 	}
 
@@ -51,16 +50,15 @@ func LoadConfig(name string) (*Config, error) {
 func getConfigPath(name string) (string, error) {
 	bindir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "failed to get abs filepath of a bin directory")
 	}
 
 	dir, err := filepath.Abs(filepath.Dir(bindir))
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "failed to get abs filepath of a root directory")
 	}
 
-	path := dir + string(os.PathSeparator) + "configs" +
-		string(os.PathSeparator) + name
+	path := dir + string(os.PathSeparator) + "configs" + string(os.PathSeparator) + name
 
 	return path, nil
 }

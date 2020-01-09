@@ -13,6 +13,8 @@ import (
 	"syscall"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+
+	"github.com/pkg/errors"
 )
 
 const (
@@ -81,7 +83,7 @@ func NewLocalRunner() *LocalRunner {
 func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 	command = strings.Trim(command, " \n")
 	if len(command) == 0 {
-		return "", fmt.Errorf("Empty command.")
+		return "", errors.New("empty command")
 	}
 
 	logsEnabled := parseOptions(options...)
@@ -97,7 +99,7 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 	var stderr bytes.Buffer
 
 	if runtime.GOOS == "windows" {
-		return "", fmt.Errorf("Windows is not supported.")
+		return "", errors.New("Windows is not supported")
 	}
 
 	cmd := exec.Command("/bin/bash", "-c", command)
@@ -115,10 +117,9 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 	psqlErr = psqlErr && !strings.Contains(stderr.String(), "unable to resolve host")
 
 	if err != nil || psqlErr {
-		rerr := NewRunnerError(logCommand, stderr.String(), err)
+		runnerErr := NewRunnerError(logCommand, stderr.String(), err)
 
-		log.Err(rerr)
-		return "", rerr
+		return "", errors.Wrap(runnerErr, "runner error")
 	}
 
 	outFormatted := strings.Trim(out.String(), " \n")

@@ -6,6 +6,7 @@ package cloning
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -13,6 +14,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
 
+	"github.com/pkg/errors"
 	"github.com/rs/xid"
 )
 
@@ -53,10 +55,8 @@ func NewBaseCloning(cfg *Config, provision provision.Provision) Cloning {
 
 // Initialize and run cloning component.
 func (c *baseCloning) Run() error {
-	err := c.provision.Init()
-	if err != nil {
-		log.Err("CloningRun:", err)
-		return err
+	if err := c.provision.Init(); err != nil {
+		return errors.Wrap(err, "failed to run cloning")
 	}
 
 	// TODO(anatoly): Run interval for stopping idle sessions.
@@ -66,19 +66,19 @@ func (c *baseCloning) Run() error {
 
 func (c *baseCloning) CreateClone(clone *models.Clone) error {
 	if len(clone.Name) == 0 {
-		return fmt.Errorf("Missing clone name.")
+		return errors.New("missing clone name")
 	}
 
 	if clone.Db == nil {
-		return fmt.Errorf("Missing both DB username and password.")
+		return errors.New("missing both DB username and password")
 	}
 
 	if len(clone.Db.Username) == 0 {
-		return fmt.Errorf("Missing DB username.")
+		return errors.New("missing DB username")
 	}
 
 	if len(clone.Db.Password) == 0 {
-		return fmt.Errorf("Missing DB password.")
+		return errors.New("missing DB password")
 	}
 
 	clone.ID = xid.New().String()
@@ -105,7 +105,7 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		session, err := c.provision.StartSession(w.username, w.password, snapshotID)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
-			log.Err("Failed to create clone:", err)
+			log.Errf("failed to start session: %+v", err)
 			clone.Status = statusFatal
 			return
 		}
@@ -116,7 +116,7 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		clone.CloningTime = w.timeStartedAt.Sub(w.timeCreatedAt).Seconds()
 
 		clone.Status = statusOk
-		clone.Db.Port = fmt.Sprintf("%d", session.Port)
+		clone.Db.Port = strconv.FormatUint(uint64(session.Port), 10)
 
 		clone.Db.Host = c.Config.AccessHost
 		clone.Db.ConnStr = fmt.Sprintf("host=%s port=%s username=%s",
@@ -134,27 +134,23 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 func (c *baseCloning) DestroyClone(id string) error {
 	w, ok := c.clones[id]
 	if !ok {
-		err := fmt.Errorf("Clone not found.")
-		log.Err(err)
-		return err
+		return errors.New("clone not found")
 	}
 
 	if w.clone.Protected {
-		err := fmt.Errorf("Clone is protected.")
-		log.Err(err)
-		return err
+		return errors.New("clone is protected")
 	}
 
 	w.clone.Status = statusDeleting
 
 	if w.session == nil {
-		return fmt.Errorf("Clone is not started yet.")
+		return errors.New("clone is not started yet")
 	}
 
 	go func() {
 		err := c.provision.StopSession(w.session)
 		if err != nil {
-			log.Err("Failed to delete clone:", err)
+			log.Errf("failed to delete clone: %+v", err)
 			w.clone.Status = statusFatal
 			return
 		}
@@ -165,91 +161,69 @@ func (c *baseCloning) DestroyClone(id string) error {
 	return nil
 }
 
-func (c *baseCloning) GetClone(id string) (*models.Clone, bool) {
+func (c *baseCloning) GetClone(id string) (*models.Clone, error) {
 	w, ok := c.clones[id]
 	if !ok {
-		return &models.Clone{}, false
+		return nil, errors.New("clone not found")
 	}
 
 	if w.session == nil {
 		// Not started yet.
-		return w.clone, true
+		return w.clone, nil
 	}
 
 	sessionState, err := c.provision.GetSessionState(w.session)
 	if err != nil {
-		log.Err(err)
-		// TODO(anatoly): Error processing.
-		return &models.Clone{}, false
+		return nil, errors.Wrap(err, "failed to get a session state")
 	}
 
 	w.clone.CloneSize = sessionState.CloneSize
 
-	return w.clone, true
+	return w.clone, nil
 }
 
 func (c *baseCloning) UpdateClone(id string, patch *models.Clone) error {
 	// TODO(anatoly): Nullable fields?
 	// Check unmodifiable fields.
 	if len(patch.ID) > 0 {
-		err := fmt.Errorf("ID cannot be changed.")
-		log.Err(err)
-		return err
+		return errors.New("ID cannot be changed")
 	}
 
 	if patch.Snapshot != nil {
-		err := fmt.Errorf("Snapshot cannot be changed.")
-		log.Err(err)
-		return err
+		return errors.New("Snapshot cannot be changed")
 	}
 
 	if patch.CloneSize > 0 {
-		err := fmt.Errorf("CloneSize cannot be changed.")
-		log.Err(err)
-		return err
+		return errors.New("CloneSize cannot be changed")
 	}
 
 	if patch.CloningTime > 0 {
-		err := fmt.Errorf("CloningTime cannot be changed.")
-		log.Err(err)
-		return err
+		return errors.New("CloningTime cannot be changed")
 	}
 
 	if len(patch.Project) > 0 {
-		err := fmt.Errorf("Project cannot be changed.")
-		log.Err(err)
-		return err
+		return errors.New("Project cannot be changed")
 	}
 
 	if patch.Db != nil {
-		err := fmt.Errorf("Database cannot be changed.")
-		log.Err(err)
-		return err
+		return errors.New("Database cannot be changed")
 	}
 
 	if patch.Status != nil {
-		err := fmt.Errorf("Status cannot be changed.")
-		log.Err(err)
-		return err
+		return errors.New("Status cannot be changed")
 	}
 
 	if len(patch.DeleteAt) > 0 {
-		err := fmt.Errorf("DeleteAt cannot be changed.")
-		log.Err(err)
-		return err
+		return errors.New("DeleteAt cannot be changed")
 	}
 
 	if len(patch.CreatedAt) > 0 {
-		err := fmt.Errorf("CreatedAt cannot be changed.")
-		log.Err(err)
-		return err
+		return errors.New("CreatedAt cannot be changed")
 	}
 
 	w, ok := c.clones[id]
 	if !ok {
-		err := fmt.Errorf("Clone not found.")
-		log.Err(err)
-		return err
+		return errors.New("clone not found")
 	}
 
 	// Set fields.
@@ -265,15 +239,13 @@ func (c *baseCloning) UpdateClone(id string, patch *models.Clone) error {
 func (c *baseCloning) ResetClone(id string) error {
 	w, ok := c.clones[id]
 	if !ok {
-		err := fmt.Errorf("Clone not found.")
-		log.Err(err)
-		return err
+		return errors.New("clone not found")
 	}
 
 	w.clone.Status = statusResetting
 
 	if w.session == nil {
-		return fmt.Errorf("Clone is not started yet.")
+		return errors.New("clone is not started yet")
 	}
 
 	go func() {
@@ -284,8 +256,9 @@ func (c *baseCloning) ResetClone(id string) error {
 
 		err := c.provision.ResetSession(w.session, snapshotID)
 		if err != nil {
-			log.Err("Failed to reset clone:", err)
+			log.Errf("failed to reset session: %+v", err)
 			w.clone.Status = statusFatal
+
 			return
 		}
 
@@ -298,7 +271,7 @@ func (c *baseCloning) ResetClone(id string) error {
 func (c *baseCloning) GetInstanceState() (*models.InstanceStatus, error) {
 	disk, err := c.provision.GetDiskState()
 	if err != nil {
-		return &models.InstanceStatus{}, err
+		return nil, errors.Wrap(err, "failed to get a disk state")
 	}
 
 	c.instanceStatus.FileSystem.Size = disk.Size
@@ -313,10 +286,8 @@ func (c *baseCloning) GetInstanceState() (*models.InstanceStatus, error) {
 
 func (c *baseCloning) GetSnapshots() ([]*models.Snapshot, error) {
 	// TODO(anatoly): Update snapshots dynamically.
-	err := c.fetchSnapshots()
-	if err != nil {
-		log.Err("CloningRun:", err)
-		return []*models.Snapshot{}, err
+	if err := c.fetchSnapshots(); err != nil {
+		return nil, errors.Wrap(err, "failed to fetch snapshots")
 	}
 
 	return c.snapshots, nil
@@ -346,8 +317,7 @@ func (c *baseCloning) getExpectedCloningTime() float64 {
 func (c *baseCloning) fetchSnapshots() error {
 	entries, err := c.provision.GetSnapshots()
 	if err != nil {
-		log.Err(err)
-		return err
+		return errors.Wrap(err, "failed to get snapshots")
 	}
 
 	snapshots := make([]*models.Snapshot, len(entries))

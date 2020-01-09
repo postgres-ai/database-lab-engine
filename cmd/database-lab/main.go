@@ -6,7 +6,6 @@
 // - Validate configs in all components.
 // - Pass username and password and set it additionally to main username/password.
 // - Tests.
-// - CI: Gofmt, lint, misspell.
 // - Graceful shutdown.
 // - Don't kill clones on shutdown/start.
 
@@ -22,6 +21,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/srv"
 
 	"github.com/jessevdk/go-flags"
+	"github.com/pkg/errors"
 )
 
 var opts struct {
@@ -33,23 +33,19 @@ var opts struct {
 
 func main() {
 	// Load CLI options.
-	var _, err = parseArgs()
-
-	if err != nil {
+	if _, err := parseArgs(); err != nil {
 		if flags.WroteHelp(err) {
 			return
 		}
 
 		log.Fatal("Args parse error:", err)
-		return
 	}
 
 	log.DEBUG = true
 
 	cfg, err := config.LoadConfig("config.yml")
 	if err != nil {
-		log.Fatal("Config parse error:", err)
-		return
+		log.Fatalf(errors.WithMessage(err, "failed to parse config"))
 	}
 
 	log.Dbg("Config loaded", cfg)
@@ -60,19 +56,16 @@ func main() {
 
 	provisionSvc, err := provision.NewProvision(cfg.Provision)
 	if err != nil {
-		log.Fatal("Error in \"provision\" config:", err)
-		return
+		log.Fatalf(errors.WithMessage(err, `error in "provision" config`))
 	}
 
 	cloningSvc, err := cloning.NewCloning(&cfg.Cloning, provisionSvc)
 	if err != nil {
-		log.Fatal(err)
-		return
+		log.Fatalf(errors.WithMessage(err, "failed to init a new cloning service"))
 	}
 
 	if err = cloningSvc.Run(); err != nil {
-		log.Fatal(err)
-		return
+		log.Fatalf(err)
 	}
 
 	if len(opts.VerificationToken) > 0 {
@@ -81,7 +74,7 @@ func main() {
 
 	server := srv.NewServer(&cfg.Server, cloningSvc)
 	if err = server.Run(); err != nil {
-		log.Fatal(err)
+		log.Fatalf(err)
 	}
 }
 
