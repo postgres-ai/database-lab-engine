@@ -222,3 +222,7 @@ Response:
   createdAt: "123"
 }
 ```
+
+## Development requirements
+
+1. Install golangci-lint: https://github.com/golangci/golangci-lint#install
