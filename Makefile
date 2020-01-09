@@ -18,25 +18,28 @@ LDFLAGS = -ldflags "-s -w \
 	-X main.branch=${BRANCH}\
 	-X main.buildTime=${BUILD_TIME}"
 
+# Go tooling command aliases
+GOBUILD = GO111MODULE=on GOARCH=${GOARCH} go build ${LDFLAGS}
+GOTEST = GO111MODULE=on go test
+GORUN = GO111MODULE=on go run ${LDFLAGS}
+
 # Build the project
-all: clean run-lint build
+all: clean build
 
-dep:
-	go mod download
-
-build-lint:
+# Install the linter to $GOPATH/bin which is expected to be in $PATH
+install-lint:
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.22.2
 
 run-lint:
 	golangci-lint run
 
-lint: build-lint run-lint
+lint: install-lint run-lint
 
 build:
-	GOARCH=${GOARCH} go build ${LDFLAGS} -o bin/${BINARY} ./cmd/database-lab/
+	 ${GOBUILD} -o bin/${BINARY} ./cmd/database-lab/
 
 test:
-	go test ./pkg/...
+	${GOTEST} ./pkg/...
 
 fmt:
 	go fmt $$(go list ./... | grep -v /vendor/)
@@ -45,6 +48,6 @@ clean:
 	-rm -f bin/*
 
 run:
-	go run ${LDFLAGS} ./cmd/database-lab/*
+	${GORUN} ./cmd/database-lab/*
 
-.PHONY: all dep build test vet fmt clean run
+.PHONY: all build test run-lint install-lint lint fmt clean run
