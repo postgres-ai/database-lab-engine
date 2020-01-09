@@ -62,12 +62,15 @@ mv ${clone_pgdata_dir}/postgresql_real.conf ${clone_pgdata_dir}/postgresql.conf
 
 ### ADJUST CONFIGS ###
 ### postgresql.conf
+# TODO: why do we use absolute paths here?
 echo "external_pid_file='${clone_pgdata_dir}/postmaster.pid'" >>  ${clone_pgdata_dir}/postgresql.conf
 echo "data_directory='${clone_pgdata_dir}'" >> ${clone_pgdata_dir}/postgresql.conf
-echo "log_directory='${clone_pgdata_dir}/log'" >> ${clone_pgdata_dir}/postgresql.conf
+
 # TODO: improve secirity aspects
 echo "listen_addresses = '*'" >> ${clone_pgdata_dir}/postgresql.conf
-# TODO: adjust log settings, memory setting
+
+echo "log_destination = 'stderr'" >> ${clone_pgdata_dir}/postgresql.conf
+echo "log_directory = 'pg_log'" >> ${clone_pgdata_dir}/postgresql.conf
 
 ### recovery.conf
 #echo "standby_mode = 'on'" > ${clone_pgdata_dir}/recovery.conf # overriding
@@ -97,7 +100,7 @@ sudo -u postgres ${pg_bin_dir}/pg_ctl \
 
 failed=true
 for i in {1..1000}; do
-  if [[ $(${pg_bin_dir}/psql -p $clone_port -U ${pg_username} -d ${pg_db} -h localhost -XAtc 'select pg_is_in_recovery()') == "t" ]]; then
+  if [[ $(${pg_bin_dir}/psql -p $clone_port -U ${pg_username} -d ${pg_db} -h /var/run/postgresql -XAtc 'select pg_is_in_recovery()') == "t" ]]; then
     failed=false
     break
   fi
@@ -122,7 +125,7 @@ else
     -p ${clone_port} \
     -U ${pg_username} \
     -d ${pg_db} \
-    -h localhost \
+    -h /var/run/postgresql \
     -XAt \
     -c "select to_char(pg_last_xact_replay_timestamp() at time zone 'UTC', 'YYYYMMDDHH24MISS')")
 fi
@@ -132,7 +135,7 @@ sudo -u postgres ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -W promote
 
 failed=true
 for i in {1..1000}; do
-  if [[ $(${pg_bin_dir}/psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h localhost -XAtc 'select pg_is_in_recovery()') == "f" ]]; then
+  if [[ $(${pg_bin_dir}/psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h /var/run/postgresql -XAtc 'select pg_is_in_recovery()') == "f" ]]; then
     failed=false
     break
   fi
@@ -148,11 +151,6 @@ fi
 # Finally, stop Postgres and create the base snapshot ready to be used for thin provisioning
 sudo -u postgres ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -w stop
 # todo: check that it's stopped, similiraly as above
-
-# Finally, we don't wan't to want 'trust', we need to use password always.
-# Note, that this line overrides the whole pg_hba.conf
-sudo -u postgres sh -c "echo \"host all postgres 127.0.0.1/32 trust\" > ${clone_pgdata_dir}/pg_hba.conf"
-sudo -u postgres sh -c "echo \"host all all all md5\" >> ${clone_pgdata_dir}/pg_hba.conf"
 
 sudo zfs snapshot -r ${clone_full_name}@${snapshot_name}
 sudo zfs set dblab:datastateat="${data_state_at}" ${clone_full_name}@${snapshot_name}

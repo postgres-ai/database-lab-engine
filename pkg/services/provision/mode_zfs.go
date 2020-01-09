@@ -35,9 +35,6 @@ const (
 
 	// UnixSocketDir defines directory of Postgres Unix sockets.
 	UnixSocketDir = "/var/run/postgresql/"
-
-	// UnixSocketPrefix defines filename prefix of Postgres Unix sockets.
-	UnixSocketPrefix = ".s.PGSQL."
 )
 
 type ModeZfsPortPool struct {
@@ -515,7 +512,7 @@ func (j *provisionModeZfs) getName(port uint) string {
 func (j *provisionModeZfs) getPgConfig(name string, port uint) *PgConfig {
 	host := DefaultHost
 	if UseUnixSocket {
-		host = UnixSocketDir + UnixSocketPrefix + fmt.Sprintf("%d", port)
+		host = UnixSocketDir
 	}
 
 	return &PgConfig{
