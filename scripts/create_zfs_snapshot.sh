@@ -72,12 +72,20 @@ echo "listen_addresses = '*'" >> ${clone_pgdata_dir}/postgresql.conf
 echo "log_destination = 'stderr'" >> ${clone_pgdata_dir}/postgresql.conf
 echo "log_directory = 'pg_log'" >> ${clone_pgdata_dir}/postgresql.conf
 
-### recovery.conf
-#echo "standby_mode = 'on'" > ${clone_pgdata_dir}/recovery.conf # overriding
-#echo "primary_conninfo = ''" >> ${clone_pgdata_dir}/recovery.conf
-#echo "restore_command = ''" >> ${clone_pgdata_dir}/recovery.conf
-
-touch ${clone_pgdata_dir}/standby.signal
+### Replication mode
+ver_str=$(sudo -u ${pg_bin_dir}/pg_controldata  -D ${clone_pgdata_dir} | grep "pg_control version number")
+ver_str=${ver_str/pg_control version number:/}
+ver_str=${ver_str/ /}
+ver=$((ver_str / 100))
+if [[ "$ver" -ge "12" ]]; then
+  ## use signal files
+  touch ${clone_pgdata_dir}/standby.signal
+else
+  # Use recovery.conf
+  echo "standby_mode = 'on'" > ${clone_pgdata_dir}/recovery.conf # overriding
+  echo "primary_conninfo = ''" >> ${clone_pgdata_dir}/recovery.conf
+  echo "restore_command = ''" >> ${clone_pgdata_dir}/recovery.conf
+fi;
 
 ### pg_hba.conf
 echo "local all all trust" > ${clone_pgdata_dir}/pg_hba.conf
@@ -122,6 +130,7 @@ if [[ ! -z ${DATA_STATE_AT+x} ]]; then
   data_state_at="${DATA_STATE_AT}"
 else
   data_state_at=$(${pg_bin_dir}/psql \
+    --set ON_ERROR_STOP=on
     -p ${clone_port} \
     -U ${pg_username} \
     -d ${pg_db} \
