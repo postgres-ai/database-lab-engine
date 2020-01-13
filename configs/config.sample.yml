@@ -12,7 +12,6 @@ provision:
       from: 6000
       to: 6100
     mountDir: /var/lib/dblab/clones
-    logsDir: /var/lib/dblab/logs
     snapshotFilterSuffix: "_pre"
   pgBindir: "/usr/lib/postgresql/12/bin"
   pgDataSubdir: "/"
