@@ -7,6 +7,7 @@ package provision
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -107,6 +108,12 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
+	// TODO(anatoly): Remove hot fix of pg_ctl endless wait.
+	if strings.Contains(command, "start") {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+
 	// Psql with the file option returns error response to stderr with
 	// success exit code. In that case err will be nil, but we need
 	// to treat the case as error and read proper output.
@@ -119,7 +126,7 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 	if err != nil || psqlErr {
 		runnerErr := NewRunnerError(logCommand, stderr.String(), err)
 
-		return "", errors.Wrap(runnerErr, "runner error")
+		return "", runnerErr
 	}
 
 	outFormatted := strings.Trim(out.String(), " \n")
@@ -130,6 +137,10 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 	}
 
 	log.Dbg(fmt.Sprintf(`Run(Local): output "%s"`, logOut))
+
+	if stderrStr := stderr.String(); len(stderrStr) > 0 {
+		log.Dbg("Run(Local): stderr", stderr.String())
+	}
 
 	return outFormatted, nil
 }

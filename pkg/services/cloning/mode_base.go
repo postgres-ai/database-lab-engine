@@ -96,6 +96,11 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 
 	w.snapshot = clone.Snapshot
 
+	err := c.fetchSnapshots()
+	if err != nil {
+		return errors.Wrap(err, "failed to create clone")
+	}
+
 	go func() {
 		snapshotID := ""
 		if w.snapshot != nil && len(w.snapshot.ID) > 0 {

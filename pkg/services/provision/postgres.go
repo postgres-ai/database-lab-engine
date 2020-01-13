@@ -50,8 +50,6 @@ type PgConfig struct {
 	// The specified user must exist. The user will not be created automatically.
 	Username string
 	Password string
-
-	LogsPrefix string
 }
 
 func (c PgConfig) getPortStr() string {
@@ -59,9 +57,7 @@ func (c PgConfig) getPortStr() string {
 }
 
 func (c PgConfig) getLogsDir() string {
-	portStr := c.getPortStr()
-	prefix := c.LogsPrefix
-	return prefix + "dblab_" + portStr + ".log"
+	return c.Datadir + string(os.PathSeparator) + "pg_log"
 }
 
 func (c PgConfig) getBindir() string {
@@ -102,10 +98,10 @@ func PostgresStart(r Runner, c *PgConfig) error {
 
 	logsDir := c.getLogsDir()
 
-	createLogsCmd := "sudo -u postgres -s touch " + logsDir
+	createLogsCmd := "sudo -u postgres -s mkdir -p " + logsDir
 	out, err := r.Run(createLogsCmd, true)
 	if err != nil {
-		return errors.Wrapf(err, "postgres start: log touch %v", out)
+		return errors.Wrapf(err, "postgres start: make log dir %v", out)
 	}
 
 	// pg_ctl status mode checks whether a server is running
@@ -124,8 +120,9 @@ func PostgresStart(r Runner, c *PgConfig) error {
 			default:
 				return errors.Wrap(runnerError, "an unknown runner error")
 			}
+		} else {
+			return errors.Wrap(err, "an unknown error")
 		}
-		// TODO(akartasov): check non-RunnerError
 	}
 	// No errors – assume that the server is running.
 
@@ -134,7 +131,7 @@ func PostgresStart(r Runner, c *PgConfig) error {
 	cnt := 0
 
 	for {
-		out, err = runPsql(r, "select pg_is_in_recovery()", c, false, false)
+		out, err := runPsql(r, "select pg_is_in_recovery()", c, false, false)
 
 		if err == nil {
 			// Server does not need promotion if it is not in recovery.
@@ -199,7 +196,8 @@ func PostgresStop(r Runner, c *PgConfig) error {
 					return errors.Wrap(runnerError, "an unknown runner error")
 				}
 			}
-			// TODO(akartasov): check non-RunnerError
+
+			return errors.Wrap(err, "an unknown error")
 		}
 		// No errors – assume that the server is running.
 
@@ -238,7 +236,7 @@ func pgctlStart(r Runner, logsDir string, c *PgConfig) (string, error) {
 		`--pgdata ` + c.Datadir + ` ` +
 		`--log ` + logsDir + ` ` +
 		`-o "-p ` + c.getPortStr() + `" ` +
-		`--no-wait ` +
+		`-W ` + // No wait.
 		`start`
 
 	return r.Run(startCmd, true)
@@ -249,7 +247,7 @@ func pgctlStop(r Runner, mode string, c *PgConfig) (string, error) {
 		c.getBindir() + `/pg_ctl ` +
 		`--pgdata /` + c.Datadir + ` ` +
 		`--mode ` + mode + ` ` +
-		`--no-wait ` +
+		`-W ` + // No wait.
 		`stop`
 
 	return r.Run(stopCmd, true)
@@ -268,7 +266,7 @@ func pgctlPromote(r Runner, c *PgConfig) (string, error) {
 	startCmd := `sudo --user postgres --non-interactive ` +
 		c.getBindir() + `/pg_ctl ` +
 		`--pgdata ` + c.Datadir + ` ` +
-		`--no-wait ` +
+		`-W ` + // No wait.
 		`promote`
 
 	return r.Run(startCmd, true)

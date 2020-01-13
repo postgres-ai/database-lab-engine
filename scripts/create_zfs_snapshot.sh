@@ -13,13 +13,13 @@ now=$(date +%Y%m%d%H%M%S)
 
 # Storage configuration.
 # Name of the ZFS pool which contains PGDATA.
-zfs_pool=${ZFS_POOL:-"datastore/postgresql"}
+zfs_pool=${ZFS_POOL:-"dblab_pool"}
 # Sudirectory in which PGDATA is located.
-pgdata_subdir=${PGDATA_SUBDIR:-"/9.6/main"}
+pgdata_subdir=${PGDATA_SUBDIR:-""}
 
 # Clone configuration.
 # Mount directory for DB Lab clones.
-mount_dir=${MOUNT_DIR:-"/var/lib/postgresql/dblab/clones"}
+mount_dir=${MOUNT_DIR:-"/var/lib/dblab/clones"}
 # Name of a clone which will be created and used for PGDATA manipulation.
 clone_name="clone${pre}_${now}"
 # Full name of the clone for ZFS commands.
@@ -32,8 +32,7 @@ clone_pgdata_dir="${clone_dir}${pgdata_subdir}"
 # Postgres configuration.
 # Port on which Postgres will be started using clone's PGDATA.
 clone_port=${CLONE_PORT:-6999}
-# Here we assume that PGDATA is in a subdirectory "./9.6/main" -- the Ubuntu way is here, and PG version is 9.6
-pg_bin_dir=${PG_BIN_DIR:-"/usr/lib/postgresql/9.6/bin"}
+pg_bin_dir=${PG_BIN_DIR:-"/usr/lib/postgresql/12/bin"}
 pg_username=${PGUSERNAME:-"postgres"}
 # Set password with PGPASSWORD env.
 pg_db=${PGDB:-"postgres"}
@@ -46,12 +45,16 @@ snapshot_name="snapshot_${now}"
 # OR: we can tell the shadow Postgres: select pg_start_backup('database-lab-snapshot');
 # .. and in the very end: select pg_stop_backup();
 
-sudo zfs snapshot -r ${zfs_pool}@${snapshot_name}${pre}
+sudo zfs snapshot ${zfs_pool}@${snapshot_name}${pre}
 sudo zfs clone ${zfs_pool}@${snapshot_name}${pre} ${clone_full_name} -o mountpoint=${clone_dir}
 
 cd /tmp # To avoid errors about lack of permissions.
 
-sudo -u postgres sh -f - <<SH
+pg_ver=$(sudo -u postgres cat ${clone_pgdata_dir}/PG_VERSION | cut -f1 -d".")
+
+sudo -u postgres bash -f - <<SH
+set -ex
+
 rm -rf ${clone_pgdata_dir}/postmaster.pid # Questionable -- it's better to have snapshot created with Postgres being down
 
 # We do not want to deal with postgresql.conf symlink (if any)
@@ -63,25 +66,29 @@ mv ${clone_pgdata_dir}/postgresql_real.conf ${clone_pgdata_dir}/postgresql.conf
 ### ADJUST CONFIGS ###
 ### postgresql.conf
 # TODO: why do we use absolute paths here?
-echo "external_pid_file='${clone_pgdata_dir}/postmaster.pid'" >>  ${clone_pgdata_dir}/postgresql.conf
-echo "data_directory='${clone_pgdata_dir}'" >> ${clone_pgdata_dir}/postgresql.conf
+sed -i 's/^\\(.*data_directory\\)/# \\1/' ${clone_pgdata_dir}/postgresql.conf
+sed -i 's/^\\(.*hba_file\\)/# \\1/' ${clone_pgdata_dir}/postgresql.conf
+sed -i 's/^\\(.*external_pid_file\\)/# \\1/' ${clone_pgdata_dir}/postgresql.conf
+sed -i 's/^\\(.*ident_file\\)/# \\1/' ${clone_pgdata_dir}/postgresql.conf
+sed -i 's/^\\(.*archive_command\\)/# \\1/' ${clone_pgdata_dir}/postgresql.conf
 
 # TODO: improve secirity aspects
 echo "listen_addresses = '*'" >> ${clone_pgdata_dir}/postgresql.conf
 
+echo "logging_collector = on" >> ${clone_pgdata_dir}/postgresql.conf
 echo "log_destination = 'stderr'" >> ${clone_pgdata_dir}/postgresql.conf
 echo "log_directory = 'pg_log'" >> ${clone_pgdata_dir}/postgresql.conf
+echo "log_line_prefix = '%t [%p]: [%l-1] db=%d,user=%u (%a,%h) '" >> ${clone_pgdata_dir}/postgresql.conf
+echo "log_connections = on" >> ${clone_pgdata_dir}/postgresql.conf
 
 ### Replication mode
-ver_str=$(sudo -u ${pg_bin_dir}/pg_controldata  -D ${clone_pgdata_dir} | grep "pg_control version number")
-ver_str=${ver_str/pg_control version number:/}
-ver_str=${ver_str/ /}
-ver=$((ver_str / 100))
-if [[ "$ver" -ge "12" ]]; then
-  ## use signal files
+if [[ "${pg_ver}" -ge 12 ]]; then
+  ## Use signal files
+  echo ">=12"
   touch ${clone_pgdata_dir}/standby.signal
 else
   # Use recovery.conf
+  echo "<12"
   echo "standby_mode = 'on'" > ${clone_pgdata_dir}/recovery.conf # overriding
   echo "primary_conninfo = ''" >> ${clone_pgdata_dir}/recovery.conf
   echo "restore_command = ''" >> ${clone_pgdata_dir}/recovery.conf
@@ -130,7 +137,7 @@ if [[ ! -z ${DATA_STATE_AT+x} ]]; then
   data_state_at="${DATA_STATE_AT}"
 else
   data_state_at=$(${pg_bin_dir}/psql \
-    --set ON_ERROR_STOP=on
+    --set ON_ERROR_STOP=on \
     -p ${clone_port} \
     -U ${pg_username} \
     -d ${pg_db} \
@@ -161,7 +168,9 @@ fi
 sudo -u postgres ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -w stop
 # todo: check that it's stopped, similiraly as above
 
-sudo zfs snapshot -r ${clone_full_name}@${snapshot_name}
+sudo -u postgres rm -rf ${clone_pgdata_dir}/pg_log
+
+sudo zfs snapshot ${clone_full_name}@${snapshot_name}
 sudo zfs set dblab:datastateat="${data_state_at}" ${clone_full_name}@${snapshot_name}
 
 # Snapshot "datastore/postgresql/db_state_1_pre@db_state_1" is ready and can be used for thin provisioning

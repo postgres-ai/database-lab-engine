@@ -45,7 +45,6 @@ type ModeZfsPortPool struct {
 type ModeZfsConfig struct {
 	PortPool             ModeZfsPortPool `yaml:"portPool"`
 	ZfsPool              string          `yaml:"pool"`
-	LogsDir              string          `yaml:"logsDir"`
 	MountDir             string          `yaml:"mountDir"`
 	SnapshotFilterSuffix string          `yaml:"snapshotFilterSuffix"`
 }
@@ -64,16 +63,8 @@ func NewProvisionModeZfs(config Config) (Provision, error) {
 	}
 	p.config = config
 
-	if len(p.config.ModeZfs.LogsDir) == 0 {
-		p.config.ModeZfs.LogsDir = "/var/lib/postgresql/dblab/logs/"
-	}
-
 	if len(p.config.ModeZfs.MountDir) == 0 {
 		p.config.ModeZfs.MountDir = "/var/lib/postgresql/dblab/clones/"
-	}
-
-	if !strings.HasSuffix(p.config.ModeZfs.LogsDir, Slash) {
-		p.config.ModeZfs.LogsDir += Slash
 	}
 
 	if !strings.HasSuffix(p.config.ModeZfs.MountDir, Slash) {
@@ -516,15 +507,14 @@ func (j *provisionModeZfs) getPgConfig(name string, port uint) *PgConfig {
 	}
 
 	return &PgConfig{
-		Version:    j.config.PgVersion,
-		Bindir:     j.config.PgBindir,
-		Datadir:    j.config.ModeZfs.MountDir + name + j.config.PgDataSubdir,
-		Host:       host,
-		Port:       port,
-		Name:       "postgres",
-		Username:   j.config.DbUsername,
-		Password:   j.config.DbPassword,
-		LogsPrefix: j.config.ModeZfs.LogsDir,
+		Version:  j.config.PgVersion,
+		Bindir:   j.config.PgBindir,
+		Datadir:  j.config.ModeZfs.MountDir + name + j.config.PgDataSubdir,
+		Host:     host,
+		Port:     port,
+		Name:     "postgres",
+		Username: j.config.DbUsername,
+		Password: j.config.DbPassword,
 	}
 }
 
