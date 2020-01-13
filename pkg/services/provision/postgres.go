@@ -113,7 +113,7 @@ func PostgresStart(r Runner, c *PgConfig) error {
 				return errors.Wrap(runnerError, "cannot access PGDATA")
 
 			case codeServerIsNotRunning:
-				if _, err = pgctlStart(r, logsDir, c); err != nil {
+				if _, err = pgctlStart(r, c); err != nil {
 					return errors.Wrap(err, "failed to start via pgctl")
 				}
 
@@ -230,11 +230,10 @@ func PostgresList(r Runner, prefix string) ([]string, error) {
 	return util.Unique(re.FindAllString(out, -1)), nil
 }
 
-func pgctlStart(r Runner, logsDir string, c *PgConfig) (string, error) {
+func pgctlStart(r Runner, c *PgConfig) (string, error) {
 	startCmd := `sudo --user postgres --non-interactive ` +
 		c.getBindir() + `/pg_ctl ` +
 		`--pgdata ` + c.Datadir + ` ` +
-		`--log ` + logsDir + ` ` +
 		`-o "-p ` + c.getPortStr() + `" ` +
 		`-W ` + // No wait.
 		`start`
