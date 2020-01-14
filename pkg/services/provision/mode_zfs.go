@@ -392,7 +392,7 @@ func (j *provisionModeZfs) RunPsql(session *Session, command string) (string, er
 // Other methods.
 func (j *provisionModeZfs) getDataSize(mountDir string) (uint64, error) {
 	log.Dbg("getDataSize: " + mountDir)
-	out, err := j.runner.Run("sudo du -d0 -b " + mountDir)
+	out, err := j.runner.Run("sudo du -d0 -b " + mountDir + j.config.PgDataSubdir)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to run command")
 	}
