@@ -54,7 +54,7 @@ func PostgresResetAllPasswords(r Runner, c *PgConfig, whitelistUsers []string) e
 
 	query := strings.Replace(ResetPasswordsQuery,
 		"{{OPTIONAL_WHERE}}", optionalWhere, 1)
-	out, err := runPsql(r, query, c, false, true)
+	out, err := runSimpleSQL(query, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to run psql")
 	}
@@ -67,7 +67,7 @@ func PostgresCreateUser(r Runner, c *PgConfig, username string, password string)
 	query := fmt.Sprintf("create user %s with password '%s' login superuser;",
 		username, password)
 
-	out, err := runPsql(r, query, c, false, true)
+	out, err := runSimpleSQL(query, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to run psql")
 	}

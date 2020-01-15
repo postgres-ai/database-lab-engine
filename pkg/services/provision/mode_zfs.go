@@ -384,11 +384,6 @@ func (j *provisionModeZfs) GetSessionState(s *Session) (*SessionState, error) {
 	return state, nil
 }
 
-func (j *provisionModeZfs) RunPsql(session *Session, command string) (string, error) {
-	pgConf := j.getPgConfig(session.Name, session.Port)
-	return runPsqlStrict(j.runner, command, pgConf)
-}
-
 // Other methods.
 func (j *provisionModeZfs) getDataSize(mountDir string) (uint64, error) {
 	log.Dbg("getDataSize: " + mountDir)

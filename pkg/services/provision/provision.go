@@ -1,9 +1,10 @@
 /*
 Provision wrapper
 
-2019 © Postgres.ai
+2019-2020 © Postgres.ai
 */
 
+// Package provision provides an interface to provision Database Lab clones.
 package provision
 
 import (
@@ -90,8 +91,6 @@ type Provision interface {
 
 	CreateSnapshot(string) error
 	GetSnapshots() ([]*Snapshot, error)
-
-	RunPsql(*Session, string) (string, error)
 
 	GetDiskState() (*Disk, error)
 	GetSessionState(*Session) (*SessionState, error)
