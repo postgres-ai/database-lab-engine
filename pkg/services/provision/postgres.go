@@ -1,19 +1,19 @@
 /*
-2019 © Postgres.ai
+2019-2020 © Postgres.ai
 */
 
 package provision
 
 import (
+	"database/sql"
 	"fmt"
-	"io/ioutil"
-	"math/rand"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	_ "github.com/lib/pq" // Register Postgres database driver.
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -34,8 +34,15 @@ const (
 	// codeUnaccessibleDataDirectory defines a Postgres exit status code.
 	// If an accessible data directory is not specified, the process returns an exit status of 4.
 	codeUnaccessibleDataDirectory = 4
+
+	// waitPostgtesTimeout defines timeout to wait Postgres ready.
+	waitPostgtesTimeout = 360
+
+	// checkPostgresStatusPeriod defines period to check Postgres status.
+	checkPostgresStatusPeriod = 500
 )
 
+// PgConfig store Postgres configuration.
 type PgConfig struct {
 	Version string
 	Bindir  string
@@ -93,6 +100,7 @@ func (c PgConfig) getDbName() string {
 	return "postgres"
 }
 
+// PostgresStart starts Postgres instance.
 func PostgresStart(r Runner, c *PgConfig) error {
 	log.Dbg("Starting Postgres...")
 
@@ -100,6 +108,7 @@ func PostgresStart(r Runner, c *PgConfig) error {
 
 	createLogsCmd := "sudo -u postgres -s mkdir -p " + logsDir
 	out, err := r.Run(createLogsCmd, true)
+
 	if err != nil {
 		return errors.Wrapf(err, "postgres start: make log dir %v", out)
 	}
@@ -131,11 +140,11 @@ func PostgresStart(r Runner, c *PgConfig) error {
 	cnt := 0
 
 	for {
-		out, err := runPsql(r, "select pg_is_in_recovery()", c, false, false)
+		out, err := runSimpleSQL("select pg_is_in_recovery()", c)
 
 		if err == nil {
 			// Server does not need promotion if it is not in recovery.
-			if out == "f" {
+			if out == "f" || out == "false" {
 				break
 			}
 
@@ -157,19 +166,22 @@ func PostgresStart(r Runner, c *PgConfig) error {
 		}
 
 		cnt++
-		if cnt > 360 { // 3 minutes
+
+		if cnt > waitPostgtesTimeout { // 3 minutes
 			if runnerErr := PostgresStop(r, c); runnerErr != nil {
 				log.Err(runnerErr)
 			}
 
 			return errors.Wrap(err, "postgres could not be promoted within 3 minutes")
 		}
-		time.Sleep(500 * time.Millisecond)
+
+		time.Sleep(checkPostgresStatusPeriod * time.Millisecond)
 	}
 
 	return nil
 }
 
+// PostgresStop stops Postgres instance.
 func PostgresStop(r Runner, c *PgConfig) error {
 	log.Dbg("Stopping Postgres...")
 
@@ -210,13 +222,16 @@ func PostgresStop(r Runner, c *PgConfig) error {
 		}
 
 		cnt++
-		if cnt > 360 { // 3 minutes
+
+		if cnt > waitPostgtesTimeout { // 3 minutes
 			return errors.Wrap(err, "postgres could not be stopped within 3 minutes")
 		}
-		time.Sleep(500 * time.Millisecond)
+
+		time.Sleep(checkPostgresStatusPeriod * time.Millisecond)
 	}
 }
 
+// PostgresList gets started Postgres instances.
 func PostgresList(r Runner, prefix string) ([]string, error) {
 	listProcsCmd := fmt.Sprintf(`ps ax`)
 
@@ -271,89 +286,57 @@ func pgctlPromote(r Runner, c *PgConfig) (string, error) {
 	return r.Run(startCmd, true)
 }
 
-// TODO(anatoly): Use SQL runner.
-// Use `runPsqlStrict` for commands defined by a user!
-func runPsql(r Runner, command string, c *PgConfig, formatted bool, useFile bool) (string, error) {
-	host := ""
+// Generate postgres connection string.
+func getPgConnStr(c *PgConfig) string {
+	var sb strings.Builder
+
 	if len(c.Host) > 0 {
-		host = "--host " + c.Host + " "
+		sb.WriteString("host=" + c.Host + " ")
 	}
 
-	params := "At" // Tuples only, unaligned.
-	if formatted {
-		params = ""
+	if len(c.getPortStr()) > 0 {
+		sb.WriteString("port=" + c.getPortStr() + " ")
 	}
 
-	var filename string
-	commandParam := fmt.Sprintf(`-c "%s"`, command)
-	if useFile {
-		source := rand.NewSource(time.Now().UnixNano())
-		random := rand.New(source)
-		uid := random.Uint64()
-
-		filename := fmt.Sprintf("/tmp/psql-query-%d", uid)
-
-		if err := ioutil.WriteFile(filename, []byte(command), 0644); err != nil {
-			return "", errors.Wrap(err, "failed to write file")
-		}
-
-		commandParam = fmt.Sprintf(`-f %s`, filename)
+	if len(c.getDbName()) > 0 {
+		sb.WriteString("dbname=" + c.getDbName() + " ")
 	}
 
-	psqlCmd := `PGPASSWORD=` + c.getPassword() + ` ` +
-		c.getBindir() + `/psql ` +
-		host +
-		`--dbname ` + c.getDbName() + ` ` +
-		`--port ` + c.getPortStr() + ` ` +
-		`--username ` + c.getUsername() + ` ` +
-		`-X` + params + ` ` +
-		`--no-password ` +
-		commandParam
-
-	out, err := r.Run(psqlCmd)
-
-	if useFile {
-		_ = os.Remove(filename)
+	if len(c.getUsername()) > 0 {
+		sb.WriteString("user=" + c.getUsername() + " ")
 	}
 
-	return out, errors.Wrap(err, "psql error")
+	if len(c.getPassword()) > 0 {
+		sb.WriteString(" password=" + c.getPassword() + "  ")
+	}
+	//sb.WriteString(" sslmode=disable")
+
+	return sb.String()
 }
 
-// Use for user defined commands to DB. Currently we only need
-// to support limited number of PSQL meta information commands.
-// That's why it's ok to restrict usage of some symbols.
-func runPsqlStrict(r Runner, command string, c *PgConfig) (string, error) {
-	command = strings.Trim(command, " \n")
-	if len(command) == 0 {
-		return "", errors.New("empty command")
-	}
+// Executes simple SQL commands which returns one string value.
+func runSimpleSQL(command string, c *PgConfig) (string, error) {
+	connStr := getPgConnStr(c)
+	db, err := sql.Open("postgres", connStr)
 
-	// Psql file option (-f) allows to run any number of commands.
-	// We need to take measures to restrict multiple commands support,
-	// as we only check the first command.
-
-	// User can run backslash commands on the same line with the first
-	// backslash command (even without space separator),
-	// e.g. `\d table1\d table2`.
-
-	// Remove all backslashes except the one in the beginning.
-	command = string(command[0]) + strings.ReplaceAll(command[1:], "\\", "")
-
-	// Semicolumn creates possibility to run consequent command.
-	command = strings.ReplaceAll(command, ";", "")
-
-	// User can run any command (including DML queries) on other lines.
-	// Restricting usage of multiline commands.
-	command = strings.ReplaceAll(command, "\n", "")
-
-	out, err := runPsql(r, command, c, true, true)
 	if err != nil {
-		if rerr, ok := err.(RunnerError); ok {
-			return "", errors.Wrapf(rerr, "runner pqsl error: %s", rerr.Stderr)
-		}
-
-		return "", errors.Wrap(err, "psql error")
+		return "", errors.Wrap(err, "cannot connect to database")
 	}
 
-	return out, nil
+	result := ""
+	row := db.QueryRow(command)
+	err = row.Scan(&result)
+
+	defer func() {
+		err := db.Close()
+		if err != nil {
+			log.Err("Cannot close database connection.")
+		}
+	}()
+
+	if err != nil && err == sql.ErrNoRows {
+		return "", nil
+	}
+
+	return result, err
 }
