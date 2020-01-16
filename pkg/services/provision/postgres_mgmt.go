@@ -64,7 +64,7 @@ func PostgresResetAllPasswords(r Runner, c *PgConfig, whitelistUsers []string) e
 }
 
 func PostgresCreateUser(r Runner, c *PgConfig, username string, password string) error {
-	query := fmt.Sprintf("create user %s with password '%s' login superuser;",
+	query := fmt.Sprintf("create user \"%s\" with password '%s' login superuser;",
 		username, password)
 
 	out, err := runSimpleSQL(query, c)
