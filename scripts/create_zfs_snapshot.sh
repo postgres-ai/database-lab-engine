@@ -37,6 +37,7 @@ pg_sock_dir=${PG_SOCK_DIR:-"/var/run/postgresql"}
 pg_username=${PGUSERNAME:-"postgres"}
 # Set password with PGPASSWORD env.
 pg_db=${PGDB:-"postgres"}
+sudo_cmd=${SUDO_CMD:-""} # Use `sudo -u postgres` for default environment
 
 # Snapshot.
 # Name of resulting snapshot after PGDATA manipulation.
@@ -51,7 +52,10 @@ sudo zfs clone ${zfs_pool}@${snapshot_name}${pre} ${clone_full_name} -o mountpoi
 
 cd /tmp # To avoid errors about lack of permissions.
 
-pg_ver=$(cat ${clone_pgdata_dir}/PG_VERSION | cut -f1 -d".")
+pg_ver=$(${sudo_cmd} cat ${clone_pgdata_dir}/PG_VERSION | cut -f1 -d".")
+
+${sudo_cmd} bash -f - <<SH
+set -ex
 
 rm -rf ${clone_pgdata_dir}/postmaster.pid # Questionable -- it's better to have snapshot created with Postgres being down
 
@@ -99,8 +103,9 @@ echo "host all all 0.0.0.0/0 md5" >> ${clone_pgdata_dir}/pg_hba.conf
 
 ### pg_ident.conf
 echo "" > ${clone_pgdata_dir}/pg_ident.conf
+SH
 
-${pg_bin_dir}/pg_ctl \
+${sudo_cmd} ${pg_bin_dir}/pg_ctl \
   -D "${clone_pgdata_dir}" \
   -o "-p ${clone_port} -c 'shared_buffers=4096'" \
   -W \
@@ -145,7 +150,7 @@ else
 fi
 
 # Promote to the master. Again, it may take a while.
-${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -W promote
+${sudo_cmd} ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -W promote
 
 failed=true
 for i in {1..1000}; do
@@ -163,17 +168,17 @@ if $failed; then
 fi
 
 # Finally, stop Postgres and create the base snapshot ready to be used for thin provisioning
-${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -w stop
+${sudo_cmd} ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -w stop
 # todo: check that it's stopped, similiraly as above
 
-rm -rf ${clone_pgdata_dir}/pg_log
+${sudo_cmd} rm -rf ${clone_pgdata_dir}/pg_log
 
 sudo zfs snapshot ${clone_full_name}@${snapshot_name}
 sudo zfs set dblab:datastateat="${data_state_at}" ${clone_full_name}@${snapshot_name}
 
 # Snapshot "datastore/postgresql/db_state_1_pre@db_state_1" is ready and can be used for thin provisioning
 
-rm -rf /tmp/trigger_${clone_port}
+${sudo_cmd} rm -rf /tmp/trigger_${clone_port}
 
 # Return to previous working directory.
 cd -
