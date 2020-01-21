@@ -114,7 +114,7 @@ func PostgresStart(r Runner, c *PgConfig) error {
 		startingUpCount := strings.Count(logs, "FATAL: the database system is starting up")
 
 		if fatalCount > 0 && startingUpCount != fatalCount {
-			return errors.Wrap(fmt.Errorf("Postgres fatal error"), "cannot start Postgres")
+			return errors.Wrap(fmt.Errorf("postgres fatal error"), "cannot start Postgres")
 		}
 
 		out, err := runSimpleSQL("select pg_is_in_recovery()", c)
