@@ -2,6 +2,7 @@
 2019 © Postgres.ai
 */
 
+// Package util provides utility functions. Async related utils.
 package util
 
 import (

@@ -8,12 +8,12 @@ package config
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
-	"path/filepath"
+	"os/user"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 	"gitlab.com/postgres-ai/database-lab/pkg/srv"
+	"gitlab.com/postgres-ai/database-lab/pkg/util"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -29,7 +29,7 @@ type Config struct {
 
 // LoadConfig instances a new Config by configuration filename.
 func LoadConfig(name string) (*Config, error) {
-	path, err := getConfigPath(name)
+	path, err := util.GetConfigPath(name)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get config path")
 	}
@@ -44,21 +44,12 @@ func LoadConfig(name string) (*Config, error) {
 		return nil, fmt.Errorf("error parsing %s config", name)
 	}
 
+	osUser, err := user.Current()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get current user")
+	}
+
+	cfg.Provision.OSUsername = osUser.Username
+
 	return cfg, nil
-}
-
-func getConfigPath(name string) (string, error) {
-	bindir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		return "", errors.Wrap(err, "failed to get abs filepath of a bin directory")
-	}
-
-	dir, err := filepath.Abs(filepath.Dir(bindir))
-	if err != nil {
-		return "", errors.Wrap(err, "failed to get abs filepath of a root directory")
-	}
-
-	path := dir + string(os.PathSeparator) + "configs" + string(os.PathSeparator) + name
-
-	return path, nil
 }

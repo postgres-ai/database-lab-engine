@@ -2,6 +2,7 @@
 2019 © Postgres.ai
 */
 
+// Package util provides utility functions. Time and duration processing.
 package util
 
 import (

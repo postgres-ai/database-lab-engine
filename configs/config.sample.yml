@@ -12,8 +12,9 @@ provision:
       from: 6000
       to: 6100
     mountDir: /var/lib/dblab/clones
+    unixSocketDir: /var/lib/dblab/sockets
     snapshotFilterSuffix: "_pre"
-  pgBindir: "/usr/lib/postgresql/12/bin"
+    dockerImage: "postgres:12-alpine"
   pgDataSubdir: "/"
   pgVersion: "12"
 

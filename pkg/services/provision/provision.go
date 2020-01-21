@@ -8,8 +8,8 @@ Provision wrapper
 package provision
 
 import (
+	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -56,12 +56,13 @@ type Config struct {
 
 	// Postgres options.
 	PgVersion    string `yaml:"pgVersion"`
-	PgBindir     string `yaml:"pgBindir"`
 	PgDataSubdir string `yaml:"pgDataSubdir"`
 
 	// Database user will be created with the specified credentials.
 	DbUsername string
 	DbPassword string
+
+	OSUsername string
 }
 
 // TODO(anatoly): Merge with disk from models?
@@ -98,14 +99,16 @@ type Provision interface {
 
 type provision struct {
 	config Config
+	ctx    context.Context // nolint
 }
 
-func NewProvision(config Config) (Provision, error) {
+// NewProvision creates a new Provision instance.
+func NewProvision(ctx context.Context, config Config) (Provision, error) {
 	// nolint
 	switch config.Mode {
 	case ModeZfs:
 		log.Dbg("Using ZFS mode.")
-		return NewProvisionModeZfs(config)
+		return NewProvisionModeZfs(ctx, config)
 	}
 
 	return nil, errors.New("unsupported mode specified")
@@ -115,13 +118,9 @@ func NewProvision(config Config) (Provision, error) {
 func IsValidConfig(c Config) bool {
 	result := true
 
-	if len(c.PgVersion) == 0 && len(c.PgBindir) == 0 {
-		log.Err("Either pgVersion or pgBindir should be set.")
+	if len(c.PgVersion) == 0 {
+		log.Err("pgVersion should be set.")
 		result = false
-	}
-
-	if len(c.PgBindir) > 0 && strings.HasSuffix(c.PgBindir, "/") {
-		log.Err("Remove tailing slash from pgBindir.")
 	}
 
 	switch c.Mode {

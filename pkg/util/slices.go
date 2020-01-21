@@ -2,6 +2,7 @@
 2019 © Postgres.ai
 */
 
+// Package util provides utility functions. Slices related utils.
 package util
 
 func EqualStringSlicesUnordered(x, y []string) bool {
