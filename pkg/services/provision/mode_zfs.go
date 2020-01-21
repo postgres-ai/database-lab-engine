@@ -5,6 +5,7 @@
 package provision
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -32,9 +33,6 @@ const (
 
 	// UseUnixSocket defines the need to connect to Postgres using Unix sockets.
 	UseUnixSocket = true
-
-	// UnixSocketDir defines directory of Postgres Unix sockets.
-	UnixSocketDir = "/var/run/postgresql/"
 )
 
 type ModeZfsPortPool struct {
@@ -46,7 +44,9 @@ type ModeZfsConfig struct {
 	PortPool             ModeZfsPortPool `yaml:"portPool"`
 	ZfsPool              string          `yaml:"pool"`
 	MountDir             string          `yaml:"mountDir"`
+	UnixSocketDir        string          `yaml:"unixSocketDir"`
 	SnapshotFilterSuffix string          `yaml:"snapshotFilterSuffix"`
+	DockerImage          string          `yaml:"dockerImage"`
 }
 
 type provisionModeZfs struct {
@@ -56,24 +56,35 @@ type provisionModeZfs struct {
 	sessionCounter uint
 }
 
-func NewProvisionModeZfs(config Config) (Provision, error) {
+// NewProvisionModeZfs creates a new Provision instance of ModeZfs.
+func NewProvisionModeZfs(ctx context.Context, config Config) (Provision, error) {
 	p := &provisionModeZfs{
 		runner:         NewLocalRunner(),
 		sessionCounter: 0,
 	}
 	p.config = config
+	p.ctx = ctx
 
 	if len(p.config.ModeZfs.MountDir) == 0 {
-		p.config.ModeZfs.MountDir = "/var/lib/postgresql/dblab/clones/"
+		p.config.ModeZfs.MountDir = "/var/lib/dblab/clones/"
+	}
+
+	if len(p.config.ModeZfs.UnixSocketDir) == 0 {
+		p.config.ModeZfs.UnixSocketDir = "/var/lib/dblab/sockets/"
 	}
 
 	if !strings.HasSuffix(p.config.ModeZfs.MountDir, Slash) {
 		p.config.ModeZfs.MountDir += Slash
 	}
 
+	if !strings.HasSuffix(p.config.ModeZfs.UnixSocketDir, Slash) {
+		p.config.ModeZfs.UnixSocketDir += Slash
+	}
+
 	if len(p.config.DbUsername) == 0 {
 		p.config.DbUsername = DefaultUsername
 	}
+
 	if len(p.config.DbPassword) == 0 {
 		p.config.DbPassword = DefaultPassword
 	}
@@ -116,6 +127,20 @@ func (j *provisionModeZfs) Init() error {
 		return errors.Wrap(err, "failed to init port pool")
 	}
 
+	imageExists, err := DockerImageExists(j.runner, j.config.ModeZfs.DockerImage)
+	if err != nil {
+		return errors.Wrap(err, "cannot check docker image existence")
+	}
+
+	if imageExists {
+		return nil
+	}
+
+	err = DockerPullImage(j.runner, j.config.ModeZfs.DockerImage)
+	if err != nil {
+		return errors.Wrap(err, "cannot pull docker image")
+	}
+
 	return nil
 }
 
@@ -140,7 +165,7 @@ func (j *provisionModeZfs) StartSession(username string, password string, option
 	log.Dbg(fmt.Sprintf(`Starting session for port: %d.`, port))
 
 	err = ZfsCreateClone(j.runner, j.config.ModeZfs.ZfsPool, name, snapshotID,
-		j.config.ModeZfs.MountDir)
+		j.config.ModeZfs.MountDir, j.config.OSUsername)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create a clone")
 	}
@@ -248,7 +273,7 @@ func (j *provisionModeZfs) ResetSession(session *Session, options ...string) err
 	}
 
 	err = ZfsCreateClone(j.runner, j.config.ModeZfs.ZfsPool, name, snapshotID,
-		j.config.ModeZfs.MountDir)
+		j.config.ModeZfs.MountDir, j.config.OSUsername)
 	if err != nil {
 		return errors.Wrap(err, "failed to create a clone")
 	}
@@ -469,6 +494,8 @@ func (j *provisionModeZfs) stopAllSessions() error {
 	log.Dbg("Postgres instances running:", insts)
 
 	for _, inst := range insts {
+		log.Dbg("Stopping Postgress instance:", inst)
+
 		if err = PostgresStop(j.runner, j.getPgConfig(inst, 0)); err != nil {
 			return errors.Wrap(err, "failed to stop Postgres")
 		}
@@ -497,19 +524,24 @@ func (j *provisionModeZfs) getName(port uint) string {
 
 func (j *provisionModeZfs) getPgConfig(name string, port uint) *PgConfig {
 	host := DefaultHost
+	unixSocketCloneDir := j.config.ModeZfs.UnixSocketDir + name
+
 	if UseUnixSocket {
-		host = UnixSocketDir
+		host = unixSocketCloneDir
 	}
 
 	return &PgConfig{
-		Version:  j.config.PgVersion,
-		Bindir:   j.config.PgBindir,
-		Datadir:  j.config.ModeZfs.MountDir + name + j.config.PgDataSubdir,
-		Host:     host,
-		Port:     port,
-		Name:     "postgres",
-		Username: j.config.DbUsername,
-		Password: j.config.DbPassword,
+		CloneName:          name,
+		Version:            j.config.PgVersion,
+		DockerImage:        j.config.ModeZfs.DockerImage,
+		Datadir:            j.config.ModeZfs.MountDir + name + j.config.PgDataSubdir,
+		Host:               host,
+		Port:               port,
+		UnixSocketCloneDir: unixSocketCloneDir,
+		Name:               "postgres",
+		Username:           j.config.DbUsername,
+		Password:           j.config.DbPassword,
+		OSUsername:         j.config.OSUsername,
 	}
 }
 

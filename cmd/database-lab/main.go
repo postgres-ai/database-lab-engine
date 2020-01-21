@@ -13,6 +13,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -32,6 +33,8 @@ var opts struct {
 }
 
 func main() {
+	ctx := context.Background()
+
 	// Load CLI options.
 	if _, err := parseArgs(); err != nil {
 		if flags.WroteHelp(err) {
@@ -54,7 +57,7 @@ func main() {
 		cfg.Provision.DbPassword = opts.DbPassword
 	}
 
-	provisionSvc, err := provision.NewProvision(cfg.Provision)
+	provisionSvc, err := provision.NewProvision(ctx, cfg.Provision)
 	if err != nil {
 		log.Fatalf(errors.WithMessage(err, `error in "provision" config`))
 	}

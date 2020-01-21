@@ -1,3 +1,8 @@
+/*
+2019 © Postgres.ai
+*/
+
+// Package util provides utility functions. Testing related.
 package util
 
 import (

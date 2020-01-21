@@ -69,7 +69,7 @@ type ZfsListEntry struct {
 }
 
 // ZfsCreateClone creates a new ZFS clone.
-func ZfsCreateClone(r Runner, pool string, name string, snapshot string, mountDir string) error {
+func ZfsCreateClone(r Runner, pool, name, snapshot, mountDir, osUsername string) error {
 	exists, err := ZfsCloneExists(r, name)
 	if err != nil {
 		return errors.Wrap(err, "clone does not exist")
@@ -81,7 +81,7 @@ func ZfsCreateClone(r Runner, pool string, name string, snapshot string, mountDi
 
 	cmd := "sudo -n zfs clone " + snapshot + " " +
 		pool + "/" + name + " -o mountpoint=" + mountDir + name + " && " +
-		"sudo --non-interactive chown -R postgres " + mountDir + name
+		"sudo --non-interactive chown -R " + osUsername + " " + mountDir + name
 
 	out, err := r.Run(cmd)
 	if err != nil {
