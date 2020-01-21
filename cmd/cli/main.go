@@ -79,7 +79,8 @@ func loadEnvironmentParams(c *cli.Context) error {
 
 	cfg, err := config.Load(filename)
 	if err != nil {
-		return err
+		// Failed to load config, skip auto-loading environment keys.
+		return nil
 	}
 
 	currentEnv := cfg.CurrentEnvironment
