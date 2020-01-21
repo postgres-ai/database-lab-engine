@@ -2,7 +2,10 @@
 2019 © Postgres.ai
 */
 
+// Package models provides Database Lab struct.
 package models
+
+import "fmt"
 
 const (
 	// ErrCodeInternal defines an internal error code.
@@ -15,4 +18,9 @@ type Error struct {
 	Message string `json:"message"`
 	Detail  string `json:"detail"`
 	Hint    string `json:"hint"`
+}
+
+// Error prints an error message.
+func (e Error) Error() string {
+	return fmt.Sprintf("Code %q. Message: %s Detail: %s Hint: %s", e.Code, e.Message, e.Detail, e.Hint)
 }

@@ -1,6 +1,7 @@
 .DEFAULT_GOAL = all
 
-BINARY = dblab
+SERVER_BINARY = dblab-server
+CLI_BINARY = dblab
 GOARCH = amd64
 
 VERSION?=0.1
@@ -9,7 +10,7 @@ COMMIT?=no #$(shell git rev-parse HEAD)
 BRANCH?=no #$(shell git rev-parse --abbrev-ref HEAD)
 
 # Symlink into GOPATH
-BUILD_DIR=${GOPATH}/${BINARY}
+BUILD_DIR=${GOPATH}/${SERVER_BINARY}
 
 # Setup the -ldflags option for go build here, interpolate the variable values
 LDFLAGS = -ldflags "-s -w \
@@ -36,10 +37,11 @@ run-lint:
 lint: install-lint run-lint
 
 build:
-	 ${GOBUILD} -o bin/${BINARY} ./cmd/database-lab/
+	 ${GOBUILD} -o bin/${SERVER_BINARY} ./cmd/database-lab/main.go
+	 ${GOBUILD} -o bin/${CLI_BINARY} ./cmd/cli/main.go
 
 test:
-	${GOTEST} ./pkg/...
+	${GOTEST} ./...
 
 fmt:
 	go fmt $$(go list ./... | grep -v /vendor/)
