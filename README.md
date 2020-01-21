@@ -31,8 +31,8 @@ be needed for further configuration (`initialSnapshot` option in
 Deploy a Database Lab instance in your infrastructure. You would need to:
 1. Create `configs/config.yml` (see example in `configs/`).
 1. Build `make all` and launch Database Lab with some token for REST API
-authorization `./bin/dblab -v some-token`
-(or, with log: `./bin/dblab -v some-token 2>&1 | tee -a dblab.log`).
+authorization `./bin/dblab-server -v some-token`
+(or, with log: `./bin/dblab-server -v some-token 2>&1 | tee -a dblab.log`).
 
 
 ## Usage

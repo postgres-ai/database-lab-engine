@@ -92,14 +92,10 @@ issues:
         - gocyclo
         - lll
         - errcheck
-
-    # Exclude "error strings should not end with punctuation or a newline" for legacy reasons
-    - linters:
-        - stylecheck
-      text: "ST1005:"
+        - gomnd
 
   exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
 
-  new-from-rev: 67c2feac
+  new-from-rev: e81dddafc468ececbd995e6d6515f1b20fa09ca0
