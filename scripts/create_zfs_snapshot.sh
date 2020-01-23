@@ -75,11 +75,14 @@ sed -i 's/^\\(.*archive_command\\)/# \\1/' ${clone_pgdata_dir}/postgresql.conf
 # TODO: improve secirity aspects
 echo "listen_addresses = '*'" >> ${clone_pgdata_dir}/postgresql.conf
 
-echo "logging_collector = on" >> ${clone_pgdata_dir}/postgresql.conf
 echo "log_destination = 'stderr'" >> ${clone_pgdata_dir}/postgresql.conf
-echo "log_directory = 'pg_log'" >> ${clone_pgdata_dir}/postgresql.conf
-echo "log_line_prefix = '%t [%p]: [%l-1] db=%d,user=%u (%a,%h) '" >> ${clone_pgdata_dir}/postgresql.conf
 echo "log_connections = on" >> ${clone_pgdata_dir}/postgresql.conf
+
+# detect idle clones
+echo "log_min_duration_statement = 0" >> ${clone_pgdata_dir}/postgresql.conf
+echo "log_statement = 'none'" >> ${clone_pgdata_dir}/postgresql.conf
+echo "log_timezone = 'Etc/UTC'" >> ${clone_pgdata_dir}/postgresql.conf
+echo "log_line_prefix = '%m [%p]: [%l-1] db=%d,user=%u (%a,%h) '" >> ${clone_pgdata_dir}/postgresql.conf
 
 ### Replication mode
 if [[ "${pg_ver}" -ge 12 ]]; then

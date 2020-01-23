@@ -105,7 +105,7 @@ func (s *Server) getClone() http.HandlerFunc {
 
 		clone, err := s.Cloning.GetClone(cloneID)
 		if err != nil {
-			log.Errf("failed to get clone: %+v", err)
+			log.Dbg("Failed to get clone: " + err.Error())
 			failNotFound(w, r)
 
 			return

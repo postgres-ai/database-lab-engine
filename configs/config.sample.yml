@@ -21,7 +21,6 @@ provision:
 cloning:
   mode: "base"
   accessHost: "localhost"
-  autoDelete: true
-  idleTime: 120
+  idleTime: 0 # Minutes. 0 - means disable automatic deletion.
 
 debug: true

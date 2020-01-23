@@ -85,7 +85,7 @@ func Err(v ...interface{}) {
 
 // Errf outputs formatted log.
 func Errf(format string, v ...interface{}) {
-	log.Printf("[ERROR] "+format, v)
+	log.Printf("[ERROR] "+format, v...)
 }
 
 // Messages for security audit.

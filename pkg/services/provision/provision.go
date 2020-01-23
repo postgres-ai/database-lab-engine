@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -95,11 +96,12 @@ type Provision interface {
 
 	GetDiskState() (*Disk, error)
 	GetSessionState(*Session) (*SessionState, error)
+	LastSessionActivity(*Session, time.Duration) (*time.Time, error)
 }
 
 type provision struct {
 	config Config
-	ctx    context.Context // nolint
+	ctx    context.Context
 }
 
 // NewProvision creates a new Provision instance.
@@ -108,7 +110,14 @@ func NewProvision(ctx context.Context, config Config) (Provision, error) {
 	switch config.Mode {
 	case ModeZfs:
 		log.Dbg("Using ZFS mode.")
-		return NewProvisionModeZfs(ctx, config)
+
+		// TODO(akartasov): Make it configurable.
+		dockerClient, err := client.NewEnvClient()
+		if err != nil {
+			log.Fatalf(errors.WithMessage(err, `failed to create Docker client`))
+		}
+
+		return NewProvisionModeZfs(ctx, config, dockerClient)
 	}
 
 	return nil, errors.New("unsupported mode specified")

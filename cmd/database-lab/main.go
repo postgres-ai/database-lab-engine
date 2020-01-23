@@ -15,14 +15,14 @@ import (
 	"bytes"
 	"context"
 
+	"github.com/jessevdk/go-flags"
+	"github.com/pkg/errors"
+
 	"gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 	"gitlab.com/postgres-ai/database-lab/pkg/srv"
-
-	"github.com/jessevdk/go-flags"
-	"github.com/pkg/errors"
 )
 
 var opts struct {
@@ -67,7 +67,10 @@ func main() {
 		log.Fatalf(errors.WithMessage(err, "failed to init a new cloning service"))
 	}
 
-	if err = cloningSvc.Run(); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err = cloningSvc.Run(ctx); err != nil {
 		log.Fatalf(err)
 	}
 
