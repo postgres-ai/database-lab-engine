@@ -6,6 +6,7 @@
 package cloning
 
 import (
+	"context"
 	"time"
 
 	"github.com/pkg/errors"
@@ -26,8 +27,7 @@ const (
 // Config contains a cloning configuration.
 type Config struct {
 	Mode       string `yaml:"mode"`
-	AutoDelete bool   `yaml:"autoDelete"`
-	IdleTime   uint   `yaml:"idleTime"`
+	IdleTime   uint   `yaml:"idleTime"` // Minutes.
 	AccessHost string `yaml:"accessHost"`
 }
 
@@ -37,7 +37,7 @@ type cloning struct {
 
 // Cloning defines a Cloning service interface.
 type Cloning interface {
-	Run() error
+	Run(ctx context.Context) error
 
 	CreateClone(*models.Clone) error
 	DestroyClone(string) error

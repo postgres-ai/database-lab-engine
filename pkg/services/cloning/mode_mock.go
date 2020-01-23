@@ -5,6 +5,8 @@
 package cloning
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
@@ -65,7 +67,7 @@ func NewMockClone() *models.Clone {
 	}
 }
 
-func (c *mockCloning) Run() error {
+func (c *mockCloning) Run(ctx context.Context) error {
 	return nil
 }
 

@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"strings"
 	"time"
 
@@ -252,7 +251,8 @@ func PostgresStop(r Runner, c *PgConfig) error {
 		return errors.Wrap(err, "failed to remove container")
 	}
 
-	err = os.RemoveAll(c.UnixSocketCloneDir)
+	//err = os.RemoveAll(c.UnixSocketCloneDir)
+	_, err = r.Run("rm -rf " + c.UnixSocketCloneDir + "/*")
 	if err != nil {
 		return errors.Wrap(err, "failed to clean unix socket directory")
 	}

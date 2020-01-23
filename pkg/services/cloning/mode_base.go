@@ -5,6 +5,7 @@
 package cloning
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -13,10 +14,13 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/pkg/util/pglog"
 
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 )
+
+const idleCheckDuration = 5 * time.Minute
 
 type baseCloning struct {
 	cloning
@@ -28,7 +32,6 @@ type baseCloning struct {
 	provision provision.Provision
 }
 
-// TODO(anatoly): Delete idle clones.
 // NewBaseCloning instances a new base Cloning.
 func NewBaseCloning(cfg *Config, provision provision.Provision) Cloning {
 	var instanceStatusActualStatus = &models.Status{
@@ -54,12 +57,12 @@ func NewBaseCloning(cfg *Config, provision provision.Provision) Cloning {
 }
 
 // Initialize and run cloning component.
-func (c *baseCloning) Run() error {
+func (c *baseCloning) Run(ctx context.Context) error {
 	if err := c.provision.Init(); err != nil {
 		return errors.Wrap(err, "failed to run cloning")
 	}
 
-	// TODO(anatoly): Run interval for stopping idle sessions.
+	go c.runIdleCheck(ctx)
 
 	return nil
 }
@@ -110,8 +113,10 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		session, err := c.provision.StartSession(w.username, w.password, snapshotID)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
-			log.Errf("failed to start session: %+v", err)
 			clone.Status = statusFatal
+
+			log.Errf("Failed to start session: %+v.", err)
+
 			return
 		}
 
@@ -153,10 +158,11 @@ func (c *baseCloning) DestroyClone(id string) error {
 	}
 
 	go func() {
-		err := c.provision.StopSession(w.session)
-		if err != nil {
-			log.Errf("failed to delete clone: %+v", err)
+		if err := c.provision.StopSession(w.session); err != nil {
 			w.clone.Status = statusFatal
+
+			log.Errf("Failed to delete clone: %+v.", err)
+
 			return
 		}
 
@@ -261,8 +267,9 @@ func (c *baseCloning) ResetClone(id string) error {
 
 		err := c.provision.ResetSession(w.session, snapshotID)
 		if err != nil {
-			log.Errf("failed to reset session: %+v", err)
 			w.clone.Status = statusFatal
+
+			log.Errf("Failed to reset session: %+v.", err)
 
 			return
 		}
@@ -303,6 +310,7 @@ func (c *baseCloning) GetClones() []*models.Clone {
 	for _, clone := range c.clones {
 		clones = append(clones, clone.clone)
 	}
+
 	return clones
 }
 
@@ -340,4 +348,81 @@ func (c *baseCloning) fetchSnapshots() error {
 	c.snapshots = snapshots
 
 	return nil
+}
+
+func (c *baseCloning) runIdleCheck(ctx context.Context) {
+	if c.Config.IdleTime == 0 {
+		return
+	}
+
+	idleTimer := time.NewTimer(idleCheckDuration)
+
+	for {
+		select {
+		case <-idleTimer.C:
+			c.destroyIdleClones(ctx)
+			idleTimer.Reset(idleCheckDuration)
+
+		case <-ctx.Done():
+			idleTimer.Stop()
+			return
+		}
+	}
+}
+
+func (c *baseCloning) destroyIdleClones(ctx context.Context) {
+	for _, cloneWrapper := range c.clones {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			isIdleClone, err := c.isIdleClone(cloneWrapper)
+			if err != nil {
+				log.Errf("Failed to check the idleness of clone %s: %+v.", cloneWrapper.clone.ID, err)
+				continue
+			}
+
+			if isIdleClone {
+				log.Msg(fmt.Sprintf("Idle clone %q is going to be removed.", cloneWrapper.clone.ID))
+
+				if err = c.DestroyClone(cloneWrapper.clone.ID); err != nil {
+					log.Errf("Failed to destroy clone: %+v.", err)
+					continue
+				}
+			}
+		}
+	}
+}
+
+func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
+	currentTime := time.Now()
+
+	idleDuration := time.Duration(c.Config.IdleTime) * time.Minute
+
+	availableIdleTime := wrapper.timeStartedAt.Add(idleDuration)
+	if wrapper.clone.Protected || availableIdleTime.After(currentTime) {
+		return false, nil
+	}
+
+	session := wrapper.session
+
+	lastSessionActivity, err := c.provision.LastSessionActivity(session, idleDuration)
+	if err != nil {
+		if err == pglog.ErrNotFound {
+			log.Dbg(fmt.Sprintf("Not found recent activity for the session: %q. Session name: %q",
+				session.ID, session.Name))
+
+			return true, nil
+		}
+
+		return false, errors.Wrap(err, "failed to get the last session activity")
+	}
+
+	// Check extracted activity time.
+	availableSessionActivity := lastSessionActivity.Add(idleDuration)
+	if availableSessionActivity.After(currentTime) {
+		return false, nil
+	}
+
+	return true, nil
 }

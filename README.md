@@ -30,6 +30,7 @@ be needed for further configuration (`initialSnapshot` option in
 ## Run
 Deploy a Database Lab instance in your infrastructure. You would need to:
 1. Create `configs/config.yml` (see example in `configs/`).
+1. Ensure that the current user has `sudo` privileges to create directories at `mountDir` (check this option in `configs/config.yml`).
 1. Build `make all` and launch Database Lab with some token for REST API
 authorization `./bin/dblab-server -v some-token`
 (or, with log: `./bin/dblab-server -v some-token 2>&1 | tee -a dblab.log`).

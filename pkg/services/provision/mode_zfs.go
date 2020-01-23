@@ -5,14 +5,20 @@
 package provision
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/util/pglog"
 )
 
 const (
@@ -33,13 +39,19 @@ const (
 
 	// UseUnixSocket defines the need to connect to Postgres using Unix sockets.
 	UseUnixSocket = true
+
+	defaultSessionCloneSize = 10
+
+	dockerLogHeaderLength = 8
 )
 
+// ModeZfsPortPool describes an available port range of ZFS pool.
 type ModeZfsPortPool struct {
 	From uint `yaml:"from"`
 	To   uint `yaml:"to"`
 }
 
+// ModeZfsConfig describes provisioning configs for ZFS mode.
 type ModeZfsConfig struct {
 	PortPool             ModeZfsPortPool `yaml:"portPool"`
 	ZfsPool              string          `yaml:"pool"`
@@ -51,19 +63,23 @@ type ModeZfsConfig struct {
 
 type provisionModeZfs struct {
 	provision
+	dockerClient   *client.Client
 	runner         Runner
 	ports          []bool
 	sessionCounter uint
 }
 
 // NewProvisionModeZfs creates a new Provision instance of ModeZfs.
-func NewProvisionModeZfs(ctx context.Context, config Config) (Provision, error) {
+func NewProvisionModeZfs(ctx context.Context, config Config, dockerClient *client.Client) (Provision, error) {
 	p := &provisionModeZfs{
 		runner:         NewLocalRunner(),
 		sessionCounter: 0,
+		dockerClient:   dockerClient,
+		provision: provision{
+			config: config,
+			ctx:    ctx,
+		},
 	}
-	p.config = config
-	p.ctx = ctx
 
 	if len(p.config.ModeZfs.MountDir) == 0 {
 		p.config.ModeZfs.MountDir = "/var/lib/dblab/clones/"
@@ -99,16 +115,19 @@ func isValidConfigModeZfs(config Config) bool {
 
 	if portPool.From == 0 {
 		log.Err(`Wrong configuration: "portPool.from" must be defined and be greather than 0.`)
+
 		result = false
 	}
 
 	if portPool.To == 0 {
 		log.Err(`Wrong configuration: "portPool.to" must be defined and be greather than 0.`)
+
 		result = false
 	}
 
 	if portPool.To <= portPool.From {
 		log.Err(`Wrong configuration: port pool must consist of at least one port.`)
+
 		result = false
 	}
 
@@ -145,7 +164,7 @@ func (j *provisionModeZfs) Init() error {
 }
 
 func (j *provisionModeZfs) Reinit() error {
-	return fmt.Errorf(`"Reinit" method is unsupported in "ZFS" mode.`)
+	return fmt.Errorf(`"Reinit" method is unsupported in "ZFS" mode`)
 }
 
 func (j *provisionModeZfs) StartSession(username string, password string, options ...string) (*Session, error) {
@@ -248,6 +267,7 @@ func (j *provisionModeZfs) StopSession(session *Session) error {
 	return nil
 }
 
+// TODO(akartasov): Refactor revert actions.
 func (j *provisionModeZfs) ResetSession(session *Session, options ...string) error {
 	name := j.getName(session.Port)
 
@@ -324,6 +344,7 @@ func (j *provisionModeZfs) GetSnapshots() ([]*Snapshot, error) {
 	}
 
 	snapshots := make([]*Snapshot, 0, len(entries))
+
 	for _, entry := range entries {
 		if strings.HasSuffix(entry.Name, j.config.ModeZfs.SnapshotFilterSuffix) {
 			continue
@@ -350,15 +371,17 @@ func (j *provisionModeZfs) GetDiskState() (*Disk, error) {
 		return nil, errors.Wrap(err, "failed to list filesystems")
 	}
 
-	var parentPoolEntry *ZfsListEntry
-	var poolEntry *ZfsListEntry
+	var parentPoolEntry, poolEntry *ZfsListEntry
+
 	for _, entry := range entries {
 		if entry.Name == parentPool {
 			parentPoolEntry = entry
 		}
+
 		if entry.Name == j.config.ModeZfs.ZfsPool {
 			poolEntry = entry
 		}
+
 		if parentPoolEntry != nil && poolEntry != nil {
 			break
 		}
@@ -384,7 +407,7 @@ func (j *provisionModeZfs) GetDiskState() (*Disk, error) {
 
 func (j *provisionModeZfs) GetSessionState(s *Session) (*SessionState, error) {
 	state := &SessionState{
-		CloneSize: 10,
+		CloneSize: defaultSessionCloneSize,
 	}
 
 	entries, err := ZfsListFilesystems(j.runner, j.config.ModeZfs.ZfsPool)
@@ -392,8 +415,10 @@ func (j *provisionModeZfs) GetSessionState(s *Session) (*SessionState, error) {
 		return nil, errors.Wrap(err, "failed to list filesystems")
 	}
 
-	entryName := j.config.ModeZfs.ZfsPool + "/" + j.getName(s.Port)
 	var sEntry *ZfsListEntry
+
+	entryName := j.config.ModeZfs.ZfsPool + "/" + j.getName(s.Port)
+
 	for _, entry := range entries {
 		if entry.Name == entryName {
 			sEntry = entry
@@ -406,19 +431,23 @@ func (j *provisionModeZfs) GetSessionState(s *Session) (*SessionState, error) {
 	}
 
 	state.CloneSize = sEntry.Used
+
 	return state, nil
 }
 
 // Other methods.
 func (j *provisionModeZfs) getDataSize(mountDir string) (uint64, error) {
 	log.Dbg("getDataSize: " + mountDir)
+
+	const expectedDataSizeParts = 2
+
 	out, err := j.runner.Run("sudo du -d0 -b " + mountDir + j.config.PgDataSubdir)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to run command")
 	}
 
 	split := strings.SplitN(out, "\t", 2)
-	if len(split) != 2 {
+	if len(split) != expectedDataSizeParts {
 		return 0, errors.New(`wrong format for "du"`)
 	}
 
@@ -450,6 +479,7 @@ func (j *provisionModeZfs) getSnapshotID(options ...string) (string, error) {
 	return snapshotID, nil
 }
 
+// nolint
 func (j *provisionModeZfs) initPortPool() error {
 	// Init session pool.
 	portOpts := j.config.ModeZfs.PortPool
@@ -462,6 +492,7 @@ func (j *provisionModeZfs) initPortPool() error {
 
 func (j *provisionModeZfs) getFreePort() (uint, error) {
 	portOpts := j.config.ModeZfs.PortPool
+
 	for index, binded := range j.ports {
 		if !binded {
 			port := portOpts.From + uint(index)
@@ -534,7 +565,7 @@ func (j *provisionModeZfs) getPgConfig(name string, port uint) *PgConfig {
 		CloneName:          name,
 		Version:            j.config.PgVersion,
 		DockerImage:        j.config.ModeZfs.DockerImage,
-		Datadir:            j.config.ModeZfs.MountDir + name + j.config.PgDataSubdir,
+		Datadir:            path.Clean(j.config.ModeZfs.MountDir + name + j.config.PgDataSubdir),
 		Host:               host,
 		Port:               port,
 		UnixSocketCloneDir: unixSocketCloneDir,
@@ -543,6 +574,51 @@ func (j *provisionModeZfs) getPgConfig(name string, port uint) *PgConfig {
 		Password:           j.config.DbPassword,
 		OSUsername:         j.config.OSUsername,
 	}
+}
+
+func (j *provisionModeZfs) LastSessionActivity(session *Session, since time.Duration) (*time.Time, error) {
+	cloneName := j.getName(session.Port)
+
+	ctx, cancel := context.WithCancel(j.ctx)
+	defer cancel()
+
+	logStream, err := j.dockerClient.ContainerLogs(ctx, cloneName, types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Since:      since.String(),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed get Docker logs")
+	}
+
+	defer func() {
+		if err := logStream.Close(); err != nil {
+			log.Errf("Failed to close Docker log stream: %s", err.Error())
+		}
+	}()
+
+	scanner := bufio.NewScanner(logStream)
+	for scanner.Scan() {
+		if len(scanner.Bytes()) < dockerLogHeaderLength {
+			continue
+		}
+
+		// Skip stream headers.
+		logLine := string(scanner.Bytes()[8:])
+
+		lastActivity, err := pglog.GetPostgresLastActivity(logLine)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get the time of last activity of %q", cloneName)
+		}
+
+		if lastActivity == nil {
+			continue
+		}
+
+		return lastActivity, nil
+	}
+
+	return nil, pglog.ErrNotFound
 }
 
 func (j *provisionModeZfs) prepareDb(username string, password string, pgConf *PgConfig) error {
