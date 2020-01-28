@@ -1,7 +1,6 @@
 package srv
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -128,20 +127,5 @@ func (s *Server) resetClone() http.HandlerFunc {
 		}
 
 		log.Dbg(fmt.Sprintf("Clone ID=%s is being reset", cloneID))
-	}
-}
-
-func getHelp(routes []Route) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		b, err := json.MarshalIndent(routes, "", "  ")
-		if err != nil {
-			log.Err(err)
-			return
-		}
-
-		if _, err = w.Write(b); err != nil {
-			log.Err(err)
-			return
-		}
 	}
 }

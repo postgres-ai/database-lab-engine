@@ -1,0 +1,393 @@
+swagger: "2.0"
+info:
+  description: "This is a Database Lab sample server."
+  version: "0.1.0"
+  title: "Database Lab"
+  contact:
+    email: "team@postgres.ai"
+  license:
+    name: "Database Lab License"
+    url: "https://gitlab.com/postgres-ai/database-lab/blob/master/LICENSE.txt"
+basePath: "/"
+tags:
+- name: "Database Lab"
+  description: "API Reference"
+  externalDocs:
+    description: "Database Lab Docs"
+    url: "https://gitlab.com/postgres-ai/docs/tree/master/docs/database-lab"
+schemes:
+- "https"
+- "http"
+
+paths:
+  /status:
+    get:
+      tags:
+      - "instance"
+      summary: "Get the status of the instance we are working with"
+      description: ""
+      operationId: "getInstanceStatus"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/Instance"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /snapshots:
+    get:
+      tags:
+      - "instance"
+      summary: "Get the list of snapshots"
+      description: ""
+      operationId: "getSnapshots"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Snapshot"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /clone:
+    post:
+      tags:
+      - "clone"
+      summary: "Create a clone"
+      description: ""
+      operationId: "createClone"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - in: body
+          name: body
+          description: "Clone object"
+          required: true
+          schema:
+            $ref: '#/definitions/CreateClone'
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/Clone"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /clone/{id}:
+    get:
+      tags:
+      - "clone"
+      summary: "Get a clone status"
+      description: ""
+      operationId: "getClone"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - in: path
+          required: true
+          name: "id"
+          type: "string"
+          description: "Clone ID"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/Clone"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+    patch:
+      tags:
+      - "clone"
+      summary: "Update a clone"
+      description: ""
+      operationId: "patchClone"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - in: path
+          required: true
+          name: "id"
+          type: "string"
+          description: "Clone ID"
+        - in: body
+          name: body
+          description: "Clone object"
+          required: true
+          schema:
+            $ref: '#/definitions/UpdateClone'
+      responses:
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+    delete:
+      tags:
+      - "clone"
+      summary: "Delete a clone"
+      description: ""
+      operationId: "destroyClone"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - in: path
+          required: true
+          name: "id"
+          type: "string"
+          description: "Clone ID"
+      responses:
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /clone/{id}/reset:
+    post:
+      tags:
+      - "clone"
+      summary: "Reset a clone"
+      description: ""
+      operationId: "resetClone"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - in: path
+          required: true
+          name: "id"
+          type: "string"
+          description: "Clone ID"
+      responses:
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+definitions:
+  Instance:
+    type: "object"
+    properties:
+      status:
+        $ref: "#/definitions/Status"
+      fileSystem:
+        $ref: "#/definitions/FileSystem"
+      dataSize:
+        type: "integer"
+        format: "int64"
+      expectedCloningTime:
+        type: "integer"
+        format: "float64"
+      numClones:
+        type: "integer"
+        format: "int64"
+      clones:
+        type: "array"
+        items:
+          $ref: "#/definitions/Clone"
+
+  Status:
+    type: "object"
+    required:
+      - "code"
+      - "message"
+    properties:
+      code:
+        type: "string"
+        description: "Status code"
+      message:
+        type: "string"
+        description: "Status description"
+
+  Snapshot:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+      createdAt:
+        type: "string"
+        format: "date-time"
+      dataStateAt:
+        type: "string"
+        format: "date-time"
+
+  FileSystem:
+    type: "object"
+    properties:
+      free:
+        type: "integer"
+        format: "int64"
+      size:
+        type: "integer"
+        format: "int64"
+
+  Database:
+    type: "object"
+    properties:
+      connStr:
+        type: "string"
+      host:
+        type: "string"
+      port:
+        type: "string"
+      username:
+        type: "string"
+      password:
+        type: "string"
+
+  Clone:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+      name:
+        type: "string"
+      snapshot:
+        $ref: "#/definitions/Snapshot"
+      cloneSize:
+        type: "integer"
+        format: "int64"
+      cloningTime:
+        type: "integer"
+        format: "float64"
+      protected:
+        type: "boolean"
+        default: false
+      deleteAt:
+        type: "string"
+        format: "date-time"
+      createdAt:
+        type: "string"
+        format: "date-time"
+      status:
+        $ref: "#/definitions/Status"
+      db:
+        $ref: "#/definitions/Database"
+
+  CreateClone:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+      snapshot:
+        type: "object"
+        properties:
+          id:
+            type: "string"
+      protected:
+        type: "boolean"
+        default: false
+      db:
+        type: "object"
+        properties:
+          username:
+            type: "string"
+          password:
+            type: "string"
+
+  UpdateClone:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+      snapshot:
+        $ref: "#/definitions/Snapshot"
+      protected:
+        type: "boolean"
+        default: false
+      db:
+        $ref: "#/definitions/Database"
+
+  Error:
+    type: "object"
+    properties:
+      code:
+        type: "string"
+      message:
+        type: "string"
+      detail:
+        type: "string"
+      hint:
+        type: "string"
+
+externalDocs:
+    description: "Database Lab Docs"
+    url: "https://gitlab.com/postgres-ai/docs/tree/master/docs/database-lab"

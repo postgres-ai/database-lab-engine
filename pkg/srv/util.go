@@ -7,35 +7,8 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 
-	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
-
-// Router traversal in order to get a list of all routes.
-func getHelpRoutes(router *mux.Router) ([]Route, error) {
-	routes := make([]Route, 0)
-	err := router.Walk(func(route *mux.Route, router *mux.Router,
-		ancestors []*mux.Route) error {
-		pathTemplate, err := route.GetPathTemplate()
-		if err != nil {
-			return errors.WithMessage(err, "failed to get path template")
-		}
-
-		methods, err := route.GetMethods()
-		if err != nil {
-			return errors.WithMessage(err, "failed to get route methods")
-		}
-
-		routes = append(routes, Route{
-			Route:   pathTemplate,
-			Methods: methods,
-		})
-
-		return nil
-	})
-
-	return routes, err
-}
 
 // writeJSON responds with JSON.
 func writeJSON(w http.ResponseWriter, httpStatusCode int, v interface{}) error {
