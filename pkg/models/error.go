@@ -5,7 +5,9 @@
 // Package models provides Database Lab struct.
 package models
 
-import "fmt"
+import (
+	"fmt"
+)
 
 const (
 	// ErrCodeInternal defines an internal error code.

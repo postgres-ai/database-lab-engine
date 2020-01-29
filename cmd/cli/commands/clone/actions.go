@@ -13,6 +13,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/client"
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/pkg/models"
 )
 
 // list runs a request to list clones of an instance.
@@ -57,7 +58,14 @@ func create() func(*cli.Context) error {
 			},
 		}
 
-		clone, err := dblabClient.CreateClone(cliCtx.Context, cloneRequest)
+		var clone *models.Clone
+
+		if cliCtx.Bool("async") {
+			clone, err = dblabClient.CreateCloneAsync(cliCtx.Context, cloneRequest)
+		} else {
+			clone, err = dblabClient.CreateClone(cliCtx.Context, cloneRequest)
+		}
+
 		if err != nil {
 			return err
 		}
@@ -137,7 +145,14 @@ func reset() func(*cli.Context) error {
 		}
 
 		cloneID := cliCtx.Args().First()
-		if err := dblabClient.ResetClone(cliCtx.Context, cloneID); err != nil {
+
+		if cliCtx.Bool("async") {
+			err = dblabClient.ResetCloneAsync(cliCtx.Context, cloneID)
+		} else {
+			err = dblabClient.ResetClone(cliCtx.Context, cloneID)
+		}
+
+		if err != nil {
 			return err
 		}
 
@@ -156,7 +171,14 @@ func destroy() func(*cli.Context) error {
 		}
 
 		cloneID := cliCtx.Args().First()
-		if err = dblabClient.DestroyClone(cliCtx.Context, cloneID); err != nil {
+
+		if cliCtx.Bool("async") {
+			err = dblabClient.DestroyCloneAsync(cliCtx.Context, cloneID)
+		} else {
+			err = dblabClient.DestroyClone(cliCtx.Context, cloneID)
+		}
+
+		if err != nil {
 			return err
 		}
 

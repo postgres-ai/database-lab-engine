@@ -23,8 +23,8 @@ type mockCloning struct {
 // NewMockCloning instances a new mock Cloning.
 func NewMockCloning(cfg *Config) Cloning {
 	var instanceStatusActualStatus = &models.Status{
-		Code:    "OK",
-		Message: "Instance is ready",
+		Code:    models.StatusOK,
+		Message: models.InstanceMessageOK,
 	}
 
 	var fs = &models.FileSystem{}
@@ -62,8 +62,11 @@ func NewMockClone() *models.Clone {
 		Protected:   false,
 		DeleteAt:    "10000",
 		CreatedAt:   "10000",
-		Status:      statusOk,
-		Db:          db,
+		Status: &models.Status{
+			Code:    models.StatusOK,
+			Message: models.CloneMessageOK,
+		},
+		Db: db,
 	}
 }
 
