@@ -79,8 +79,10 @@ func ZfsCreateClone(r Runner, pool, name, snapshot, mountDir, osUsername string)
 		return nil
 	}
 
-	cmd := sudo + "zfs clone " + snapshot + " " +
-		pool + "/" + name + " -o mountpoint=" + mountDir + name + " && " +
+	cmd := sudo + "zfs clone " +
+		"-o mountpoint=" + mountDir + name + " " +
+		snapshot + " " +
+		pool + "/" + name + " && " +
 		sudo + "chown -R " + osUsername + " " + mountDir + name
 
 	out, err := r.Run(cmd)
@@ -107,7 +109,7 @@ func ZfsDestroyClone(r Runner, pool string, name string) error {
 	// this function to delete clones used during the preparation
 	// of baseline snapshots, we need to omit `-R`, to avoid
 	// unexpected deletion of users' clones.
-	cmd := fmt.Sprintf(sudo+"zfs destroy %s/%s -R", pool, name)
+	cmd := fmt.Sprintf(sudo+"zfs destroy -R %s/%s", pool, name)
 
 	if _, err = r.Run(cmd); err != nil {
 		return errors.Wrap(err, "failed to run command")
