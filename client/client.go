@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -38,6 +39,7 @@ type Client struct {
 	verificationToken string
 	client            *http.Client
 	logger            logrus.FieldLogger
+	pollingInterval   time.Duration
 }
 
 // Options describes options of a Database Lab API client.
@@ -46,6 +48,11 @@ type Options struct {
 	VerificationToken string
 	Insecure          bool
 }
+
+const (
+	defaultPollingInterval = 1 * time.Second
+	defaultPollingTimeout  = 30 * time.Second
+)
 
 // NewClient constructs a new Client struct.
 func NewClient(options Options, logger logrus.FieldLogger) (*Client, error) {
@@ -65,6 +72,7 @@ func NewClient(options Options, logger logrus.FieldLogger) (*Client, error) {
 		verificationToken: options.VerificationToken,
 		client:            &http.Client{Transport: tr},
 		logger:            logger,
+		pollingInterval:   defaultPollingInterval,
 	}, nil
 }
 

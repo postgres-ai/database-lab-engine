@@ -57,6 +57,11 @@ func CommandList() []*cli.Command {
 						Usage:   "mark instance as protected from deletion",
 						Aliases: []string{"p"},
 					},
+					&cli.BoolFlag{
+						Name:    "async",
+						Usage:   "run the command asynchronously",
+						Aliases: []string{"a"},
+					},
 				},
 			},
 			{
@@ -83,6 +88,13 @@ func CommandList() []*cli.Command {
 				ArgsUsage: "CLONE_ID",
 				Before:    checkCloneIDBefore,
 				Action:    reset(),
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:    "async",
+						Usage:   "run the command asynchronously",
+						Aliases: []string{"a"},
+					},
+				},
 			},
 			{
 				Name:      "destroy",
@@ -90,6 +102,13 @@ func CommandList() []*cli.Command {
 				ArgsUsage: "CLONE_ID",
 				Before:    checkCloneIDBefore,
 				Action:    destroy(),
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:    "async",
+						Usage:   "run the command asynchronously",
+						Aliases: []string{"a"},
+					},
+				},
 			},
 		},
 	}}

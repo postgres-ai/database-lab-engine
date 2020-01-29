@@ -34,26 +34,19 @@ type baseCloning struct {
 
 // NewBaseCloning instances a new base Cloning.
 func NewBaseCloning(cfg *Config, provision provision.Provision) Cloning {
-	var instanceStatusActualStatus = &models.Status{
-		Code:    "OK",
-		Message: "Instance is ready",
+	return &baseCloning{
+		cloning: cloning{Config: cfg},
+		clones:  make(map[string]*CloneWrapper),
+		instanceStatus: &models.InstanceStatus{
+			Status: &models.Status{
+				Code:    models.StatusOK,
+				Message: models.InstanceMessageOK,
+			},
+			FileSystem: &models.FileSystem{},
+			Clones:     make([]*models.Clone, 0),
+		},
+		provision: provision,
 	}
-
-	var fs = &models.FileSystem{}
-
-	var instanceStatus = models.InstanceStatus{
-		Status:     instanceStatusActualStatus,
-		FileSystem: fs,
-		Clones:     make([]*models.Clone, 0),
-	}
-
-	cloning := &baseCloning{}
-	cloning.Config = cfg
-	cloning.clones = make(map[string]*CloneWrapper)
-	cloning.instanceStatus = &instanceStatus
-	cloning.provision = provision
-
-	return cloning
 }
 
 // Initialize and run cloning component.
@@ -88,7 +81,10 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 	w := NewCloneWrapper(clone)
 	c.clones[clone.ID] = w
 
-	clone.Status = statusCreating
+	clone.Status = &models.Status{
+		Code:    models.StatusCreating,
+		Message: models.CloneMessageCreating,
+	}
 
 	w.timeCreatedAt = time.Now()
 	clone.CreatedAt = util.FormatTime(w.timeCreatedAt)
@@ -113,7 +109,10 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		session, err := c.provision.StartSession(w.username, w.password, snapshotID)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
-			clone.Status = statusFatal
+			clone.Status = &models.Status{
+				Code:    models.StatusFatal,
+				Message: models.CloneMessageFatal,
+			}
 
 			log.Errf("Failed to start session: %+v.", err)
 
@@ -125,7 +124,11 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		w.timeStartedAt = time.Now()
 		clone.CloningTime = w.timeStartedAt.Sub(w.timeCreatedAt).Seconds()
 
-		clone.Status = statusOk
+		clone.Status = &models.Status{
+			Code:    models.StatusOK,
+			Message: models.CloneMessageOK,
+		}
+
 		clone.Db.Port = strconv.FormatUint(uint64(session.Port), 10)
 
 		clone.Db.Host = c.Config.AccessHost
@@ -151,7 +154,10 @@ func (c *baseCloning) DestroyClone(id string) error {
 		return errors.New("clone is protected")
 	}
 
-	w.clone.Status = statusDeleting
+	w.clone.Status = &models.Status{
+		Code:    models.StatusDeleting,
+		Message: models.CloneMessageDeleting,
+	}
 
 	if w.session == nil {
 		return errors.New("clone is not started yet")
@@ -159,7 +165,10 @@ func (c *baseCloning) DestroyClone(id string) error {
 
 	go func() {
 		if err := c.provision.StopSession(w.session); err != nil {
-			w.clone.Status = statusFatal
+			w.clone.Status = &models.Status{
+				Code:    models.StatusFatal,
+				Message: models.CloneMessageFatal,
+			}
 
 			log.Errf("Failed to delete clone: %+v.", err)
 
@@ -253,7 +262,10 @@ func (c *baseCloning) ResetClone(id string) error {
 		return errors.New("clone not found")
 	}
 
-	w.clone.Status = statusResetting
+	w.clone.Status = &models.Status{
+		Code:    models.StatusResetting,
+		Message: models.CloneMessageResetting,
+	}
 
 	if w.session == nil {
 		return errors.New("clone is not started yet")
@@ -267,14 +279,20 @@ func (c *baseCloning) ResetClone(id string) error {
 
 		err := c.provision.ResetSession(w.session, snapshotID)
 		if err != nil {
-			w.clone.Status = statusFatal
+			w.clone.Status = &models.Status{
+				Code:    models.StatusFatal,
+				Message: models.CloneMessageFatal,
+			}
 
 			log.Errf("Failed to reset session: %+v.", err)
 
 			return
 		}
 
-		w.clone.Status = statusOk
+		w.clone.Status = &models.Status{
+			Code:    models.StatusOK,
+			Message: models.CloneMessageOK,
+		}
 	}()
 
 	return nil
