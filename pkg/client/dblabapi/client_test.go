@@ -1,4 +1,4 @@
-package client
+package dblabapi
 
 import (
 	"net/http"

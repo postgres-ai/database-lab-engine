@@ -2,7 +2,7 @@
 2019 © Postgres.ai
 */
 
-package client
+package dblabapi
 
 import (
 	"bytes"

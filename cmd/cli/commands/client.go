@@ -8,7 +8,7 @@ package commands
 import (
 	"github.com/urfave/cli/v2"
 
-	"gitlab.com/postgres-ai/database-lab/client"
+	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi"
 )
 
 // CLI configuration keys.
@@ -20,13 +20,13 @@ const (
 )
 
 // ClientByCLIContext creates a new Database Lab API client.
-func ClientByCLIContext(cliCtx *cli.Context) (*client.Client, error) {
-	options := client.Options{
+func ClientByCLIContext(cliCtx *cli.Context) (*dblabapi.Client, error) {
+	options := dblabapi.Options{
 		Host:              cliCtx.String(URLKey),
 		VerificationToken: cliCtx.String(TokenKey),
 		Insecure:          cliCtx.Bool(InsecureKey),
 	}
 
 	// TODO(akartasov): Init and use logger.
-	return client.NewClient(options, nil)
+	return dblabapi.NewClient(options, nil)
 }
