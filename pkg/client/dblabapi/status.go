@@ -2,21 +2,21 @@
 2019 © Postgres.ai
 */
 
-package client
+package dblabapi
 
 import (
 	"context"
 	"encoding/json"
 	"net/http"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
-
 	"github.com/pkg/errors"
+
+	"gitlab.com/postgres-ai/database-lab/pkg/models"
 )
 
-// ListSnapshots provides a snapshot list.
-func (c *Client) ListSnapshots(ctx context.Context) ([]*models.Snapshot, error) {
-	u := c.URL("/snapshots")
+// Status provides an instance status.
+func (c *Client) Status(ctx context.Context) (*models.InstanceStatus, error) {
+	u := c.URL("/status")
 
 	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
@@ -30,11 +30,11 @@ func (c *Client) ListSnapshots(ctx context.Context) ([]*models.Snapshot, error) 
 
 	defer func() { _ = response.Body.Close() }()
 
-	var snapshots []*models.Snapshot
+	var instanceStatus models.InstanceStatus
 
-	if err := json.NewDecoder(response.Body).Decode(&snapshots); err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&instanceStatus); err != nil {
 		return nil, errors.Wrap(err, "failed to get response")
 	}
 
-	return snapshots, nil
+	return &instanceStatus, nil
 }

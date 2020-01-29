@@ -2,8 +2,8 @@
 2019 © Postgres.ai
 */
 
-// Package client provides a client for Database Lab HTTP API.
-package client
+// Package dblabapi provides a client for Database Lab HTTP API.
+package dblabapi
 
 import (
 	"context"
