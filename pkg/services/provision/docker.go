@@ -12,16 +12,14 @@ import (
 )
 
 const (
-<<<<<<< HEAD
+	sudo = "" // "sudo "
+
 	labelClone = "dblab-clone"
-=======
-	SUDO = "" // "sudo "
->>>>>>> feat: Dockerfile for dblab-server
 )
 
 // DockerRunContainer runs specified container.
 func DockerRunContainer(r Runner, c *PgConfig) (string, error) {
-	dockerRunCmd := SUDO + "docker run " +
+	dockerRunCmd := sudo + "docker run " +
 		"--name " + c.CloneName + " " +
 		"--detach " +
 		"--publish " + strconv.FormatUint(uint64(c.Port), 10) + ":5432 " +
@@ -36,21 +34,21 @@ func DockerRunContainer(r Runner, c *PgConfig) (string, error) {
 
 // DockerStopContainer stops specified container.
 func DockerStopContainer(r Runner, c *PgConfig) (string, error) {
-	dockerStopCmd := SUDO + "docker container stop " + c.CloneName
+	dockerStopCmd := sudo + "docker container stop " + c.CloneName
 
 	return r.Run(dockerStopCmd, true)
 }
 
 // DockerRemoveContainer removes specified container.
 func DockerRemoveContainer(r Runner, c *PgConfig) (string, error) {
-	dockerRemoveCmd := SUDO + "docker container rm " + c.CloneName
+	dockerRemoveCmd := sudo + "docker container rm " + c.CloneName
 
 	return r.Run(dockerRemoveCmd, true)
 }
 
 // DockerListContainers lists containers.
 func DockerListContainers(r Runner) ([]string, error) {
-	dockerListCmd := SUDO + "docker container ls " +
+	dockerListCmd := sudo + "docker container ls " +
 		"--filter \"label=" + labelClone + "\" " +
 		"--all --quiet"
 
@@ -69,7 +67,7 @@ func DockerListContainers(r Runner) ([]string, error) {
 
 // DockerGetLogs gets logs from specified container.
 func DockerGetLogs(r Runner, c *PgConfig, sinceRelMins uint) (string, error) {
-	dockerLogsCmd := SUDO + "docker logs " + c.CloneName + " " +
+	dockerLogsCmd := sudo + "docker logs " + c.CloneName + " " +
 		"--since " + strconv.FormatUint(uint64(sinceRelMins), 10) + "m " +
 		"--timestamps"
 
@@ -78,14 +76,14 @@ func DockerGetLogs(r Runner, c *PgConfig, sinceRelMins uint) (string, error) {
 
 // DockerExec executes command on specified container.
 func DockerExec(r Runner, c *PgConfig, cmd string) (string, error) {
-	dockerExecCmd := SUDO + "docker exec " + c.CloneName + " " + cmd
+	dockerExecCmd := sudo + "docker exec " + c.CloneName + " " + cmd
 
 	return r.Run(dockerExecCmd, true)
 }
 
 // DockerImageExists checks existence of Docker image.
 func DockerImageExists(r Runner, dockerImage string) (bool, error) {
-	dockerListImagesCmd := SUDO + "docker images " + dockerImage + " --quiet"
+	dockerListImagesCmd := sudo + "docker images " + dockerImage + " --quiet"
 
 	out, err := r.Run(dockerListImagesCmd, true)
 	if err != nil {
@@ -97,7 +95,7 @@ func DockerImageExists(r Runner, dockerImage string) (bool, error) {
 
 // DockerPullImage pulls Docker image from DockerHub registry.
 func DockerPullImage(r Runner, dockerImage string) error {
-	dockerPullImageCmd := SUDO + "docker pull " + dockerImage
+	dockerPullImageCmd := sudo + "docker pull " + dockerImage
 
 	_, err := r.Run(dockerPullImageCmd, true)
 	if err != nil {
