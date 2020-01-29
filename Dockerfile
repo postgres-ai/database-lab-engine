@@ -7,13 +7,15 @@
 
 FROM docker:19
 
-# Install ZFS.
-RUN apk update && apk add zfs
+# Install dependecies.
+RUN apk update && apk add zfs bash
 
-COPY ./bin/dblab-server ./bin
-COPY ./api .
-COPY ./web .
-COPY ./configs .
-COPY ./scripts .
+WORKDIR /home/dblab
 
-CMD ./bin/dblab-server
+COPY ./bin/dblab-server ./bin/dblabserver
+COPY ./api ./api
+COPY ./web ./web
+COPY ./configs ./configs
+COPY ./scripts ./scripts
+
+CMD ./bin/dblabserver
