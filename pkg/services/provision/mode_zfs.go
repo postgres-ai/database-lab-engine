@@ -441,7 +441,7 @@ func (j *provisionModeZfs) getDataSize(mountDir string) (uint64, error) {
 
 	const expectedDataSizeParts = 2
 
-	out, err := j.runner.Run("sudo du -d0 -b " + mountDir + j.config.PgDataSubdir)
+	out, err := j.runner.Run(sudo + "du -d0 -b " + mountDir + j.config.PgDataSubdir)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to run command")
 	}

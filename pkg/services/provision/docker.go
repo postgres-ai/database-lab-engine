@@ -12,8 +12,6 @@ import (
 )
 
 const (
-	sudo = "" // "sudo "
-
 	labelClone = "dblab-clone"
 )
 

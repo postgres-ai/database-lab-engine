@@ -79,9 +79,9 @@ func ZfsCreateClone(r Runner, pool, name, snapshot, mountDir, osUsername string)
 		return nil
 	}
 
-	cmd := "sudo -n zfs clone " + snapshot + " " +
+	cmd := sudo + "zfs clone " + snapshot + " " +
 		pool + "/" + name + " -o mountpoint=" + mountDir + name + " && " +
-		"sudo --non-interactive chown -R " + osUsername + " " + mountDir + name
+		sudo + "chown -R " + osUsername + " " + mountDir + name
 
 	out, err := r.Run(cmd)
 	if err != nil {
@@ -107,7 +107,7 @@ func ZfsDestroyClone(r Runner, pool string, name string) error {
 	// this function to delete clones used during the preparation
 	// of baseline snapshots, we need to omit `-R`, to avoid
 	// unexpected deletion of users' clones.
-	cmd := fmt.Sprintf("sudo -n zfs destroy %s/%s -R", pool, name)
+	cmd := fmt.Sprintf(sudo+"zfs destroy %s/%s -R", pool, name)
 
 	if _, err = r.Run(cmd); err != nil {
 		return errors.Wrap(err, "failed to run command")
@@ -117,7 +117,7 @@ func ZfsDestroyClone(r Runner, pool string, name string) error {
 }
 
 func ZfsCloneExists(r Runner, name string) (bool, error) {
-	listZfsClonesCmd := fmt.Sprintf(`sudo -n zfs list`)
+	listZfsClonesCmd := sudo + "zfs list"
 
 	out, err := r.Run(listZfsClonesCmd, false)
 	if err != nil {
@@ -128,7 +128,7 @@ func ZfsCloneExists(r Runner, name string) (bool, error) {
 }
 
 func ZfsListClones(r Runner, prefix string) ([]string, error) {
-	listZfsClonesCmd := fmt.Sprintf(`sudo -n zfs list`)
+	listZfsClonesCmd := sudo + "zfs list"
 
 	re := regexp.MustCompile(fmt.Sprintf(`(%s[0-9]+)`, prefix))
 
@@ -141,7 +141,7 @@ func ZfsListClones(r Runner, prefix string) ([]string, error) {
 }
 
 func ZfsCreateSnapshot(r Runner, pool string, snapshot string) error {
-	cmd := fmt.Sprintf("sudo -n zfs snapshot -r %s", snapshot)
+	cmd := fmt.Sprintf(sudo+"zfs snapshot -r %s", snapshot)
 
 	if _, err := r.Run(cmd, true); err != nil {
 		return errors.Wrap(err, "failed to create a snapshot")
@@ -151,7 +151,7 @@ func ZfsCreateSnapshot(r Runner, pool string, snapshot string) error {
 }
 
 func ZfsRollbackSnapshot(r Runner, pool string, snapshot string) error {
-	cmd := fmt.Sprintf("sudo -n zfs rollback -f -r %s", snapshot)
+	cmd := fmt.Sprintf(sudo+"zfs rollback -f -r %s", snapshot)
 
 	if _, err := r.Run(cmd, true); err != nil {
 		return errors.Wrap(err, "failed to rollback a snapshot")
@@ -172,7 +172,7 @@ func ZfsListSnapshots(r Runner, pool string) ([]*ZfsListEntry, error) {
 func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, error) {
 	// TODO(anatoly): Generalize.
 	numberFields := 9
-	listCmd := "sudo -n zfs list " +
+	listCmd := sudo + "zfs list " +
 		"-po name,used,mountpoint,compressratio,available,type," +
 		"origin,creation,dblab:datastateat " +
 		"-S dblab:datastateat -S creation " + // Order DESC.
