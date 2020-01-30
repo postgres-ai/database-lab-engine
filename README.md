@@ -104,3 +104,5 @@ psql -h internal_host -p 6000 -U dblab_user1 # will ask for a password unless it
 ## Development requirements
 
 1. Install golangci-lint: https://github.com/golangci/golangci-lint#install
+
+<img src="https://ssl.google-analytics.com/collect?v=1&t=event&ev=gitlab-database-lab&ec=repository&ea=view&t=event&tid=UA-143456998-1&z=1580394421&cid=fa099d51-6db4-3af2-a78c-03a8a2fdbcd1&dt=database-lab&dp=/repository/gitlab/database-lab">
