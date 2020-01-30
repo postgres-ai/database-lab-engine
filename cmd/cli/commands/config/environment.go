@@ -61,15 +61,25 @@ func updateEnvironmentInConfig(c *cli.Context, cfg *CLIConfig, environmentID str
 		return errors.Errorf("Environment %q not found.", environmentID)
 	}
 
+	if c.NumFlags() == 0 {
+		return errors.New("config unchanged. Set options to update.") // nolint
+	}
+
+	newEnvironment := environment
+
 	if c.String(commands.URLKey) != "" {
-		environment.URL = c.String(commands.URLKey)
+		newEnvironment.URL = c.String(commands.URLKey)
 	}
 
 	if c.String(commands.TokenKey) != "" {
-		environment.Token = c.String(commands.TokenKey)
+		newEnvironment.Token = c.String(commands.TokenKey)
 	}
 
-	cfg.Environments[environmentID] = environment
+	if newEnvironment == environment {
+		return errors.New("config unchanged. Set different option values to update.") // nolint
+	}
+
+	cfg.Environments[environmentID] = newEnvironment
 	cfg.CurrentEnvironment = environmentID
 
 	return nil
