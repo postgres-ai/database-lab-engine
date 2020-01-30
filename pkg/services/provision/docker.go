@@ -11,6 +11,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	labelClone = "dblab-clone"
+)
+
 // DockerRunContainer runs specified container.
 func DockerRunContainer(r Runner, c *PgConfig) (string, error) {
 	dockerRunCmd := "sudo docker run " +
@@ -20,6 +24,7 @@ func DockerRunContainer(r Runner, c *PgConfig) (string, error) {
 		"--env PGDATA=/var/lib/postgresql/pgdata " +
 		"--volume " + c.Datadir + ":/var/lib/postgresql/pgdata " +
 		"--volume " + c.UnixSocketCloneDir + ":/var/run/postgresql " +
+		"--label " + labelClone + " " +
 		c.DockerImage
 
 	return r.Run(dockerRunCmd, true)
@@ -41,7 +46,9 @@ func DockerRemoveContainer(r Runner, c *PgConfig) (string, error) {
 
 // DockerListContainers lists containers.
 func DockerListContainers(r Runner) ([]string, error) {
-	dockerListCmd := "sudo docker container ls --all --quiet"
+	dockerListCmd := "sudo docker container ls " +
+		"--filter \"label=" + labelClone + "\" " +
+		"--all --quiet"
 
 	out, err := r.Run(dockerListCmd, true)
 	if err != nil {
