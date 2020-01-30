@@ -11,74 +11,79 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
+
+	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
 )
 
 // createEnvironment creates a new CLI environment.
 func createEnvironment() func(*cli.Context) error {
-	return func(cliCtx *cli.Context) error {
+	return func(cliCtx *cli.Context) (err error) {
 		configFilename, err := GetFilename()
 		if err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		cfg, err := Load(configFilename)
 		if err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		environmentID := cliCtx.Args().First()
 		if err := AddEnvironmentToConfig(cliCtx, cfg, environmentID); err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		if err := SaveConfig(configFilename, cfg); err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		_, err = fmt.Fprintf(cliCtx.App.Writer, "The %q environment is successfully created.\n",
 			environmentID)
 
-		return err
+		return commands.ToActionError(err)
 	}
 }
 
 // updateEnvironment updates an existing CLI environment.
 func updateEnvironment() func(*cli.Context) error {
-	return func(cliCtx *cli.Context) error {
+	return func(cliCtx *cli.Context) (err error) {
+		if err := checkEnvironmentIDBefore(cliCtx); err != nil {
+			return commands.ToActionError(err)
+		}
+
 		configFilename, err := GetFilename()
 		if err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		cfg, err := Load(configFilename)
 		if err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		environmentID := cliCtx.Args().First()
 		if err := updateEnvironmentInConfig(cliCtx, cfg, environmentID); err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		if err := SaveConfig(configFilename, cfg); err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		_, err = fmt.Fprintf(cliCtx.App.Writer, "The %q environment is successfully updated.\n",
 			environmentID)
 
-		return err
+		return commands.ToActionError(err)
 	}
 }
 
 // view displays status of a CLI environment.
 func view() func(*cli.Context) error {
-	return func(cliCtx *cli.Context) error {
+	return func(cliCtx *cli.Context) (err error) {
 		cfg, err := getConfig()
 		if err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		environmentID := cfg.CurrentEnvironment
@@ -89,28 +94,28 @@ func view() func(*cli.Context) error {
 
 		environment, ok := cfg.Environments[environmentID]
 		if !ok {
-			return errors.Errorf("Configuration of environment %q not found.", environmentID)
+			return commands.ActionErrorf("Configuration of environment %q not found.", environmentID)
 		}
 
 		environment.EnvironmentID = environmentID
 
 		commandResponse, err := json.MarshalIndent(environment, "", "    ")
 		if err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
 
-		return err
+		return commands.ToActionError(err)
 	}
 }
 
 // list displays all available CLI environments.
 func list() func(*cli.Context) error {
-	return func(cliCtx *cli.Context) error {
+	return func(cliCtx *cli.Context) (err error) {
 		cfg, err := getConfig()
 		if err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		environmentNames := make([]string, 0, len(cfg.Environments))
@@ -131,7 +136,7 @@ func list() func(*cli.Context) error {
 
 		_, err = fmt.Fprintf(cliCtx.App.Writer, "Available CLI environments:\n%s", listOutput)
 
-		return err
+		return commands.ToActionError(err)
 	}
 }
 
@@ -158,58 +163,66 @@ func buildListOutput(cfg *CLIConfig, environmentNames []string, maxNameLength in
 
 // switchEnvironment switches to another CLI environment.
 func switchEnvironment() func(*cli.Context) error {
-	return func(cliCtx *cli.Context) error {
+	return func(cliCtx *cli.Context) (err error) {
+		if err := checkEnvironmentIDBefore(cliCtx); err != nil {
+			return commands.ToActionError(err)
+		}
+
 		configFilename, err := GetFilename()
 		if err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		cfg, err := Load(configFilename)
 		if err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		environmentID := cliCtx.Args().First()
 		if err := switchToEnvironment(cfg, environmentID); err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		if err := SaveConfig(configFilename, cfg); err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		_, err = fmt.Fprintf(cliCtx.App.Writer, "The CLI environment is successfully switched to %q.\n",
 			environmentID)
 
-		return err
+		return commands.ToActionError(err)
 	}
 }
 
 // removeEnvironment removes an existing CLI environment.
 func removeEnvironment() func(*cli.Context) error {
-	return func(cliCtx *cli.Context) error {
+	return func(cliCtx *cli.Context) (err error) {
+		if err := checkEnvironmentIDBefore(cliCtx); err != nil {
+			return commands.ToActionError(err)
+		}
+
 		configFilename, err := GetFilename()
 		if err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		cfg, err := Load(configFilename)
 		if err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		environmentID := cliCtx.Args().First()
 		if err := removeByID(cfg, environmentID); err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		if err := SaveConfig(configFilename, cfg); err != nil {
-			return err
+			return commands.ToActionError(err)
 		}
 
 		_, err = fmt.Fprintf(cliCtx.App.Writer, "Environment %q is successfully removed.\nThe current environment is %q.\n",
 			environmentID, cfg.CurrentEnvironment)
 
-		return err
+		return commands.ToActionError(err)
 	}
 }

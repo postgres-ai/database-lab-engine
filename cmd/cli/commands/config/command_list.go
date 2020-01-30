@@ -22,7 +22,6 @@ func CommandList() []*cli.Command {
 					Name:      "create",
 					Usage:     "create new CLI environment",
 					ArgsUsage: "ENVIRONMENT_ID",
-					Before:    checkEnvironmentIDBefore,
 					Action:    createEnvironment(),
 					Flags: []cli.Flag{
 						&cli.StringFlag{
@@ -41,7 +40,6 @@ func CommandList() []*cli.Command {
 					Name:      "update",
 					Usage:     "update an existing CLI environment",
 					ArgsUsage: "ENVIRONMENT_ID",
-					Before:    checkEnvironmentIDBefore,
 					Action:    updateEnvironment(),
 					Flags: []cli.Flag{
 						&cli.StringFlag{
@@ -69,14 +67,12 @@ func CommandList() []*cli.Command {
 					Name:      "switch",
 					Usage:     "switch to another CLI environment",
 					ArgsUsage: "ENVIRONMENT_ID",
-					Before:    checkEnvironmentIDBefore,
 					Action:    switchEnvironment(),
 				},
 				{
 					Name:      "remove",
 					Usage:     "remove CLI environment",
 					ArgsUsage: "ENVIRONMENT_ID",
-					Before:    checkEnvironmentIDBefore,
 					Action:    removeEnvironment(),
 				},
 			},
