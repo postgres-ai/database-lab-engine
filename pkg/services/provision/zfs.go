@@ -62,6 +62,27 @@ type ZfsListEntry struct {
 	// was created.
 	Creation time.Time
 
+	// The amount of data that is accessible by this dataset, which may
+	// or may not be shared with other datasets in the pool. When a snapshot
+	// or clone is created, it initially references the same amount of space
+	//as the  file system or snapshot it was created from, since its contents
+	// are identical.
+	Referenced uint64
+
+	// The amount of space that is "logically" accessible by this dataset.
+	// See the referenced property. The logical space ignores the effect
+	// of the compression and copies properties, giving a quantity closer
+	// to the amount of data that applications see. However, it does include
+	// space consumed by metadata.
+	LogicalReferenced uint64
+
+	// The amount of space that is "logically" consumed by this dataset
+	// and all its descendents. See the used property. The logical space
+	// ignores the effect of the compression and copies properties, giving
+	// a quantity closer to the amount of data that applications see. However,
+	// it does include space consumed by metadata.
+	LogicalUsed uint64
+
 	// DB Lab custom fields.
 
 	// Data state timestamp.
@@ -173,10 +194,11 @@ func ZfsListSnapshots(r Runner, pool string) ([]*ZfsListEntry, error) {
 // TODO(anatoly): Return map.
 func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, error) {
 	// TODO(anatoly): Generalize.
-	numberFields := 9
+	numberFields := 12
 	listCmd := sudo + "zfs list " +
 		"-po name,used,mountpoint,compressratio,available,type," +
-		"origin,creation,dblab:datastateat " +
+		"origin,creation,referenced,logicalreferenced,logicalused," +
+		"dblab:datastateat " +
 		"-S dblab:datastateat -S creation " + // Order DESC.
 		"-t " + dsType + " " +
 		"-r " + pool
@@ -201,10 +223,10 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 		}
 
 		var (
-			err1, err2, err3, err4, err5 error
-			used, available              uint64
-			creation, dataStateAt        time.Time
-			compressRatio                float64
+			err1, err2, err3, err4, err5, err6, err7, err8              error
+			used, available, referenced, logicalReferenced, logicalUsed uint64
+			creation, dataStateAt                                       time.Time
+			compressRatio                                               float64
 		)
 
 		// Used.
@@ -212,7 +234,7 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 			used, err1 = strconv.ParseUint(fields[1], 10, 64)
 		}
 
-		// Compressratio.
+		// CompressRatio.
 		if fields[3] != "-" {
 			ratioStr := strings.ReplaceAll(fields[3], "x", "")
 			compressRatio, err2 = strconv.ParseFloat(ratioStr, 64)
@@ -231,26 +253,44 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 			}
 		}
 
-		// Dblab:datastateat.
+		// Referenced.
 		if fields[8] != "-" {
-			dataStateAt, err5 = time.Parse("20060102150405", fields[8])
+			referenced, err5 = strconv.ParseUint(fields[8], 10, 64)
+		}
+
+		// LogicalReferenced.
+		if fields[9] != "-" {
+			logicalReferenced, err6 = strconv.ParseUint(fields[9], 10, 64)
+		}
+
+		// LogicalUsed.
+		if fields[10] != "-" {
+			logicalUsed, err7 = strconv.ParseUint(fields[10], 10, 64)
+		}
+
+		// Dblab:datastateat.
+		if fields[11] != "-" {
+			dataStateAt, err8 = time.Parse("20060102150405", fields[11])
 		}
 
 		if err1 != nil || err2 != nil || err3 != nil || err4 != nil ||
-			err5 != nil {
+			err5 != nil || err6 != nil || err7 != nil || err8 != nil {
 			return nil, errors.Errorf("ZFS error: cannot parse output.\nCommand: %s.\nOutput: %s", listCmd, out)
 		}
 
 		entries[i-1] = &ZfsListEntry{
-			Name:          fields[0],
-			Used:          used,
-			MountPoint:    fields[2],
-			CompressRatio: compressRatio,
-			Available:     available,
-			Type:          fields[5],
-			Origin:        fields[6],
-			Creation:      creation,
-			DataStateAt:   dataStateAt,
+			Name:              fields[0],
+			Used:              used,
+			MountPoint:        fields[2],
+			CompressRatio:     compressRatio,
+			Available:         available,
+			Type:              fields[5],
+			Origin:            fields[6],
+			Creation:          creation,
+			Referenced:        referenced,
+			LogicalReferenced: logicalReferenced,
+			LogicalUsed:       logicalUsed,
+			DataStateAt:       dataStateAt,
 		}
 	}
 

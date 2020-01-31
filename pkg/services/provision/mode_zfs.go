@@ -391,15 +391,10 @@ func (j *provisionModeZfs) GetDiskState() (*Disk, error) {
 		return nil, errors.New("cannot get disk state: pool entries not found")
 	}
 
-	dataSize, err := j.getDataSize(poolEntry.MountPoint)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get data size")
-	}
-
 	disk := &Disk{
 		Size:     parentPoolEntry.Available + parentPoolEntry.Used,
 		Free:     parentPoolEntry.Available,
-		DataSize: dataSize,
+		DataSize: poolEntry.LogicalReferenced,
 	}
 
 	return disk, nil
@@ -436,30 +431,6 @@ func (j *provisionModeZfs) GetSessionState(s *Session) (*SessionState, error) {
 }
 
 // Other methods.
-func (j *provisionModeZfs) getDataSize(mountDir string) (uint64, error) {
-	log.Dbg("getDataSize: " + mountDir)
-
-	const expectedDataSizeParts = 2
-
-	// TODO(anatoly): Return -b flag.
-	out, err := j.runner.Run(sudo + "du -d0 " + mountDir + j.config.PgDataSubdir)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to run command")
-	}
-
-	split := strings.SplitN(out, "\t", 2)
-	if len(split) != expectedDataSizeParts {
-		return 0, errors.New(`wrong format for "du"`)
-	}
-
-	nbytes, err := strconv.ParseUint(split[0], 10, 64)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to parse data size")
-	}
-
-	return nbytes, nil
-}
-
 func (j *provisionModeZfs) getSnapshotID(options ...string) (string, error) {
 	snapshotID := ""
 	if len(options) > 0 && len(options[0]) > 0 {
