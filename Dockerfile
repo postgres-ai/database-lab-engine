@@ -12,10 +12,10 @@ RUN apk update && apk add zfs bash
 
 WORKDIR /home/dblab
 
-COPY ./bin/dblab-server ./bin/dblabserver
+COPY ./bin/dblab-server ./bin/dblab-server
 COPY ./api ./api
 COPY ./web ./web
 COPY ./configs ./configs
 COPY ./scripts ./scripts
 
-CMD ./bin/dblabserver
+CMD ./bin/dblab-server
