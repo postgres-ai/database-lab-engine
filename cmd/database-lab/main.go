@@ -106,6 +106,7 @@ func parseArgs() ([]string, error) {
 		var b bytes.Buffer
 
 		parser.WriteHelp(&b)
+
 		return &flags.Error{
 			Type:    flags.ErrHelp,
 			Message: b.String(),
