@@ -21,8 +21,6 @@ import (
 const (
 	// ModeZfs defines provisioning for ZFS.
 	ModeZfs = "zfs"
-
-	sudo = "" // "sudo --non-interactive "
 )
 
 // NoRoomError defines a specific error type.

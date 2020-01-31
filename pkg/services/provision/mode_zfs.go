@@ -59,6 +59,7 @@ type ModeZfsConfig struct {
 	UnixSocketDir        string          `yaml:"unixSocketDir"`
 	SnapshotFilterSuffix string          `yaml:"snapshotFilterSuffix"`
 	DockerImage          string          `yaml:"dockerImage"`
+	UseSudo              bool            `yaml:"useSudo"`
 }
 
 type provisionModeZfs struct {
@@ -72,7 +73,7 @@ type provisionModeZfs struct {
 // NewProvisionModeZfs creates a new Provision instance of ModeZfs.
 func NewProvisionModeZfs(ctx context.Context, config Config, dockerClient *client.Client) (Provision, error) {
 	p := &provisionModeZfs{
-		runner:         NewLocalRunner(),
+		runner:         NewLocalRunner(config.ModeZfs.UseSudo),
 		sessionCounter: 0,
 		dockerClient:   dockerClient,
 		provision: provision{

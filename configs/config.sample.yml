@@ -17,6 +17,7 @@ provision:
     dockerImage: "postgres:12-alpine"
   pgDataSubdir: "/"
   pgVersion: "12"
+  useSudo: false
 
 cloning:
   mode: "base"

@@ -17,7 +17,7 @@ const (
 
 // DockerRunContainer runs specified container.
 func DockerRunContainer(r Runner, c *PgConfig) (string, error) {
-	dockerRunCmd := sudo + "docker run " +
+	dockerRunCmd := "docker run " +
 		"--name " + c.CloneName + " " +
 		"--detach " +
 		"--publish " + strconv.FormatUint(uint64(c.Port), 10) + ":5432 " +
@@ -32,21 +32,21 @@ func DockerRunContainer(r Runner, c *PgConfig) (string, error) {
 
 // DockerStopContainer stops specified container.
 func DockerStopContainer(r Runner, c *PgConfig) (string, error) {
-	dockerStopCmd := sudo + "docker container stop " + c.CloneName
+	dockerStopCmd := "docker container stop " + c.CloneName
 
 	return r.Run(dockerStopCmd, true)
 }
 
 // DockerRemoveContainer removes specified container.
 func DockerRemoveContainer(r Runner, c *PgConfig) (string, error) {
-	dockerRemoveCmd := sudo + "docker container rm " + c.CloneName
+	dockerRemoveCmd := "docker container rm " + c.CloneName
 
 	return r.Run(dockerRemoveCmd, true)
 }
 
 // DockerListContainers lists containers.
 func DockerListContainers(r Runner) ([]string, error) {
-	dockerListCmd := sudo + "docker container ls " +
+	dockerListCmd := "docker container ls " +
 		"--filter \"label=" + labelClone + "\" " +
 		"--all --quiet"
 
@@ -65,7 +65,7 @@ func DockerListContainers(r Runner) ([]string, error) {
 
 // DockerGetLogs gets logs from specified container.
 func DockerGetLogs(r Runner, c *PgConfig, sinceRelMins uint) (string, error) {
-	dockerLogsCmd := sudo + "docker logs " + c.CloneName + " " +
+	dockerLogsCmd := "docker logs " + c.CloneName + " " +
 		"--since " + strconv.FormatUint(uint64(sinceRelMins), 10) + "m " +
 		"--timestamps"
 
@@ -74,14 +74,14 @@ func DockerGetLogs(r Runner, c *PgConfig, sinceRelMins uint) (string, error) {
 
 // DockerExec executes command on specified container.
 func DockerExec(r Runner, c *PgConfig, cmd string) (string, error) {
-	dockerExecCmd := sudo + "docker exec " + c.CloneName + " " + cmd
+	dockerExecCmd := "docker exec " + c.CloneName + " " + cmd
 
 	return r.Run(dockerExecCmd, true)
 }
 
 // DockerImageExists checks existence of Docker image.
 func DockerImageExists(r Runner, dockerImage string) (bool, error) {
-	dockerListImagesCmd := sudo + "docker images " + dockerImage + " --quiet"
+	dockerListImagesCmd := "docker images " + dockerImage + " --quiet"
 
 	out, err := r.Run(dockerListImagesCmd, true)
 	if err != nil {
@@ -93,7 +93,7 @@ func DockerImageExists(r Runner, dockerImage string) (bool, error) {
 
 // DockerPullImage pulls Docker image from DockerHub registry.
 func DockerPullImage(r Runner, dockerImage string) error {
-	dockerPullImageCmd := sudo + "docker pull " + dockerImage
+	dockerPullImageCmd := "docker pull " + dockerImage
 
 	_, err := r.Run(dockerPullImageCmd, true)
 	if err != nil {
