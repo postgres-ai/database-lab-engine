@@ -13,7 +13,7 @@ import (
 
 func failNotFound(w http.ResponseWriter, _ *http.Request) {
 	errorNotFound := models.Error{
-		Code:    "NOT_FOUND",
+		Code:    models.ErrCodeNotFound,
 		Message: "Not found.",
 		Detail:  "Requested object does not exist.",
 		Hint:    "Specify your request.",
@@ -26,7 +26,7 @@ func failNotFound(w http.ResponseWriter, _ *http.Request) {
 
 func failUnauthorized(w http.ResponseWriter, _ *http.Request) {
 	errorUnauthorized := models.Error{
-		Code:    "UNAUTHORIZED",
+		Code:    models.ErrCodeUnauthorized,
 		Message: "Unauthorized.",
 		Detail:  "",
 		Hint:    "Check your verification token.",
@@ -39,7 +39,7 @@ func failUnauthorized(w http.ResponseWriter, _ *http.Request) {
 
 func failBadRequest(w http.ResponseWriter, _ *http.Request) {
 	errorBadRequest := models.Error{
-		Code:    "BAD_REQUEST",
+		Code:    models.ErrCodeBadRequest,
 		Message: "Wrong request format.",
 		Detail:  "",
 		Hint:    "Check request params.",
@@ -66,7 +66,7 @@ func failInternalServer(w http.ResponseWriter, r *http.Request, err error) {
 	log.Dbg("Internal server error")
 }
 
-func errDetailsMsg(r *http.Request, err error, errCode string) string {
+func errDetailsMsg(r *http.Request, err error, errCode models.ErrorCode) string {
 	queryString := r.URL.String()
 	if queryUnescape, e := url.QueryUnescape(queryString); e == nil {
 		queryString = queryUnescape

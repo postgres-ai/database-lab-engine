@@ -65,15 +65,15 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		return errors.New("missing clone name")
 	}
 
-	if clone.Db == nil {
+	if clone.DB == nil {
 		return errors.New("missing both DB username and password")
 	}
 
-	if len(clone.Db.Username) == 0 {
+	if len(clone.DB.Username) == 0 {
 		return errors.New("missing DB username")
 	}
 
-	if len(clone.Db.Password) == 0 {
+	if len(clone.DB.Password) == 0 {
 		return errors.New("missing DB password")
 	}
 
@@ -89,9 +89,9 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 	w.timeCreatedAt = time.Now()
 	clone.CreatedAt = util.FormatTime(w.timeCreatedAt)
 
-	w.username = clone.Db.Username
-	w.password = clone.Db.Password
-	clone.Db.Password = ""
+	w.username = clone.DB.Username
+	w.password = clone.DB.Password
+	clone.DB.Password = ""
 
 	w.snapshot = clone.Snapshot
 
@@ -122,23 +122,26 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		w.session = session
 
 		w.timeStartedAt = time.Now()
-		clone.CloningTime = w.timeStartedAt.Sub(w.timeCreatedAt).Seconds()
 
 		clone.Status = &models.Status{
 			Code:    models.StatusOK,
 			Message: models.CloneMessageOK,
 		}
 
-		clone.Db.Port = strconv.FormatUint(uint64(session.Port), 10)
+		clone.DB.Port = strconv.FormatUint(uint64(session.Port), 10)
 
-		clone.Db.Host = c.Config.AccessHost
-		clone.Db.ConnStr = fmt.Sprintf("host=%s port=%s username=%s",
-			clone.Db.Host, clone.Db.Port, clone.Db.Username)
+		clone.DB.Host = c.Config.AccessHost
+		clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s username=%s",
+			clone.DB.Host, clone.DB.Port, clone.DB.Username)
 
 		clone.Snapshot = c.snapshots[len(c.snapshots)-1]
 
 		// TODO(anatoly): Remove mock data.
-		clone.CloneSize = 10
+		clone.Metadata = &models.CloneMetadata{
+			CloneSize:      cloneSize,
+			CloningTime:    w.timeStartedAt.Sub(w.timeCreatedAt).Seconds(),
+			MaxIdleMinutes: c.Config.IdleTime,
+		}
 	}()
 
 	return nil
@@ -197,7 +200,7 @@ func (c *baseCloning) GetClone(id string) (*models.Clone, error) {
 		return nil, errors.Wrap(err, "failed to get a session state")
 	}
 
-	w.clone.CloneSize = sessionState.CloneSize
+	w.clone.Metadata.CloneSize = sessionState.CloneSize
 
 	return w.clone, nil
 }
@@ -213,19 +216,23 @@ func (c *baseCloning) UpdateClone(id string, patch *models.Clone) error {
 		return errors.New("Snapshot cannot be changed")
 	}
 
-	if patch.CloneSize > 0 {
+	if patch.Metadata.CloneSize > 0 {
 		return errors.New("CloneSize cannot be changed")
 	}
 
-	if patch.CloningTime > 0 {
+	if patch.Metadata.CloningTime > 0 {
 		return errors.New("CloningTime cannot be changed")
+	}
+
+	if patch.Metadata.MaxIdleMinutes > 0 {
+		return errors.New("MaxIdleMinutes cannot be changed")
 	}
 
 	if len(patch.Project) > 0 {
 		return errors.New("Project cannot be changed")
 	}
 
-	if patch.Db != nil {
+	if patch.DB != nil {
 		return errors.New("Database cannot be changed")
 	}
 
@@ -338,8 +345,11 @@ func (c *baseCloning) getExpectedCloningTime() float64 {
 	}
 
 	sum := 0.0
-	for _, clone := range c.clones {
-		sum += clone.clone.CloningTime
+
+	for _, cloneWrapper := range c.clones {
+		if cloneWrapper.clone.Metadata != nil {
+			sum += cloneWrapper.clone.Metadata.CloningTime
+		}
 	}
 
 	return sum / float64(len(c.clones))

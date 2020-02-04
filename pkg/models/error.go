@@ -9,17 +9,23 @@ import (
 	"fmt"
 )
 
+// ErrorCode defines a response error type.
+type ErrorCode string
+
+// ErrCodeInternal defines a response error codes.
 const (
-	// ErrCodeInternal defines an internal error code.
-	ErrCodeInternal = "INTERNAL_ERROR"
+	ErrCodeInternal     ErrorCode = "INTERNAL_ERROR"
+	ErrCodeBadRequest   ErrorCode = "BAD_REQUEST"
+	ErrCodeUnauthorized ErrorCode = "UNAUTHORIZED"
+	ErrCodeNotFound     ErrorCode = "NOT_FOUND"
 )
 
 // Error struct represents a response error.
 type Error struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-	Detail  string `json:"detail"`
-	Hint    string `json:"hint"`
+	Code    ErrorCode `json:"code"`
+	Message string    `json:"message"`
+	Detail  string    `json:"detail"`
+	Hint    string    `json:"hint"`
 }
 
 // Error prints an error message.

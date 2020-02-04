@@ -18,18 +18,20 @@ import (
 
 func TestClientListClones(t *testing.T) {
 	expectedClones := []*models.Clone{{
-		ID:          "testCloneID",
-		Name:        "mockClone",
-		CloneSize:   450,
-		CloningTime: 1,
-		Protected:   true,
-		DeleteAt:    "2020-01-10 00:00:05.000 UTC",
-		CreatedAt:   "2020-01-10 00:00:00.000 UTC",
+		ID:   "testCloneID",
+		Name: "mockClone",
+		Metadata: &models.CloneMetadata{
+			CloneSize:   450,
+			CloningTime: 1,
+		},
+		Protected: true,
+		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
+		CreatedAt: "2020-01-10 00:00:00.000 UTC",
 		Status: &models.Status{
 			Code:    "OK",
 			Message: "Instance is ready",
 		},
-		Db: &models.Database{
+		DB: &models.Database{
 			Username: "john",
 			Password: "doe",
 		},
@@ -91,18 +93,20 @@ func TestClientListClonesWithFailedRequest(t *testing.T) {
 
 func TestClientCreateClone(t *testing.T) {
 	expectedClone := models.Clone{
-		ID:          "testCloneID",
-		Name:        "mockClone",
-		CloneSize:   450,
-		CloningTime: 1,
-		Protected:   true,
-		DeleteAt:    "2020-01-10 00:00:05.000 UTC",
-		CreatedAt:   "2020-01-10 00:00:00.000 UTC",
+		ID:   "testCloneID",
+		Name: "mockClone",
+		Metadata: &models.CloneMetadata{
+			CloneSize:   450,
+			CloningTime: 1,
+		},
+		Protected: true,
+		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
+		CreatedAt: "2020-01-10 00:00:00.000 UTC",
 		Status: &models.Status{
 			Code:    "OK",
 			Message: "Clone is ready",
 		},
-		Db: &models.Database{
+		DB: &models.Database{
 			Username: "john",
 			Password: "doe",
 		},
@@ -170,18 +174,20 @@ func TestClientCreateClone(t *testing.T) {
 
 func TestClientCreateCloneAsync(t *testing.T) {
 	expectedClone := models.Clone{
-		ID:          "testCloneID",
-		Name:        "mockClone",
-		CloneSize:   450,
-		CloningTime: 1,
-		Protected:   true,
-		DeleteAt:    "2020-01-10 00:00:05.000 UTC",
-		CreatedAt:   "2020-01-10 00:00:00.000 UTC",
+		ID:   "testCloneID",
+		Name: "mockClone",
+		Metadata: &models.CloneMetadata{
+			CloneSize:   450,
+			CloningTime: 1,
+		},
+		Protected: true,
+		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
+		CreatedAt: "2020-01-10 00:00:00.000 UTC",
 		Status: &models.Status{
 			Code:    "OK",
 			Message: "Clone is ready",
 		},
-		Db: &models.Database{
+		DB: &models.Database{
 			Username: "john",
 			Password: "doe",
 		},
@@ -262,18 +268,20 @@ func TestClientCreateCloneWithFailedRequest(t *testing.T) {
 
 func TestClientGetClone(t *testing.T) {
 	expectedClone := &models.Clone{
-		ID:          "testCloneID",
-		Name:        "mockClone",
-		CloneSize:   450,
-		CloningTime: 1,
-		Protected:   true,
-		DeleteAt:    "2020-01-10 00:00:05.000 UTC",
-		CreatedAt:   "2020-01-10 00:00:00.000 UTC",
+		ID:   "testCloneID",
+		Name: "mockClone",
+		Metadata: &models.CloneMetadata{
+			CloneSize:   450,
+			CloningTime: 1,
+		},
+		Protected: true,
+		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
+		CreatedAt: "2020-01-10 00:00:00.000 UTC",
 		Status: &models.Status{
 			Code:    "OK",
 			Message: "Instance is ready",
 		},
-		Db: &models.Database{
+		DB: &models.Database{
 			Username: "john",
 			Password: "doe",
 		},
@@ -335,18 +343,20 @@ func TestClientGetCloneWithFailedRequest(t *testing.T) {
 
 func TestClientUpdateClone(t *testing.T) {
 	cloneModel := &models.Clone{
-		ID:          "testCloneID",
-		Name:        "mockClone",
-		CloneSize:   450,
-		CloningTime: 1,
-		Protected:   true,
-		DeleteAt:    "2020-01-10 00:00:05.000 UTC",
-		CreatedAt:   "2020-01-10 00:00:00.000 UTC",
+		ID:   "testCloneID",
+		Name: "mockClone",
+		Metadata: &models.CloneMetadata{
+			CloneSize:   450,
+			CloningTime: 1,
+		},
+		Protected: true,
+		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
+		CreatedAt: "2020-01-10 00:00:00.000 UTC",
 		Status: &models.Status{
 			Code:    "OK",
 			Message: "Instance is ready",
 		},
-		Db: &models.Database{
+		DB: &models.Database{
 			Username: "john",
 			Password: "doe",
 		},
