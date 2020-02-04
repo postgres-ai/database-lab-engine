@@ -44,8 +44,9 @@ func NewMockCloning(cfg *Config) Cloning {
 }
 
 const (
-	mockCloneSize   = 1000
-	mockCloningTime = 10.0
+	mockCloneSize      = 1000
+	mockCloningTime    = 10.0
+	mockMaxIdleMinutes = 120
 )
 
 // NewMockClone instances a new Clone model.
@@ -54,19 +55,22 @@ func NewMockClone() *models.Clone {
 	snapshot := &models.Snapshot{}
 
 	return &models.Clone{
-		ID:          "id",
-		Name:        "name",
-		Snapshot:    snapshot,
-		CloneSize:   mockCloneSize,
-		CloningTime: mockCloningTime,
-		Protected:   false,
-		DeleteAt:    "10000",
-		CreatedAt:   "10000",
+		ID:       "id",
+		Name:     "name",
+		Snapshot: snapshot,
+		Metadata: &models.CloneMetadata{
+			CloneSize:      mockCloneSize,
+			CloningTime:    mockCloningTime,
+			MaxIdleMinutes: mockMaxIdleMinutes,
+		},
+		Protected: false,
+		DeleteAt:  "10000",
+		CreatedAt: "10000",
 		Status: &models.Status{
 			Code:    models.StatusOK,
 			Message: models.CloneMessageOK,
 		},
-		Db: db,
+		DB: db,
 	}
 }
 

@@ -22,6 +22,9 @@ const (
 
 	// ModeMock defines a mock mode of cloning.
 	ModeMock = "mock"
+
+	// cloneSize defines a default clone size.
+	cloneSize = 10
 )
 
 // Config contains a cloning configuration.
@@ -84,8 +87,8 @@ func NewCloneWrapper(clone *models.Clone) *CloneWrapper {
 		clone: clone,
 	}
 
-	if clone.Db == nil {
-		clone.Db = &models.Database{}
+	if clone.DB == nil {
+		clone.DB = &models.Database{}
 	}
 
 	return w

@@ -10,27 +10,27 @@ info:
     url: "https://gitlab.com/postgres-ai/database-lab/blob/master/LICENSE.txt"
 basePath: "/"
 tags:
-- name: "Database Lab"
-  description: "API Reference"
-  externalDocs:
-    description: "Database Lab Docs"
-    url: "https://gitlab.com/postgres-ai/docs/tree/master/docs/database-lab"
+  - name: "Database Lab"
+    description: "API Reference"
+    externalDocs:
+      description: "Database Lab Docs"
+      url: "https://gitlab.com/postgres-ai/docs/tree/master/docs/database-lab"
 schemes:
-- "https"
-- "http"
+  - "https"
+  - "http"
 
 paths:
   /status:
     get:
       tags:
-      - "instance"
+        - "instance"
       summary: "Get the status of the instance we are working with"
       description: ""
       operationId: "getInstanceStatus"
       consumes:
-      - "application/json"
+        - "application/json"
       produces:
-      - "application/json"
+        - "application/json"
       parameters:
         - in: header
           name: Verification-Token
@@ -49,14 +49,14 @@ paths:
   /snapshots:
     get:
       tags:
-      - "instance"
+        - "instance"
       summary: "Get the list of snapshots"
       description: ""
       operationId: "getSnapshots"
       consumes:
-      - "application/json"
+        - "application/json"
       produces:
-      - "application/json"
+        - "application/json"
       parameters:
         - in: header
           name: Verification-Token
@@ -77,14 +77,14 @@ paths:
   /clone:
     post:
       tags:
-      - "clone"
+        - "clone"
       summary: "Create a clone"
       description: ""
       operationId: "createClone"
       consumes:
-      - "application/json"
+        - "application/json"
       produces:
-      - "application/json"
+        - "application/json"
       parameters:
         - in: header
           name: Verification-Token
@@ -113,14 +113,14 @@ paths:
   /clone/{id}:
     get:
       tags:
-      - "clone"
+        - "clone"
       summary: "Get a clone status"
       description: ""
       operationId: "getClone"
       consumes:
-      - "application/json"
+        - "application/json"
       produces:
-      - "application/json"
+        - "application/json"
       parameters:
         - in: header
           name: Verification-Token
@@ -147,14 +147,14 @@ paths:
 
     patch:
       tags:
-      - "clone"
+        - "clone"
       summary: "Update a clone"
       description: ""
       operationId: "patchClone"
       consumes:
-      - "application/json"
+        - "application/json"
       produces:
-      - "application/json"
+        - "application/json"
       parameters:
         - in: header
           name: Verification-Token
@@ -183,14 +183,14 @@ paths:
 
     delete:
       tags:
-      - "clone"
+        - "clone"
       summary: "Delete a clone"
       description: ""
       operationId: "destroyClone"
       consumes:
-      - "application/json"
+        - "application/json"
       produces:
-      - "application/json"
+        - "application/json"
       parameters:
         - in: header
           name: Verification-Token
@@ -214,14 +214,14 @@ paths:
   /clone/{id}/reset:
     post:
       tags:
-      - "clone"
+        - "clone"
       summary: "Reset a clone"
       description: ""
       operationId: "resetClone"
       consumes:
-      - "application/json"
+        - "application/json"
       produces:
-      - "application/json"
+        - "application/json"
       parameters:
         - in: header
           name: Verification-Token
@@ -322,12 +322,6 @@ definitions:
         type: "string"
       snapshot:
         $ref: "#/definitions/Snapshot"
-      cloneSize:
-        type: "integer"
-        format: "int64"
-      cloningTime:
-        type: "integer"
-        format: "float64"
       protected:
         type: "boolean"
         default: false
@@ -341,6 +335,21 @@ definitions:
         $ref: "#/definitions/Status"
       db:
         $ref: "#/definitions/Database"
+      metadata:
+        $ref: "#/definitions/CloneMetadata"
+
+  CloneMetadata:
+    type: "object"
+    properties:
+      cloneSize:
+        type: "integer"
+        format: "int64"
+      cloningTime:
+        type: "integer"
+        format: "float64"
+      maxIdleMinutes:
+        type: "integer"
+        format: "int64"
 
   CreateClone:
     type: "object"
@@ -389,5 +398,5 @@ definitions:
         type: "string"
 
 externalDocs:
-    description: "Database Lab Docs"
-    url: "https://gitlab.com/postgres-ai/docs/tree/master/docs/database-lab"
+  description: "Database Lab Docs"
+  url: "https://gitlab.com/postgres-ai/docs/tree/master/docs/database-lab"
