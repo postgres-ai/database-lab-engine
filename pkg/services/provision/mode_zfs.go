@@ -59,6 +59,7 @@ type ModeZfsConfig struct {
 	UnixSocketDir        string          `yaml:"unixSocketDir"`
 	SnapshotFilterSuffix string          `yaml:"snapshotFilterSuffix"`
 	DockerImage          string          `yaml:"dockerImage"`
+	UseSudo              bool            `yaml:"useSudo"`
 }
 
 type provisionModeZfs struct {
@@ -72,7 +73,7 @@ type provisionModeZfs struct {
 // NewProvisionModeZfs creates a new Provision instance of ModeZfs.
 func NewProvisionModeZfs(ctx context.Context, config Config, dockerClient *client.Client) (Provision, error) {
 	p := &provisionModeZfs{
-		runner:         NewLocalRunner(),
+		runner:         NewLocalRunner(config.ModeZfs.UseSudo),
 		sessionCounter: 0,
 		dockerClient:   dockerClient,
 		provision: provision{
@@ -391,15 +392,10 @@ func (j *provisionModeZfs) GetDiskState() (*Disk, error) {
 		return nil, errors.New("cannot get disk state: pool entries not found")
 	}
 
-	dataSize, err := j.getDataSize(poolEntry.MountPoint)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get data size")
-	}
-
 	disk := &Disk{
 		Size:     parentPoolEntry.Available + parentPoolEntry.Used,
 		Free:     parentPoolEntry.Available,
-		DataSize: dataSize,
+		DataSize: poolEntry.LogicalReferenced,
 	}
 
 	return disk, nil
@@ -436,29 +432,6 @@ func (j *provisionModeZfs) GetSessionState(s *Session) (*SessionState, error) {
 }
 
 // Other methods.
-func (j *provisionModeZfs) getDataSize(mountDir string) (uint64, error) {
-	log.Dbg("getDataSize: " + mountDir)
-
-	const expectedDataSizeParts = 2
-
-	out, err := j.runner.Run("sudo du -d0 -b " + mountDir + j.config.PgDataSubdir)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to run command")
-	}
-
-	split := strings.SplitN(out, "\t", 2)
-	if len(split) != expectedDataSizeParts {
-		return 0, errors.New(`wrong format for "du"`)
-	}
-
-	nbytes, err := strconv.ParseUint(split[0], 10, 64)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to parse data size")
-	}
-
-	return nbytes, nil
-}
-
 func (j *provisionModeZfs) getSnapshotID(options ...string) (string, error) {
 	snapshotID := ""
 	if len(options) > 0 && len(options[0]) > 0 {

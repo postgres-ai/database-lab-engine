@@ -24,6 +24,9 @@ const (
 
 	// Hidden marks a hidden output.
 	Hidden = "HIDDEN"
+
+	sudoCmd    = "sudo"
+	sudoParams = "--non-interactive"
 )
 
 type Runner interface {
@@ -36,6 +39,7 @@ type RunnerError struct {
 	Stderr     string
 }
 
+// NewRunnerError creates a new RunnerError instance.
 func NewRunnerError(command string, stderr string, e error) error {
 	exitStatus := 0
 
@@ -73,10 +77,14 @@ func (e RunnerError) Error() string {
 
 // Local.
 type LocalRunner struct {
+	UseSudo bool
 }
 
-func NewLocalRunner() *LocalRunner {
-	r := &LocalRunner{}
+// NewLocalRunner creates a new LocalRunner instance.
+func NewLocalRunner(useSudo bool) *LocalRunner {
+	r := &LocalRunner{
+		UseSudo: useSudo,
+	}
 
 	return r
 }
@@ -101,6 +109,10 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 
 	if runtime.GOOS == "windows" {
 		return "", errors.New("Windows is not supported")
+	}
+
+	if r.UseSudo && !strings.HasPrefix(command, sudoCmd+" ") {
+		command = fmt.Sprintf("%s %s %s", sudoCmd, sudoParams, command)
 	}
 
 	cmd := exec.Command("/bin/bash", "-c", command)
