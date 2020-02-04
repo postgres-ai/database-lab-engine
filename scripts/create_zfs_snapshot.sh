@@ -33,9 +33,11 @@ clone_pgdata_dir="${clone_dir}${pgdata_subdir}"
 # Port on which Postgres will be started using clone's PGDATA.
 clone_port=${CLONE_PORT:-6999}
 pg_bin_dir=${PG_BIN_DIR:-"/usr/lib/postgresql/12/bin"}
+pg_sock_dir=${PG_SOCK_DIR:-"/var/run/postgresql"}
 pg_username=${PGUSERNAME:-"postgres"}
 # Set password with PGPASSWORD env.
 pg_db=${PGDB:-"postgres"}
+sudo_cmd=${SUDO_CMD:-""} # Use `sudo -u postgres` for default environment
 
 # Snapshot.
 # Name of resulting snapshot after PGDATA manipulation.
@@ -50,9 +52,9 @@ sudo zfs clone ${zfs_pool}@${snapshot_name}${pre} ${clone_full_name} -o mountpoi
 
 cd /tmp # To avoid errors about lack of permissions.
 
-pg_ver=$(sudo -u postgres cat ${clone_pgdata_dir}/PG_VERSION | cut -f1 -d".")
+pg_ver=$(${sudo_cmd} cat ${clone_pgdata_dir}/PG_VERSION | cut -f1 -d".")
 
-sudo -u postgres bash -f - <<SH
+${sudo_cmd} bash -f - <<SH
 set -ex
 
 rm -rf ${clone_pgdata_dir}/postmaster.pid # Questionable -- it's better to have snapshot created with Postgres being down
@@ -74,6 +76,7 @@ sed -i 's/^\\(.*archive_command\\)/# \\1/' ${clone_pgdata_dir}/postgresql.conf
 
 # TODO: improve secirity aspects
 echo "listen_addresses = '*'" >> ${clone_pgdata_dir}/postgresql.conf
+echo "unix_socket_directories = '${pg_sock_dir}'" >> ${clone_pgdata_dir}/postgresql.conf
 
 echo "logging_collector = on" >> ${clone_pgdata_dir}/postgresql.conf
 echo "log_destination = 'stderr'" >> ${clone_pgdata_dir}/postgresql.conf
@@ -102,7 +105,7 @@ echo "host all all 0.0.0.0/0 md5" >> ${clone_pgdata_dir}/pg_hba.conf
 echo "" > ${clone_pgdata_dir}/pg_ident.conf
 SH
 
-sudo -u postgres ${pg_bin_dir}/pg_ctl \
+${sudo_cmd} ${pg_bin_dir}/pg_ctl \
   -D "${clone_pgdata_dir}" \
   -o "-p ${clone_port} -c 'shared_buffers=4096'" \
   -W \
@@ -115,7 +118,7 @@ sudo -u postgres ${pg_bin_dir}/pg_ctl \
 
 failed=true
 for i in {1..1000}; do
-  if [[ $(${pg_bin_dir}/psql -p $clone_port -U ${pg_username} -d ${pg_db} -h /var/run/postgresql -XAtc 'select pg_is_in_recovery()') == "t" ]]; then
+  if [[ $(${pg_bin_dir}/psql -p $clone_port -U ${pg_username} -d ${pg_db} -h ${pg_sock_dir} -XAtc 'select pg_is_in_recovery()') == "t" ]]; then
     failed=false
     break
   fi
@@ -141,17 +144,17 @@ else
     -p ${clone_port} \
     -U ${pg_username} \
     -d ${pg_db} \
-    -h /var/run/postgresql \
+    -h ${pg_sock_dir} \
     -XAt \
     -c "select to_char(pg_last_xact_replay_timestamp() at time zone 'UTC', 'YYYYMMDDHH24MISS')")
 fi
 
 # Promote to the master. Again, it may take a while.
-sudo -u postgres ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -W promote
+${sudo_cmd} ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -W promote
 
 failed=true
 for i in {1..1000}; do
-  if [[ $(${pg_bin_dir}/psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h /var/run/postgresql -XAtc 'select pg_is_in_recovery()') == "f" ]]; then
+  if [[ $(${pg_bin_dir}/psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h ${pg_sock_dir} -XAtc 'select pg_is_in_recovery()') == "f" ]]; then
     failed=false
     break
   fi
@@ -165,17 +168,17 @@ if $failed; then
 fi
 
 # Finally, stop Postgres and create the base snapshot ready to be used for thin provisioning
-sudo -u postgres ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -w stop
+${sudo_cmd} ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -w stop
 # todo: check that it's stopped, similiraly as above
 
-sudo -u postgres rm -rf ${clone_pgdata_dir}/pg_log
+${sudo_cmd} rm -rf ${clone_pgdata_dir}/pg_log
 
 sudo zfs snapshot ${clone_full_name}@${snapshot_name}
 sudo zfs set dblab:datastateat="${data_state_at}" ${clone_full_name}@${snapshot_name}
 
 # Snapshot "datastore/postgresql/db_state_1_pre@db_state_1" is ready and can be used for thin provisioning
 
-sudo -u postgres rm -rf /tmp/trigger_${clone_port}
+${sudo_cmd} rm -rf /tmp/trigger_${clone_port}
 
 # Return to previous working directory.
 cd -
