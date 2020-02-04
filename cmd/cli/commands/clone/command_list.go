@@ -5,16 +5,16 @@
 package clone
 
 import (
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
+
+	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
 )
 
 // CommandList returns available commands for a clones management.
 func CommandList() []*cli.Command {
 	return []*cli.Command{{
-		Name:   "clone",
-		Usage:  "Manages clones",
-		Action: cli.ShowAppHelp,
+		Name:  "clone",
+		Usage: "manages clones",
 		Subcommands: []*cli.Command{
 			{
 				Name:   "list",
@@ -116,7 +116,7 @@ func CommandList() []*cli.Command {
 
 func checkCloneIDBefore(c *cli.Context) error {
 	if c.NArg() == 0 {
-		return errors.New("CLONE_ID argument is required.") // nolint
+		return commands.NewActionError("CLONE_ID argument is required")
 	}
 
 	return nil

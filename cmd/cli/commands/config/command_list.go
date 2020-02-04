@@ -14,9 +14,8 @@ import (
 func CommandList() []*cli.Command {
 	return []*cli.Command{
 		{
-			Name:   "config",
-			Usage:  "configure CLI environments",
-			Action: cli.ShowSubcommandHelp,
+			Name:  "config",
+			Usage: "configure CLI environments",
 			Subcommands: []*cli.Command{
 				{
 					Name:      "create",

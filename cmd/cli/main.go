@@ -13,22 +13,18 @@ import (
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/initialization"
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/instance"
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/snapshot"
+	"gitlab.com/postgres-ai/database-lab/cmd/cli/templates"
 )
 
 const (
-	applicationName = "Database Lab CLI"
-	version         = "v0.0.1"
-	website         = "https://postgres.ai"
-	supportEmail    = "team@postgres.ai"
+	version = "v0.0.1"
 )
 
 func main() {
 	app := &cli.App{
-		Name:    applicationName,
 		Version: version,
-		Usage:   fmt.Sprintf("version %s", version),
 		CommandNotFound: func(c *cli.Context, command string) {
-			fmt.Fprintf(c.App.Writer, "Command %q not found.\n", command)
+			fmt.Fprintf(c.App.Writer, "[ERROR] Command %q not found.\n", command)
 		},
 		Before: loadEnvironmentParams,
 		Commands: joinCommands(
@@ -113,10 +109,7 @@ func joinCommands(cliGroups ...[]*cli.Command) []*cli.Command {
 }
 
 func adoptTemplates() {
-	const adaptiveTemplate = `%s
-CONTACT US: %s, %s
-
-`
-
-	cli.AppHelpTemplate = fmt.Sprintf(adaptiveTemplate, cli.AppHelpTemplate, website, supportEmail)
+	cli.AppHelpTemplate = templates.CustomAppHelpTemplate
+	cli.CommandHelpTemplate = templates.CustomCommandHelpTemplate
+	cli.SubcommandHelpTemplate = templates.CustomSubcommandHelpTemplate
 }
