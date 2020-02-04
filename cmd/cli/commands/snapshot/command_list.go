@@ -12,9 +12,8 @@ import (
 func CommandList() []*cli.Command {
 	return []*cli.Command{
 		{
-			Name:   "snapshot",
-			Usage:  "manage snapshots",
-			Action: cli.ShowSubcommandHelp,
+			Name:  "snapshot",
+			Usage: "manage snapshots",
 			Subcommands: []*cli.Command{
 				{
 					Name:   "list",
