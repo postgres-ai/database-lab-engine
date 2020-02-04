@@ -4,7 +4,6 @@
 
 // TODO(anatoly):
 // - Validate configs in all components.
-// - Pass username and password and set it additionally to main username/password.
 // - Tests.
 // - Graceful shutdown.
 // - Don't kill clones on shutdown/start.
@@ -26,8 +25,11 @@ import (
 )
 
 var opts struct {
-	VerificationToken string `short:"v" long:"verification-token" description:"callback URL verification token" env:"VERIFICATION_TOKEN"`
-	DbPassword        string `description:"database password" env:"DB_PASSWORD" default:"postgres"`
+	VerificationToken string `short:"t" long:"token" description:"API verification token" env:"VERIFICATION_TOKEN"`
+
+	MountDir      string `long:"mount-dir" description:"clones data mount directory" env:"MOUNT_DIR"`
+	UnixSocketDir string `long:"sockets-dir" description:"unix sockets directory for secure connection to clones" env:"UNIX_SOCKET_DIR"`
+	DockerImage   string `long:"docker-image" description:"clones Docker image" env:"DOCKER_IMAGE"`
 
 	ShowHelp func() error `long:"help" description:"Show this help message"`
 }
@@ -53,8 +55,17 @@ func main() {
 
 	log.Dbg("Config loaded", cfg)
 
-	if len(opts.DbPassword) > 0 {
-		cfg.Provision.DbPassword = opts.DbPassword
+	// TODO(anatoly): Annotate envs in configs. Use different lib for flags/configs?
+	if len(opts.MountDir) > 0 {
+		cfg.Provision.ModeZfs.MountDir = opts.MountDir
+	}
+
+	if len(opts.UnixSocketDir) > 0 {
+		cfg.Provision.ModeZfs.UnixSocketDir = opts.UnixSocketDir
+	}
+
+	if len(opts.DockerImage) > 0 {
+		cfg.Provision.ModeZfs.DockerImage = opts.DockerImage
 	}
 
 	provisionSvc, err := provision.NewProvision(ctx, cfg.Provision)
@@ -95,6 +106,7 @@ func parseArgs() ([]string, error) {
 		var b bytes.Buffer
 
 		parser.WriteHelp(&b)
+
 		return &flags.Error{
 			Type:    flags.ErrHelp,
 			Message: b.String(),

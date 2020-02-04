@@ -13,9 +13,15 @@ import (
 
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
 )
 
+const (
+	headerOffset = 1
+)
+
+// ZfsListEntry defines entry of ZFS list command.
 type ZfsListEntry struct {
 	Name string
 
@@ -62,10 +68,38 @@ type ZfsListEntry struct {
 	// was created.
 	Creation time.Time
 
+	// The amount of data that is accessible by this dataset, which may
+	// or may not be shared with other datasets in the pool. When a snapshot
+	// or clone is created, it initially references the same amount of space
+	//as the  file system or snapshot it was created from, since its contents
+	// are identical.
+	Referenced uint64
+
+	// The amount of space that is "logically" accessible by this dataset.
+	// See the referenced property. The logical space ignores the effect
+	// of the compression and copies properties, giving a quantity closer
+	// to the amount of data that applications see. However, it does include
+	// space consumed by metadata.
+	LogicalReferenced uint64
+
+	// The amount of space that is "logically" consumed by this dataset
+	// and all its descendents. See the used property. The logical space
+	// ignores the effect of the compression and copies properties, giving
+	// a quantity closer to the amount of data that applications see. However,
+	// it does include space consumed by metadata.
+	LogicalUsed uint64
+
 	// DB Lab custom fields.
 
 	// Data state timestamp.
 	DataStateAt time.Time
+}
+
+type setFunc func(s string) error
+
+type setTuple struct {
+	field   string
+	setFunc setFunc
 }
 
 // ZfsCreateClone creates a new ZFS clone.
@@ -79,9 +113,11 @@ func ZfsCreateClone(r Runner, pool, name, snapshot, mountDir, osUsername string)
 		return nil
 	}
 
-	cmd := "sudo -n zfs clone " + snapshot + " " +
-		pool + "/" + name + " -o mountpoint=" + mountDir + name + " && " +
-		"sudo --non-interactive chown -R " + osUsername + " " + mountDir + name
+	cmd := "zfs clone " +
+		"-o mountpoint=" + mountDir + name + " " +
+		snapshot + " " +
+		pool + "/" + name + " && " +
+		"chown -R " + osUsername + " " + mountDir + name
 
 	out, err := r.Run(cmd)
 	if err != nil {
@@ -91,6 +127,7 @@ func ZfsCreateClone(r Runner, pool, name, snapshot, mountDir, osUsername string)
 	return nil
 }
 
+// ZfsDestroyClone destroys a ZFS clone.
 func ZfsDestroyClone(r Runner, pool string, name string) error {
 	exists, err := ZfsCloneExists(r, name)
 	if err != nil {
@@ -107,7 +144,7 @@ func ZfsDestroyClone(r Runner, pool string, name string) error {
 	// this function to delete clones used during the preparation
 	// of baseline snapshots, we need to omit `-R`, to avoid
 	// unexpected deletion of users' clones.
-	cmd := fmt.Sprintf("sudo -n zfs destroy %s/%s -R", pool, name)
+	cmd := fmt.Sprintf("zfs destroy -R %s/%s", pool, name)
 
 	if _, err = r.Run(cmd); err != nil {
 		return errors.Wrap(err, "failed to run command")
@@ -116,8 +153,9 @@ func ZfsDestroyClone(r Runner, pool string, name string) error {
 	return nil
 }
 
+// ZfsCloneExists checks whether a ZFS clone exists.
 func ZfsCloneExists(r Runner, name string) (bool, error) {
-	listZfsClonesCmd := fmt.Sprintf(`sudo -n zfs list`)
+	listZfsClonesCmd := "zfs list"
 
 	out, err := r.Run(listZfsClonesCmd, false)
 	if err != nil {
@@ -127,8 +165,9 @@ func ZfsCloneExists(r Runner, name string) (bool, error) {
 	return strings.Contains(out, name), nil
 }
 
+// ZfsListClones lists ZFS clones.
 func ZfsListClones(r Runner, prefix string) ([]string, error) {
-	listZfsClonesCmd := fmt.Sprintf(`sudo -n zfs list`)
+	listZfsClonesCmd := "zfs list"
 
 	re := regexp.MustCompile(fmt.Sprintf(`(%s[0-9]+)`, prefix))
 
@@ -140,8 +179,9 @@ func ZfsListClones(r Runner, prefix string) ([]string, error) {
 	return util.Unique(re.FindAllString(out, -1)), nil
 }
 
+// ZfsCreateSnapshot creates ZFS snapshot.
 func ZfsCreateSnapshot(r Runner, pool string, snapshot string) error {
-	cmd := fmt.Sprintf("sudo -n zfs snapshot -r %s", snapshot)
+	cmd := fmt.Sprintf("zfs snapshot -r %s", snapshot)
 
 	if _, err := r.Run(cmd, true); err != nil {
 		return errors.Wrap(err, "failed to create a snapshot")
@@ -150,8 +190,9 @@ func ZfsCreateSnapshot(r Runner, pool string, snapshot string) error {
 	return nil
 }
 
+// ZfsRollbackSnapshot rollbacks ZFS snapshot.
 func ZfsRollbackSnapshot(r Runner, pool string, snapshot string) error {
-	cmd := fmt.Sprintf("sudo -n zfs rollback -f -r %s", snapshot)
+	cmd := fmt.Sprintf("zfs rollback -f -r %s", snapshot)
 
 	if _, err := r.Run(cmd, true); err != nil {
 		return errors.Wrap(err, "failed to rollback a snapshot")
@@ -160,21 +201,25 @@ func ZfsRollbackSnapshot(r Runner, pool string, snapshot string) error {
 	return nil
 }
 
+// ZfsListFilesystems lists ZFS file systems (clones, pools).
 func ZfsListFilesystems(r Runner, pool string) ([]*ZfsListEntry, error) {
 	return ZfsListDetails(r, pool, "filesystem")
 }
 
+// ZfsListSnapshots lists ZFS snapshots.
 func ZfsListSnapshots(r Runner, pool string) ([]*ZfsListEntry, error) {
 	return ZfsListDetails(r, pool, "snapshot")
 }
 
-// TODO(anatoly): Return map.
+// ZfsListDetails lists all ZFS types.
 func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, error) {
+	// TODO(anatoly): Return map.
 	// TODO(anatoly): Generalize.
-	numberFields := 9
-	listCmd := "sudo -n zfs list " +
+	numberFields := 12
+	listCmd := "zfs list " +
 		"-po name,used,mountpoint,compressratio,available,type," +
-		"origin,creation,dblab:datastateat " +
+		"origin,creation,referenced,logicalreferenced,logicalused," +
+		"dblab:datastateat " +
 		"-S dblab:datastateat -S creation " + // Order DESC.
 		"-t " + dsType + " " +
 		"-r " + pool
@@ -187,70 +232,151 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 	lines := strings.Split(out, "\n")
 
 	// First line is header.
-	if len(lines) < 2 {
+	if len(lines) <= headerOffset {
 		return nil, errors.Errorf(`ZFS error: no "%s" filesystem`, pool)
 	}
 
-	entries := make([]*ZfsListEntry, len(lines)-1)
-	for i := 1; i < len(lines); i++ {
+	entries := make([]*ZfsListEntry, len(lines)-headerOffset)
+
+	for i := headerOffset; i < len(lines); i++ {
 		fields := strings.Fields(lines[i])
+
+		// Empty value of standard ZFS params is "-", but for custom
+		// params it will be just an empty string. Which mean that fields
+		// array contain less elements. It's still bad to not have our
+		// custom variables, but we don't want fail completely in this case.
+		if len(fields) == numberFields-1 {
+			log.Dbg(`Probably "dblab:datastateat" is not set. Manually check ZFS snapshots.`)
+
+			fields = append(fields, "-")
+		}
+
+		// In other cases something really wrong with output format.
 		if len(fields) != numberFields {
 			return nil, errors.Errorf("ZFS error: some fields are empty. First of all, check dblab:datastateat")
 		}
 
-		var (
-			err1, err2, err3, err4, err5 error
-			used, available              uint64
-			creation, dataStateAt        time.Time
-			compressRatio                float64
-		)
-
-		// Used.
-		if fields[1] != "-" {
-			used, err1 = strconv.ParseUint(fields[1], 10, 64)
+		zfsListEntry := &ZfsListEntry{
+			Name:       fields[0],
+			MountPoint: fields[2],
+			Type:       fields[5],
+			Origin:     fields[6],
 		}
 
-		// Compressratio.
-		if fields[3] != "-" {
-			ratioStr := strings.ReplaceAll(fields[3], "x", "")
-			compressRatio, err2 = strconv.ParseFloat(ratioStr, 64)
+		setRules := []setTuple{
+			{field: fields[1], setFunc: zfsListEntry.setUsed},
+			{field: fields[3], setFunc: zfsListEntry.setCompressRatio},
+			{field: fields[4], setFunc: zfsListEntry.setAvailable},
+			{field: fields[7], setFunc: zfsListEntry.setCreation},
+			{field: fields[8], setFunc: zfsListEntry.setReferenced},
+			{field: fields[9], setFunc: zfsListEntry.setLogicalReferenced},
+			{field: fields[10], setFunc: zfsListEntry.setLogicalUsed},
+			{field: fields[11], setFunc: zfsListEntry.setDataStateAt},
 		}
 
-		// Available.
-		if fields[4] != "-" {
-			available, err3 = strconv.ParseUint(fields[4], 10, 64)
-		}
+		for _, rule := range setRules {
+			if len(rule.field) == 0 || rule.field == "-" {
+				continue
+			}
 
-		// Creation.
-		if fields[7] != "-" {
-			creationInt, err4 := strconv.ParseInt(fields[7], 10, 64)
-			if err4 == nil {
-				creation = time.Unix(creationInt, 0)
+			if err := rule.setFunc(rule.field); err != nil {
+				return nil, errors.Errorf("ZFS error: cannot parse output.\nCommand: %s.\nOutput: %s\nErr: %v",
+					listCmd, out, err)
 			}
 		}
 
-		// Dblab:datastateat.
-		if fields[8] != "-" {
-			dataStateAt, err5 = time.Parse("20060102150405", fields[8])
-		}
-
-		if err1 != nil || err2 != nil || err3 != nil || err4 != nil ||
-			err5 != nil {
-			return nil, errors.Errorf("ZFS error: cannot parse output.\nCommand: %s.\nOutput: %s", listCmd, out)
-		}
-
-		entries[i-1] = &ZfsListEntry{
-			Name:          fields[0],
-			Used:          used,
-			MountPoint:    fields[2],
-			CompressRatio: compressRatio,
-			Available:     available,
-			Type:          fields[5],
-			Origin:        fields[6],
-			Creation:      creation,
-			DataStateAt:   dataStateAt,
-		}
+		entries[i-1] = zfsListEntry
 	}
 
 	return entries, nil
+}
+
+func (z *ZfsListEntry) setUsed(field string) error {
+	used, err := util.ParseBytes(field)
+	if err != nil {
+		return err
+	}
+
+	z.Used = used
+
+	return nil
+}
+
+func (z *ZfsListEntry) setCompressRatio(field string) error {
+	ratioStr := strings.ReplaceAll(field, "x", "")
+
+	compressRatio, err := strconv.ParseFloat(ratioStr, 64)
+	if err != nil {
+		return err
+	}
+
+	z.CompressRatio = compressRatio
+
+	return nil
+}
+
+func (z *ZfsListEntry) setAvailable(field string) error {
+	available, err := util.ParseBytes(field)
+	if err != nil {
+		return err
+	}
+
+	z.Available = available
+
+	return nil
+}
+
+func (z *ZfsListEntry) setCreation(field string) error {
+	creation, err := util.ParseUnixTime(field)
+	if err != nil {
+		return err
+	}
+
+	z.Creation = creation
+
+	return nil
+}
+
+func (z *ZfsListEntry) setReferenced(field string) error {
+	referenced, err := util.ParseBytes(field)
+	if err != nil {
+		return err
+	}
+
+	z.Referenced = referenced
+
+	return nil
+}
+
+func (z *ZfsListEntry) setLogicalReferenced(field string) error {
+	logicalReferenced, err := util.ParseBytes(field)
+	if err != nil {
+		return err
+	}
+
+	z.LogicalReferenced = logicalReferenced
+
+	return nil
+}
+
+func (z *ZfsListEntry) setLogicalUsed(field string) error {
+	logicalUsed, err := util.ParseBytes(field)
+	if err != nil {
+		return err
+	}
+
+	z.LogicalUsed = logicalUsed
+
+	return nil
+}
+
+func (z *ZfsListEntry) setDataStateAt(field string) error {
+	stateAt, err := util.ParseCustomTime(field)
+	if err != nil {
+		return err
+	}
+
+	z.DataStateAt = stateAt
+
+	return nil
 }

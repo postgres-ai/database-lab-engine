@@ -131,7 +131,7 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		clone.DB.Port = strconv.FormatUint(uint64(session.Port), 10)
 
 		clone.DB.Host = c.Config.AccessHost
-		clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s username=%s",
+		clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s user=%s",
 			clone.DB.Host, clone.DB.Port, clone.DB.Username)
 
 		clone.Snapshot = c.snapshots[len(c.snapshots)-1]
