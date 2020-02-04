@@ -11,6 +11,13 @@ pre="_pre"
 ntries=1000
 now=$(date +%Y%m%d%H%M%S)
 
+# Clones data mount directory.
+mount_dir=${MOUNT_DIR:-"/var/lib/dblab/clones"}
+# Unix sockets directory for secure connection to the clone.
+unix_socket_dir=${UNIX_SOCKET_DIR:-"/var/lib/dblab/sockets"}
+# Sync clone Docker image.
+docker_image=${DOCKER_IMAGE:-"postgres:12-alpine"}
+
 # Storage configuration.
 # Name of the ZFS pool which contains PGDATA.
 zfs_pool=${ZFS_POOL:-"dblab_pool"}
@@ -18,8 +25,6 @@ zfs_pool=${ZFS_POOL:-"dblab_pool"}
 pgdata_subdir=${PGDATA_SUBDIR:-""}
 
 # Clone configuration.
-# Mount directory for DB Lab clones.
-mount_dir=${MOUNT_DIR:-"/var/lib/dblab/clones"}
 # Name of a clone which will be created and used for PGDATA manipulation.
 clone_name="clone${pre}_${now}"
 # Full name of the clone for ZFS commands.
@@ -29,26 +34,31 @@ clone_dir="${mount_dir}/${clone_name}"
 # Directory of PGDATA in the clone mount.
 clone_pgdata_dir="${clone_dir}${pgdata_subdir}"
 
-# Postgres configuration.
+# Postgres in Docker configuration.
 # Port on which Postgres will be started using clone's PGDATA.
-clone_port=${CLONE_PORT:-6999}
 pg_bin_dir=${PG_BIN_DIR:-"/usr/lib/postgresql/12/bin"}
 pg_sock_dir=${PG_SOCK_DIR:-"/var/run/postgresql"}
-pg_username=${PGUSERNAME:-"postgres"}
 # Set password with PGPASSWORD env.
 pg_db=${PGDB:-"postgres"}
 sudo_cmd=${SUDO_CMD:-""} # Use `sudo -u postgres` for default environment
+
+clone_label="dblab-sync-clone"
 
 # Snapshot.
 # Name of resulting snapshot after PGDATA manipulation.
 snapshot_name="snapshot_${now}"
 
+ids=$(docker images ${docker_image} -q)
+if [ -z "${ids}" ]; then
+  ${sudo_cmd} docker pull ${docker_image}
+fi
+
 # TODO: decide: do we need to stop the shadow Postgres instance?
 # OR: we can tell the shadow Postgres: select pg_start_backup('database-lab-snapshot');
 # .. and in the very end: select pg_stop_backup();
 
-sudo zfs snapshot ${zfs_pool}@${snapshot_name}${pre}
-sudo zfs clone ${zfs_pool}@${snapshot_name}${pre} ${clone_full_name} -o mountpoint=${clone_dir}
+${sudo_cmd} zfs snapshot ${zfs_pool}@${snapshot_name}${pre}
+${sudo_cmd} zfs clone -o mountpoint=${clone_dir} ${zfs_pool}@${snapshot_name}${pre} ${clone_full_name}
 
 cd /tmp # To avoid errors about lack of permissions.
 
@@ -102,7 +112,6 @@ fi;
 
 ### pg_hba.conf
 echo "local all all trust" > ${clone_pgdata_dir}/pg_hba.conf
-echo "host all all 0.0.0.0/0 md5" >> ${clone_pgdata_dir}/pg_hba.conf
 
 ### pg_ident.conf
 echo "" > ${clone_pgdata_dir}/pg_ident.conf
@@ -110,18 +119,27 @@ SH
 
 ${sudo_cmd} ${pg_bin_dir}/pg_ctl \
   -D "${clone_pgdata_dir}" \
-  -o "-p ${clone_port} -c 'shared_buffers=4096'" \
+  -o "-c 'shared_buffers=4096'" \
   -W \
   start
 
+${sudo_cmd} docker run \
+    --name ${clone_label} \
+    --detach \
+    --env PGDATA=/var/lib/postgresql/pgdata \
+    --volume " + c.Datadir + ":/var/lib/postgresql/pgdata " \
+    --volume " + c.UnixSocketCloneDir + ":/var/run/postgresql " \
+    --label ${clone_label} \
+    docker_image
+
 # Now we are going to wait until we can connect to the server.
-# If it was a replica, it may take a while..
+# If it was a replica, it may take a while...
 # During that period, we will have "FATAL:  the database system is starting up".
 # Alternatively, we could use pg_ctl's "-w" option above (instead of manual checking).
 
 failed=true
 for i in {1..1000}; do
-  if [[ $(${pg_bin_dir}/psql -p $clone_port -U ${pg_username} -d ${pg_db} -h ${pg_sock_dir} -XAtc 'select pg_is_in_recovery()') == "t" ]]; then
+  if [[ $(${pg_bin_dir}/psql -d ${pg_db} -h ${pg_sock_dir} -XAtc 'select pg_is_in_recovery()') == "t" ]]; then
     failed=false
     break
   fi
@@ -144,8 +162,6 @@ if [[ ! -z ${DATA_STATE_AT+x} ]]; then
 else
   data_state_at=$(${pg_bin_dir}/psql \
     --set ON_ERROR_STOP=on \
-    -p ${clone_port} \
-    -U ${pg_username} \
     -d ${pg_db} \
     -h ${pg_sock_dir} \
     -XAt \
@@ -157,7 +173,7 @@ ${sudo_cmd} ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -W promote
 
 failed=true
 for i in {1..1000}; do
-  if [[ $(${pg_bin_dir}/psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h ${pg_sock_dir} -XAtc 'select pg_is_in_recovery()') == "f" ]]; then
+  if [[ $(${pg_bin_dir}/psql -d ${pg_db} -h ${pg_sock_dir} -XAtc 'select pg_is_in_recovery()') == "f" ]]; then
     failed=false
     break
   fi
@@ -176,8 +192,8 @@ ${sudo_cmd} ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -w stop
 
 ${sudo_cmd} rm -rf ${clone_pgdata_dir}/pg_log
 
-sudo zfs snapshot ${clone_full_name}@${snapshot_name}
-sudo zfs set dblab:datastateat="${data_state_at}" ${clone_full_name}@${snapshot_name}
+${sudo_cmd} zfs snapshot ${clone_full_name}@${snapshot_name}
+${sudo_cmd} zfs set dblab:datastateat="${data_state_at}" ${clone_full_name}@${snapshot_name}
 
 # Snapshot "datastore/postgresql/db_state_1_pre@db_state_1" is ready and can be used for thin provisioning
 
