@@ -69,7 +69,7 @@ func (c *Client) GetClone(ctx context.Context, cloneID string) (*models.Clone, e
 
 // CreateRequest represents clone params of a create request.
 type CreateRequest struct {
-	Name      string           `json:"name"`
+	ID        string           `json:"id"`
 	Project   string           `json:"project"`
 	Protected bool             `json:"protected"`
 	DB        *DatabaseRequest `json:"db"`
@@ -192,8 +192,7 @@ func (c *Client) CreateCloneAsync(ctx context.Context, cloneRequest CreateReques
 
 // UpdateRequest represents params of an update request.
 type UpdateRequest struct {
-	Name      string `json:"name"`
-	Protected bool   `json:"protected"`
+	Protected bool `json:"protected"`
 }
 
 // UpdateClone updates an existing Database Lab clone.

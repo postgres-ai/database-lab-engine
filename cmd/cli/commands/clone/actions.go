@@ -49,7 +49,7 @@ func create() func(*cli.Context) error {
 		}
 
 		cloneRequest := dblabapi.CreateRequest{
-			Name:      cliCtx.String("name"),
+			ID:        cliCtx.String("id"),
 			Project:   cliCtx.String("project"),
 			Protected: cliCtx.Bool("protected"),
 			DB: &dblabapi.DatabaseRequest{
@@ -114,7 +114,6 @@ func update() func(*cli.Context) error {
 		}
 
 		updateRequest := dblabapi.UpdateRequest{
-			Name:      cliCtx.String("name"),
 			Protected: cliCtx.Bool("protected"),
 		}
 

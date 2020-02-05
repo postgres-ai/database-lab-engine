@@ -34,11 +34,6 @@ func CommandList() []*cli.Command {
 				Action: create(),
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:     "name",
-						Usage:    "clone name",
-						Required: true,
-					},
-					&cli.StringFlag{
 						Name:     "username",
 						Usage:    "database username",
 						Required: true,
@@ -49,8 +44,12 @@ func CommandList() []*cli.Command {
 						Required: true,
 					},
 					&cli.StringFlag{
+						Name:  "id",
+						Usage: "clone ID (optional)",
+					},
+					&cli.StringFlag{
 						Name:  "project",
-						Usage: "project name",
+						Usage: "project name (optional)",
 					},
 					&cli.BoolFlag{
 						Name:    "protected",
@@ -71,10 +70,6 @@ func CommandList() []*cli.Command {
 				Before:    checkCloneIDBefore,
 				Action:    update(),
 				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:  "name",
-						Usage: "clone name",
-					},
 					&cli.BoolFlag{
 						Name:    "protected",
 						Usage:   "mark instance as protected from deletion",

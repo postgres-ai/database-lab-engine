@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -25,6 +26,7 @@ const idleCheckDuration = 5 * time.Minute
 type baseCloning struct {
 	cloning
 
+	// TODO(akartasov): Fix data race.
 	clones         map[string]*CloneWrapper
 	instanceStatus *models.InstanceStatus
 	snapshots      []*models.Snapshot
@@ -60,9 +62,13 @@ func (c *baseCloning) Run(ctx context.Context) error {
 	return nil
 }
 
+// CreateClone creates a new clone.
 func (c *baseCloning) CreateClone(clone *models.Clone) error {
-	if len(clone.Name) == 0 {
-		return errors.New("missing clone name")
+	// TODO(akartasov): Separate validation rules.
+	clone.ID = strings.TrimSpace(clone.ID)
+
+	if _, ok := c.clones[clone.ID]; ok {
+		return errors.New("clone with such ID already exists")
 	}
 
 	if clone.DB == nil {
@@ -77,7 +83,10 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		return errors.New("missing DB password")
 	}
 
-	clone.ID = xid.New().String()
+	if clone.ID == "" {
+		clone.ID = xid.New().String()
+	}
+
 	w := NewCloneWrapper(clone)
 	c.clones[clone.ID] = w
 
@@ -254,9 +263,6 @@ func (c *baseCloning) UpdateClone(id string, patch *models.Clone) error {
 	}
 
 	// Set fields.
-	if len(patch.Name) > 0 {
-		w.clone.Name = patch.Name
-	}
 
 	w.clone.Protected = patch.Protected
 
