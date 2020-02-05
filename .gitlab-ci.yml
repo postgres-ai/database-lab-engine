@@ -2,14 +2,14 @@ image: golang:1.13
 
 cache:
   paths:
+    # TODO(anatoly): Fix go mod cache.
     - /apt-cache
     - /go/pkg/mod
 
-before_script:
-  - go mod download
-
 stages:
   - test
+  - build-binary
+  - build-image
 
 test:
   stage: test
@@ -20,3 +20,80 @@ lint:
   stage: test
   script:
     - make lint
+
+build-binary-alpine:
+  image: golang:1.13-alpine
+  stage: build-binary
+  only:
+    refs:
+      - master
+      - tags
+  artifacts:
+    paths:
+      - bin
+  script:
+    - go build -o bin/dblab-server-alpine ./cmd/database-lab/main.go
+    - go build -o bin/dblab-alpine ./cmd/cli/main.go
+
+build-binary-generic:
+  stage: build-binary
+  only:
+    refs:
+      - master
+      - tags
+  artifacts:
+    paths:
+      - bin
+  script:
+    - make build-generic
+
+build-image-tags:
+  only:
+    refs:
+      - tags
+  image: docker:19
+  stage: build-image
+  artifacts:
+    paths:
+      - bin
+  services:
+    - docker:dind
+  variables:
+    DOCKER_NAME: postgresai/dblab-server
+  script:
+    - cp ./bin/dblab-server-alpine ./bin/dblab-server
+    - cp ./bin/dblab-alpine ./bin/dblab
+
+    - TAG_LATEST="${DOCKER_NAME}:latest"
+    - TAG_VERSION="${DOCKER_NAME}:${CI_COMMIT_TAG}"
+
+    - docker login --username $DH_CI_REGISTRY_USER --password "${DH_CI_REGISTRY_PASSWORD}" $DH_CI_REGISTRY
+    - docker build --tag $TAG_VERSION --tag $TAG_LATEST .
+
+    - docker push $TAG_VERSION
+    - docker push $TAG_LATEST
+
+build-image-master:
+  only:
+    - master
+  image: docker:19
+  stage: build-image
+  artifacts:
+    paths:
+      - bin
+  services:
+    - docker:dind
+  variables:
+    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-server"
+  script:
+    - cp ./bin/dblab-server-alpine ./bin/dblab-server
+    - cp ./bin/dblab-alpine ./bin/dblab
+
+    - TAG_MASTER_LATEST="${DOCKER_NAME}:master"
+    - TAG_MASTER_VERSION="${DOCKER_NAME}:master-${CI_COMMIT_SHORT_SHA}"
+
+    - docker login --username $CI_REGISTRY_USER --password "${CI_REGISTRY_PASSWORD}" $CI_REGISTRY
+    - docker build --tag $TAG_MASTER_VERSION --tag $TAG_MASTER_LATEST .
+
+    - docker push $TAG_MASTER_LATEST
+    - docker push $TAG_MASTER_VERSION
