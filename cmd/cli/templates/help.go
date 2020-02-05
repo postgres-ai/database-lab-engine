@@ -63,3 +63,9 @@ OPTIONS:
    {{range .VisibleFlags}}{{.}}
    {{end}}{{end}}
 `
+
+// SupportProjectTemplate contains the text for support the Database Lab project.
+const SupportProjectTemplate = `Please support the project giving a GitLab star: https://gitlab.com/postgres-ai/database-lab/
+To discuss Database Lab, join our Slack:  https://database-lab-team-slack-invite.herokuapp.com/
+
+`
