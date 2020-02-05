@@ -1,6 +1,6 @@
 # Database Lab - Thin database clones for faster development
 
-<img src="https://gitlab.com/postgres-ai/database-lab/-/raw/master/assets/db-lab.png" align="right" border="0" />
+<img src="./assets/db-lab.png" align="right" border="0" />
 Database Lab allows superfast cloning of large databases to solve the following problems:
 
 - help build development and testing environments involving full-size database,
@@ -24,14 +24,19 @@ quite easy to try and start using it.
 Please support the project giving a GitLab star (it's on [the main page](https://gitlab.com/postgres-ai/database-lab),
 at the upper right corner):
 
-![Add_a_star](/uploads/a06496bba35e6221b81eea0cd4a4ee44/Screen_Recording_2020-02-04_at_18.39.02.2020-02-04_18_47_42.gif)
+![Add a star](./assets/star.gif)
 
-To discuss Database Lab, try a demo, or ask any questions, [join our community Slack](https://database-lab-team-slack-invite.herokuapp.com/).
+To discuss Database Lab, try a demo, or ask any questions,
+[join our community Slack](https://database-lab-team-slack-invite.herokuapp.com/).
 
 ## Workflow overview and requirements
 
-TL;DR: you need any machine with big enough disk, Linux, Docker, ZFS, and some way to copy your Postgres database initially.
+**TL;DR:** you need:
+- any machine with a separate disk that is big enough to store a single copy of your database,
+- Linux with Docker and ZFS,
+- initial copy of your Postgres database.
 
+Details:
 - for each Database Lab instance, a separate machine (either physical or virtual) is needed,
 - both on-premise and cloud setups are possible,
 - for each Postgres cluster (a single Postgres server with databases), a separate Database Lab instance is required,
