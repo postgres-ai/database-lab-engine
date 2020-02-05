@@ -4,14 +4,19 @@
 
 package initialization
 
-import "github.com/urfave/cli/v2"
+import (
+	"github.com/urfave/cli/v2"
+
+	"gitlab.com/postgres-ai/database-lab/cmd/cli/templates"
+)
 
 // GlobalList provides commands for getting started.
 func GlobalList() []*cli.Command {
 	return []*cli.Command{
 		{
-			Name:  "init",
-			Usage: "initialize Database Lab CLI",
+			Name:               "init",
+			Usage:              "initialize Database Lab CLI",
+			CustomHelpTemplate: templates.CustomCommandHelpTemplate + templates.SupportProjectTemplate,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:     "environment_id",

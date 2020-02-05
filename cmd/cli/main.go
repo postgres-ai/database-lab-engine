@@ -109,7 +109,7 @@ func joinCommands(cliGroups ...[]*cli.Command) []*cli.Command {
 }
 
 func adoptTemplates() {
-	cli.AppHelpTemplate = templates.CustomAppHelpTemplate
+	cli.AppHelpTemplate = templates.CustomAppHelpTemplate + templates.SupportProjectTemplate
 	cli.CommandHelpTemplate = templates.CustomCommandHelpTemplate
 	cli.SubcommandHelpTemplate = templates.CustomSubcommandHelpTemplate
 }
