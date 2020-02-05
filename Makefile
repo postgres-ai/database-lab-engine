@@ -24,6 +24,9 @@ GOBUILD = GO111MODULE=on GOARCH=${GOARCH} go build ${LDFLAGS}
 GOTEST = GO111MODULE=on go test
 GORUN = GO111MODULE=on go run ${LDFLAGS}
 
+PLATFORMS=darwin linux
+ARCHITECTURES=386 amd64
+
 # Build the project
 all: clean build
 
@@ -37,8 +40,17 @@ run-lint:
 lint: install-lint run-lint
 
 build:
-	 ${GOBUILD} -o bin/${SERVER_BINARY} ./cmd/database-lab/main.go
-	 ${GOBUILD} -o bin/${CLI_BINARY} ./cmd/cli/main.go
+	${GOBUILD} -o bin/${SERVER_BINARY} ./cmd/database-lab/main.go
+	${GOBUILD} -o bin/${CLI_BINARY} ./cmd/cli/main.go
+
+build-generic:
+	$(foreach GOOS, $(PLATFORMS),\
+		$(foreach GOARCH, $(ARCHITECTURES), \
+		$(shell \
+			export GOOS=$(GOOS); \
+			export GOARCH=$(GOARCH); \
+			go build -o bin/$(SERVER_BINARY)-$(GOOS)-$(GOARCH) ./cmd/database-lab/main.go; \
+			go build -o bin/$(CLI_BINARY)-$(GOOS)-$(GOARCH) ./cmd/cli/main.go)))
 
 test:
 	${GOTEST} ./...
@@ -47,7 +59,7 @@ fmt:
 	go fmt $$(go list ./... | grep -v /vendor/)
 
 clean:
-	-rm -f bin/*
+	rm -f bin/*
 
 run:
 	${GORUN} ./cmd/database-lab/*
