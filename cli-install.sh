@@ -4,18 +4,19 @@
 
 mkdir -p ~/.dblab
 
-curl -L -o ~/.dblab/dblab \
-  https://gitlab.com/postgres-ai/database-lab/-/jobs/artifacts/74-docker-ci/raw/bin/dblab-linux-amd64?job=build-binary-generic && \
-  chmod +x ~/.dblab/dblab
+curl --location --fail --output ~/.dblab/dblab \
+  https://gitlab.com/postgres-ai/database-lab/-/jobs/artifacts/master/raw/bin/dblab-linux-amd64?job=build-binary-generic \
+  && chmod a+x ~/.dblab/dblab
 
 {
-  rm -f /usr/local/bin/dblab 2> /dev/null &&
-  ln -s ~/.dblab/dblab /usr/local/bin/dblab 2> /dev/null &&
-  echo 'Done!' &&
-  echo 'Run "dblab init" to configure Database Lab CLI'
+  rm -f /usr/local/bin/dblab 2> /dev/null \
+    && mv ~/.dblab/dblab /usr/local/bin/dblab 2> /dev/null \
+    && echo 'Done!'
 } || {
-  echo 'We installed Database Lab CLI to ~/.dblab/dblab.'
-  echo 'You can add it to $PATH or run specified command to finish installation:'
-  echo "sudo ln -s ~/.dblab/dblab /usr/local/bin/dblab"
-  echo 'Then run "dblab init" to configure Database Lab CLI'
+  echo 'Database Lab client CLI is installed to "~/.dblab/dblab".'
+  echo 'Add this path to $PATH or, alternatively, move the binary to the global space:'
+  echo '    sudo mv ~/.dblab/dblab /usr/local/bin/dblab'
 }
+
+echo 'To start using Database Lab client CLI, run:'
+echo '    dblab init'
