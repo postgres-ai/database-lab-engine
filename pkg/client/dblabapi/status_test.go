@@ -29,8 +29,7 @@ func TestClientStatus(t *testing.T) {
 		ExpectedCloningTime: 0,
 		NumClones:           1,
 		Clones: []*models.Clone{{
-			ID:   "testCloneID",
-			Name: "mockClone",
+			ID: "testCloneID",
 			Metadata: &models.CloneMetadata{
 				CloneSize:   45054685181,
 				CloningTime: 1,

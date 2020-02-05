@@ -103,7 +103,7 @@ existing clones. To create a thin clone, you need to execute a `dblab clone crea
 and fill all the required options, as illustrated below:
 
 ```bash
-./bin/dblab clone create --name Clone1 --username dblab_user1 --password secret
+./bin/dblab clone create --username dblab_user1 --password secret
 ```
 
 We will get clone ID and status `CREATING`, we should execute consequential
@@ -111,7 +111,6 @@ We will get clone ID and status `CREATING`, we should execute consequential
 ```json
 {
   "id": "bo200eumq8of32ck5e2g",
-  "name": "Clone1",
   "status": {
     "code": "OK",
     "message": "Clone is ready to accept connections."

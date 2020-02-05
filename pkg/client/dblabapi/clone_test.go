@@ -18,8 +18,7 @@ import (
 
 func TestClientListClones(t *testing.T) {
 	expectedClones := []*models.Clone{{
-		ID:   "testCloneID",
-		Name: "mockClone",
+		ID: "testCloneID",
 		Metadata: &models.CloneMetadata{
 			CloneSize:   450,
 			CloningTime: 1,
@@ -93,8 +92,7 @@ func TestClientListClonesWithFailedRequest(t *testing.T) {
 
 func TestClientCreateClone(t *testing.T) {
 	expectedClone := models.Clone{
-		ID:   "testCloneID",
-		Name: "mockClone",
+		ID: "testCloneID",
 		Metadata: &models.CloneMetadata{
 			CloneSize:   450,
 			CloningTime: 1,
@@ -159,7 +157,7 @@ func TestClientCreateClone(t *testing.T) {
 
 	// Send a request.
 	newClone, err := c.CreateClone(ctx, CreateRequest{
-		Name:      "mockClone",
+		ID:        "testCloneID",
 		Project:   "testProject",
 		Protected: true,
 		DB: &DatabaseRequest{
@@ -174,8 +172,7 @@ func TestClientCreateClone(t *testing.T) {
 
 func TestClientCreateCloneAsync(t *testing.T) {
 	expectedClone := models.Clone{
-		ID:   "testCloneID",
-		Name: "mockClone",
+		ID: "testCloneID",
 		Metadata: &models.CloneMetadata{
 			CloneSize:   450,
 			CloningTime: 1,
@@ -230,7 +227,7 @@ func TestClientCreateCloneAsync(t *testing.T) {
 
 	// Send a request.
 	newClone, err := c.CreateCloneAsync(ctx, CreateRequest{
-		Name:      "mockClone",
+		ID:        "testCloneID",
 		Project:   "testProject",
 		Protected: true,
 		DB: &DatabaseRequest{
@@ -268,8 +265,7 @@ func TestClientCreateCloneWithFailedRequest(t *testing.T) {
 
 func TestClientGetClone(t *testing.T) {
 	expectedClone := &models.Clone{
-		ID:   "testCloneID",
-		Name: "mockClone",
+		ID: "testCloneID",
 		Metadata: &models.CloneMetadata{
 			CloneSize:   450,
 			CloningTime: 1,
@@ -343,8 +339,7 @@ func TestClientGetCloneWithFailedRequest(t *testing.T) {
 
 func TestClientUpdateClone(t *testing.T) {
 	cloneModel := &models.Clone{
-		ID:   "testCloneID",
-		Name: "mockClone",
+		ID: "testCloneID",
 		Metadata: &models.CloneMetadata{
 			CloneSize:   450,
 			CloningTime: 1,
@@ -374,7 +369,6 @@ func TestClientUpdateClone(t *testing.T) {
 		err = json.Unmarshal(requestBody, &updateRequest)
 		require.NoError(t, err)
 
-		cloneModel.Name = updateRequest.Name
 		cloneModel.Protected = updateRequest.Protected
 
 		// Prepare response.
@@ -399,7 +393,6 @@ func TestClientUpdateClone(t *testing.T) {
 
 	// Send a request.
 	newClone, err := c.UpdateClone(context.Background(), cloneModel.ID, UpdateRequest{
-		Name:      "UpdatedName",
 		Protected: false,
 	})
 	require.NoError(t, err)

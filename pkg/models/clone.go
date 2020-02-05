@@ -7,7 +7,6 @@ package models
 // Clone defines a clone model.
 type Clone struct {
 	ID        string         `json:"id"`
-	Name      string         `json:"name"`
 	Snapshot  *Snapshot      `json:"snapshot"`
 	Protected bool           `json:"protected"`
 	DeleteAt  string         `json:"deleteAt"`
@@ -29,6 +28,5 @@ type CloneMetadata struct {
 
 // PatchCloneRequest defines a struct for clone updating.
 type PatchCloneRequest struct {
-	Name      string `json:"name"`
-	Protected bool   `json:"protected"`
+	Protected bool `json:"protected"`
 }

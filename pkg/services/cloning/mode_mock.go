@@ -56,7 +56,6 @@ func NewMockClone() *models.Clone {
 
 	return &models.Clone{
 		ID:       "id",
-		Name:     "name",
 		Snapshot: snapshot,
 		Metadata: &models.CloneMetadata{
 			CloneSize:      mockCloneSize,
@@ -79,10 +78,6 @@ func (c *mockCloning) Run(ctx context.Context) error {
 }
 
 func (c *mockCloning) CreateClone(clone *models.Clone) error {
-	if len(clone.Name) == 0 {
-		return errors.New("missing required fields")
-	}
-
 	return nil
 }
 
