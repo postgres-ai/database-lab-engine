@@ -1,0 +1,431 @@
+{
+	"variables": [],
+	"info": {
+		"name": "Database Lab",
+		"_postman_id": "d0182a6c-79d0-877f-df91-18dbca63b734",
+		"description": "",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "status",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"tests[\"Check instance status\"] = responseCode.code === 200 && jsonData && jsonData.status && jsonData.status.code && jsonData.status.code === \"OK\";"
+						]
+					}
+				}
+			],
+			"request": {
+				"url": "{{DBLAB_URL}}/status",
+				"method": "GET",
+				"header": [
+					{
+						"key": "Verification-Token",
+						"value": "{{DBLAB_VERIFY_TOKEN}}",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": "",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"dblab_id\": 1\n}"
+				},
+				"description": "Select users"
+			},
+			"response": []
+		},
+		{
+			"name": "snapshots",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"tests[\"Check snapshots list\"] = responseCode.code === 200 && jsonData && Array.isArray(jsonData) && jsonData.length === 1;",
+							""
+						]
+					}
+				}
+			],
+			"request": {
+				"url": "{{DBLAB_URL}}/snapshots",
+				"method": "GET",
+				"header": [
+					{
+						"key": "Verification-Token",
+						"value": "{{DBLAB_VERIFY_TOKEN}}",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"dblab_id\": 1\n}"
+				},
+				"description": "Select users"
+			},
+			"response": []
+		},
+		{
+			"name": "clone not found",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"tests[\"Check for clone status\"] =  responseCode.code === 404 && jsonData && jsonData.detail && jsonData.detail === \"Requested object does not exist.\";",
+							""
+						]
+					}
+				}
+			],
+			"request": {
+				"url": "{{DBLAB_URL}}/clone/bopta26mq8oddsim86v0",
+				"method": "GET",
+				"header": [
+					{
+						"key": "Verification-Token",
+						"value": "{{DBLAB_VERIFY_TOKEN}}",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"dblab_id\": 1\n}"
+				},
+				"description": "Select users"
+			},
+			"response": []
+		},
+		{
+			"name": "create clone",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"tests[\"Check for clone create\"] =  responseCode.code === 201 && jsonData && jsonData.id && jsonData.status && ",
+							"(jsonData.status.code == 'OK' ||  jsonData.status.code == 'CREATING');",
+							"postman.setGlobalVariable(\"DBLAB_CLONE_ID\", jsonData.id);"
+						]
+					}
+				}
+			],
+			"request": {
+				"url": "{{DBLAB_URL}}/clone",
+				"method": "POST",
+				"header": [
+					{
+						"key": "Verification-Token",
+						"value": "{{DBLAB_VERIFY_TOKEN}}",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\t\"name\": \"test-demo-clone\",\r\n\t\"protected\": false,\r\n\t\"db\": {\r\n\t\t\"username\": \"username\",\r\n\t\t\"password\": \"password\"\r\n\t}\r\n}"
+				},
+				"description": "Select users"
+			},
+			"response": []
+		},
+		{
+			"name": "clone status",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"tests[\"Check for clone status\"] =  responseCode.code === 200 && jsonData && jsonData.id && jsonData.status && ",
+							"(jsonData.status.code == 'OK' ||  jsonData.status.code == 'CREATING');",
+							""
+						]
+					}
+				}
+			],
+			"request": {
+				"url": "{{DBLAB_URL}}/clone/{{DBLAB_CLONE_ID}}",
+				"method": "GET",
+				"header": [
+					{
+						"key": "Verification-Token",
+						"value": "{{DBLAB_VERIFY_TOKEN}}",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"dblab_id\": 1\n}"
+				},
+				"description": "Select users"
+			},
+			"response": []
+		},
+		{
+			"name": "clone update (name, protected)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"tests[\"Check for clone update\"] = responseCode.code === 200;",
+							""
+						]
+					}
+				}
+			],
+			"request": {
+				"url": "{{DBLAB_URL}}/clone/{{DBLAB_CLONE_ID}}",
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "Verification-Token",
+						"value": "{{DBLAB_VERIFY_TOKEN}}",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": "",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"protected\": true,\n\t\"name\": \"UPDATE_CLONE_TEST\"\n}"
+				},
+				"description": "Select users"
+			},
+			"response": []
+		},
+		{
+			"name": "clone/reset",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"tests[\"Check for clone reset\"] = responseCode.code === 200;",
+							""
+						]
+					}
+				}
+			],
+			"request": {
+				"url": "{{DBLAB_URL}}/clone/{{DBLAB_CLONE_ID}}/reset",
+				"method": "POST",
+				"header": [
+					{
+						"key": "Verification-Token",
+						"value": "{{DBLAB_VERIFY_TOKEN}}",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": "",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"id\": \"xxx\"\n}"
+				},
+				"description": "Select users"
+			},
+			"response": []
+		},
+		{
+			"name": "delete protected clone",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"tests[\"Check for delete protected clone\"] = responseCode.code === 500 && jsonData && jsonData.detail && jsonData.detail === \"clone is protected\";",
+							""
+						]
+					}
+				}
+			],
+			"request": {
+				"url": "{{DBLAB_URL}}/clone/{{DBLAB_CLONE_ID}}",
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Verification-Token",
+						"value": "{{DBLAB_VERIFY_TOKEN}}",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"description": "Select users"
+			},
+			"response": []
+		},
+		{
+			"name": "clone update (disable protection)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"tests[\"Check for clone update\"] = responseCode.code === 200;",
+							""
+						]
+					}
+				}
+			],
+			"request": {
+				"url": "{{DBLAB_URL}}/clone/{{DBLAB_CLONE_ID}}",
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "Verification-Token",
+						"value": "{{DBLAB_VERIFY_TOKEN}}",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": "",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"protected\": false\n}"
+				},
+				"description": "Select users"
+			},
+			"response": []
+		},
+		{
+			"name": "delete clone",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"tests[\"Check for delete protected clone\"] = responseCode.code === 200;",
+							""
+						]
+					}
+				}
+			],
+			"request": {
+				"url": "{{DBLAB_URL}}/clone/{{DBLAB_CLONE_ID}}",
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Verification-Token",
+						"value": "{{DBLAB_VERIFY_TOKEN}}",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"description": "Select users"
+			},
+			"response": []
+		},
+		{
+			"name": "removed clone status",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"tests[\"Check for clone status\"] =  (responseCode.code === 200 && jsonData && jsonData.id && jsonData.status && ",
+							"jsonData.status.code == 'DELETING') || responseCode.code == 404;",
+							""
+						]
+					}
+				}
+			],
+			"request": {
+				"url": "{{DBLAB_URL}}/clone/{{DBLAB_CLONE_ID}}",
+				"method": "GET",
+				"header": [
+					{
+						"key": "Verification-Token",
+						"value": "{{DBLAB_VERIFY_TOKEN}}",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"dblab_id\": 1\n}"
+				},
+				"description": "Select users"
+			},
+			"response": []
+		}
+	]
+}
