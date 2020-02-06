@@ -15,6 +15,7 @@ With Database Lab, provisioning of multi-terabyte database clones doesn't imply 
 waiting time or extra budgets spent anymore. Therefore, Database Lab gives necessary power to developers, DBAs,
 and QA engineers, boosting development and testing processes.
 
+
 ## Status
 
 The project is in its early stage. However, it is already being extensively used
@@ -28,6 +29,12 @@ at the upper right corner):
 
 To discuss Database Lab, try a demo, or ask any questions,
 [join our community Slack](https://database-lab-team-slack-invite.herokuapp.com/).
+
+
+## Usage examples
+- Perform SQL optimization in a convenient way (see [postgres-ai/joe](https://gitlab.com/postgres-ai/joe))
+- Check database schema changes (database migrations) on full-sized database clones using Database Lab in CI (see [postgres-ai/ci-example](https://gitlab.com/postgres-ai/ci-example))
+
 
 ## Workflow overview and requirements
 
@@ -53,52 +60,42 @@ so [ZFS on Linux](https://zfsonlinux.org/) needs to be installed on the machine,
 - however, it is easy to extend and add, say, LVM or Ceph - please write us if you
 need it; also, contributions are highly welcome).
 
-## Getting started
+
+## Server installation and setup
 See [detailed tutorial](https://postgres.ai/docs/database-lab/1_tutorial)
 in our documentation.
 
-## Client CLI installation
+For stable Docker images see [postgresai/dblab-server](https://hub.docker.com/repository/docker/postgresai/dblab-server) repository on DockerHub.
 
-*Currently, there are no ready-to-use binaries for CLI. The setup
-is to be done using the source code.* <!-- TODO: we need to ship binaries, at least for Linux, better Linux + MacOS -->
 
-1. Get the source code: `git clone https://gitlab.com/postgres-ai/db-lab.git`.
-1. Golang is required.
-    - Ubuntu: In some cases, standard Ubuntu package might not work. See
-https://gitlab.com/postgres-ai/db-lab/snippets/1918769.
-    - On macOS: `brew install golang`
-1. Clone Database Lab repo and build it:
-``` bash
-git clone https://gitlab.com/postgres-ai/database-lab.git
-cd ./database-lab
-make all
+## Client CLI
+### Installation
+Install Database Lab client CLI on a Linux acrhitecture (e.g., Ubuntu):
+```bash
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/master/cli-install.sh | bash
 ```
 
-## Usage
+Also, binaries available for download: [Alpine](https://gitlab.com/postgres-ai/database-lab/-/jobs/artifacts/master/browse?job=build-binary-alpine), [Other](https://gitlab.com/postgres-ai/database-lab/-/jobs/artifacts/master/browse?job=build-binary-generic).
+
+
+### Usage
+See the full client CLI reference [here](https://postgres.ai/docs/database-lab/6_cli_reference).
+
 Once you have Database Lab server(s) intalled, and client CLI installed on your machine,
 initialize CLI and start communicating with the Database Lab server(s).
 
 ### Initialize CLI tool
 ```bash
-./bin/dblab init --environment_id dev1 --url https://HOST --token TOKEN
+dblab init \
+  --environment_id=tutorial \
+  --url=http://$IP_OR_HOSTNAME:3000 \
+  --token=secret_token
 ```
 
 ### Check connection availability
 Access your Database Lab instance and check its status.
 ```bash
-./bin/dblab instance status
-```
-
-If the Database Lab instance is functioning normally, we will get the status
-code `OK`, and the response will have the following format:
-```json
-{
-  "status": {
-    "code": "OK",
-    "message": "Instance is ready"
-  },
-  ...
-}
+dblab instance status
 ```
 
 ### Request clone creation
@@ -108,40 +105,60 @@ existing clones. To create a thin clone, you need to execute a `dblab clone crea
 and fill all the required options, as illustrated below:
 
 ```bash
-./bin/dblab clone create --username dblab_user1 --password secret
+dblab clone create \
+  --username dblab_user_1 \
+  --password secret_password \
+  --id my_first_clone
 ```
 
-We will get clone ID and status `CREATING`, we should execute consequential
-`./bin/dblab instance status` and wait until status became `OK`.
+After a few seconds, if everything is configured correctly, you will see
+that the clone is ready to be used:
 ```json
 {
-  "id": "bo200eumq8of32ck5e2g",
-  "status": {
-    "code": "OK",
-    "message": "Clone is ready to accept connections."
-  },
-  "db": {
-    "host": "internal_host",
-    "port": "6000",
-    "username": "dblab_user1"
-  },
-  ...
+    "id": "botcmi54uvgmo17htcl0",
+    "snapshot": {
+        "id": "dblab_pool@initdb",
+        ...
+    },
+    "status": {
+        "code": "OK",
+        "message": "Clone is ready to accept Postgres connections."
+    },
+    "db": {
+        "connStr": "host=localhost port=6000 user=dblab_user_1",
+        "host": "localhost",
+        "port": "6000",
+        "username": "dblab_user_1",
+        "password": ""
+    },
+    ...
 }
 ```
 
+
 ### Connect
-When the status is `OK` we are ready to connect to the clone's Postgres
-database. For example, using `psql`:
+Now you can work with this clone using any PostgreSQL client, for example `psql`:
 ```bash
-psql -h internal_host -p 6000 -U dblab_user1 # will ask for a password unless it's set in either PGPASSWORD or .pgpass
+PGPASSWORD=secret_password \
+  psql "host=${IP_OR_HOSTNAME} port=6000 user=dblab_user_1 dbname=test" \
+  -c '\l+'
 ```
+
+
+## Have questions?
+- Check our [Q&A](https://postgres.ai/docs/get-started#qa)
+- or join our community (links below)
+
 
 ## Community
 - [Community Slack (English)](https://database-lab-team-slack-invite.herokuapp.com/)
 - [Telegram (Russian)](https://t.me/databaselabru)
 
-## Development requirements
 
+## Development
+See our [GitLab Container Registry](https://gitlab.com/postgres-ai/database-lab/container_registry) for develop Docker images.
+
+### Requirements
 1. Install `golangci-lint`: https://github.com/golangci/golangci-lint#install
 <!-- TODO: SDK docs -->
 <!-- TODO: Contribution guideline -->
