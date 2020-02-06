@@ -145,6 +145,11 @@ PGPASSWORD=secret_password \
 ```
 
 
+## References
+- [API reference](https://postgres.ai/swagger-ui/dblab/)
+- [CLI reference](https://postgres.ai/docs/database-lab/6_cli_reference)
+
+
 ## Have questions?
 - Check our [Q&A](https://postgres.ai/docs/get-started#qa)
 - or join our community (links below)
