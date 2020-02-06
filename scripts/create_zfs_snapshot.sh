@@ -3,14 +3,6 @@
 
 set -euxo pipefail
 
-# Dirty but works
-# TODO: rework this, split to steps, implement in Go
-
-# Here we assume that we are inside a Postgres container.
-# We need ZFS to manipulate with snapshots and clones.
-sudo apt-get update
-sudo apt-get install -y zfsutils-linux
-
 # Script for manual creation of ZFS snapshot from PG replica instance.
 # Default values provided for Ubuntu FS layout.
 
@@ -47,6 +39,13 @@ pg_username=${PGUSERNAME:-"postgres"}
 pg_db=${PGDB:-"postgres"}
 sudo_cmd=${SUDO_CMD:-""} # Use `sudo -u postgres` for default environment
 
+# Dirty, but works
+# TODO: rework this, split to steps, implement in Go
+# Here we assume that we are inside a Postgres container.
+# We need ZFS to manipulate with snapshots and clones.
+${sudo_cmd} apt-get update
+${sudo_cmd} apt-get install -y zfsutils-linux
+
 # Snapshot.
 # Name of resulting snapshot after PGDATA manipulation.
 snapshot_name="snapshot_${now}"
@@ -55,8 +54,8 @@ snapshot_name="snapshot_${now}"
 # OR: we can tell the shadow Postgres: select pg_start_backup('database-lab-snapshot');
 # .. and in the very end: select pg_stop_backup();
 
-sudo zfs snapshot ${zfs_pool}@${snapshot_name}${pre}
-sudo zfs clone ${zfs_pool}@${snapshot_name}${pre} ${clone_full_name} -o mountpoint=${clone_dir}
+${sudo_cmd} zfs snapshot ${zfs_pool}@${snapshot_name}${pre}
+${sudo_cmd} zfs clone ${zfs_pool}@${snapshot_name}${pre} ${clone_full_name} -o mountpoint=${clone_dir}
 
 cd /tmp # To avoid errors about lack of permissions.
 
@@ -184,8 +183,8 @@ ${sudo_cmd} ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -w stop
 
 ${sudo_cmd} rm -rf ${clone_pgdata_dir}/pg_log
 
-sudo zfs snapshot ${clone_full_name}@${snapshot_name}
-sudo zfs set dblab:datastateat="${data_state_at}" ${clone_full_name}@${snapshot_name}
+${sudo_cmd} zfs snapshot ${clone_full_name}@${snapshot_name}
+${sudo_cmd} zfs set dblab:datastateat="${data_state_at}" ${clone_full_name}@${snapshot_name}
 
 # Snapshot "datastore/postgresql/db_state_1_pre@db_state_1" is ready and can be used for thin provisioning
 
