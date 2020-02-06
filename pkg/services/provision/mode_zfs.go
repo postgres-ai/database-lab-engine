@@ -98,12 +98,12 @@ func NewProvisionModeZfs(ctx context.Context, config Config, dockerClient *clien
 		p.config.ModeZfs.UnixSocketDir += Slash
 	}
 
-	if len(p.config.DbUsername) == 0 {
-		p.config.DbUsername = DefaultUsername
+	if len(p.config.PgMgmtUsername) == 0 {
+		p.config.PgMgmtUsername = DefaultUsername
 	}
 
-	if len(p.config.DbPassword) == 0 {
-		p.config.DbPassword = DefaultPassword
+	if len(p.config.PgMgmtPassword) == 0 {
+		p.config.PgMgmtPassword = DefaultPassword
 	}
 
 	return p, nil
@@ -238,8 +238,8 @@ func (j *provisionModeZfs) StartSession(username string, password string, option
 
 		Host:              DefaultHost,
 		Port:              port,
-		User:              j.config.DbUsername,
-		Password:          j.config.DbPassword,
+		User:              j.config.PgMgmtUsername,
+		Password:          j.config.PgMgmtPassword,
 		ephemeralUser:     username,
 		ephemeralPassword: password,
 	}
@@ -543,8 +543,8 @@ func (j *provisionModeZfs) getPgConfig(name string, port uint) *PgConfig {
 		Port:               port,
 		UnixSocketCloneDir: unixSocketCloneDir,
 		Name:               "postgres",
-		Username:           j.config.DbUsername,
-		Password:           j.config.DbPassword,
+		Username:           j.config.PgMgmtUsername,
+		Password:           j.config.PgMgmtPassword,
 		OSUsername:         j.config.OSUsername,
 	}
 }
@@ -595,7 +595,7 @@ func (j *provisionModeZfs) LastSessionActivity(session *Session, since time.Dura
 }
 
 func (j *provisionModeZfs) prepareDb(username string, password string, pgConf *PgConfig) error {
-	whitelist := []string{j.config.DbUsername}
+	whitelist := []string{j.config.PgMgmtUsername}
 
 	if err := PostgresResetAllPasswords(j.runner, pgConf, whitelist); err != nil {
 		return errors.Wrap(err, "failed to reset all passwords")
