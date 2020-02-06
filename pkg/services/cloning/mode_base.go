@@ -225,16 +225,8 @@ func (c *baseCloning) UpdateClone(id string, patch *models.Clone) error {
 		return errors.New("Snapshot cannot be changed")
 	}
 
-	if patch.Metadata.CloneSize > 0 {
-		return errors.New("CloneSize cannot be changed")
-	}
-
-	if patch.Metadata.CloningTime > 0 {
-		return errors.New("CloningTime cannot be changed")
-	}
-
-	if patch.Metadata.MaxIdleMinutes > 0 {
-		return errors.New("MaxIdleMinutes cannot be changed")
+	if patch.Metadata != nil {
+		return errors.New("Metadata cannot be changed")
 	}
 
 	if len(patch.Project) > 0 {
