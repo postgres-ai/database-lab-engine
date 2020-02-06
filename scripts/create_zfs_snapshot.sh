@@ -3,6 +3,14 @@
 
 set -euxo pipefail
 
+# Dirty but works
+# TODO: rework this, split to steps, implement in Go
+
+# Here we assume that we are inside a Postgres container.
+# We need ZFS to manipulate with snapshots and clones.
+sudo apt-get update
+sudo apt-get install -y zfsutils-linux
+
 # Script for manual creation of ZFS snapshot from PG replica instance.
 # Default values provided for Ubuntu FS layout.
 
