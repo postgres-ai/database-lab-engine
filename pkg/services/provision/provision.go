@@ -60,8 +60,8 @@ type Config struct {
 	PgDataSubdir string `yaml:"pgDataSubdir"`
 
 	// Database user will be created with the specified credentials.
-	DbUsername string
-	DbPassword string
+	PgMgmtUsername string `yaml:"pgMgmtUsername"`
+	PgMgmtPassword string
 
 	OSUsername string
 }
