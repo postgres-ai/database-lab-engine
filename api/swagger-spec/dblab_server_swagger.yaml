@@ -354,7 +354,7 @@ definitions:
   CreateClone:
     type: "object"
     properties:
-      name:
+      id:
         type: "string"
       snapshot:
         type: "object"
@@ -375,15 +375,9 @@ definitions:
   UpdateClone:
     type: "object"
     properties:
-      name:
-        type: "string"
-      snapshot:
-        $ref: "#/definitions/Snapshot"
       protected:
         type: "boolean"
         default: false
-      db:
-        $ref: "#/definitions/Database"
 
   Error:
     type: "object"
