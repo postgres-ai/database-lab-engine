@@ -49,7 +49,7 @@ Important links:
 - SQL optimization usage example: https://gitlab.com/postgres-ai/joe
 - Database changes verification usage example: https://gitlab.com/postgres-ai/ci-example
 - Tutorial: https://postgres.ai/docs/database-lab/1_tutorial
-- Slack (English): https://postgresteam.slack.com/archives/CSXFWTD0Q
+- Slack (English): https://database-lab-team-slack-invite.herokuapp.com/
 - Telegram (Russian): https://t.me/databaselabru
 
 
