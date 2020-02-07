@@ -170,6 +170,16 @@ if $failed; then
   exit 1
 fi
 
+################################################################################
+# We're about to finalize everything and create a snapshot that will be used
+# for thin cloning.
+#
+# If needed, put any data transformations here (e.g., remove personal data).
+# For better speed, do it in several parallel jobs (depending on resources).
+# All thin clones will have transformed state.
+# TODO: friendly interface to inject transformations.
+################################################################################
+
 # Finally, stop Postgres and create the base snapshot ready to be used for thin provisioning
 ${sudo_cmd} ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -w stop
 # todo: check that it's stopped, similiraly as above
