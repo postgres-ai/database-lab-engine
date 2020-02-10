@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -27,6 +28,7 @@ type baseCloning struct {
 	cloning
 
 	// TODO(akartasov): Fix data race.
+	cloneMutex     sync.RWMutex
 	clones         map[string]*CloneWrapper
 	instanceStatus *models.InstanceStatus
 	snapshots      []*models.Snapshot
@@ -67,7 +69,7 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 	// TODO(akartasov): Separate validation rules.
 	clone.ID = strings.TrimSpace(clone.ID)
 
-	if _, ok := c.clones[clone.ID]; ok {
+	if _, ok := c.findWrapper(clone.ID); ok {
 		return errors.New("clone with such ID already exists")
 	}
 
@@ -88,7 +90,6 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 	}
 
 	w := NewCloneWrapper(clone)
-	c.clones[clone.ID] = w
 
 	clone.Status = &models.Status{
 		Code:    models.StatusCreating,
@@ -153,11 +154,13 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		}
 	}()
 
+	c.setWrapper(clone.ID, w)
+
 	return nil
 }
 
 func (c *baseCloning) DestroyClone(id string) error {
-	w, ok := c.clones[id]
+	w, ok := c.findWrapper(id)
 	if !ok {
 		return errors.New("clone not found")
 	}
@@ -187,14 +190,16 @@ func (c *baseCloning) DestroyClone(id string) error {
 			return
 		}
 
+		c.cloneMutex.Lock()
 		delete(c.clones, w.clone.ID)
+		c.cloneMutex.Unlock()
 	}()
 
 	return nil
 }
 
 func (c *baseCloning) GetClone(id string) (*models.Clone, error) {
-	w, ok := c.clones[id]
+	w, ok := c.findWrapper(id)
 	if !ok {
 		return nil, errors.New("clone not found")
 	}
@@ -249,20 +254,22 @@ func (c *baseCloning) UpdateClone(id string, patch *models.Clone) error {
 		return errors.New("CreatedAt cannot be changed")
 	}
 
-	w, ok := c.clones[id]
+	w, ok := c.findWrapper(id)
 	if !ok {
 		return errors.New("clone not found")
 	}
 
 	// Set fields.
 
+	c.cloneMutex.Lock()
 	w.clone.Protected = patch.Protected
+	c.cloneMutex.Unlock()
 
 	return nil
 }
 
 func (c *baseCloning) ResetClone(id string) error {
-	w, ok := c.clones[id]
+	w, ok := c.findWrapper(id)
 	if !ok {
 		return errors.New("clone not found")
 	}
@@ -328,13 +335,30 @@ func (c *baseCloning) GetSnapshots() ([]*models.Snapshot, error) {
 	return c.snapshots, nil
 }
 
+// GetClones returns all clones.
 func (c *baseCloning) GetClones() []*models.Clone {
-	clones := make([]*models.Clone, 0)
+	clones := make([]*models.Clone, 0, len(c.clones))
 	for _, clone := range c.clones {
 		clones = append(clones, clone.clone)
 	}
 
 	return clones
+}
+
+// findWrapper retrieves a clone findWrapper by id.
+func (c *baseCloning) findWrapper(id string) (*CloneWrapper, bool) {
+	c.cloneMutex.RLock()
+	w, ok := c.clones[id]
+	c.cloneMutex.RUnlock()
+
+	return w, ok
+}
+
+// setWrapper adds a clone wrapper to the map of clones.
+func (c *baseCloning) setWrapper(id string, wrapper *CloneWrapper) {
+	c.cloneMutex.Lock()
+	c.clones[id] = wrapper
+	c.cloneMutex.Unlock()
 }
 
 func (c *baseCloning) getExpectedCloningTime() float64 {
@@ -431,6 +455,11 @@ func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 	}
 
 	session := wrapper.session
+
+	// TODO(akartasov): Remove wrappers without session.
+	if session == nil {
+		return false, errors.New("failed to get clone session")
+	}
 
 	lastSessionActivity, err := c.provision.LastSessionActivity(session, idleDuration)
 	if err != nil {
