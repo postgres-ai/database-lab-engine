@@ -21,7 +21,7 @@ LDFLAGS = -ldflags "-s -w \
 
 # Go tooling command aliases
 GOBUILD = GO111MODULE=on GOARCH=${GOARCH} go build ${LDFLAGS}
-GOTEST = GO111MODULE=on go test
+GOTEST = GO111MODULE=on go test -race 
 GORUN = GO111MODULE=on go run ${LDFLAGS}
 
 PLATFORMS=darwin linux
