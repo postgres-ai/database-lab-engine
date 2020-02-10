@@ -1,6 +1,15 @@
 # Changelog
 
 
+## [0.2.1] - 2020-02-10
+
+### Documentation
+- Improved Swagger API description
+
+### Bug fixes:
+- Fixed an empty struct for idle sessions
+- Changed the Slack link in the changelog
+
 ## [0.2.0] - 2020-02-06
 
 In Database Lab 0.2.0, all the components now run in containers. To start using Database Lab is now only needed to install Docker and ZFS, everything else is inside containers. Customer PostgreSQL containers are supported.
@@ -18,11 +27,11 @@ Important links:
 - Ability to customize Postgres user used for management (`postgres` is default).
 - Verification token flag changed from "-v" to "-t".
 - Internal: use constants for response errors.
-- Various imrovements of the snapshotting script.
+- Various improvements of the snapshotting script.
 
 ### API
 - Synchronous mode for clone methods (now default).
-- Parameter `name` furrly removed
+- Parameter `name` fully removed
 - Parameter `id` can now be set by user (optionally).
 - Internal: added Metadata to Clone model.
 
@@ -31,7 +40,7 @@ Important links:
 - Show "unchanged" message in "config update" command if params match the current config.
 - Added client installation script.
 
-### Documentaion
+### Documentation
 - Added Swagger specification.
 - Added Postman collection.
 - Updated README.
