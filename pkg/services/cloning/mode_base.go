@@ -27,7 +27,6 @@ const idleCheckDuration = 5 * time.Minute
 type baseCloning struct {
 	cloning
 
-	// TODO(akartasov): Fix data race.
 	cloneMutex     sync.RWMutex
 	clones         map[string]*CloneWrapper
 	instanceStatus *models.InstanceStatus
@@ -91,10 +90,10 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 
 	w := NewCloneWrapper(clone)
 
-	clone.Status = &models.Status{
+	c.updateStatus(w.clone, models.Status{
 		Code:    models.StatusCreating,
 		Message: models.CloneMessageCreating,
-	}
+	})
 
 	w.timeCreatedAt = time.Now()
 	clone.CreatedAt = util.FormatTime(w.timeCreatedAt)
@@ -119,10 +118,10 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		session, err := c.provision.StartSession(w.username, w.password, snapshotID)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
-			clone.Status = &models.Status{
+			c.updateStatus(w.clone, models.Status{
 				Code:    models.StatusFatal,
 				Message: models.CloneMessageFatal,
-			}
+			})
 
 			log.Errf("Failed to start session: %+v.", err)
 
@@ -133,10 +132,10 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 
 		w.timeStartedAt = time.Now()
 
-		clone.Status = &models.Status{
+		c.updateStatus(w.clone, models.Status{
 			Code:    models.StatusOK,
 			Message: models.CloneMessageOK,
-		}
+		})
 
 		clone.DB.Port = strconv.FormatUint(uint64(session.Port), 10)
 
@@ -169,10 +168,10 @@ func (c *baseCloning) DestroyClone(id string) error {
 		return errors.New("clone is protected")
 	}
 
-	w.clone.Status = &models.Status{
+	c.updateStatus(w.clone, models.Status{
 		Code:    models.StatusDeleting,
 		Message: models.CloneMessageDeleting,
-	}
+	})
 
 	if w.session == nil {
 		return errors.New("clone is not started yet")
@@ -180,19 +179,17 @@ func (c *baseCloning) DestroyClone(id string) error {
 
 	go func() {
 		if err := c.provision.StopSession(w.session); err != nil {
-			w.clone.Status = &models.Status{
+			c.updateStatus(w.clone, models.Status{
 				Code:    models.StatusFatal,
 				Message: models.CloneMessageFatal,
-			}
+			})
 
 			log.Errf("Failed to delete clone: %+v.", err)
 
 			return
 		}
 
-		c.cloneMutex.Lock()
-		delete(c.clones, w.clone.ID)
-		c.cloneMutex.Unlock()
+		c.deleteClone(w.clone.ID)
 	}()
 
 	return nil
@@ -274,10 +271,10 @@ func (c *baseCloning) ResetClone(id string) error {
 		return errors.New("clone not found")
 	}
 
-	w.clone.Status = &models.Status{
+	c.updateStatus(w.clone, models.Status{
 		Code:    models.StatusResetting,
 		Message: models.CloneMessageResetting,
-	}
+	})
 
 	if w.session == nil {
 		return errors.New("clone is not started yet")
@@ -291,20 +288,20 @@ func (c *baseCloning) ResetClone(id string) error {
 
 		err := c.provision.ResetSession(w.session, snapshotID)
 		if err != nil {
-			w.clone.Status = &models.Status{
+			c.updateStatus(w.clone, models.Status{
 				Code:    models.StatusFatal,
 				Message: models.CloneMessageFatal,
-			}
+			})
 
 			log.Errf("Failed to reset session: %+v.", err)
 
 			return
 		}
 
-		w.clone.Status = &models.Status{
+		c.updateStatus(w.clone, models.Status{
 			Code:    models.StatusOK,
 			Message: models.CloneMessageOK,
-		}
+		})
 	}()
 
 	return nil
@@ -337,10 +334,13 @@ func (c *baseCloning) GetSnapshots() ([]*models.Snapshot, error) {
 
 // GetClones returns all clones.
 func (c *baseCloning) GetClones() []*models.Clone {
-	clones := make([]*models.Clone, 0, len(c.clones))
+	clones := make([]*models.Clone, 0, c.lenClones())
+
+	c.cloneMutex.RLock()
 	for _, clone := range c.clones {
 		clones = append(clones, clone.clone)
 	}
+	c.cloneMutex.RUnlock()
 
 	return clones
 }
@@ -361,20 +361,47 @@ func (c *baseCloning) setWrapper(id string, wrapper *CloneWrapper) {
 	c.cloneMutex.Unlock()
 }
 
+// updateStatus updates the clone status.
+func (c *baseCloning) updateStatus(clone *models.Clone, status models.Status) {
+	c.cloneMutex.Lock()
+	clone.Status = &status
+	c.cloneMutex.Unlock()
+}
+
+// deleteClone removes the clone by ID.
+func (c *baseCloning) deleteClone(cloneID string) {
+	c.cloneMutex.Lock()
+	delete(c.clones, cloneID)
+	c.cloneMutex.Unlock()
+}
+
+// lenClones returns the number of clones.
+func (c *baseCloning) lenClones() int {
+	c.cloneMutex.RLock()
+	lenClones := len(c.clones)
+	c.cloneMutex.RUnlock()
+
+	return lenClones
+}
+
 func (c *baseCloning) getExpectedCloningTime() float64 {
-	if len(c.clones) == 0 {
+	lenClones := c.lenClones()
+
+	if lenClones == 0 {
 		return 0
 	}
 
 	sum := 0.0
 
+	c.cloneMutex.RLock()
 	for _, cloneWrapper := range c.clones {
 		if cloneWrapper.clone.Metadata != nil {
 			sum += cloneWrapper.clone.Metadata.CloningTime
 		}
 	}
+	c.cloneMutex.RUnlock()
 
-	return sum / float64(len(c.clones))
+	return sum / float64(lenClones)
 }
 
 func (c *baseCloning) fetchSnapshots() error {
