@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/urfave/cli/v2"
 
@@ -17,7 +18,7 @@ import (
 )
 
 const (
-	version = "v0.0.1"
+	version = "v0.2.1"
 )
 
 func main() {
@@ -81,14 +82,20 @@ func loadEnvironmentParams(c *cli.Context) error {
 
 	currentEnv := cfg.CurrentEnvironment
 	if env, ok := cfg.Environments[currentEnv]; ok {
-		if c.String(commands.URLKey) == "" {
+		if !c.IsSet(commands.URLKey) {
 			if err := c.Set(commands.URLKey, env.URL); err != nil {
 				return err
 			}
 		}
 
-		if c.String(commands.TokenKey) == "" {
+		if !c.IsSet(commands.TokenKey) {
 			if err := c.Set(commands.TokenKey, env.Token); err != nil {
+				return err
+			}
+		}
+
+		if !c.IsSet(commands.InsecureKey) {
+			if err := c.Set(commands.InsecureKey, strconv.FormatBool(env.Insecure)); err != nil {
 				return err
 			}
 		}
