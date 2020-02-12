@@ -23,6 +23,7 @@ type Environment struct {
 	EnvironmentID string `yaml:"-" json:"environment_id"`
 	URL           string `yaml:"url" json:"url"`
 	Token         string `yaml:"token" json:"token"`
+	Insecure      bool   `yaml:"insecure" json:"insecure"`
 }
 
 // AddEnvironmentToConfig adds a new environment to CLIConfig.
@@ -36,8 +37,9 @@ func AddEnvironmentToConfig(c *cli.Context, cfg *CLIConfig, environmentID string
 	}
 
 	env := Environment{
-		URL:   c.String(commands.URLKey),
-		Token: c.String(commands.TokenKey),
+		URL:      c.String(commands.URLKey),
+		Token:    c.String(commands.TokenKey),
+		Insecure: c.Bool(commands.InsecureKey),
 	}
 
 	if cfg.Environments == nil {
@@ -67,12 +69,16 @@ func updateEnvironmentInConfig(c *cli.Context, cfg *CLIConfig, environmentID str
 
 	newEnvironment := environment
 
-	if c.String(commands.URLKey) != "" {
+	if c.IsSet(commands.URLKey) {
 		newEnvironment.URL = c.String(commands.URLKey)
 	}
 
-	if c.String(commands.TokenKey) != "" {
+	if c.IsSet(commands.TokenKey) {
 		newEnvironment.Token = c.String(commands.TokenKey)
+	}
+
+	if c.IsSet(commands.InsecureKey) {
+		newEnvironment.Insecure = c.Bool(commands.InsecureKey)
 	}
 
 	if newEnvironment == environment {

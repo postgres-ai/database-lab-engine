@@ -70,7 +70,7 @@ For stable Docker images see [postgresai/dblab-server](https://hub.docker.com/re
 
 ## Client CLI
 ### Installation
-Install Database Lab client CLI on a Linux acrhitecture (e.g., Ubuntu):
+Install Database Lab client CLI on a Linux architecture (e.g., Ubuntu):
 ```bash
 curl https://gitlab.com/postgres-ai/database-lab/-/raw/master/cli-install.sh | bash
 ```

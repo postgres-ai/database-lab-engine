@@ -33,6 +33,10 @@ func CommandList() []*cli.Command {
 							Usage:    "verification token of Database Lab instance",
 							Required: true,
 						},
+						&cli.BoolFlag{
+							Name:  "insecure",
+							Usage: "allow insecure server connections when using SSL",
+						},
 					},
 				},
 				{
@@ -48,6 +52,10 @@ func CommandList() []*cli.Command {
 						&cli.StringFlag{
 							Name:  "token",
 							Usage: "verification token of Database Lab instance",
+						},
+						&cli.BoolFlag{
+							Name:  "insecure",
+							Usage: "allow insecure server connections when using SSL",
 						},
 					},
 				},
