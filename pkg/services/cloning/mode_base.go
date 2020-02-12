@@ -208,7 +208,10 @@ func (c *baseCloning) GetClone(id string) (*models.Clone, error) {
 
 	sessionState, err := c.provision.GetSessionState(w.session)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get a session state")
+		// Session not ready yet.
+		log.Err(errors.Wrap(err, "failed to get a session state"))
+
+		return w.clone, nil
 	}
 
 	w.clone.Metadata.CloneSize = sessionState.CloneSize
