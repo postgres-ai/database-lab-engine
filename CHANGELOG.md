@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2] - 2020-02-12
+
+### Features
+- CLI: Allow specifying "insecure" flag in the configuration for a particular Database Lab instance.
+
+### Bug fixes:
+- Skip session state error and use default clone size instead. In particular, this fixes the case when Joe bot gets errors when processing `reset` command.
 
 ## [0.2.1] - 2020-02-10
 
