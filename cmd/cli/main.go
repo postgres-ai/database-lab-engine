@@ -15,6 +15,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/instance"
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/snapshot"
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/templates"
+	dblabLog "gitlab.com/postgres-ai/database-lab/pkg/log"
 )
 
 const (
@@ -57,6 +58,11 @@ func main() {
 				Usage:   "allow insecure server connections when using SSL",
 				EnvVars: []string{"DBLAB_INSECURE_SKIP_VERIFY"},
 			},
+			&cli.BoolFlag{
+				Name:    "debug",
+				Usage:   "run in debug mode",
+				EnvVars: []string{"DBLAB_CLI_DEBUG"},
+			},
 		},
 	}
 
@@ -69,6 +75,8 @@ func main() {
 
 // loadEnvironmentParams loads environment params from a Database Lab's config file.
 func loadEnvironmentParams(c *cli.Context) error {
+	dblabLog.DEBUG = c.IsSet("debug")
+
 	filename, err := config.GetFilename()
 	if err != nil {
 		return err
