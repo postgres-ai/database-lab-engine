@@ -30,7 +30,7 @@ type baseCloning struct {
 	cloneMutex     sync.RWMutex
 	clones         map[string]*CloneWrapper
 	instanceStatus *models.InstanceStatus
-	snapshots      []*models.Snapshot
+	snapshots      []models.Snapshot
 
 	provision provision.Provision
 }
@@ -88,62 +88,74 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		clone.ID = xid.New().String()
 	}
 
-	w := NewCloneWrapper(clone)
+	createdAt := time.Now()
 
-	c.updateStatus(w.clone, models.Status{
+	clone.CreatedAt = util.FormatTime(createdAt)
+	clone.Status = &models.Status{
 		Code:    models.StatusCreating,
 		Message: models.CloneMessageCreating,
-	})
+	}
 
-	w.timeCreatedAt = time.Now()
-	clone.CreatedAt = util.FormatTime(w.timeCreatedAt)
+	w := NewCloneWrapper(clone)
 
 	w.username = clone.DB.Username
 	w.password = clone.DB.Password
-	clone.DB.Password = ""
+	w.timeCreatedAt = createdAt
 
-	w.snapshot = clone.Snapshot
+	if clone.Snapshot != nil {
+		w.snapshot = *clone.Snapshot
+	}
+
+	clone.DB.Password = ""
+	cloneID := clone.ID
 
 	err := c.fetchSnapshots()
 	if err != nil {
 		return errors.Wrap(err, "failed to create clone")
 	}
 
-	go func() {
-		snapshotID := ""
-		if w.snapshot != nil && len(w.snapshot.ID) > 0 {
-			snapshotID = w.snapshot.ID
-		}
+	c.setWrapper(clone.ID, w)
 
-		session, err := c.provision.StartSession(w.username, w.password, snapshotID)
+	go func() {
+		session, err := c.provision.StartSession(w.username, w.password, w.snapshot.ID)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
-			c.updateStatus(w.clone, models.Status{
+			if err := c.updateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: models.CloneMessageFatal,
-			})
-
-			log.Errf("Failed to start session: %+v.", err)
+			}); err != nil {
+				log.Errf("failed to update clone status: %v", err)
+			}
 
 			return
 		}
 
-		w.session = session
+		c.cloneMutex.Lock()
+		defer c.cloneMutex.Unlock()
 
+		w, ok := c.clones[cloneID]
+		if !ok {
+			log.Errf("Clone %q not found", cloneID)
+			return
+		}
+
+		w.session = session
 		w.timeStartedAt = time.Now()
 
-		c.updateStatus(w.clone, models.Status{
+		clone := w.clone
+		clone.Status = &models.Status{
 			Code:    models.StatusOK,
 			Message: models.CloneMessageOK,
-		})
+		}
 
 		clone.DB.Port = strconv.FormatUint(uint64(session.Port), 10)
-
 		clone.DB.Host = c.Config.AccessHost
 		clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s user=%s",
 			clone.DB.Host, clone.DB.Port, clone.DB.Username)
 
-		clone.Snapshot = c.snapshots[len(c.snapshots)-1]
+		if len(c.snapshots) > 0 {
+			clone.Snapshot = &c.snapshots[0]
+		}
 
 		// TODO(anatoly): Remove mock data.
 		clone.Metadata = &models.CloneMetadata{
@@ -153,13 +165,11 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		}
 	}()
 
-	c.setWrapper(clone.ID, w)
-
 	return nil
 }
 
-func (c *baseCloning) DestroyClone(id string) error {
-	w, ok := c.findWrapper(id)
+func (c *baseCloning) DestroyClone(cloneID string) error {
+	w, ok := c.findWrapper(cloneID)
 	if !ok {
 		return errors.New("clone not found")
 	}
@@ -168,10 +178,12 @@ func (c *baseCloning) DestroyClone(id string) error {
 		return errors.New("clone is protected")
 	}
 
-	c.updateStatus(w.clone, models.Status{
+	if err := c.updateCloneStatus(cloneID, models.Status{
 		Code:    models.StatusDeleting,
 		Message: models.CloneMessageDeleting,
-	})
+	}); err != nil {
+		return errors.Wrap(err, "failed to update clone status")
+	}
 
 	if w.session == nil {
 		return errors.New("clone is not started yet")
@@ -179,17 +191,19 @@ func (c *baseCloning) DestroyClone(id string) error {
 
 	go func() {
 		if err := c.provision.StopSession(w.session); err != nil {
-			c.updateStatus(w.clone, models.Status{
+			if err := c.updateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: models.CloneMessageFatal,
-			})
+			}); err != nil {
+				log.Errf("Failed to update clone status: %v", err)
+			}
 
 			log.Errf("Failed to delete clone: %+v.", err)
 
 			return
 		}
 
-		c.deleteClone(w.clone.ID)
+		c.deleteClone(cloneID)
 	}()
 
 	return nil
@@ -268,43 +282,44 @@ func (c *baseCloning) UpdateClone(id string, patch *models.Clone) error {
 	return nil
 }
 
-func (c *baseCloning) ResetClone(id string) error {
-	w, ok := c.findWrapper(id)
+func (c *baseCloning) ResetClone(cloneID string) error {
+	w, ok := c.findWrapper(cloneID)
 	if !ok {
 		return errors.New("clone not found")
 	}
 
-	c.updateStatus(w.clone, models.Status{
+	if err := c.updateCloneStatus(cloneID, models.Status{
 		Code:    models.StatusResetting,
 		Message: models.CloneMessageResetting,
-	})
+	}); err != nil {
+		return errors.Wrap(err, "failed to update clone status")
+	}
 
 	if w.session == nil {
 		return errors.New("clone is not started yet")
 	}
 
 	go func() {
-		snapshotID := ""
-		if w.snapshot != nil && len(w.snapshot.ID) > 0 {
-			snapshotID = w.snapshot.ID
-		}
-
-		err := c.provision.ResetSession(w.session, snapshotID)
+		err := c.provision.ResetSession(w.session, w.snapshot.ID)
 		if err != nil {
-			c.updateStatus(w.clone, models.Status{
+			if err := c.updateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: models.CloneMessageFatal,
-			})
+			}); err != nil {
+				log.Errf("failed to update clone status: %v", err)
+			}
 
 			log.Errf("Failed to reset session: %+v.", err)
 
 			return
 		}
 
-		c.updateStatus(w.clone, models.Status{
+		if err := c.updateCloneStatus(cloneID, models.Status{
 			Code:    models.StatusOK,
 			Message: models.CloneMessageOK,
-		})
+		}); err != nil {
+			log.Errf("failed to update clone status: %v", err)
+		}
 	}()
 
 	return nil
@@ -326,7 +341,7 @@ func (c *baseCloning) GetInstanceState() (*models.InstanceStatus, error) {
 	return c.instanceStatus, nil
 }
 
-func (c *baseCloning) GetSnapshots() ([]*models.Snapshot, error) {
+func (c *baseCloning) GetSnapshots() ([]models.Snapshot, error) {
 	// TODO(anatoly): Update snapshots dynamically.
 	if err := c.fetchSnapshots(); err != nil {
 		return nil, errors.Wrap(err, "failed to fetch snapshots")
@@ -364,11 +379,19 @@ func (c *baseCloning) setWrapper(id string, wrapper *CloneWrapper) {
 	c.cloneMutex.Unlock()
 }
 
-// updateStatus updates the clone status.
-func (c *baseCloning) updateStatus(clone *models.Clone, status models.Status) {
+// updateCloneStatus updates the clone status.
+func (c *baseCloning) updateCloneStatus(cloneID string, status models.Status) error {
 	c.cloneMutex.Lock()
-	clone.Status = &status
-	c.cloneMutex.Unlock()
+	defer c.cloneMutex.Unlock()
+
+	w, ok := c.clones[cloneID]
+	if !ok {
+		return errors.Errorf("clone %q not found", cloneID)
+	}
+
+	w.clone.Status = &status
+
+	return nil
 }
 
 // deleteClone removes the clone by ID.
@@ -413,10 +436,10 @@ func (c *baseCloning) fetchSnapshots() error {
 		return errors.Wrap(err, "failed to get snapshots")
 	}
 
-	snapshots := make([]*models.Snapshot, len(entries))
+	snapshots := make([]models.Snapshot, len(entries))
 
 	for i, entry := range entries {
-		snapshots[i] = &models.Snapshot{
+		snapshots[i] = models.Snapshot{
 			ID:          entry.ID,
 			CreatedAt:   util.FormatTime(entry.CreatedAt),
 			DataStateAt: util.FormatTime(entry.DataStateAt),

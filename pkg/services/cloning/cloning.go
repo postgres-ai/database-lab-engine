@@ -49,7 +49,7 @@ type Cloning interface {
 	ResetClone(string) error
 
 	GetInstanceState() (*models.InstanceStatus, error)
-	GetSnapshots() ([]*models.Snapshot, error)
+	GetSnapshots() ([]models.Snapshot, error)
 	GetClones() []*models.Clone
 }
 
@@ -64,7 +64,7 @@ type CloneWrapper struct {
 	username string
 	password string
 
-	snapshot *models.Snapshot
+	snapshot models.Snapshot
 }
 
 // NewCloning returns a cloning interface depends on configuration mode.
@@ -85,10 +85,6 @@ func NewCloning(config *Config, provision provision.Provision) (Cloning, error) 
 func NewCloneWrapper(clone *models.Clone) *CloneWrapper {
 	w := &CloneWrapper{
 		clone: clone,
-	}
-
-	if clone.DB == nil {
-		clone.DB = &models.Database{}
 	}
 
 	return w

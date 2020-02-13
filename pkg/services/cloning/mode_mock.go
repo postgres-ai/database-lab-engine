@@ -17,7 +17,7 @@ type mockCloning struct {
 
 	clones         map[string]*models.Clone
 	instanceStatus *models.InstanceStatus
-	snapshots      []*models.Snapshot
+	snapshots      []models.Snapshot
 }
 
 // NewMockCloning instances a new mock Cloning.
@@ -118,7 +118,7 @@ func (c *mockCloning) GetInstanceState() (*models.InstanceStatus, error) {
 	return c.instanceStatus, nil
 }
 
-func (c *mockCloning) GetSnapshots() ([]*models.Snapshot, error) {
+func (c *mockCloning) GetSnapshots() ([]models.Snapshot, error) {
 	return c.snapshots, nil
 }
 

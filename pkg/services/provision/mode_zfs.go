@@ -168,8 +168,8 @@ func (j *provisionModeZfs) Reinit() error {
 	return fmt.Errorf(`"Reinit" method is unsupported in "ZFS" mode`)
 }
 
-func (j *provisionModeZfs) StartSession(username string, password string, options ...string) (*Session, error) {
-	snapshotID, err := j.getSnapshotID(options...)
+func (j *provisionModeZfs) StartSession(username, password, snapshotID string) (*Session, error) {
+	snapshotID, err := j.getSnapshotID(snapshotID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get snapshots")
 	}
@@ -269,10 +269,10 @@ func (j *provisionModeZfs) StopSession(session *Session) error {
 }
 
 // TODO(akartasov): Refactor revert actions.
-func (j *provisionModeZfs) ResetSession(session *Session, options ...string) error {
+func (j *provisionModeZfs) ResetSession(session *Session, snapshotID string) error {
 	name := j.getName(session.Port)
 
-	snapshotID, err := j.getSnapshotID(options...)
+	snapshotID, err := j.getSnapshotID(snapshotID)
 	if err != nil {
 		return errors.Wrap(err, "failed to get snapshots")
 	}
@@ -338,20 +338,20 @@ func (j *provisionModeZfs) CreateSnapshot(name string) error {
 	return errors.New(`"CreateSnapshot" method is unsupported in "ZFS" mode`)
 }
 
-func (j *provisionModeZfs) GetSnapshots() ([]*Snapshot, error) {
+func (j *provisionModeZfs) GetSnapshots() ([]Snapshot, error) {
 	entries, err := ZfsListSnapshots(j.runner, j.config.ModeZfs.ZfsPool)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list snapshots")
 	}
 
-	snapshots := make([]*Snapshot, 0, len(entries))
+	snapshots := make([]Snapshot, 0, len(entries))
 
 	for _, entry := range entries {
 		if strings.HasSuffix(entry.Name, j.config.ModeZfs.SnapshotFilterSuffix) {
 			continue
 		}
 
-		snapshot := &Snapshot{
+		snapshot := Snapshot{
 			ID:          entry.Name,
 			CreatedAt:   entry.Creation,
 			DataStateAt: entry.DataStateAt,
@@ -432,24 +432,21 @@ func (j *provisionModeZfs) GetSessionState(s *Session) (*SessionState, error) {
 }
 
 // Other methods.
-func (j *provisionModeZfs) getSnapshotID(options ...string) (string, error) {
-	snapshotID := ""
-	if len(options) > 0 && len(options[0]) > 0 {
-		snapshotID = options[0]
-	} else {
-		snapshots, err := j.GetSnapshots()
-		if err != nil {
-			return "", errors.Wrap(err, "failed to get snapshots")
-		}
-
-		if len(snapshots) == 0 {
-			return "", errors.New("no snapshots available")
-		}
-
-		snapshotID = snapshots[0].ID
+func (j *provisionModeZfs) getSnapshotID(snapshotID string) (string, error) {
+	if snapshotID != "" {
+		return snapshotID, nil
 	}
 
-	return snapshotID, nil
+	snapshots, err := j.GetSnapshots()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get snapshots")
+	}
+
+	if len(snapshots) == 0 {
+		return "", errors.New("no snapshots available")
+	}
+
+	return snapshots[0].ID, nil
 }
 
 // nolint
