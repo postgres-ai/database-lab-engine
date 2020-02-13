@@ -55,10 +55,11 @@ func (s *BaseCloningSuite) TestUpdateStatus() {
 	require.True(s.T(), ok)
 	require.NotNil(s.T(), wrapper)
 
-	s.cloning.updateStatus(wrapper.clone, models.Status{
+	err := s.cloning.updateCloneStatus("testCloneID", models.Status{
 		Code:    models.StatusOK,
 		Message: models.CloneMessageOK,
 	})
+	require.NoError(s.T(), err)
 
 	wrapper, ok = s.cloning.findWrapper("testCloneID")
 	require.True(s.T(), ok)

@@ -87,12 +87,12 @@ type Provision interface {
 	Init() error
 	Reinit() error
 
-	StartSession(string, string, ...string) (*Session, error)
+	StartSession(username string, password string, snapshotID string) (*Session, error)
 	StopSession(*Session) error
-	ResetSession(*Session, ...string) error
+	ResetSession(session *Session, snapshotID string) error
 
 	CreateSnapshot(string) error
-	GetSnapshots() ([]*Snapshot, error)
+	GetSnapshots() ([]Snapshot, error)
 
 	GetDiskState() (*Disk, error)
 	GetSessionState(*Session) (*SessionState, error)
