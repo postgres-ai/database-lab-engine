@@ -1,28 +1,38 @@
 # Run with config.yml mount:
-# sudo docker run --privileged --name dblab_server --detach \
-#   --label dblab-control \
+# sudo docker run \
+#   --name dblab_server \
+#   --label dblab_control \
+#   --privileged \
+#   --publish 3000:3000 \
+#   --restart on-failure \
 #   --volume /var/run/docker.sock:/var/run/docker.sock \
 #   --volume /var/lib/dblab:/var/lib/dblab:rshared \
-#   --volume /home/user/configs/config.yml:/home/dblab/configs/config.yml \
-#   --publish 3000:3000 \
-#   dblab-server
+#   --volume ~/.dblab/configs/config.yml:/home/dblab/configs/config.yml \
+#   --env VERIFICATION_TOKEN=secret_token \
+#   --detach \
+#   postgresai/dblab-server:latest
 #
 # or run with envs options:
-# sudo docker run --privileged --name dblab_server --detach \
-#   --label dblab-control \
+# sudo docker run \
+#   --name dblab_server \
+#   --label dblab_control \
+#   --privileged \
+#   --publish 3000:3000 \
+#   --restart on-failure \
 #   --volume /var/run/docker.sock:/var/run/docker.sock \
 #   --volume /var/lib/dblab:/var/lib/dblab:rshared \
+#   --volume ~/.dblab/configs/config.yml:/home/dblab/configs/config.yml \
 #   --env VERIFICATION_TOKEN=token \
 #   --env MOUNT_DIR=/var/lib/dblab/clones \
 #   --env UNIX_SOCKET_DIR=/var/lib/dblab/sockets \
 #   --env DOCKER_IMAGE=postgres:12-alpine \
-#   --publish 3000:3000 \
-#   dblab-server
+#   --detach \
+#   postgresai/dblab-server:latest
 
 FROM docker:19
 
 # Install dependecies.
-RUN apk update && apk add zfs bash
+RUN apk update && apk add --no-cache zfs bash
 
 WORKDIR /home/dblab
 
