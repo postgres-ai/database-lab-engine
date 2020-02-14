@@ -33,6 +33,10 @@ func GlobalList() []*cli.Command {
 					Usage:    "verification token of Database Lab instance",
 					Required: true,
 				},
+				&cli.BoolFlag{
+					Name:  "insecure",
+					Usage: "allow insecure server connections when using SSL",
+				},
 			},
 			Action: initCLI,
 		},
