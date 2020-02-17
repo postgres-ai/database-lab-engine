@@ -72,10 +72,10 @@ For stable Docker images see [postgresai/dblab-server](https://hub.docker.com/re
 ### Installation
 Install Database Lab client CLI on a Linux architecture (e.g., Ubuntu):
 ```bash
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/master/cli-install.sh | bash
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/master/scripts/cli_install.sh | bash
 ```
 
-Also, binaries available for download: [Alpine](https://gitlab.com/postgres-ai/database-lab/-/jobs/artifacts/master/browse?job=build-binary-alpine), [Other](https://gitlab.com/postgres-ai/database-lab/-/jobs/artifacts/master/browse?job=build-binary-generic).
+Also, binaries available for download: [Alpine](https://gitlab.com/postgres-ai/database-lab/-/jobs/artifacts/master/browse?job=build-binary-alpine), [other](https://gitlab.com/postgres-ai/database-lab/-/jobs/artifacts/master/browse?job=build-binary-generic).
 
 
 ### Usage
