@@ -233,6 +233,8 @@ func (j *provisionModeZfs) StartSession(username, password, snapshotID string) (
 
 	j.sessionCounter++
 
+	pgConfig := j.getPgConfig(name, port)
+
 	session := &Session{
 		ID: strconv.FormatUint(uint64(j.sessionCounter), 10),
 
@@ -240,6 +242,7 @@ func (j *provisionModeZfs) StartSession(username, password, snapshotID string) (
 		Port:              port,
 		User:              j.config.PgMgmtUsername,
 		Password:          j.config.PgMgmtPassword,
+		SocketHost:        pgConfig.Host,
 		ephemeralUser:     username,
 		ephemeralPassword: password,
 	}

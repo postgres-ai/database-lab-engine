@@ -40,10 +40,11 @@ type Session struct {
 	Name string
 
 	// Database.
-	Host     string
-	Port     uint
-	User     string
-	Password string
+	Host       string
+	Port       uint
+	User       string
+	Password   string
+	SocketHost string
 
 	// For user-defined username and password.
 	ephemeralUser     string
