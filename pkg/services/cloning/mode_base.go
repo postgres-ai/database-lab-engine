@@ -6,20 +6,22 @@ package cloning
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	_ "github.com/lib/pq" // Register Postgres database driver.
+	"github.com/pkg/errors"
+	"github.com/rs/xid"
+
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/pkg/util/pglog"
-
-	"github.com/pkg/errors"
-	"github.com/rs/xid"
 )
 
 const idleCheckDuration = 5 * time.Minute
@@ -497,6 +499,7 @@ func (c *baseCloning) destroyIdleClones(ctx context.Context) {
 	}
 }
 
+// isIdleClone checks if clone is idle.
 func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 	currentTime := time.Now()
 
@@ -520,7 +523,7 @@ func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 			log.Dbg(fmt.Sprintf("Not found recent activity for the session: %q. Session name: %q",
 				session.ID, session.Name))
 
-			return true, nil
+			return hasNotQueryActivity(session)
 		}
 
 		return false, errors.Wrap(err, "failed to get the last session activity")
@@ -532,5 +535,42 @@ func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 		return false, nil
 	}
 
-	return true, nil
+	return hasNotQueryActivity(session)
+}
+
+const pgDriverName = "postgres"
+
+// hasNotQueryActivity opens connection and checks if there is no any query running by a user.
+func hasNotQueryActivity(session *provision.Session) (bool, error) {
+	log.Dbg(fmt.Sprintf("Check an active query for: %q.", session.ID))
+
+	db, err := sql.Open(pgDriverName, getSocketConnStr(session))
+
+	if err != nil {
+		return false, errors.Wrap(err, "cannot connect to database")
+	}
+
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Err("Cannot close database connection.")
+		}
+	}()
+
+	return checkActiveQueryNotExists(db)
+}
+
+// TODO(akartasov): Move the function to the provision service.
+func getSocketConnStr(session *provision.Session) string {
+	return fmt.Sprintf("host=%s user=%s", session.SocketHost, session.User)
+}
+
+// checkActiveQueryNotExists runs query to check a user activity.
+func checkActiveQueryNotExists(db *sql.DB) (bool, error) {
+	var isRunningQueryNotExists bool
+
+	query := `SELECT NOT EXISTS(
+    SELECT * FROM pg_stat_activity WHERE state NOT ILIKE 'idle%' AND query NOT LIKE 'autovacuum: %' AND pid <> pg_backend_pid())`
+	err := db.QueryRow(query).Scan(&isRunningQueryNotExists)
+
+	return isRunningQueryNotExists, err
 }
