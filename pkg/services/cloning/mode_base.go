@@ -561,15 +561,17 @@ func hasNotQueryActivity(session *provision.Session) (bool, error) {
 
 // TODO(akartasov): Move the function to the provision service.
 func getSocketConnStr(session *provision.Session) string {
-	return fmt.Sprintf("host=%s user=%s", session.SocketHost, session.User)
+	return fmt.Sprintf("host=%s user=%s dbname=postgres", session.SocketHost, session.User)
 }
 
 // checkActiveQueryNotExists runs query to check a user activity.
 func checkActiveQueryNotExists(db *sql.DB) (bool, error) {
 	var isRunningQueryNotExists bool
 
-	query := `SELECT NOT EXISTS(
-    SELECT * FROM pg_stat_activity WHERE state NOT ILIKE 'idle%' AND query NOT LIKE 'autovacuum: %' AND pid <> pg_backend_pid())`
+	query := `select not exists (
+      select * from pg_stat_activity
+	  where state <> 'idle' and query not like 'autovacuum: %' and pid <> pg_backend_pid()
+	)`
 	err := db.QueryRow(query).Scan(&isRunningQueryNotExists)
 
 	return isRunningQueryNotExists, err
