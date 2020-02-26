@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 
+	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
@@ -33,6 +34,7 @@ type baseCloning struct {
 	cloneMutex     sync.RWMutex
 	clones         map[string]*CloneWrapper
 	instanceStatus *models.InstanceStatus
+	snapshotMutex  sync.RWMutex
 	snapshots      []models.Snapshot
 
 	provision provision.Provision
@@ -67,36 +69,63 @@ func (c *baseCloning) Run(ctx context.Context) error {
 }
 
 // CreateClone creates a new clone.
-func (c *baseCloning) CreateClone(clone *models.Clone) error {
+func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clone, error) {
 	// TODO(akartasov): Separate validation rules.
-	clone.ID = strings.TrimSpace(clone.ID)
+	cloneRequest.ID = strings.TrimSpace(cloneRequest.ID)
 
-	if _, ok := c.findWrapper(clone.ID); ok {
-		return errors.New("clone with such ID already exists")
+	if _, ok := c.findWrapper(cloneRequest.ID); ok {
+		return nil, errors.New("clone with such ID already exists")
 	}
 
-	if clone.DB == nil {
-		return errors.New("missing both DB username and password")
+	if cloneRequest.DB == nil {
+		return nil, errors.New("missing both DB username and password")
 	}
 
-	if len(clone.DB.Username) == 0 {
-		return errors.New("missing DB username")
+	if len(cloneRequest.DB.Username) == 0 {
+		return nil, errors.New("missing DB username")
 	}
 
-	if len(clone.DB.Password) == 0 {
-		return errors.New("missing DB password")
+	if len(cloneRequest.DB.Password) == 0 {
+		return nil, errors.New("missing DB password")
 	}
 
-	if clone.ID == "" {
-		clone.ID = xid.New().String()
+	if cloneRequest.ID == "" {
+		cloneRequest.ID = xid.New().String()
 	}
 
 	createdAt := time.Now()
 
-	clone.CreatedAt = util.FormatTime(createdAt)
-	clone.Status = &models.Status{
-		Code:    models.StatusCreating,
-		Message: models.CloneMessageCreating,
+	err := c.fetchSnapshots()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch snapshots")
+	}
+
+	var snapshot models.Snapshot
+
+	if cloneRequest.Snapshot != nil {
+		snapshot, err = c.getSnapshotByID(cloneRequest.Snapshot.ID)
+	} else {
+		snapshot, err = c.getLatestSnapshot()
+	}
+
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get snapshot")
+	}
+
+	clone := &models.Clone{
+		ID:        cloneRequest.ID,
+		Snapshot:  &snapshot,
+		Protected: cloneRequest.Protected,
+		CreatedAt: util.FormatTime(createdAt),
+		Status: &models.Status{
+			Code:    models.StatusCreating,
+			Message: models.CloneMessageCreating,
+		},
+		DB: &models.Database{
+			Username: cloneRequest.DB.Username,
+			Password: cloneRequest.DB.Password,
+		},
+		Project: cloneRequest.Project,
 	}
 
 	w := NewCloneWrapper(clone)
@@ -104,18 +133,10 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 	w.username = clone.DB.Username
 	w.password = clone.DB.Password
 	w.timeCreatedAt = createdAt
-
-	if clone.Snapshot != nil {
-		w.snapshot = *clone.Snapshot
-	}
+	w.snapshot = snapshot
 
 	clone.DB.Password = ""
 	cloneID := clone.ID
-
-	err := c.fetchSnapshots()
-	if err != nil {
-		return errors.Wrap(err, "failed to create clone")
-	}
 
 	c.setWrapper(clone.ID, w)
 
@@ -123,7 +144,7 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		session, err := c.provision.StartSession(w.username, w.password, w.snapshot.ID)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
-			log.Errf("Failed to create a clone: %+v.", err)
+			log.Errf("Failed to start session: %v.", err)
 
 			if err := c.updateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
@@ -158,10 +179,6 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s user=%s",
 			clone.DB.Host, clone.DB.Port, clone.DB.Username)
 
-		if len(c.snapshots) > 0 {
-			clone.Snapshot = &c.snapshots[0]
-		}
-
 		// TODO(anatoly): Remove mock data.
 		clone.Metadata = &models.CloneMetadata{
 			CloneSize:      cloneSize,
@@ -170,7 +187,7 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		}
 	}()
 
-	return nil
+	return clone, nil
 }
 
 func (c *baseCloning) DestroyClone(cloneID string) error {
@@ -238,53 +255,22 @@ func (c *baseCloning) GetClone(id string) (*models.Clone, error) {
 	return w.clone, nil
 }
 
-func (c *baseCloning) UpdateClone(id string, patch *models.Clone) error {
-	// TODO(anatoly): Nullable fields?
-	// Check unmodifiable fields.
-	if len(patch.ID) > 0 {
-		return errors.New("ID cannot be changed")
-	}
-
-	if patch.Snapshot != nil {
-		return errors.New("Snapshot cannot be changed")
-	}
-
-	if patch.Metadata != nil {
-		return errors.New("Metadata cannot be changed")
-	}
-
-	if len(patch.Project) > 0 {
-		return errors.New("Project cannot be changed")
-	}
-
-	if patch.DB != nil {
-		return errors.New("Database cannot be changed")
-	}
-
-	if patch.Status != nil {
-		return errors.New("Status cannot be changed")
-	}
-
-	if len(patch.DeleteAt) > 0 {
-		return errors.New("DeleteAt cannot be changed")
-	}
-
-	if len(patch.CreatedAt) > 0 {
-		return errors.New("CreatedAt cannot be changed")
-	}
-
+func (c *baseCloning) UpdateClone(id string, patch *types.CloneUpdateRequest) (*models.Clone, error) {
 	w, ok := c.findWrapper(id)
 	if !ok {
-		return errors.New("clone not found")
+		return nil, errors.New("clone not found")
 	}
 
-	// Set fields.
+	var clone *models.Clone
 
+	// Set fields.
 	c.cloneMutex.Lock()
 	w.clone.Protected = patch.Protected
+
+	clone = w.clone
 	c.cloneMutex.Unlock()
 
-	return nil
+	return clone, nil
 }
 
 func (c *baseCloning) ResetClone(cloneID string) error {
@@ -352,7 +338,13 @@ func (c *baseCloning) GetSnapshots() ([]models.Snapshot, error) {
 		return nil, errors.Wrap(err, "failed to fetch snapshots")
 	}
 
-	return c.snapshots, nil
+	snapshots := make([]models.Snapshot, len(c.snapshots))
+
+	c.snapshotMutex.RLock()
+	copy(snapshots, c.snapshots)
+	c.snapshotMutex.RUnlock()
+
+	return snapshots, nil
 }
 
 // GetClones returns all clones.
@@ -453,9 +445,39 @@ func (c *baseCloning) fetchSnapshots() error {
 		log.Dbg("snapshot:", snapshots[i])
 	}
 
+	c.snapshotMutex.Lock()
 	c.snapshots = snapshots
+	c.snapshotMutex.Unlock()
 
 	return nil
+}
+
+// getLatestSnapshot returns the latest snapshot.
+func (c *baseCloning) getLatestSnapshot() (models.Snapshot, error) {
+	c.snapshotMutex.RLock()
+	defer c.snapshotMutex.RUnlock()
+
+	if len(c.snapshots) == 0 {
+		return models.Snapshot{}, errors.New("no snapshot found")
+	}
+
+	snapshot := c.snapshots[0]
+
+	return snapshot, nil
+}
+
+// getSnapshotByID returns the snapshot by ID.
+func (c *baseCloning) getSnapshotByID(snapshotID string) (models.Snapshot, error) {
+	c.snapshotMutex.RLock()
+	defer c.snapshotMutex.RUnlock()
+
+	for _, snapshot := range c.snapshots {
+		if snapshot.ID == snapshotID {
+			return snapshot, nil
+		}
+	}
+
+	return models.Snapshot{}, errors.New("no snapshot found")
 }
 
 func (c *baseCloning) runIdleCheck(ctx context.Context) {

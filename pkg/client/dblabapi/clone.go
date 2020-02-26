@@ -14,6 +14,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
 )
 
@@ -67,27 +68,13 @@ func (c *Client) GetClone(ctx context.Context, cloneID string) (*models.Clone, e
 	return &clone, nil
 }
 
-// CreateRequest represents clone params of a create request.
-type CreateRequest struct {
-	ID        string           `json:"id"`
-	Project   string           `json:"project"`
-	Protected bool             `json:"protected"`
-	DB        *DatabaseRequest `json:"db"`
-}
-
-// DatabaseRequest represents database params of a clone request.
-type DatabaseRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
 // CreateClone creates a new Database Lab clone.
-func (c *Client) CreateClone(ctx context.Context, cloneRequest CreateRequest) (*models.Clone, error) {
+func (c *Client) CreateClone(ctx context.Context, cloneRequest types.CloneCreateRequest) (*models.Clone, error) {
 	u := c.URL("/clone")
 
 	body := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(body).Encode(cloneRequest); err != nil {
-		return nil, errors.Wrap(err, "failed to encode CreateRequest")
+		return nil, errors.Wrap(err, "failed to encode CloneCreateRequest")
 	}
 
 	request, err := http.NewRequest(http.MethodPost, u.String(), body)
@@ -161,12 +148,12 @@ func (c *Client) watchCloneStatus(ctx context.Context, cloneID string, initialSt
 }
 
 // CreateCloneAsync asynchronously creates a new Database Lab clone.
-func (c *Client) CreateCloneAsync(ctx context.Context, cloneRequest CreateRequest) (*models.Clone, error) {
+func (c *Client) CreateCloneAsync(ctx context.Context, cloneRequest types.CloneCreateRequest) (*models.Clone, error) {
 	u := c.URL("/clone")
 
 	body := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(body).Encode(cloneRequest); err != nil {
-		return nil, errors.Wrap(err, "failed to encode CreateRequest")
+		return nil, errors.Wrap(err, "failed to encode CloneCreateRequest")
 	}
 
 	request, err := http.NewRequest(http.MethodPost, u.String(), body)
@@ -190,18 +177,13 @@ func (c *Client) CreateCloneAsync(ctx context.Context, cloneRequest CreateReques
 	return &clone, nil
 }
 
-// UpdateRequest represents params of an update request.
-type UpdateRequest struct {
-	Protected bool `json:"protected"`
-}
-
 // UpdateClone updates an existing Database Lab clone.
-func (c *Client) UpdateClone(ctx context.Context, cloneID string, updateRequest UpdateRequest) (*models.Clone, error) {
+func (c *Client) UpdateClone(ctx context.Context, cloneID string, updateRequest types.CloneUpdateRequest) (*models.Clone, error) {
 	u := c.URL(fmt.Sprintf("/clone/%s", cloneID))
 
 	body := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(body).Encode(updateRequest); err != nil {
-		return nil, errors.Wrap(err, "failed to encode UpdateRequest")
+		return nil, errors.Wrap(err, "failed to encode CloneUpdateRequest")
 	}
 
 	request, err := http.NewRequest(http.MethodPatch, u.String(), body)

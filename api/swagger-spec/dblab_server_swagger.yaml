@@ -97,7 +97,7 @@ paths:
           schema:
             $ref: '#/definitions/CreateClone'
       responses:
-        200:
+        201:
           description: "Successful operation"
           schema:
             $ref: "#/definitions/Clone"
@@ -172,6 +172,10 @@ paths:
           schema:
             $ref: '#/definitions/UpdateClone'
       responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/Clone"
         404:
           description: "Not found"
           schema:

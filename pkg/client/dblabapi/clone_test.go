@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
 )
 
@@ -122,7 +123,7 @@ func TestClientCreateClone(t *testing.T) {
 			require.NoError(t, err)
 			defer func() { _ = r.Body.Close() }()
 
-			cloneRequest := CreateRequest{}
+			cloneRequest := types.CloneCreateRequest{}
 			err = json.Unmarshal(requestBody, &cloneRequest)
 			require.NoError(t, err)
 			clone = expectedClone
@@ -156,11 +157,11 @@ func TestClientCreateClone(t *testing.T) {
 	defer cancel()
 
 	// Send a request.
-	newClone, err := c.CreateClone(ctx, CreateRequest{
+	newClone, err := c.CreateClone(ctx, types.CloneCreateRequest{
 		ID:        "testCloneID",
 		Project:   "testProject",
 		Protected: true,
-		DB: &DatabaseRequest{
+		DB: &types.DatabaseRequest{
 			Username: "john",
 			Password: "doe",
 		},
@@ -198,7 +199,7 @@ func TestClientCreateCloneAsync(t *testing.T) {
 		require.NoError(t, err)
 		defer func() { _ = r.Body.Close() }()
 
-		cloneRequest := CreateRequest{}
+		cloneRequest := types.CloneCreateRequest{}
 		err = json.Unmarshal(requestBody, &cloneRequest)
 		require.NoError(t, err)
 
@@ -226,11 +227,11 @@ func TestClientCreateCloneAsync(t *testing.T) {
 	defer cancel()
 
 	// Send a request.
-	newClone, err := c.CreateCloneAsync(ctx, CreateRequest{
+	newClone, err := c.CreateCloneAsync(ctx, types.CloneCreateRequest{
 		ID:        "testCloneID",
 		Project:   "testProject",
 		Protected: true,
-		DB: &DatabaseRequest{
+		DB: &types.DatabaseRequest{
 			Username: "john",
 			Password: "doe",
 		},
@@ -258,7 +259,7 @@ func TestClientCreateCloneWithFailedRequest(t *testing.T) {
 
 	c.client = mockClient
 
-	clone, err := c.CreateClone(context.Background(), CreateRequest{})
+	clone, err := c.CreateClone(context.Background(), types.CloneCreateRequest{})
 	require.EqualError(t, err, "failed to decode a response body: EOF")
 	require.Nil(t, clone)
 }
@@ -365,7 +366,7 @@ func TestClientUpdateClone(t *testing.T) {
 		require.NoError(t, err)
 		defer func() { _ = r.Body.Close() }()
 
-		updateRequest := UpdateRequest{}
+		updateRequest := types.CloneUpdateRequest{}
 		err = json.Unmarshal(requestBody, &updateRequest)
 		require.NoError(t, err)
 
@@ -392,7 +393,7 @@ func TestClientUpdateClone(t *testing.T) {
 	c.client = mockClient
 
 	// Send a request.
-	newClone, err := c.UpdateClone(context.Background(), cloneModel.ID, UpdateRequest{
+	newClone, err := c.UpdateClone(context.Background(), cloneModel.ID, types.CloneUpdateRequest{
 		Protected: false,
 	})
 	require.NoError(t, err)
@@ -429,7 +430,7 @@ func TestClientUpdateCloneWithFailedRequest(t *testing.T) {
 
 	c.client = mockClient
 
-	clone, err := c.UpdateClone(context.Background(), "testCloneID", UpdateRequest{})
+	clone, err := c.UpdateClone(context.Background(), "testCloneID", types.CloneUpdateRequest{})
 	require.EqualError(t, err, `failed to get response: Code "BAD_REQUEST". Message: Wrong request format. Detail: Clone not found. Hint: Check request params.`)
 	require.Nil(t, clone)
 }

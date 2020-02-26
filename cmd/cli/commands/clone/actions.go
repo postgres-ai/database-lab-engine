@@ -12,7 +12,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
-	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi"
+	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
 )
 
@@ -48,14 +48,18 @@ func create() func(*cli.Context) error {
 			return err
 		}
 
-		cloneRequest := dblabapi.CreateRequest{
+		cloneRequest := types.CloneCreateRequest{
 			ID:        cliCtx.String("id"),
 			Project:   cliCtx.String("project"),
 			Protected: cliCtx.Bool("protected"),
-			DB: &dblabapi.DatabaseRequest{
+			DB: &types.DatabaseRequest{
 				Username: cliCtx.String("username"),
 				Password: cliCtx.String("password"),
 			},
+		}
+
+		if cliCtx.IsSet("snapshot-id") {
+			cloneRequest.Snapshot = &types.SnapshotCloneFieldRequest{ID: cliCtx.String("snapshot-id")}
 		}
 
 		var clone *models.Clone
@@ -113,7 +117,7 @@ func update() func(*cli.Context) error {
 			return err
 		}
 
-		updateRequest := dblabapi.UpdateRequest{
+		updateRequest := types.CloneUpdateRequest{
 			Protected: cliCtx.Bool("protected"),
 		}
 
