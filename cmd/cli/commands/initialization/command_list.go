@@ -19,7 +19,7 @@ func GlobalList() []*cli.Command {
 			CustomHelpTemplate: templates.CustomCommandHelpTemplate + templates.SupportProjectTemplate,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:     "environment_id",
+					Name:     "environment-id",
 					Usage:    "environment ID of Database Lab instance's API",
 					Required: true,
 				},

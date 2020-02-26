@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
@@ -43,10 +44,10 @@ type cloning struct {
 type Cloning interface {
 	Run(ctx context.Context) error
 
-	CreateClone(*models.Clone) error
+	CreateClone(*types.CloneCreateRequest) (*models.Clone, error)
 	DestroyClone(string) error
 	GetClone(string) (*models.Clone, error)
-	UpdateClone(string, *models.Clone) error
+	UpdateClone(string, *types.CloneUpdateRequest) (*models.Clone, error)
 	ResetClone(string) error
 
 	GetInstanceState() (*models.InstanceStatus, error)

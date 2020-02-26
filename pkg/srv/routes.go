@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
-
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+
+	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
 )
 
 func (s *Server) getInstanceStatus() http.HandlerFunc {
@@ -43,15 +43,16 @@ func (s *Server) getSnapshots() http.HandlerFunc {
 
 func (s *Server) createClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var newClone models.Clone
-		if err := readJSON(r, &newClone); err != nil {
+		var cloneRequest types.CloneCreateRequest
+		if err := readJSON(r, &cloneRequest); err != nil {
 			log.Err(err)
 			failBadRequest(w, r)
 
 			return
 		}
 
-		if err := s.Cloning.CreateClone(&newClone); err != nil {
+		newClone, err := s.Cloning.CreateClone(&cloneRequest)
+		if err != nil {
 			failInternalServer(w, r, errors.Wrap(err, "failed to create clone"))
 			return
 		}
@@ -83,7 +84,7 @@ func (s *Server) patchClone() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cloneID := mux.Vars(r)["id"]
 
-		var patchClone *models.Clone
+		var patchClone *types.CloneUpdateRequest
 		if err := readJSON(r, &patchClone); err != nil {
 			log.Err(err)
 			failBadRequest(w, r)
@@ -91,8 +92,14 @@ func (s *Server) patchClone() http.HandlerFunc {
 			return
 		}
 
-		if err := s.Cloning.UpdateClone(cloneID, patchClone); err != nil {
+		updatedClone, err := s.Cloning.UpdateClone(cloneID, patchClone)
+		if err != nil {
 			failInternalServer(w, r, errors.Wrap(err, "failed to update clone"))
+			return
+		}
+
+		if err := writeJSON(w, http.StatusOK, updatedClone); err != nil {
+			failInternalServer(w, r, err)
 			return
 		}
 	}

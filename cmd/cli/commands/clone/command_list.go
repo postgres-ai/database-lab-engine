@@ -48,6 +48,10 @@ func CommandList() []*cli.Command {
 						Usage: "clone ID (optional)",
 					},
 					&cli.StringFlag{
+						Name:  "snapshot-id",
+						Usage: "snapshot ID (optional)",
+					},
+					&cli.StringFlag{
 						Name:  "project",
 						Usage: "project name (optional)",
 					},

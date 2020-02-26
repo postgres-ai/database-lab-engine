@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
 )
 
@@ -77,8 +78,8 @@ func (c *mockCloning) Run(ctx context.Context) error {
 	return nil
 }
 
-func (c *mockCloning) CreateClone(clone *models.Clone) error {
-	return nil
+func (c *mockCloning) CreateClone(clone *types.CloneCreateRequest) (*models.Clone, error) {
+	return &models.Clone{}, nil
 }
 
 func (c *mockCloning) DestroyClone(id string) error {
@@ -98,12 +99,12 @@ func (c *mockCloning) GetClone(id string) (*models.Clone, error) {
 	return clone, nil
 }
 
-func (c *mockCloning) UpdateClone(id string, patch *models.Clone) error {
+func (c *mockCloning) UpdateClone(id string, patch *types.CloneUpdateRequest) (*models.Clone, error) {
 	if _, ok := c.clones[id]; !ok {
-		return errors.New("clone not found")
+		return nil, errors.New("clone not found")
 	}
 
-	return nil
+	return &models.Clone{}, nil
 }
 
 func (c *mockCloning) ResetClone(id string) error {
