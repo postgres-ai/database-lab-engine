@@ -2,7 +2,8 @@
 2019-2020 © Postgres.ai
 */
 
-package provision
+// Package postgres provides an interface to work Postgres application.
+package postgres
 
 import (
 	"database/sql"
@@ -15,6 +16,9 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/docker"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
 )
 
@@ -38,63 +42,16 @@ const (
 	logsMinuteWindow = 1
 )
 
-// PgConfig store Postgres configuration.
-type PgConfig struct {
-	CloneName string
-
-	Version     string
-	DockerImage string
-
-	// PGDATA.
-	Datadir string
-
-	UnixSocketCloneDir string
-
-	Host string
-	Port uint
-	Name string
-
-	// The specified user must exist. The user will not be created automatically.
-	Username string
-	Password string
-
-	OSUsername string
-}
-
-func (c PgConfig) getUsername() string {
-	if len(c.Username) > 0 {
-		return c.Username
-	}
-
-	return "postgres"
-}
-
-func (c PgConfig) getPassword() string {
-	if len(c.Password) > 0 {
-		return c.Password
-	}
-
-	return "postgres"
-}
-
-func (c PgConfig) getDbName() string {
-	if len(c.Name) > 0 {
-		return c.Name
-	}
-
-	return "postgres"
-}
-
-// PostgresStart starts Postgres instance.
-func PostgresStart(r Runner, c *PgConfig) error {
+// Start starts Postgres instance.
+func Start(r runners.Runner, c *resources.AppConfig) error {
 	log.Dbg("Starting Postgres...")
 
-	err := PostgresConfigure(c)
+	err := Configure(c)
 	if err != nil {
 		return errors.Wrap(err, "cannot update configs")
 	}
 
-	_, err = DockerRunContainer(r, c)
+	_, err = docker.RunContainer(r, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to run container")
 	}
@@ -104,7 +61,7 @@ func PostgresStart(r Runner, c *PgConfig) error {
 	cnt := 0
 
 	for {
-		logs, err := DockerGetLogs(r, c, logsMinuteWindow)
+		logs, err := docker.GetLogs(r, c, logsMinuteWindow)
 		if err != nil {
 			return errors.Wrap(err, "failed to read container logs")
 		}
@@ -135,7 +92,7 @@ func PostgresStart(r Runner, c *PgConfig) error {
 
 				_, err = pgctlPromote(r, c)
 				if err != nil {
-					if runnerError := PostgresStop(r, c); runnerError != nil {
+					if runnerError := Stop(r, c); runnerError != nil {
 						log.Err(runnerError)
 					}
 
@@ -147,7 +104,7 @@ func PostgresStart(r Runner, c *PgConfig) error {
 		cnt++
 
 		if cnt > waitPostgresTimeout { // 3 minutes
-			if runnerErr := PostgresStop(r, c); runnerErr != nil {
+			if runnerErr := Stop(r, c); runnerErr != nil {
 				log.Err(runnerErr)
 			}
 
@@ -160,8 +117,8 @@ func PostgresStart(r Runner, c *PgConfig) error {
 	return nil
 }
 
-// PostgresConfigure configures PGDATA with Database Lab configs.
-func PostgresConfigure(c *PgConfig) error {
+// Configure configures PGDATA with Database Lab configs.
+func Configure(c *resources.AppConfig) error {
 	log.Dbg("Configuring Postgres...")
 
 	// Copy pg_hba.conf.
@@ -237,16 +194,16 @@ func PostgresConfigure(c *PgConfig) error {
 	return nil
 }
 
-// PostgresStop stops Postgres instance.
-func PostgresStop(r Runner, c *PgConfig) error {
+// Stop stops Postgres instance.
+func Stop(r runners.Runner, c *resources.AppConfig) error {
 	log.Dbg("Stopping Postgres...")
 
-	_, err := DockerStopContainer(r, c)
+	_, err := docker.StopContainer(r, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to stop container")
 	}
 
-	_, err = DockerRemoveContainer(r, c)
+	_, err = docker.RemoveContainer(r, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to remove container")
 	}
@@ -260,46 +217,46 @@ func PostgresStop(r Runner, c *PgConfig) error {
 	return nil
 }
 
-// PostgresList gets started Postgres instances.
-func PostgresList(r Runner, prefix string) ([]string, error) {
-	return DockerListContainers(r)
+// List gets started Postgres instances.
+func List(r runners.Runner, prefix string) ([]string, error) {
+	return docker.ListContainers(r)
 }
 
-func pgctlPromote(r Runner, c *PgConfig) (string, error) {
+func pgctlPromote(r runners.Runner, c *resources.AppConfig) (string, error) {
 	promoteCmd := `pg_ctl --pgdata ` + c.Datadir + ` ` +
 		`-W ` + // No wait.
 		`promote`
 
-	return DockerExec(r, c, promoteCmd)
+	return docker.Exec(r, c, promoteCmd)
 }
 
 // Generate postgres connection string.
-func getPgConnStr(c *PgConfig) string {
+func getPgConnStr(c *resources.AppConfig) string {
 	var sb strings.Builder
 
-	if len(c.Host) > 0 {
+	if c.Host != "" {
 		sb.WriteString("host=" + c.Host + " ")
 	}
 
 	sb.WriteString("port=5432 ")
 
-	if len(c.getDbName()) > 0 {
-		sb.WriteString("dbname=" + c.getDbName() + " ")
+	if c.DBName() != "" {
+		sb.WriteString("dbname=" + c.DBName() + " ")
 	}
 
-	if len(c.getUsername()) > 0 {
-		sb.WriteString("user=" + c.getUsername() + " ")
+	if c.Username() != "" {
+		sb.WriteString("user=" + c.Username() + " ")
 	}
 
-	if len(c.getPassword()) > 0 {
-		sb.WriteString("password=" + c.getPassword() + " ")
+	if c.Password() != "" {
+		sb.WriteString("password=" + c.Password() + " ")
 	}
 
 	return sb.String()
 }
 
 // Executes simple SQL commands which returns one string value.
-func runSimpleSQL(command string, c *PgConfig) (string, error) {
+func runSimpleSQL(command string, c *resources.AppConfig) (string, error) {
 	connStr := getPgConnStr(c)
 	db, err := sql.Open("postgres", connStr)
 

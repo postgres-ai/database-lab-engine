@@ -14,6 +14,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 )
 
 const (
@@ -56,7 +57,7 @@ type Cloning interface {
 // CloneWrapper represents a cloning service wrapper.
 type CloneWrapper struct {
 	clone   *models.Clone
-	session *provision.Session
+	session *resources.Session
 
 	timeCreatedAt time.Time
 	timeStartedAt time.Time

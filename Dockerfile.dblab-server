@@ -32,7 +32,7 @@
 FROM docker:19
 
 # Install dependecies.
-RUN apk update && apk add --no-cache zfs bash
+RUN apk update && apk add --no-cache zfs lvm2 bash
 
 WORKDIR /home/dblab
 

@@ -2,7 +2,7 @@
 2019 © Postgres.ai
 */
 
-package provision
+package postgres
 
 import (
 	"fmt"
@@ -11,6 +11,8 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
 )
 
 // ResetPasswordsQuery provides a template for a reset password query.
@@ -39,13 +41,16 @@ $$;
 // ResetPasswordsQueryWhere provides a template for a reset password where clause.
 const ResetPasswordsQueryWhere = ` and rolname not in (%s)`
 
-func PostgresResetAllPasswords(r Runner, c *PgConfig, whitelistUsers []string) error {
+// ResetAllPasswords defines a method for resetting password of all Postgres users.
+func ResetAllPasswords(r runners.Runner, c *resources.AppConfig, whitelistUsers []string) error {
 	optionalWhere := ""
+
 	if len(whitelistUsers) > 0 {
 		for i, user := range whitelistUsers {
 			if i != 0 {
 				optionalWhere += ", "
 			}
+
 			optionalWhere += fmt.Sprintf("'%s'", user)
 		}
 
@@ -54,16 +59,19 @@ func PostgresResetAllPasswords(r Runner, c *PgConfig, whitelistUsers []string) e
 
 	query := strings.Replace(ResetPasswordsQuery,
 		"{{OPTIONAL_WHERE}}", optionalWhere, 1)
+
 	out, err := runSimpleSQL(query, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to run psql")
 	}
 
 	log.Dbg("ResetAllPasswords:", out)
+
 	return nil
 }
 
-func PostgresCreateUser(r Runner, c *PgConfig, username string, password string) error {
+// CreateUser defines a method for creation of Postgres user.
+func CreateUser(r runners.Runner, c *resources.AppConfig, username string, password string) error {
 	query := fmt.Sprintf("create user \"%s\" with password '%s' login superuser;",
 		username, password)
 
@@ -73,6 +81,6 @@ func PostgresCreateUser(r Runner, c *PgConfig, username string, password string)
 	}
 
 	log.Dbg("AddUser:", out)
-	return nil
 
+	return nil
 }

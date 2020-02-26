@@ -16,11 +16,12 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 )
 
 const (
-	// ModeZfs defines provisioning for ZFS.
-	ModeZfs = "zfs"
+	// ModeLocal defines provisioning for local mode.
+	ModeLocal = "local"
 )
 
 // NoRoomError defines a specific error type.
@@ -28,33 +29,12 @@ type NoRoomError struct {
 	msg string
 }
 
-type State struct {
-	InstanceID        string
-	InstanceIP        string
-	DockerContainerID string
-	SessionID         string
-}
-
-type Session struct {
-	ID   string
-	Name string
-
-	// Database.
-	Host       string
-	Port       uint
-	User       string
-	Password   string
-	SocketHost string
-
-	// For user-defined username and password.
-	ephemeralUser     string
-	ephemeralPassword string
-}
-
+// Config defines configuration for provisioning.
 type Config struct {
+	// Provision mode.
 	Mode string `yaml:"mode"`
 
-	ModeZfs ModeZfsConfig `yaml:"zfs"`
+	ModeLocal ModeLocalConfig `yaml:"local"`
 
 	// Postgres options.
 	PgVersion    string `yaml:"pgVersion"`
@@ -67,37 +47,21 @@ type Config struct {
 	OSUsername string
 }
 
-// TODO(anatoly): Merge with disk from models?
-type Disk struct {
-	Size     uint64
-	Free     uint64
-	DataSize uint64
-}
-
-type Snapshot struct {
-	ID          string
-	CreatedAt   time.Time
-	DataStateAt time.Time
-}
-
-type SessionState struct {
-	CloneSize uint64
-}
-
+// Provision defines provision interface.
 type Provision interface {
 	Init() error
 	Reinit() error
 
-	StartSession(username string, password string, snapshotID string) (*Session, error)
-	StopSession(*Session) error
-	ResetSession(session *Session, snapshotID string) error
+	StartSession(username string, password string, snapshotID string) (*resources.Session, error)
+	StopSession(*resources.Session) error
+	ResetSession(session *resources.Session, snapshotID string) error
 
 	CreateSnapshot(string) error
-	GetSnapshots() ([]Snapshot, error)
+	GetSnapshots() ([]resources.Snapshot, error)
 
-	GetDiskState() (*Disk, error)
-	GetSessionState(*Session) (*SessionState, error)
-	LastSessionActivity(*Session, time.Duration) (*time.Time, error)
+	GetDiskState() (*resources.Disk, error)
+	GetSessionState(*resources.Session) (*resources.SessionState, error)
+	LastSessionActivity(*resources.Session, time.Duration) (*time.Time, error)
 }
 
 type provision struct {
@@ -109,65 +73,41 @@ type provision struct {
 func NewProvision(ctx context.Context, config Config) (Provision, error) {
 	// nolint
 	switch config.Mode {
-	case ModeZfs:
-		log.Dbg("Using ZFS mode.")
+	case ModeLocal:
+		log.Dbg(`Using "local" mode.`)
 
 		// TODO(akartasov): Make it configurable.
 		dockerClient, err := client.NewEnvClient()
 		if err != nil {
-			log.Fatalf(errors.WithMessage(err, `failed to create Docker client`))
+			log.Fatalf(errors.WithMessage(err, `Failed to create Docker client.`))
 		}
 
-		return NewProvisionModeZfs(ctx, config, dockerClient)
+		return NewProvisionModeLocal(ctx, config, dockerClient)
 	}
 
 	return nil, errors.New("unsupported mode specified")
 }
 
-// Check validity of a configuration and show a message for each violation.
+// IsValidConfig defines a method for validation of a configuration.
 func IsValidConfig(c Config) bool {
 	result := true
 
 	if len(c.PgVersion) == 0 {
-		log.Err("pgVersion should be set.")
+		log.Err("pgVersion must be set.")
+
 		result = false
 	}
 
 	switch c.Mode {
-	case ModeZfs:
-		result = result && isValidConfigModeZfs(c)
+	case ModeLocal:
+		result = result && isValidConfigModeLocal(c)
 	default:
-		log.Err("Unsupported mode specified.")
+		log.Err(fmt.Sprintf(`Unsupported mode specified: "%s".`, c.Mode))
+
 		result = false
 	}
 
 	return result
-}
-
-func (s *Session) GetConnStr(dbname string) string {
-	connStr := "sslmode=disable"
-
-	if len(s.Host) > 0 {
-		connStr += " host=" + s.Host
-	}
-
-	if s.Port > 0 {
-		connStr += fmt.Sprintf(" port=%d", s.Port)
-	}
-
-	if len(s.User) > 0 {
-		connStr += " user=" + s.User
-	}
-
-	if len(s.Password) > 0 {
-		connStr += " password=" + s.Password
-	}
-
-	if len(dbname) > 0 {
-		connStr += " dbname=" + dbname
-	}
-
-	return connStr
 }
 
 // NewNoRoomError instances a new NoRoomError.
