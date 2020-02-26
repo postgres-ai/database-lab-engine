@@ -2,7 +2,8 @@
 2019 © Postgres.ai
 */
 
-package provision
+// Package runners provides an interface to execute commands.
+package runners
 
 import (
 	"bytes"

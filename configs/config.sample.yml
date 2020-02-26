@@ -6,8 +6,8 @@ server:
   port: 3000
 
 provision:
-  # Provision mode to use. More comming soon (e.g., LVM, Ceph).
-  mode: "zfs"
+  # Provision mode to use.
+  mode: "local"
 
   # Subdir where PGDATA located relative to the pool root dir.
   pgDataSubdir: "/"
@@ -16,9 +16,12 @@ provision:
   # The user should exist.
   pgMgmtUsername: "postgres"
 
-  # ZFS mode related parameters.
-  zfs:
-    # Name of your ZFS pool.
+  # "Local" mode related parameters.
+  local:
+    # Which volume manager to use. Available options: "zfs", "lvm".
+    volumeManager: "zfs"
+
+    # Name of your pool or volume group with logic volume name (e.g. "dblab_vg/pg1_lv").
     pool: "dblab_pool"
 
     # Pool of ports for Postgres clones.
@@ -45,7 +48,7 @@ provision:
     # is recommended in case if customization is needed.
     dockerImage: "postgres:12-alpine"
 
-    # Use sudo for ZFS and Docker commands if Database Lab server running
+    # Use sudo for ZFS/LVM and Docker commands if Database Lab server running
     # outside a container.
     useSudo: false
 

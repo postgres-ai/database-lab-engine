@@ -2,7 +2,8 @@
 2019 © Postgres.ai
 */
 
-package provision
+// Package zfs provides an interface to work with ZFS.
+package zfs
 
 import (
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
 )
 
@@ -21,8 +23,8 @@ const (
 	headerOffset = 1
 )
 
-// ZfsListEntry defines entry of ZFS list command.
-type ZfsListEntry struct {
+// ListEntry defines entry of ZFS list command.
+type ListEntry struct {
 	Name string
 
 	// Read-only property that identifies the amount of disk space consumed
@@ -102,9 +104,9 @@ type setTuple struct {
 	setFunc setFunc
 }
 
-// ZfsCreateClone creates a new ZFS clone.
-func ZfsCreateClone(r Runner, pool, name, snapshot, mountDir, osUsername string) error {
-	exists, err := ZfsCloneExists(r, name)
+// CreateClone creates a new ZFS clone.
+func CreateClone(r runners.Runner, pool, name, snapshot, mountDir, osUsername string) error {
+	exists, err := CloneExists(r, name)
 	if err != nil {
 		return errors.Wrap(err, "clone does not exist")
 	}
@@ -127,9 +129,9 @@ func ZfsCreateClone(r Runner, pool, name, snapshot, mountDir, osUsername string)
 	return nil
 }
 
-// ZfsDestroyClone destroys a ZFS clone.
-func ZfsDestroyClone(r Runner, pool string, name string) error {
-	exists, err := ZfsCloneExists(r, name)
+// DestroyClone destroys a ZFS clone.
+func DestroyClone(r runners.Runner, pool string, name string) error {
+	exists, err := CloneExists(r, name)
 	if err != nil {
 		return errors.Wrap(err, "clone does not exist")
 	}
@@ -153,8 +155,8 @@ func ZfsDestroyClone(r Runner, pool string, name string) error {
 	return nil
 }
 
-// ZfsCloneExists checks whether a ZFS clone exists.
-func ZfsCloneExists(r Runner, name string) (bool, error) {
+// CloneExists checks whether a ZFS clone exists.
+func CloneExists(r runners.Runner, name string) (bool, error) {
 	listZfsClonesCmd := "zfs list"
 
 	out, err := r.Run(listZfsClonesCmd, false)
@@ -165,8 +167,8 @@ func ZfsCloneExists(r Runner, name string) (bool, error) {
 	return strings.Contains(out, name), nil
 }
 
-// ZfsListClones lists ZFS clones.
-func ZfsListClones(r Runner, prefix string) ([]string, error) {
+// ListClones lists ZFS clones.
+func ListClones(r runners.Runner, prefix string) ([]string, error) {
 	listZfsClonesCmd := "zfs list"
 
 	re := regexp.MustCompile(fmt.Sprintf(`(%s[0-9]+)`, prefix))
@@ -179,8 +181,8 @@ func ZfsListClones(r Runner, prefix string) ([]string, error) {
 	return util.Unique(re.FindAllString(out, -1)), nil
 }
 
-// ZfsCreateSnapshot creates ZFS snapshot.
-func ZfsCreateSnapshot(r Runner, pool string, snapshot string) error {
+// CreateSnapshot creates ZFS snapshot.
+func CreateSnapshot(r runners.Runner, pool string, snapshot string) error {
 	cmd := fmt.Sprintf("zfs snapshot -r %s", snapshot)
 
 	if _, err := r.Run(cmd, true); err != nil {
@@ -190,8 +192,8 @@ func ZfsCreateSnapshot(r Runner, pool string, snapshot string) error {
 	return nil
 }
 
-// ZfsRollbackSnapshot rollbacks ZFS snapshot.
-func ZfsRollbackSnapshot(r Runner, pool string, snapshot string) error {
+// RollbackSnapshot rollbacks ZFS snapshot.
+func RollbackSnapshot(r runners.Runner, pool string, snapshot string) error {
 	cmd := fmt.Sprintf("zfs rollback -f -r %s", snapshot)
 
 	if _, err := r.Run(cmd, true); err != nil {
@@ -201,18 +203,18 @@ func ZfsRollbackSnapshot(r Runner, pool string, snapshot string) error {
 	return nil
 }
 
-// ZfsListFilesystems lists ZFS file systems (clones, pools).
-func ZfsListFilesystems(r Runner, pool string) ([]*ZfsListEntry, error) {
-	return ZfsListDetails(r, pool, "filesystem")
+// ListFilesystems lists ZFS file systems (clones, pools).
+func ListFilesystems(r runners.Runner, pool string) ([]*ListEntry, error) {
+	return ListDetails(r, pool, "filesystem")
 }
 
-// ZfsListSnapshots lists ZFS snapshots.
-func ZfsListSnapshots(r Runner, pool string) ([]*ZfsListEntry, error) {
-	return ZfsListDetails(r, pool, "snapshot")
+// ListSnapshots lists ZFS snapshots.
+func ListSnapshots(r runners.Runner, pool string) ([]*ListEntry, error) {
+	return ListDetails(r, pool, "snapshot")
 }
 
-// ZfsListDetails lists all ZFS types.
-func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, error) {
+// ListDetails lists all ZFS types.
+func ListDetails(r runners.Runner, pool string, dsType string) ([]*ListEntry, error) {
 	// TODO(anatoly): Return map.
 	// TODO(anatoly): Generalize.
 	numberFields := 12
@@ -236,7 +238,7 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 		return nil, errors.Errorf(`ZFS error: no "%s" filesystem`, pool)
 	}
 
-	entries := make([]*ZfsListEntry, len(lines)-headerOffset)
+	entries := make([]*ListEntry, len(lines)-headerOffset)
 
 	for i := headerOffset; i < len(lines); i++ {
 		fields := strings.Fields(lines[i])
@@ -256,7 +258,7 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 			return nil, errors.Errorf("ZFS error: some fields are empty. First of all, check dblab:datastateat")
 		}
 
-		zfsListEntry := &ZfsListEntry{
+		zfsListEntry := &ListEntry{
 			Name:       fields[0],
 			MountPoint: fields[2],
 			Type:       fields[5],
@@ -291,7 +293,7 @@ func ZfsListDetails(r Runner, pool string, dsType string) ([]*ZfsListEntry, erro
 	return entries, nil
 }
 
-func (z *ZfsListEntry) setUsed(field string) error {
+func (z *ListEntry) setUsed(field string) error {
 	used, err := util.ParseBytes(field)
 	if err != nil {
 		return err
@@ -302,7 +304,7 @@ func (z *ZfsListEntry) setUsed(field string) error {
 	return nil
 }
 
-func (z *ZfsListEntry) setCompressRatio(field string) error {
+func (z *ListEntry) setCompressRatio(field string) error {
 	ratioStr := strings.ReplaceAll(field, "x", "")
 
 	compressRatio, err := strconv.ParseFloat(ratioStr, 64)
@@ -315,7 +317,7 @@ func (z *ZfsListEntry) setCompressRatio(field string) error {
 	return nil
 }
 
-func (z *ZfsListEntry) setAvailable(field string) error {
+func (z *ListEntry) setAvailable(field string) error {
 	available, err := util.ParseBytes(field)
 	if err != nil {
 		return err
@@ -326,7 +328,7 @@ func (z *ZfsListEntry) setAvailable(field string) error {
 	return nil
 }
 
-func (z *ZfsListEntry) setCreation(field string) error {
+func (z *ListEntry) setCreation(field string) error {
 	creation, err := util.ParseUnixTime(field)
 	if err != nil {
 		return err
@@ -337,7 +339,7 @@ func (z *ZfsListEntry) setCreation(field string) error {
 	return nil
 }
 
-func (z *ZfsListEntry) setReferenced(field string) error {
+func (z *ListEntry) setReferenced(field string) error {
 	referenced, err := util.ParseBytes(field)
 	if err != nil {
 		return err
@@ -348,7 +350,7 @@ func (z *ZfsListEntry) setReferenced(field string) error {
 	return nil
 }
 
-func (z *ZfsListEntry) setLogicalReferenced(field string) error {
+func (z *ListEntry) setLogicalReferenced(field string) error {
 	logicalReferenced, err := util.ParseBytes(field)
 	if err != nil {
 		return err
@@ -359,7 +361,7 @@ func (z *ZfsListEntry) setLogicalReferenced(field string) error {
 	return nil
 }
 
-func (z *ZfsListEntry) setLogicalUsed(field string) error {
+func (z *ListEntry) setLogicalUsed(field string) error {
 	logicalUsed, err := util.ParseBytes(field)
 	if err != nil {
 		return err
@@ -370,7 +372,7 @@ func (z *ZfsListEntry) setLogicalUsed(field string) error {
 	return nil
 }
 
-func (z *ZfsListEntry) setDataStateAt(field string) error {
+func (z *ListEntry) setDataStateAt(field string) error {
 	stateAt, err := util.ParseCustomTime(field)
 	if err != nil {
 		return err

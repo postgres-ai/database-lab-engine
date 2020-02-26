@@ -57,15 +57,15 @@ func main() {
 
 	// TODO(anatoly): Annotate envs in configs. Use different lib for flags/configs?
 	if len(opts.MountDir) > 0 {
-		cfg.Provision.ModeZfs.MountDir = opts.MountDir
+		cfg.Provision.ModeLocal.MountDir = opts.MountDir
 	}
 
 	if len(opts.UnixSocketDir) > 0 {
-		cfg.Provision.ModeZfs.UnixSocketDir = opts.UnixSocketDir
+		cfg.Provision.ModeLocal.UnixSocketDir = opts.UnixSocketDir
 	}
 
 	if len(opts.DockerImage) > 0 {
-		cfg.Provision.ModeZfs.DockerImage = opts.DockerImage
+		cfg.Provision.ModeLocal.DockerImage = opts.DockerImage
 	}
 
 	provisionSvc, err := provision.NewProvision(ctx, cfg.Provision)

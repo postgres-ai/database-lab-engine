@@ -20,6 +20,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/pkg/util/pglog"
 )
@@ -122,11 +123,13 @@ func (c *baseCloning) CreateClone(clone *models.Clone) error {
 		session, err := c.provision.StartSession(w.username, w.password, w.snapshot.ID)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
+			log.Errf("Failed to create a clone: %+v.", err)
+
 			if err := c.updateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: models.CloneMessageFatal,
 			}); err != nil {
-				log.Errf("failed to update clone status: %v", err)
+				log.Errf("Failed to update clone status: %v", err)
 			}
 
 			return
@@ -193,14 +196,14 @@ func (c *baseCloning) DestroyClone(cloneID string) error {
 
 	go func() {
 		if err := c.provision.StopSession(w.session); err != nil {
+			log.Errf("Failed to delete a clone: %+v.", err)
+
 			if err := c.updateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: models.CloneMessageFatal,
 			}); err != nil {
 				log.Errf("Failed to update clone status: %v", err)
 			}
-
-			log.Errf("Failed to delete clone: %+v.", err)
 
 			return
 		}
@@ -304,14 +307,14 @@ func (c *baseCloning) ResetClone(cloneID string) error {
 	go func() {
 		err := c.provision.ResetSession(w.session, w.snapshot.ID)
 		if err != nil {
+			log.Errf("Failed to reset a clone: %+v.", err)
+
 			if err := c.updateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: models.CloneMessageFatal,
 			}); err != nil {
 				log.Errf("failed to update clone status: %v", err)
 			}
-
-			log.Errf("Failed to reset session: %+v.", err)
 
 			return
 		}
@@ -541,7 +544,7 @@ func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 const pgDriverName = "postgres"
 
 // hasNotQueryActivity opens connection and checks if there is no any query running by a user.
-func hasNotQueryActivity(session *provision.Session) (bool, error) {
+func hasNotQueryActivity(session *resources.Session) (bool, error) {
 	log.Dbg(fmt.Sprintf("Check an active query for: %q.", session.ID))
 
 	db, err := sql.Open(pgDriverName, getSocketConnStr(session))
@@ -560,7 +563,7 @@ func hasNotQueryActivity(session *provision.Session) (bool, error) {
 }
 
 // TODO(akartasov): Move the function to the provision service.
-func getSocketConnStr(session *provision.Session) string {
+func getSocketConnStr(session *resources.Session) string {
 	return fmt.Sprintf("host=%s user=%s dbname=postgres", session.SocketHost, session.User)
 }
 
@@ -569,8 +572,8 @@ func checkActiveQueryNotExists(db *sql.DB) (bool, error) {
 	var isRunningQueryNotExists bool
 
 	query := `select not exists (
-      select * from pg_stat_activity
-	  where state <> 'idle' and query not like 'autovacuum: %' and pid <> pg_backend_pid()
+		select * from pg_stat_activity
+		where state <> 'idle' and query not like 'autovacuum: %' and pid <> pg_backend_pid()
 	)`
 	err := db.QueryRow(query).Scan(&isRunningQueryNotExists)
 

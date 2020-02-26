@@ -2,21 +2,25 @@
 2020 © Postgres.ai
 */
 
-package provision
+// Package docker provides an interface to work with Docker containers.
+package docker
 
 import (
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
 )
 
 const (
 	labelClone = "dblab-clone"
 )
 
-// DockerRunContainer runs specified container.
-func DockerRunContainer(r Runner, c *PgConfig) (string, error) {
+// RunContainer runs specified container.
+func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 	dockerRunCmd := "docker run " +
 		"--name " + c.CloneName + " " +
 		"--detach " +
@@ -30,22 +34,22 @@ func DockerRunContainer(r Runner, c *PgConfig) (string, error) {
 	return r.Run(dockerRunCmd, true)
 }
 
-// DockerStopContainer stops specified container.
-func DockerStopContainer(r Runner, c *PgConfig) (string, error) {
+// StopContainer stops specified container.
+func StopContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 	dockerStopCmd := "docker container stop " + c.CloneName
 
 	return r.Run(dockerStopCmd, true)
 }
 
-// DockerRemoveContainer removes specified container.
-func DockerRemoveContainer(r Runner, c *PgConfig) (string, error) {
+// RemoveContainer removes specified container.
+func RemoveContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 	dockerRemoveCmd := "docker container rm " + c.CloneName
 
 	return r.Run(dockerRemoveCmd, true)
 }
 
-// DockerListContainers lists containers.
-func DockerListContainers(r Runner) ([]string, error) {
+// ListContainers lists containers.
+func ListContainers(r runners.Runner) ([]string, error) {
 	dockerListCmd := "docker container ls " +
 		"--filter \"label=" + labelClone + "\" " +
 		"--all --quiet"
@@ -63,8 +67,8 @@ func DockerListContainers(r Runner) ([]string, error) {
 	return strings.Split(out, "\n"), nil
 }
 
-// DockerGetLogs gets logs from specified container.
-func DockerGetLogs(r Runner, c *PgConfig, sinceRelMins uint) (string, error) {
+// GetLogs gets logs from specified container.
+func GetLogs(r runners.Runner, c *resources.AppConfig, sinceRelMins uint) (string, error) {
 	dockerLogsCmd := "docker logs " + c.CloneName + " " +
 		"--since " + strconv.FormatUint(uint64(sinceRelMins), 10) + "m " +
 		"--timestamps"
@@ -72,15 +76,15 @@ func DockerGetLogs(r Runner, c *PgConfig, sinceRelMins uint) (string, error) {
 	return r.Run(dockerLogsCmd, true)
 }
 
-// DockerExec executes command on specified container.
-func DockerExec(r Runner, c *PgConfig, cmd string) (string, error) {
+// Exec executes command on specified container.
+func Exec(r runners.Runner, c *resources.AppConfig, cmd string) (string, error) {
 	dockerExecCmd := "docker exec " + c.CloneName + " " + cmd
 
 	return r.Run(dockerExecCmd, true)
 }
 
-// DockerImageExists checks existence of Docker image.
-func DockerImageExists(r Runner, dockerImage string) (bool, error) {
+// ImageExists checks existence of Docker image.
+func ImageExists(r runners.Runner, dockerImage string) (bool, error) {
 	dockerListImagesCmd := "docker images " + dockerImage + " --quiet"
 
 	out, err := r.Run(dockerListImagesCmd, true)
@@ -91,8 +95,8 @@ func DockerImageExists(r Runner, dockerImage string) (bool, error) {
 	return len(strings.TrimSpace(out)) > 0, nil
 }
 
-// DockerPullImage pulls Docker image from DockerHub registry.
-func DockerPullImage(r Runner, dockerImage string) error {
+// PullImage pulls Docker image from DockerHub registry.
+func PullImage(r runners.Runner, dockerImage string) error {
 	dockerPullImageCmd := "docker pull " + dockerImage
 
 	_, err := r.Run(dockerPullImageCmd, true)
