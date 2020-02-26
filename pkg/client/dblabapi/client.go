@@ -51,7 +51,7 @@ type Options struct {
 
 const (
 	defaultPollingInterval = 1 * time.Second
-	defaultPollingTimeout  = 30 * time.Second
+	defaultPollingTimeout  = 60 * time.Second
 )
 
 // NewClient constructs a new Client struct.
