@@ -44,7 +44,7 @@ const (
 
 // Start starts Postgres instance.
 func Start(r runners.Runner, c *resources.AppConfig) error {
-	log.Dbg("Starting Postgres...")
+	log.Dbg("Starting Postgres container...")
 
 	err := Configure(c)
 	if err != nil {
@@ -196,14 +196,9 @@ func Configure(c *resources.AppConfig) error {
 
 // Stop stops Postgres instance.
 func Stop(r runners.Runner, c *resources.AppConfig) error {
-	log.Dbg("Stopping Postgres...")
+	log.Dbg("Stopping Postgres container...")
 
-	_, err := docker.StopContainer(r, c)
-	if err != nil {
-		return errors.Wrap(err, "failed to stop container")
-	}
-
-	_, err = docker.RemoveContainer(r, c)
+	_, err := docker.RemoveContainer(r, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to remove container")
 	}
