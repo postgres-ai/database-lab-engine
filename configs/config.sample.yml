@@ -18,10 +18,12 @@ provision:
 
   # "Local" mode related parameters.
   local:
-    # Which volume manager to use. Available options: "zfs", "lvm".
-    volumeManager: "zfs"
+    # Which thin-clone managing module to use.
+    # Available options: "zfs", "lvm".
+    thinCloneManager: "zfs"
 
-    # Name of your pool or volume group with logic volume name (e.g. "dblab_vg/pg1_lv").
+    # Name of your pool (in the case of ZFS) or volume group
+    # with logic volume name (e.g. "dblab_vg/pg_lv", in the case of LVM).
     pool: "dblab_pool"
 
     # Pool of ports for Postgres clones.

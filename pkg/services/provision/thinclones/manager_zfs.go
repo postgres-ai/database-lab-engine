@@ -2,7 +2,7 @@
 2019 © Postgres.ai
 */
 
-package volumemanagers
+package thinclones
 
 import (
 	"strings"
@@ -11,21 +11,21 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/volumemanagers/zfs"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones/zfs"
 )
 
 const (
 	defaultSessionCloneSize = 10
 )
 
-type volumeManagerZFS struct {
+type managerZFS struct {
 	runner runners.Runner
-	config VolumeManagerConfig
+	config ManagerConfig
 }
 
-// newVolumeManagerZFS creates a new VolumeManager instance for ZFS.
-func newVolumeManagerZFS(runner runners.Runner, config VolumeManagerConfig) *volumeManagerZFS {
-	m := volumeManagerZFS{}
+// newManagerZFS creates a new Manager instance for ZFS.
+func newManagerZFS(runner runners.Runner, config ManagerConfig) *managerZFS {
+	m := managerZFS{}
 
 	m.runner = runner
 	m.config = config
@@ -33,19 +33,19 @@ func newVolumeManagerZFS(runner runners.Runner, config VolumeManagerConfig) *vol
 	return &m
 }
 
-func (m *volumeManagerZFS) CreateClone(name, snapshotID string) error {
+func (m *managerZFS) CreateClone(name, snapshotID string) error {
 	return zfs.CreateClone(m.runner, m.config.Pool, name, snapshotID, m.config.MountDir, m.config.OSUsername)
 }
 
-func (m *volumeManagerZFS) DestroyClone(name string) error {
+func (m *managerZFS) DestroyClone(name string) error {
 	return zfs.DestroyClone(m.runner, m.config.Pool, name)
 }
 
-func (m *volumeManagerZFS) ListClonesNames() ([]string, error) {
+func (m *managerZFS) ListClonesNames() ([]string, error) {
 	return zfs.ListClones(m.runner, m.config.ClonePrefix)
 }
 
-func (m *volumeManagerZFS) GetSessionState(name string) (*resources.SessionState, error) {
+func (m *managerZFS) GetSessionState(name string) (*resources.SessionState, error) {
 	state := &resources.SessionState{
 		CloneSize: defaultSessionCloneSize,
 	}
@@ -75,7 +75,7 @@ func (m *volumeManagerZFS) GetSessionState(name string) (*resources.SessionState
 	return state, nil
 }
 
-func (m *volumeManagerZFS) GetDiskState() (*resources.Disk, error) {
+func (m *managerZFS) GetDiskState() (*resources.Disk, error) {
 	parts := strings.SplitN(m.config.Pool, "/", 2)
 	parentPool := parts[0]
 
@@ -113,7 +113,7 @@ func (m *volumeManagerZFS) GetDiskState() (*resources.Disk, error) {
 	return disk, nil
 }
 
-func (m *volumeManagerZFS) GetSnapshots() ([]resources.Snapshot, error) {
+func (m *managerZFS) GetSnapshots() ([]resources.Snapshot, error) {
 	entries, err := zfs.ListSnapshots(m.runner, m.config.Pool)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list snapshots")

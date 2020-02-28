@@ -22,7 +22,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/docker"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/volumemanagers"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/pkg/util/pglog"
 )
 
@@ -64,17 +64,17 @@ type ModeLocalConfig struct {
 	DockerImage          string            `yaml:"dockerImage"`
 	UseSudo              bool              `yaml:"useSudo"`
 
-	// Logical volume manager.
-	VolumeManager string `yaml:"volumeManager"`
+	// Thin-clone manager.
+	ThinCloneManager string `yaml:"thinCloneManager"`
 }
 
 type provisionModeLocal struct {
 	provision
-	dockerClient   *client.Client
-	runner         runners.Runner
-	ports          []bool
-	sessionCounter uint
-	volumeManager  volumemanagers.VolumeManager
+	dockerClient     *client.Client
+	runner           runners.Runner
+	ports            []bool
+	sessionCounter   uint
+	thinCloneManager thinclones.Manager
 }
 
 // NewProvisionModeLocal creates a new Provision instance of ModeLocal.
@@ -89,8 +89,8 @@ func NewProvisionModeLocal(ctx context.Context, config Config, dockerClient *cli
 		},
 	}
 
-	volumeManager, err := volumemanagers.NewVolumeManager(p.config.ModeLocal.VolumeManager,
-		p.runner, volumemanagers.VolumeManagerConfig{
+	thinCloneManager, err := thinclones.NewManager(p.config.ModeLocal.ThinCloneManager,
+		p.runner, thinclones.ManagerConfig{
 			Pool:                 p.config.ModeLocal.ClonePool,
 			SnapshotFilterSuffix: p.config.ModeLocal.SnapshotFilterSuffix,
 			MountDir:             p.config.ModeLocal.MountDir,
@@ -99,10 +99,10 @@ func NewProvisionModeLocal(ctx context.Context, config Config, dockerClient *cli
 		})
 
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize volume manager")
+		return nil, errors.Wrap(err, "failed to initialize thin-clone manager")
 	}
 
-	p.volumeManager = volumeManager
+	p.thinCloneManager = thinCloneManager
 
 	if len(p.config.ModeLocal.MountDir) == 0 {
 		p.config.ModeLocal.MountDir = "/var/lib/dblab/clones/"
@@ -212,7 +212,7 @@ func (j *provisionModeLocal) StartSession(username, password, snapshotID string)
 		}
 	}()
 
-	err = j.volumeManager.CreateClone(name, snapshotID)
+	err = j.thinCloneManager.CreateClone(name, snapshotID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create a clone")
 	}
@@ -258,7 +258,7 @@ func (j *provisionModeLocal) StopSession(session *resources.Session) error {
 		return errors.Wrap(err, "failed to stop a container")
 	}
 
-	err = j.volumeManager.DestroyClone(name)
+	err = j.thinCloneManager.DestroyClone(name)
 	if err != nil {
 		return errors.Wrap(err, "failed to destroy a clone")
 	}
@@ -290,12 +290,12 @@ func (j *provisionModeLocal) ResetSession(session *resources.Session, snapshotID
 		return errors.Wrap(err, "failed to stop a container")
 	}
 
-	err = j.volumeManager.DestroyClone(name)
+	err = j.thinCloneManager.DestroyClone(name)
 	if err != nil {
 		return errors.Wrap(err, "failed to destroy clone")
 	}
 
-	err = j.volumeManager.CreateClone(name, snapshotID)
+	err = j.thinCloneManager.CreateClone(name, snapshotID)
 	if err != nil {
 		return errors.Wrap(err, "failed to create a clone")
 	}
@@ -320,15 +320,15 @@ func (j *provisionModeLocal) CreateSnapshot(name string) error {
 }
 
 func (j *provisionModeLocal) GetSnapshots() ([]resources.Snapshot, error) {
-	return j.volumeManager.GetSnapshots()
+	return j.thinCloneManager.GetSnapshots()
 }
 
 func (j *provisionModeLocal) GetDiskState() (*resources.Disk, error) {
-	return j.volumeManager.GetDiskState()
+	return j.thinCloneManager.GetDiskState()
 }
 
 func (j *provisionModeLocal) GetSessionState(s *resources.Session) (*resources.SessionState, error) {
-	return j.volumeManager.GetSessionState(j.getName(s.Port))
+	return j.thinCloneManager.GetSessionState(j.getName(s.Port))
 }
 
 // Other methods.
@@ -339,7 +339,7 @@ func (j *provisionModeLocal) revertSession(name string) {
 		log.Err(`Revert:`, runnerErr)
 	}
 
-	if runnerErr := j.volumeManager.DestroyClone(name); runnerErr != nil {
+	if runnerErr := j.thinCloneManager.DestroyClone(name); runnerErr != nil {
 		log.Err(`Revert:`, runnerErr)
 	}
 }
@@ -414,7 +414,7 @@ func (j *provisionModeLocal) stopAllSessions() error {
 		}
 	}
 
-	clones, err := j.volumeManager.ListClonesNames()
+	clones, err := j.thinCloneManager.ListClonesNames()
 	if err != nil {
 		return err
 	}
@@ -422,7 +422,7 @@ func (j *provisionModeLocal) stopAllSessions() error {
 	log.Dbg("VM clones:", clones)
 
 	for _, clone := range clones {
-		err = j.volumeManager.DestroyClone(clone)
+		err = j.thinCloneManager.DestroyClone(clone)
 		if err != nil {
 			return err
 		}

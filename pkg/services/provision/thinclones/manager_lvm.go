@@ -2,7 +2,7 @@
 2019 © Postgres.ai
 */
 
-package volumemanagers
+package thinclones
 
 import (
 	"strings"
@@ -11,23 +11,23 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/volumemanagers/lvm"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones/lvm"
 )
 
 const (
 	poolPartsLen = 2
 )
 
-type volumeManagerLVM struct {
+type managerLVM struct {
 	runner      runners.Runner
-	config      VolumeManagerConfig
+	config      ManagerConfig
 	volumeGroup string
 	logicVolume string
 }
 
-// newVolumeManagerLVM creates a new VolumeManager instance for LVM.
-func newVolumeManagerLVM(runner runners.Runner, config VolumeManagerConfig) (*volumeManagerLVM, error) {
-	m := volumeManagerLVM{}
+// newManagerLVM creates a new Manager instance for LVM.
+func newManagerLVM(runner runners.Runner, config ManagerConfig) (*managerLVM, error) {
+	m := managerLVM{}
 
 	m.runner = runner
 	m.config = config
@@ -39,15 +39,15 @@ func newVolumeManagerLVM(runner runners.Runner, config VolumeManagerConfig) (*vo
 	return &m, nil
 }
 
-func (m *volumeManagerLVM) CreateClone(name, snapshotID string) error {
+func (m *managerLVM) CreateClone(name, snapshotID string) error {
 	return lvm.CreateVolume(m.runner, m.volumeGroup, m.logicVolume, name, m.config.MountDir)
 }
 
-func (m *volumeManagerLVM) DestroyClone(name string) error {
+func (m *managerLVM) DestroyClone(name string) error {
 	return lvm.RemoveVolume(m.runner, m.volumeGroup, m.logicVolume, name, m.config.MountDir)
 }
 
-func (m *volumeManagerLVM) ListClonesNames() ([]string, error) {
+func (m *managerLVM) ListClonesNames() ([]string, error) {
 	volumes, err := lvm.ListVolumes(m.runner, m.volumeGroup)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list LVM volumes")
@@ -62,24 +62,24 @@ func (m *volumeManagerLVM) ListClonesNames() ([]string, error) {
 	return volumesNames, nil
 }
 
-func (m *volumeManagerLVM) GetSessionState(name string) (*resources.SessionState, error) {
+func (m *managerLVM) GetSessionState(name string) (*resources.SessionState, error) {
 	// TODO(anatoly): Implement.
 	return &resources.SessionState{}, nil
 }
 
-func (m *volumeManagerLVM) GetDiskState() (*resources.Disk, error) {
+func (m *managerLVM) GetDiskState() (*resources.Disk, error) {
 	// TODO(anatoly): Implement.
 	return &resources.Disk{}, nil
 }
 
-func (m *volumeManagerLVM) GetSnapshots() ([]resources.Snapshot, error) {
+func (m *managerLVM) GetSnapshots() ([]resources.Snapshot, error) {
 	// TODO(anatoly): Not supported in LVM mode warning.
 	return []resources.Snapshot{resources.Snapshot{
 		ID: "default",
 	}}, nil
 }
 
-func (m *volumeManagerLVM) parsePool() error {
+func (m *managerLVM) parsePool() error {
 	parts := strings.SplitN(m.config.Pool, "/", poolPartsLen)
 	if len(parts) < poolPartsLen {
 		return errors.Errorf(`failed to parse "pool" value from config`)
