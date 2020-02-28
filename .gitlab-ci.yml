@@ -69,8 +69,9 @@ build-binary-generic:
 
 .only_var_template: &only_feature
   only:
+    refs:
+      - branches
     variables:
-      - $CI_COMMIT_TAG == null
       - $CI_COMMIT_REF_SLUG != "master"
 
 build-image-feature-server:
