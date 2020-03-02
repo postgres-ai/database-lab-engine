@@ -40,7 +40,8 @@ To discuss Database Lab, try a demo, or ask any questions,
 
 **TL;DR:** you need:
 - any machine with a separate disk that is big enough to store a single copy of your database,
-- Linux with Docker and ZFS,
+- Linux with Docker,
+- ZFS to enable thin cloning (the default option; also, LVM is supported as an alternative),
 - initial copy of your Postgres database.
 
 Details:
@@ -55,10 +56,11 @@ use pg_basebackup, restoration from an archive (such as WAL-G, Barman, pgBackRes
 supported for RDS, until AWS guys decide to allow replication connections),
 - upon request, Database Lab will do "thin cloning" of PGDATA, providing fully independent writable
 Postgres clones to users;
-- currently, the only technology supported for thin cloning is ZFS,
-so [ZFS on Linux](https://zfsonlinux.org/) needs to be installed on the machine,
-- however, it is easy to extend and add, say, LVM or Ceph - please write us if you
-need it; also, contributions are highly welcome).
+- currently, two technologies are supported for thin cloning:
+    - ZFS: [ZFS on Linux](https://zfsonlinux.org/) needs to be installed on the machine,
+    - LVM: with [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)), all thin clones will be based on the latest version of the database (with ZFS, you can have multiple snapshots prepared and choose which one to use when requesting a new thin clone).
+- it is easy to extend and add, Ceph - please contact us if you need it;
+- comments, bug reports, and contributions are highly welcome.
 
 
 ## Server installation and setup
