@@ -112,6 +112,10 @@ func (c *Client) CreateClone(ctx context.Context, cloneRequest types.CloneCreate
 		return nil, errors.Wrap(err, "failed to watch the clone status")
 	}
 
+	if clone.Status.Code != models.StatusOK {
+		return nil, errors.Errorf("failed to create clone, unexpected status given: %v", clone.Status.Code)
+	}
+
 	return clone, nil
 }
 

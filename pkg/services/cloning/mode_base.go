@@ -183,7 +183,7 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 		clone.Metadata = &models.CloneMetadata{
 			CloneSize:      cloneSize,
 			CloningTime:    w.timeStartedAt.Sub(w.timeCreatedAt).Seconds(),
-			MaxIdleMinutes: c.Config.IdleTime,
+			MaxIdleMinutes: c.Config.MaxIdleMinutes,
 		}
 	}()
 
@@ -481,7 +481,7 @@ func (c *baseCloning) getSnapshotByID(snapshotID string) (models.Snapshot, error
 }
 
 func (c *baseCloning) runIdleCheck(ctx context.Context) {
-	if c.Config.IdleTime == 0 {
+	if c.Config.MaxIdleMinutes == 0 {
 		return
 	}
 
@@ -528,7 +528,7 @@ func (c *baseCloning) destroyIdleClones(ctx context.Context) {
 func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 	currentTime := time.Now()
 
-	idleDuration := time.Duration(c.Config.IdleTime) * time.Minute
+	idleDuration := time.Duration(c.Config.MaxIdleMinutes) * time.Minute
 
 	availableIdleTime := wrapper.timeStartedAt.Add(idleDuration)
 	if wrapper.clone.Protected || availableIdleTime.After(currentTime) {

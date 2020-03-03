@@ -31,9 +31,9 @@ const (
 
 // Config contains a cloning configuration.
 type Config struct {
-	Mode       string `yaml:"mode"`
-	IdleTime   uint   `yaml:"idleTime"` // Minutes.
-	AccessHost string `yaml:"accessHost"`
+	Mode           string `yaml:"mode"`
+	MaxIdleMinutes uint   `yaml:"maxIdleMinutes"`
+	AccessHost     string `yaml:"accessHost"`
 }
 
 type cloning struct {
