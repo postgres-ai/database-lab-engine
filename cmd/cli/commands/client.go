@@ -13,7 +13,7 @@ import (
 
 // CLI configuration keys.
 const (
-	EnvironmentIDKey = "environment_id"
+	EnvironmentIDKey = "environment-id"
 	URLKey           = "url"
 	TokenKey         = "token"
 	InsecureKey      = "insecure"
