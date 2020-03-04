@@ -89,21 +89,6 @@ func NewProvisionModeLocal(ctx context.Context, config Config, dockerClient *cli
 		},
 	}
 
-	thinCloneManager, err := thinclones.NewManager(p.config.ModeLocal.ThinCloneManager,
-		p.runner, thinclones.ManagerConfig{
-			Pool:                 p.config.ModeLocal.ClonePool,
-			SnapshotFilterSuffix: p.config.ModeLocal.SnapshotFilterSuffix,
-			MountDir:             p.config.ModeLocal.MountDir,
-			OSUsername:           p.config.OSUsername,
-			ClonePrefix:          ClonePrefix,
-		})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize thin-clone manager")
-	}
-
-	p.thinCloneManager = thinCloneManager
-
 	if len(p.config.ModeLocal.MountDir) == 0 {
 		p.config.ModeLocal.MountDir = "/var/lib/dblab/clones/"
 	}
@@ -127,6 +112,21 @@ func NewProvisionModeLocal(ctx context.Context, config Config, dockerClient *cli
 	if len(p.config.PgMgmtPassword) == 0 {
 		p.config.PgMgmtPassword = DefaultPassword
 	}
+
+	thinCloneManager, err := thinclones.NewManager(p.config.ModeLocal.ThinCloneManager,
+		p.runner, thinclones.ManagerConfig{
+			Pool:                 p.config.ModeLocal.ClonePool,
+			SnapshotFilterSuffix: p.config.ModeLocal.SnapshotFilterSuffix,
+			MountDir:             p.config.ModeLocal.MountDir,
+			OSUsername:           p.config.OSUsername,
+			ClonePrefix:          ClonePrefix,
+		})
+
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize thin-clone manager")
+	}
+
+	p.thinCloneManager = thinCloneManager
 
 	return p, nil
 }
