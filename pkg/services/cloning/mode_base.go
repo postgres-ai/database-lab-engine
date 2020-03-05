@@ -208,7 +208,9 @@ func (c *baseCloning) DestroyClone(cloneID string) error {
 	}
 
 	if w.session == nil {
-		return errors.New("clone is not started yet")
+		c.deleteClone(cloneID)
+
+		return nil
 	}
 
 	go func() {
