@@ -23,8 +23,11 @@ import (
 )
 
 const (
-	// waitPostgresTimeout defines timeout to wait Postgres ready.
-	waitPostgresTimeout = 360
+	// waitPostgresConnectionTimeout defines timeout to wait for Postgres initial connection.
+	waitPostgresConnectionTimeout = 120
+
+	// waitPostgresStartTimeout defines timeout to wait for Postgres start.
+	waitPostgresStartTimeout = 360
 
 	// checkPostgresStatusPeriod defines period to check Postgres status.
 	checkPostgresStatusPeriod = 500
@@ -56,9 +59,10 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 		return errors.Wrap(err, "failed to run container")
 	}
 
-	// Waiting for server to become ready and promoting if needed.
+	// Waiting for server to become ready and promote if needed.
 	first := true
 	cnt := 0
+	waitPostgresTimeout := waitPostgresConnectionTimeout
 
 	for {
 		logs, err := docker.GetLogs(r, c, logsMinuteWindow)
@@ -75,9 +79,6 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 
 		out, err := runSimpleSQL("select pg_is_in_recovery()", c)
 
-		log.Dbg("sql: out: ", out)
-		log.Err("sql: err: ", err)
-
 		if err == nil {
 			// Server does not need promotion if it is not in recovery.
 			if out == "f" || out == "false" {
@@ -87,6 +88,9 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 			// Run promotion if needed only first time.
 			if out == "t" && first {
 				log.Dbg("Postgres instance needs promotion.")
+
+				// Increase Postgres start timeout for promotion.
+				waitPostgresTimeout = waitPostgresStartTimeout
 
 				first = false
 
@@ -99,16 +103,18 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 					return err
 				}
 			}
+		} else {
+			log.Err("Currently cannot connect to Postgres: ", out, err)
 		}
 
 		cnt++
 
-		if cnt > waitPostgresTimeout { // 3 minutes
+		if cnt > waitPostgresTimeout {
 			if runnerErr := Stop(r, c); runnerErr != nil {
 				log.Err(runnerErr)
 			}
 
-			return errors.Wrap(err, "postgres could not be promoted within 3 minutes")
+			return errors.Wrap(err, "postgres start timeout")
 		}
 
 		time.Sleep(checkPostgresStatusPeriod * time.Millisecond)
