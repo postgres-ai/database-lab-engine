@@ -109,6 +109,52 @@ func CommandList() []*cli.Command {
 					},
 				},
 			},
+			{
+				Name:      "observe",
+				Usage:     "[EXPERIMENTAL] monitor clone state",
+				ArgsUsage: "CLONE_ID",
+				Before:    checkCloneIDBefore,
+				Action:    observe(),
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "password",
+						Usage:    "clone database password",
+						EnvVars:  []string{"CLONE_PASSWORD"},
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:    "sslmode",
+						Usage:   "connection SSL mode",
+						EnvVars: []string{"SSLMODE"},
+						Value:   "disable",
+					},
+					&cli.BoolFlag{
+						Name:    "follow",
+						Usage:   "follow state monitor output",
+						Aliases: []string{"f"},
+					},
+					&cli.IntFlag{
+						Name:    "interval-seconds",
+						Usage:   "interval of metric gathering and output",
+						EnvVars: []string{"DBLAB_INTERVAL_SECONDS"},
+					},
+					&cli.IntFlag{
+						Name:    "max-lock-duration-seconds",
+						Usage:   "maximum allowed duration for locks",
+						EnvVars: []string{"DBLAB_MAX_LOCK_DURATION_SECONDS"},
+					},
+					&cli.IntFlag{
+						Name:    "max-duration-seconds",
+						Usage:   "maximum allowed duration for operation",
+						EnvVars: []string{"DBLAB_MAX_DURATION_SECONDS"},
+					},
+				},
+			},
+			{
+				Name:   "observe-summary",
+				Usage:  "[EXPERIMENTAL] summarize clone monitoring and check results",
+				Action: observeSummary(),
+			},
 		},
 	}}
 }

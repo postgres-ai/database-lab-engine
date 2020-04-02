@@ -33,7 +33,7 @@ build-binary-generic:
   stage: build-binary
   only:
     refs:
-      - master
+      - branches
       - tags
   artifacts:
     paths:
@@ -99,6 +99,19 @@ build-image-feature-client:
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
   before_script:
     - cp ./bin/dblab-alpine ./bin/dblab
+
+build-image-feature-client-extended:
+  <<: *build_image_definition
+  <<: *only_feature
+  variables:
+    REGISTRY_USER: "${CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.dblab-extended"
+    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-extended"
+    TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
+  before_script:
+    - cp ./bin/dblab-linux-amd64 ./bin/dblab
 
 build-image-master-server:
   <<: *build_image_definition
