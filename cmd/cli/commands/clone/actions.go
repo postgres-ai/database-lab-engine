@@ -8,12 +8,18 @@ package clone
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/urfave/cli/v2"
 
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
 	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/pkg/observer"
+)
+
+const (
+	errorExitStatus = 1
 )
 
 // list runs a request to list clones of an instance.
@@ -188,5 +194,58 @@ func destroy() func(*cli.Context) error {
 		_, err = fmt.Fprintf(cliCtx.App.Writer, "The clone has been successfully destroyed: %s\n", cloneID)
 
 		return err
+	}
+}
+
+// observe runs a request to observe clone.
+func observe() func(*cli.Context) error {
+	return func(cliCtx *cli.Context) error {
+		dblabClient, err := commands.ClientByCLIContext(cliCtx)
+		if err != nil {
+			return err
+		}
+
+		cloneID := cliCtx.Args().First()
+
+		clone, err := dblabClient.GetClone(cliCtx.Context, cloneID)
+		if err != nil {
+			return err
+		}
+
+		obsConfig := observer.Config{
+			Follow:                 cliCtx.Bool("follow"),
+			IntervalSeconds:        cliCtx.Uint64("interval-seconds"),
+			MaxLockDurationSeconds: cliCtx.Uint64("max-lock-duration-seconds"),
+			MaxDurationSeconds:     cliCtx.Uint64("max-duration-seconds"),
+			SSLMode:                cliCtx.String("sslmode"),
+		}
+
+		obs := observer.NewObserver(obsConfig, cliCtx.App.Writer)
+
+		clone.DB.Password = cliCtx.String("password")
+
+		return obs.Start(clone)
+	}
+}
+
+// observeSummary shows observing summary and check satisfaction of performance requirements.
+func observeSummary() func(*cli.Context) error {
+	return func(cliCtx *cli.Context) error {
+		obs := observer.NewObserver(observer.Config{}, cliCtx.App.Writer)
+
+		if err := obs.LoadObserverState(); err != nil {
+			return err
+		}
+
+		if err := obs.PrintSummary(); err != nil {
+			return err
+		}
+
+		if err := obs.CheckPerformanceRequirements(); err != nil {
+			// Exit with error status without printing additional error logs.
+			os.Exit(errorExitStatus)
+		}
+
+		return nil
 	}
 }
