@@ -26,4 +26,4 @@ else
 fi
 
 ## An example of crontab entry, setting up auto-deletion of all unused ZFS snapshots except the last 3 ones.
-##     0 6 * * * sudo zfs list -t snapshot -o name -s creation -H | grep -v clone | grep -v NAME | head -n -3 | xargs -n1 --no-run-if-empty sudo zfs destroy -R 2>&1 | logger --stderr --tag "cleanup_zfs_snapshot"
+##     0 6 * * * sudo zfs list -t snapshot -o name -s creation -H | grep -v clone | head -n -3 | xargs -n1 --no-run-if-empty sudo zfs destroy -R 2>&1 | logger --stderr --tag "cleanup_zfs_snapshot"
