@@ -510,7 +510,7 @@ func (c *baseCloning) destroyIdleClones(ctx context.Context) {
 		default:
 			isIdleClone, err := c.isIdleClone(cloneWrapper)
 			if err != nil {
-				log.Errf("Failed to check the idleness of clone %s: %+v.", cloneWrapper.clone.ID, err)
+				log.Errf("Failed to check the idleness of clone %s: %v.", cloneWrapper.clone.ID, err)
 				continue
 			}
 

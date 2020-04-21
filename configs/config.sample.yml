@@ -5,6 +5,18 @@ server:
   verificationToken: "secret_token"
   port: 3000
 
+# Postgres.ai Platform integration.
+platform:
+  # API URL.
+  url: "https://postgres.ai/api/general"
+
+  # Token for authorization in Platform API. This token can be obtained in Postgres.ai Console:
+  # see the corresponding organization, "Access tokens" in the left menu.
+  accessToken: "platform_access_token"
+
+  # Enable authorization with personal tokens of the organization's members.
+  enablePersonalTokens: false
+
 provision:
   # Provision mode to use.
   mode: "local"

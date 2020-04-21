@@ -20,6 +20,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 	"gitlab.com/postgres-ai/database-lab/pkg/srv"
 )
@@ -85,11 +86,16 @@ func main() {
 		log.Fatalf(err)
 	}
 
+	platformSvc := platform.NewService(cfg.Platform)
+	if err := platformSvc.Init(ctx); err != nil {
+		log.Fatalf(errors.WithMessage(err, "failed to create a new platform service"))
+	}
+
 	if len(opts.VerificationToken) > 0 {
 		cfg.Server.VerificationToken = opts.VerificationToken
 	}
 
-	server := srv.NewServer(&cfg.Server, cloningSvc)
+	server := srv.NewServer(&cfg.Server, cloningSvc, platformSvc)
 	if err = server.Run(); err != nil {
 		log.Fatalf(err)
 	}

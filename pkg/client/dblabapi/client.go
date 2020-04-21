@@ -70,7 +70,7 @@ func NewClient(options Options, logger logrus.FieldLogger) (*Client, error) {
 	return &Client{
 		url:               u,
 		verificationToken: options.VerificationToken,
-		client:            &http.Client{Transport: tr},
+		client:            &http.Client{Transport: tr, Timeout: defaultPollingTimeout},
 		logger:            logger,
 		pollingInterval:   defaultPollingInterval,
 	}, nil
