@@ -25,8 +25,8 @@ const (
 	// ModeMock defines a mock mode of cloning.
 	ModeMock = "mock"
 
-	// cloneSize defines a default clone size.
-	cloneSize = 10
+	// cloneDiffSize defines a default clone size.
+	cloneDiffSize = 10
 )
 
 // Config contains a cloning configuration.

@@ -6,14 +6,14 @@ package models
 
 // Clone defines a clone model.
 type Clone struct {
-	ID        string         `json:"id"`
-	Snapshot  *Snapshot      `json:"snapshot"`
-	Protected bool           `json:"protected"`
-	DeleteAt  string         `json:"deleteAt"`
-	CreatedAt string         `json:"createdAt"`
-	Status    *Status        `json:"status"`
-	DB        *Database      `json:"db"`
-	Metadata  *CloneMetadata `json:"metadata"`
+	ID        string        `json:"id"`
+	Snapshot  *Snapshot     `json:"snapshot"`
+	Protected bool          `json:"protected"`
+	DeleteAt  string        `json:"deleteAt"`
+	CreatedAt string        `json:"createdAt"`
+	Status    Status        `json:"status"`
+	DB        Database      `json:"db"`
+	Metadata  CloneMetadata `json:"metadata"`
 
 	// TODO(anatoly): Remove?
 	Project string `json:"project"`
@@ -21,7 +21,7 @@ type Clone struct {
 
 // CloneMetadata contains fields describing a clone model.
 type CloneMetadata struct {
-	CloneSize      uint64  `json:"cloneSize"`
+	CloneDiffSize  uint64  `json:"cloneDiffSize"`
 	CloningTime    float64 `json:"cloningTime"`
 	MaxIdleMinutes uint    `json:"maxIdleMinutes"`
 }

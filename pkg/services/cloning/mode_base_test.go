@@ -48,7 +48,7 @@ func (s *BaseCloningSuite) TestFindWrapper() {
 }
 
 func (s *BaseCloningSuite) TestUpdateStatus() {
-	s.cloning.setWrapper("testCloneID", &CloneWrapper{clone: &models.Clone{Status: &models.Status{
+	s.cloning.setWrapper("testCloneID", &CloneWrapper{clone: &models.Clone{Status: models.Status{
 		Code:    models.StatusCreating,
 		Message: models.CloneMessageCreating,
 	}}})
@@ -70,7 +70,7 @@ func (s *BaseCloningSuite) TestUpdateStatus() {
 	assert.Equal(s.T(), models.Status{
 		Code:    models.StatusOK,
 		Message: models.CloneMessageOK,
-	}, *wrapper.clone.Status)
+	}, wrapper.clone.Status)
 }
 
 func (s *BaseCloningSuite) TestDeleteClone() {
