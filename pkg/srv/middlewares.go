@@ -1,9 +1,15 @@
+/*
+2019 © Postgres.ai
+*/
+
 package srv
 
 import (
+	"context"
 	"net/http"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
 )
 
 // VerificationTokenHeader defines a verification token name that should be passed in request headers.
@@ -16,14 +22,36 @@ func logging(next http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) authorized(h http.HandlerFunc) http.HandlerFunc {
+// authMW defines an authorization middleware of the Database Lab HTTP server.
+type authMW struct {
+	verificationToken     string
+	personalTokenVerifier platform.PersonalTokenVerifier
+}
+
+func (a *authMW) authorized(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get(VerificationTokenHeader)
-		if len(token) == 0 || s.Config.VerificationToken != token {
+		if !a.isAccessAllowed(r.Context(), token) {
 			failUnauthorized(w, r)
 			return
 		}
 
 		h(w, r)
 	}
+}
+
+func (a *authMW) isAccessAllowed(ctx context.Context, token string) bool {
+	if token == "" {
+		return false
+	}
+
+	if a.verificationToken == token {
+		return true
+	}
+
+	if a.personalTokenVerifier.IsPersonalTokenEnabled() && a.personalTokenVerifier.IsAllowedToken(ctx, token) {
+		return true
+	}
+
+	return false
 }

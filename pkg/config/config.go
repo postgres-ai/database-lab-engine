@@ -11,6 +11,7 @@ import (
 	"os/user"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 	"gitlab.com/postgres-ai/database-lab/pkg/srv"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
@@ -24,6 +25,7 @@ type Config struct {
 	Server    srv.Config       `yaml:"server"`
 	Provision provision.Config `yaml:"provision"`
 	Cloning   cloning.Config   `yaml:"cloning"`
+	Platform  platform.Config  `yaml:"platform"`
 	Debug     bool             `yaml:"debug"`
 }
 
