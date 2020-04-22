@@ -52,21 +52,21 @@ const (
 
 // NewMockClone instances a new Clone model.
 func NewMockClone() *models.Clone {
-	db := &models.Database{}
+	db := models.Database{}
 	snapshot := &models.Snapshot{}
 
 	return &models.Clone{
 		ID:       "id",
 		Snapshot: snapshot,
-		Metadata: &models.CloneMetadata{
-			CloneSize:      mockCloneSize,
+		Metadata: models.CloneMetadata{
+			CloneDiffSize:  mockCloneSize,
 			CloningTime:    mockCloningTime,
 			MaxIdleMinutes: mockMaxIdleMinutes,
 		},
 		Protected: false,
 		DeleteAt:  "10000",
 		CreatedAt: "10000",
-		Status: &models.Status{
+		Status: models.Status{
 			Code:    models.StatusOK,
 			Message: models.CloneMessageOK,
 		},

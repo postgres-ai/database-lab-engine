@@ -95,7 +95,7 @@ func (c *Client) CreateClone(ctx context.Context, cloneRequest types.CloneCreate
 		return nil, errors.Wrap(err, "failed to decode a response body")
 	}
 
-	if clone.Status == nil {
+	if clone.Status.Code == "" {
 		return nil, errors.New("empty clone status given")
 	}
 
@@ -139,7 +139,7 @@ func (c *Client) watchCloneStatus(ctx context.Context, cloneID string, initialSt
 				return nil, errors.Wrap(err, "failed to get clone info")
 			}
 
-			if clone.Status != nil && clone.Status.Code != initialStatusCode {
+			if clone.Status.Code != initialStatusCode {
 				return clone, nil
 			}
 
@@ -232,7 +232,7 @@ func (c *Client) ResetClone(ctx context.Context, cloneID string) error {
 		return errors.Wrap(err, "failed to watch the clone status")
 	}
 
-	if clone.Status != nil && clone.Status.Code == models.StatusOK {
+	if clone.Status.Code == models.StatusOK {
 		return nil
 	}
 

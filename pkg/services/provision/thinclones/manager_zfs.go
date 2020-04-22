@@ -47,7 +47,7 @@ func (m *managerZFS) ListClonesNames() ([]string, error) {
 
 func (m *managerZFS) GetSessionState(name string) (*resources.SessionState, error) {
 	state := &resources.SessionState{
-		CloneSize: defaultSessionCloneSize,
+		CloneDiffSize: defaultSessionCloneSize,
 	}
 
 	entries, err := zfs.ListFilesystems(m.runner, m.config.Pool)
@@ -70,7 +70,7 @@ func (m *managerZFS) GetSessionState(name string) (*resources.SessionState, erro
 		return nil, errors.New("cannot get session state: specified ZFS pool does not exist")
 	}
 
-	state.CloneSize = sEntry.Used
+	state.CloneDiffSize = sEntry.Used
 
 	return state, nil
 }

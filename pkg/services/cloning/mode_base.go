@@ -117,11 +117,11 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 		Snapshot:  &snapshot,
 		Protected: cloneRequest.Protected,
 		CreatedAt: util.FormatTime(createdAt),
-		Status: &models.Status{
+		Status: models.Status{
 			Code:    models.StatusCreating,
 			Message: models.CloneMessageCreating,
 		},
-		DB: &models.Database{
+		DB: models.Database{
 			Username: cloneRequest.DB.Username,
 			Password: cloneRequest.DB.Password,
 		},
@@ -169,7 +169,7 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 		w.timeStartedAt = time.Now()
 
 		clone := w.clone
-		clone.Status = &models.Status{
+		clone.Status = models.Status{
 			Code:    models.StatusOK,
 			Message: models.CloneMessageOK,
 		}
@@ -180,8 +180,8 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 			clone.DB.Host, clone.DB.Port, clone.DB.Username)
 
 		// TODO(anatoly): Remove mock data.
-		clone.Metadata = &models.CloneMetadata{
-			CloneSize:      cloneSize,
+		clone.Metadata = models.CloneMetadata{
+			CloneDiffSize:  cloneDiffSize,
 			CloningTime:    w.timeStartedAt.Sub(w.timeCreatedAt).Seconds(),
 			MaxIdleMinutes: c.Config.MaxIdleMinutes,
 		}
@@ -252,7 +252,7 @@ func (c *baseCloning) GetClone(id string) (*models.Clone, error) {
 		return w.clone, nil
 	}
 
-	w.clone.Metadata.CloneSize = sessionState.CloneSize
+	w.clone.Metadata.CloneDiffSize = sessionState.CloneDiffSize
 
 	return w.clone, nil
 }
@@ -388,7 +388,7 @@ func (c *baseCloning) updateCloneStatus(cloneID string, status models.Status) er
 		return errors.Errorf("clone %q not found", cloneID)
 	}
 
-	w.clone.Status = &status
+	w.clone.Status = status
 
 	return nil
 }
@@ -420,9 +420,7 @@ func (c *baseCloning) getExpectedCloningTime() float64 {
 
 	c.cloneMutex.RLock()
 	for _, cloneWrapper := range c.clones {
-		if cloneWrapper.clone.Metadata != nil {
-			sum += cloneWrapper.clone.Metadata.CloningTime
-		}
+		sum += cloneWrapper.clone.Metadata.CloningTime
 	}
 	c.cloneMutex.RUnlock()
 

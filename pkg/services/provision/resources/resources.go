@@ -44,5 +44,5 @@ type Snapshot struct {
 
 // SessionState defines current state of a Session.
 type SessionState struct {
-	CloneSize uint64
+	CloneDiffSize uint64
 }

@@ -30,18 +30,18 @@ func TestClientStatus(t *testing.T) {
 		NumClones:           1,
 		Clones: []*models.Clone{{
 			ID: "testCloneID",
-			Metadata: &models.CloneMetadata{
-				CloneSize:   45054685181,
-				CloningTime: 1,
+			Metadata: models.CloneMetadata{
+				CloneDiffSize: 45054685181,
+				CloningTime:   1,
 			},
 			Protected: true,
 			DeleteAt:  "2020-01-10 00:00:05.000 UTC",
 			CreatedAt: "2020-01-10 00:00:00.000 UTC",
-			Status: &models.Status{
+			Status: models.Status{
 				Code:    "OK",
 				Message: "Instance is ready",
 			},
-			DB: &models.Database{
+			DB: models.Database{
 				Username: "john",
 				Password: "doe",
 			},
