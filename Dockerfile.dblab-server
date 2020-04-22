@@ -3,7 +3,7 @@
 #   --name dblab_server \
 #   --label dblab_control \
 #   --privileged \
-#   --publish 3000:3000 \
+#   --publish 2345:2345 \
 #   --restart on-failure \
 #   --volume /var/run/docker.sock:/var/run/docker.sock \
 #   --volume /var/lib/dblab:/var/lib/dblab:rshared \
@@ -17,7 +17,7 @@
 #   --name dblab_server \
 #   --label dblab_control \
 #   --privileged \
-#   --publish 3000:3000 \
+#   --publish 2345:2345 \
 #   --restart on-failure \
 #   --volume /var/run/docker.sock:/var/run/docker.sock \
 #   --volume /var/lib/dblab:/var/lib/dblab:rshared \

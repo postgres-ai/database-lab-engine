@@ -90,7 +90,7 @@ initialize CLI and start communicating with the Database Lab server(s).
 ```bash
 dblab init \
   --environment-id=tutorial \
-  --url=http://$IP_OR_HOSTNAME:3000 \
+  --url=http://$IP_OR_HOSTNAME:2345 \
   --token=secret_token
 ```
 

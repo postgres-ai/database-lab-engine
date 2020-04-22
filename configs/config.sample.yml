@@ -3,7 +3,7 @@
 
 server:
   verificationToken: "secret_token"
-  port: 3000
+  port: 2345
 
 # Postgres.ai Platform integration.
 platform:
