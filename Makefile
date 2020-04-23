@@ -24,8 +24,8 @@ GOBUILD = GO111MODULE=on GOARCH=${GOARCH} go build ${LDFLAGS}
 GOTEST = GO111MODULE=on go test -race 
 GORUN = GO111MODULE=on go run ${LDFLAGS}
 
-PLATFORMS=darwin linux
-ARCHITECTURES=386 amd64
+CLIENT_PLATFORMS=darwin linux freebsd windows
+ARCHITECTURES=amd64
 
 # Build the project
 all: clean build
@@ -43,14 +43,13 @@ build:
 	${GOBUILD} -o bin/${SERVER_BINARY} ./cmd/database-lab/main.go
 	${GOBUILD} -o bin/${CLI_BINARY} ./cmd/cli/main.go
 
-build-generic:
-	$(foreach GOOS, $(PLATFORMS),\
+build-client:
+	$(foreach GOOS, $(CLIENT_PLATFORMS),\
 		$(foreach GOARCH, $(ARCHITECTURES), \
 		$(shell \
 			export GOOS=$(GOOS); \
 			export GOARCH=$(GOARCH); \
-			go build -o bin/$(SERVER_BINARY)-$(GOOS)-$(GOARCH) ./cmd/database-lab/main.go; \
-			go build -o bin/$(CLI_BINARY)-$(GOOS)-$(GOARCH) ./cmd/cli/main.go)))
+			go build -o bin/cli/$(CLI_BINARY)-$(GOOS)-$(GOARCH) ./cmd/cli/main.go)))
 
 test:
 	${GOTEST} ./...

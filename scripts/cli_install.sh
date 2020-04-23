@@ -4,8 +4,16 @@
 
 mkdir -p ~/.dblab
 
+uname_os() {
+  os=$(uname -s | tr '[:upper:]' '[:lower:]')
+  case "$os" in
+    cygwin_nt*|mingw*|msys_nt*|nt*|win*) os="windows" ;;
+  esac
+  echo "$os"
+}
+
 curl --location --fail --output ~/.dblab/dblab \
-  https://gitlab.com/postgres-ai/database-lab/-/jobs/artifacts/master/raw/bin/dblab-linux-amd64?job=build-binary-generic \
+  https://storage.googleapis.com/database-lab-cli/latest/dblab-$(uname_os)-amd64 \
   && chmod a+x ~/.dblab/dblab
 
 {
