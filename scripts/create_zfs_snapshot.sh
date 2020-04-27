@@ -28,11 +28,12 @@ clone_full_name="${zfs_pool}/${clone_name}"
 clone_dir="${mount_dir}/${clone_name}"
 # Directory of PGDATA in the clone mount.
 clone_pgdata_dir="${clone_dir}${pgdata_subdir}"
+# Directory of PGDATA in the promote container.
+container_pgdata_dir="/var/lib/postgresql/pgdata"
 
 # Postgres configuration.
 # Port on which Postgres will be started using clone's PGDATA.
-clone_port=${CLONE_PORT:-6999}
-pg_bin_dir=${PG_BIN_DIR:-"/usr/lib/postgresql/12/bin"}
+clone_port=${CLONE_PORT:-5432}
 pg_sock_dir=${PG_SOCK_DIR:-"/var/run/postgresql"}
 pg_username=${PGUSERNAME:-"postgres"}
 # Set password with PGPASSWORD env.
@@ -108,11 +109,24 @@ echo "host all all 0.0.0.0/0 md5" >> ${clone_pgdata_dir}/pg_hba.conf
 echo "" > ${clone_pgdata_dir}/pg_ident.conf
 SH
 
-${sudo_cmd} ${pg_bin_dir}/pg_ctl \
-  -D "${clone_pgdata_dir}" \
-  -o "-p ${clone_port} -c 'shared_buffers=4096'" \
-  -W \
-  start
+echo >&2 "Run container"
+
+# Make sure that PGDATA has correct permissions.
+user_owner=$(sudo ls -ld ${clone_pgdata_dir}/PG_VERSION | awk '{print $3}')
+group_owner=$(sudo ls -ld ${clone_pgdata_dir}/PG_VERSION | awk '{print $4}')
+sudo chown -R ${user_owner}:${group_owner} ${clone_pgdata_dir}
+
+container_name="dblab_promote"
+sudo docker run \
+  --name ${container_name} \
+  --label dblab_control \
+  --restart on-failure \
+  --volume ${clone_pgdata_dir}:${container_pgdata_dir} \
+  --env PGDATA=${container_pgdata_dir} \
+  --user postgres \
+  --detach \
+  postgres:${pg_ver}-alpine
+
 
 # Now we are going to wait until we can connect to the server.
 # If it was a replica, it may take a while..
@@ -121,7 +135,7 @@ ${sudo_cmd} ${pg_bin_dir}/pg_ctl \
 
 failed=true
 for i in {1..1000}; do
-  if [[ $(${pg_bin_dir}/psql -p $clone_port -U ${pg_username} -d ${pg_db} -h ${pg_sock_dir} -XAtc 'select pg_is_in_recovery()') == "t" ]]; then
+  if [[ $(sudo docker exec ${container_name} psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h ${pg_sock_dir} -XAtc 'select 1') == "1" ]]; then
     failed=false
     break
   fi
@@ -130,9 +144,12 @@ for i in {1..1000}; do
 done
 
 if $failed; then
-  >&2 echo "Failed to start Postgres (in standby mode)"
+  echo >&2 "Failed to start Postgres (in standby mode)"
+  sudo docker rm --force ${container_name}
   exit 1
 fi
+
+should_be_promoted=$(sudo docker exec ${container_name} psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h ${pg_sock_dir} -XAtc 'select pg_is_in_recovery()')
 
 # Save data state timestamp.
 #   - if we had a replica, we can use `pg_last_xact_replay_timestamp()`,
@@ -141,8 +158,10 @@ if [[ ! -z ${DATA_STATE_AT+x} ]]; then
   # For testing, use:
   #    DATA_STATE_AT=$(TZ=UTC date '+%Y%m%d%H%M%S')
   data_state_at="${DATA_STATE_AT}"
+elif [[ $should_be_promoted != "t" ]]; then
+  data_state_at=$(TZ=UTC date '+%Y%m%d%H%M%S')
 else
-  data_state_at=$(${pg_bin_dir}/psql \
+  data_state_at=$(sudo docker exec ${container_name} psql \
     --set ON_ERROR_STOP=on \
     -p ${clone_port} \
     -U ${pg_username} \
@@ -153,11 +172,14 @@ else
 fi
 
 # Promote to the master. Again, it may take a while.
-${sudo_cmd} ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -W promote
+if [[ $should_be_promoted == "t" ]]; then
+  echo >&2 "Promote"
+  sudo docker exec ${container_name} pg_ctl -D ${container_pgdata_dir} -W promote
+fi
 
 failed=true
 for i in {1..1000}; do
-  if [[ $(${pg_bin_dir}/psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h ${pg_sock_dir} -XAtc 'select pg_is_in_recovery()') == "f" ]]; then
+  if [[ $(sudo docker exec ${container_name} psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h ${pg_sock_dir} -XAtc 'select pg_is_in_recovery()') == "f" ]]; then
     failed=false
     break
   fi
@@ -166,7 +188,8 @@ for i in {1..1000}; do
 done
 
 if $failed; then
-  >&2 echo "Failed to promote Postgres to master"
+  echo >&2 "Failed to promote Postgres to master"
+  sudo docker rm --force ${container_name}
   exit 1
 fi
 
@@ -181,8 +204,7 @@ fi
 ################################################################################
 
 # Finally, stop Postgres and create the base snapshot ready to be used for thin provisioning
-${sudo_cmd} ${pg_bin_dir}/pg_ctl -D ${clone_pgdata_dir} -w stop
-# todo: check that it's stopped, similiraly as above
+sudo docker stop ${container_name}
 
 ${sudo_cmd} rm -rf ${clone_pgdata_dir}/pg_log
 
@@ -192,6 +214,8 @@ sudo zfs set dblab:datastateat="${data_state_at}" ${clone_full_name}@${snapshot_
 # Snapshot "datastore/postgresql/db_state_1_pre@db_state_1" is ready and can be used for thin provisioning
 
 ${sudo_cmd} rm -rf /tmp/trigger_${clone_port}
+
+sudo docker rm ${container_name}
 
 # Return to previous working directory.
 cd -
