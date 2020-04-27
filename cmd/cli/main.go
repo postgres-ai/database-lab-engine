@@ -16,15 +16,12 @@ import (
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/snapshot"
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/templates"
 	dblabLog "gitlab.com/postgres-ai/database-lab/pkg/log"
-)
-
-const (
-	version = "v0.2.3"
+	"gitlab.com/postgres-ai/database-lab/version"
 )
 
 func main() {
 	app := &cli.App{
-		Version: version,
+		Version: version.GetVersion(),
 		CommandNotFound: func(c *cli.Context, command string) {
 			fmt.Fprintf(c.App.Writer, "[ERROR] Command %q not found.\n", command)
 		},

@@ -1,6 +1,7 @@
 package srv
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -9,7 +10,13 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/version"
 )
+
+// HealthResponse represents a response for heath-check requests.
+type HealthResponse struct {
+	Version string `json:"version"`
+}
 
 func (s *Server) getInstanceStatus() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -134,5 +141,21 @@ func (s *Server) resetClone() http.HandlerFunc {
 		}
 
 		log.Dbg(fmt.Sprintf("Clone ID=%s is being reset", cloneID))
+	}
+}
+
+// healthCheck provides a health check handler.
+func (s *Server) healthCheck(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+	healthResponse := HealthResponse{
+		Version: version.GetVersion(),
+	}
+
+	if err := json.NewEncoder(w).Encode(healthResponse); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Err(err)
+
+		return
 	}
 }

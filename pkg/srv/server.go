@@ -92,6 +92,9 @@ func (s *Server) Run() error {
 	r.HandleFunc("/clone/{id}/reset",
 		authMW.authorized(s.resetClone())).Methods(http.MethodPost)
 
+	// Health check.
+	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet)
+
 	// Show Swagger UI on index page.
 	if err := attachAPI(r); err != nil {
 		log.Err(fmt.Sprintf("Cannot load API description."))
