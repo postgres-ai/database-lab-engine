@@ -14,6 +14,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/validator"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
 
 	"github.com/gorilla/mux"
@@ -27,9 +28,10 @@ type Config struct {
 
 // Server defines an HTTP server of the Database Lab.
 type Server struct {
-	Config   *Config
-	Cloning  cloning.Cloning
-	Platform *platform.Service
+	validator validator.Service
+	Cloning   cloning.Cloning
+	Config    *Config
+	Platform  *platform.Service
 }
 
 // NewServer initializes a new Server instance with provided configuration.
@@ -77,20 +79,13 @@ func (s *Server) Run() error {
 		personalTokenVerifier: s.Platform,
 	}
 
-	r.HandleFunc("/status",
-		authMW.authorized(s.getInstanceStatus())).Methods(http.MethodGet)
-	r.HandleFunc("/snapshots",
-		authMW.authorized(s.getSnapshots())).Methods(http.MethodGet)
-	r.HandleFunc("/clone",
-		authMW.authorized(s.createClone())).Methods(http.MethodPost)
-	r.HandleFunc("/clone/{id}",
-		authMW.authorized(s.destroyClone())).Methods(http.MethodDelete)
-	r.HandleFunc("/clone/{id}",
-		authMW.authorized(s.patchClone())).Methods(http.MethodPatch)
-	r.HandleFunc("/clone/{id}",
-		authMW.authorized(s.getClone())).Methods(http.MethodGet)
-	r.HandleFunc("/clone/{id}/reset",
-		authMW.authorized(s.resetClone())).Methods(http.MethodPost)
+	r.HandleFunc("/status", authMW.authorized(s.getInstanceStatus)).Methods(http.MethodGet)
+	r.HandleFunc("/snapshots", authMW.authorized(s.getSnapshots)).Methods(http.MethodGet)
+	r.HandleFunc("/clone", authMW.authorized(s.createClone)).Methods(http.MethodPost)
+	r.HandleFunc("/clone/{id}", authMW.authorized(s.destroyClone)).Methods(http.MethodDelete)
+	r.HandleFunc("/clone/{id}", authMW.authorized(s.patchClone)).Methods(http.MethodPatch)
+	r.HandleFunc("/clone/{id}", authMW.authorized(s.getClone)).Methods(http.MethodGet)
+	r.HandleFunc("/clone/{id}/reset", authMW.authorized(s.resetClone)).Methods(http.MethodPost)
 
 	// Health check.
 	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet)
@@ -106,7 +101,7 @@ func (s *Server) Run() error {
 	}
 
 	// Show not found error for all other possible routes.
-	r.NotFoundHandler = http.HandlerFunc(failNotFound)
+	r.NotFoundHandler = http.HandlerFunc(sendNotFoundError)
 
 	// Start server.
 	port := s.Config.Port

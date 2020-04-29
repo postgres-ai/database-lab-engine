@@ -5,14 +5,10 @@
 // Package models provides Database Lab struct.
 package models
 
-import (
-	"fmt"
-)
-
 // ErrorCode defines a response error type.
 type ErrorCode string
 
-// ErrCodeInternal defines a response error codes.
+// ErrCode constants define a response error codes.
 const (
 	ErrCodeInternal     ErrorCode = "INTERNAL_ERROR"
 	ErrCodeBadRequest   ErrorCode = "BAD_REQUEST"
@@ -24,11 +20,19 @@ const (
 type Error struct {
 	Code    ErrorCode `json:"code"`
 	Message string    `json:"message"`
-	Detail  string    `json:"detail"`
-	Hint    string    `json:"hint"`
+}
+
+var _ error = &Error{}
+
+// New creates ClientError instance with given code and message.
+func New(code ErrorCode, message string) *Error {
+	return &Error{
+		Code:    code,
+		Message: message,
+	}
 }
 
 // Error prints an error message.
 func (e Error) Error() string {
-	return fmt.Sprintf("Code %q. Message: %s Detail: %s Hint: %s", e.Code, e.Message, e.Detail, e.Hint)
+	return e.Message
 }

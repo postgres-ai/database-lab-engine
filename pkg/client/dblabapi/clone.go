@@ -276,7 +276,7 @@ func (c *Client) DestroyClone(ctx context.Context, cloneID string) error {
 
 	clone, err := c.watchCloneStatus(ctx, cloneID, models.StatusDeleting)
 	if err != nil {
-		if err, ok := errors.Cause(err).(models.Error); ok && err.Code == "NOT_FOUND" {
+		if err, ok := errors.Cause(err).(models.Error); ok && err.Code == models.ErrCodeNotFound {
 			return nil
 		}
 

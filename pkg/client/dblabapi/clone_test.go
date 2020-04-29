@@ -405,16 +405,13 @@ func TestClientUpdateCloneWithFailedRequest(t *testing.T) {
 	mockClient := NewTestClient(func(req *http.Request) *http.Response {
 		errorBadRequest := models.Error{
 			Code:    "BAD_REQUEST",
-			Message: "Wrong request format.",
-			Detail:  "Clone not found.",
-			Hint:    "Check request params.",
+			Message: "Check request params.",
 		}
 
 		responseBody, err := json.Marshal(errorBadRequest)
 		require.NoError(t, err)
 
 		return &http.Response{
-
 			StatusCode: 400,
 			Body:       ioutil.NopCloser(bytes.NewBuffer(responseBody)),
 			Header:     make(http.Header),
@@ -431,7 +428,7 @@ func TestClientUpdateCloneWithFailedRequest(t *testing.T) {
 	c.client = mockClient
 
 	clone, err := c.UpdateClone(context.Background(), "testCloneID", types.CloneUpdateRequest{})
-	require.EqualError(t, err, `failed to get response: Code "BAD_REQUEST". Message: Wrong request format. Detail: Clone not found. Hint: Check request params.`)
+	require.EqualError(t, err, `failed to get response: Check request params.`)
 	require.Nil(t, clone)
 }
 
@@ -446,8 +443,6 @@ func TestClientDestroyClone(t *testing.T) {
 			errorNotFound := models.Error{
 				Code:    "NOT_FOUND",
 				Message: "Not found.",
-				Detail:  "Requested object does not exist.",
-				Hint:    "Specify your request.",
 			}
 
 			var err error
@@ -507,9 +502,7 @@ func TestClientDestroyCloneAsync(t *testing.T) {
 func TestClientDestroyCloneWithFailedRequest(t *testing.T) {
 	errorNotFound := models.Error{
 		Code:    "NOT_FOUND",
-		Message: "Not found.",
-		Detail:  "Requested object does not exist.",
-		Hint:    "Specify your request.",
+		Message: "Requested object does not exist. Specify your request.",
 	}
 	mockClient := NewTestClient(func(req *http.Request) *http.Response {
 		assert.Equal(t, req.URL.String(), "https://example.com/clone/testCloneID")
@@ -535,7 +528,7 @@ func TestClientDestroyCloneWithFailedRequest(t *testing.T) {
 
 	// Send a request.
 	err = c.DestroyClone(context.Background(), "testCloneID")
-	assert.EqualError(t, err, `failed to get response: Code "NOT_FOUND". Message: Not found. Detail: Requested object does not exist. Hint: Specify your request.`)
+	assert.EqualError(t, err, `failed to get response: Requested object does not exist. Specify your request.`)
 }
 
 func TestClientResetClone(t *testing.T) {
@@ -610,9 +603,7 @@ func TestClientResetCloneAsync(t *testing.T) {
 func TestClientResetCloneWithFailedRequest(t *testing.T) {
 	errorUnauthorized := models.Error{
 		Code:    "UNAUTHORIZED",
-		Message: "Unauthorized.",
-		Detail:  "Invalid token.",
-		Hint:    "Check your verification token.",
+		Message: "Check your verification token.",
 	}
 	mockClient := NewTestClient(func(req *http.Request) *http.Response {
 		assert.Equal(t, req.URL.String(), "https://example.com/clone/testCloneID/reset")
@@ -638,5 +629,5 @@ func TestClientResetCloneWithFailedRequest(t *testing.T) {
 
 	// Send a request.
 	err = c.ResetClone(context.Background(), "testCloneID")
-	assert.EqualError(t, err, `failed to get response: Code "UNAUTHORIZED". Message: Unauthorized. Detail: Invalid token. Hint: Check your verification token.`)
+	assert.EqualError(t, err, `failed to get response: Check your verification token.`)
 }

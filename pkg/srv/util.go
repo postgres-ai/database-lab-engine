@@ -1,3 +1,7 @@
+/*
+2019 © Postgres.ai
+*/
+
 package srv
 
 import (
@@ -5,9 +9,9 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-
 	"github.com/pkg/errors"
+
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
 )
 
 // writeJSON responds with JSON.

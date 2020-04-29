@@ -91,3 +91,8 @@ func NewCloneWrapper(clone *models.Clone) *CloneWrapper {
 
 	return w
 }
+
+// IsProtected checks if clone is protected.
+func (cw CloneWrapper) IsProtected() bool {
+	return cw.clone != nil && cw.clone.Protected
+}
