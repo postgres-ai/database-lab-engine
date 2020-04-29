@@ -47,13 +47,12 @@ func main() {
 		log.Fatal("Args parse error:", err)
 	}
 
-	log.DEBUG = true
-
 	cfg, err := config.LoadConfig("config.yml")
 	if err != nil {
 		log.Fatalf(errors.WithMessage(err, "failed to parse config"))
 	}
 
+	log.DEBUG = cfg.Debug
 	log.Dbg("Config loaded", cfg)
 
 	// TODO(anatoly): Annotate envs in configs. Use different lib for flags/configs?

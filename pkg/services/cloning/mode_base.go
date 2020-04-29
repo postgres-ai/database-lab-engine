@@ -70,23 +70,10 @@ func (c *baseCloning) Run(ctx context.Context) error {
 
 // CreateClone creates a new clone.
 func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clone, error) {
-	// TODO(akartasov): Separate validation rules.
 	cloneRequest.ID = strings.TrimSpace(cloneRequest.ID)
 
 	if _, ok := c.findWrapper(cloneRequest.ID); ok {
-		return nil, errors.New("clone with such ID already exists")
-	}
-
-	if cloneRequest.DB == nil {
-		return nil, errors.New("missing both DB username and password")
-	}
-
-	if len(cloneRequest.DB.Username) == 0 {
-		return nil, errors.New("missing DB username")
-	}
-
-	if len(cloneRequest.DB.Password) == 0 {
-		return nil, errors.New("missing DB password")
+		return nil, models.New(models.ErrCodeBadRequest, "clone with such ID already exists")
 	}
 
 	if cloneRequest.ID == "" {
@@ -193,11 +180,11 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 func (c *baseCloning) DestroyClone(cloneID string) error {
 	w, ok := c.findWrapper(cloneID)
 	if !ok {
-		return errors.New("clone not found")
+		return models.New(models.ErrCodeNotFound, "clone not found")
 	}
 
 	if w.clone.Protected {
-		return errors.New("clone is protected")
+		return models.New(models.ErrCodeBadRequest, "clone is protected")
 	}
 
 	if err := c.updateCloneStatus(cloneID, models.Status{
@@ -260,7 +247,7 @@ func (c *baseCloning) GetClone(id string) (*models.Clone, error) {
 func (c *baseCloning) UpdateClone(id string, patch *types.CloneUpdateRequest) (*models.Clone, error) {
 	w, ok := c.findWrapper(id)
 	if !ok {
-		return nil, errors.New("clone not found")
+		return nil, models.New(models.ErrCodeNotFound, "clone not found")
 	}
 
 	var clone *models.Clone
@@ -278,7 +265,7 @@ func (c *baseCloning) UpdateClone(id string, patch *types.CloneUpdateRequest) (*
 func (c *baseCloning) ResetClone(cloneID string) error {
 	w, ok := c.findWrapper(cloneID)
 	if !ok {
-		return errors.New("clone not found")
+		return models.New(models.ErrCodeNotFound, "clone not found")
 	}
 
 	if err := c.updateCloneStatus(cloneID, models.Status{
@@ -289,7 +276,7 @@ func (c *baseCloning) ResetClone(cloneID string) error {
 	}
 
 	if w.session == nil {
-		return errors.New("clone is not started yet")
+		return models.New(models.ErrCodeNotFound, "clone is not started yet")
 	}
 
 	go func() {
@@ -354,8 +341,8 @@ func (c *baseCloning) GetClones() []*models.Clone {
 	clones := make([]*models.Clone, 0, c.lenClones())
 
 	c.cloneMutex.RLock()
-	for _, clone := range c.clones {
-		clones = append(clones, clone.clone)
+	for _, cloneWrapper := range c.clones {
+		clones = append(clones, cloneWrapper.clone)
 	}
 	c.cloneMutex.RUnlock()
 

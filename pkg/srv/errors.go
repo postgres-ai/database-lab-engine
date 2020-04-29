@@ -1,3 +1,7 @@
+/*
+2019 © Postgres.ai
+*/
+
 package srv
 
 import (
@@ -11,67 +15,73 @@ import (
 	"github.com/pkg/errors"
 )
 
-func failNotFound(w http.ResponseWriter, _ *http.Request) {
-	errorNotFound := models.Error{
-		Code:    models.ErrCodeNotFound,
-		Message: "Not found.",
-		Detail:  "Requested object does not exist.",
-		Hint:    "Specify your request.",
+func sendError(w http.ResponseWriter, r *http.Request, err error) {
+	log.Err(errDetailsMsg(r, err))
+
+	errorInternalServer, ok := errors.Cause(err).(models.Error)
+	if !ok {
+		errorInternalServer = models.Error{
+			Code:    models.ErrCodeInternal,
+			Message: errors.Cause(err).Error(),
+		}
 	}
 
-	_ = writeJSON(w, http.StatusNotFound, errorNotFound)
-
-	log.Dbg("Not found")
+	_ = writeJSON(w, toStatusCode(errorInternalServer), errorInternalServer)
 }
 
-func failUnauthorized(w http.ResponseWriter, _ *http.Request) {
-	errorUnauthorized := models.Error{
-		Code:    models.ErrCodeUnauthorized,
-		Message: "Unauthorized.",
-		Detail:  "",
-		Hint:    "Check your verification token.",
-	}
-
-	_ = writeJSON(w, http.StatusUnauthorized, errorUnauthorized)
-
-	log.Dbg("Unauthorized")
-}
-
-func failBadRequest(w http.ResponseWriter, _ *http.Request) {
+func sendBadRequestError(w http.ResponseWriter, r *http.Request, message string) {
 	errorBadRequest := models.Error{
 		Code:    models.ErrCodeBadRequest,
-		Message: "Wrong request format.",
-		Detail:  "",
-		Hint:    "Check request params.",
+		Message: message,
 	}
 
-	_ = writeJSON(w, http.StatusBadRequest, errorBadRequest)
-
-	log.Dbg("Bad request")
+	sendError(w, r, errorBadRequest)
 }
 
-func failInternalServer(w http.ResponseWriter, r *http.Request, err error) {
-	log.Err(errDetailsMsg(r, err, models.ErrCodeInternal))
-
-	errorInternalServer := models.Error{
-		Code:    models.ErrCodeInternal,
-		Message: "Internal server error.",
-		Detail:  errors.Cause(err).Error(),
-		Hint:    "",
+func sendUnauthorizedError(w http.ResponseWriter, r *http.Request) {
+	errorUnauthorized := models.Error{
+		Code:    models.ErrCodeUnauthorized,
+		Message: "Check your verification token.",
 	}
 
-	w.WriteHeader(http.StatusInternalServerError)
-	_ = writeJSON(w, http.StatusInternalServerError, errorInternalServer)
-
-	log.Dbg("Internal server error")
+	sendError(w, r, errorUnauthorized)
 }
 
-func errDetailsMsg(r *http.Request, err error, errCode models.ErrorCode) string {
+func sendNotFoundError(w http.ResponseWriter, r *http.Request) {
+	errorNotFound := models.Error{
+		Code:    models.ErrCodeNotFound,
+		Message: "Requested object does not exist. Specify your request.",
+	}
+
+	sendError(w, r, errorNotFound)
+}
+
+// errDetailsMsg formats details of an error message.
+func errDetailsMsg(r *http.Request, err error) string {
 	queryString := r.URL.String()
 	if queryUnescape, e := url.QueryUnescape(queryString); e == nil {
 		queryString = queryUnescape
 	}
 
-	return fmt.Sprintf("[%s] - %s %s - %+v",
-		errCode, r.Method, queryString, err)
+	return fmt.Sprintf("[ERROR] - %s %s - %+v", r.Method, queryString, err)
+}
+
+// toStatusCode converts an error to an HTTP status code.
+func toStatusCode(err models.Error) int {
+	switch err.Code {
+	case models.ErrCodeBadRequest:
+		return http.StatusBadRequest
+
+	case models.ErrCodeUnauthorized:
+		return http.StatusUnauthorized
+
+	case models.ErrCodeNotFound:
+		return http.StatusNotFound
+
+	case models.ErrCodeInternal:
+		return http.StatusInternalServerError
+
+	default:
+		return http.StatusInternalServerError
+	}
 }

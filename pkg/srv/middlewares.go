@@ -32,7 +32,7 @@ func (a *authMW) authorized(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get(VerificationTokenHeader)
 		if !a.isAccessAllowed(r.Context(), token) {
-			failUnauthorized(w, r)
+			sendUnauthorizedError(w, r)
 			return
 		}
 
