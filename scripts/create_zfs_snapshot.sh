@@ -14,7 +14,8 @@ now=$(date +%Y%m%d%H%M%S)
 # Storage configuration.
 # Name of the ZFS pool which contains PGDATA.
 zfs_pool=${ZFS_POOL:-"dblab_pool"}
-# Sudirectory in which PGDATA is located.
+# Subdirectory relative to a ZFS pool in which PGDATA is located with ending "/".
+# For example, if your ZFS pool configured in `/var/lib/dblab/data` and PGDATA located in `/var/lib/dblab/data/subdir` use `export PGDATA_SUBDIR="/subdir/"`.
 pgdata_subdir=${PGDATA_SUBDIR:-""}
 
 # Clone configuration.
@@ -50,6 +51,13 @@ snapshot_name="snapshot_${now}"
 
 sudo zfs snapshot ${zfs_pool}@${snapshot_name}${pre}
 sudo zfs clone ${zfs_pool}@${snapshot_name}${pre} ${clone_full_name} -o mountpoint=${clone_dir}
+
+# Destroy zfs clone, snapshot and clone directory.
+destroy_zfs_clone() {
+  sudo zfs destroy -r ${clone_full_name}
+  sudo zfs destroy -r ${zfs_pool}@${snapshot_name}${pre}
+  sudo rm -rf ${clone_dir}
+}
 
 cd /tmp # To avoid errors about lack of permissions.
 
@@ -116,7 +124,10 @@ user_owner=$(sudo ls -ld ${clone_pgdata_dir}/PG_VERSION | awk '{print $3}')
 group_owner=$(sudo ls -ld ${clone_pgdata_dir}/PG_VERSION | awk '{print $4}')
 sudo chown -R ${user_owner}:${group_owner} ${clone_pgdata_dir}
 
+# If needed, use a custom Docker image (export PROMOTING_DOCKER_IMAGE="custom-image") to run the promotion container.
+docker_image=${PROMOTING_DOCKER_IMAGE:-postgres:${pg_ver}-alpine}
 container_name="dblab_promote"
+
 sudo docker run \
   --name ${container_name} \
   --label dblab_control \
@@ -125,8 +136,7 @@ sudo docker run \
   --env PGDATA=${container_pgdata_dir} \
   --user postgres \
   --detach \
-  postgres:${pg_ver}-alpine
-
+  ${docker_image}
 
 # Now we are going to wait until we can connect to the server.
 # If it was a replica, it may take a while..
@@ -146,6 +156,7 @@ done
 if $failed; then
   echo >&2 "Failed to start Postgres (in standby mode)"
   sudo docker rm --force ${container_name}
+  destroy_zfs_clone
   exit 1
 fi
 
@@ -154,13 +165,12 @@ should_be_promoted=$(sudo docker exec ${container_name} psql -p ${clone_port} -U
 # Save data state timestamp.
 #   - if we had a replica, we can use `pg_last_xact_replay_timestamp()`,
 #   - if it is a master initially, the DB state timestamp must be provided by user in unix time format.
+#   - otherwise use the current datetime by default
 if [[ ! -z ${DATA_STATE_AT+x} ]]; then
   # For testing, use:
   #    DATA_STATE_AT=$(TZ=UTC date '+%Y%m%d%H%M%S')
   data_state_at="${DATA_STATE_AT}"
-elif [[ $should_be_promoted != "t" ]]; then
-  data_state_at=$(TZ=UTC date '+%Y%m%d%H%M%S')
-else
+elif [[ $should_be_promoted == "t" ]]; then
   data_state_at=$(sudo docker exec ${container_name} psql \
     --set ON_ERROR_STOP=on \
     -p ${clone_port} \
@@ -169,6 +179,17 @@ else
     -h ${pg_sock_dir} \
     -XAt \
     -c "select to_char(pg_last_xact_replay_timestamp() at time zone 'UTC', 'YYYYMMDDHH24MISS')")
+
+  if [[ -z $data_state_at ]]; then
+    echo >&2 "Failed to get data_state_at: pg_data should be promoted, but pg_last_xact_replay_timestamp() returns the empty result."
+    echo >&2 "Check if pg_data is correct, either explicitly define DATA_STATE_AT via an environment variable."
+    sudo docker rm --force ${container_name}
+    destroy_zfs_clone
+    exit 1
+  fi
+else
+  echo >&2 -e "\e[31mAs DATA_STATE_AT is not defined, the current datetime will be used.\e[0m"
+  data_state_at=$(TZ=UTC date '+%Y%m%d%H%M%S')
 fi
 
 # Promote to the master. Again, it may take a while.
@@ -190,6 +211,7 @@ done
 if $failed; then
   echo >&2 "Failed to promote Postgres to master"
   sudo docker rm --force ${container_name}
+  destroy_zfs_clone
   exit 1
 fi
 
