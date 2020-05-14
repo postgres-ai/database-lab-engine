@@ -14,6 +14,8 @@ now=$(date +%Y%m%d%H%M%S)
 # Storage configuration.
 # Name of the ZFS pool which contains PGDATA.
 zfs_pool=${ZFS_POOL:-"dblab_pool"}
+# Default PGDATA directory.
+pgdata_dir=${PGDATA_DIR:-"/var/lib/dblab/data"}
 # Subdirectory relative to a ZFS pool in which PGDATA is located with ending "/".
 # For example, if your ZFS pool configured in `/var/lib/dblab/data` and PGDATA located in `/var/lib/dblab/data/subdir` use `export PGDATA_SUBDIR="/subdir/"`.
 pgdata_subdir=${PGDATA_SUBDIR:-""}
@@ -49,6 +51,14 @@ snapshot_name="snapshot_${now}"
 # OR: we can tell the shadow Postgres: select pg_start_backup('database-lab-snapshot');
 # .. and in the very end: select pg_stop_backup();
 
+# config
+pgdata_dir="/var/lib/dblab/demo/data"
+
+# If you have a running sync instance, uncomment this line before getting a snapshot.
+# sudo docker stop sync-instance
+sudo chown -R postgres ${pgdata_dir}
+
+# Start snapshot creation.
 sudo zfs snapshot ${zfs_pool}@${snapshot_name}${pre}
 sudo zfs clone ${zfs_pool}@${snapshot_name}${pre} ${clone_full_name} -o mountpoint=${clone_dir}
 
@@ -57,6 +67,15 @@ destroy_zfs_clone() {
   sudo zfs destroy -r ${clone_full_name}
   sudo zfs destroy -r ${zfs_pool}@${snapshot_name}${pre}
   sudo rm -rf ${clone_dir}
+
+  start_sync_instance
+}
+
+# Start a sync instance after getting a snapshot.
+start_sync_instance() {
+  # Remember to resume a sync instance.
+  # sudo docker start sync-instance
+  echo >&2 "The sync instance can be started now."
 }
 
 cd /tmp # To avoid errors about lack of permissions.
@@ -83,7 +102,11 @@ sed -i 's/^\\(.*external_pid_file\\)/# \\1/' ${clone_pgdata_dir}/postgresql.conf
 sed -i 's/^\\(.*ident_file\\)/# \\1/' ${clone_pgdata_dir}/postgresql.conf
 sed -i 's/^\\(.*archive_command\\)/# \\1/' ${clone_pgdata_dir}/postgresql.conf
 
-# TODO: improve secirity aspects
+# Turn off the replication.
+sed -i '/restore_command/s/^#*/#/' ${clone_pgdata_dir}/postgresql.conf
+sed -i '/recovery_target_timeline/s/^#*/#/' ${clone_pgdata_dir}/postgresql.conf
+
+# TODO: Improve security aspects.
 echo "listen_addresses = '*'" >> ${clone_pgdata_dir}/postgresql.conf
 echo "unix_socket_directories = '${pg_sock_dir}'" >> ${clone_pgdata_dir}/postgresql.conf
 
@@ -178,7 +201,7 @@ elif [[ $should_be_promoted == "t" ]]; then
     -d ${pg_db} \
     -h ${pg_sock_dir} \
     -XAt \
-    -c "select to_char(pg_last_xact_replay_timestamp() at time zone 'UTC', 'YYYYMMDDHH24MISS')")
+    -c "select to_char(coalesce(pg_last_xact_replay_timestamp(), NOW()) at time zone 'UTC', 'YYYYMMDDHH24MISS')")
 
   if [[ -z $data_state_at ]]; then
     echo >&2 "Failed to get data_state_at: pg_data should be promoted, but pg_last_xact_replay_timestamp() returns the empty result."
@@ -238,6 +261,9 @@ sudo zfs set dblab:datastateat="${data_state_at}" ${clone_full_name}@${snapshot_
 ${sudo_cmd} rm -rf /tmp/trigger_${clone_port}
 
 sudo docker rm ${container_name}
+
+# Restart the sync instance.
+start_sync_instance
 
 # Return to previous working directory.
 cd -
