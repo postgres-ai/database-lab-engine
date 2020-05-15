@@ -1,8 +1,14 @@
 # Copy the following to: ./configs/config.yaml
-# Database Lab server configuration.
 
+# Database Lab server configuration.
 server:
   verificationToken: "secret_token"
+
+  # The host which the Database Lab server accepts HTTP connections from. 
+  # By default: "127.0.0.1", accepts only local connections. Use an empty string to accept all connections.
+  host: "127.0.0.1"
+
+  # HTTP server port. By default: 2345.
   port: 2345
 
 # Postgres.ai Platform integration.
