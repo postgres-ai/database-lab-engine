@@ -23,6 +23,7 @@ import (
 // Config provides configuration for an HTTP server of the Database Lab.
 type Config struct {
 	VerificationToken string `yaml:"verificationToken"`
+	Host              string `yaml:"host"`
 	Port              uint   `yaml:"port"`
 }
 
@@ -104,9 +105,8 @@ func (s *Server) Run() error {
 	r.NotFoundHandler = http.HandlerFunc(sendNotFoundError)
 
 	// Start server.
-	port := s.Config.Port
-	log.Msg(fmt.Sprintf("Server started listening on localhost:%d.", port))
-	err := http.ListenAndServe(fmt.Sprintf(":%d", port), logging(r))
+	log.Msg(fmt.Sprintf("Server started listening on %s:%d.", s.Config.Host, s.Config.Port))
+	err := http.ListenAndServe(fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port), logging(r))
 
 	return errors.WithMessage(err, "HTTP server error")
 }
