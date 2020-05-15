@@ -147,6 +147,12 @@ PGPASSWORD=secret_password \
 ```
 
 
+## Docker Hub
+- [Server](https://hub.docker.com/repository/docker/postgresai/dblab-server)
+- [CLI client](https://hub.docker.com/repository/docker/postgresai/dblab)
+- [Custom Postgres images](https://hub.docker.com/repository/docker/postgresai/extended-postgres)
+
+
 ## References
 - [API reference](https://postgres.ai/swagger-ui/dblab/)
 - [CLI reference](https://postgres.ai/docs/database-lab/6_cli_reference)
