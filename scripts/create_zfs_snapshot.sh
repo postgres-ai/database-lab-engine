@@ -215,6 +215,15 @@ else
   data_state_at=$(TZ=UTC date '+%Y%m%d%H%M%S')
 fi
 
+# Check if there is no new data.
+last_snapshot_time=$(sudo zfs list -t snapshot -r dblab_pool_replica -H -o dblab:datastateat -S dblab:datastateat -S creation | head -1)
+if [[ ! -z ${last_snapshot_time+x} && ${last_snapshot_time} -ge ${data_state_at} ]]; then
+    echo >&2 -e "\e[32mThe last existing snapshot already contains the latest data. Skip taking a new snapshot.\e[0m"
+
+    destroy_zfs_clone
+    exit 0
+fi
+
 # Promote to the master. Again, it may take a while.
 if [[ $should_be_promoted == "t" ]]; then
   echo >&2 "Promote"
