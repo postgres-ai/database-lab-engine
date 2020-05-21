@@ -49,7 +49,7 @@ build-client:
 		$(shell \
 			export GOOS=$(GOOS); \
 			export GOARCH=$(GOARCH); \
-			go build -o bin/cli/$(CLI_BINARY)-$(GOOS)-$(GOARCH) ./cmd/cli/main.go)))
+			${GOBUILD} -o bin/cli/$(CLI_BINARY)-$(GOOS)-$(GOARCH) ./cmd/cli/main.go)))
 
 test:
 	${GOTEST} ./...
