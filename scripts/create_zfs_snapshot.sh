@@ -42,6 +42,7 @@ pg_username=${PGUSERNAME:-"postgres"}
 # Set password with PGPASSWORD env.
 pg_db=${PGDB:-"postgres"}
 sudo_cmd=${SUDO_CMD:-""} # Use `sudo -u postgres` for default environment
+pg_system_user=${PG_SYSTEM_USER:-$USER}
 
 # Snapshot.
 # Name of resulting snapshot after PGDATA manipulation.
@@ -51,12 +52,9 @@ snapshot_name="snapshot_${now}"
 # OR: we can tell the shadow Postgres: select pg_start_backup('database-lab-snapshot');
 # .. and in the very end: select pg_stop_backup();
 
-# config
-pgdata_dir="/var/lib/dblab/demo/data"
-
 # If you have a running sync instance, uncomment this line before getting a snapshot.
 # sudo docker stop sync-instance
-sudo chown -R postgres ${pgdata_dir}
+sudo chown -R ${pg_system_user} ${pgdata_dir}
 
 # Start snapshot creation.
 sudo zfs snapshot ${zfs_pool}@${snapshot_name}${pre}
@@ -109,6 +107,7 @@ sed -i '/recovery_target_timeline/s/^#*/#/' ${clone_pgdata_dir}/postgresql.conf
 # TODO: Improve security aspects.
 echo "listen_addresses = '*'" >> ${clone_pgdata_dir}/postgresql.conf
 echo "unix_socket_directories = '${pg_sock_dir}'" >> ${clone_pgdata_dir}/postgresql.conf
+echo "ssl = off" >> ${clone_pgdata_dir}/postgresql.conf
 
 echo "log_destination = 'stderr'" >> ${clone_pgdata_dir}/postgresql.conf
 echo "log_connections = on" >> ${clone_pgdata_dir}/postgresql.conf
@@ -154,7 +153,6 @@ container_name="dblab_promote"
 sudo docker run \
   --name ${container_name} \
   --label dblab_control \
-  --restart on-failure \
   --volume ${clone_pgdata_dir}:${container_pgdata_dir} \
   --env PGDATA=${container_pgdata_dir} \
   --user postgres \
@@ -167,7 +165,7 @@ sudo docker run \
 # Alternatively, we could use pg_ctl's "-w" option above (instead of manual checking).
 
 failed=true
-for i in {1..1000}; do
+for ((i = 1; i <= ntries; i++)); do
   if [[ $(sudo docker exec ${container_name} psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h ${pg_sock_dir} -XAtc 'select 1') == "1" ]]; then
     failed=false
     break
@@ -216,12 +214,12 @@ else
 fi
 
 # Check if there is no new data.
-last_snapshot_time=$(sudo zfs list -t snapshot -r dblab_pool_replica -H -o dblab:datastateat -S dblab:datastateat -S creation | head -1)
+last_snapshot_time=$(sudo zfs list -t snapshot -r ${zfs_pool} -H -o dblab:datastateat -S dblab:datastateat -S creation | head -1)
 if [[ ! -z ${last_snapshot_time+x} && ${last_snapshot_time} -ge ${data_state_at} ]]; then
-    echo >&2 -e "\e[32mThe last existing snapshot already contains the latest data. Skip taking a new snapshot.\e[0m"
+  echo >&2 -e "\e[32mThe last existing snapshot already contains the latest data. Skip taking a new snapshot.\e[0m"
 
-    destroy_zfs_clone
-    exit 0
+  destroy_zfs_clone
+  exit 0
 fi
 
 # Promote to the master. Again, it may take a while.
@@ -231,7 +229,7 @@ if [[ $should_be_promoted == "t" ]]; then
 fi
 
 failed=true
-for i in {1..1000}; do
+for ((i = 1; i <= ntries; i++)); do
   if [[ $(sudo docker exec ${container_name} psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h ${pg_sock_dir} -XAtc 'select pg_is_in_recovery()') == "f" ]]; then
     failed=false
     break
