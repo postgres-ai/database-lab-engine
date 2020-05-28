@@ -43,14 +43,20 @@ pg_username=${PGUSERNAME:-"postgres"}
 pg_db=${PGDB:-"postgres"}
 sudo_cmd=${SUDO_CMD:-""} # Use `sudo -u postgres` for default environment
 pg_system_user=${PG_SYSTEM_USER:-$USER}
+sync_instance=${SYNC_INSTANCE:="sync_instance"}
 
 # Snapshot.
 # Name of resulting snapshot after PGDATA manipulation.
 snapshot_name="snapshot_${now}"
 
+previous_snapshot_time=$(sudo zfs list -t snapshot -r ${zfs_pool} -H -o dblab:datastateat -S dblab:datastateat -S creation | grep -v "^-$" | head -1)
+
 # TODO: decide: do we need to stop the shadow Postgres instance?
 # OR: we can tell the shadow Postgres: select pg_start_backup('database-lab-snapshot');
 # .. and in the very end: select pg_stop_backup();
+
+#echo "Stopping sync instance..."
+#sudo docker stop ${sync_instance}
 
 # If you have a running sync instance, uncomment this line before getting a snapshot.
 # sudo docker stop sync-instance
@@ -66,14 +72,13 @@ destroy_zfs_clone() {
   sudo zfs destroy -r ${zfs_pool}@${snapshot_name}${pre}
   sudo rm -rf ${clone_dir}
 
-  start_sync_instance
+#  start_sync_instance
 }
 
 # Start a sync instance after getting a snapshot.
 start_sync_instance() {
-  # Remember to resume a sync instance.
-  # sudo docker start sync-instance
-  echo >&2 "The sync instance can be started now."
+  echo "Starting sync instance..."
+  sudo docker start ${sync_instance}
 }
 
 cd /tmp # To avoid errors about lack of permissions.
@@ -139,7 +144,7 @@ echo "host all all 0.0.0.0/0 md5" >> ${clone_pgdata_dir}/pg_hba.conf
 echo "" > ${clone_pgdata_dir}/pg_ident.conf
 SH
 
-echo >&2 "Run container"
+echo "Run container"
 
 # Make sure that PGDATA has correct permissions.
 user_owner=$(sudo ls -ld ${clone_pgdata_dir}/PG_VERSION | awk '{print $3}')
@@ -155,7 +160,6 @@ sudo docker run \
   --label dblab_control \
   --volume ${clone_pgdata_dir}:${container_pgdata_dir} \
   --env PGDATA=${container_pgdata_dir} \
-  --user postgres \
   --detach \
   ${docker_image}
 
@@ -209,23 +213,23 @@ elif [[ $should_be_promoted == "t" ]]; then
     exit 1
   fi
 else
-  echo >&2 -e "\e[31mAs DATA_STATE_AT is not defined, the current datetime will be used.\e[0m"
+  echo -e "\e[31mAs DATA_STATE_AT is not defined, the current datetime will be used.\e[0m"
   data_state_at=$(TZ=UTC date '+%Y%m%d%H%M%S')
 fi
 
 # Check if there is no new data.
-last_snapshot_time=$(sudo zfs list -t snapshot -r ${zfs_pool} -H -o dblab:datastateat -S dblab:datastateat -S creation | head -1)
-if [[ ! -z ${last_snapshot_time+x} && ${last_snapshot_time} -ge ${data_state_at} ]]; then
-  echo >&2 -e "\e[32mThe last existing snapshot already contains the latest data. Skip taking a new snapshot.\e[0m"
+if [[ ! -z ${previous_snapshot_time+x} && ${previous_snapshot_time} -ge ${data_state_at} ]]; then
+    echo >&2 -e "\e[32mThe previous snapshot already contains the latest data (${previous_snapshot_time}). Skip taking a new snapshot. Nothing to do, clean up and exit.\e[0m"
 
-  destroy_zfs_clone
-  exit 0
+    destroy_zfs_clone
+    exit 0
 fi
 
 # Promote to the master. Again, it may take a while.
 if [[ $should_be_promoted == "t" ]]; then
-  echo >&2 "Promote"
-  sudo docker exec ${container_name} pg_ctl -D ${container_pgdata_dir} -W promote
+  echo "Promote"
+  sudo docker exec ${container_name} \
+      bash -c "su - postgres -c \"pg_ctl -D ${container_pgdata_dir} -W promote\""
 fi
 
 failed=true
@@ -239,7 +243,7 @@ for ((i = 1; i <= ntries; i++)); do
 done
 
 if $failed; then
-  echo >&2 "Failed to promote Postgres to master"
+  echo "Failed to promote Postgres to master"
   sudo docker rm --force ${container_name}
   destroy_zfs_clone
   exit 1
@@ -269,8 +273,8 @@ ${sudo_cmd} rm -rf /tmp/trigger_${clone_port}
 
 sudo docker rm ${container_name}
 
-# Restart the sync instance.
-start_sync_instance
+# Restart the sync instance, if needed.
+#start_sync_instance
 
 # Return to previous working directory.
 cd -

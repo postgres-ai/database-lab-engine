@@ -7,14 +7,14 @@ info:
     email: "team@postgres.ai"
   license:
     name: "Database Lab License"
-    url: "https://gitlab.com/postgres-ai/database-lab/blob/master/LICENSE.txt"
+    url: "https://gitlab.com/postgres-ai/database-lab/blob/master/LICENSE"
 basePath: "/"
 tags:
   - name: "Database Lab"
     description: "API Reference"
     externalDocs:
       description: "Database Lab Docs"
-      url: "https://gitlab.com/postgres-ai/docs/tree/master/docs/database-lab"
+      url: "https://postgres.ai/docs/database-lab/what_is_database_lab"
 schemes:
   - "https"
   - "http"
