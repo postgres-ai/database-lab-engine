@@ -56,6 +56,7 @@ previous_snapshot_time=$(sudo zfs list -t snapshot -r ${zfs_pool} -H -o dblab:da
 # .. and in the very end: select pg_stop_backup();
 
 #echo "Stopping sync instance..."
+#sudo docker exec ${sync_instance} psql -U ${pg_username} -d ${pg_db} -XAtc 'checkpoint'
 #sudo docker stop ${sync_instance}
 
 # If you have a running sync instance, uncomment this line before getting a snapshot.
@@ -260,6 +261,7 @@ fi
 ################################################################################
 
 # Finally, stop Postgres and create the base snapshot ready to be used for thin provisioning
+sudo docker exec ${container_name} psql -p ${clone_port} -U ${pg_username} -d ${pg_db} -h ${pg_sock_dir} -XAtc 'checkpoint'
 sudo docker stop ${container_name}
 
 ${sudo_cmd} rm -rf ${clone_pgdata_dir}/pg_log
