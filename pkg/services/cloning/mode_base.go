@@ -133,11 +133,11 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 			// TODO(anatoly): Empty room case.
 			log.Errf("Failed to start session: %v.", err)
 
-			if err := c.updateCloneStatus(cloneID, models.Status{
+			if updateErr := c.updateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
-				Message: models.CloneMessageFatal,
-			}); err != nil {
-				log.Errf("Failed to update clone status: %v", err)
+				Message: errors.Cause(err).Error(),
+			}); updateErr != nil {
+				log.Errf("Failed to update clone status: %v", updateErr)
 			}
 
 			return
@@ -204,11 +204,11 @@ func (c *baseCloning) DestroyClone(cloneID string) error {
 		if err := c.provision.StopSession(w.session); err != nil {
 			log.Errf("Failed to delete a clone: %+v.", err)
 
-			if err := c.updateCloneStatus(cloneID, models.Status{
+			if updateErr := c.updateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
-				Message: models.CloneMessageFatal,
-			}); err != nil {
-				log.Errf("Failed to update clone status: %v", err)
+				Message: errors.Cause(err).Error(),
+			}); updateErr != nil {
+				log.Errf("Failed to update clone status: %v", updateErr)
 			}
 
 			return
@@ -284,11 +284,11 @@ func (c *baseCloning) ResetClone(cloneID string) error {
 		if err != nil {
 			log.Errf("Failed to reset a clone: %+v.", err)
 
-			if err := c.updateCloneStatus(cloneID, models.Status{
+			if updateErr := c.updateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
-				Message: models.CloneMessageFatal,
-			}); err != nil {
-				log.Errf("failed to update clone status: %v", err)
+				Message: errors.Cause(err).Error(),
+			}); updateErr != nil {
+				log.Errf("failed to update clone status: %v", updateErr)
 			}
 
 			return
