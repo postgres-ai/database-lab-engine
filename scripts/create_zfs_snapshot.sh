@@ -59,6 +59,15 @@ previous_snapshot_time=$(sudo zfs list -t snapshot -r ${zfs_pool} -H -o dblab:da
 #sudo docker exec ${sync_instance} psql -U ${pg_username} -d ${pg_db} -XAtc 'checkpoint'
 #sudo docker stop ${sync_instance}
 
+# Start a sync instance after getting a snapshot.
+start_sync_instance() {
+  echo "Starting sync instance..."
+  sudo docker start ${sync_instance}
+}
+
+# Restart the sync instance, if needed.
+# trap start_sync_instance EXIT
+
 # If you have a running sync instance, uncomment this line before getting a snapshot.
 # sudo docker stop sync-instance
 sudo chown -R ${pg_system_user} ${pgdata_dir}
@@ -72,14 +81,6 @@ destroy_zfs_clone() {
   sudo zfs destroy -r ${clone_full_name}
   sudo zfs destroy -r ${zfs_pool}@${snapshot_name}${pre}
   sudo rm -rf ${clone_dir}
-
-#  start_sync_instance
-}
-
-# Start a sync instance after getting a snapshot.
-start_sync_instance() {
-  echo "Starting sync instance..."
-  sudo docker start ${sync_instance}
 }
 
 cd /tmp # To avoid errors about lack of permissions.
@@ -274,9 +275,6 @@ sudo zfs set dblab:datastateat="${data_state_at}" ${clone_full_name}@${snapshot_
 ${sudo_cmd} rm -rf /tmp/trigger_${clone_port}
 
 sudo docker rm ${container_name}
-
-# Restart the sync instance, if needed.
-#start_sync_instance
 
 # Return to previous working directory.
 cd -
