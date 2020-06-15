@@ -35,6 +35,7 @@ lint:
       - branches
     variables:
       - $CI_COMMIT_REF_SLUG != "master"
+  when: manual
 
 build-binary-alpine:
   image: golang:1.13-alpine
