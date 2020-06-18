@@ -8,12 +8,15 @@ package clone
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
+	"sync"
 
 	"github.com/urfave/cli/v2"
 
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
 	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/pkg/observer"
 )
@@ -248,4 +251,84 @@ func observeSummary() func(*cli.Context) error {
 
 		return nil
 	}
+}
+
+func forward(cliCtx *cli.Context) error {
+	remoteURL, err := url.Parse(cliCtx.String(commands.URLKey))
+	if err != nil {
+		return err
+	}
+
+	wg := &sync.WaitGroup{}
+
+	port, err := retrieveClonePort(cliCtx, wg, remoteURL.Host)
+	if err != nil {
+		return err
+	}
+
+	wg.Wait()
+
+	log.Dbg(fmt.Sprintf("The clone port has been retrieved: %s", port))
+
+	tunnel, err := commands.BuildTunnel(cliCtx, commands.BuildHostname(remoteURL.Hostname(), port))
+	if err != nil {
+		return err
+	}
+
+	if err := tunnel.Open(); err != nil {
+		return err
+	}
+
+	log.Msg(fmt.Sprintf("The clone is available by address: %s", tunnel.Endpoints.Local))
+
+	if err := tunnel.Listen(cliCtx.Context); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func retrieveClonePort(cliCtx *cli.Context, wg *sync.WaitGroup, remoteHost string) (string, error) {
+	tunnel, err := commands.BuildTunnel(cliCtx, remoteHost)
+	if err != nil {
+		return "", err
+	}
+
+	if err := tunnel.Open(); err != nil {
+		return "", err
+	}
+
+	const goroutineCount = 1
+
+	wg.Add(goroutineCount)
+
+	go func() {
+		defer wg.Done()
+
+		if err := tunnel.Listen(cliCtx.Context); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	defer func() {
+		log.Dbg("Stop tunnel to DBLab")
+
+		if err := tunnel.Stop(); err != nil {
+			log.Err(err)
+		}
+	}()
+
+	log.Dbg("Retrieving clone port")
+
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
+		return "", err
+	}
+
+	clone, err := dblabClient.GetClone(cliCtx.Context, cliCtx.Args().First())
+	if err != nil {
+		return "", err
+	}
+
+	return clone.DB.Port, nil
 }

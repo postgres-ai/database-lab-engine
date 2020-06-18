@@ -2,11 +2,12 @@
 2020 © Postgres.ai
 */
 
-// Package initialization provides commands for a CLI initialization.
-package initialization
+// Package global provides general commands for CLI usage.
+package global
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/pkg/errors"
@@ -14,6 +15,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/config"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
 )
 
 func initCLI(c *cli.Context) error {
@@ -37,8 +39,6 @@ func initCLI(c *cli.Context) error {
 		}
 	}
 
-	cfg.Version = c.App.Version
-
 	environmentID := c.String(commands.EnvironmentIDKey)
 	if err := config.AddEnvironmentToConfig(c, cfg, environmentID); err != nil {
 		return err
@@ -52,4 +52,34 @@ func initCLI(c *cli.Context) error {
 		environmentID)
 
 	return err
+}
+
+func forward(cliCtx *cli.Context) error {
+	remoteURL, err := url.Parse(cliCtx.String(commands.URLKey))
+	if err != nil {
+		return err
+	}
+
+	tunnel, err := commands.BuildTunnel(cliCtx, remoteURL.Host)
+	if err != nil {
+		return err
+	}
+
+	if err := tunnel.Open(); err != nil {
+		return err
+	}
+
+	defer func() {
+		if stopErr := tunnel.Stop(); err == nil {
+			err = stopErr
+		}
+	}()
+
+	log.Msg(fmt.Sprintf("The connection is available by address: %s", tunnel.Endpoints.Local))
+
+	if err := tunnel.Listen(cliCtx.Context); err != nil {
+		return err
+	}
+
+	return nil
 }

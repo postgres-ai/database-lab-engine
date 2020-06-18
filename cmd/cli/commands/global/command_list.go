@@ -2,16 +2,17 @@
 2020 © Postgres.ai
 */
 
-package initialization
+package global
 
 import (
 	"github.com/urfave/cli/v2"
 
+	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/templates"
 )
 
-// GlobalList provides commands for getting started.
-func GlobalList() []*cli.Command {
+// List provides commands for getting started.
+func List() []*cli.Command {
 	return []*cli.Command{
 		{
 			Name:               "init",
@@ -37,8 +38,22 @@ func GlobalList() []*cli.Command {
 					Name:  "insecure",
 					Usage: "allow insecure server connections when using SSL",
 				},
+				&cli.StringFlag{
+					Name:  "forwarding-server-url",
+					Usage: "forwarding server URL of Database Lab instance",
+				},
+				&cli.StringFlag{
+					Name:  "forwarding-local-port",
+					Usage: "local port for forwarding to the Database Lab instance",
+				},
 			},
 			Action: initCLI,
+		},
+		{
+			Name:   "port-forward",
+			Usage:  "start port forwarding to the Database Lab instance",
+			Before: commands.CheckForwardingServerURL,
+			Action: forward,
 		},
 	}
 }

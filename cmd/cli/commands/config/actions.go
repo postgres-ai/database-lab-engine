@@ -16,6 +16,14 @@ import (
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
 )
 
+// headers of a config list.
+const (
+	envHeader      = "ENV "
+	urlHeader      = "URL"
+	fwServerHeader = "Forwarding server URL"
+	fwPortHeader   = "Forwarding local port"
+)
+
 // createEnvironment creates a new CLI environment.
 func createEnvironment() func(*cli.Context) error {
 	return func(cliCtx *cli.Context) (err error) {
@@ -119,20 +127,32 @@ func list() func(*cli.Context) error {
 		}
 
 		environmentNames := make([]string, 0, len(cfg.Environments))
-		maxNameLength := 0
+		maxNameLen := 0
+		maxURLLen := len(urlHeader)
+		maxFwServerLen := len(fwServerHeader)
 
 		for environmentName := range cfg.Environments {
 			environmentNames = append(environmentNames, environmentName)
 
 			nameLength := len(environmentName)
-			if maxNameLength < nameLength {
-				maxNameLength = nameLength
+			if maxNameLen < nameLength {
+				maxNameLen = nameLength
+			}
+
+			urlLength := len(cfg.Environments[environmentName].URL)
+			if maxURLLen < urlLength {
+				maxURLLen = urlLength
+			}
+
+			urlFwLength := len(cfg.Environments[environmentName].Forwarding.ServerURL)
+			if maxFwServerLen < urlFwLength {
+				maxFwServerLen = urlFwLength
 			}
 		}
 
 		sort.Strings(environmentNames)
 
-		listOutput := buildListOutput(cfg, environmentNames, maxNameLength)
+		listOutput := buildListOutput(cfg, environmentNames, maxNameLen, maxURLLen, maxFwServerLen)
 
 		_, err = fmt.Fprintf(cliCtx.App.Writer, "Available CLI environments:\n%s", listOutput)
 
@@ -140,10 +160,20 @@ func list() func(*cli.Context) error {
 	}
 }
 
-func buildListOutput(cfg *CLIConfig, environmentNames []string, maxNameLength int) string {
+func buildListOutput(cfg *CLIConfig, environmentNames []string, maxNameLen, maxURLLen, maxFwLen int) string {
+	// TODO(akartasov): Draw as a table.
 	const outputAlign = 2
 
 	s := strings.Builder{}
+
+	s.WriteString(envHeader)
+	s.WriteString(strings.Repeat(" ", maxNameLen+outputAlign))
+	s.WriteString(urlHeader)
+	s.WriteString(strings.Repeat(" ", maxURLLen-len(urlHeader)+outputAlign))
+	s.WriteString(fwServerHeader)
+	s.WriteString(strings.Repeat(" ", maxFwLen-len(fwServerHeader)+outputAlign))
+	s.WriteString(fwPortHeader)
+	s.WriteString("\n")
 
 	for _, environmentName := range environmentNames {
 		if environmentName == cfg.CurrentEnvironment {
@@ -153,8 +183,12 @@ func buildListOutput(cfg *CLIConfig, environmentNames []string, maxNameLength in
 		}
 
 		s.WriteString(environmentName)
-		s.WriteString(strings.Repeat(" ", maxNameLength-len(environmentName)+outputAlign))
+		s.WriteString(strings.Repeat(" ", maxNameLen-len(environmentName)+outputAlign))
 		s.WriteString(cfg.Environments[environmentName].URL)
+		s.WriteString(strings.Repeat(" ", maxURLLen-len(cfg.Environments[environmentName].URL)+outputAlign))
+		s.WriteString(cfg.Environments[environmentName].Forwarding.ServerURL)
+		s.WriteString(strings.Repeat(" ", maxFwLen-len(cfg.Environments[environmentName].Forwarding.ServerURL)+outputAlign))
+		s.WriteString(cfg.Environments[environmentName].Forwarding.LocalPort)
 		s.WriteString("\n")
 	}
 
