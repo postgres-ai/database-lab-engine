@@ -37,6 +37,14 @@ func CommandList() []*cli.Command {
 							Name:  "insecure",
 							Usage: "allow insecure server connections when using SSL",
 						},
+						&cli.StringFlag{
+							Name:  "forwarding-server-url",
+							Usage: "forwarding server URL of Database Lab instance",
+						},
+						&cli.StringFlag{
+							Name:  "forwarding-local-port",
+							Usage: "local port for forwarding to the Database Lab instance",
+						},
 					},
 				},
 				{
@@ -56,6 +64,14 @@ func CommandList() []*cli.Command {
 						&cli.BoolFlag{
 							Name:  "insecure",
 							Usage: "allow insecure server connections when using SSL",
+						},
+						&cli.StringFlag{
+							Name:  "forwarding-server-url",
+							Usage: "forwarding server URL of Database Lab instance",
+						},
+						&cli.StringFlag{
+							Name:  "forwarding-local-port",
+							Usage: "local port for forwarding to the Database Lab instance",
 						},
 					},
 				},

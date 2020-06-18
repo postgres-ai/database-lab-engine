@@ -13,17 +13,23 @@ import (
 
 // CLIConfig defines a format of CLI configuration.
 type CLIConfig struct {
-	Version            string                 `yaml:"version" json:"version"`
 	CurrentEnvironment string                 `yaml:"current_environment" json:"current_environment"`
 	Environments       map[string]Environment `yaml:"environments" json:"environments"`
 }
 
 // Environment defines a format of environment configuration.
 type Environment struct {
-	EnvironmentID string `yaml:"-" json:"environment_id"`
-	URL           string `yaml:"url" json:"url"`
-	Token         string `yaml:"token" json:"token"`
-	Insecure      bool   `yaml:"insecure" json:"insecure"`
+	EnvironmentID string     `yaml:"-" json:"environment_id"`
+	URL           string     `yaml:"url" json:"url"`
+	Token         string     `yaml:"token" json:"token"`
+	Insecure      bool       `yaml:"insecure" json:"insecure"`
+	Forwarding    Forwarding `yaml:"forwarding" json:"forwarding"`
+}
+
+// Forwarding defines configuration for port forwarding.
+type Forwarding struct {
+	ServerURL string `yaml:"server_url" json:"server_url"`
+	LocalPort string `yaml:"local_port" json:"local_port"`
 }
 
 // AddEnvironmentToConfig adds a new environment to CLIConfig.
@@ -40,6 +46,10 @@ func AddEnvironmentToConfig(c *cli.Context, cfg *CLIConfig, environmentID string
 		URL:      c.String(commands.URLKey),
 		Token:    c.String(commands.TokenKey),
 		Insecure: c.Bool(commands.InsecureKey),
+		Forwarding: Forwarding{
+			ServerURL: c.String(commands.FwServerURLKey),
+			LocalPort: c.String(commands.FwLocalPortKey),
+		},
 	}
 
 	if cfg.Environments == nil {
@@ -79,6 +89,14 @@ func updateEnvironmentInConfig(c *cli.Context, cfg *CLIConfig, environmentID str
 
 	if c.IsSet(commands.InsecureKey) {
 		newEnvironment.Insecure = c.Bool(commands.InsecureKey)
+	}
+
+	if c.IsSet(commands.FwServerURLKey) {
+		newEnvironment.Forwarding.ServerURL = c.String(commands.FwServerURLKey)
+	}
+
+	if c.IsSet(commands.FwLocalPortKey) {
+		newEnvironment.Forwarding.LocalPort = c.String(commands.FwLocalPortKey)
 	}
 
 	if newEnvironment == environment {

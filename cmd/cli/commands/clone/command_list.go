@@ -155,6 +155,22 @@ func CommandList() []*cli.Command {
 				Usage:  "[EXPERIMENTAL] summarize clone monitoring and check results",
 				Action: observeSummary(),
 			},
+			{
+				Name:  "port-forward",
+				Usage: "start port forwarding to clone",
+				Before: func(ctxCli *cli.Context) error {
+					if err := checkCloneIDBefore(ctxCli); err != nil {
+						return err
+					}
+
+					if err := commands.CheckForwardingServerURL(ctxCli); err != nil {
+						return err
+					}
+
+					return nil
+				},
+				Action: forward,
+			},
 		},
 	}}
 }

@@ -11,7 +11,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/clone"
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/config"
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/initialization"
+	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/global"
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/instance"
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/snapshot"
 	"gitlab.com/postgres-ai/database-lab/cmd/cli/templates"
@@ -27,8 +27,8 @@ func main() {
 		},
 		Before: loadEnvironmentParams,
 		Commands: joinCommands(
-			// Getting started.
-			initialization.GlobalList(),
+			// Global commands.
+			global.List(),
 
 			// Database Lab API.
 			clone.CommandList(),
@@ -54,6 +54,16 @@ func main() {
 				Aliases: []string{"k"},
 				Usage:   "allow insecure server connections when using SSL",
 				EnvVars: []string{"DBLAB_INSECURE_SKIP_VERIFY"},
+			},
+			&cli.StringFlag{
+				Name:    "forwarding-server-url",
+				Usage:   "forwarding server URL of Database Lab instance",
+				EnvVars: []string{"DBLAB_FORWARDING_SERVER_URL"},
+			},
+			&cli.StringFlag{
+				Name:    "forwarding-local-port",
+				Usage:   "local port for forwarding to the Database Lab instance",
+				EnvVars: []string{"DBLAB_FORWARDING_LOCAL_PORT"},
 			},
 			&cli.BoolFlag{
 				Name:    "debug",
@@ -101,6 +111,18 @@ func loadEnvironmentParams(c *cli.Context) error {
 
 		if !c.IsSet(commands.InsecureKey) {
 			if err := c.Set(commands.InsecureKey, strconv.FormatBool(env.Insecure)); err != nil {
+				return err
+			}
+		}
+
+		if !c.IsSet(commands.FwServerURLKey) {
+			if err := c.Set(commands.FwServerURLKey, env.Forwarding.ServerURL); err != nil {
+				return err
+			}
+		}
+
+		if !c.IsSet(commands.FwLocalPortKey) {
+			if err := c.Set(commands.FwLocalPortKey, env.Forwarding.LocalPort); err != nil {
 				return err
 			}
 		}
