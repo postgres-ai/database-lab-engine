@@ -11,6 +11,8 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -72,17 +74,18 @@ type provisionModeLocal struct {
 	provision
 	dockerClient     *client.Client
 	runner           runners.Runner
+	mu               *sync.Mutex
 	ports            []bool
-	sessionCounter   uint
+	sessionCounter   uint32
 	thinCloneManager thinclones.Manager
 }
 
 // NewProvisionModeLocal creates a new Provision instance of ModeLocal.
 func NewProvisionModeLocal(ctx context.Context, config Config, dockerClient *client.Client) (Provision, error) {
 	p := &provisionModeLocal{
-		runner:         runners.NewLocalRunner(config.ModeLocal.UseSudo),
-		sessionCounter: 0,
-		dockerClient:   dockerClient,
+		runner:       runners.NewLocalRunner(config.ModeLocal.UseSudo),
+		mu:           &sync.Mutex{},
+		dockerClient: dockerClient,
 		provision: provision{
 			config: config,
 			ctx:    ctx,
@@ -196,8 +199,7 @@ func (j *provisionModeLocal) StartSession(username, password, snapshotID string)
 		return nil, errors.Wrap(err, "failed to get snapshots")
 	}
 
-	// TODO(anatoly): Synchronization or port allocation statuses.
-	port, err := j.getFreePort()
+	port, err := j.allocatePort()
 	if err != nil {
 		return nil, errors.New("failed to get a free port")
 	}
@@ -209,6 +211,10 @@ func (j *provisionModeLocal) StartSession(username, password, snapshotID string)
 	defer func() {
 		if err != nil {
 			j.revertSession(name)
+
+			if portErr := j.freePort(port); portErr != nil {
+				log.Err(portErr)
+			}
 		}
 	}()
 
@@ -227,12 +233,7 @@ func (j *provisionModeLocal) StartSession(username, password, snapshotID string)
 		return nil, errors.Wrap(err, "failed to prepare a database")
 	}
 
-	err = j.setPort(port, true)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to set a port")
-	}
-
-	j.sessionCounter++
+	atomic.AddUint32(&j.sessionCounter, 1)
 
 	appConfig := j.getAppConfig(name, port)
 
@@ -263,7 +264,7 @@ func (j *provisionModeLocal) StopSession(session *resources.Session) error {
 		return errors.Wrap(err, "failed to destroy a clone")
 	}
 
-	err = j.setPort(session.Port, false)
+	err = j.freePort(session.Port)
 	if err != nil {
 		return errors.Wrap(err, "failed to unbind a port")
 	}
@@ -372,12 +373,21 @@ func (j *provisionModeLocal) initPortPool() error {
 	return nil
 }
 
-func (j *provisionModeLocal) getFreePort() (uint, error) {
+// allocatePort tries to find a free port and occupy it.
+func (j *provisionModeLocal) allocatePort() (uint, error) {
 	portOpts := j.config.ModeLocal.PortPool
+
+	j.mu.Lock()
+	defer j.mu.Unlock()
 
 	for index, binded := range j.ports {
 		if !binded {
 			port := portOpts.From + uint(index)
+
+			if err := j.setPortStatus(port, true); err != nil {
+				return 0, errors.Wrap(err, "failed to set port status")
+			}
+
 			return port, nil
 		}
 	}
@@ -385,7 +395,17 @@ func (j *provisionModeLocal) getFreePort() (uint, error) {
 	return 0, errors.WithStack(NewNoRoomError("no available ports"))
 }
 
-func (j *provisionModeLocal) setPort(port uint, bind bool) error {
+// freePort marks the port as free.
+func (j *provisionModeLocal) freePort(port uint) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	return j.setPortStatus(port, false)
+}
+
+// setPortStatus updates the port status.
+// It's not safe to invoke without ports mutex locking. Use allocatePort and freePort methods.
+func (j *provisionModeLocal) setPortStatus(port uint, bind bool) error {
 	portOpts := j.config.ModeLocal.PortPool
 
 	if port < portOpts.From || port >= portOpts.To {
@@ -399,14 +419,14 @@ func (j *provisionModeLocal) setPort(port uint, bind bool) error {
 }
 
 func (j *provisionModeLocal) stopAllSessions() error {
-	insts, err := postgres.List(j.runner, ClonePrefix)
+	instances, err := postgres.List(j.runner, ClonePrefix)
 	if err != nil {
 		return errors.Wrap(err, "failed to list containers")
 	}
 
-	log.Dbg("Containers running:", insts)
+	log.Dbg("Containers running:", instances)
 
-	for _, inst := range insts {
+	for _, inst := range instances {
 		log.Dbg("Stopping container:", inst)
 
 		if err = postgres.Stop(j.runner, j.getAppConfig(inst, 0)); err != nil {
