@@ -385,7 +385,7 @@ func (j *provisionModeLocal) allocatePort() (uint, error) {
 			port := portOpts.From + uint(index)
 
 			if err := j.setPortStatus(port, true); err != nil {
-				return 0, errors.Wrap(err, "failed to set port status")
+				return 0, errors.Wrapf(err, "failed to set status for port %v", port)
 			}
 
 			return port, nil
