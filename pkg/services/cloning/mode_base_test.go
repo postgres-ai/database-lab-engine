@@ -47,6 +47,27 @@ func (s *BaseCloningSuite) TestFindWrapper() {
 	assert.Equal(s.T(), CloneWrapper{clone: &models.Clone{ID: "testCloneID"}}, *wrapper)
 }
 
+func (s *BaseCloningSuite) TestCloneList() {
+	clone1 := &models.Clone{CreatedAt: "2020-02-20 01:23:45 UTC"}
+	clone2 := &models.Clone{CreatedAt: "2020-06-23 10:31:27 UTC"}
+	clone3 := &models.Clone{CreatedAt: "2020-05-20 00:43:21 UTC"}
+
+	s.cloning.setWrapper("testCloneID1", &CloneWrapper{clone: clone1})
+	s.cloning.setWrapper("testCloneID2", &CloneWrapper{clone: clone2})
+	s.cloning.setWrapper("testCloneID3", &CloneWrapper{clone: clone3})
+
+	list := s.cloning.GetClones()
+
+	assert.Equal(s.T(), 3, len(list))
+
+	// Check clone order.
+	assert.Equal(s.T(), []*models.Clone{
+		{CreatedAt: "2020-06-23 10:31:27 UTC"},
+		{CreatedAt: "2020-05-20 00:43:21 UTC"},
+		{CreatedAt: "2020-02-20 01:23:45 UTC"},
+	}, list)
+}
+
 func (s *BaseCloningSuite) TestUpdateStatus() {
 	s.cloning.setWrapper("testCloneID", &CloneWrapper{clone: &models.Clone{Status: models.Status{
 		Code:    models.StatusCreating,

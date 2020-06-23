@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -336,7 +337,7 @@ func (c *baseCloning) GetSnapshots() ([]models.Snapshot, error) {
 	return snapshots, nil
 }
 
-// GetClones returns all clones.
+// GetClones returns the list of clones descend ordered by creation time.
 func (c *baseCloning) GetClones() []*models.Clone {
 	clones := make([]*models.Clone, 0, c.lenClones())
 
@@ -345,6 +346,10 @@ func (c *baseCloning) GetClones() []*models.Clone {
 		clones = append(clones, cloneWrapper.clone)
 	}
 	c.cloneMutex.RUnlock()
+
+	sort.Slice(clones, func(i, j int) bool {
+		return clones[i].CreatedAt > clones[j].CreatedAt
+	})
 
 	return clones
 }
