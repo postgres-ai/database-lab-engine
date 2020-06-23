@@ -7,7 +7,9 @@ package portfwd
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 
@@ -158,4 +160,21 @@ func SSHAgent() ssh.AuthMethod {
 	}
 
 	return nil
+}
+
+// ReadAuthFromIdentityFile reads an identity file and returns an AuthMethod that uses the given key pairs.
+func ReadAuthFromIdentityFile(identityFilename string) (ssh.AuthMethod, error) {
+	log.Dbg(fmt.Sprintf("Read identity file %q", identityFilename))
+
+	privateKey, err := ioutil.ReadFile(identityFilename)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read an identity file")
+	}
+
+	signer, err := ssh.ParsePrivateKey(privateKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse a private key")
+	}
+
+	return ssh.PublicKeys(signer), nil
 }

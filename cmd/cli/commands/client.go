@@ -21,6 +21,7 @@ const (
 	InsecureKey      = "insecure"
 	FwServerURLKey   = "forwarding-server-url"
 	FwLocalPortKey   = "forwarding-local-port"
+	IdentityFileKey  = "identity-file"
 )
 
 // ClientByCLIContext creates a new Database Lab API client.

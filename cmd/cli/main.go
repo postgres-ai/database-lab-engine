@@ -58,12 +58,17 @@ func main() {
 			&cli.StringFlag{
 				Name:    "forwarding-server-url",
 				Usage:   "forwarding server URL of Database Lab instance",
-				EnvVars: []string{"DBLAB_FORWARDING_SERVER_URL"},
+				EnvVars: []string{"DBLAB_CLI_FORWARDING_SERVER_URL"},
 			},
 			&cli.StringFlag{
 				Name:    "forwarding-local-port",
 				Usage:   "local port for forwarding to the Database Lab instance",
-				EnvVars: []string{"DBLAB_FORWARDING_LOCAL_PORT"},
+				EnvVars: []string{"DBLAB_CLI_FORWARDING_LOCAL_PORT"},
+			},
+			&cli.StringFlag{
+				Name:    "identity-file",
+				Usage:   "select a file from which the identity (private key) for public key authentication is read",
+				EnvVars: []string{"DBLAB_CLI_IDENTITY_FILE"},
 			},
 			&cli.BoolFlag{
 				Name:    "debug",
@@ -123,6 +128,12 @@ func loadEnvironmentParams(c *cli.Context) error {
 
 		if !c.IsSet(commands.FwLocalPortKey) {
 			if err := c.Set(commands.FwLocalPortKey, env.Forwarding.LocalPort); err != nil {
+				return err
+			}
+		}
+
+		if !c.IsSet(commands.IdentityFileKey) {
+			if err := c.Set(commands.IdentityFileKey, env.Forwarding.IdentityFile); err != nil {
 				return err
 			}
 		}

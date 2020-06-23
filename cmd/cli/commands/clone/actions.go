@@ -261,7 +261,7 @@ func forward(cliCtx *cli.Context) error {
 
 	wg := &sync.WaitGroup{}
 
-	port, err := retrieveClonePort(cliCtx, wg, remoteURL.Host)
+	port, err := retrieveClonePort(cliCtx, wg, remoteURL)
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,9 @@ func forward(cliCtx *cli.Context) error {
 
 	log.Dbg(fmt.Sprintf("The clone port has been retrieved: %s", port))
 
-	tunnel, err := commands.BuildTunnel(cliCtx, commands.BuildHostname(remoteURL.Hostname(), port))
+	remoteURL.Host = commands.BuildHostname(remoteURL.Hostname(), port)
+
+	tunnel, err := commands.BuildTunnel(cliCtx, remoteURL)
 	if err != nil {
 		return err
 	}
@@ -288,7 +290,7 @@ func forward(cliCtx *cli.Context) error {
 	return nil
 }
 
-func retrieveClonePort(cliCtx *cli.Context, wg *sync.WaitGroup, remoteHost string) (string, error) {
+func retrieveClonePort(cliCtx *cli.Context, wg *sync.WaitGroup, remoteHost *url.URL) (string, error) {
 	tunnel, err := commands.BuildTunnel(cliCtx, remoteHost)
 	if err != nil {
 		return "", err

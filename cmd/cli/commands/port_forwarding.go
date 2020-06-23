@@ -17,15 +17,15 @@ import (
 )
 
 // BuildTunnel creates a new instance of SSH tunnel.
-func BuildTunnel(cliCtx *cli.Context, remoteHost string) (*portfwd.SSHTunnel, error) {
-	remoteURL, err := url.Parse(cliCtx.String(URLKey))
+func BuildTunnel(cliCtx *cli.Context, remoteHost *url.URL) (*portfwd.SSHTunnel, error) {
+	localEndpoint := forwardingLocalEndpoint(remoteHost, cliCtx.String(FwLocalPortKey))
+
+	serverURL, err := url.Parse(cliCtx.String(FwServerURLKey))
 	if err != nil {
 		return nil, err
 	}
 
-	localEndpoint := forwardingLocalEndpoint(remoteURL, cliCtx.String(FwLocalPortKey))
-
-	serverURL, err := url.Parse(cliCtx.String(FwServerURLKey))
+	authMethod, err := getAuthMethod(cliCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func BuildTunnel(cliCtx *cli.Context, remoteHost string) (*portfwd.SSHTunnel, er
 	sshConfig := &ssh.ClientConfig{
 		User: serverURL.User.Username(),
 		Auth: []ssh.AuthMethod{
-			portfwd.SSHAgent(),
+			authMethod,
 		},
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			// Always accept key.
@@ -41,7 +41,7 @@ func BuildTunnel(cliCtx *cli.Context, remoteHost string) (*portfwd.SSHTunnel, er
 		},
 	}
 
-	tunnel := portfwd.NewTunnel(localEndpoint, serverURL.Host, remoteHost, sshConfig)
+	tunnel := portfwd.NewTunnel(localEndpoint, serverURL.Host, remoteHost.Host, sshConfig)
 
 	return tunnel, nil
 }
@@ -52,6 +52,19 @@ func forwardingLocalEndpoint(remoteURL *url.URL, localPort string) string {
 	}
 
 	return fmt.Sprintf("%s:%s", "127.0.0.1", localPort)
+}
+
+func getAuthMethod(cliCtx *cli.Context) (ssh.AuthMethod, error) {
+	if cliCtx.String(IdentityFileKey) != "" {
+		authMethod, err := portfwd.ReadAuthFromIdentityFile(cliCtx.String(IdentityFileKey))
+		if err != nil {
+			return nil, err
+		}
+
+		return authMethod, nil
+	}
+
+	return portfwd.SSHAgent(), nil
 }
 
 // BuildHostname builds a hostname string.

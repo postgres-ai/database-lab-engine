@@ -60,7 +60,7 @@ func forward(cliCtx *cli.Context) error {
 		return err
 	}
 
-	tunnel, err := commands.BuildTunnel(cliCtx, remoteURL.Host)
+	tunnel, err := commands.BuildTunnel(cliCtx, remoteURL)
 	if err != nil {
 		return err
 	}
