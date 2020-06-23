@@ -28,8 +28,9 @@ type Environment struct {
 
 // Forwarding defines configuration for port forwarding.
 type Forwarding struct {
-	ServerURL string `yaml:"server_url" json:"server_url"`
-	LocalPort string `yaml:"local_port" json:"local_port"`
+	ServerURL    string `yaml:"server_url" json:"server_url"`
+	LocalPort    string `yaml:"local_port" json:"local_port"`
+	IdentityFile string `yaml:"identity_file" json:"identity_file"`
 }
 
 // AddEnvironmentToConfig adds a new environment to CLIConfig.
@@ -47,8 +48,9 @@ func AddEnvironmentToConfig(c *cli.Context, cfg *CLIConfig, environmentID string
 		Token:    c.String(commands.TokenKey),
 		Insecure: c.Bool(commands.InsecureKey),
 		Forwarding: Forwarding{
-			ServerURL: c.String(commands.FwServerURLKey),
-			LocalPort: c.String(commands.FwLocalPortKey),
+			ServerURL:    c.String(commands.FwServerURLKey),
+			LocalPort:    c.String(commands.FwLocalPortKey),
+			IdentityFile: c.String(commands.IdentityFileKey),
 		},
 	}
 
@@ -97,6 +99,10 @@ func updateEnvironmentInConfig(c *cli.Context, cfg *CLIConfig, environmentID str
 
 	if c.IsSet(commands.FwLocalPortKey) {
 		newEnvironment.Forwarding.LocalPort = c.String(commands.FwLocalPortKey)
+	}
+
+	if c.IsSet(commands.IdentityFileKey) {
+		newEnvironment.Forwarding.IdentityFile = c.String(commands.IdentityFileKey)
 	}
 
 	if newEnvironment == environment {

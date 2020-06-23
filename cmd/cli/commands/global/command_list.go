@@ -46,6 +46,10 @@ func List() []*cli.Command {
 					Name:  "forwarding-local-port",
 					Usage: "local port for forwarding to the Database Lab instance",
 				},
+				&cli.StringFlag{
+					Name:  "identity-file",
+					Usage: "select a file from which the identity (private key) for public key authentication is read",
+				},
 			},
 			Action: initCLI,
 		},
