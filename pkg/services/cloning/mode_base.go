@@ -27,7 +27,11 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/util/pglog"
 )
 
-const idleCheckDuration = 5 * time.Minute
+const (
+	idleCheckDuration = 5 * time.Minute
+
+	defaultDatabaseName = "postgres"
+)
 
 type baseCloning struct {
 	cloning
@@ -164,8 +168,8 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 
 		clone.DB.Port = strconv.FormatUint(uint64(session.Port), 10)
 		clone.DB.Host = c.Config.AccessHost
-		clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s user=%s",
-			clone.DB.Host, clone.DB.Port, clone.DB.Username)
+		clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s user=%s dbname=%s",
+			clone.DB.Host, clone.DB.Port, clone.DB.Username, defaultDatabaseName)
 
 		// TODO(anatoly): Remove mock data.
 		clone.Metadata = models.CloneMetadata{
