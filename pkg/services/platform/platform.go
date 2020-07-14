@@ -33,8 +33,8 @@ type Service struct {
 	organizationID uint
 }
 
-// NewService creates a new platform service.
-func NewService(cfg Config) *Service {
+// New creates a new platform service.
+func New(cfg Config) *Service {
 	return &Service{
 		cfg: cfg,
 	}

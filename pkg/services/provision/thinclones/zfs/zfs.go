@@ -235,7 +235,7 @@ func ListDetails(r runners.Runner, pool string, dsType string) ([]*ListEntry, er
 
 	// First line is header.
 	if len(lines) <= headerOffset {
-		return nil, errors.Errorf(`ZFS error: no "%s" filesystem`, pool)
+		return nil, errors.Errorf(`ZFS error: no available %s for pool %q`, dsType, pool)
 	}
 
 	entries := make([]*ListEntry, len(lines)-headerOffset)

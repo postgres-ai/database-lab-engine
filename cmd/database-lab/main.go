@@ -14,11 +14,13 @@ import (
 	"bytes"
 	"context"
 
+	"github.com/docker/docker/client"
 	"github.com/jessevdk/go-flags"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
@@ -36,8 +38,6 @@ var opts struct {
 }
 
 func main() {
-	ctx := context.Background()
-
 	// Load CLI options.
 	if _, err := parseArgs(); err != nil {
 		if flags.WroteHelp(err) {
@@ -68,24 +68,41 @@ func main() {
 		cfg.Provision.ModeLocal.DockerImage = opts.DockerImage
 	}
 
-	provisionSvc, err := provision.NewProvision(ctx, cfg.Provision)
+	dockerCLI, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		log.Fatalf(errors.WithMessage(err, `error in "provision" config`))
-	}
-
-	cloningSvc, err := cloning.NewCloning(&cfg.Cloning, provisionSvc)
-	if err != nil {
-		log.Fatalf(errors.WithMessage(err, "failed to init a new cloning service"))
+		log.Fatal("Failed to create a Docker client:", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Create a new retrieval service to prepare a data directory and start snapshotting.
+	retrievalSvc, err := retrieval.New(cfg, dockerCLI)
+	if err != nil {
+		log.Fatal("Failed to build a retrieval service:", err)
+	}
+
+	if err := retrievalSvc.Run(ctx); err != nil {
+		log.Fatal("Failed to run the data retrieval service:", err)
+	}
+
+	// Create a cloning service to provision new clones.
+	provisionSvc, err := provision.New(ctx, cfg.Provision)
+	if err != nil {
+		log.Fatalf(errors.WithMessage(err, `error in "provision" config`))
+	}
+
+	cloningSvc, err := cloning.New(&cfg.Cloning, provisionSvc)
+	if err != nil {
+		log.Fatalf(errors.WithMessage(err, "failed to init a new cloning service"))
+	}
+
 	if err = cloningSvc.Run(ctx); err != nil {
 		log.Fatalf(err)
 	}
 
-	platformSvc := platform.NewService(cfg.Platform)
+	// Create a platform service to verify Platform tokens.
+	platformSvc := platform.New(cfg.Platform)
 	if err := platformSvc.Init(ctx); err != nil {
 		log.Fatalf(errors.WithMessage(err, "failed to create a new platform service"))
 	}
@@ -94,6 +111,7 @@ func main() {
 		cfg.Server.VerificationToken = opts.VerificationToken
 	}
 
+	// Start the Database Lab.
 	server := srv.NewServer(&cfg.Server, cloningSvc, platformSvc)
 	if err = server.Run(); err != nil {
 		log.Fatalf(err)

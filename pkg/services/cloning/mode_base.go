@@ -68,6 +68,10 @@ func (c *baseCloning) Run(ctx context.Context) error {
 		return errors.Wrap(err, "failed to run cloning")
 	}
 
+	if _, err := c.GetSnapshots(); err != nil {
+		log.Err("No available snapshots: ", err)
+	}
+
 	go c.runIdleCheck(ctx)
 
 	return nil
