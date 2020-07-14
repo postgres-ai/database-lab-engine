@@ -11,6 +11,11 @@ server:
   # HTTP server port. By default: 2345.
   port: 2345
 
+global:
+  engine: postgres
+  dataDir: /var/lib/dblab
+  dockerImage: "postgres:12-alpine"
+
 # Postgres.ai Platform integration.
 platform:
   # API URL.
@@ -81,5 +86,31 @@ cloning:
   # Auto-delete clones after the specified minutes of inactivity.
   # 0 - disable automatic deletion.
   maxIdleMinutes: 120
+
+retrieval:
+  stages:
+    - initialize
+
+  spec:
+    initialize:
+      jobs:
+#        - name: logical-restore
+#          options:
+#            dumpFile: /tmp/db.dump
+#            forceInit: false
+#            dbName: test
+#            partial:
+#              tables:
+#                - test
+        - name: physical-restore
+          options:
+            tool: walg
+            dockerImage: "postgresai/sync-instance:12"
+            envs:
+              WALG_GS_PREFIX: "gs://{BUCKET}/{SCOPE}"
+            walg:
+              storage: gcs
+              backupName: LATEST
+              credentialsFile: /tmp/sa.json # optional
 
 debug: true

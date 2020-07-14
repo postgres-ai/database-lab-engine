@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os/user"
 
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
@@ -26,7 +27,16 @@ type Config struct {
 	Provision provision.Config `yaml:"provision"`
 	Cloning   cloning.Config   `yaml:"cloning"`
 	Platform  platform.Config  `yaml:"platform"`
+	Global    Global           `yaml:"global"`
+	Retrieval config.Config    `yaml:"retrieval"`
 	Debug     bool             `yaml:"debug"`
+}
+
+// Global contains global Database Lab configurations.
+type Global struct {
+	Engine      string `yaml:"engine"`
+	DataDir     string `yaml:"dataDir"`
+	DockerImage string `yaml:"dockerImage"`
 }
 
 // LoadConfig instances a new Config by configuration filename.

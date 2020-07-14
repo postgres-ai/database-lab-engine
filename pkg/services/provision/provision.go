@@ -69,8 +69,8 @@ type provision struct {
 	ctx    context.Context
 }
 
-// NewProvision creates a new Provision instance.
-func NewProvision(ctx context.Context, config Config) (Provision, error) {
+// New creates a new Provision instance.
+func New(ctx context.Context, config Config) (Provision, error) {
 	// nolint
 	switch config.Mode {
 	case ModeLocal:

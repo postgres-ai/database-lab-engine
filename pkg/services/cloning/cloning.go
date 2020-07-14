@@ -69,12 +69,13 @@ type CloneWrapper struct {
 	snapshot models.Snapshot
 }
 
-// NewCloning returns a cloning interface depends on configuration mode.
-func NewCloning(config *Config, provision provision.Provision) (Cloning, error) {
+// New returns a cloning interface depends on configuration mode.
+func New(config *Config, provision provision.Provision) (Cloning, error) {
 	switch config.Mode {
 	case "", ModeBase:
 		log.Dbg("Using base cloning mode.")
 		return NewBaseCloning(config, provision), nil
+
 	case ModeMock:
 		log.Dbg("Using mock cloning mode.")
 		return nil, nil
