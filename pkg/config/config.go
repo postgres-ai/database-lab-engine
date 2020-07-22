@@ -34,9 +34,8 @@ type Config struct {
 
 // Global contains global Database Lab configurations.
 type Global struct {
-	Engine      string `yaml:"engine"`
-	DataDir     string `yaml:"dataDir"`
-	DockerImage string `yaml:"dockerImage"`
+	Engine  string `yaml:"engine"`
+	DataDir string `yaml:"dataDir"`
 }
 
 // LoadConfig instances a new Config by configuration filename.

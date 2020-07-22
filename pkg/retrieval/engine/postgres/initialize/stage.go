@@ -46,7 +46,7 @@ func NewStage(name string, dockerClient *client.Client, global *dblabCfg.Global)
 func (s *Stage) BuildJob(jobCfg config.JobConfig) (components.JobRunner, error) {
 	switch jobCfg.Name {
 	case logical.DumpJobType:
-		return logical.NewDumpJob(jobCfg)
+		return logical.NewDumpJob(jobCfg, s.dockerClient, s.globalCfg)
 
 	case logical.RestoreJobType:
 		return logical.NewJob(jobCfg, s.dockerClient, s.globalCfg)
