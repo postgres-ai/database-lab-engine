@@ -92,16 +92,59 @@ retrieval:
     - initialize
 
   spec:
+    # The initialize stage provides declarative initialization of the PostgreSQL data directory used by Database Lab Engine.
+    # The stage must not contain physical and logical restore jobs simultaneously.
     initialize:
       jobs:
-#        - name: logical-restore
-#          options:
-#            dumpFile: /tmp/db.dump
-#            forceInit: false
-#            dbName: test
-#            partial:
-#              tables:
-#                - test
+        # Dumps PostgreSQL database from provided source.
+        - name: logical-dump
+          options:
+            # The dump file will be automatically created on this location and then used to restore.
+            dumpLocation: /tmp/db.dump
+
+            # The Docker image containing the tools required to get a dump.
+            dockerImage: "postgresai/retrieval:12"
+
+            # Connection parameters of the database to be dumped.
+            connection:
+              type: local
+              dbname: postgres
+              host: 127.0.0.1
+              port: 5432
+              username: postgres
+              password: postgres # The environment variable PGPASSWORD can be used instead of this option.
+
+            # Options for a partial dump.
+            partial:
+              tables:
+                - test
+
+            # The number of parallel jobs to get a dump.
+            parallelJobs: 1
+
+            # Options for direct restore to Database Lab Engine instance.
+            restore:
+              # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
+              # Note the existing data might be overwritten.
+              forceInit: true
+
+        # Restores PostgreSQL database from the provided dump.
+        - name: logical-restore
+          options:
+            dbname: test
+            # The location of the archive file (or directory, for a directory-format archive) to be restored.
+            dumpLocation: /tmp/db.dump
+
+            # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
+            # Note the existing data might be overwritten.
+            forceInit: false
+
+            # Options for a partial dump.
+            partial:
+              tables:
+                - test
+
+        # Restores database data from a physical backup.
         - name: physical-restore
           options:
             tool: walg

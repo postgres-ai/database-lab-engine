@@ -7,13 +7,17 @@ package tools
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
+
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
 )
 
 const (
@@ -63,4 +67,34 @@ func InspectCommandResponse(ctx context.Context, dockerClient *client.Client, co
 	defer func() { _ = logs.Close() }()
 
 	return errors.Errorf("exit code: %d.\nContainer logs:\n%s", inspect.ExitCode, string(errorDetails))
+}
+
+// CheckContainerReadiness checks health and reports if container is ready.
+func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, containerID string) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+
+		resp, err := dockerClient.ContainerInspect(ctx, containerID)
+		if err != nil {
+			return errors.Wrap(err, "failed to create container")
+		}
+
+		if resp.State != nil && resp.State.Health != nil {
+			switch resp.State.Health.Status {
+			case types.Healthy:
+				return nil
+
+			case types.Unhealthy:
+				return errors.New("container health check has been failed")
+			}
+
+			log.Msg(fmt.Sprintf("Container is not ready yet. The current state is %v.", resp.State.Health.Status))
+		}
+
+		time.Sleep(time.Second)
+	}
 }

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -35,12 +34,6 @@ const (
 	pgDataContainerDir   = "/var/lib/postgresql/pgdata"
 	dumpContainerFile    = "/tmp/db.dump"
 	defaultNumberOfJobs  = 1
-
-	// const defines container health check options.
-	hcInterval    = 5 * time.Second
-	hcTimeout     = 2 * time.Second
-	hcStartPeriod = 3 * time.Second
-	hcRetries     = 5
 )
 
 // RestoreJob defines a logical restore job.
@@ -53,10 +46,11 @@ type RestoreJob struct {
 
 // RestoreOptions defines a logical restore options.
 type RestoreOptions struct {
-	DumpFile     string  `yaml:"dumpFile"`
-	DBName       string  `yaml:"dbName"`
+	DumpFile     string  `yaml:"dumpLocation"`
+	DockerImage  string  `yaml:"dockerImage"`
+	DBName       string  `yaml:"dbname"`
 	ForceInit    bool    `yaml:"forceInit"`
-	NumberOfJobs int     `yaml:"jobs"`
+	ParallelJobs int     `yaml:"parallelJobs"`
 	Partial      Partial `yaml:"partial"`
 }
 
@@ -84,8 +78,8 @@ func NewJob(cfg config.JobConfig, docker *client.Client, globalCfg *dblabCfg.Glo
 
 func (r *RestoreJob) setDefaults() {
 	// TODO: Default yaml values in tags.
-	if r.NumberOfJobs == 0 {
-		r.NumberOfJobs = defaultNumberOfJobs
+	if r.ParallelJobs == 0 {
+		r.ParallelJobs = defaultNumberOfJobs
 	}
 }
 
@@ -116,14 +110,8 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 			Env: []string{
 				"PGDATA=" + pgDataContainerDir,
 			},
-			Image: r.globalCfg.DockerImage,
-			Healthcheck: &container.HealthConfig{
-				Test:        []string{"CMD-SHELL", "pg_isready -U postgres"},
-				Interval:    hcInterval,
-				Timeout:     hcTimeout,
-				StartPeriod: hcStartPeriod,
-				Retries:     hcRetries,
-			},
+			Image:       r.RestoreOptions.DockerImage,
+			Healthcheck: getContainerHealthConfig(),
 		},
 		&container.HostConfig{
 			Mounts: []mount.Mount{
@@ -164,7 +152,7 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", restoreContainerName, cont.ID))
 
-	if err := r.checkContainerReadiness(ctx, cont.ID); err != nil {
+	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, cont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
 	}
 
@@ -200,15 +188,15 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 }
 
 func (r *RestoreJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"pg_restore", "-U", "postgres", "-C"}
+	restoreCmd := []string{"pg_restore", "-U", defaultUsername, "-C"}
 
 	if r.ForceInit {
-		restoreCmd = append(restoreCmd, "-d", "postgres", "--clean", "--if-exists")
+		restoreCmd = append(restoreCmd, "-d", defaultDBName, "--clean", "--if-exists")
 	} else {
 		restoreCmd = append(restoreCmd, "-d", r.RestoreOptions.DBName)
 	}
 
-	restoreCmd = append(restoreCmd, "-j", strconv.FormatInt(int64(r.NumberOfJobs), 10))
+	restoreCmd = append(restoreCmd, "-j", strconv.Itoa(r.ParallelJobs))
 
 	for _, table := range r.Partial.Tables {
 		restoreCmd = append(restoreCmd, "-t", table)
@@ -217,33 +205,4 @@ func (r *RestoreJob) buildLogicalRestoreCommand() []string {
 	restoreCmd = append(restoreCmd, dumpContainerFile)
 
 	return restoreCmd
-}
-
-func (r *RestoreJob) checkContainerReadiness(ctx context.Context, containerID string) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-		}
-
-		resp, err := r.dockerClient.ContainerInspect(ctx, containerID)
-		if err != nil {
-			return errors.Wrap(err, "failed to create container")
-		}
-
-		if resp.State != nil && resp.State.Health != nil {
-			switch resp.State.Health.Status {
-			case types.Healthy:
-				return nil
-
-			case types.Unhealthy:
-				return errors.New("container health check has been failed")
-			}
-
-			log.Msg(fmt.Sprintf("Container is not ready yet. The current state is %v.", resp.State.Health.Status))
-		}
-
-		time.Sleep(time.Second)
-	}
 }
