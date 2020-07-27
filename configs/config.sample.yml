@@ -103,16 +103,37 @@ retrieval:
             dumpLocation: /tmp/db.dump
 
             # The Docker image containing the tools required to get a dump.
-            dockerImage: "postgresai/retrieval:12"
+            dockerImage: "postgres:12-alpine"
 
-            # Connection parameters of the database to be dumped.
-            connection:
+            # Source of data.
+            source:
+              # Source type: local, remote, rds.
               type: local
-              dbname: postgres
-              host: 127.0.0.1
-              port: 5432
-              username: postgres
-              password: postgres # The environment variable PGPASSWORD can be used instead of this option.
+
+              # Connection parameters of the database to be dumped.
+              connection:
+                dbname: postgres
+                host: 127.0.0.1
+                port: 5432
+                username: postgres
+                password: postgres # The environment variable PGPASSWORD can be used instead of this option.
+
+              # Optional definition of RDS data source.
+              rds:
+                # RDS policy name.
+                iamPolicyName: rds-dblab-retrieval
+
+                # AWS Region.
+                awsRegion: us-east-2
+
+                # AWS username.
+                username: db_user
+
+                # RDS instance Identifier.
+                dbInstanceIdentifier: database-1
+
+                # Path to the SSL root certificate: https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
+                sslRootCert: "/tmp/rds-combined-ca-bundle.pem"
 
             # Options for a partial dump.
             partial:

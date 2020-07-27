@@ -37,10 +37,10 @@ const (
 	dumpContainerName = "retriever_logical_dump"
 	dumpContainerDir  = "/tmp/dump"
 
-	// Defines dump connection types.
-	connectionTypeLocal = "local"
-	//connectionTypeRemote = "remote"
-	//connectionTypeRDS = "rds"
+	// Defines dump source types.
+	sourceTypeLocal  = "local"
+	sourceTypeRemote = "remote"
+	sourceTypeRDS    = "rds"
 
 	// reservePort defines reserve port in case of a local dump.
 	reservePort = 9999
@@ -55,6 +55,8 @@ type DumpJob struct {
 	name         string
 	dockerClient *client.Client
 	globalCfg    *dblabCfg.Global
+	config       dumpJobConfig
+	dumper       dumper
 	DumpOptions
 }
 
@@ -63,14 +65,37 @@ type DumpOptions struct {
 	DumpFile     string         `yaml:"dumpLocation"`
 	DockerImage  string         `yaml:"dockerImage"`
 	Connection   Connection     `yaml:"connection"`
+	Source       Source         `yaml:"source"`
 	Partial      Partial        `yaml:"partial"`
 	ParallelJobs int            `yaml:"parallelJobs"`
 	Restore      *DirectRestore `yaml:"restore,omitempty"`
 }
 
+// Source describes source of data to dump.
+type Source struct {
+	Type       string     `yaml:"type"`
+	Connection Connection `yaml:"connection"`
+	RDS        *RDSConfig `yaml:"rds"`
+}
+
+type dumpJobConfig struct {
+	db Connection
+}
+
+// dumper describes the interface to prepare environment for a logical dump.
+type dumper interface {
+	// GetEnvVariables returns dumper environment variables.
+	GetCmdEnvVariables() []string
+
+	// GetMounts returns dumper volume configurations for mounting.
+	GetMounts() []mount.Mount
+
+	// SetConnectionOptions sets connection options for dumping.
+	SetConnectionOptions(context.Context, *Connection) error
+}
+
 // Connection provides connection options.
 type Connection struct {
-	Type     string `yaml:"type"`
 	Host     string `yaml:"host"`
 	Port     int    `yaml:"port"`
 	DBName   string `yaml:"dbname"`
@@ -95,10 +120,14 @@ func NewDumpJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Gl
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
-	dumpJob.setDefaults()
-
 	if err := dumpJob.validate(); err != nil {
 		return nil, errors.Wrap(err, "invalid logical dump job")
+	}
+
+	dumpJob.setDefaults()
+
+	if err := dumpJob.setupDumper(); err != nil {
+		return nil, errors.Wrap(err, "failed to set up a dump helper")
 	}
 
 	return dumpJob, nil
@@ -113,20 +142,49 @@ Either set 'numberOfJobs' equals to 1 or disable the restore section`)
 	return nil
 }
 
+func (d *DumpJob) setDefaults() {
+	// TODO: Default yaml values in tags.
+	if d.DumpOptions.Source.Connection.Port == 0 {
+		d.DumpOptions.Source.Connection.Port = defaultPort
+	}
+
+	if d.DumpOptions.Source.Connection.Username == "" {
+		d.DumpOptions.Source.Connection.Username = defaultUsername
+	}
+
+	if d.DumpOptions.ParallelJobs == 0 {
+		d.DumpOptions.ParallelJobs = defaultParallelJobs
+	}
+}
+
+// setupDumper sets up a tool to perform physical restoring.
+func (d *DumpJob) setupDumper() error {
+	switch d.Source.Type {
+	case sourceTypeLocal, sourceTypeRemote, "":
+		d.dumper = newDefaultDumper()
+		return nil
+
+	case sourceTypeRDS:
+		if d.Source.RDS == nil {
+			return errors.New("the RDS configuration section must not be empty when using the RDS source type")
+		}
+
+		dumper, err := newRDSDumper(d.Source.RDS)
+		if err != nil {
+			return errors.Wrap(err, "failed to create an RDS dumper")
+		}
+
+		d.dumper = dumper
+
+		return nil
+	}
+
+	return errors.Errorf("unknown source type given: %v", d.Source.Type)
+}
+
 // Name returns a name of the job.
 func (d *DumpJob) Name() string {
 	return d.name
-}
-
-func (d *DumpJob) setDefaults() {
-	// TODO: Default yaml values in tags.
-	if d.DumpOptions.Connection.Port == 0 {
-		d.DumpOptions.Connection.Port = defaultPort
-	}
-
-	if d.DumpOptions.Connection.Username == "" {
-		d.DumpOptions.Connection.Username = defaultUsername
-	}
 }
 
 // Run starts the job.
@@ -160,6 +218,8 @@ func (d *DumpJob) Run(ctx context.Context) error {
 		dumpContainerName,
 	)
 	if err != nil {
+		log.Err(err)
+
 		return errors.Wrap(err, "failed to create container")
 	}
 
@@ -183,6 +243,10 @@ func (d *DumpJob) Run(ctx context.Context) error {
 
 	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, cont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
+	}
+
+	if err := d.setupConnectionOptions(ctx); err != nil {
+		return errors.Wrap(err, "failed to setup connection options")
 	}
 
 	dumpCommand := d.buildLogicalDumpCommand()
@@ -233,6 +297,17 @@ func (d *DumpJob) Run(ctx context.Context) error {
 	return nil
 }
 
+// setupConnectionOptions prepares connection options to perform a logical dump.
+func (d *DumpJob) setupConnectionOptions(ctx context.Context) error {
+	d.config.db = d.DumpOptions.Source.Connection
+
+	if err := d.dumper.SetConnectionOptions(ctx, &d.config.db); err != nil {
+		return errors.Wrap(err, "failed to set connection options")
+	}
+
+	return nil
+}
+
 func (d *DumpJob) performDumpCommand(ctx context.Context, cmdOutput io.Writer, commandID string) error {
 	execAttach, err := d.dockerClient.ContainerExecAttach(ctx, commandID, types.ExecStartCheck{})
 	if err != nil {
@@ -275,9 +350,12 @@ func (d *DumpJob) getDumpContainerPath() string {
 }
 
 func (d *DumpJob) getEnvironmentVariables() []string {
-	envs := []string{"PGDATA=" + pgDataContainerDir}
+	envs := []string{
+		"PGDATA=" + pgDataContainerDir,
+		"POSTGRES_HOST_AUTH_METHOD=trust",
+	}
 
-	if d.DumpOptions.Connection.Type == connectionTypeLocal && d.DumpOptions.Connection.Port == defaultPort {
+	if d.DumpOptions.Source.Type == sourceTypeLocal && d.DumpOptions.Source.Connection.Port == defaultPort {
 		envs = append(envs, "PGPORT="+strconv.Itoa(reservePort))
 	}
 
@@ -294,7 +372,7 @@ func (d *DumpJob) getMountVolumes() []mount.Mount {
 		},
 	}
 
-	if d.Connection.Type != connectionTypeLocal && d.DumpOptions.DumpFile != "" {
+	if d.DumpOptions.DumpFile != "" {
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
 			Source: filepath.Dir(d.DumpOptions.DumpFile),
@@ -302,13 +380,16 @@ func (d *DumpJob) getMountVolumes() []mount.Mount {
 		})
 	}
 
+	// Add dump specific mounts.
+	mounts = append(mounts, d.dumper.GetMounts()...)
+
 	return mounts
 }
 
 func (d *DumpJob) getContainerNetworkMode() container.NetworkMode {
 	networkMode := networkModeDefault
 
-	if d.Connection.Type == connectionTypeLocal {
+	if d.Source.Type == sourceTypeLocal {
 		networkMode = networkModeHost
 	}
 
@@ -316,11 +397,11 @@ func (d *DumpJob) getContainerNetworkMode() container.NetworkMode {
 }
 
 func (d *DumpJob) getExecEnvironmentVariables() []string {
-	execEnvs := []string{}
+	execEnvs := d.dumper.GetCmdEnvVariables()
 
-	pgPassword := d.DumpOptions.Connection.Password
+	pgPassword := d.config.db.Password
 
-	if os.Getenv("PGPASSWORD") != "" {
+	if pgPassword == "" && os.Getenv("PGPASSWORD") != "" {
 		pgPassword = os.Getenv("PGPASSWORD")
 	}
 
@@ -335,10 +416,10 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 	dumpCmd := []string{"pg_dump", "-C"}
 
 	optionalArgs := map[string]string{
-		"-h": d.DumpOptions.Connection.Host,
-		"-p": strconv.Itoa(d.DumpOptions.Connection.Port),
-		"-U": d.DumpOptions.Connection.Username,
-		"-d": d.DumpOptions.Connection.DBName,
+		"-h": d.config.db.Host,
+		"-p": strconv.Itoa(d.config.db.Port),
+		"-U": d.config.db.Username,
+		"-d": d.config.db.DBName,
 		"-j": strconv.Itoa(d.DumpOptions.ParallelJobs),
 	}
 	dumpCmd = append(dumpCmd, prepareCmdOptions(optionalArgs)...)
@@ -351,7 +432,7 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 		dumpCmd = append(dumpCmd, d.buildLogicalRestoreCommand()...)
 		cmd := strings.Join(dumpCmd, " ")
 
-		log.Msg(cmd)
+		log.Dbg(cmd)
 
 		return []string{"sh", "-c", cmd}
 	}

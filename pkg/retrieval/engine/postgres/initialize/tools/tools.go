@@ -89,7 +89,7 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 				return nil
 
 			case types.Unhealthy:
-				return errors.New("container health check has been failed")
+				return errors.New("container health check failed")
 			}
 
 			log.Msg(fmt.Sprintf("Container is not ready yet. The current state is %v.", resp.State.Health.Status))
