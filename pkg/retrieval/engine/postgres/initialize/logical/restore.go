@@ -33,7 +33,7 @@ const (
 	restoreContainerName = "retriever_logical_restore"
 	pgDataContainerDir   = "/var/lib/postgresql/pgdata"
 	dumpContainerFile    = "/tmp/db.dump"
-	defaultNumberOfJobs  = 1
+	defaultParallelJobs  = 1
 )
 
 // RestoreJob defines a logical restore job.
@@ -79,7 +79,7 @@ func NewJob(cfg config.JobConfig, docker *client.Client, globalCfg *dblabCfg.Glo
 func (r *RestoreJob) setDefaults() {
 	// TODO: Default yaml values in tags.
 	if r.ParallelJobs == 0 {
-		r.ParallelJobs = defaultNumberOfJobs
+		r.ParallelJobs = defaultParallelJobs
 	}
 }
 
