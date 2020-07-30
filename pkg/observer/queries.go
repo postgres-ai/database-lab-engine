@@ -30,8 +30,8 @@ const queryLocks = `with lock_data as (
     clock_timestamp() - a.state_change as state_changed_ago,
     a.pid
   from pg_stat_activity a
-  join pg_locks l ON l.pid = a.pid
-  where l.mode ~* 'exclusive'
+  join pg_locks l on l.pid = a.pid
+  where l.mode = 'AccessExclusiveLock' and l.locktype = 'relation'
 )
 select row_to_json(lock_data)
 from lock_data
