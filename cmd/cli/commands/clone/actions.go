@@ -245,6 +245,7 @@ func observeSummary() func(*cli.Context) error {
 		}
 
 		if err := obs.CheckPerformanceRequirements(); err != nil {
+			log.Err("Performance check error:", err)
 			// Exit with error status without printing additional error logs.
 			os.Exit(errorExitStatus)
 		}

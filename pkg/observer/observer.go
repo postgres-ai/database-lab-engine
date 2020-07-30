@@ -184,7 +184,7 @@ func (obs *Observer) PrintSummary() error {
 
 // CheckPerformanceRequirements checks monitoring data and returns an error if any of performance requires was not satisfied.
 func (obs *Observer) CheckPerformanceRequirements() error {
-	if obs.CheckDuration() || obs.CheckLocks() {
+	if !obs.CheckDuration() || !obs.CheckLocks() {
 		return errors.New("performance requirements not satisfied")
 	}
 
