@@ -68,6 +68,14 @@ func newRDSDumper(rdsCfg *RDSConfig) (*rdsDumper, error) {
 		return nil, errors.Wrap(err, "failed to start AWS session")
 	}
 
+	credentials, err := awsSession.Config.Credentials.Get()
+	if err != nil || !credentials.HasKeys() {
+		log.Dbg(err)
+
+		return nil, errors.New(`failed to check AWS credentials.
+Set up valid environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY`)
+	}
+
 	return &rdsDumper{
 		rdsCfg: rdsCfg,
 		iamSvc: iam.New(awsSession, aws.NewConfig()),
