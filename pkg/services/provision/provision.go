@@ -56,7 +56,7 @@ type Provision interface {
 	StopSession(*resources.Session) error
 	ResetSession(session *resources.Session, snapshotID string) error
 
-	CreateSnapshot(string) error
+	CreateSnapshot(dataStateAt string) error
 	GetSnapshots() ([]resources.Snapshot, error)
 
 	GetDiskState() (*resources.Disk, error)

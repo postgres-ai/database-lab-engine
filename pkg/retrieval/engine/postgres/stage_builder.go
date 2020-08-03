@@ -13,6 +13,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/components"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/snapshot"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 )
 
 const (
@@ -24,13 +25,15 @@ const (
 type StageBuilder struct {
 	dockerClient *client.Client
 	globalCfg    *dblabCfg.Global
+	provision    provision.Provision
 }
 
 // NewStageBuilder create a new Postgres stage builder.
-func NewStageBuilder(globalCfg *dblabCfg.Global, dockerClient *client.Client) *StageBuilder {
+func NewStageBuilder(globalCfg *dblabCfg.Global, dockerClient *client.Client, provision provision.Provision) *StageBuilder {
 	return &StageBuilder{
 		dockerClient: dockerClient,
 		globalCfg:    globalCfg,
+		provision:    provision,
 	}
 }
 
@@ -38,7 +41,7 @@ func NewStageBuilder(globalCfg *dblabCfg.Global, dockerClient *client.Client) *S
 func (s *StageBuilder) BuildStageRunner(name string) (components.StageRunner, error) {
 	switch name {
 	case initialize.StageType:
-		return initialize.NewStage(name, s.dockerClient, s.globalCfg), nil
+		return initialize.NewStage(name, s.dockerClient, s.globalCfg, s.provision), nil
 
 	case snapshot.StageType:
 		return snapshot.NewStage(name), nil

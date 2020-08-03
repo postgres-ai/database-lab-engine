@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -21,6 +22,7 @@ import (
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 )
@@ -30,7 +32,7 @@ const (
 	RestoreJobType = "logical-restore"
 
 	// const defines restore options.
-	restoreContainerName = "retriever_logical_restore"
+	restoreContainerName = "retrieval_logical_restore"
 	pgDataContainerDir   = "/var/lib/postgresql/pgdata"
 	dumpContainerFile    = "/tmp/db.dump"
 	defaultParallelJobs  = 1
@@ -41,6 +43,8 @@ type RestoreJob struct {
 	name         string
 	dockerClient *client.Client
 	globalCfg    *dblabCfg.Global
+	dbMarker     *dbmarker.Marker
+	dbMark       *dbmarker.Config
 	RestoreOptions
 }
 
@@ -60,11 +64,13 @@ type Partial struct {
 }
 
 // NewJob create a new logical restore job.
-func NewJob(cfg config.JobConfig, docker *client.Client, globalCfg *dblabCfg.Global) (*RestoreJob, error) {
+func NewJob(cfg config.JobConfig, docker *client.Client, globalCfg *dblabCfg.Global, marker *dbmarker.Marker) (*RestoreJob, error) {
 	restoreJob := &RestoreJob{
 		name:         cfg.Name,
 		dockerClient: docker,
 		globalCfg:    globalCfg,
+		dbMarker:     marker,
+		dbMark:       &dbmarker.Config{DataType: dbmarker.LogicalDataType},
 	}
 
 	if err := options.Unmarshal(cfg.Options, &restoreJob.RestoreOptions); err != nil {
@@ -72,6 +78,10 @@ func NewJob(cfg config.JobConfig, docker *client.Client, globalCfg *dblabCfg.Glo
 	}
 
 	restoreJob.setDefaults()
+
+	if err := restoreJob.dbMarker.CreateConfig(); err != nil {
+		return nil, errors.Wrap(err, "failed to create a DBMarker config of the database")
+	}
 
 	return restoreJob, nil
 }
@@ -135,6 +145,10 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 	}
 
 	defer func() {
+		if err := r.dockerClient.ContainerStop(ctx, cont.ID, pointer.ToDuration(dumpContainerStopTimeout)); err != nil {
+			log.Err("Failed to stop a dump container: ", err)
+		}
+
 		if err := r.dockerClient.ContainerRemove(ctx, cont.ID, types.ContainerRemoveOptions{
 			Force: true,
 		}); err != nil {
@@ -147,23 +161,28 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 	}()
 
 	if err := r.dockerClient.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{}); err != nil {
-		return errors.Wrap(err, "failed to start container")
+		return errors.Wrap(err, "failed to start a container")
 	}
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", restoreContainerName, cont.ID))
+
+	if err := r.markDatabase(ctx, cont.ID); err != nil {
+		return errors.Wrap(err, "failed to mark the database")
+	}
 
 	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, cont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
 	}
 
-	log.Msg("Running restore command")
+	restoreCommand := r.buildLogicalRestoreCommand()
+	log.Msg("Running restore command: ", restoreCommand)
 
 	execCommand, err := r.dockerClient.ContainerExecCreate(ctx, cont.ID, types.ExecConfig{
 		AttachStdin:  false,
 		AttachStdout: true,
 		AttachStderr: true,
 		Tty:          true,
-		Cmd:          r.buildLogicalRestoreCommand(),
+		Cmd:          restoreCommand,
 	})
 
 	if err != nil {
@@ -185,6 +204,50 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 	log.Msg("Restoring job has been finished")
 
 	return nil
+}
+
+func (r *RestoreJob) markDatabase(ctx context.Context, contID string) error {
+	dataStateAt, err := r.retrieveDataStateAt(ctx, contID)
+	if err != nil {
+		log.Err("Failed to extract dataStateAt: ", err)
+	}
+
+	if dataStateAt != "" {
+		r.dbMark.DataStateAt = dataStateAt
+	}
+
+	if err := r.dbMarker.SaveConfig(r.dbMark); err != nil {
+		return errors.Wrap(err, "failed to mark the database")
+	}
+
+	return nil
+}
+
+func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID string) (string, error) {
+	restoreMetaCmd := []string{"sh", "-c", "pg_restore -l " + dumpContainerFile + " | head -n 10"}
+
+	execCommand, err := r.dockerClient.ContainerExecCreate(ctx, contID, types.ExecConfig{
+		AttachStdout: true,
+		AttachStderr: true,
+		Cmd:          restoreMetaCmd,
+	})
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create a restore meta command")
+	}
+
+	execAttach, err := r.dockerClient.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{})
+	if err != nil {
+		return "", errors.Wrap(err, "failed to exec a restore meta command")
+	}
+
+	defer execAttach.Close()
+
+	dataStateAt, err := tools.DiscoverDataStateAt(execAttach.Reader)
+	if err != nil {
+		return "", err
+	}
+
+	return dataStateAt, nil
 }
 
 func (r *RestoreJob) buildLogicalRestoreCommand() []string {

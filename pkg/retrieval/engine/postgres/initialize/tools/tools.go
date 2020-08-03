@@ -22,7 +22,7 @@ import (
 
 const (
 	maxValuesToReturn     = 1
-	essentialLogsInterval = "5s"
+	essentialLogsInterval = "10s"
 )
 
 // IsEmptyDirectory checks whether a directory is empty.
@@ -53,6 +53,7 @@ func InspectCommandResponse(ctx context.Context, dockerClient *client.Client, co
 
 	logs, err := dockerClient.ContainerLogs(ctx, containerID, types.ContainerLogsOptions{
 		Since:      essentialLogsInterval,
+		ShowStdout: true,
 		ShowStderr: true,
 	})
 	if err != nil {

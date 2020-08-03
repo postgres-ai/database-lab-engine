@@ -16,8 +16,11 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/components"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/logical"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/physical"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/snapshot"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 )
 
 const (
@@ -29,16 +32,20 @@ const (
 type Stage struct {
 	name         string
 	dockerClient *client.Client
+	provisionSvc provision.Provision
+	dbMarker     *dbmarker.Marker
 	globalCfg    *dblabCfg.Global
 	jobs         []components.JobRunner
 }
 
 // NewStage create a new initialization stage.
-func NewStage(name string, dockerClient *client.Client, global *dblabCfg.Global) *Stage {
+func NewStage(name string, dockerClient *client.Client, global *dblabCfg.Global, provision provision.Provision) *Stage {
 	return &Stage{
 		name:         name,
 		dockerClient: dockerClient,
 		globalCfg:    global,
+		provisionSvc: provision,
+		dbMarker:     dbmarker.NewMarker(global.DataDir),
 	}
 }
 
@@ -46,13 +53,16 @@ func NewStage(name string, dockerClient *client.Client, global *dblabCfg.Global)
 func (s *Stage) BuildJob(jobCfg config.JobConfig) (components.JobRunner, error) {
 	switch jobCfg.Name {
 	case logical.DumpJobType:
-		return logical.NewDumpJob(jobCfg, s.dockerClient, s.globalCfg)
+		return logical.NewDumpJob(jobCfg, s.dockerClient, s.globalCfg, s.dbMarker)
 
 	case logical.RestoreJobType:
-		return logical.NewJob(jobCfg, s.dockerClient, s.globalCfg)
+		return logical.NewJob(jobCfg, s.dockerClient, s.globalCfg, s.dbMarker)
 
 	case physical.RestoreJobType:
 		return physical.NewJob(jobCfg, s.dockerClient, s.globalCfg)
+
+	case snapshot.LogicalInitialType:
+		return snapshot.NewLogicalInitialJob(jobCfg, s.provisionSvc, s.globalCfg, s.dbMarker)
 	}
 
 	return nil, errors.New("unknown job type")

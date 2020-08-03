@@ -13,7 +13,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -25,6 +27,7 @@ import (
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 )
@@ -34,8 +37,9 @@ const (
 	DumpJobType = "logical-dump"
 
 	// Defines dump options.
-	dumpContainerName = "retriever_logical_dump"
-	dumpContainerDir  = "/tmp/dump"
+	dumpContainerName        = "retrieval_logical_dump"
+	dumpContainerDir         = "/tmp"
+	dumpContainerStopTimeout = 10 * time.Second
 
 	// Defines dump source types.
 	sourceTypeLocal  = "local"
@@ -57,6 +61,8 @@ type DumpJob struct {
 	globalCfg    *dblabCfg.Global
 	config       dumpJobConfig
 	dumper       dumper
+	dbMarker     *dbmarker.Marker
+	dbMark       *dbmarker.Config
 	DumpOptions
 }
 
@@ -109,11 +115,15 @@ type DirectRestore struct {
 }
 
 // NewDumpJob creates a new DumpJob.
-func NewDumpJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Global) (*DumpJob, error) {
+func NewDumpJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Global, marker *dbmarker.Marker) (*DumpJob, error) {
 	dumpJob := &DumpJob{
 		name:         cfg.Name,
 		dockerClient: docker,
 		globalCfg:    global,
+		dbMarker:     marker,
+		dbMark: &dbmarker.Config{
+			DataType: dbmarker.LogicalDataType,
+		},
 	}
 
 	if err := options.Unmarshal(cfg.Options, &dumpJob.DumpOptions); err != nil {
@@ -128,6 +138,10 @@ func NewDumpJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Gl
 
 	if err := dumpJob.setupDumper(); err != nil {
 		return nil, errors.Wrap(err, "failed to set up a dump helper")
+	}
+
+	if err := dumpJob.dbMarker.CreateConfig(); err != nil {
+		return nil, errors.Wrap(err, "failed to create a DBMarker config of the database")
 	}
 
 	return dumpJob, nil
@@ -224,6 +238,10 @@ func (d *DumpJob) Run(ctx context.Context) error {
 	}
 
 	defer func() {
+		if err := d.dockerClient.ContainerStop(ctx, cont.ID, pointer.ToDuration(dumpContainerStopTimeout)); err != nil {
+			log.Err("Failed to stop a dump container: ", err)
+		}
+
 		if err := d.dockerClient.ContainerRemove(ctx, cont.ID, types.ContainerRemoveOptions{
 			Force: true,
 		}); err != nil {
@@ -292,6 +310,10 @@ func (d *DumpJob) Run(ctx context.Context) error {
 		return errors.Wrap(err, "failed to exec the dump command")
 	}
 
+	if err := d.dbMarker.SaveConfig(d.dbMark); err != nil {
+		return errors.Wrap(err, "failed to mark the created dump")
+	}
+
 	log.Msg("Dumping job has been finished")
 
 	return nil
@@ -309,6 +331,10 @@ func (d *DumpJob) setupConnectionOptions(ctx context.Context) error {
 }
 
 func (d *DumpJob) performDumpCommand(ctx context.Context, cmdOutput io.Writer, commandID string) error {
+	if d.DumpOptions.Restore != nil {
+		d.dbMark.DataStateAt = time.Now().Format(tools.DataStateAtFormat)
+	}
+
 	execAttach, err := d.dockerClient.ContainerExecAttach(ctx, commandID, types.ExecStartCheck{})
 	if err != nil {
 		return err
@@ -346,7 +372,7 @@ func (d *DumpJob) performDumpCommand(ctx context.Context, cmdOutput io.Writer, c
 }
 
 func (d *DumpJob) getDumpContainerPath() string {
-	return dumpContainerDir + strings.TrimPrefix(d.DumpFile, filepath.Dir(d.DumpFile))
+	return d.DumpFile
 }
 
 func (d *DumpJob) getEnvironmentVariables() []string {
@@ -413,7 +439,7 @@ func (d *DumpJob) getExecEnvironmentVariables() []string {
 }
 
 func (d *DumpJob) buildLogicalDumpCommand() []string {
-	dumpCmd := []string{"pg_dump", "-C"}
+	dumpCmd := []string{"pg_dump", "-C", "-Fc"}
 
 	optionalArgs := map[string]string{
 		"-h": d.config.db.Host,
@@ -441,7 +467,7 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 }
 
 func (d *DumpJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"-Fc", "|", "pg_restore", "-U", defaultUsername, "-C", "-d", defaultDBName, "--no-privileges"}
+	restoreCmd := []string{"|", "pg_restore", "-U", defaultUsername, "-C", "-d", defaultDBName, "--no-privileges"}
 
 	if d.Restore.ForceInit {
 		restoreCmd = append(restoreCmd, "--clean", "--if-exists")

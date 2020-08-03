@@ -20,7 +20,10 @@ import (
 )
 
 const (
-	headerOffset = 1
+	headerOffset        = 1
+	dataStateAtLabel    = "dblab:datastateat"
+	isRoughStateAtLabel = "dblab:isroughdsa"
+	dataStateAtFormat   = "20060102150405"
 )
 
 // ListEntry defines entry of ZFS list command.
@@ -182,14 +185,40 @@ func ListClones(r runners.Runner, prefix string) ([]string, error) {
 }
 
 // CreateSnapshot creates ZFS snapshot.
-func CreateSnapshot(r runners.Runner, pool string, snapshot string) error {
-	cmd := fmt.Sprintf("zfs snapshot -r %s", snapshot)
+func CreateSnapshot(r runners.Runner, pool, dataStateAt string) error {
+	originalDSA := dataStateAt
+
+	if dataStateAt == "" {
+		dataStateAt = time.Now().Format(dataStateAtFormat)
+	}
+
+	snapshotName := getSnapshotName(pool, dataStateAt)
+	cmd := fmt.Sprintf("zfs snapshot -r %s", snapshotName)
 
 	if _, err := r.Run(cmd, true); err != nil {
 		return errors.Wrap(err, "failed to create a snapshot")
 	}
 
+	cmd = fmt.Sprintf("zfs set %s=%q %s", dataStateAtLabel, dataStateAt, snapshotName)
+
+	if _, err := r.Run(cmd, true); err != nil {
+		return errors.Wrap(err, "failed to set the dataStateAt option for a snapshot")
+	}
+
+	if originalDSA == "" {
+		cmd = fmt.Sprintf("zfs set %s=%q %s", isRoughStateAtLabel, "1", snapshotName)
+
+		if _, err := r.Run(cmd, true); err != nil {
+			return errors.Wrap(err, "failed to set the rough flag of a dataStateAt option for a snapshot")
+		}
+	}
+
 	return nil
+}
+
+// getSnapshotName builds a snapshot name.
+func getSnapshotName(pool, dataStateAt string) string {
+	return fmt.Sprintf("%s@snapshot_%s", pool, dataStateAt)
 }
 
 // RollbackSnapshot rollbacks ZFS snapshot.
@@ -218,11 +247,9 @@ func ListDetails(r runners.Runner, pool string, dsType string) ([]*ListEntry, er
 	// TODO(anatoly): Return map.
 	// TODO(anatoly): Generalize.
 	numberFields := 12
-	listCmd := "zfs list " +
-		"-po name,used,mountpoint,compressratio,available,type," +
-		"origin,creation,referenced,logicalreferenced,logicalused," +
-		"dblab:datastateat " +
-		"-S dblab:datastateat -S creation " + // Order DESC.
+	listCmd := "zfs list -po name,used,mountpoint,compressratio,available,type," +
+		"origin,creation,referenced,logicalreferenced,logicalused," + dataStateAtLabel + " " +
+		"-S " + dataStateAtLabel + " -S creation " + // Order DESC.
 		"-t " + dsType + " " +
 		"-r " + pool
 
@@ -248,14 +275,14 @@ func ListDetails(r runners.Runner, pool string, dsType string) ([]*ListEntry, er
 		// array contain less elements. It's still bad to not have our
 		// custom variables, but we don't want fail completely in this case.
 		if len(fields) == numberFields-1 {
-			log.Dbg(`Probably "dblab:datastateat" is not set. Manually check ZFS snapshots.`)
+			log.Dbg(fmt.Sprintf("Probably %q is not set. Manually check ZFS snapshots.", dataStateAtLabel))
 
 			fields = append(fields, "-")
 		}
 
 		// In other cases something really wrong with output format.
 		if len(fields) != numberFields {
-			return nil, errors.Errorf("ZFS error: some fields are empty. First of all, check dblab:datastateat")
+			return nil, errors.Errorf("ZFS error: some fields are empty. First of all, check " + dataStateAtLabel)
 		}
 
 		zfsListEntry := &ListEntry{
