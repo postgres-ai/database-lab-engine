@@ -116,7 +116,9 @@ retrieval:
                 host: 127.0.0.1
                 port: 5432
                 username: postgres
-                password: postgres # The environment variable PGPASSWORD can be used instead of this option.
+                # Connection password. The environment variable PGPASSWORD can be used instead of this option.
+                # The environment variable has a higher priority.
+                password: postgres
 
               # Optional definition of RDS data source.
               rds:
@@ -141,6 +143,7 @@ retrieval:
                 - test
 
             # The number of parallel jobs to get a dump.
+            # It's ignored if "restore" is present because "pg_dump | pg_restore" is always single-threaded.
             parallelJobs: 1
 
             # Options for direct restore to Database Lab Engine instance.
@@ -176,5 +179,10 @@ retrieval:
               storage: gcs
               backupName: LATEST
               credentialsFile: /tmp/sa.json # optional
+
+        - name: logical-snapshot
+          options:
+            # It is possible to define a pre-precessing script.
+#            preprocessingScript: "/tmp/scripts/custom.sh"
 
 debug: true

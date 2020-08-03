@@ -314,10 +314,9 @@ func (j *provisionModeLocal) ResetSession(session *resources.Session, snapshotID
 	return nil
 }
 
-// Make a new snapshot.
-func (j *provisionModeLocal) CreateSnapshot(name string) error {
-	// TODO(anatoly): Implement.
-	return errors.New(`"CreateSnapshot" method is unsupported in "local" mode`)
+// CreateSnapshot makes a new snapshot.
+func (j *provisionModeLocal) CreateSnapshot(dataStateAt string) error {
+	return j.thinCloneManager.CreateSnapshot(dataStateAt)
 }
 
 func (j *provisionModeLocal) GetSnapshots() ([]resources.Snapshot, error) {

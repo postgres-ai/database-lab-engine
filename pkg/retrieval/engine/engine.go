@@ -12,13 +12,14 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/components"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 )
 
 // StageBuilder provides a new stage builder.
-func StageBuilder(globalCfg *config.Global, dockerCli *client.Client) (components.StageBuilder, error) {
+func StageBuilder(globalCfg *config.Global, dockerCli *client.Client, prov provision.Provision) (components.StageBuilder, error) {
 	switch globalCfg.Engine {
 	case postgres.EngineType:
-		return postgres.NewStageBuilder(globalCfg, dockerCli), nil
+		return postgres.NewStageBuilder(globalCfg, dockerCli, prov), nil
 
 	default:
 		return nil, errors.New("failed to get engine")

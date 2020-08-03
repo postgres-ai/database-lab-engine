@@ -39,6 +39,11 @@ func newManagerLVM(runner runners.Runner, config ManagerConfig) (*managerLVM, er
 	return &m, nil
 }
 
+func (m *managerLVM) CreateSnapshot(_ string) error {
+	// TODO(akartasov): Implement.
+	return nil
+}
+
 func (m *managerLVM) CreateClone(name, snapshotID string) error {
 	return lvm.CreateVolume(m.runner, m.volumeGroup, m.logicVolume, name, m.config.MountDir)
 }
