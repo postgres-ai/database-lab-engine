@@ -6,6 +6,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -64,7 +65,11 @@ func getAuthMethod(cliCtx *cli.Context) (ssh.AuthMethod, error) {
 		return authMethod, nil
 	}
 
-	return portfwd.SSHAgent(), nil
+	if sshAgent := portfwd.SSHAgent(); sshAgent != nil {
+		return sshAgent, nil
+	}
+
+	return nil, errors.New("no auth method found. Either define `--identity-file` flag or add your certificate to the SSH agent")
 }
 
 // BuildHostname builds a hostname string.
