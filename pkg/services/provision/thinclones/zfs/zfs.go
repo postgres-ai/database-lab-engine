@@ -185,7 +185,7 @@ func ListClones(r runners.Runner, prefix string) ([]string, error) {
 }
 
 // CreateSnapshot creates ZFS snapshot.
-func CreateSnapshot(r runners.Runner, pool, dataStateAt string) error {
+func CreateSnapshot(r runners.Runner, pool, dataStateAt string) (string, error) {
 	originalDSA := dataStateAt
 
 	if dataStateAt == "" {
@@ -196,24 +196,24 @@ func CreateSnapshot(r runners.Runner, pool, dataStateAt string) error {
 	cmd := fmt.Sprintf("zfs snapshot -r %s", snapshotName)
 
 	if _, err := r.Run(cmd, true); err != nil {
-		return errors.Wrap(err, "failed to create a snapshot")
+		return "", errors.Wrap(err, "failed to create snapshot")
 	}
 
 	cmd = fmt.Sprintf("zfs set %s=%q %s", dataStateAtLabel, dataStateAt, snapshotName)
 
 	if _, err := r.Run(cmd, true); err != nil {
-		return errors.Wrap(err, "failed to set the dataStateAt option for a snapshot")
+		return "", errors.Wrap(err, "failed to set the dataStateAt option for snapshot")
 	}
 
 	if originalDSA == "" {
 		cmd = fmt.Sprintf("zfs set %s=%q %s", isRoughStateAtLabel, "1", snapshotName)
 
 		if _, err := r.Run(cmd, true); err != nil {
-			return errors.Wrap(err, "failed to set the rough flag of a dataStateAt option for a snapshot")
+			return "", errors.Wrap(err, "failed to set the rough flag of dataStateAt option for snapshot")
 		}
 	}
 
-	return nil
+	return snapshotName, nil
 }
 
 // getSnapshotName builds a snapshot name.
@@ -227,6 +227,17 @@ func RollbackSnapshot(r runners.Runner, pool string, snapshot string) error {
 
 	if _, err := r.Run(cmd, true); err != nil {
 		return errors.Wrap(err, "failed to rollback a snapshot")
+	}
+
+	return nil
+}
+
+// DestroySnapshot destroys the snapshot.
+func DestroySnapshot(r runners.Runner, snapshotName string) error {
+	cmd := fmt.Sprintf("zfs destroy -R %s", snapshotName)
+
+	if _, err := r.Run(cmd); err != nil {
+		return errors.Wrap(err, "failed to run command")
 	}
 
 	return nil

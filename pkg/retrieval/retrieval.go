@@ -15,7 +15,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/components"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
 )
 
 // Retrieval describes a data retrieval.
@@ -23,12 +23,12 @@ type Retrieval struct {
 	config       *config.Config
 	stageBuilder components.StageBuilder
 	stages       []components.StageRunner
-	provisionSvc provision.Provision
+	cloneManager thinclones.Manager
 }
 
 // New creates a new data retrieval.
-func New(cfg *dblabCfg.Config, dockerCLI *client.Client, provision provision.Provision) (*Retrieval, error) {
-	stageBuilder, err := engine.StageBuilder(&cfg.Global, dockerCLI, provision)
+func New(cfg *dblabCfg.Config, dockerCLI *client.Client, cloneManager thinclones.Manager) (*Retrieval, error) {
+	stageBuilder, err := engine.StageBuilder(&cfg.Global, dockerCLI, cloneManager)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get stageBuilder")
 	}
@@ -36,7 +36,7 @@ func New(cfg *dblabCfg.Config, dockerCLI *client.Client, provision provision.Pro
 	return &Retrieval{
 		config:       &cfg.Retrieval,
 		stageBuilder: stageBuilder,
-		provisionSvc: provision,
+		cloneManager: cloneManager,
 	}, nil
 }
 

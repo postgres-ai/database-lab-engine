@@ -38,7 +38,9 @@ const (
 
 	// LogicalDataType defines a logical data type.
 	LogicalDataType = "logical"
-	//PhysicalDataType = "physical"
+
+	// PhysicalDataType defines a physical data type.
+	PhysicalDataType = "physical"
 )
 
 // Init inits DB marker for the data directory.

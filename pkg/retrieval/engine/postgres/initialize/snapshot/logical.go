@@ -7,22 +7,20 @@ package snapshot
 
 import (
 	"context"
-	"os/exec"
 
 	"github.com/pkg/errors"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
 )
 
 // LogicalInitial describes a job for preparing a logical initial snapshot.
 type LogicalInitial struct {
 	name         string
-	provisionSvc provision.Provision
+	cloneManager thinclones.Manager
 	options      LogicalOptions
 	globalCfg    *dblabCfg.Global
 	dbMarker     *dbmarker.Marker
@@ -39,11 +37,11 @@ const (
 )
 
 // NewLogicalInitialJob creates a new logical initial job.
-func NewLogicalInitialJob(cfg config.JobConfig, provisionSvc provision.Provision,
+func NewLogicalInitialJob(cfg config.JobConfig, cloneManager thinclones.Manager,
 	global *dblabCfg.Global, marker *dbmarker.Marker) (*LogicalInitial, error) {
 	li := &LogicalInitial{
 		name:         cfg.Name,
-		provisionSvc: provisionSvc,
+		cloneManager: cloneManager,
 		globalCfg:    global,
 		dbMarker:     marker,
 	}
@@ -61,26 +59,18 @@ func (s *LogicalInitial) Name() string {
 }
 
 // Run starts the job.
-func (s *LogicalInitial) Run(ctx context.Context) error {
-	commandOutput, err := exec.Command("bash", s.options.PreprocessingScript).Output()
-	if err != nil {
-		return errors.Wrap(err, "failed to run a custom script")
+func (s *LogicalInitial) Run(_ context.Context) error {
+	if s.options.PreprocessingScript != "" {
+		if err := runPreprocessingScript(s.options.PreprocessingScript); err != nil {
+			return err
+		}
 	}
-
-	log.Msg(string(commandOutput))
 
 	// TODO(akartasov): Automated basic Postgres configuration: https://gitlab.com/postgres-ai/database-lab/-/issues/141
 
-	dataStateAt := ""
+	dataStateAt := extractDataStateAt(s.dbMarker)
 
-	dbMark, err := s.dbMarker.GetConfig()
-	if err != nil {
-		log.Err("Failed to retrieve dataStateAt from a DBMarker config:", err)
-	} else {
-		dataStateAt = dbMark.DataStateAt
-	}
-
-	if err := s.provisionSvc.CreateSnapshot(dataStateAt); err != nil {
+	if _, err := s.cloneManager.CreateSnapshot(dataStateAt); err != nil {
 		return errors.Wrap(err, "failed to create a snapshot")
 	}
 

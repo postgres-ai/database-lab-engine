@@ -6,6 +6,7 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -13,8 +14,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -23,6 +26,9 @@ import (
 const (
 	maxValuesToReturn     = 1
 	essentialLogsInterval = "10s"
+
+	// StopTimeout defines a container stop timeout.
+	StopTimeout = 10 * time.Second
 )
 
 // IsEmptyDirectory checks whether a directory is empty.
@@ -81,7 +87,7 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 
 		resp, err := dockerClient.ContainerInspect(ctx, containerID)
 		if err != nil {
-			return errors.Wrap(err, "failed to create container")
+			return errors.Wrapf(err, "failed to inspect container %s", containerID)
 		}
 
 		if resp.State != nil && resp.State.Health != nil {
@@ -98,4 +104,68 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 
 		time.Sleep(time.Second)
 	}
+}
+
+// RemoveContainer stops and removes container.
+func RemoveContainer(ctx context.Context, dockerClient *client.Client, containerID string, stopTimeout time.Duration) {
+	if err := dockerClient.ContainerStop(ctx, containerID, pointer.ToDuration(stopTimeout)); err != nil {
+		log.Err("Failed to stop container: ", err)
+	}
+
+	if err := dockerClient.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{
+		Force: true,
+	}); err != nil {
+		log.Err("Failed to remove container: ", err)
+
+		return
+	}
+
+	log.Msg(fmt.Sprintf("Stop container ID: %v", containerID))
+}
+
+// PullImage pulls a Docker image.
+func PullImage(ctx context.Context, dockerClient *client.Client, image string) error {
+	pullOutput, err := dockerClient.ImagePull(ctx, image, types.ImagePullOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to pull image %s", image)
+	}
+
+	defer func() { _ = pullOutput.Close() }()
+
+	if _, err := io.Copy(os.Stdout, pullOutput); err != nil {
+		log.Err("Failed to render pull image output: ", err)
+	}
+
+	return nil
+}
+
+// ProcessAttachResponse reads and processes the cmd output.
+func ProcessAttachResponse(ctx context.Context, reader io.Reader, output io.Writer) error {
+	var errBuf bytes.Buffer
+
+	outputDone := make(chan error)
+
+	go func() {
+		// StdCopy de-multiplexes the stream into two writers.
+		_, err := stdcopy.StdCopy(output, &errBuf, reader)
+		outputDone <- err
+	}()
+
+	select {
+	case err := <-outputDone:
+		if err != nil {
+			return errors.Wrap(err, "failed to copy output")
+		}
+
+		break
+
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	if errBuf.Len() > 0 {
+		return errors.New(errBuf.String())
+	}
+
+	return nil
 }
