@@ -5,6 +5,10 @@
 package physical
 
 import (
+	"bytes"
+	"fmt"
+	"time"
+
 	"github.com/docker/docker/api/types/mount"
 )
 
@@ -62,4 +66,15 @@ func (w *walg) GetMounts() []mount.Mount {
 // GetRestoreCommand returns a command to restore data.
 func (w *walg) GetRestoreCommand() []string {
 	return []string{"wal-g", "backup-fetch", restoreContainerPath, w.options.BackupName}
+}
+
+// GetRecoveryConfig returns a recovery config to restore data.
+func (w *walg) GetRecoveryConfig() []byte {
+	buffer := bytes.Buffer{}
+
+	buffer.WriteString("standby_mode = 'on'\n")
+	buffer.WriteString(fmt.Sprintf("recovery_target_time = '%s'\n", time.Now().Format("2006-02-01 15:04:05")))
+	buffer.WriteString("restore_command = 'wal-g wal-fetch %f %p'\n")
+
+	return buffer.Bytes()
 }

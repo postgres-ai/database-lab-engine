@@ -6,10 +6,15 @@
 package physical
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
 	"os"
+	"path"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -23,7 +28,9 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/configuration"
 )
 
 const (
@@ -32,6 +39,8 @@ const (
 
 	restoreContainerName = "retriever_physical_restore"
 	restoreContainerPath = "/var/lib/postgresql/dblabdata"
+
+	readyLogLine = "database system is ready to accept"
 )
 
 // RestoreJob describes a job for physical restoring.
@@ -63,6 +72,9 @@ type restorer interface {
 
 	// GetRestoreCommand returns a command to restore data.
 	GetRestoreCommand() []string
+
+	// GetRecoveryConfig returns a recovery config to restore data.
+	GetRecoveryConfig() []byte
 }
 
 // NewJob creates a new physical restore job.
@@ -147,39 +159,20 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 		log.Msg(fmt.Sprintf("Stop container: %s. ID: %v", restoreContainerName, cont.ID))
 	}()
 
+	defer tools.RemoveContainer(ctx, r.dockerClient, cont.ID, tools.StopTimeout)
+
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", restoreContainerName, cont.ID))
+
 	if err = r.dockerClient.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrap(err, "failed to start container")
 	}
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", restoreContainerName, cont.ID))
-
-	execCommand, err := r.dockerClient.ContainerExecCreate(ctx, cont.ID, types.ExecConfig{
-		AttachStdin:  false,
-		AttachStdout: true,
-		AttachStderr: true,
-		Tty:          true,
-		Cmd:          r.restorer.GetRestoreCommand(),
-	})
-
-	if err != nil {
-		return errors.Wrap(err, "failed to create an exec command")
-	}
-
 	log.Msg("Running restore command")
 
-	attachResponse, err := r.dockerClient.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{Tty: true})
-	if err != nil {
-		return errors.Wrap(err, "failed to attach to the exec command")
-	}
-
-	defer attachResponse.Close()
-
-	if err := waitForCommandResponse(ctx, attachResponse); err != nil {
-		return errors.Wrap(err, "failed to exec the command")
-	}
-
-	if err := tools.InspectCommandResponse(ctx, r.dockerClient, cont.ID, execCommand.ID); err != nil {
-		return errors.Wrap(err, "failed to exec the restore command")
+	if err := tools.ExecCommand(ctx, r.dockerClient, cont.ID, types.ExecConfig{
+		Cmd: r.restorer.GetRestoreCommand(),
+	}); err != nil {
+		return errors.Wrap(err, "failed to restore data")
 	}
 
 	log.Msg("Restoring job has been finished")
@@ -188,7 +181,84 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 		log.Err("Failed to mark database data: ", err)
 	}
 
+	pgVersion, err := tools.DetectPGVersion(r.globalCfg.DataDir)
+	if err != nil {
+		return errors.Wrap(err, "failed to detect the Postgres version")
+	}
+
+	if err := configuration.Run(r.globalCfg.DataDir); err != nil {
+		return errors.Wrap(err, "failed to configure")
+	}
+
+	if err := r.adjustRecoveryConfiguration(pgVersion, r.globalCfg.DataDir); err != nil {
+		return err
+	}
+
+	// Set permissions.
+	if err := tools.ExecCommand(ctx, r.dockerClient, cont.ID, types.ExecConfig{
+		Cmd: []string{"chown", "-R", "postgres", restoreContainerPath},
+	}); err != nil {
+		return errors.Wrap(err, "failed to set permissions")
+	}
+
+	// Start PostgreSQL instance.
+	startCommand, err := r.dockerClient.ContainerExecCreate(ctx, cont.ID, types.ExecConfig{
+		AttachStdout: true,
+		AttachStderr: true,
+		Tty:          true,
+		Cmd:          []string{"postgres", "-D", restoreContainerPath},
+		User:         defaults.Username,
+	})
+
+	if err != nil {
+		return errors.Wrap(err, "failed to create an exec command")
+	}
+
+	log.Msg("Running refresh command")
+
+	attachResponse, err := r.dockerClient.ContainerExecAttach(ctx, startCommand.ID, types.ExecStartCheck{Tty: true})
+	if err != nil {
+		return errors.Wrap(err, "failed to attach to the exec command")
+	}
+
+	defer attachResponse.Close()
+
+	if err := isDatabaseReady(attachResponse.Reader); err != nil {
+		return errors.Wrap(err, "failed to refresh data")
+	}
+
+	log.Msg("Running restore command")
+
 	return nil
+}
+
+func isDatabaseReady(input io.Reader) error {
+	scanner := bufio.NewScanner(input)
+
+	timer := time.NewTimer(time.Minute)
+	defer timer.Stop()
+
+	for scanner.Scan() {
+		select {
+		case <-timer.C:
+			return errors.New("timeout exceeded")
+		default:
+		}
+
+		text := scanner.Text()
+
+		if strings.Contains(text, readyLogLine) {
+			return nil
+		}
+
+		fmt.Println(text)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	return errors.New("not found")
 }
 
 func (r *RestoreJob) getEnvironmentVariables() []string {
@@ -226,22 +296,50 @@ func (r *RestoreJob) markDatabaseData() error {
 	return r.dbMarker.SaveConfig(&dbmarker.Config{DataType: dbmarker.PhysicalDataType})
 }
 
-func waitForCommandResponse(ctx context.Context, attachResponse types.HijackedResponse) error {
-	waitCommandCh := make(chan struct{})
+func (r *RestoreJob) adjustRecoveryConfiguration(pgVersion, pgDataDir string) error {
+	// Remove postmaster.pid.
+	if err := os.Remove(path.Join(pgDataDir, "postmaster.pid")); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return errors.Wrap(err, "failed to remove postmaster.pid")
+	}
 
-	go func() {
-		if _, err := io.Copy(os.Stdout, attachResponse.Reader); err != nil {
-			log.Err("failed to get command output:", err)
+	// Truncate pg_ident.conf.
+	if err := tools.TouchFile(path.Join(pgDataDir, "pg_ident.conf")); err != nil {
+		return errors.Wrap(err, "failed to truncate pg_ident.conf")
+	}
+
+	// Replication mode.
+	var recoveryFilename string
+
+	if len(r.restorer.GetRecoveryConfig()) == 0 {
+		return nil
+	}
+
+	version, err := strconv.Atoi(pgVersion)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse PostgreSQL version")
+	}
+
+	const pgVersion12 = 12
+
+	if version >= pgVersion12 {
+		if err := tools.TouchFile(path.Join(pgDataDir, "standby.signal")); err != nil {
+			return err
 		}
 
-		waitCommandCh <- struct{}{}
-	}()
+		recoveryFilename = "postgresql.conf"
+	} else {
+		recoveryFilename = "recovery.conf"
+	}
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	recoveryFile, err := os.OpenFile(path.Join(pgDataDir, recoveryFilename), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
 
-	case <-waitCommandCh:
+	defer func() { _ = recoveryFile.Close() }()
+
+	if _, err := recoveryFile.Write(r.restorer.GetRecoveryConfig()); err != nil {
+		return err
 	}
 
 	return nil

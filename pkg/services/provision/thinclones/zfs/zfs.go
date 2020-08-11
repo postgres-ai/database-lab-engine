@@ -185,7 +185,7 @@ func ListClones(r runners.Runner, prefix string) ([]string, error) {
 }
 
 // CreateSnapshot creates ZFS snapshot.
-func CreateSnapshot(r runners.Runner, pool, dataStateAt string) (string, error) {
+func CreateSnapshot(r runners.Runner, pool, dataStateAt, cloneSuffix string) (string, error) {
 	originalDSA := dataStateAt
 
 	if dataStateAt == "" {
@@ -199,7 +199,7 @@ func CreateSnapshot(r runners.Runner, pool, dataStateAt string) (string, error) 
 		return "", errors.Wrap(err, "failed to create snapshot")
 	}
 
-	cmd = fmt.Sprintf("zfs set %s=%q %s", dataStateAtLabel, dataStateAt, snapshotName)
+	cmd = fmt.Sprintf("zfs set %s=%q %s", dataStateAtLabel, strings.TrimSuffix(dataStateAt, cloneSuffix), snapshotName)
 
 	if _, err := r.Run(cmd, true); err != nil {
 		return "", errors.Wrap(err, "failed to set the dataStateAt option for snapshot")
@@ -234,6 +234,7 @@ func RollbackSnapshot(r runners.Runner, pool string, snapshot string) error {
 
 // DestroySnapshot destroys the snapshot.
 func DestroySnapshot(r runners.Runner, snapshotName string) error {
+	// TODO(akartasov): Implement the function.
 	cmd := fmt.Sprintf("zfs destroy -R %s", snapshotName)
 
 	if _, err := r.Run(cmd); err != nil {

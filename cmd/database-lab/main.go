@@ -68,6 +68,10 @@ func main() {
 		cfg.Provision.ModeLocal.DockerImage = opts.DockerImage
 	}
 
+	if cfg.Provision.ModeLocal.MountDir != "" {
+		cfg.Global.MountDir = cfg.Provision.ModeLocal.MountDir
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

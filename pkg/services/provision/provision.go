@@ -52,6 +52,8 @@ type Config struct {
 type Provision interface {
 	Init() error
 	Reinit() error
+	// TODO (akartasov): Create provision builder to build provision service and clone manager.
+	//  Inject clone manager to provision service directly.
 	ThinCloneManager() thinclones.Manager
 
 	StartSession(username string, password string, snapshotID string) (*resources.Session, error)
