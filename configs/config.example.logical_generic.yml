@@ -1,0 +1,285 @@
+# Copy the following to: ./configs/config.yaml
+
+# Database Lab API server. This API is used to work with clones
+# (list them, create, delete, see how to connect to a clone).
+# Normally, it is supposed to listen 127.0.0.1:2345 (default),
+# and to be running inside a Docker container,
+# with port mapping, to allow users to connect from outside
+# to 2345 port using private or public IP address of the machine
+# where the container is running. See https://postgres.ai/docs/database-lab/how-to-manage-database-lab
+server:
+  # The main token that is used to work with Database Lab API.
+  # Note, that only one token is supported.
+  # However, if the integration with Postgres.ai Platform is configured
+  # (see below, "platform: ..." configuration), then users may use
+  # their personal tokens generated on the Platform. In this case,
+  # it is recommended to keep "verificationToken" secret, known
+  # only to the administrator of the Database Lab instance.
+  verificationToken: "secret_token"
+
+  # The host which the Database Lab server accepts HTTP connections to.
+  # By default: "127.0.0.1".
+  # Keep it default when running inside a Docker container.
+  # Use an empty string to accept connections to all network interfaces.
+  host: "127.0.0.1"
+
+  # HTTP server port. Default: 2345.
+  port: 2345
+
+global:
+  # Database engine. Currently, the only supported option: "postgres".
+  engine: postgres
+
+  # Docker image to perform various tasks, such as:
+  #   - initial data retrieval,
+  #   - continuous data synchronization,
+  #   - pre-processing.
+  # Default: "official" PostgreSQL image from Docker.
+  # Alternative: an extended image from the Postgres.ai team,
+  # containing a number of popular extensions, including those
+  # RDS provides. See https://postgres.ai/docs/database-lab/supported_databases
+  dockerImage: "postgres:12-alpine"
+
+  # Full path to data directory. This directory must already exist
+  # before launching Database Lab instance. It may be empty if
+  # data initialization is configured (see below).
+  dataDir: "/var/lib/dblab/data"
+
+# Debugging, when enabled, allows to see more in the Database Lab logs
+# (not PostgreSQL logs). Enable in the case of troubleshooting.
+debug: false
+
+# Details of provisioning – where data is located,
+# thin cloning method, etc.
+provision:
+  # Provision mode. Default (and the only supported): "local".
+  # Do not edit this.
+  mode: "local"
+
+  # Subdir where PGDATA located relative to the pool root dir.
+  # It is a part of global.dataDir, *with* leading slashes.
+  # If PGDATA is supposed to be in global.dataDir and this is the mount point,
+  # then use "/" in pgDataSubdir.
+  # Otherwise, use the final part (everything except the mount point), with leading slash.
+  # Example:
+  #      dataDir (PostgreSQL data directory):  /var/lib/dblab/data
+  #      pgDataSubdir:  /pgdata
+  # -- in this case, we assume that the mount point is: /var/lib/dblab
+  # Note, that, despite the fact that it alwats begins with "/",
+  # it is a relative path. Default: "/".
+  pgDataSubdir: "/data"
+
+  # Database username that will be used for Postgres management connections.
+  # This user must exist.
+  # The password is not needed – it will be set automatically.
+  # Connections will be made via a Unix domain socket (local).
+  pgMgmtUsername: "postgres"
+
+  # "Local" mode related parameters.
+  local:
+    # Thin-clone managing module used for thin cloning.
+    # Available options: "zfs" (recommended), "lvm".
+    thinCloneManager: "zfs"
+
+    # Name of your pool (in the case of ZFS) or volume group
+    # with logic volume name (e.g. "dblab_vg/pg_lv", in the case of LVM).
+    pool: "dblab_pool"
+
+    # Pool of ports for Postgres clones. Ports will be allocated sequentially,
+    # starting from the lowest value. The "from" value must be less than "to".
+    portPool:
+      from: 6000
+      to: 6100
+
+    # Directory that will be used to mount clones. Subdirectories in this directory
+    # will be used as mount points for clones. Subdirectory names will
+    # correspond to ports. E.g., subdirectory "6000" for the clone running on port 6000.
+    mountDir: /var/lib/dblab/clones
+
+    # Unix domain socket directory used to establish local connections to cloned databases.
+    unixSocketDir: /var/lib/dblab/sockets
+
+    # Snapshots with the suffix will not be accessible to use for cloning.
+    snapshotFilterSuffix: "_pre"
+
+    # Database Lab provisions thin clones using Docker containers, we need
+    # to specify which Postgres Docker image is to be used when cloning.
+    # The default is the extended Postgres image built on top of the official Postgres image
+    # (See https://postgres.ai/docs/database-lab/supported_databases).
+    # Any custom or official Docker image that runs Postgres with PGDATA located
+    # in "/var/lib/postgresql/pgdata" directory. Our Dockerfile
+    # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
+    # is recommended in case if customization is needed.
+    dockerImage: "postgresai/extended-postgres:12"
+
+    # Use sudo for ZFS/LVM and Docker commands if Database Lab server running
+    # outside a container. Keep it "false" (default) when running in a container.
+    useSudo: false
+
+# Data retrieval flow. This section defines both initial retrieval, and rules
+# to keep data directory in synchronized state with the source. Both are optional:
+# you may already have the data directory, so neither initial retrieval nor
+# synchronization are needed.
+# 
+# Data retrieval can be also considered as "thick" cloning. Once it's done, users
+# can use "thin" cloning to get independent full-size clones of the database in
+# seconds, for testing and development. Normally, retrieval (thick cloning) is
+# a slow operation (1 TiB/h is a good speed). Optionally, the process of keeping
+# the Database Lab data directory in sync with the source (being continuously
+# updated) can be configured.
+#
+# There are two basic ways to organize data retrieval:
+#  - "logical":  use dump/restore processes, obtaining a logical copy of the initial
+#                database (such as set of SQL commands), and then loading it to
+#                the target Database Lab data directory. This is the only option
+#                for managed cloud PostgreSQL services such as Amazon RDS. Physically,
+#                the copy of the database created using this method differs from
+#                the original one (data blocks are stored differently). However,
+#                row counts are the same, as well as internal database statistics,
+#                allowing to do various kinds of development and testing, including
+#                running EXPLAIN command to optimize SQL queries.
+#  - "physical": physically copy the data directory from the source (or from the
+#                archive if a physical backup tool such as WAL-G, pgBackRest or Barman
+#                is used). This approach allows to have a copy of the original database
+#                which is physically identical, including the existing bloat, data
+#                blocks location. Not supported for managed cloud Postgres services
+#                such as Amazon RDS.
+retrieval:
+  stages:
+    - initialize
+
+  spec:
+    # The initialize stage provides declarative initialization of the PostgreSQL data directory used by Database Lab Engine.
+    # The stage must not contain physical and logical restore jobs simultaneously.
+    initialize:
+      jobs:
+        # Dumps PostgreSQL database from provided source.
+        - name: logical-dump
+          options:
+            # The dump file will be automatically created on this location and then used to restore.
+            # Ensure that there is enough disk space.
+            dumpLocation: "/var/lib/dblab/db.dump"
+
+            # The Docker image containing the tools required to get a dump.
+            dockerImage: "postgres:12-alpine"
+
+            # Source of data.
+            source:
+              # Source types: "local", "remote", "rds"
+              type: remote
+
+              # Connection parameters of the database to be dumped.
+              connection:
+                # Database connection parameters.
+                # Currently, only password can be specified via environment variable (PGPASSWORD),
+                # everything else needs to be specified here.
+                dbname: postgres
+                host: 34.56.78.90
+                port: 5432
+                username: postgres
+
+                # Connection password. The environment variable PGPASSWORD can be used instead of this option.
+                # The environment variable has a higher priority.
+                password: postgres
+
+            # Options for a partial dump.
+            # partial:
+            #   tables:
+            #     - test
+
+            # The number of parallel jobs to get a dump.
+            # It's ignored if "restore" is present because "pg_dump | pg_restore" is always single-threaded.
+            parallelJobs: 2
+
+            # Options for direct restore to Database Lab Engine instance.
+            # Uncomment this if you prefer restoring from the dump on the fly. In this case,
+            # you do not need to use "logical-restore" job. Keep in mind that unlike "logical-restore",
+            # this option does not support parallelization, it is always a single-threaded (both for
+            # dumping on the source, and restoring on the destination end).
+            # restore:
+            #   # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
+            #   # Note the existing data might be overwritten.
+            #   forceInit: false
+
+        # Restores PostgreSQL database from the provided dump. If you use this block, do not use
+        # "restore" option in the "logical-dump" job.
+        - name: logical-restore
+          options:
+            dbname: "test"
+
+            # The location of the archive file (or directory, for a directory-format archive) to be restored.
+            dumpLocation: "/var/lib/dblab/db.dump"
+
+            # The Docker image containing the tools required to restore
+            dockerImage: "postgres:12-alpine"
+
+            # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
+            # Note the existing data might be overwritten.
+            forceInit: false
+
+            # Options for a partial dump.
+            # partial:
+            #   tables:
+            #     - test
+
+        - name: logical-snapshot
+          options:
+            # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
+            # Default: empty string (no pre-processing defined).
+            # This can be used for scrubbing eliminating PII data, to define data masking, etc.
+            preprocessingScript: ""
+
+            # Adjust PostgreSQL configuration
+            configs:
+              # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
+              shared_buffers: 1GB
+              # shared_preload_libraries – copy the value from the source
+              shared_preload_libraries: "pg_stat_statements"
+              # work_mem and all the Query Planning parameters – copy the values from the source.
+              # To do it, use this query:
+              #     select format($$%s = '%s'$$, name, setting)
+              #     from pg_settings
+              #     where
+              #       name ~ '(work_mem$|^enable_|_cost$|scan_size$|effective_cache_size|^jit)'
+              #       or name ~ '(^geqo|default_statistics_target|constraint_exclusion|cursor_tuple_fraction)'
+              #       or name ~ '(collapse_limit$|parallel|plan_cache_mode)';
+              work_mem: "100MB"
+              # ... put Query Planning parameters here
+
+cloning:
+  # Deprecated field. Default: "base".
+  mode: "base"
+
+  # Host that will be specified in database connection info for all clones
+  # Use public IP address if database connections are allowed from outside
+  # This value is only used to inform users about how to connect to database clones
+  accessHost: "localhost"
+
+  # Automatically delete clones after the specified minutes of inactivity.
+  # 0 - disable automatic deletion.
+  # Inactivity means:
+  #   - no active sessions (queries being processed right now)
+  #   - no recently logged queries in the query log
+  maxIdleMinutes: 120
+
+
+# ### INTEGRATION ###
+
+# Postgres.ai Platform integration (provides GUI) – extends the open source offering.
+# Uncomment the following lines if you need GUI, personal tokens, audit logs, more.
+#
+#platform:
+#  # Platform API URL. To work with Postgres.ai SaaS, keep it default
+#  # ("https://postgres.ai/api/general").
+#  url: "https://postgres.ai/api/general"
+#
+#  # Token for authorization in Platform API. This token can be obtained on
+#  # the Postgres.ai Console: https://postgres.ai/console/YOUR_ORG_NAME/tokens
+#  # This token needs to be kept in secret, known only to the administrtor.
+#  accessToken: "platform_access_token"
+#
+#  # Enable authorization with personal tokens of the organization's members.
+#  # If false: all users must use "verificationToken" value for any API request
+#  # If true: "verificationToken" is known only to admin, users use their own tokens,
+#  #          and any token can be revoked not affecting others
+#  enablePersonalTokens: true
