@@ -1,42 +1,57 @@
 # Copy the following to: ./configs/config.yaml
 
-# Database Lab server configuration.
+# Database Lab API server configuration.
+# This API is used to serve requests such as "create a clone".
+# Normally, 127.0.0.1:2345 is used to serve API requests,
+# it is supposed to be running inside a Docker container,
+# .... (example, what users will use)
 server:
+  # ...
   verificationToken: "secret_token"
 
   # The host which the Database Lab server accepts HTTP connections from. 
   # By default: "127.0.0.1", accepts only local connections. Use an empty string to accept all connections.
   host: "127.0.0.1"
 
-  # HTTP server port. By default: 2345.
+  # HTTP server port . Default: 2345.
   port: 2345
 
 global:
+  # database engine ... Currently supported: "postgres"
   engine: postgres
-  dataDir: /var/lib/dblab
+  # ...image for database engine
   dockerImage: "postgres:12-alpine"
+  # Must already exist before launching Database Lab server
+  # For example, in the case of ZFS, ... sudo zpool ... /var/lib/dblab
 
-# Postgres.ai Platform integration.
-platform:
-  # API URL.
-  url: "https://postgres.ai/api/general"
+  ## TODO rework:
+  #      mountDir + pgDataSubDir, both right here
+  #      and clonesMountDir
+  dataDir: /var/lib/dblab/data
 
-  # Token for authorization in Platform API. This token can be obtained in Postgres.ai Console:
-  # see the corresponding organization, "Access tokens" in the left menu.
-  accessToken: "platform_access_token"
-
-  # Enable authorization with personal tokens of the organization's members.
-  enablePersonalTokens: false
+# Enable if more details in the logs are needed for troubleshooting
+debug: false
 
 provision:
   # Provision mode to use.
+  # supported: "local" (only)
+  # ??? TODO: make it hidden
   mode: "local"
 
   # Subdir where PGDATA located relative to the pool root dir.
+  # relevant to global.dataDir, *with* leading slashes
+  # If PGDATA is supposed to be in global.dataDir, then use "/" her
+  # If PGDATA is deeper, specify part of the path, with leading slash. Example:
+  #      dataDir (mount point):  /dblab/bigdisk
+  #      pgDataSubdir:  /pgdata
+  # -- in this case, PGDATA will be located at /dblab/bigdisk
+  # ... TODO:  (1) trailing slash for all directories;  (2) leading slasg is a bad thing? we could auto-add it during concatenation
   pgDataSubdir: "/"
 
   # Username that will be used for Postgres management connections.
-  # The user should exist.
+  # The user must exist.
+  # ...Pasword is not needed - it will be set automatically, and connections are via Unix domain socket (local)
+  # ...? TODO: do we need it at all ?!
   pgMgmtUsername: "postgres"
 
   # "Local" mode related parameters.
@@ -55,6 +70,7 @@ provision:
       to: 6100
 
     # Clones PGDATA mount directory.
+    # ... TODO include "clone" in the param name?
     mountDir: /var/lib/dblab/clones
 
     # Unix sockets directory for secure connection to Postgres clones.
@@ -76,16 +92,6 @@ provision:
     # Use sudo for ZFS/LVM and Docker commands if Database Lab server running
     # outside a container.
     useSudo: false
-
-cloning:
-  mode: "base"
-
-  # Host which will be specified in clone connection info.
-  accessHost: "localhost"
-
-  # Auto-delete clones after the specified minutes of inactivity.
-  # 0 - disable automatic deletion.
-  maxIdleMinutes: 120
 
 retrieval:
   stages:
@@ -212,4 +218,41 @@ retrieval:
               shared_buffers: 1GB
               # effective_cache_size: 64MB
 
-debug: true
+cloning:
+  # base, mock ... TODO: make it hidden
+  mode: "base"
+
+  # Host that will be specified in database connection info for all clones
+  # Use public IP address if database connections are allowed from outside
+  # ... this value is only used to inform users about how to connect to database clones
+  # ... // UX important
+  accessHost: "localhost"
+
+  # Automatically delete clones after the specified minutes of inactivity.
+  # 0 - disable automatic deletion.
+  # Inactivity means:
+  #   - no active sessions (queries being processed right now)
+  #   - no recently logged queries in the query log
+  maxIdleMinutes: 120
+
+
+# === INTEGRATION ===
+# for open-source independent **.. remove all the following
+
+# Postgres.ai Platform integration (... ... GUI)
+# ...??? comment this block out ?
+# or just advice: comment this out!
+platform:
+  # API URL. Do not change to work with Postgres.ai SaaS
+  url: "https://postgres.ai/api/general"
+
+  # Token for authorization in Platform API. This token can be obtained in Postgres.ai Console:
+  # see the corresponding organization, "Access tokens" in the left menu.
+  # ... URL ?? https://postgres.ai/console/YOUR_ORG_NAME/tokens
+  accessToken: "platform_access_token"
+
+  # Enable authorization with personal tokens of the organization's members.
+  # If false: all users must use "accessToken" value for any API request
+  # If true: "accessToken" is known only to admin, users use their own tokens,
+  #          and any token can be revoked not affecting others
+  enablePersonalTokens: true
