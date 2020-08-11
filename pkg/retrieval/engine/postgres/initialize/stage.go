@@ -20,7 +20,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/logical"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/physical"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/snapshot"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
 )
 
 const (
@@ -32,19 +32,19 @@ const (
 type Stage struct {
 	name         string
 	dockerClient *client.Client
-	provisionSvc provision.Provision
+	cloneManager thinclones.Manager
 	dbMarker     *dbmarker.Marker
 	globalCfg    *dblabCfg.Global
 	jobs         []components.JobRunner
 }
 
 // NewStage create a new initialization stage.
-func NewStage(name string, dockerClient *client.Client, global *dblabCfg.Global, provision provision.Provision) *Stage {
+func NewStage(name string, dockerClient *client.Client, global *dblabCfg.Global, cloneManager thinclones.Manager) *Stage {
 	return &Stage{
 		name:         name,
 		dockerClient: dockerClient,
 		globalCfg:    global,
-		provisionSvc: provision,
+		cloneManager: cloneManager,
 		dbMarker:     dbmarker.NewMarker(global.DataDir),
 	}
 }
@@ -59,10 +59,13 @@ func (s *Stage) BuildJob(jobCfg config.JobConfig) (components.JobRunner, error) 
 		return logical.NewJob(jobCfg, s.dockerClient, s.globalCfg, s.dbMarker)
 
 	case physical.RestoreJobType:
-		return physical.NewJob(jobCfg, s.dockerClient, s.globalCfg)
+		return physical.NewJob(jobCfg, s.dockerClient, s.globalCfg, s.dbMarker)
 
 	case snapshot.LogicalInitialType:
-		return snapshot.NewLogicalInitialJob(jobCfg, s.provisionSvc, s.globalCfg, s.dbMarker)
+		return snapshot.NewLogicalInitialJob(jobCfg, s.cloneManager, s.globalCfg, s.dbMarker)
+
+	case snapshot.PhysicalInitialType:
+		return snapshot.NewPhysicalInitialJob(jobCfg, s.dockerClient, s.cloneManager, s.globalCfg, s.dbMarker)
 	}
 
 	return nil, errors.New("unknown job type")

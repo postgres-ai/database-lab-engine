@@ -21,6 +21,7 @@ import (
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 )
@@ -38,6 +39,7 @@ type RestoreJob struct {
 	name         string
 	dockerClient *client.Client
 	globalCfg    *dblabCfg.Global
+	dbMarker     *dbmarker.Marker
 	restorer     restorer
 	CopyOptions
 }
@@ -64,11 +66,12 @@ type restorer interface {
 }
 
 // NewJob creates a new physical restore job.
-func NewJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Global) (*RestoreJob, error) {
+func NewJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Global, marker *dbmarker.Marker) (*RestoreJob, error) {
 	physicalJob := &RestoreJob{
 		name:         cfg.Name,
 		dockerClient: docker,
 		globalCfg:    global,
+		dbMarker:     marker,
 	}
 
 	if err := options.Unmarshal(cfg.Options, &physicalJob.CopyOptions); err != nil {
@@ -181,6 +184,10 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 
 	log.Msg("Restoring job has been finished")
 
+	if err := r.markDatabaseData(); err != nil {
+		log.Err("Failed to mark database data: ", err)
+	}
+
 	return nil
 }
 
@@ -209,6 +216,14 @@ func (r *RestoreJob) getMountVolumes() []mount.Mount {
 		r.restorer.GetMounts()...)
 
 	return mounts
+}
+
+func (r *RestoreJob) markDatabaseData() error {
+	if err := r.dbMarker.CreateConfig(); err != nil {
+		return errors.Wrap(err, "failed to create a DBMarker config of the database")
+	}
+
+	return r.dbMarker.SaveConfig(&dbmarker.Config{DataType: dbmarker.PhysicalDataType})
 }
 
 func waitForCommandResponse(ctx context.Context, attachResponse types.HijackedResponse) error {

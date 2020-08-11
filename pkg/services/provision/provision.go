@@ -17,6 +17,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
 )
 
 const (
@@ -51,12 +52,12 @@ type Config struct {
 type Provision interface {
 	Init() error
 	Reinit() error
+	ThinCloneManager() thinclones.Manager
 
 	StartSession(username string, password string, snapshotID string) (*resources.Session, error)
 	StopSession(*resources.Session) error
 	ResetSession(session *resources.Session, snapshotID string) error
 
-	CreateSnapshot(dataStateAt string) error
 	GetSnapshots() ([]resources.Snapshot, error)
 
 	GetDiskState() (*resources.Disk, error)

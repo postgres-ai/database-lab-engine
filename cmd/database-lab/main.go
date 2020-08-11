@@ -83,7 +83,7 @@ func main() {
 	}
 
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
-	retrievalSvc, err := retrieval.New(cfg, dockerCLI, provisionSvc)
+	retrievalSvc, err := retrieval.New(cfg, dockerCLI, provisionSvc.ThinCloneManager())
 	if err != nil {
 		log.Fatal("Failed to build a retrieval service:", err)
 	}

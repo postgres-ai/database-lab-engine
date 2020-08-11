@@ -14,12 +14,12 @@ import (
 
 // GetBinRootPath return path to root directory of сurrent binary module.
 func GetBinRootPath() (string, error) {
-	bindir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	bindir, err := os.Getwd()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get abs filepath of a bin directory")
+		return "", errors.Wrap(err, "failed to get path of the work directory")
 	}
 
-	path, err := filepath.Abs(filepath.Dir(bindir))
+	path, err := filepath.Abs(bindir)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get abs filepath of a root directory")
 	}

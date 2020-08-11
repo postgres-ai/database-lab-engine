@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones/lvm"
@@ -39,8 +40,15 @@ func newManagerLVM(runner runners.Runner, config ManagerConfig) (*managerLVM, er
 	return &m, nil
 }
 
-func (m *managerLVM) CreateSnapshot(_ string) error {
-	// TODO(akartasov): Implement.
+func (m *managerLVM) CreateSnapshot(_ string) (string, error) {
+	log.Msg("Creating a snapshot is not supported in LVM mode. Skip the operation.")
+
+	return "", nil
+}
+
+func (m *managerLVM) DestroySnapshot(_ string) error {
+	log.Msg("Destroying a snapshot is not supported in LVM mode. Skip the operation.")
+
 	return nil
 }
 

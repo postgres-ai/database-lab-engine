@@ -183,6 +183,12 @@ retrieval:
         - name: logical-snapshot
           options:
             # It is possible to define a pre-precessing script.
-#            preprocessingScript: "/tmp/scripts/custom.sh"
+            # preprocessingScript: "/tmp/scripts/custom.sh"
+
+        - name: physical-snapshot
+          options:
+            promote: true
+            # It is possible to define a pre-precessing script.
+            # preprocessingScript: "/tmp/scripts/custom.sh"
 
 debug: true

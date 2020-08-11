@@ -5,7 +5,6 @@
 package logical
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -15,13 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/pkg/errors"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
@@ -29,6 +26,8 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 )
 
@@ -37,9 +36,8 @@ const (
 	DumpJobType = "logical-dump"
 
 	// Defines dump options.
-	dumpContainerName        = "retrieval_logical_dump"
-	dumpContainerDir         = "/tmp"
-	dumpContainerStopTimeout = 10 * time.Second
+	dumpContainerName = "retrieval_logical_dump"
+	dumpContainerDir  = "/tmp"
 
 	// Defines dump source types.
 	sourceTypeLocal  = "local"
@@ -159,11 +157,11 @@ Either set 'numberOfJobs' equals to 1 or disable the restore section`)
 func (d *DumpJob) setDefaults() {
 	// TODO: Default yaml values in tags.
 	if d.DumpOptions.Source.Connection.Port == 0 {
-		d.DumpOptions.Source.Connection.Port = defaultPort
+		d.DumpOptions.Source.Connection.Port = defaults.Port
 	}
 
 	if d.DumpOptions.Source.Connection.Username == "" {
-		d.DumpOptions.Source.Connection.Username = defaultUsername
+		d.DumpOptions.Source.Connection.Username = defaults.Username
 	}
 
 	if d.DumpOptions.ParallelJobs == 0 {
@@ -222,7 +220,7 @@ func (d *DumpJob) Run(ctx context.Context) error {
 		&container.Config{
 			Env:         d.getEnvironmentVariables(),
 			Image:       d.DockerImage,
-			Healthcheck: getContainerHealthConfig(),
+			Healthcheck: health.GetConfig(),
 		},
 		&container.HostConfig{
 			Mounts:      d.getMountVolumes(),
@@ -237,21 +235,7 @@ func (d *DumpJob) Run(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create container")
 	}
 
-	defer func() {
-		if err := d.dockerClient.ContainerStop(ctx, cont.ID, pointer.ToDuration(dumpContainerStopTimeout)); err != nil {
-			log.Err("Failed to stop a dump container: ", err)
-		}
-
-		if err := d.dockerClient.ContainerRemove(ctx, cont.ID, types.ContainerRemoveOptions{
-			Force: true,
-		}); err != nil {
-			log.Err("Failed to remove container: ", err)
-
-			return
-		}
-
-		log.Msg(fmt.Sprintf("Stop container: %s. ID: %v", dumpContainerName, cont.ID))
-	}()
+	defer tools.RemoveContainer(ctx, d.dockerClient, cont.ID, tools.StopTimeout)
 
 	if err := d.dockerClient.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrap(err, "failed to start container")
@@ -341,34 +325,7 @@ func (d *DumpJob) performDumpCommand(ctx context.Context, cmdOutput io.Writer, c
 	}
 	defer execAttach.Close()
 
-	// read the cmd output
-	var errBuf bytes.Buffer
-
-	outputDone := make(chan error)
-
-	go func() {
-		// StdCopy de-multiplexes the stream into two writers.
-		_, err = stdcopy.StdCopy(cmdOutput, &errBuf, execAttach.Reader)
-		outputDone <- err
-	}()
-
-	select {
-	case err := <-outputDone:
-		if err != nil {
-			return errors.Wrap(err, "failed to copy output")
-		}
-
-		break
-
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	if errBuf.Len() > 0 {
-		return errors.New(errBuf.String())
-	}
-
-	return nil
+	return tools.ProcessAttachResponse(ctx, execAttach.Reader, cmdOutput)
 }
 
 func (d *DumpJob) getDumpContainerPath() string {
@@ -381,7 +338,7 @@ func (d *DumpJob) getEnvironmentVariables() []string {
 		"POSTGRES_HOST_AUTH_METHOD=trust",
 	}
 
-	if d.DumpOptions.Source.Type == sourceTypeLocal && d.DumpOptions.Source.Connection.Port == defaultPort {
+	if d.DumpOptions.Source.Type == sourceTypeLocal && d.DumpOptions.Source.Connection.Port == defaults.Port {
 		envs = append(envs, "PGPORT="+strconv.Itoa(reservePort))
 	}
 
@@ -467,7 +424,7 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 }
 
 func (d *DumpJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"|", "pg_restore", "-U", defaultUsername, "-C", "-d", defaultDBName, "--no-privileges"}
+	restoreCmd := []string{"|", "pg_restore", "-U", defaults.Username, "-C", "-d", defaults.DBName, "--no-privileges"}
 
 	if d.Restore.ForceInit {
 		restoreCmd = append(restoreCmd, "--clean", "--if-exists")

@@ -48,6 +48,10 @@ const (
 	UseUnixSocket = true
 
 	dockerLogHeaderLength = 8
+
+	defaultMountDir = "/var/lib/dblab/clones/"
+
+	defaultUnixSocketDir = "/var/lib/dblab/sockets/"
 )
 
 // ModeLocalPortPool describes an available port range for clones.
@@ -92,29 +96,7 @@ func NewProvisionModeLocal(ctx context.Context, config Config, dockerClient *cli
 		},
 	}
 
-	if len(p.config.ModeLocal.MountDir) == 0 {
-		p.config.ModeLocal.MountDir = "/var/lib/dblab/clones/"
-	}
-
-	if len(p.config.ModeLocal.UnixSocketDir) == 0 {
-		p.config.ModeLocal.UnixSocketDir = "/var/lib/dblab/sockets/"
-	}
-
-	if !strings.HasSuffix(p.config.ModeLocal.MountDir, Slash) {
-		p.config.ModeLocal.MountDir += Slash
-	}
-
-	if !strings.HasSuffix(p.config.ModeLocal.UnixSocketDir, Slash) {
-		p.config.ModeLocal.UnixSocketDir += Slash
-	}
-
-	if len(p.config.PgMgmtUsername) == 0 {
-		p.config.PgMgmtUsername = DefaultUsername
-	}
-
-	if len(p.config.PgMgmtPassword) == 0 {
-		p.config.PgMgmtPassword = DefaultPassword
-	}
+	setDefault(&p.config)
 
 	thinCloneManager, err := thinclones.NewManager(p.config.ModeLocal.ThinCloneManager,
 		p.runner, thinclones.ManagerConfig{
@@ -132,6 +114,32 @@ func NewProvisionModeLocal(ctx context.Context, config Config, dockerClient *cli
 	p.thinCloneManager = thinCloneManager
 
 	return p, nil
+}
+
+func setDefault(cfg *Config) {
+	if !strings.HasSuffix(cfg.ModeLocal.MountDir, Slash) {
+		cfg.ModeLocal.MountDir += Slash
+	}
+
+	if !strings.HasSuffix(cfg.ModeLocal.UnixSocketDir, Slash) {
+		cfg.ModeLocal.UnixSocketDir += Slash
+	}
+
+	if cfg.ModeLocal.MountDir == "" {
+		cfg.ModeLocal.MountDir = defaultMountDir
+	}
+
+	if cfg.ModeLocal.UnixSocketDir == "" {
+		cfg.ModeLocal.UnixSocketDir = defaultUnixSocketDir
+	}
+
+	if cfg.PgMgmtUsername == "" {
+		cfg.PgMgmtUsername = DefaultUsername
+	}
+
+	if cfg.PgMgmtPassword == "" {
+		cfg.PgMgmtPassword = DefaultPassword
+	}
 }
 
 func isValidConfigModeLocal(config Config) bool {
@@ -191,6 +199,11 @@ func (j *provisionModeLocal) Init() error {
 
 func (j *provisionModeLocal) Reinit() error {
 	return fmt.Errorf(`"Reinit" method is unsupported in "local" mode`)
+}
+
+// ThinCloneManager provides a thin clone manager.
+func (j *provisionModeLocal) ThinCloneManager() thinclones.Manager {
+	return j.thinCloneManager
 }
 
 func (j *provisionModeLocal) StartSession(username, password, snapshotID string) (*resources.Session, error) {
@@ -312,11 +325,6 @@ func (j *provisionModeLocal) ResetSession(session *resources.Session, snapshotID
 	}
 
 	return nil
-}
-
-// CreateSnapshot makes a new snapshot.
-func (j *provisionModeLocal) CreateSnapshot(dataStateAt string) error {
-	return j.thinCloneManager.CreateSnapshot(dataStateAt)
 }
 
 func (j *provisionModeLocal) GetSnapshots() ([]resources.Snapshot, error) {

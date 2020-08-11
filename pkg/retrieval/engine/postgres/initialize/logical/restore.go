@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -24,6 +23,8 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 )
 
@@ -121,7 +122,7 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 				"PGDATA=" + pgDataContainerDir,
 			},
 			Image:       r.RestoreOptions.DockerImage,
-			Healthcheck: getContainerHealthConfig(),
+			Healthcheck: health.GetConfig(),
 		},
 		&container.HostConfig{
 			Mounts: []mount.Mount{
@@ -144,21 +145,7 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create container")
 	}
 
-	defer func() {
-		if err := r.dockerClient.ContainerStop(ctx, cont.ID, pointer.ToDuration(dumpContainerStopTimeout)); err != nil {
-			log.Err("Failed to stop a dump container: ", err)
-		}
-
-		if err := r.dockerClient.ContainerRemove(ctx, cont.ID, types.ContainerRemoveOptions{
-			Force: true,
-		}); err != nil {
-			log.Err("Failed to remove container: ", err)
-
-			return
-		}
-
-		log.Msg(fmt.Sprintf("Stop container: %s. ID: %v", restoreContainerName, cont.ID))
-	}()
+	defer tools.RemoveContainer(ctx, r.dockerClient, cont.ID, tools.StopTimeout)
 
 	if err := r.dockerClient.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrap(err, "failed to start a container")
@@ -251,10 +238,10 @@ func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID string) (st
 }
 
 func (r *RestoreJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"pg_restore", "-U", defaultUsername, "-C"}
+	restoreCmd := []string{"pg_restore", "-U", defaults.Username, "-C"}
 
 	if r.ForceInit {
-		restoreCmd = append(restoreCmd, "-d", defaultDBName, "--clean", "--if-exists")
+		restoreCmd = append(restoreCmd, "-d", defaults.DBName, "--clean", "--if-exists")
 	} else {
 		restoreCmd = append(restoreCmd, "-d", r.RestoreOptions.DBName)
 	}
