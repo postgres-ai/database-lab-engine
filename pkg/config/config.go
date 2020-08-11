@@ -34,8 +34,9 @@ type Config struct {
 
 // Global contains global Database Lab configurations.
 type Global struct {
-	Engine  string `yaml:"engine"`
-	DataDir string `yaml:"dataDir"`
+	Engine   string `yaml:"engine"`
+	DataDir  string `yaml:"dataDir"`
+	MountDir string // TODO (akartasov): Use MountDir for the ModeLocalConfig of a Provision service.
 }
 
 // LoadConfig instances a new Config by configuration filename.

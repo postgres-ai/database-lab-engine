@@ -31,7 +31,7 @@ type Manager interface {
 
 	GetSessionState(name string) (*resources.SessionState, error)
 	GetDiskState() (*resources.Disk, error)
-	CreateSnapshot(dataStateAt string) (snapshotName string, err error)
+	CreateSnapshot(poolSuffix, dataStateAt string) (snapshotName string, err error)
 	DestroySnapshot(snapshotName string) (err error)
 	GetSnapshots() ([]resources.Snapshot, error)
 }

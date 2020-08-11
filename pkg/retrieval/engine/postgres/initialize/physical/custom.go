@@ -42,3 +42,8 @@ func (c *custom) GetMounts() []mount.Mount {
 func (c *custom) GetRestoreCommand() []string {
 	return strings.Split(c.options.Command, " ")
 }
+
+// GetRecoveryConfig returns a recovery config to restore data.
+func (c *custom) GetRecoveryConfig() []byte {
+	return []byte{}
+}

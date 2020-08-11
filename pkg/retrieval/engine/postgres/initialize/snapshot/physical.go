@@ -11,8 +11,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
-	"os/exec"
+	"path"
+	"strconv"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -30,6 +32,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/configuration"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
 )
 
@@ -44,8 +47,6 @@ const (
 	// Defines container health check options.
 	hcPromoteInterval = 2 * time.Second
 	hcPromoteRetries  = 100
-
-	adjustingConfigsScript = "/scripts/adjust_configs.sh"
 )
 
 // PhysicalInitial describes a job for preparing a physical initial snapshot.
@@ -61,8 +62,9 @@ type PhysicalInitial struct {
 
 // PhysicalOptions describes options for a physical initialization job.
 type PhysicalOptions struct {
-	Promote             bool   `yaml:"promote"`
-	PreprocessingScript string `yaml:"preprocessingScript"`
+	Promote             bool              `yaml:"promote"`
+	PreprocessingScript string            `yaml:"preprocessingScript"`
+	Configs             map[string]string `yaml:"configs"`
 }
 
 // NewPhysicalInitialJob creates a new physical initial job.
@@ -81,10 +83,6 @@ func NewPhysicalInitialJob(cfg config.JobConfig, docker *client.Client, cloneMan
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
-	if err := p.dbMarker.CreateConfig(); err != nil {
-		return nil, errors.Wrap(err, "failed to create a DBMarker config of the database")
-	}
-
 	return p, nil
 }
 
@@ -95,12 +93,41 @@ func (p *PhysicalInitial) Name() string {
 
 // Run starts the job.
 func (p *PhysicalInitial) Run(ctx context.Context) error {
-	// TODO(akartasov): Automated basic Postgres configuration: https://gitlab.com/postgres-ai/database-lab/-/issues/141
 	p.dbMark.DataStateAt = extractDataStateAt(p.dbMarker)
+
+	// Snapshot data.
+	preDataStateAt := time.Now().Format(tools.DataStateAtFormat)
+	cloneName := fmt.Sprintf("clone%s_%s", pre, preDataStateAt)
 
 	// Promotion.
 	if p.options.Promote {
-		if err := p.promoteInstance(ctx); err != nil {
+		// Prepare pre-snapshot.
+		snapshotName, err := p.cloneManager.CreateSnapshot("", preDataStateAt+pre)
+		if err != nil {
+			return errors.Wrap(err, "failed to create a snapshot")
+		}
+
+		defer func() {
+			if err != nil {
+				if errDestroy := p.cloneManager.DestroySnapshot(snapshotName); errDestroy != nil {
+					log.Err(fmt.Sprintf("Failed to destroy the %q snapshot: %v", snapshotName, err))
+				}
+			}
+		}()
+
+		if err := p.cloneManager.CreateClone(cloneName, snapshotName); err != nil {
+			return errors.Wrap(err, "failed to create a pre clone")
+		}
+
+		defer func() {
+			if err != nil {
+				if errDestroy := p.cloneManager.DestroyClone(cloneName); errDestroy != nil {
+					log.Err(fmt.Sprintf("Failed to destroy the %q clone: %v", cloneName, err))
+				}
+			}
+		}()
+
+		if err := p.promoteInstance(ctx, path.Join(p.globalCfg.MountDir, cloneName)); err != nil {
 			return err
 		}
 	}
@@ -113,59 +140,41 @@ func (p *PhysicalInitial) Run(ctx context.Context) error {
 	}
 
 	// Mark database data.
-	if err := p.dbMarker.SaveConfig(p.dbMark); err != nil {
+	if err := p.markDatabaseData(); err != nil {
 		return errors.Wrap(err, "failed to mark the prepared data")
 	}
 
 	// Create a snapshot.
-	if _, err := p.cloneManager.CreateSnapshot(p.dbMark.DataStateAt); err != nil {
+	if _, err := p.cloneManager.CreateSnapshot(cloneName, p.dbMark.DataStateAt); err != nil {
 		return errors.Wrap(err, "failed to create a snapshot")
 	}
 
 	return nil
 }
 
-func (p *PhysicalInitial) promoteInstance(ctx context.Context) error {
+func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string) error {
 	log.Msg("Promote the Postgres instance.")
 
-	// Pre snapshot.
-	preDataStateAt := time.Now().Format(tools.DataStateAtFormat)
-
-	snapshotName, err := p.cloneManager.CreateSnapshot(preDataStateAt + pre)
-	if err != nil {
-		return errors.Wrap(err, "failed to create a snapshot")
+	if err := configuration.Run(clonePath); err != nil {
+		return errors.Wrap(err, "failed to enforce configs")
 	}
 
-	defer func() {
-		if err := p.cloneManager.DestroySnapshot(snapshotName); err != nil {
-			log.Err(fmt.Sprintf("Failed to destroy the %q snapshot: %v", snapshotName, err))
-		}
-	}()
-
-	cloneName := fmt.Sprintf("clone%s_%s", pre, preDataStateAt)
-
-	if err := p.cloneManager.CreateClone(cloneName, snapshotName); err != nil {
-		return errors.Wrap(err, "failed to create a pre clone")
+	// Apply users configs.
+	if err := applyUsersConfigs(p.options.Configs, path.Join(clonePath, "postgresql.conf")); err != nil {
+		return err
 	}
 
-	defer func() {
-		if err := p.cloneManager.DestroyClone(cloneName); err != nil {
-			log.Err(fmt.Sprintf("Failed to destroy the %q clone: %v", cloneName, err))
-		}
-	}()
-
-	pgVersion, err := p.detectPGVersion()
+	pgVersion, err := tools.DetectPGVersion(p.globalCfg.DataDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to detect the Postgres version")
 	}
 
-	// Adjust configuration.
-	err = p.adjustConfiguration(pgVersion, cloneName)
-	if err != nil {
-		return errors.Wrap(err, "failed to adjust configuration")
+	// Adjust recovery configuration.
+	if err := p.adjustRecoveryConfiguration(pgVersion, clonePath); err != nil {
+		return errors.Wrap(err, "failed to adjust recovery configuration")
 	}
 
-	promoteImage := fmt.Sprintf("postgres:%s-alpine", pgVersion)
+	promoteImage := fmt.Sprintf("postgresai/sync-instance:%s", pgVersion)
 
 	if err := tools.PullImage(ctx, p.dockerClient, promoteImage); err != nil {
 		return errors.Wrap(err, "failed to scan image response")
@@ -177,6 +186,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context) error {
 			Labels: map[string]string{"label": "dblab_control"},
 			Env: []string{
 				"PGDATA=" + pgDataContainerDir,
+				"POSTGRES_HOST_AUTH_METHOD=trust",
 			},
 			Image: promoteImage,
 			Healthcheck: health.GetConfig(
@@ -188,7 +198,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context) error {
 			Mounts: []mount.Mount{
 				{
 					Type:   mount.TypeBind,
-					Source: p.globalCfg.DataDir,
+					Source: clonePath,
 					Target: pgDataContainerDir,
 					BindOptions: &mount.BindOptions{
 						Propagation: mount.PropagationRShared,
@@ -212,6 +222,29 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context) error {
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", promoteContainerName, cont.ID))
 
+	// Set permissions.
+	if err := tools.ExecCommand(ctx, p.dockerClient, cont.ID, types.ExecConfig{
+		Cmd: []string{"chown", "-R", "postgres", pgDataContainerDir},
+	}); err != nil {
+		return errors.Wrap(err, "failed to set permissions")
+	}
+
+	// Start PostgreSQL instance.
+	startCommand, err := p.dockerClient.ContainerExecCreate(ctx, cont.ID, types.ExecConfig{
+		Cmd:  []string{"postgres", "-D", pgDataContainerDir},
+		User: defaults.Username,
+	})
+
+	if err != nil {
+		return errors.Wrap(err, "failed to create an exec command")
+	}
+
+	log.Msg("Running PostgreSQL instance")
+
+	if _, err := p.dockerClient.ContainerExecAttach(ctx, startCommand.ID, types.ExecStartCheck{Tty: true}); err != nil {
+		return errors.Wrap(err, "failed to attach to the exec command")
+	}
+
 	if err := tools.CheckContainerReadiness(ctx, p.dockerClient, cont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
 	}
@@ -225,12 +258,21 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context) error {
 
 	// Detect dataStateAt.
 	if p.dbMark.DataStateAt == "" && shouldBePromoted == "t" {
-		p.dbMark.DataStateAt, err = p.extractDataStateAt(ctx, cont.ID)
+		extractedDataStateAt, err := p.extractDataStateAt(ctx, cont.ID)
 		if err != nil {
 			return errors.Wrap(err,
 				`Failed to get data_state_at: PGDATA should be promoted, but pg_last_xact_replay_timestamp() returns empty result.
 				Check if pg_data is correct, or explicitly define DATA_STATE_AT via an environment variable.`)
 		}
+
+		if extractedDataStateAt == p.dbMark.DataStateAt {
+			log.Msg(fmt.Sprintf(`The previous snapshot already contains the latest data: %s. Skip taking a new snapshot.`,
+				p.dbMark.DataStateAt))
+
+			return nil
+		}
+
+		p.dbMark.DataStateAt = extractedDataStateAt
 	}
 
 	log.Msg("Data state at: ", p.dbMark.DataStateAt)
@@ -243,44 +285,56 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context) error {
 	}
 
 	// Checkpoint.
-	return p.checkpoint(ctx, cont.ID)
+	if err := p.checkpoint(ctx, cont.ID); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (p *PhysicalInitial) detectPGVersion() (string, error) {
-	version, err := exec.Command("cat", fmt.Sprintf(`%s/PG_VERSION`, p.globalCfg.DataDir)).CombinedOutput()
+func (p *PhysicalInitial) adjustRecoveryConfiguration(pgVersion, clonePGDataDir string) error {
+	// Remove postmaster.pid.
+	if err := os.Remove(path.Join(clonePGDataDir, "postmaster.pid")); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return errors.Wrap(err, "failed to remove postmaster.pid")
+	}
+
+	// Truncate pg_ident.conf.
+	if err := tools.TouchFile(path.Join(clonePGDataDir, "pg_ident.conf")); err != nil {
+		return errors.Wrap(err, "failed to truncate pg_ident.conf")
+	}
+
+	// Replication mode.
+	var (
+		replicationFilename string
+		buffer              bytes.Buffer
+	)
+
+	version, err := strconv.Atoi(pgVersion)
 	if err != nil {
-		return "", err
+		return errors.Wrap(err, "failed to parse PostgreSQL version")
 	}
 
-	return string(bytes.TrimSpace(version)), nil
-}
+	const pgVersion12 = 12
 
-func (p *PhysicalInitial) adjustConfiguration(pgVersion, cloneName string) error {
-	fmt.Println("Adjust configuration for PostgreSQL " + pgVersion)
+	if version >= pgVersion12 {
+		replicationFilename = "standby.signal"
+	} else {
+		replicationFilename = "recovery.conf"
 
-	scriptDir, err := os.Getwd()
-	if err != nil {
-		return errors.Wrap(err, "failed to get script path")
+		buffer.WriteString("standby_mode = 'on'\n")
+		buffer.WriteString("primary_conninfo = ''\n")
+		buffer.WriteString("restore_command = ''\n")
 	}
 
-	configCmd := exec.Command("bash", scriptDir+adjustingConfigsScript)
-	configCmd.Env = []string{
-		"PG_VER=" + pgVersion,
-		"CLONE_NAME=" + cloneName,
+	if err := ioutil.WriteFile(path.Join(clonePGDataDir, replicationFilename), buffer.Bytes(), 0666); err != nil {
+		return err
 	}
-
-	adjustConfigs, err := configCmd.CombinedOutput()
-	if err != nil {
-		return errors.Wrap(err, "failed to run adjust command")
-	}
-
-	fmt.Println(string(adjustConfigs))
 
 	return nil
 }
 
 func (p *PhysicalInitial) checkRecovery(ctx context.Context, containerID string) (string, error) {
-	checkRecoveryCmd := []string{"psql", "-U", "postgres", "-XAtc", "select pg_is_in_recovery()"}
+	checkRecoveryCmd := []string{"psql", "-U", defaults.Username, "-XAtc", "select pg_is_in_recovery()"}
 	log.Msg("Check recovery command", checkRecoveryCmd)
 
 	execCommand, err := p.dockerClient.ContainerExecCreate(ctx, containerID, types.ExecConfig{
@@ -324,7 +378,7 @@ func checkRecoveryModeResponse(input io.Reader) (string, error) {
 }
 
 func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID string) (string, error) {
-	promoteCommand := []string{"psql", "-U", "postgres", "-d", "postgres", "-XAtc",
+	promoteCommand := []string{"psql", "-U", defaults.Username, "-d", defaults.DBName, "-XAtc",
 		"select to_char(coalesce(pg_last_xact_replay_timestamp(), NOW()) at time zone 'UTC', 'YYYYMMDDHH24MISS')"}
 
 	log.Msg("Running promote command", promoteCommand)
@@ -373,29 +427,18 @@ func (p *PhysicalInitial) runPromoteCommand(ctx context.Context, containerID str
 
 	log.Msg("Running promote command", promoteCommand)
 
-	execCommand, err := p.dockerClient.ContainerExecCreate(ctx, containerID, types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          promoteCommand,
-		User:         defaults.Username,
-	})
-
-	if err != nil {
-		return errors.Wrap(err, "failed to create exec command")
+	if err := tools.ExecCommand(ctx, p.dockerClient, containerID, types.ExecConfig{
+		User: defaults.Username,
+		Cmd:  promoteCommand,
+	}); err != nil {
+		return errors.Wrap(err, "failed to promote instance")
 	}
 
-	attachResponse, err := p.dockerClient.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{Tty: true})
-	if err != nil {
-		return errors.Wrap(err, "failed to attach to exec command")
-	}
-
-	defer attachResponse.Close()
-
-	return tools.ProcessAttachResponse(ctx, attachResponse.Reader, os.Stdout)
+	return nil
 }
 
 func (p *PhysicalInitial) checkpoint(ctx context.Context, containerID string) error {
-	commandCheckpoint := []string{"psql", "-U", "postgres", "-d", "postgres", "-XAtc", "checkpoint"}
+	commandCheckpoint := []string{"psql", "-U", defaults.Username, "-d", defaults.DBName, "-XAtc", "checkpoint"}
 	log.Msg("Run checkpoint command", commandCheckpoint)
 
 	execCommand, err := p.dockerClient.ContainerExecCreate(ctx, containerID, types.ExecConfig{
@@ -420,4 +463,12 @@ func (p *PhysicalInitial) checkpoint(ctx context.Context, containerID string) er
 	}
 
 	return nil
+}
+
+func (p *PhysicalInitial) markDatabaseData() error {
+	if err := p.dbMarker.CreateConfig(); err != nil {
+		return errors.Wrap(err, "failed to create a DBMarker config of the database")
+	}
+
+	return p.dbMarker.SaveConfig(p.dbMark)
 }

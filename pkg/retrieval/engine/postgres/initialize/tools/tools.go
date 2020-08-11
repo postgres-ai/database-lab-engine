@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"time"
 
 	"github.com/AlekSi/pointer"
@@ -44,6 +45,28 @@ func IsEmptyDirectory(dir string) (bool, error) {
 	}
 
 	return len(names) == 0, nil
+}
+
+// TouchFile creates an empty file.
+func TouchFile(filename string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return errors.Wrapf(err, "failed to touch file: %s", filename)
+	}
+
+	defer func() { _ = file.Close() }()
+
+	return nil
+}
+
+// DetectPGVersion defines PostgreSQL version of PGDATA.
+func DetectPGVersion(dataDir string) (string, error) {
+	version, err := exec.Command("cat", fmt.Sprintf(`%s/PG_VERSION`, dataDir)).CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes.TrimSpace(version)), nil
 }
 
 // InspectCommandResponse inspects success of command execution.
@@ -134,6 +157,56 @@ func PullImage(ctx context.Context, dockerClient *client.Client, image string) e
 
 	if _, err := io.Copy(os.Stdout, pullOutput); err != nil {
 		log.Err("Failed to render pull image output: ", err)
+	}
+
+	return nil
+}
+
+// ExecCommand runs command in Docker container.
+func ExecCommand(ctx context.Context, dockerClient *client.Client, containerID string, execCfg types.ExecConfig) error {
+	execCfg.AttachStdout = true
+	execCfg.AttachStderr = true
+	execCfg.Tty = true
+
+	execCommand, err := dockerClient.ContainerExecCreate(ctx, containerID, execCfg)
+	if err != nil {
+		return errors.Wrap(err, "failed to create command")
+	}
+
+	attachResponse, err := dockerClient.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{Tty: true})
+	if err != nil {
+		return errors.Wrap(err, "failed to attach to exec command")
+	}
+
+	defer attachResponse.Close()
+
+	if err := waitForCommandResponse(ctx, attachResponse); err != nil {
+		return errors.Wrap(err, "failed to exec command")
+	}
+
+	if err := InspectCommandResponse(ctx, dockerClient, containerID, execCommand.ID); err != nil {
+		return errors.Wrap(err, "unsuccessful command response")
+	}
+
+	return nil
+}
+
+func waitForCommandResponse(ctx context.Context, attachResponse types.HijackedResponse) error {
+	waitCommandCh := make(chan struct{})
+
+	go func() {
+		if _, err := io.Copy(os.Stdout, attachResponse.Reader); err != nil {
+			log.Err("failed to get command output:", err)
+		}
+
+		waitCommandCh <- struct{}{}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+
+	case <-waitCommandCh:
 	}
 
 	return nil

@@ -34,8 +34,14 @@ func newManagerZFS(runner runners.Runner, config ManagerConfig) *managerZFS {
 }
 
 // CreateSnapshot creates a new snapshot.
-func (m *managerZFS) CreateSnapshot(dataStateAt string) (string, error) {
-	return zfs.CreateSnapshot(m.runner, m.config.Pool, dataStateAt)
+func (m *managerZFS) CreateSnapshot(poolSuffix, dataStateAt string) (string, error) {
+	pool := m.config.Pool
+
+	if poolSuffix != "" {
+		pool += "/" + poolSuffix
+	}
+
+	return zfs.CreateSnapshot(m.runner, pool, dataStateAt, m.config.SnapshotFilterSuffix)
 }
 
 // DestroySnapshot destroys the snapshot.

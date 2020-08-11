@@ -182,13 +182,34 @@ retrieval:
 
         - name: logical-snapshot
           options:
-            # It is possible to define a pre-precessing script.
-            # preprocessingScript: "/tmp/scripts/custom.sh"
+            # It is possible to define a pre-precessing script. For example, /tmp/scripts/custom.sh
+            preprocessingScript: ""
+
+            # Section for adding custom postgresql.conf parameters.
+            configs:
+              # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
+
+              # Be careful with memory consumption: besides shared_buffers (immediately allocated when the clone is started),
+              # memory is consumed by Postgres backends directly (depends on work_mem and maintenance_work_mem values),
+              # and by other applications.
+              # If there is not enough memory to run more clones, then, depending on OS settings,
+              # you may experience either OOM killer or swapping activity.
+              # The "free" memory is automatically used for the file cache which is shared among clones.
+              shared_buffers: 1GB
+              # effective_cache_size: 64MB
 
         - name: physical-snapshot
           options:
+            # Promote PGDATA after data fetching.
             promote: true
-            # It is possible to define a pre-precessing script.
-            # preprocessingScript: "/tmp/scripts/custom.sh"
+
+            # It is possible to define a pre-precessing script. For example, /tmp/scripts/custom.sh
+            preprocessingScript: ""
+
+            # Section for adding custom postgresql.conf parameters.
+            configs:
+              # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
+              shared_buffers: 1GB
+              # effective_cache_size: 64MB
 
 debug: true

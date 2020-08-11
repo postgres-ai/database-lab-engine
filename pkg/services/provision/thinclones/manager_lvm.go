@@ -40,7 +40,7 @@ func newManagerLVM(runner runners.Runner, config ManagerConfig) (*managerLVM, er
 	return &m, nil
 }
 
-func (m *managerLVM) CreateSnapshot(_ string) (string, error) {
+func (m *managerLVM) CreateSnapshot(_, _ string) (string, error) {
 	log.Msg("Creating a snapshot is not supported in LVM mode. Skip the operation.")
 
 	return "", nil
