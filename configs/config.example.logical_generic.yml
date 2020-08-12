@@ -236,7 +236,7 @@ retrieval:
               # ... put Query Planning parameters here
 
 cloning:
-  # base, mock ... TODO: make it hidden
+  # Deprecated field. Default: "base".
   mode: "base"
 
   # Host that will be specified in database connection info for all clones
