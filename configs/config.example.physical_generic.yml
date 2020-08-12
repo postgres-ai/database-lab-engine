@@ -160,7 +160,7 @@ retrieval:
             envs:
               PGUSER: "postgres"
               PGPASSWORD: "postgres"
-              PGHOST: 
+              PGHOST: "source.hostname"
             customTool:
               # To use pg_basebackup, specify environment variables in "env".
               # Do not edit PostgreSQL data directory (-D).
