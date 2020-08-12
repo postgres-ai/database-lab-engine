@@ -162,7 +162,7 @@ retrieval:
 
             # Source of data.
             source:
-              # Source type: local, remote, rds.
+              # Source types: "local", "remote", "rds".
               type: remote
 
               # Connection parameters of the database to be dumped.
