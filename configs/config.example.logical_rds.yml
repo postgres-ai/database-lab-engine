@@ -163,17 +163,7 @@ retrieval:
             # Source of data.
             source:
               # Source type: local, remote, rds.
-              type: local
-
-              # Connection parameters of the database to be dumped.
-              connection:
-                dbname: postgres
-                host: 127.0.0.1
-                port: 5432
-                username: postgres
-                # Connection password. The environment variable PGPASSWORD can be used instead of this option.
-                # The environment variable has a higher priority.
-                password: postgres
+              type: rds
 
               # Optional definition of RDS data source.
               rds:
@@ -193,21 +183,26 @@ retrieval:
                 sslRootCert: "/tmp/rds-combined-ca-bundle.pem"
 
             # Options for a partial dump.
-            partial:
-              tables:
-                - test
+            # partial:
+            #   tables:
+            #     - test
 
             # The number of parallel jobs to get a dump.
             # It's ignored if "restore" is present because "pg_dump | pg_restore" is always single-threaded.
-            parallelJobs: 1
+            parallelJobs: 2
 
             # Options for direct restore to Database Lab Engine instance.
-            restore:
-              # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
-              # Note the existing data might be overwritten.
-              forceInit: true
+            # Uncomment this if you prefer restoring from the dump on the fly. In this case,
+            # you do not need to use "logical-restore" job. Keep in mind that unlike "logical-restore",
+            # this option does not support parallelization, it is always a single-threaded (both for
+            # dumping on the source, and restoring on the destination end).
+            # restore:
+            #   # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
+            #   # Note the existing data might be overwritten.
+            #   forceInit: true
 
-        # Restores PostgreSQL database from the provided dump.
+        # Restores PostgreSQL database from the provided dump. If you use this block, do not use
+        # "restore" option in the "logical-dump" job.
         - name: logical-restore
           options:
             dbname: test
@@ -219,25 +214,15 @@ retrieval:
             forceInit: false
 
             # Options for a partial dump.
-            partial:
-              tables:
-                - test
-
-        # Restores database data from a physical backup.
-        - name: physical-restore
-          options:
-            tool: walg
-            dockerImage: "postgresai/sync-instance:12"
-            envs:
-              WALG_GS_PREFIX: "gs://{BUCKET}/{SCOPE}"
-            walg:
-              storage: gcs
-              backupName: LATEST
-              credentialsFile: /tmp/sa.json # optional
+            # partial:
+            #   tables:
+            #     - test
 
         - name: logical-snapshot
           options:
-            # It is possible to define a pre-precessing script. For example, /tmp/scripts/custom.sh
+            # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
+            # Default: empty string (no pre-processing defined).
+            # This can be used fo scrubbing eliminating PII data, to define data masking, etc.
             preprocessingScript: ""
 
             # Section for adding custom postgresql.conf parameters.
@@ -253,28 +238,13 @@ retrieval:
               shared_buffers: 1GB
               # effective_cache_size: 64MB
 
-        - name: physical-snapshot
-          options:
-            # Promote PGDATA after data fetching.
-            promote: true
-
-            # It is possible to define a pre-precessing script. For example, /tmp/scripts/custom.sh
-            preprocessingScript: ""
-
-            # Section for adding custom postgresql.conf parameters.
-            configs:
-              # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
-              shared_buffers: 1GB
-              # effective_cache_size: 64MB
-
 cloning:
   # base, mock ... TODO: make it hidden
   mode: "base"
 
   # Host that will be specified in database connection info for all clones
   # Use public IP address if database connections are allowed from outside
-  # ... this value is only used to inform users about how to connect to database clones
-  # ... // UX important
+  # This value is only used to inform users about how to connect to database clones
   accessHost: "localhost"
 
   # Automatically delete clones after the specified minutes of inactivity.
