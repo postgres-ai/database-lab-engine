@@ -94,7 +94,7 @@ provision:
     # correspond to ports. E.g., subdirectory "6000" for the clone running on port 6000.
     mountDir: /var/lib/dblab/clones
 
-    # Unix dimain socket directory used to establish local connections to cloned databases.
+    # Unix domain socket directory used to establish local connections to cloned databases.
     unixSocketDir: /var/lib/dblab/sockets
 
     # Snapshots with the suffix will not be accessible to use for cloning.
