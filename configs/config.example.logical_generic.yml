@@ -8,7 +8,7 @@
 # to 2345 port using private or public IP address of the machine
 # where the container is running. See https://postgres.ai/docs/database-lab/how-to-manage-database-lab
 server:
-  # The main token that is used work with Database Lab API.
+  # The main token that is used to work with Database Lab API.
   # Note, that only one token is supported.
   # However, if the integration with Postgres.ai Platform is configured
   # (see below, "platform: ..." configuration), then users may use
