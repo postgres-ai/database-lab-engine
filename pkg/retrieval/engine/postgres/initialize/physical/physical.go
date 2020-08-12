@@ -148,14 +148,13 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 	}
 
 	defer func() {
-		if err := r.dockerClient.ContainerRemove(ctx, cont.ID, types.ContainerRemoveOptions{
-			Force: true,
-		}); err != nil {
-			log.Err("Failed to remove container: ", err)
-
-			return
-		}
-
+		//if err := r.dockerClient.ContainerRemove(ctx, cont.ID, types.ContainerRemoveOptions{
+		//	Force: true,
+		//}); err != nil {
+		//	log.Err("Failed to remove container: ", err)
+		//
+		//	return
+		//}
 		log.Msg(fmt.Sprintf("Stop container: %s. ID: %v", restoreContainerName, cont.ID))
 	}()
 
