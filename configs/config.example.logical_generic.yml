@@ -106,7 +106,7 @@ provision:
     # (See https://postgres.ai/docs/database-lab/supported_databases).
     # Any custom or official Docker image that runs Postgres with PGDATA located
     # in "/var/lib/postgresql/pgdata" directory. Our Dockerfile
-    # (See https://gitlab.com/postgres-ai/database-lab/snippets/1932037)
+    # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
     # is recommended in case if customization is needed.
     dockerImage: "postgresai/extended-postgres:12"
 
