@@ -8,7 +8,7 @@
 # to 2345 port using private or public IP address of the machine
 # where the container is running. See https://postgres.ai/docs/database-lab/how-to-manage-database-lab
 server:
-  # The main token that is used work with Database Lab API.
+  # The main token that is used to work with Database Lab API.
   # Note, that only one token is supported.
   # However, if the integration with Postgres.ai Platform is configured
   # (see below, "platform: ..." configuration), then users may use
@@ -70,7 +70,7 @@ provision:
   # Database username that will be used for Postgres management connections.
   # This user must exist.
   # The password is not needed – it will be set automatically.
-  # Connections will be made via a Unix domain socket (local)
+  # Connections will be made via a Unix domain socket (local).
   pgMgmtUsername: "postgres"
 
   # "Local" mode related parameters.
@@ -94,7 +94,7 @@ provision:
     # correspond to ports. E.g., subdirectory "6000" for the clone running on port 6000.
     mountDir: /var/lib/dblab/clones
 
-    # Unix dimain socket directory used to establish local connections to cloned databases.
+    # Unix domain socket directory used to establish local connections to cloned databases.
     unixSocketDir: /var/lib/dblab/sockets
 
     # Snapshots with the suffix will not be accessible to use for cloning.
@@ -106,7 +106,7 @@ provision:
     # (See https://postgres.ai/docs/database-lab/supported_databases).
     # Any custom or official Docker image that runs Postgres with PGDATA located
     # in "/var/lib/postgresql/pgdata" directory. Our Dockerfile
-    # (See https://gitlab.com/postgres-ai/database-lab/snippets/1932037)
+    # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
     # is recommended in case if customization is needed.
     dockerImage: "postgresai/extended-postgres:12"
 
@@ -171,7 +171,7 @@ retrieval:
 
             # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
             # Default: empty string (no pre-processing defined).
-            # This can be used fo scrubbing eliminating PII data, to define data masking, etc.
+            # This can be used for scrubbing eliminating PII data, to define data masking, etc.
             preprocessingScript: ""
 
             # Adjust PostgreSQL configuration
@@ -192,7 +192,7 @@ retrieval:
               # ... put Query Planning parameters here
 
 cloning:
-  # base, mock ... TODO: make it hidden
+  # Deprecated field. Default: "base".
   mode: "base"
 
   # Host that will be specified in database connection info for all clones
