@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -23,6 +24,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
+	"github.com/robfig/cron/v3"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -58,6 +60,8 @@ type PhysicalInitial struct {
 	dbMarker     *dbmarker.Marker
 	dbMark       *dbmarker.Config
 	dockerClient *client.Client
+	scheduler    *cron.Cron
+	scheduleOnce sync.Once
 }
 
 // PhysicalOptions describes options for a physical initialization job.
@@ -65,6 +69,19 @@ type PhysicalOptions struct {
 	Promote             bool              `yaml:"promote"`
 	PreprocessingScript string            `yaml:"preprocessingScript"`
 	Configs             map[string]string `yaml:"configs"`
+	Scheduler           *Scheduler        `yaml:"scheduler"`
+}
+
+// Scheduler provides scheduler options.
+type Scheduler struct {
+	Snapshot  ScheduleSpec `yaml:"snapshot"`
+	Retention ScheduleSpec `yaml:"retention"`
+}
+
+// ScheduleSpec defines options to set up scheduler components.
+type ScheduleSpec struct {
+	Timetable string `yaml:"timetable"`
+	Limit     int    `yaml:"limit"`
 }
 
 // NewPhysicalInitialJob creates a new physical initial job.
@@ -83,7 +100,32 @@ func NewPhysicalInitialJob(cfg config.JobConfig, docker *client.Client, cloneMan
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
+	if err := p.setupScheduler(); err != nil {
+		return nil, errors.Wrap(err, "failed to set up scheduler")
+	}
+
 	return p, nil
+}
+
+func (p *PhysicalInitial) setupScheduler() error {
+	if p.options.Scheduler == nil {
+		return nil
+	}
+
+	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+
+	if _, err := specParser.Parse(p.options.Scheduler.Snapshot.Timetable); err != nil {
+		return errors.Wrapf(err, "failed to parse schedule timetable %q", p.options.Scheduler.Snapshot.Timetable)
+	}
+
+	if _, err := specParser.Parse(p.options.Scheduler.Retention.Timetable); err != nil {
+		return errors.Wrapf(err, "failed to parse retention timetable %q", p.options.Scheduler.Retention.Timetable)
+	}
+
+	p.scheduleOnce = sync.Once{}
+	p.scheduler = cron.New()
+
+	return nil
 }
 
 // Name returns a name of the job.
@@ -93,6 +135,20 @@ func (p *PhysicalInitial) Name() string {
 
 // Run starts the job.
 func (p *PhysicalInitial) Run(ctx context.Context) error {
+	p.scheduleOnce.Do(p.startScheduler(ctx))
+
+	select {
+	case <-ctx.Done():
+		if p.scheduler != nil {
+			log.Msg("Stop automatic snapshots")
+			p.scheduler.Stop()
+		}
+
+		return nil
+
+	default:
+	}
+
 	p.dbMark.DataStateAt = extractDataStateAt(p.dbMarker)
 
 	// Snapshot data.
@@ -108,10 +164,8 @@ func (p *PhysicalInitial) Run(ctx context.Context) error {
 		}
 
 		defer func() {
-			if err != nil {
-				if errDestroy := p.cloneManager.DestroySnapshot(snapshotName); errDestroy != nil {
-					log.Err(fmt.Sprintf("Failed to destroy the %q snapshot: %v", snapshotName, err))
-				}
+			if errDestroy := p.cloneManager.DestroySnapshot(snapshotName); errDestroy != nil {
+				log.Err(fmt.Sprintf("Failed to destroy the %q snapshot: %v", snapshotName, err))
 			}
 		}()
 
@@ -120,14 +174,17 @@ func (p *PhysicalInitial) Run(ctx context.Context) error {
 		}
 
 		defer func() {
-			if err != nil {
-				if errDestroy := p.cloneManager.DestroyClone(cloneName); errDestroy != nil {
-					log.Err(fmt.Sprintf("Failed to destroy the %q clone: %v", cloneName, err))
-				}
+			if errDestroy := p.cloneManager.DestroyClone(cloneName); errDestroy != nil {
+				log.Err(fmt.Sprintf("Failed to destroy the %q clone: %v", cloneName, err))
 			}
 		}()
 
 		if err := p.promoteInstance(ctx, path.Join(p.globalCfg.MountDir, cloneName)); err != nil {
+			if _, ok := err.(*skipSnapshotErr); ok {
+				log.Msg(err.Error())
+				return nil
+			}
+
 			return err
 		}
 	}
@@ -150,6 +207,46 @@ func (p *PhysicalInitial) Run(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (p *PhysicalInitial) startScheduler(ctx context.Context) func() {
+	if p.scheduler == nil {
+		return func() {}
+	}
+
+	return func() {
+		if _, err := p.scheduler.AddFunc(p.options.Scheduler.Snapshot.Timetable, p.runAutoSnapshot(ctx)); err != nil {
+			log.Err(errors.Wrap(err, "failed to schedule a new snapshot job"))
+			return
+		}
+
+		if _, err := p.scheduler.AddFunc(p.options.Scheduler.Retention.Timetable,
+			p.runAutoCleanup(p.options.Scheduler.Retention.Limit)); err != nil {
+			log.Err(errors.Wrap(err, "failed to schedule a new cleanup job"))
+			return
+		}
+
+		p.scheduler.Start()
+	}
+}
+
+func (p *PhysicalInitial) runAutoSnapshot(ctx context.Context) func() {
+	return func() {
+		if err := p.Run(ctx); err != nil {
+			log.Err(errors.Wrap(err, "failed to take a snapshot automatically"))
+
+			log.Msg("Interrupt automatic snapshots")
+			p.scheduler.Stop()
+		}
+	}
+}
+
+func (p *PhysicalInitial) runAutoCleanup(retentionLimit int) func() {
+	return func() {
+		if err := p.cleanupSnapshots(retentionLimit); err != nil {
+			log.Err(errors.Wrap(err, "failed to clean up snapshots automatically"))
+		}
+	}
 }
 
 func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string) error {
@@ -257,7 +354,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 	log.Msg("Should be promoted: ", shouldBePromoted)
 
 	// Detect dataStateAt.
-	if p.dbMark.DataStateAt == "" && shouldBePromoted == "t" {
+	if shouldBePromoted == "t" {
 		extractedDataStateAt, err := p.extractDataStateAt(ctx, cont.ID)
 		if err != nil {
 			return errors.Wrap(err,
@@ -265,20 +362,19 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 				Check if pg_data is correct, or explicitly define DATA_STATE_AT via an environment variable.`)
 		}
 
-		if extractedDataStateAt == p.dbMark.DataStateAt {
-			log.Msg(fmt.Sprintf(`The previous snapshot already contains the latest data: %s. Skip taking a new snapshot.`,
-				p.dbMark.DataStateAt))
+		log.Msg("Extracted Data state at: ", extractedDataStateAt)
 
-			return nil
+		if p.dbMark.DataStateAt != "" && extractedDataStateAt == p.dbMark.DataStateAt {
+			return newSkipSnapshotErr(fmt.Sprintf(
+				`The previous snapshot already contains the latest data: %s. Skip taking a new snapshot.`,
+				p.dbMark.DataStateAt))
 		}
 
 		p.dbMark.DataStateAt = extractedDataStateAt
-	}
 
-	log.Msg("Data state at: ", p.dbMark.DataStateAt)
+		log.Msg("Data state at: ", p.dbMark.DataStateAt)
 
-	// Promote PGDATA.
-	if shouldBePromoted == "t" {
+		// Promote PGDATA.
 		if err := p.runPromoteCommand(ctx, cont.ID); err != nil {
 			return errors.Wrap(err, "failed to promote PGDATA")
 		}
@@ -471,4 +567,15 @@ func (p *PhysicalInitial) markDatabaseData() error {
 	}
 
 	return p.dbMarker.SaveConfig(p.dbMark)
+}
+
+func (p *PhysicalInitial) cleanupSnapshots(retentionLimit int) error {
+	deletedSnapshots, err := p.cloneManager.CleanupSnapshots(retentionLimit)
+	if err != nil {
+		return errors.Wrap(err, "failed to clean up snapshots")
+	}
+
+	log.Msg(deletedSnapshots)
+
+	return nil
 }

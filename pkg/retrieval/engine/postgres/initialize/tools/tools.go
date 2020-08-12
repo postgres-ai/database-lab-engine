@@ -131,6 +131,8 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 
 // RemoveContainer stops and removes container.
 func RemoveContainer(ctx context.Context, dockerClient *client.Client, containerID string, stopTimeout time.Duration) {
+	log.Msg(fmt.Sprintf("Stopping container ID: %v", containerID))
+
 	if err := dockerClient.ContainerStop(ctx, containerID, pointer.ToDuration(stopTimeout)); err != nil {
 		log.Err("Failed to stop container: ", err)
 	}

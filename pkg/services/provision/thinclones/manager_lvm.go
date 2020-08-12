@@ -40,16 +40,25 @@ func newManagerLVM(runner runners.Runner, config ManagerConfig) (*managerLVM, er
 	return &m, nil
 }
 
+// CreateSnapshot is not supported in LVM mode.
 func (m *managerLVM) CreateSnapshot(_, _ string) (string, error) {
 	log.Msg("Creating a snapshot is not supported in LVM mode. Skip the operation.")
 
 	return "", nil
 }
 
+// DestroySnapshot is not supported in LVM mode.
 func (m *managerLVM) DestroySnapshot(_ string) error {
 	log.Msg("Destroying a snapshot is not supported in LVM mode. Skip the operation.")
 
 	return nil
+}
+
+// CleanupSnapshots is not supported in LVM mode.
+func (m *managerLVM) CleanupSnapshots(_ int) ([]string, error) {
+	log.Msg("Cleanup snapshots is not supported in LVM mode. Skip the operation.")
+
+	return nil, nil
 }
 
 func (m *managerLVM) CreateClone(name, snapshotID string) error {

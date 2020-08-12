@@ -13,7 +13,7 @@ import (
 
 // StageBuilder builds a StageRunner.
 type StageBuilder interface {
-	BuildStageRunner(string) (StageRunner, error)
+	BuildStageRunner(stageName string) (StageRunner, error)
 }
 
 // JobRunner performs a job.

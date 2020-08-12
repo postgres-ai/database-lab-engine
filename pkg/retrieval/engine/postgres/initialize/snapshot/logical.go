@@ -33,6 +33,7 @@ type LogicalInitial struct {
 type LogicalOptions struct {
 	PreprocessingScript string            `yaml:"preprocessingScript"`
 	Configs             map[string]string `yaml:"configs"`
+	Schedule            Scheduler         `yaml:"schedule"`
 }
 
 const (

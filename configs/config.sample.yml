@@ -212,4 +212,18 @@ retrieval:
               shared_buffers: 1GB
               # effective_cache_size: 64MB
 
+            # Scheduler contains tasks which run on a schedule.
+            scheduler:
+              # Snapshot scheduler creates a new snapshot on a schedule.
+              snapshot:
+                # Timetable defines in crontab format: https://en.wikipedia.org/wiki/Cron#Overview
+                timetable: "0 */6 * * *"
+
+              # Retention scheduler cleans up old snapshots on a schedule.
+              retention:
+                # Timetable defines in crontab format: https://en.wikipedia.org/wiki/Cron#Overview
+                timetable: "0 * * * *"
+                # Limit defines how many snapshots should be hold.
+                limit: 4
+
 debug: true

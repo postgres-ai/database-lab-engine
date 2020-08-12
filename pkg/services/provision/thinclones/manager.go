@@ -33,6 +33,7 @@ type Manager interface {
 	GetDiskState() (*resources.Disk, error)
 	CreateSnapshot(poolSuffix, dataStateAt string) (snapshotName string, err error)
 	DestroySnapshot(snapshotName string) (err error)
+	CleanupSnapshots(retentionLimit int) ([]string, error)
 	GetSnapshots() ([]resources.Snapshot, error)
 }
 
@@ -55,10 +56,12 @@ func NewManager(mode string, runner runners.Runner, config ManagerConfig) (Manag
 	switch mode {
 	case ManagerZFS:
 		manager = newManagerZFS(runner, config)
+
 	case ManagerLVM:
 		if manager, err = newManagerLVM(runner, config); err != nil {
 			return nil, errors.Wrap(err, "failed to initialize LVM thin-clone manager")
 		}
+
 	default:
 		return nil, errors.New(fmt.Sprintf(`unsupported thin-clone manager specified: "%s"`, mode))
 	}

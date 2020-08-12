@@ -24,6 +24,7 @@ const (
 	dataStateAtLabel    = "dblab:datastateat"
 	isRoughStateAtLabel = "dblab:isroughdsa"
 	dataStateAtFormat   = "20060102150405"
+	stdErrCleanupTag    = "cleanup_zfs_snapshot"
 )
 
 // ListEntry defines entry of ZFS list command.
@@ -242,6 +243,23 @@ func DestroySnapshot(r runners.Runner, snapshotName string) error {
 	}
 
 	return nil
+}
+
+// CleanupSnapshots destroys old ZFS snapshots considering retention limit.
+func CleanupSnapshots(r runners.Runner, pool string, retentionLimit int) ([]string, error) {
+	cleanupCmd := fmt.Sprintf(
+		"zfs list -t snapshot -r %s -H -o name -s %s -s creation | grep -v clone | head -n -%d "+
+			"| xargs -n1 --no-run-if-empty zfs destroy -R 2>&1 | logger --stderr --tag \"%s\"",
+		pool, dataStateAtLabel, retentionLimit, stdErrCleanupTag)
+
+	out, err := r.Run(cleanupCmd, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to clean up snapshots")
+	}
+
+	lines := strings.Split(out, "\n")
+
+	return lines, nil
 }
 
 // ListFilesystems lists ZFS file systems (clones, pools).

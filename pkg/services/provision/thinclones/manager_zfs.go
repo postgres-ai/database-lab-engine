@@ -49,6 +49,11 @@ func (m *managerZFS) DestroySnapshot(snapshotName string) error {
 	return zfs.DestroySnapshot(m.runner, snapshotName)
 }
 
+// CleanupSnapshots destroys old snapshots considering retention limit.
+func (m *managerZFS) CleanupSnapshots(retentionLimit int) ([]string, error) {
+	return zfs.CleanupSnapshots(m.runner, m.config.Pool, retentionLimit)
+}
+
 func (m *managerZFS) CreateClone(name, snapshotID string) error {
 	return zfs.CreateClone(m.runner, m.config.Pool, name, snapshotID, m.config.MountDir, m.config.OSUsername)
 }
