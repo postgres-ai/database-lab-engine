@@ -215,7 +215,7 @@ retrieval:
           options:
             # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
             # Default: empty string (no pre-processing defined).
-            # This can be used fo scrubbing eliminating PII data, to define data masking, etc.
+            # This can be used for scrubbing eliminating PII data, to define data masking, etc.
             preprocessingScript: ""
 
             # Adjust PostgreSQL configuration
