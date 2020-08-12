@@ -147,18 +147,7 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create container")
 	}
 
-	defer func() {
-		//if err := r.dockerClient.ContainerRemove(ctx, cont.ID, types.ContainerRemoveOptions{
-		//	Force: true,
-		//}); err != nil {
-		//	log.Err("Failed to remove container: ", err)
-		//
-		//	return
-		//}
-		log.Msg(fmt.Sprintf("Stop container: %s. ID: %v", restoreContainerName, cont.ID))
-	}()
-
-	defer tools.RemoveContainer(ctx, r.dockerClient, cont.ID, tools.StopTimeout)
+	//defer tools.RemoveContainer(ctx, r.dockerClient, cont.ID, tools.StopTimeout)
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", restoreContainerName, cont.ID))
 
@@ -167,6 +156,8 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 	}
 
 	log.Msg("Running restore command")
+
+	time.Sleep(time.Hour)
 
 	if err := tools.ExecCommand(ctx, r.dockerClient, cont.ID, types.ExecConfig{
 		Cmd: r.restorer.GetRestoreCommand(),
