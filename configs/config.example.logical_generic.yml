@@ -70,7 +70,7 @@ provision:
   # Database username that will be used for Postgres management connections.
   # This user must exist.
   # The password is not needed – it will be set automatically.
-  # Connections will be made via a Unix domain socket (local)
+  # Connections will be made via a Unix domain socket (local).
   pgMgmtUsername: "postgres"
 
   # "Local" mode related parameters.
