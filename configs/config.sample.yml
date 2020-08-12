@@ -1,41 +1,59 @@
 # Copy the following to: ./configs/config.yaml
 
-# Database Lab API server configuration.
-# This API is used to serve requests such as "create a clone".
-# Normally, 127.0.0.1:2345 is used to serve API requests,
-# it is supposed to be running inside a Docker container,
-# .... (example, what users will use)
+# Database Lab API server. This API is used to work with clones
+# (list them, create, delete, see how to connect to a clone).
+# Normally, it is supposed to listen 127.0.0.1:2345 (default),
+# and to be running inside a Docker container,
+# with port mapping, to allow users to connect from outside
+# to 2345 port using private or public IP address of the machine
+# where the container is running. See https://postgres.ai/docs/database-lab/how-to-manage-database-lab
 server:
-  # ...
+  # The main token that is used work with Database Lab API.
+  # Note, that only one token is supported.
+  # However, if the integration with Postgres.ai Platform is configured
+  # (see below, "platform: ..." configuration), then users may use
+  # their personal tokens generated on the Platform. In this case,
+  # it is recommended to keep "verificationToken" secret, known
+  # only to the administrator of the Database Lab instance.
   verificationToken: "secret_token"
 
-  # The host which the Database Lab server accepts HTTP connections from. 
-  # By default: "127.0.0.1", accepts only local connections. Use an empty string to accept all connections.
+  # The host which the Database Lab server accepts HTTP connections to.
+  # By default: "127.0.0.1".
+  # Keep it default when running inside a Docker container.
+  # Use an empty string to accept connections to all network interfaces.
   host: "127.0.0.1"
 
-  # HTTP server port . Default: 2345.
+  # HTTP server port. Default: 2345.
   port: 2345
 
 global:
-  # database engine ... Currently supported: "postgres"
+  # Database engine. Currently, the only supported option: "postgres".
   engine: postgres
-  # ...image for database engine
+
+  # Docker image to perform various tasks, such as:
+  #   - initial data retrieval,
+  #   - continuous data synchronization,
+  #   - pre-processing.
+  # Default: "official" PostgreSQL image from Docker.
+  # Alternative: an extended image from the Postgres.ai team,
+  # containing a number of popular extensions, including those
+  # RDS provides. See https://postgres.ai/docs/database-lab/supported_databases
   dockerImage: "postgres:12-alpine"
-  # Must already exist before launching Database Lab server
-  # For example, in the case of ZFS, ... sudo zpool ... /var/lib/dblab
 
-  ## TODO rework:
-  #      mountDir + pgDataSubDir, both right here
-  #      and clonesMountDir
-  dataDir: /var/lib/dblab/data
+  # Full path to data directory. This directory must already exist
+  # before launching Database Lab instance. It may be empty if
+  # data initialization is configured (see below).
+  dataDir: "/var/lib/dblab/data"
 
-# Enable if more details in the logs are needed for troubleshooting
+# Debugging, when enabled, allows to see more in the logs.
+# Enable in the case of troubleshooting.
 debug: false
 
+# Details of provisioning – where data is located,
+# thin cloning method, etc.
 provision:
-  # Provision mode to use.
-  # supported: "local" (only)
-  # ??? TODO: make it hidden
+  # Provision mode. Default (and the only supported): "local".
+  # Do not edit this.
   mode: "local"
 
   # Subdir where PGDATA located relative to the pool root dir.
@@ -45,35 +63,38 @@ provision:
   #      dataDir (mount point):  /dblab/bigdisk
   #      pgDataSubdir:  /pgdata
   # -- in this case, PGDATA will be located at /dblab/bigdisk
-  # ... TODO:  (1) trailing slash for all directories;  (2) leading slasg is a bad thing? we could auto-add it during concatenation
+  # Note, that, despite the fact that it alwats begins with "/",
+  # it is a relative path. Default: "/".
   pgDataSubdir: "/"
 
-  # Username that will be used for Postgres management connections.
-  # The user must exist.
-  # ...Pasword is not needed - it will be set automatically, and connections are via Unix domain socket (local)
-  # ...? TODO: do we need it at all ?!
+  # Database username that will be used for Postgres management connections.
+  # This user must exist.
+  # The password is not needed – it will be set automatically.
+  # Connections will be made via a Unix domain socket (local)
   pgMgmtUsername: "postgres"
 
   # "Local" mode related parameters.
   local:
-    # Which thin-clone managing module to use.
-    # Available options: "zfs", "lvm".
+    # Thin-clone managing module used for thin cloning.
+    # Available options: "zfs" (recommended), "lvm".
     thinCloneManager: "zfs"
 
     # Name of your pool (in the case of ZFS) or volume group
     # with logic volume name (e.g. "dblab_vg/pg_lv", in the case of LVM).
     pool: "dblab_pool"
 
-    # Pool of ports for Postgres clones.
+    # Pool of ports for Postgres clones. Ports will be allocated sequentially,
+    # starting from the lowest value. The "from" value must be less than "to".
     portPool:
       from: 6000
       to: 6100
 
-    # Clones PGDATA mount directory.
-    # ... TODO include "clone" in the param name?
+    # Directory that will be used to mount clones. Subdirectories in this directory
+    # will be used as mount points for clones. Subdirectory names will
+    # correspond to ports. E.g., subdirectory "6000" for the clone running on port 6000.
     mountDir: /var/lib/dblab/clones
 
-    # Unix sockets directory for secure connection to Postgres clones.
+    # Unix dimain socket directory used to establish local connections to cloned databases.
     unixSocketDir: /var/lib/dblab/sockets
 
     # Snapshots with the suffix will not be accessible to use for cloning.
@@ -82,7 +103,7 @@ provision:
     # Database Lab provisions thin clones using Docker containers, we need
     # to specify which Postgres Docker image is to be used when cloning.
     # The default is the extended Postgres image built on top of the official Postgres image
-    # (See https://hub.docker.com/repository/docker/postgresai/extended-postgres).
+    # (See https://postgres.ai/docs/database-lab/supported_databases).
     # Any custom or official Docker image that runs Postgres with PGDATA located
     # in "/var/lib/postgresql/pgdata" directory. Our Dockerfile
     # (See https://gitlab.com/postgres-ai/database-lab/snippets/1932037)
@@ -90,9 +111,37 @@ provision:
     dockerImage: "postgresai/extended-postgres:12"
 
     # Use sudo for ZFS/LVM and Docker commands if Database Lab server running
-    # outside a container.
+    # outside a container. Keep it "false" (default) when running in a container.
     useSudo: false
 
+# Data retrieval flow. This section defines both initial retrieval, and rules
+# to keep data directory in synchronized state with the source. Both are optional:
+# you may already have the data directory, so neither initial retrieval nor
+# synchronization are needed.
+# 
+# Data retrieval can be also considered as "thick" cloning. Once it's done, users
+# can use "thin" cloning to get independent full-size clones of the database in
+# seconds, for testing and development. Normally, retrieval (thick cloning) is
+# a slow operation (1 TiB/h is a good speed). Optionally, the process of keeping
+# the Database Lab data directory in sync with the source (being continuously
+# updated) can be configured.
+#
+# There are two basic ways to organize data retrieval:
+#  - "logical":  use dump/restore processes, obtaining a logical copy of the initial
+#                database (such as set of SQL commands), and then loading it to
+#                the target Database Lab data directory. This is the only option
+#                for managed cloud PostgreSQL services such as Amazon RDS. Physically,
+#                the copy of the database created using this method differs from
+#                the original one (data blocks are stored differently). However,
+#                row counts are the same, as well as internal database statistics,
+#                allowing to do various kinds of development and testing, including
+#                running EXPLAIN command to optimize SQL queries.
+#  - "physical": physically copy the data directory from the source (or from the
+#                archive if a physical backup tool such as WAL-G, pgBackRest or Barman
+#                is used). This approach allows to have a copy of the original database
+#                which is physically identical, including the existing bloat, data
+#                blocks location. Not supported for managed cloud Postgres services
+#                such as Amazon RDS.
 retrieval:
   stages:
     - initialize
@@ -236,23 +285,23 @@ cloning:
   maxIdleMinutes: 120
 
 
-# === INTEGRATION ===
-# for open-source independent **.. remove all the following
+# ### INTEGRATION ###
 
-# Postgres.ai Platform integration (... ... GUI)
-# ...??? comment this block out ?
-# or just advice: comment this out!
-platform:
-  # API URL. Do not change to work with Postgres.ai SaaS
-  url: "https://postgres.ai/api/general"
-
-  # Token for authorization in Platform API. This token can be obtained in Postgres.ai Console:
-  # see the corresponding organization, "Access tokens" in the left menu.
-  # ... URL ?? https://postgres.ai/console/YOUR_ORG_NAME/tokens
-  accessToken: "platform_access_token"
-
-  # Enable authorization with personal tokens of the organization's members.
-  # If false: all users must use "accessToken" value for any API request
-  # If true: "accessToken" is known only to admin, users use their own tokens,
-  #          and any token can be revoked not affecting others
-  enablePersonalTokens: true
+# Postgres.ai Platform integration (provides GUI) – extends the open source offering.
+# Uncomment the following lines if you need GUI, personal tokens, audit logs, more.
+#
+#platform:
+#  # Platform API URL. To work with Postgres.ai SaaS, keep it default
+#  # ("https://postgres.ai/api/general").
+#  url: "https://postgres.ai/api/general"
+#
+#  # Token for authorization in Platform API. This token can be obtained on
+#  # the Postgres.ai Console: https://postgres.ai/console/YOUR_ORG_NAME/tokens
+#  # This token needs to be kept in secret, known only to the administrtor.
+#  accessToken: "platform_access_token"
+#
+#  # Enable authorization with personal tokens of the organization's members.
+#  # If false: all users must use "accessToken" value for any API request
+#  # If true: "accessToken" is known only to admin, users use their own tokens,
+#  #          and any token can be revoked not affecting others
+#  enablePersonalTokens: true
