@@ -218,18 +218,22 @@ retrieval:
             # This can be used fo scrubbing eliminating PII data, to define data masking, etc.
             preprocessingScript: ""
 
-            # Section for adding custom postgresql.conf parameters.
+            # Adjust PostgreSQL configuration
             configs:
               # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
-
-              # Be careful with memory consumption: besides shared_buffers (immediately allocated when the clone is started),
-              # memory is consumed by Postgres backends directly (depends on work_mem and maintenance_work_mem values),
-              # and by other applications.
-              # If there is not enough memory to run more clones, then, depending on OS settings,
-              # you may experience either OOM killer or swapping activity.
-              # The "free" memory is automatically used for the file cache which is shared among clones.
               shared_buffers: 1GB
-              # effective_cache_size: 64MB
+              # shared_preload_libraries – copy the value from the source
+              shared_preload_libraries: "pg_stat_statements"
+              # work_mem and all the Query Planning parameters – copy the values from the source.
+              # To do it, use this query:
+              #     select format($$%s = '%s'$$, name, setting)
+              #     from pg_settings
+              #     where
+              #       name ~ '(work_mem$|^enable_|_cost$|scan_size$|effective_cache_size|^jit)'
+              #       or name ~ '(^geqo|default_statistics_target|constraint_exclusion|cursor_tuple_fraction)'
+              #       or name ~ '(collapse_limit$|parallel|plan_cache_mode)';
+              work_mem: "100MB"
+              # ... put Query Planning parameters here
 
 cloning:
   # base, mock ... TODO: make it hidden
