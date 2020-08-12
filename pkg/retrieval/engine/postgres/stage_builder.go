@@ -12,7 +12,6 @@ import (
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/components"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/snapshot"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
 )
 
@@ -39,12 +38,11 @@ func NewStageBuilder(globalCfg *dblabCfg.Global, dockerClient *client.Client, cl
 
 // BuildStageRunner builds a stage runner.
 func (s *StageBuilder) BuildStageRunner(name string) (components.StageRunner, error) {
+	// nolint
 	switch name {
 	case initialize.StageType:
 		return initialize.NewStage(name, s.dockerClient, s.globalCfg, s.cloneManager), nil
 
-	case snapshot.StageType:
-		return snapshot.NewStage(name), nil
 	}
 
 	return nil, errors.Errorf("unknown stage given: %q", name)
