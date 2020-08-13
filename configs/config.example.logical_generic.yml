@@ -268,7 +268,7 @@ cloning:
 #  accessToken: "platform_access_token"
 #
 #  # Enable authorization with personal tokens of the organization's members.
-#  # If false: all users must use "accessToken" value for any API request
-#  # If true: "accessToken" is known only to admin, users use their own tokens,
+#  # If false: all users must use "verificationToken" value for any API request
+#  # If true: "verificationToken" is known only to admin, users use their own tokens,
 #  #          and any token can be revoked not affecting others
 #  enablePersonalTokens: true
