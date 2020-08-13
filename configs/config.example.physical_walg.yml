@@ -161,7 +161,7 @@ retrieval:
             walg:
               storage: gcs
               backupName: LATEST
-              # credentialsFile is used in the case of GCP. For AWS, use "envs".
+              # credentialsFile is used in the case of GCP. For AWS and MinIO, use "envs".
               credentialsFile: /tmp/sa.json
 
         - name: physical-snapshot
