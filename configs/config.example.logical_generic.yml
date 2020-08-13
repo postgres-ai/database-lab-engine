@@ -58,7 +58,7 @@ provision:
 
   # Subdir where PGDATA located relative to the pool root dir.
   # relevant to global.dataDir, *with* leading slashes
-  # If PGDATA is supposed to be in global.dataDir, then use "/" her
+  # If PGDATA is supposed to be in global.dataDir, then use "/" here
   # If PGDATA is deeper, specify part of the path, with leading slash. Example:
   #      dataDir (mount point):  /dblab/bigdisk
   #      pgDataSubdir:  /pgdata
