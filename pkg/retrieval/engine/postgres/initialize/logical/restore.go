@@ -165,7 +165,6 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 	log.Msg("Running restore command: ", restoreCommand)
 
 	execCommand, err := r.dockerClient.ContainerExecCreate(ctx, cont.ID, types.ExecConfig{
-		AttachStdin:  false,
 		AttachStdout: true,
 		AttachStderr: true,
 		Tty:          true,
@@ -186,6 +185,13 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 
 	if err := tools.InspectCommandResponse(ctx, r.dockerClient, cont.ID, execCommand.ID); err != nil {
 		return errors.Wrap(err, "failed to exec the restore command")
+	}
+
+	if err := recalculateStats(ctx, r.dockerClient, cont.ID, buildAnalyzeCommand(Connection{
+		DBName:   r.RestoreOptions.DBName,
+		Username: defaults.Username,
+	})); err != nil {
+		return errors.Wrap(err, "failed to recalculate statistics after restore")
 	}
 
 	log.Msg("Restoring job has been finished")

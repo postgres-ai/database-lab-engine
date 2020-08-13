@@ -138,10 +138,6 @@ func NewDumpJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Gl
 		return nil, errors.Wrap(err, "failed to set up a dump helper")
 	}
 
-	if err := dumpJob.dbMarker.CreateConfig(); err != nil {
-		return nil, errors.Wrap(err, "failed to create a DBMarker config of the database")
-	}
-
 	return dumpJob, nil
 }
 
@@ -286,16 +282,21 @@ func (d *DumpJob) Run(ctx context.Context) error {
 		output = dumpFile
 	}
 
-	if err := d.performDumpCommand(ctx, output, execCommand.ID); err != nil {
+	if err := d.performDumpCommand(ctx, output, cont.ID, execCommand.ID); err != nil {
 		return errors.Wrap(err, "failed to dump a database")
 	}
 
-	if err := tools.InspectCommandResponse(ctx, d.dockerClient, cont.ID, execCommand.ID); err != nil {
-		return errors.Wrap(err, "failed to exec the dump command")
+	if err := d.markDatabaseData(); err != nil {
+		return errors.Wrap(err, "failed to mark the created dump")
 	}
 
-	if err := d.dbMarker.SaveConfig(d.dbMark); err != nil {
-		return errors.Wrap(err, "failed to mark the created dump")
+	if d.DumpOptions.Restore != nil {
+		if err := recalculateStats(ctx, d.dockerClient, cont.ID, buildAnalyzeCommand(Connection{
+			DBName:   d.config.db.DBName,
+			Username: defaults.Username,
+		})); err != nil {
+			return errors.Wrap(err, "failed to recalculate statistics after restore")
+		}
 	}
 
 	log.Msg("Dumping job has been finished")
@@ -314,7 +315,7 @@ func (d *DumpJob) setupConnectionOptions(ctx context.Context) error {
 	return nil
 }
 
-func (d *DumpJob) performDumpCommand(ctx context.Context, cmdOutput io.Writer, commandID string) error {
+func (d *DumpJob) performDumpCommand(ctx context.Context, cmdOutput io.Writer, contID, commandID string) error {
 	if d.DumpOptions.Restore != nil {
 		d.dbMark.DataStateAt = time.Now().Format(tools.DataStateAtFormat)
 	}
@@ -325,7 +326,15 @@ func (d *DumpJob) performDumpCommand(ctx context.Context, cmdOutput io.Writer, c
 	}
 	defer execAttach.Close()
 
-	return tools.ProcessAttachResponse(ctx, execAttach.Reader, cmdOutput)
+	if err := tools.ProcessAttachResponse(ctx, execAttach.Reader, cmdOutput); err != nil {
+		return err
+	}
+
+	if err := tools.InspectCommandResponse(ctx, d.dockerClient, contID, commandID); err != nil {
+		return errors.Wrap(err, "failed to exec the dump command")
+	}
+
+	return nil
 }
 
 func (d *DumpJob) getDumpContainerPath() string {
@@ -443,4 +452,12 @@ func prepareCmdOptions(options map[string]string) []string {
 	}
 
 	return cmdOptions
+}
+
+func (d *DumpJob) markDatabaseData() error {
+	if err := d.dbMarker.CreateConfig(); err != nil {
+		return errors.Wrap(err, "failed to create a DBMarker config of the database")
+	}
+
+	return d.dbMarker.SaveConfig(d.dbMark)
 }
