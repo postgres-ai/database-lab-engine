@@ -5,7 +5,8 @@
 package physical
 
 import (
-	"strings"
+	"bytes"
+	"fmt"
 
 	"github.com/docker/docker/api/types/mount"
 )
@@ -19,7 +20,8 @@ type custom struct {
 }
 
 type customOptions struct {
-	Command string `yaml:"command"`
+	RestoreCommand string `yaml:"command"`
+	RefreshCommand string `yaml:"refresh_command"`
 }
 
 func newCustomTool(options customOptions) *custom {
@@ -39,11 +41,16 @@ func (c *custom) GetMounts() []mount.Mount {
 }
 
 // GetRestoreCommand returns a custom command to restore data.
-func (c *custom) GetRestoreCommand() []string {
-	return strings.Split(c.options.Command, " ")
+func (c *custom) GetRestoreCommand() string {
+	return c.options.RestoreCommand
 }
 
 // GetRecoveryConfig returns a recovery config to restore data.
 func (c *custom) GetRecoveryConfig() []byte {
-	return []byte{}
+	buffer := bytes.Buffer{}
+
+	buffer.WriteString("standby_mode = 'on'\n")
+	buffer.WriteString(fmt.Sprintf("restore_command = '%s'\n", c.options.RefreshCommand))
+
+	return buffer.Bytes()
 }

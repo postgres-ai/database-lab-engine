@@ -158,6 +158,7 @@ retrieval:
           options:
             tool: walg
             dockerImage: "postgresai/sync-instance:12"
+            syncInstance: true
             envs:
               WALG_GS_PREFIX: "gs://{BUCKET}/{SCOPE}"
             walg:

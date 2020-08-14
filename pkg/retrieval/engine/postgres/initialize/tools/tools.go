@@ -2,6 +2,8 @@
 2020 © Postgres.ai
 */
 
+// TODO(akartasov): Refactor tools package: divide to specific subpackages.
+
 // Package tools provides helpers to initialize data.
 package tools
 
@@ -29,7 +31,10 @@ const (
 	essentialLogsInterval = "10s"
 
 	// StopTimeout defines a container stop timeout.
-	StopTimeout = 10 * time.Second
+	StopTimeout = time.Minute
+
+	// SyncInstanceContainerPrefix defines a sync container name.
+	SyncInstanceContainerPrefix = "dblab_sync_"
 )
 
 // IsEmptyDirectory checks whether a directory is empty.
@@ -131,7 +136,7 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 
 // RemoveContainer stops and removes container.
 func RemoveContainer(ctx context.Context, dockerClient *client.Client, containerID string, stopTimeout time.Duration) {
-	log.Msg(fmt.Sprintf("Stopping container ID: %v", containerID))
+	log.Msg(fmt.Sprintf("Removing container ID: %v", containerID))
 
 	if err := dockerClient.ContainerStop(ctx, containerID, pointer.ToDuration(stopTimeout)); err != nil {
 		log.Err("Failed to stop container: ", err)
@@ -145,7 +150,7 @@ func RemoveContainer(ctx context.Context, dockerClient *client.Client, container
 		return
 	}
 
-	log.Msg(fmt.Sprintf("Stop container ID: %v", containerID))
+	log.Msg(fmt.Sprintf("Container %q has been removed", containerID))
 }
 
 // PullImage pulls a Docker image.

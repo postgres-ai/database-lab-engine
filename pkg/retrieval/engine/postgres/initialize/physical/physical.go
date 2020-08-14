@@ -39,8 +39,8 @@ const (
 	// RestoreJobType defines the physical job type.
 	RestoreJobType = "physical-restore"
 
-	restoreContainerName = "retriever_physical_restore"
-	restoreContainerPath = "/var/lib/postgresql/dblabdata"
+	restoreContainerPrefix = "dblab_phr_"
+	restoreContainerPath   = "/var/lib/postgresql/dblabdata"
 
 	readyLogLine = "database system is ready to accept"
 
@@ -59,11 +59,12 @@ type RestoreJob struct {
 
 // CopyOptions describes options for physical copying.
 type CopyOptions struct {
-	Tool        string            `yaml:"tool"`
-	DockerImage string            `yaml:"dockerImage"`
-	Envs        map[string]string `yaml:"envs"`
-	WALG        walgOptions       `yaml:"walg"`
-	CustomTool  customOptions     `yaml:"customTool"`
+	Tool         string            `yaml:"tool"`
+	DockerImage  string            `yaml:"dockerImage"`
+	Envs         map[string]string `yaml:"envs"`
+	WALG         walgOptions       `yaml:"walg"`
+	CustomTool   customOptions     `yaml:"customTool"`
+	SyncInstance bool              `yaml:"syncInstance"`
 }
 
 // restorer describes the interface of tools for physical restore.
@@ -75,7 +76,7 @@ type restorer interface {
 	GetMounts() []mount.Mount
 
 	// GetRestoreCommand returns a command to restore data.
-	GetRestoreCommand() []string
+	GetRestoreCommand() string
 
 	// GetRecoveryConfig returns a recovery config to restore data.
 	GetRecoveryConfig() []byte
@@ -117,6 +118,10 @@ func (r *RestoreJob) getRestorer(tool string) (restorer, error) {
 	return nil, errors.Errorf("unknown restore tool given: %v", tool)
 }
 
+func (r *RestoreJob) restoreContainerName() string {
+	return restoreContainerPrefix + r.globalCfg.InstanceID
+}
+
 // Name returns a name of the job.
 func (r *RestoreJob) Name() string {
 	return r.name
@@ -132,49 +137,26 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 	}
 
 	if !isEmpty {
-		return errors.New("the data directory is not empty. Clean the data directory before continue")
+		return errors.New("the data directory is not empty. Clean the data directory before proceeding")
 	}
 
-	cont, err := r.dockerClient.ContainerCreate(ctx,
-		&container.Config{
-			Env:   r.getEnvironmentVariables(),
-			Image: r.DockerImage,
-		},
-		&container.HostConfig{
-			Mounts: r.getMountVolumes(),
-		},
-		&network.NetworkingConfig{},
-		restoreContainerName,
-	)
-
+	contID, err := r.startReplica(ctx, r.restoreContainerName())
 	if err != nil {
-		return errors.Wrap(err, "failed to create container")
+		return errors.Wrapf(err, "failed to create container: %s", r.restoreContainerName())
 	}
 
-	defer func() {
-		if err := r.dockerClient.ContainerRemove(ctx, cont.ID, types.ContainerRemoveOptions{
-			Force: true,
-		}); err != nil {
-			log.Err("Failed to remove container: ", err)
+	defer tools.RemoveContainer(ctx, r.dockerClient, contID, tools.StopTimeout)
 
-			return
-		}
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", r.restoreContainerName(), contID))
 
-		log.Msg(fmt.Sprintf("Stop container: %s. ID: %v", restoreContainerName, cont.ID))
-	}()
-
-	defer tools.RemoveContainer(ctx, r.dockerClient, cont.ID, tools.StopTimeout)
-
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", restoreContainerName, cont.ID))
-
-	if err = r.dockerClient.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{}); err != nil {
-		return errors.Wrap(err, "failed to start container")
+	if err = r.dockerClient.ContainerStart(ctx, contID, types.ContainerStartOptions{}); err != nil {
+		return errors.Wrapf(err, "failed to start container: %v", contID)
 	}
 
 	log.Msg("Running restore command")
 
-	if err := tools.ExecCommand(ctx, r.dockerClient, cont.ID, types.ExecConfig{
-		Cmd: r.restorer.GetRestoreCommand(),
+	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{
+		Cmd: []string{"bash", "-c", r.restorer.GetRestoreCommand()},
 	}); err != nil {
 		return errors.Wrap(err, "failed to restore data")
 	}
@@ -209,20 +191,14 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 	}
 
 	// Set permissions.
-	if err := tools.ExecCommand(ctx, r.dockerClient, cont.ID, types.ExecConfig{
+	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{
 		Cmd: []string{"chown", "-R", "postgres", restoreContainerPath},
 	}); err != nil {
 		return errors.Wrap(err, "failed to set permissions")
 	}
 
 	// Start PostgreSQL instance.
-	startCommand, err := r.dockerClient.ContainerExecCreate(ctx, cont.ID, types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Tty:          true,
-		Cmd:          []string{"postgres", "-D", restoreContainerPath},
-		User:         defaults.Username,
-	})
+	startCommand, err := r.dockerClient.ContainerExecCreate(ctx, contID, startingPostgresConfig())
 
 	if err != nil {
 		return errors.Wrap(err, "failed to create an exec command")
@@ -241,9 +217,49 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 		return errors.Wrap(err, "failed to refresh data")
 	}
 
-	log.Msg("Running restore command")
+	log.Msg("Refresh command has been finished")
+
+	if r.CopyOptions.SyncInstance {
+		if err := r.runSyncInstance(ctx); err != nil {
+			log.Err("Failed to run sync instance", err)
+		}
+	}
 
 	return nil
+}
+
+func (r *RestoreJob) startReplica(ctx context.Context, containerName string) (string, error) {
+	syncInstance, err := r.dockerClient.ContainerCreate(ctx,
+		&container.Config{
+			Env:   r.getEnvironmentVariables(),
+			Image: r.DockerImage,
+		},
+		&container.HostConfig{
+			Mounts: r.getMountVolumes(),
+		},
+		&network.NetworkingConfig{},
+		containerName,
+	)
+
+	if err != nil {
+		return "", errors.Wrap(err, "failed to start sync container")
+	}
+
+	if err = r.dockerClient.ContainerStart(ctx, syncInstance.ID, types.ContainerStartOptions{}); err != nil {
+		return "", errors.Wrap(err, "failed to start sync container")
+	}
+
+	return syncInstance.ID, nil
+}
+
+func startingPostgresConfig() types.ExecConfig {
+	return types.ExecConfig{
+		AttachStdout: true,
+		AttachStderr: true,
+		Tty:          true,
+		Cmd:          []string{"postgres", "-D", restoreContainerPath},
+		User:         defaults.Username,
+	}
 }
 
 func isDatabaseReady(input io.Reader) error {
@@ -272,7 +288,51 @@ func isDatabaseReady(input io.Reader) error {
 		return err
 	}
 
-	return errors.New("not found")
+	return errors.New("database instance is not running")
+}
+
+func (r *RestoreJob) syncInstanceName() string {
+	return tools.SyncInstanceContainerPrefix + r.globalCfg.InstanceID
+}
+
+func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
+	syncContainer, err := r.dockerClient.ContainerInspect(ctx, r.syncInstanceName())
+	if err != nil && !client.IsErrNotFound(err) {
+		return errors.Wrap(err, "failed to inspect sync container")
+	}
+
+	if syncContainer.ContainerJSONBase != nil {
+		if syncContainer.State.Running {
+			log.Msg("Sync instance is already running")
+			return nil
+		}
+
+		log.Msg("Removing non-running sync instance")
+
+		tools.RemoveContainer(ctx, r.dockerClient, syncContainer.ID, tools.StopTimeout)
+	}
+
+	log.Msg("Starting sync instance: ", r.syncInstanceName())
+
+	syncInstanceID, err := r.startReplica(ctx, r.syncInstanceName())
+	if err != nil {
+		return err
+	}
+
+	startSyncCommand, err := r.dockerClient.ContainerExecCreate(ctx, syncInstanceID, startingPostgresConfig())
+	if err != nil {
+		return errors.Wrap(err, "failed to create exec command")
+	}
+
+	if err = r.dockerClient.ContainerExecStart(ctx, startSyncCommand.ID, types.ExecStartCheck{Tty: true}); err != nil {
+		return errors.Wrap(err, "failed to attach to exec command")
+	}
+
+	if err := tools.InspectCommandResponse(ctx, r.dockerClient, startSyncCommand.ID, startSyncCommand.ID); err != nil {
+		return errors.Wrap(err, "failed to perform exec command")
+	}
+
+	return nil
 }
 
 func (r *RestoreJob) getEnvironmentVariables() []string {
