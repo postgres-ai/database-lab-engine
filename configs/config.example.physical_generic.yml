@@ -158,6 +158,7 @@ retrieval:
           options:
             tool: customTool
             dockerImage: "postgresai/sync-instance:12"
+            syncInstance: true
 
             # Set environment variables here. See https://www.postgresql.org/docs/current/libpq-envars.html
             envs:

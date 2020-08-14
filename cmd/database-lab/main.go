@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/jessevdk/go-flags"
 	"github.com/pkg/errors"
+	"github.com/rs/xid"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -71,6 +72,8 @@ func main() {
 	if cfg.Provision.ModeLocal.MountDir != "" {
 		cfg.Global.MountDir = cfg.Provision.ModeLocal.MountDir
 	}
+
+	cfg.Global.InstanceID = xid.New().String()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -42,26 +43,29 @@ const (
 	// PhysicalInitialType declares a job type for preparing a physical snapshot.
 	PhysicalInitialType = "physical-snapshot"
 
-	pre                  = "_pre"
-	pgDataContainerDir   = "/var/lib/postgresql/pgdata"
-	promoteContainerName = "dblab_promote"
+	pre                    = "_pre"
+	pgDataContainerDir     = "/var/lib/postgresql/pgdata"
+	promoteContainerPrefix = "dblab_promote_"
 
 	// Defines container health check options.
 	hcPromoteInterval = 2 * time.Second
 	hcPromoteRetries  = 100
+
+	syncContainerStopTimeout = 2 * time.Minute
 )
 
 // PhysicalInitial describes a job for preparing a physical initial snapshot.
 type PhysicalInitial struct {
-	name         string
-	cloneManager thinclones.Manager
-	options      PhysicalOptions
-	globalCfg    *dblabCfg.Global
-	dbMarker     *dbmarker.Marker
-	dbMark       *dbmarker.Config
-	dockerClient *client.Client
-	scheduler    *cron.Cron
-	scheduleOnce sync.Once
+	name           string
+	cloneManager   thinclones.Manager
+	options        PhysicalOptions
+	globalCfg      *dblabCfg.Global
+	dbMarker       *dbmarker.Marker
+	dbMark         *dbmarker.Config
+	dockerClient   *client.Client
+	scheduler      *cron.Cron
+	scheduleOnce   sync.Once
+	promotionMutex sync.Mutex
 }
 
 // PhysicalOptions describes options for a physical initialization job.
@@ -128,6 +132,10 @@ func (p *PhysicalInitial) setupScheduler() error {
 	return nil
 }
 
+func (p *PhysicalInitial) syncInstanceName() string {
+	return tools.SyncInstanceContainerPrefix + p.globalCfg.InstanceID
+}
+
 // Name returns a name of the job.
 func (p *PhysicalInitial) Name() string {
 	return p.name
@@ -154,6 +162,28 @@ func (p *PhysicalInitial) Run(ctx context.Context) error {
 	// Snapshot data.
 	preDataStateAt := time.Now().Format(tools.DataStateAtFormat)
 	cloneName := fmt.Sprintf("clone%s_%s", pre, preDataStateAt)
+
+	// Sync container management.
+	syncContainer, err := p.dockerClient.ContainerInspect(ctx, p.syncInstanceName())
+	if err != nil && !client.IsErrNotFound(err) {
+		return errors.Wrap(err, "failed to inspect sync container")
+	}
+
+	if syncContainer.ContainerJSONBase != nil && syncContainer.State.Running {
+		log.Msg("Stopping sync container before snapshotting")
+
+		if err := p.dockerClient.ContainerStop(ctx, syncContainer.ID, pointer.ToDuration(syncContainerStopTimeout)); err != nil {
+			return errors.Wrapf(err, "failed to stop %q", p.syncInstanceName())
+		}
+
+		defer func() {
+			log.Msg("Starting sync container after snapshotting")
+
+			if err := p.dockerClient.ContainerStart(ctx, syncContainer.ID, types.ContainerStartOptions{}); err != nil {
+				log.Err(fmt.Sprintf("failed to start %q: %v", p.syncInstanceName(), err))
+			}
+		}()
+	}
 
 	// Promotion.
 	if p.options.Promote {
@@ -236,7 +266,6 @@ func (p *PhysicalInitial) runAutoSnapshot(ctx context.Context) func() {
 			log.Err(errors.Wrap(err, "failed to take a snapshot automatically"))
 
 			log.Msg("Interrupt automatic snapshots")
-			p.scheduler.Stop()
 		}
 	}
 }
@@ -249,7 +278,14 @@ func (p *PhysicalInitial) runAutoCleanup(retentionLimit int) func() {
 	}
 }
 
+func (p *PhysicalInitial) promoteContainerName() string {
+	return promoteContainerPrefix + p.globalCfg.InstanceID
+}
+
 func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string) error {
+	p.promotionMutex.Lock()
+	defer p.promotionMutex.Unlock()
+
 	log.Msg("Promote the Postgres instance.")
 
 	if err := configuration.Run(clonePath); err != nil {
@@ -304,7 +340,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 			},
 		},
 		&network.NetworkingConfig{},
-		promoteContainerName,
+		p.promoteContainerName(),
 	)
 
 	if err != nil {
@@ -317,7 +353,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to start container")
 	}
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", promoteContainerName, cont.ID))
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", p.promoteContainerName(), cont.ID))
 
 	// Set permissions.
 	if err := tools.ExecCommand(ctx, p.dockerClient, cont.ID, types.ExecConfig{
@@ -570,12 +606,10 @@ func (p *PhysicalInitial) markDatabaseData() error {
 }
 
 func (p *PhysicalInitial) cleanupSnapshots(retentionLimit int) error {
-	deletedSnapshots, err := p.cloneManager.CleanupSnapshots(retentionLimit)
+	_, err := p.cloneManager.CleanupSnapshots(retentionLimit)
 	if err != nil {
 		return errors.Wrap(err, "failed to clean up snapshots")
 	}
-
-	log.Msg(deletedSnapshots)
 
 	return nil
 }
