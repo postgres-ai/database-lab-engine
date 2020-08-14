@@ -213,7 +213,7 @@ retrieval:
             # The location of the archive file (or directory, for a directory-format archive) to be restored.
             dumpLocation: "/var/lib/dblab/db.dump"
 
-            # The number of parallel jobs to restore faster.
+            # The Docker image containing the tools required to restore.
             dockerImage: "postgres:12-alpine"
 
             # The number of parallel jobs to get a dump.
