@@ -187,7 +187,7 @@ retrieval:
             #   tables:
             #     - test
 
-            # The number of parallel jobs to get a dump.
+            # Use parallel jobs to dump faster.
             # It's ignored if "restore" is present because "pg_dump | pg_restore" is always single-threaded.
             parallelJobs: 2
 
@@ -210,8 +210,12 @@ retrieval:
             # The location of the archive file (or directory, for a directory-format archive) to be restored.
             dumpLocation: "/var/lib/dblab/db.dump"
 
-            # The Docker image containing the tools required to restore
+            # The Docker image containing the tools required to restore.
             dockerImage: "postgres:12-alpine"
+
+            # Use parallel jobs to restore faster.
+            parallelJobs: 2
+
 
             # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
             # Note the existing data might be overwritten.
