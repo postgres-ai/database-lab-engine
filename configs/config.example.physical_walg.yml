@@ -57,15 +57,17 @@ provision:
   mode: "local"
 
   # Subdir where PGDATA located relative to the pool root dir.
-  # relevant to global.dataDir, *with* leading slashes
-  # If PGDATA is supposed to be in global.dataDir, then use "/" her
-  # If PGDATA is deeper, specify part of the path, with leading slash. Example:
-  #      dataDir (mount point):  /dblab/bigdisk
+  # It is a part of global.dataDir, *with* leading slashes.
+  # If PGDATA is supposed to be in global.dataDir and this is the mount point,
+  # then use "/" in pgDataSubdir.
+  # Otherwise, use the final part (everything except the mount point), with leading slash.
+  # Example:
+  #      dataDir (PostgreSQL data directory):  /var/lib/dblab/data
   #      pgDataSubdir:  /pgdata
-  # -- in this case, PGDATA will be located at /dblab/bigdisk
+  # -- in this case, we assume that the mount point is: /var/lib/dblab
   # Note, that, despite the fact that it alwats begins with "/",
   # it is a relative path. Default: "/".
-  pgDataSubdir: "/"
+  pgDataSubdir: "/data"
 
   # Database username that will be used for Postgres management connections.
   # This user must exist.
@@ -178,8 +180,10 @@ retrieval:
             configs:
               # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
               shared_buffers: 1GB
+
               # shared_preload_libraries – copy the value from the source
               shared_preload_libraries: "pg_stat_statements"
+
               # work_mem and all the Query Planning parameters – copy the values from the source.
               # To do it, use this query:
               #     select format($$%s = '%s'$$, name, setting)

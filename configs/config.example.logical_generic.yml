@@ -57,15 +57,17 @@ provision:
   mode: "local"
 
   # Subdir where PGDATA located relative to the pool root dir.
-  # relevant to global.dataDir, *with* leading slashes
-  # If PGDATA is supposed to be in global.dataDir, then use "/" here
-  # If PGDATA is deeper, specify part of the path, with leading slash. Example:
-  #      dataDir (mount point):  /dblab/bigdisk
+  # It is a part of global.dataDir, *with* leading slashes.
+  # If PGDATA is supposed to be in global.dataDir and this is the mount point,
+  # then use "/" in pgDataSubdir.
+  # Otherwise, use the final part (everything except the mount point), with leading slash.
+  # Example:
+  #      dataDir (PostgreSQL data directory):  /var/lib/dblab/data
   #      pgDataSubdir:  /pgdata
-  # -- in this case, PGDATA will be located at /dblab/bigdisk
+  # -- in this case, we assume that the mount point is: /var/lib/dblab
   # Note, that, despite the fact that it alwats begins with "/",
   # it is a relative path. Default: "/".
-  pgDataSubdir: "/"
+  pgDataSubdir: "/data"
 
   # Database username that will be used for Postgres management connections.
   # This user must exist.
@@ -155,7 +157,8 @@ retrieval:
         - name: logical-dump
           options:
             # The dump file will be automatically created on this location and then used to restore.
-            dumpLocation: /tmp/db.dump
+            # Ensure that there is enough disk space.
+            dumpLocation: "/var/lib/dblab/db.dump"
 
             # The Docker image containing the tools required to get a dump.
             dockerImage: "postgres:12-alpine"
@@ -167,10 +170,14 @@ retrieval:
 
               # Connection parameters of the database to be dumped.
               connection:
+                # Database connection parameters.
+                # Currently, only password can be specified via environment variable (PGPASSWORD),
+                # everything else needs to be specified here.
                 dbname: postgres
                 host: 34.56.78.90
                 port: 5432
                 username: postgres
+
                 # Connection password. The environment variable PGPASSWORD can be used instead of this option.
                 # The environment variable has a higher priority.
                 password: postgres
@@ -192,15 +199,19 @@ retrieval:
             # restore:
             #   # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
             #   # Note the existing data might be overwritten.
-            #   forceInit: true
+            #   forceInit: false
 
         # Restores PostgreSQL database from the provided dump. If you use this block, do not use
         # "restore" option in the "logical-dump" job.
         - name: logical-restore
           options:
-            dbname: test
+            dbname: "test"
+
             # The location of the archive file (or directory, for a directory-format archive) to be restored.
-            dumpLocation: /tmp/db.dump
+            dumpLocation: "/var/lib/dblab/db.dump"
+
+            # The Docker image containing the tools required to restore
+            dockerImage: "postgres:12-alpine"
 
             # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
             # Note the existing data might be overwritten.
