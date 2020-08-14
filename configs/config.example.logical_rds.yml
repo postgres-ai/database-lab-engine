@@ -45,8 +45,8 @@ global:
   # data initialization is configured (see below).
   dataDir: "/var/lib/dblab/data"
 
-# Debugging, when enabled, allows to see more in the logs.
-# Enable in the case of troubleshooting.
+# Debugging, when enabled, allows to see more in the Database Lab logs
+# (not PostgreSQL logs). Enable in the case of troubleshooting.
 debug: false
 
 # Details of provisioning – where data is located,
