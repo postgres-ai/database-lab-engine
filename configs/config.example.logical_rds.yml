@@ -216,8 +216,7 @@ retrieval:
             # The Docker image containing the tools required to restore.
             dockerImage: "postgres:12-alpine"
 
-            # The number of parallel jobs to get a dump.
-            # It's ignored if "restore" is present because "pg_dump | pg_restore" is always single-threaded.
+            # The number of parallel jobs to restore faster.
             parallelJobs: 2
 
             # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
