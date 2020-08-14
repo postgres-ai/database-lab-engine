@@ -195,6 +195,20 @@ retrieval:
               work_mem: "100MB"
               # ... put Query Planning parameters here
 
+            # Scheduler contains tasks which run on a schedule.
+            scheduler:
+              # Schedule to create new snapshots.
+              snapshot:
+                # When to create new snapshots. Cron format: https://en.wikipedia.org/wiki/Cron#Overview
+                timetable: "0 */6 * * *"
+
+              # Schedule to clean up old snapshots, to free disk space.
+              retention:
+                # When to clean up old snapshots. Crontab format: https://en.wikipedia.org/wiki/Cron#Overview
+                timetable: "0 * * * *"
+                # How many snapshots to keep.
+                limit: 4
+
 cloning:
   # Deprecated field. Default: "base".
   mode: "base"
