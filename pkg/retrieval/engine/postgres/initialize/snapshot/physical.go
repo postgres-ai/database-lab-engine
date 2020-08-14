@@ -405,7 +405,7 @@ func (p *PhysicalInitial) adjustRecoveryConfiguration(pgVersion, clonePGDataDir 
 		buffer              bytes.Buffer
 	)
 
-	version, err := strconv.Atoi(pgVersion)
+	version, err := strconv.ParseFloat(pgVersion, 64)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse PostgreSQL version")
 	}

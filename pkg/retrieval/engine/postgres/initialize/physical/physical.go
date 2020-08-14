@@ -328,7 +328,7 @@ func (r *RestoreJob) adjustRecoveryConfiguration(pgVersion, pgDataDir string) er
 		return nil
 	}
 
-	version, err := strconv.Atoi(pgVersion)
+	version, err := strconv.ParseFloat(pgVersion, 64)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse PostgreSQL version")
 	}
