@@ -19,7 +19,8 @@ const (
 
 // walg defines a WAL-G as an archival restoration tool.
 type walg struct {
-	options walgOptions
+	pgDataDir string
+	options   walgOptions
 }
 
 type walgOptions struct {
@@ -28,9 +29,10 @@ type walgOptions struct {
 	CredentialsFile string `yaml:"credentialsFile"`
 }
 
-func newWalg(options walgOptions) *walg {
+func newWalg(pgDataDir string, options walgOptions) *walg {
 	return &walg{
-		options: options,
+		pgDataDir: pgDataDir,
+		options:   options,
 	}
 }
 
@@ -64,7 +66,7 @@ func (w *walg) GetMounts() []mount.Mount {
 
 // GetRestoreCommand returns a command to restore data.
 func (w *walg) GetRestoreCommand() string {
-	return fmt.Sprintf("wal-g backup-fetch %s %s", restoreContainerPath, w.options.BackupName)
+	return fmt.Sprintf("wal-g backup-fetch %s %s", w.pgDataDir, w.options.BackupName)
 }
 
 // GetRecoveryConfig returns a recovery config to restore data.

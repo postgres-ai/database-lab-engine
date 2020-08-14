@@ -44,7 +44,6 @@ const (
 	PhysicalInitialType = "physical-snapshot"
 
 	pre                    = "_pre"
-	pgDataContainerDir     = "/var/lib/postgresql/pgdata"
 	promoteContainerPrefix = "dblab_promote_"
 
 	// Defines container health check options.
@@ -200,12 +199,12 @@ func (p *PhysicalInitial) Run(ctx context.Context) error {
 		}()
 
 		if err := p.cloneManager.CreateClone(cloneName, snapshotName); err != nil {
-			return errors.Wrap(err, "failed to create a pre clone")
+			return errors.Wrapf(err, "failed to create a pre clone %s", cloneName)
 		}
 
 		defer func() {
 			if errDestroy := p.cloneManager.DestroyClone(cloneName); errDestroy != nil {
-				log.Err(fmt.Sprintf("Failed to destroy the %q clone: %v", cloneName, err))
+				log.Err(fmt.Sprintf("Failed to destroy clone %q: %v", cloneName, err))
 			}
 		}()
 
@@ -282,7 +281,7 @@ func (p *PhysicalInitial) promoteContainerName() string {
 	return promoteContainerPrefix + p.globalCfg.InstanceID
 }
 
-func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string) error {
+func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string) (err error) {
 	p.promotionMutex.Lock()
 	defer p.promotionMutex.Unlock()
 
@@ -310,7 +309,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 	promoteImage := fmt.Sprintf("postgresai/sync-instance:%s", pgVersion)
 
 	if err := tools.PullImage(ctx, p.dockerClient, promoteImage); err != nil {
-		return errors.Wrap(err, "failed to scan image response")
+		return errors.Wrap(err, "failed to scan image pulling response")
 	}
 
 	// Run promotion container.
@@ -318,7 +317,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		&container.Config{
 			Labels: map[string]string{"label": "dblab_control"},
 			Env: []string{
-				"PGDATA=" + pgDataContainerDir,
+				"PGDATA=" + clonePath,
 				"POSTGRES_HOST_AUTH_METHOD=trust",
 			},
 			Image: promoteImage,
@@ -332,7 +331,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 				{
 					Type:   mount.TypeBind,
 					Source: clonePath,
-					Target: pgDataContainerDir,
+					Target: clonePath,
 					BindOptions: &mount.BindOptions{
 						Propagation: mount.PropagationRShared,
 					},
@@ -349,6 +348,12 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	defer tools.RemoveContainer(ctx, p.dockerClient, cont.ID, tools.StopTimeout)
 
+	defer func() {
+		if err != nil {
+			tools.PrintContainerLogs(ctx, p.dockerClient, p.promoteContainerName())
+		}
+	}()
+
 	if err := p.dockerClient.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrap(err, "failed to start container")
 	}
@@ -357,14 +362,14 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	// Set permissions.
 	if err := tools.ExecCommand(ctx, p.dockerClient, cont.ID, types.ExecConfig{
-		Cmd: []string{"chown", "-R", "postgres", pgDataContainerDir},
+		Cmd: []string{"chown", "-R", "postgres", clonePath},
 	}); err != nil {
 		return errors.Wrap(err, "failed to set permissions")
 	}
 
 	// Start PostgreSQL instance.
 	startCommand, err := p.dockerClient.ContainerExecCreate(ctx, cont.ID, types.ExecConfig{
-		Cmd:  []string{"postgres", "-D", pgDataContainerDir},
+		Cmd:  []string{"postgres", "-D", clonePath},
 		User: defaults.Username,
 	})
 
@@ -411,8 +416,8 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		log.Msg("Data state at: ", p.dbMark.DataStateAt)
 
 		// Promote PGDATA.
-		if err := p.runPromoteCommand(ctx, cont.ID); err != nil {
-			return errors.Wrap(err, "failed to promote PGDATA")
+		if err := p.runPromoteCommand(ctx, cont.ID, clonePath); err != nil {
+			return errors.Wrapf(err, "failed to promote PGDATA: %s", clonePath)
 		}
 	}
 
@@ -554,8 +559,8 @@ func readDataStateAt(input io.Reader) (string, error) {
 	return "", nil
 }
 
-func (p *PhysicalInitial) runPromoteCommand(ctx context.Context, containerID string) error {
-	promoteCommand := []string{"pg_ctl", "-D", pgDataContainerDir, "-W", "promote"}
+func (p *PhysicalInitial) runPromoteCommand(ctx context.Context, containerID, clonePath string) error {
+	promoteCommand := []string{"pg_ctl", "-D", clonePath, "-W", "promote"}
 
 	log.Msg("Running promote command", promoteCommand)
 

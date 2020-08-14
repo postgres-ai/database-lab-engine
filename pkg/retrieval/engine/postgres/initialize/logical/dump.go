@@ -36,8 +36,7 @@ const (
 	DumpJobType = "logical-dump"
 
 	// Defines dump options.
-	dumpContainerName = "retrieval_logical_dump"
-	dumpContainerDir  = "/tmp"
+	dumpContainerPrefix = "dblab_ld_"
 
 	// Defines dump source types.
 	sourceTypeLocal  = "local"
@@ -190,13 +189,17 @@ func (d *DumpJob) setupDumper() error {
 	return errors.Errorf("unknown source type given: %v", d.Source.Type)
 }
 
+func (d *DumpJob) dumpContainerName() string {
+	return dumpContainerPrefix + d.globalCfg.InstanceID
+}
+
 // Name returns a name of the job.
 func (d *DumpJob) Name() string {
 	return d.name
 }
 
 // Run starts the job.
-func (d *DumpJob) Run(ctx context.Context) error {
+func (d *DumpJob) Run(ctx context.Context) (err error) {
 	log.Msg(fmt.Sprintf("Run job: %s. Options: %v", d.Name(), d.DumpOptions))
 
 	isEmpty, err := tools.IsEmptyDirectory(d.globalCfg.DataDir)
@@ -212,6 +215,10 @@ func (d *DumpJob) Run(ctx context.Context) error {
 		log.Msg("The data directory is not empty. Existing data may be overwritten.")
 	}
 
+	if err := tools.PullImage(ctx, d.dockerClient, d.DockerImage); err != nil {
+		return errors.Wrap(err, "failed to scan pulling image response")
+	}
+
 	cont, err := d.dockerClient.ContainerCreate(ctx,
 		&container.Config{
 			Env:         d.getEnvironmentVariables(),
@@ -223,21 +230,27 @@ func (d *DumpJob) Run(ctx context.Context) error {
 			NetworkMode: d.getContainerNetworkMode(),
 		},
 		&network.NetworkingConfig{},
-		dumpContainerName,
+		d.dumpContainerName(),
 	)
 	if err != nil {
 		log.Err(err)
 
-		return errors.Wrap(err, "failed to create container")
+		return errors.Wrapf(err, "failed to create container %q", d.dumpContainerName())
 	}
 
 	defer tools.RemoveContainer(ctx, d.dockerClient, cont.ID, tools.StopTimeout)
 
+	defer func() {
+		if err != nil {
+			tools.PrintContainerLogs(ctx, d.dockerClient, d.dumpContainerName())
+		}
+	}()
+
 	if err := d.dockerClient.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{}); err != nil {
-		return errors.Wrap(err, "failed to start container")
+		return errors.Wrapf(err, "failed to start container %q", d.dumpContainerName())
 	}
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", dumpContainerName, cont.ID))
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", d.dumpContainerName(), cont.ID))
 
 	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, cont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
@@ -258,7 +271,7 @@ func (d *DumpJob) Run(ctx context.Context) error {
 	})
 
 	if err != nil {
-		return errors.Wrap(err, "failed to create an exec command")
+		return errors.Wrap(err, "failed to create dump command")
 	}
 
 	if len(d.Partial.Tables) > 0 {
@@ -343,11 +356,12 @@ func (d *DumpJob) getDumpContainerPath() string {
 
 func (d *DumpJob) getEnvironmentVariables() []string {
 	envs := []string{
-		"PGDATA=" + pgDataContainerDir,
+		"PGDATA=" + d.globalCfg.DataDir,
 		"POSTGRES_HOST_AUTH_METHOD=trust",
 	}
 
 	if d.DumpOptions.Source.Type == sourceTypeLocal && d.DumpOptions.Source.Connection.Port == defaults.Port {
+		log.Msg(fmt.Sprintf("The default PostgreSQL port is busy, trying to use an alternative one: %d", reservePort))
 		envs = append(envs, "PGPORT="+strconv.Itoa(reservePort))
 	}
 
@@ -360,7 +374,7 @@ func (d *DumpJob) getMountVolumes() []mount.Mount {
 		{
 			Type:   mount.TypeBind,
 			Source: d.globalCfg.DataDir,
-			Target: pgDataContainerDir,
+			Target: d.globalCfg.DataDir,
 		},
 	}
 
@@ -368,7 +382,7 @@ func (d *DumpJob) getMountVolumes() []mount.Mount {
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
 			Source: filepath.Dir(d.DumpOptions.DumpFile),
-			Target: dumpContainerDir,
+			Target: filepath.Dir(d.DumpOptions.DumpFile),
 		})
 	}
 

@@ -40,11 +40,8 @@ const (
 	RestoreJobType = "physical-restore"
 
 	restoreContainerPrefix = "dblab_phr_"
-	restoreContainerPath   = "/var/lib/postgresql/dblabdata"
-
-	readyLogLine = "database system is ready to accept"
-
-	defaultPgConfigsDir = "default"
+	readyLogLine           = "database system is ready to accept"
+	defaultPgConfigsDir    = "default"
 )
 
 // RestoreJob describes a job for physical restoring.
@@ -109,7 +106,7 @@ func NewJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Global
 func (r *RestoreJob) getRestorer(tool string) (restorer, error) {
 	switch tool {
 	case walgTool:
-		return newWalg(r.WALG), nil
+		return newWalg(r.globalCfg.DataDir, r.WALG), nil
 
 	case customTool:
 		return newCustomTool(r.CustomTool), nil
@@ -128,7 +125,7 @@ func (r *RestoreJob) Name() string {
 }
 
 // Run starts the job.
-func (r *RestoreJob) Run(ctx context.Context) error {
+func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Msg(fmt.Sprintf("Run job: %s. Options: %v", r.Name(), r.CopyOptions))
 
 	isEmpty, err := tools.IsEmptyDirectory(r.globalCfg.DataDir)
@@ -140,12 +137,22 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 		return errors.New("the data directory is not empty. Clean the data directory before proceeding")
 	}
 
-	contID, err := r.startReplica(ctx, r.restoreContainerName())
+	if err := tools.PullImage(ctx, r.dockerClient, r.CopyOptions.DockerImage); err != nil {
+		return errors.Wrap(err, "failed to scan image pulling response")
+	}
+
+	contID, err := r.startContainer(ctx, r.restoreContainerName())
 	if err != nil {
 		return errors.Wrapf(err, "failed to create container: %s", r.restoreContainerName())
 	}
 
 	defer tools.RemoveContainer(ctx, r.dockerClient, contID, tools.StopTimeout)
+
+	defer func() {
+		if err != nil {
+			tools.PrintContainerLogs(ctx, r.dockerClient, r.restoreContainerName())
+		}
+	}()
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", r.restoreContainerName(), contID))
 
@@ -192,13 +199,13 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 
 	// Set permissions.
 	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{
-		Cmd: []string{"chown", "-R", "postgres", restoreContainerPath},
+		Cmd: []string{"chown", "-R", "postgres", r.globalCfg.DataDir},
 	}); err != nil {
 		return errors.Wrap(err, "failed to set permissions")
 	}
 
 	// Start PostgreSQL instance.
-	startCommand, err := r.dockerClient.ContainerExecCreate(ctx, contID, startingPostgresConfig())
+	startCommand, err := r.dockerClient.ContainerExecCreate(ctx, contID, startingPostgresConfig(r.globalCfg.DataDir))
 
 	if err != nil {
 		return errors.Wrap(err, "failed to create an exec command")
@@ -228,7 +235,7 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 	return nil
 }
 
-func (r *RestoreJob) startReplica(ctx context.Context, containerName string) (string, error) {
+func (r *RestoreJob) startContainer(ctx context.Context, containerName string) (string, error) {
 	syncInstance, err := r.dockerClient.ContainerCreate(ctx,
 		&container.Config{
 			Env:   r.getEnvironmentVariables(),
@@ -252,12 +259,12 @@ func (r *RestoreJob) startReplica(ctx context.Context, containerName string) (st
 	return syncInstance.ID, nil
 }
 
-func startingPostgresConfig() types.ExecConfig {
+func startingPostgresConfig(pgDataDir string) types.ExecConfig {
 	return types.ExecConfig{
 		AttachStdout: true,
 		AttachStderr: true,
 		Tty:          true,
-		Cmd:          []string{"postgres", "-D", restoreContainerPath},
+		Cmd:          []string{"postgres", "-D", pgDataDir},
 		User:         defaults.Username,
 	}
 }
@@ -314,12 +321,12 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 
 	log.Msg("Starting sync instance: ", r.syncInstanceName())
 
-	syncInstanceID, err := r.startReplica(ctx, r.syncInstanceName())
+	syncInstanceID, err := r.startContainer(ctx, r.syncInstanceName())
 	if err != nil {
 		return err
 	}
 
-	startSyncCommand, err := r.dockerClient.ContainerExecCreate(ctx, syncInstanceID, startingPostgresConfig())
+	startSyncCommand, err := r.dockerClient.ContainerExecCreate(ctx, syncInstanceID, startingPostgresConfig(r.globalCfg.DataDir))
 	if err != nil {
 		return errors.Wrap(err, "failed to create exec command")
 	}
@@ -336,7 +343,10 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 }
 
 func (r *RestoreJob) getEnvironmentVariables() []string {
-	envVariables := append([]string{"POSTGRES_PASSWORD=password"}, r.restorer.GetEnvVariables()...)
+	envVariables := append([]string{
+		"POSTGRES_HOST_AUTH_METHOD=trust",
+		"PGDATA=" + r.globalCfg.DataDir,
+	}, r.restorer.GetEnvVariables()...)
 
 	for env, value := range r.Envs {
 		envVariables = append(envVariables, fmt.Sprintf("%s=%s", env, value))
@@ -351,7 +361,7 @@ func (r *RestoreJob) getMountVolumes() []mount.Mount {
 			{
 				Type:   mount.TypeBind,
 				Source: r.globalCfg.DataDir,
-				Target: restoreContainerPath,
+				Target: r.globalCfg.DataDir,
 				BindOptions: &mount.BindOptions{
 					Propagation: mount.PropagationRShared,
 				},
