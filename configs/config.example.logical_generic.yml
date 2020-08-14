@@ -213,6 +213,9 @@ retrieval:
             # The Docker image containing the tools required to restore
             dockerImage: "postgres:12-alpine"
 
+            # The number of parallel jobs to restore faster.
+            parallelJobs: 2
+
             # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
             # Note the existing data might be overwritten.
             forceInit: false
