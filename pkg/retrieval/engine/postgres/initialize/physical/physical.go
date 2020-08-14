@@ -29,8 +29,10 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools/fs"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/configuration"
+	"gitlab.com/postgres-ai/database-lab/pkg/util"
 )
 
 const (
@@ -41,6 +43,8 @@ const (
 	restoreContainerPath = "/var/lib/postgresql/dblabdata"
 
 	readyLogLine = "database system is ready to accept"
+
+	defaultPgConfigsDir = "default"
 )
 
 // RestoreJob describes a job for physical restoring.
@@ -186,6 +190,16 @@ func (r *RestoreJob) Run(ctx context.Context) error {
 		return errors.Wrap(err, "failed to detect the Postgres version")
 	}
 
+	// Prepare configuration files.
+	sourceConfigDir, err := util.GetConfigPath(path.Join(defaultPgConfigsDir, pgVersion))
+	if err != nil {
+		return errors.Wrap(err, "cannot get path to default configs")
+	}
+
+	if err := fs.CopyDirectoryContent(sourceConfigDir, r.globalCfg.DataDir); err != nil {
+		return errors.Wrap(err, "failed to set default configuration files")
+	}
+
 	if err := configuration.Run(r.globalCfg.DataDir); err != nil {
 		return errors.Wrap(err, "failed to configure")
 	}
@@ -314,7 +328,7 @@ func (r *RestoreJob) adjustRecoveryConfiguration(pgVersion, pgDataDir string) er
 		return nil
 	}
 
-	version, err := strconv.Atoi(pgVersion)
+	version, err := strconv.ParseFloat(pgVersion, 64)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse PostgreSQL version")
 	}
