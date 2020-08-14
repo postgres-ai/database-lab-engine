@@ -22,6 +22,7 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				DBName:       "testDB",
 				ParallelJobs: 1,
 				ForceInit:    false,
+				DumpFile:     "/tmp/db.dump",
 			},
 			Command: []string{"pg_restore", "-U", "postgres", "-C", "-d", "testDB", "-j", "1", "/tmp/db.dump"},
 		},
@@ -30,13 +31,14 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				ParallelJobs: 4,
 				ForceInit:    true,
 			},
-			Command: []string{"pg_restore", "-U", "postgres", "-C", "-d", "postgres", "--clean", "--if-exists", "-j", "4", "/tmp/db.dump"},
+			Command: []string{"pg_restore", "-U", "postgres", "-C", "-d", "postgres", "--clean", "--if-exists", "-j", "4", ""},
 		},
 		{
 			CopyOptions: RestoreOptions{
 				DBName:       "testDB",
 				ParallelJobs: 1,
 				Partial:      Partial{Tables: []string{"test", "users"}},
+				DumpFile:     "/tmp/db.dump",
 			},
 			Command: []string{"pg_restore", "-U", "postgres", "-C", "-d", "testDB", "-j", "1", "-t", "test", "-t", "users", "/tmp/db.dump"},
 		},

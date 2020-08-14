@@ -134,6 +134,25 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 	}
 }
 
+// PrintContainerLogs prints container output.
+func PrintContainerLogs(ctx context.Context, dockerClient *client.Client, containerName string) {
+	containerLogs, err := dockerClient.ContainerLogs(ctx, containerName, types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Since:      essentialLogsInterval,
+		Details:    true,
+	})
+
+	if err != nil {
+		log.Err("Failed to get container logs", err)
+		return
+	}
+
+	if err := ProcessAttachResponse(ctx, containerLogs, os.Stdout); err != nil {
+		log.Err("Failed to process attach response: ", err)
+	}
+}
+
 // RemoveContainer stops and removes container.
 func RemoveContainer(ctx context.Context, dockerClient *client.Client, containerID string, stopTimeout time.Duration) {
 	log.Msg(fmt.Sprintf("Removing container ID: %v", containerID))
@@ -157,7 +176,7 @@ func RemoveContainer(ctx context.Context, dockerClient *client.Client, container
 func PullImage(ctx context.Context, dockerClient *client.Client, image string) error {
 	pullOutput, err := dockerClient.ImagePull(ctx, image, types.ImagePullOptions{})
 	if err != nil {
-		return errors.Wrapf(err, "failed to pull image %s", image)
+		return errors.Wrapf(err, "failed to pull image %q", image)
 	}
 
 	defer func() { _ = pullOutput.Close() }()
