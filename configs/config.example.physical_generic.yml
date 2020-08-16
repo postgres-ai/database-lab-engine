@@ -172,7 +172,7 @@ retrieval:
               # Note that command chains are not supported here; if you need to use a more
               # complicated snippet, create a shell script, use --mount (-v) option
               # when starting a container with Database Lab and use path to it here.
-              command: “pg_basebackup -X stream -D /var/lib/postgresql/dblabdata”
+              command: "pg_basebackup -X stream -D /var/lib/dblab/data"
 
         - name: physical-snapshot
           options:
