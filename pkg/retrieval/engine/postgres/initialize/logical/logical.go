@@ -22,7 +22,6 @@ func recalculateStats(ctx context.Context, dockerClient *client.Client, contID s
 	exec, err := dockerClient.ContainerExecCreate(ctx, contID, types.ExecConfig{
 		AttachStdout: true,
 		AttachStderr: true,
-		Tty:          true,
 		Cmd:          analyzeCmd,
 	})
 

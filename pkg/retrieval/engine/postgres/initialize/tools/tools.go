@@ -19,9 +19,12 @@ import (
 
 	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/pkg/errors"
+	"github.com/shirou/gopsutil/host"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 )
@@ -72,6 +75,28 @@ func DetectPGVersion(dataDir string) (string, error) {
 	}
 
 	return string(bytes.TrimSpace(version)), nil
+}
+
+// AddVolumesToHostConfig adds volumes to container host configuration depends on process environment.
+func AddVolumesToHostConfig(hostConfig *container.HostConfig, dataDir string) error {
+	hostInfo, err := host.Info()
+	if err != nil {
+		return errors.Wrap(err, "failed to get host info")
+	}
+
+	log.Dbg("Virtualization system: ", hostInfo.VirtualizationSystem)
+
+	if hostInfo.VirtualizationRole == "guest" {
+		hostConfig.VolumesFrom = []string{hostInfo.Hostname}
+	} else {
+		hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
+			Type:   mount.TypeBind,
+			Source: dataDir,
+			Target: dataDir,
+		})
+	}
+
+	return nil
 }
 
 // InspectCommandResponse inspects success of command execution.
