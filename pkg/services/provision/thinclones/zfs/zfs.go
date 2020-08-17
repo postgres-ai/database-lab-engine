@@ -24,7 +24,6 @@ const (
 	dataStateAtLabel    = "dblab:datastateat"
 	isRoughStateAtLabel = "dblab:isroughdsa"
 	dataStateAtFormat   = "20060102150405"
-	stdErrCleanupTag    = "cleanup_zfs_snapshot"
 )
 
 // ListEntry defines entry of ZFS list command.
@@ -235,7 +234,6 @@ func RollbackSnapshot(r runners.Runner, pool string, snapshot string) error {
 
 // DestroySnapshot destroys the snapshot.
 func DestroySnapshot(r runners.Runner, snapshotName string) error {
-	// TODO(akartasov): Implement the function.
 	cmd := fmt.Sprintf("zfs destroy -R %s", snapshotName)
 
 	if _, err := r.Run(cmd); err != nil {
@@ -248,11 +246,11 @@ func DestroySnapshot(r runners.Runner, snapshotName string) error {
 // CleanupSnapshots destroys old ZFS snapshots considering retention limit.
 func CleanupSnapshots(r runners.Runner, pool string, retentionLimit int) ([]string, error) {
 	cleanupCmd := fmt.Sprintf(
-		"zfs list -t snapshot -r %s -H -o name -s %s -s creation | grep -v clone | head -n -%d "+
-			"| xargs -n1 --no-run-if-empty zfs destroy -R 2>&1 | logger --stderr --tag \"%s\"",
-		pool, dataStateAtLabel, retentionLimit, stdErrCleanupTag)
+		"zfs list -t snapshot -H -o name -s %s -s creation -r %s | grep -v clone | head -n -%d "+
+			"| xargs -n1 --no-run-if-empty zfs destroy -R ",
+		dataStateAtLabel, pool, retentionLimit)
 
-	out, err := r.Run(cleanupCmd, true)
+	out, err := r.Run(cleanupCmd)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to clean up snapshots")
 	}

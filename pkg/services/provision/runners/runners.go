@@ -101,9 +101,8 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 	logCommand := Hidden
 	if logsEnabled {
 		logCommand = command
+		log.Dbg(fmt.Sprintf(`Run(Local): "%s"`, logCommand))
 	}
-
-	log.Dbg(fmt.Sprintf(`Run(Local): "%s"`, logCommand))
 
 	var out bytes.Buffer
 	var stderr bytes.Buffer
@@ -144,12 +143,9 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 
 	outFormatted := strings.Trim(out.String(), " \n")
 
-	logOut := Hidden
 	if logsEnabled {
-		logOut = outFormatted
+		log.Dbg(fmt.Sprintf(`Run(Local): output "%s"`, outFormatted))
 	}
-
-	log.Dbg(fmt.Sprintf(`Run(Local): output "%s"`, logOut))
 
 	if stderrStr := stderr.String(); len(stderrStr) > 0 {
 		log.Dbg("Run(Local): stderr", stderr.String())

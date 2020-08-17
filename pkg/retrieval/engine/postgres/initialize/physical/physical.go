@@ -128,13 +128,23 @@ func (r *RestoreJob) Name() string {
 func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Msg(fmt.Sprintf("Run job: %s. Options: %v", r.Name(), r.CopyOptions))
 
+	defer func() {
+		if err != nil && r.CopyOptions.SyncInstance {
+			if syncErr := r.runSyncInstance(ctx); syncErr != nil {
+				log.Err("Failed to run sync instance", syncErr)
+			}
+		}
+	}()
+
 	isEmpty, err := tools.IsEmptyDirectory(r.globalCfg.DataDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to explore the data directory")
 	}
 
 	if !isEmpty {
-		return errors.New("the data directory is not empty. Clean the data directory before proceeding")
+		log.Msg("Data directory is not empty. Skipping physical restore.")
+
+		return nil
 	}
 
 	if err := tools.PullImage(ctx, r.dockerClient, r.CopyOptions.DockerImage); err != nil {
@@ -213,7 +223,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 	log.Msg("Running refresh command")
 
-	attachResponse, err := r.dockerClient.ContainerExecAttach(ctx, startCommand.ID, types.ExecStartCheck{Tty: true})
+	attachResponse, err := r.dockerClient.ContainerExecAttach(ctx, startCommand.ID, types.ExecStartCheck{})
 	if err != nil {
 		return errors.Wrap(err, "failed to attach to the exec command")
 	}
@@ -225,12 +235,6 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	}
 
 	log.Msg("Refresh command has been finished")
-
-	if r.CopyOptions.SyncInstance {
-		if err := r.runSyncInstance(ctx); err != nil {
-			log.Err("Failed to run sync instance", err)
-		}
-	}
 
 	return nil
 }
@@ -263,7 +267,6 @@ func startingPostgresConfig(pgDataDir string) types.ExecConfig {
 	return types.ExecConfig{
 		AttachStdout: true,
 		AttachStderr: true,
-		Tty:          true,
 		Cmd:          []string{"postgres", "-D", pgDataDir},
 		User:         defaults.Username,
 	}

@@ -110,21 +110,21 @@ func NewPhysicalInitialJob(cfg config.JobConfig, docker *client.Client, cloneMan
 }
 
 func (p *PhysicalInitial) setupScheduler() error {
-	if p.options.Scheduler == nil {
+	if p.options.Scheduler == nil ||
+		p.options.Scheduler.Snapshot.Timetable == "" && p.options.Scheduler.Retention.Timetable == "" {
 		return nil
 	}
 
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 
-	if _, err := specParser.Parse(p.options.Scheduler.Snapshot.Timetable); err != nil {
+	if _, err := specParser.Parse(p.options.Scheduler.Snapshot.Timetable); p.options.Scheduler.Snapshot.Timetable != "" && err != nil {
 		return errors.Wrapf(err, "failed to parse schedule timetable %q", p.options.Scheduler.Snapshot.Timetable)
 	}
 
-	if _, err := specParser.Parse(p.options.Scheduler.Retention.Timetable); err != nil {
+	if _, err := specParser.Parse(p.options.Scheduler.Retention.Timetable); p.options.Scheduler.Retention.Timetable != "" && err != nil {
 		return errors.Wrapf(err, "failed to parse retention timetable %q", p.options.Scheduler.Retention.Timetable)
 	}
 
-	p.scheduleOnce = sync.Once{}
 	p.scheduler = cron.New()
 
 	return nil
@@ -140,7 +140,7 @@ func (p *PhysicalInitial) Name() string {
 }
 
 // Run starts the job.
-func (p *PhysicalInitial) Run(ctx context.Context) error {
+func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 	p.scheduleOnce.Do(p.startScheduler(ctx))
 
 	select {
@@ -183,36 +183,42 @@ func (p *PhysicalInitial) Run(ctx context.Context) error {
 		}()
 	}
 
-	// Promotion.
-	if p.options.Promote {
-		// Prepare pre-snapshot.
-		snapshotName, err := p.cloneManager.CreateSnapshot("", preDataStateAt+pre)
-		if err != nil {
-			return errors.Wrap(err, "failed to create a snapshot")
+	defer func() {
+		if _, ok := err.(*skipSnapshotErr); ok {
+			log.Msg(err.Error())
+			err = nil
 		}
+	}()
 
-		defer func() {
+	// Prepare pre-snapshot.
+	snapshotName, err := p.cloneManager.CreateSnapshot("", preDataStateAt+pre)
+	if err != nil {
+		return errors.Wrap(err, "failed to create snapshot")
+	}
+
+	defer func() {
+		if err != nil {
 			if errDestroy := p.cloneManager.DestroySnapshot(snapshotName); errDestroy != nil {
 				log.Err(fmt.Sprintf("Failed to destroy the %q snapshot: %v", snapshotName, err))
 			}
-		}()
-
-		if err := p.cloneManager.CreateClone(cloneName, snapshotName); err != nil {
-			return errors.Wrapf(err, "failed to create a pre clone %s", cloneName)
 		}
+	}()
 
-		defer func() {
+	if err := p.cloneManager.CreateClone(cloneName, snapshotName); err != nil {
+		return errors.Wrapf(err, "failed to create \"pre\" clone %s", cloneName)
+	}
+
+	defer func() {
+		if err != nil {
 			if errDestroy := p.cloneManager.DestroyClone(cloneName); errDestroy != nil {
 				log.Err(fmt.Sprintf("Failed to destroy clone %q: %v", cloneName, err))
 			}
-		}()
+		}
+	}()
 
+	// Promotion.
+	if p.options.Promote {
 		if err := p.promoteInstance(ctx, path.Join(p.globalCfg.MountDir, cloneName)); err != nil {
-			if _, ok := err.(*skipSnapshotErr); ok {
-				log.Msg(err.Error())
-				return nil
-			}
-
 			return err
 		}
 	}
@@ -238,20 +244,25 @@ func (p *PhysicalInitial) Run(ctx context.Context) error {
 }
 
 func (p *PhysicalInitial) startScheduler(ctx context.Context) func() {
-	if p.scheduler == nil {
+	if p.scheduler == nil || p.options.Scheduler == nil ||
+		p.options.Scheduler.Snapshot.Timetable == "" && p.options.Scheduler.Retention.Timetable == "" {
 		return func() {}
 	}
 
 	return func() {
-		if _, err := p.scheduler.AddFunc(p.options.Scheduler.Snapshot.Timetable, p.runAutoSnapshot(ctx)); err != nil {
-			log.Err(errors.Wrap(err, "failed to schedule a new snapshot job"))
-			return
+		if p.options.Scheduler.Snapshot.Timetable != "" {
+			if _, err := p.scheduler.AddFunc(p.options.Scheduler.Snapshot.Timetable, p.runAutoSnapshot(ctx)); err != nil {
+				log.Err(errors.Wrap(err, "failed to schedule a new snapshot job"))
+				return
+			}
 		}
 
-		if _, err := p.scheduler.AddFunc(p.options.Scheduler.Retention.Timetable,
-			p.runAutoCleanup(p.options.Scheduler.Retention.Limit)); err != nil {
-			log.Err(errors.Wrap(err, "failed to schedule a new cleanup job"))
-			return
+		if p.options.Scheduler.Retention.Timetable != "" {
+			if _, err := p.scheduler.AddFunc(p.options.Scheduler.Retention.Timetable,
+				p.runAutoCleanup(p.options.Scheduler.Retention.Limit)); err != nil {
+				log.Err(errors.Wrap(err, "failed to schedule a new cleanup job"))
+				return
+			}
 		}
 
 		p.scheduler.Start()
