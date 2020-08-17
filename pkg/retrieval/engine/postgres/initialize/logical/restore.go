@@ -119,28 +119,14 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to scan image pulling response")
 	}
 
+	hostConfig, err := r.buildHostConfig()
+	if err != nil {
+		return errors.Wrap(err, "failed to build container host config")
+	}
+
 	cont, err := r.dockerClient.ContainerCreate(ctx,
-		&container.Config{
-			Env: []string{
-				"PGDATA=" + r.globalCfg.DataDir,
-			},
-			Image:       r.RestoreOptions.DockerImage,
-			Healthcheck: health.GetConfig(),
-		},
-		&container.HostConfig{
-			Mounts: []mount.Mount{
-				{
-					Type:   mount.TypeBind,
-					Source: r.RestoreOptions.DumpFile,
-					Target: r.RestoreOptions.DumpFile,
-				},
-				{
-					Type:   mount.TypeBind,
-					Source: r.globalCfg.DataDir,
-					Target: r.globalCfg.DataDir,
-				},
-			},
-		},
+		r.buildContainerConfig(),
+		hostConfig,
 		&network.NetworkingConfig{},
 		r.restoreContainerName(),
 	)
@@ -206,6 +192,34 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Msg("Restoring job has been finished")
 
 	return nil
+}
+
+func (r *RestoreJob) buildContainerConfig() *container.Config {
+	return &container.Config{
+		Env: []string{
+			"PGDATA=" + r.globalCfg.DataDir,
+		},
+		Image:       r.RestoreOptions.DockerImage,
+		Healthcheck: health.GetConfig(),
+	}
+}
+
+func (r *RestoreJob) buildHostConfig() (*container.HostConfig, error) {
+	hostConfig := &container.HostConfig{
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeBind,
+				Source: r.RestoreOptions.DumpFile,
+				Target: r.RestoreOptions.DumpFile,
+			},
+		},
+	}
+
+	if err := tools.AddVolumesToHostConfig(hostConfig, r.globalCfg.DataDir); err != nil {
+		return nil, err
+	}
+
+	return hostConfig, nil
 }
 
 func (r *RestoreJob) markDatabase(ctx context.Context, contID string) error {

@@ -21,7 +21,6 @@ import (
 	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
@@ -306,6 +305,11 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to adjust recovery configuration")
 	}
 
+	hostConfig, err := p.buildHostConfig(clonePath)
+	if err != nil {
+		return errors.Wrap(err, "failed to build container host config")
+	}
+
 	promoteImage := fmt.Sprintf("postgresai/sync-instance:%s", pgVersion)
 
 	if err := tools.PullImage(ctx, p.dockerClient, promoteImage); err != nil {
@@ -314,30 +318,8 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	// Run promotion container.
 	cont, err := p.dockerClient.ContainerCreate(ctx,
-		&container.Config{
-			Labels: map[string]string{"label": "dblab_control"},
-			Env: []string{
-				"PGDATA=" + clonePath,
-				"POSTGRES_HOST_AUTH_METHOD=trust",
-			},
-			Image: promoteImage,
-			Healthcheck: health.GetConfig(
-				health.OptionInterval(hcPromoteInterval),
-				health.OptionRetries(hcPromoteRetries),
-			),
-		},
-		&container.HostConfig{
-			Mounts: []mount.Mount{
-				{
-					Type:   mount.TypeBind,
-					Source: clonePath,
-					Target: clonePath,
-					BindOptions: &mount.BindOptions{
-						Propagation: mount.PropagationRShared,
-					},
-				},
-			},
-		},
+		p.buildContainerConfig(clonePath, promoteImage),
+		hostConfig,
 		&network.NetworkingConfig{},
 		p.promoteContainerName(),
 	)
@@ -468,6 +450,31 @@ func (p *PhysicalInitial) adjustRecoveryConfiguration(pgVersion, clonePGDataDir 
 	}
 
 	return nil
+}
+
+func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage string) *container.Config {
+	return &container.Config{
+		Labels: map[string]string{"label": "dblab_control"},
+		Env: []string{
+			"PGDATA=" + clonePath,
+			"POSTGRES_HOST_AUTH_METHOD=trust",
+		},
+		Image: promoteImage,
+		Healthcheck: health.GetConfig(
+			health.OptionInterval(hcPromoteInterval),
+			health.OptionRetries(hcPromoteRetries),
+		),
+	}
+}
+
+func (p *PhysicalInitial) buildHostConfig(clonePath string) (*container.HostConfig, error) {
+	hostConfig := &container.HostConfig{}
+
+	if err := tools.AddVolumesToHostConfig(hostConfig, clonePath); err != nil {
+		return nil, err
+	}
+
+	return hostConfig, nil
 }
 
 func (p *PhysicalInitial) checkRecovery(ctx context.Context, containerID string) (string, error) {

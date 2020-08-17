@@ -219,17 +219,12 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to scan pulling image response")
 	}
 
-	cont, err := d.dockerClient.ContainerCreate(ctx,
-		&container.Config{
-			Env:         d.getEnvironmentVariables(),
-			Image:       d.DockerImage,
-			Healthcheck: health.GetConfig(),
-		},
-		&container.HostConfig{
-			Mounts:      d.getMountVolumes(),
-			NetworkMode: d.getContainerNetworkMode(),
-		},
-		&network.NetworkingConfig{},
+	hostConfig, err := d.buildHostConfig()
+	if err != nil {
+		return errors.Wrap(err, "failed to build container host config")
+	}
+
+	cont, err := d.dockerClient.ContainerCreate(ctx, d.buildContainerConfig(), hostConfig, &network.NetworkingConfig{},
 		d.dumpContainerName(),
 	)
 	if err != nil {
@@ -368,15 +363,30 @@ func (d *DumpJob) getEnvironmentVariables() []string {
 	return envs
 }
 
+func (d *DumpJob) buildContainerConfig() *container.Config {
+	return &container.Config{
+		Env:         d.getEnvironmentVariables(),
+		Image:       d.DockerImage,
+		Healthcheck: health.GetConfig(),
+	}
+}
+
+func (d *DumpJob) buildHostConfig() (*container.HostConfig, error) {
+	hostConfig := &container.HostConfig{
+		Mounts:      d.getMountVolumes(),
+		NetworkMode: d.getContainerNetworkMode(),
+	}
+
+	if err := tools.AddVolumesToHostConfig(hostConfig, d.globalCfg.DataDir); err != nil {
+		return nil, err
+	}
+
+	return hostConfig, nil
+}
+
 // getMountVolumes returns a list of mount volumes.
 func (d *DumpJob) getMountVolumes() []mount.Mount {
-	mounts := []mount.Mount{
-		{
-			Type:   mount.TypeBind,
-			Source: d.globalCfg.DataDir,
-			Target: d.globalCfg.DataDir,
-		},
-	}
+	mounts := d.dumper.GetMounts()
 
 	if d.DumpOptions.DumpFile != "" {
 		mounts = append(mounts, mount.Mount{
@@ -385,9 +395,6 @@ func (d *DumpJob) getMountVolumes() []mount.Mount {
 			Target: filepath.Dir(d.DumpOptions.DumpFile),
 		})
 	}
-
-	// Add dump specific mounts.
-	mounts = append(mounts, d.dumper.GetMounts()...)
 
 	return mounts
 }

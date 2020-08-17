@@ -236,14 +236,14 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 }
 
 func (r *RestoreJob) startContainer(ctx context.Context, containerName string) (string, error) {
+	hostConfig, err := r.buildHostConfig()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to build container host config")
+	}
+
 	syncInstance, err := r.dockerClient.ContainerCreate(ctx,
-		&container.Config{
-			Env:   r.getEnvironmentVariables(),
-			Image: r.DockerImage,
-		},
-		&container.HostConfig{
-			Mounts: r.getMountVolumes(),
-		},
+		r.buildContainerConfig(),
+		hostConfig,
 		&network.NetworkingConfig{},
 		containerName,
 	)
@@ -355,21 +355,23 @@ func (r *RestoreJob) getEnvironmentVariables() []string {
 	return envVariables
 }
 
-func (r *RestoreJob) getMountVolumes() []mount.Mount {
-	mounts := append(
-		[]mount.Mount{
-			{
-				Type:   mount.TypeBind,
-				Source: r.globalCfg.DataDir,
-				Target: r.globalCfg.DataDir,
-				BindOptions: &mount.BindOptions{
-					Propagation: mount.PropagationRShared,
-				},
-			},
-		},
-		r.restorer.GetMounts()...)
+func (r *RestoreJob) buildContainerConfig() *container.Config {
+	return &container.Config{
+		Env:   r.getEnvironmentVariables(),
+		Image: r.DockerImage,
+	}
+}
 
-	return mounts
+func (r *RestoreJob) buildHostConfig() (*container.HostConfig, error) {
+	hostConfig := &container.HostConfig{
+		Mounts: r.restorer.GetMounts(),
+	}
+
+	if err := tools.AddVolumesToHostConfig(hostConfig, r.globalCfg.DataDir); err != nil {
+		return nil, err
+	}
+
+	return hostConfig, nil
 }
 
 func (r *RestoreJob) markDatabaseData() error {
