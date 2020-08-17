@@ -3,9 +3,9 @@ set -euxo pipefail
 
 DIR=${0%/*}
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:master"
-SOURCE_DBNAME="test"
-SOURCE_HOST="XXX"
-SOURCE_PASSWORD="XXX"
+SOURCE_DBNAME="${SOURCE_DBNAME:-test}"
+SOURCE_HOST="${SOURCE_HOST:-undefined}"
+SOURCE_PASSWORD="${SOURCE_PASSWORD:-undefined}"
 
 ### Step 1: Prepare a machine with two disks, Docker and ZFS
 
