@@ -3,6 +3,9 @@ set -euxo pipefail
 
 DIR=${0%/*}
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:master"
+SOURCE_DBNAME="test"
+SOURCE_HOST="XXX"
+SOURCE_PASSWORD="XXX"
 
 ### Step 1: Prepare a machine with two disks, Docker and ZFS
 
@@ -11,35 +14,19 @@ source "${DIR}/_zfs.file.sh"
 
 ### Step 2. Prepare database data directory
 
-sudo docker run \
-  --name dblab_pg_initdb \
-  --label dblab_sync \
-  --env PGDATA=/var/lib/postgresql/pgdata \
-  --env POSTGRES_HOST_AUTH_METHOD=trust \
-  --volume /var/lib/dblab/data:/var/lib/postgresql/pgdata \
-  --detach \
-  postgres:12-alpine
-
-while true; do
-  sudo docker exec -it dblab_pg_initdb psql -U postgres -c 'select' && break
-  sleep 1
-done
-
-sudo docker exec -it dblab_pg_initdb psql -U postgres -c 'create database test'
-
-# 1,000,000 accounts, ~0.14 GiB of data.
-sudo docker exec -it dblab_pg_initdb pgbench -U postgres -i -s 10 test
-
-sudo docker stop dblab_pg_initdb
-sudo docker rm dblab_pg_initdb
-
 ### Step ?. Configure and launch the Database Lab server
 mkdir -p ~/.dblab
-cp ./configs/config.example.physical_generic.yml ~/.dblab/server_test.yml
-sed -ri 's/^(\s*)(port: 2345$)/\1port: 12345/' ~/.dblab/server_test.yml
+cp ./configs/config.example.logical_generic.yml ~/.dblab/server_test.yml
+sed -ri 's/^(\s\s)(port:.*$)/\1port: 12345/' ~/.dblab/server_test.yml
 sed -ri 's/^(\s*)(debug:.*$)/\1debug: true/' ~/.dblab/server_test.yml
 sed -ri 's/^(\s*)(pool:.*$)/\1pool: "test_pool"/' ~/.dblab/server_test.yml
-sed -ri 's/^(\s*)(pool:.*$)/\1pool: "test_pool"/' ~/.dblab/server_test.yml
+sed -ri "s/^(\s*)(host: 34\.56\.78\.90$)/\1host: \"${SOURCE_HOST}\"/" ~/.dblab/server_test.yml
+sed -ri "s/^(\s*)(dbname:.*$)/\1dbname: \"${SOURCE_DBNAME}\"/" ~/.dblab/server_test.yml
+sed -ri "s/^(\s*)(password:.*$)/\1password: \"${SOURCE_PASSWORD}\"/" ~/.dblab/server_test.yml
+sed -ri "s/^(\s*)(parallelJobs:.*$)/\1parallelJobs: 1/" ~/.dblab/server_test.yml
+sed -ri "s/^(\s*)(forceInit:.*$)/\1forceInit: true/" ~/.dblab/server_test.yml
+
+# TMP: turn off "initialize" completely
 
 sudo docker run \
   --detach \

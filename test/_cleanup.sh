@@ -3,7 +3,12 @@ set -euxo pipefail
 
 ZFS_FILE="$(pwd)/zfs_file"
 
-sudo docker rm -f dblab_pg_initdb || true
+# TODO: docker rm for all containers that are related to dblab
+sudo docker ps --filter 'label=dblab_control' \
+    | grep -v CONTAINER \
+    | awk '{print $1}' \
+    | sudo xargs --no-run-if-empty docker rm -f \
+  || true
 sudo zpool destroy test_pool || true
 sudo umount /var/lib/dblab/data || true
 sudo rm -f "${ZFS_FILE}"
