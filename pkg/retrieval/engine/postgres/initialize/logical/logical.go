@@ -7,6 +7,7 @@ package logical
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -40,12 +41,13 @@ func recalculateStats(ctx context.Context, dockerClient *client.Client, contID s
 	return nil
 }
 
-func buildAnalyzeCommand(conn Connection) []string {
+func buildAnalyzeCommand(conn Connection, parallelJobs int) []string {
 	analyzeCmd := []string{
-		"psql",
-		"-U", conn.Username,
-		"-d", conn.DBName,
-		"-c", "vacuum freeze analyze;",
+		"vacuumdb",
+		"--analyze",
+		"--jobs", strconv.Itoa(parallelJobs),
+		"--username", conn.Username,
+		"--dbname", conn.DBName,
 	}
 
 	return analyzeCmd

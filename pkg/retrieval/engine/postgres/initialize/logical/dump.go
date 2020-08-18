@@ -65,7 +65,7 @@ type DumpJob struct {
 
 // DumpOptions defines a logical dump options.
 type DumpOptions struct {
-	DumpFile     string         `yaml:"dumpLocation"`
+	DumpLocation string         `yaml:"dumpLocation"`
 	DockerImage  string         `yaml:"dockerImage"`
 	Connection   Connection     `yaml:"connection"`
 	Source       Source         `yaml:"source"`
@@ -273,36 +273,19 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		log.Msg("Partial dump will be run. Tables for dumping: ", strings.Join(d.Partial.Tables, ", "))
 	}
 
-	var output io.Writer = os.Stdout
-
-	if d.DumpOptions.DumpFile != "" {
-		dumpFile, err := os.Create(d.getDumpContainerPath())
-		if err != nil {
-			return errors.Wrap(err, "failed to create file")
-		}
-
-		defer func() {
-			if err := dumpFile.Close(); err != nil {
-				log.Err("failed to close dump file", err)
-			}
-		}()
-
-		output = dumpFile
-	}
-
-	if err := d.performDumpCommand(ctx, output, cont.ID, execCommand.ID); err != nil {
+	if err := d.performDumpCommand(ctx, os.Stdout, cont.ID, execCommand.ID); err != nil {
 		return errors.Wrap(err, "failed to dump a database")
 	}
 
-	if err := d.markDatabaseData(); err != nil {
-		return errors.Wrap(err, "failed to mark the created dump")
-	}
-
 	if d.DumpOptions.Restore != nil {
+		if err := d.markDatabaseData(); err != nil {
+			return errors.Wrap(err, "failed to mark the created dump")
+		}
+
 		if err := recalculateStats(ctx, d.dockerClient, cont.ID, buildAnalyzeCommand(Connection{
 			DBName:   d.config.db.DBName,
 			Username: defaults.Username,
-		})); err != nil {
+		}, d.DumpOptions.ParallelJobs)); err != nil {
 			return errors.Wrap(err, "failed to recalculate statistics after restore")
 		}
 	}
@@ -345,14 +328,14 @@ func (d *DumpJob) performDumpCommand(ctx context.Context, cmdOutput io.Writer, c
 	return nil
 }
 
-func (d *DumpJob) getDumpContainerPath() string {
-	return d.DumpFile
-}
-
 func (d *DumpJob) getEnvironmentVariables() []string {
 	envs := []string{
-		"PGDATA=" + d.globalCfg.DataDir,
 		"POSTGRES_HOST_AUTH_METHOD=trust",
+	}
+
+	// Avoid initialization of PostgreSQL directory in case of preparing of a dump.
+	if d.DumpOptions.Restore != nil {
+		envs = append(envs, "PGDATA="+d.globalCfg.DataDir)
 	}
 
 	if d.DumpOptions.Source.Type == sourceTypeLocal && d.DumpOptions.Source.Connection.Port == defaults.Port {
@@ -365,6 +348,7 @@ func (d *DumpJob) getEnvironmentVariables() []string {
 
 func (d *DumpJob) buildContainerConfig() *container.Config {
 	return &container.Config{
+		Labels:      map[string]string{"label": tools.DBLabControlLabel},
 		Env:         d.getEnvironmentVariables(),
 		Image:       d.DockerImage,
 		Healthcheck: health.GetConfig(),
@@ -388,11 +372,11 @@ func (d *DumpJob) buildHostConfig() (*container.HostConfig, error) {
 func (d *DumpJob) getMountVolumes() []mount.Mount {
 	mounts := d.dumper.GetMounts()
 
-	if d.DumpOptions.DumpFile != "" {
+	if d.DumpOptions.DumpLocation != "" {
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
-			Source: filepath.Dir(d.DumpOptions.DumpFile),
-			Target: filepath.Dir(d.DumpOptions.DumpFile),
+			Source: filepath.Dir(d.DumpOptions.DumpLocation),
+			Target: filepath.Dir(d.DumpOptions.DumpLocation),
 		})
 	}
 
@@ -426,21 +410,27 @@ func (d *DumpJob) getExecEnvironmentVariables() []string {
 }
 
 func (d *DumpJob) buildLogicalDumpCommand() []string {
-	dumpCmd := []string{"pg_dump", "-C", "-Fc"}
+	format := "custom"
+
+	if d.DumpOptions.ParallelJobs > defaultParallelJobs {
+		format = "directory"
+	}
 
 	optionalArgs := map[string]string{
-		"-h": d.config.db.Host,
-		"-p": strconv.Itoa(d.config.db.Port),
-		"-U": d.config.db.Username,
-		"-d": d.config.db.DBName,
-		"-j": strconv.Itoa(d.DumpOptions.ParallelJobs),
+		"--host":     d.config.db.Host,
+		"--port":     strconv.Itoa(d.config.db.Port),
+		"--username": d.config.db.Username,
+		"--dbname":   d.config.db.DBName,
+		"--jobs":     strconv.Itoa(d.DumpOptions.ParallelJobs),
 	}
-	dumpCmd = append(dumpCmd, prepareCmdOptions(optionalArgs)...)
+
+	dumpCmd := append([]string{"pg_dump", "--create", "--format", format}, prepareCmdOptions(optionalArgs)...)
 
 	for _, table := range d.Partial.Tables {
-		dumpCmd = append(dumpCmd, "-t", table)
+		dumpCmd = append(dumpCmd, "--table", table)
 	}
 
+	// Define if restore directly or export to dump location.
 	if d.DumpOptions.Restore != nil {
 		dumpCmd = append(dumpCmd, d.buildLogicalRestoreCommand()...)
 		cmd := strings.Join(dumpCmd, " ")
@@ -450,11 +440,13 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 		return []string{"sh", "-c", cmd}
 	}
 
+	dumpCmd = append(dumpCmd, "--file", d.DumpOptions.DumpLocation)
+
 	return dumpCmd
 }
 
 func (d *DumpJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"|", "pg_restore", "-U", defaults.Username, "-C", "-d", defaults.DBName, "--no-privileges"}
+	restoreCmd := []string{"|", "pg_restore", "--username", defaults.Username, "--create", "--dbname", defaults.DBName, "--no-privileges"}
 
 	if d.Restore.ForceInit {
 		restoreCmd = append(restoreCmd, "--clean", "--if-exists")

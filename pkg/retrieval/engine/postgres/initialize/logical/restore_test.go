@@ -24,14 +24,14 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				ForceInit:    false,
 				DumpFile:     "/tmp/db.dump",
 			},
-			Command: []string{"pg_restore", "-U", "postgres", "-C", "-d", "testDB", "-j", "1", "/tmp/db.dump"},
+			Command: []string{"pg_restore", "--username", "postgres", "--dbname", "postgres", "--create", "--no-privileges", "--jobs", "1", "/tmp/db.dump"},
 		},
 		{
 			CopyOptions: RestoreOptions{
 				ParallelJobs: 4,
 				ForceInit:    true,
 			},
-			Command: []string{"pg_restore", "-U", "postgres", "-C", "-d", "postgres", "--clean", "--if-exists", "-j", "4", ""},
+			Command: []string{"pg_restore", "--username", "postgres", "--dbname", "postgres", "--create", "--no-privileges", "--clean", "--if-exists", "--jobs", "4", ""},
 		},
 		{
 			CopyOptions: RestoreOptions{
@@ -40,7 +40,7 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				Partial:      Partial{Tables: []string{"test", "users"}},
 				DumpFile:     "/tmp/db.dump",
 			},
-			Command: []string{"pg_restore", "-U", "postgres", "-C", "-d", "testDB", "-j", "1", "-t", "test", "-t", "users", "/tmp/db.dump"},
+			Command: []string{"pg_restore", "--username", "postgres", "--dbname", "postgres", "--create", "--no-privileges", "--jobs", "1", "--table", "test", "--table", "users", "/tmp/db.dump"},
 		},
 	}
 
