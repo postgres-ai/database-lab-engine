@@ -5,6 +5,8 @@ DIR=${0%/*}
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:master"
 SOURCE_DBNAME="${SOURCE_DBNAME:-test}"
 SOURCE_HOST="${SOURCE_HOST:-undefined}"
+SOURCE_HOST="${SOURCE_HOST:-undefined}"
+SOURCE_USERNAME="${SOURCE_USERNAME:-undefined}"
 SOURCE_PASSWORD="${SOURCE_PASSWORD:-undefined}"
 
 ### Step 1: Prepare a machine with two disks, Docker and ZFS
@@ -22,6 +24,7 @@ sed -ri 's/^(\s*)(debug:.*$)/\1debug: true/' ~/.dblab/server_test.yml
 sed -ri 's/^(\s*)(pool:.*$)/\1pool: "test_pool"/' ~/.dblab/server_test.yml
 sed -ri "s/^(\s*)(host: 34\.56\.78\.90$)/\1host: \"${SOURCE_HOST}\"/" ~/.dblab/server_test.yml
 sed -ri "s/^(\s*)(dbname:.*$)/\1dbname: \"${SOURCE_DBNAME}\"/" ~/.dblab/server_test.yml
+sed -ri "s/^(\s*)(username: postgres$)/\username: \"${SOURCE_USERNAME}\"/" ~/.dblab/server_test.yml
 sed -ri "s/^(\s*)(password:.*$)/\1password: \"${SOURCE_PASSWORD}\"/" ~/.dblab/server_test.yml
 sed -ri "s/^(\s*)(parallelJobs:.*$)/\1parallelJobs: 1/" ~/.dblab/server_test.yml
 sed -ri "s/^(\s*)(forceInit:.*$)/\1forceInit: true/" ~/.dblab/server_test.yml
