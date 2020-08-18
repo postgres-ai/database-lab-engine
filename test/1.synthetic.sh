@@ -13,7 +13,7 @@ source "${DIR}/_zfs.file.sh"
 
 sudo docker run \
   --name dblab_pg_initdb \
-  --label dblab_sync \
+  --label dblab_control \
   --env PGDATA=/var/lib/postgresql/pgdata \
   --env POSTGRES_HOST_AUTH_METHOD=trust \
   --volume /var/lib/dblab/data:/var/lib/postgresql/pgdata \
