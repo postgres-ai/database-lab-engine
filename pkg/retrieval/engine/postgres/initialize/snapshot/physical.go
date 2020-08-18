@@ -465,7 +465,7 @@ func (p *PhysicalInitial) adjustRecoveryConfiguration(pgVersion, clonePGDataDir 
 
 func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage string) *container.Config {
 	return &container.Config{
-		Labels: map[string]string{"label": "dblab_control"},
+		Labels: map[string]string{"label": tools.DBLabControlLabel},
 		Env: []string{
 			"PGDATA=" + clonePath,
 			"POSTGRES_HOST_AUTH_METHOD=trust",

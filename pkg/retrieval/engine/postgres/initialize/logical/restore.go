@@ -148,10 +148,6 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", r.restoreContainerName(), cont.ID))
 
-	if err := r.markDatabase(ctx, cont.ID); err != nil {
-		return errors.Wrap(err, "failed to mark the database")
-	}
-
 	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, cont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
 	}
@@ -182,10 +178,14 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to exec restore command")
 	}
 
+	if err := r.markDatabase(ctx, cont.ID); err != nil {
+		return errors.Wrap(err, "failed to mark the database")
+	}
+
 	if err := recalculateStats(ctx, r.dockerClient, cont.ID, buildAnalyzeCommand(Connection{
-		DBName:   r.RestoreOptions.DBName,
 		Username: defaults.Username,
-	})); err != nil {
+		DBName:   r.RestoreOptions.DBName,
+	}, r.RestoreOptions.ParallelJobs)); err != nil {
 		return errors.Wrap(err, "failed to recalculate statistics after restore")
 	}
 
@@ -196,8 +196,10 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 func (r *RestoreJob) buildContainerConfig() *container.Config {
 	return &container.Config{
+		Labels: map[string]string{"label": tools.DBLabControlLabel},
 		Env: []string{
 			"PGDATA=" + r.globalCfg.DataDir,
+			"POSTGRES_HOST_AUTH_METHOD=trust",
 		},
 		Image:       r.RestoreOptions.DockerImage,
 		Healthcheck: health.GetConfig(),
@@ -244,7 +246,7 @@ func (r *RestoreJob) markDatabase(ctx context.Context, contID string) error {
 }
 
 func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID string) (string, error) {
-	restoreMetaCmd := []string{"sh", "-c", "pg_restore -l " + r.RestoreOptions.DumpFile + " | head -n 10"}
+	restoreMetaCmd := []string{"sh", "-c", "pg_restore --list " + r.RestoreOptions.DumpFile + " | head -n 10"}
 
 	log.Dbg("Running a restore metadata command: ", restoreMetaCmd)
 
@@ -273,18 +275,19 @@ func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID string) (st
 }
 
 func (r *RestoreJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"pg_restore", "-U", defaults.Username, "-C"}
+	restoreCmd := []string{"pg_restore", "--username", defaults.Username, "--dbname", defaults.DBName, "--create", "--no-privileges"}
 
 	if r.ForceInit {
-		restoreCmd = append(restoreCmd, "-d", defaults.DBName, "--clean", "--if-exists")
-	} else {
-		restoreCmd = append(restoreCmd, "-d", r.RestoreOptions.DBName)
+		restoreCmd = append(restoreCmd, "--clean", "--if-exists")
 	}
+	//else {
+	//	restoreCmd = append(restoreCmd)
+	//}
 
-	restoreCmd = append(restoreCmd, "-j", strconv.Itoa(r.ParallelJobs))
+	restoreCmd = append(restoreCmd, "--jobs", strconv.Itoa(r.ParallelJobs))
 
 	for _, table := range r.Partial.Tables {
-		restoreCmd = append(restoreCmd, "-t", table)
+		restoreCmd = append(restoreCmd, "--table", table)
 	}
 
 	restoreCmd = append(restoreCmd, r.RestoreOptions.DumpFile)

@@ -38,6 +38,9 @@ const (
 
 	// SyncInstanceContainerPrefix defines a sync container name.
 	SyncInstanceContainerPrefix = "dblab_sync_"
+
+	// DBLabControlLabel defines a label to mark service containers.
+	DBLabControlLabel = "dblab_control"
 )
 
 // IsEmptyDirectory checks whether a directory is empty.

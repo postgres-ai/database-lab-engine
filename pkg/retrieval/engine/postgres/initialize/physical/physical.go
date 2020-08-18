@@ -360,8 +360,9 @@ func (r *RestoreJob) getEnvironmentVariables() []string {
 
 func (r *RestoreJob) buildContainerConfig() *container.Config {
 	return &container.Config{
-		Env:   r.getEnvironmentVariables(),
-		Image: r.DockerImage,
+		Labels: map[string]string{"label": tools.DBLabControlLabel},
+		Env:    r.getEnvironmentVariables(),
+		Image:  r.DockerImage,
 	}
 }
 
