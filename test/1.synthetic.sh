@@ -48,7 +48,7 @@ sudo docker run \
   --privileged \
   --publish 12345:12345 \
   --volume /var/run/docker.sock:/var/run/docker.sock \
-  --volume /var/lib/dblab/data:/var/lib/dblab/data:rshared \
+  --volume /var/lib/dblab:/var/lib/dblab:rshared \
   --volume ~/.dblab/server_test.yml:/home/dblab/configs/config.yml \
   "${IMAGE2TEST}"
 

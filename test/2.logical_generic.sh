@@ -5,7 +5,6 @@ DIR=${0%/*}
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:master"
 SOURCE_DBNAME="${SOURCE_DBNAME:-test}"
 SOURCE_HOST="${SOURCE_HOST:-undefined}"
-SOURCE_HOST="${SOURCE_HOST:-undefined}"
 SOURCE_USERNAME="${SOURCE_USERNAME:-undefined}"
 SOURCE_PASSWORD="${SOURCE_PASSWORD:-undefined}"
 
@@ -29,8 +28,6 @@ sed -ri "s/^(\s*)(password:.*$)/\1password: \"${SOURCE_PASSWORD}\"/" ~/.dblab/se
 sed -ri "s/^(\s*)(parallelJobs:.*$)/\1parallelJobs: 1/" ~/.dblab/server_test.yml
 sed -ri "s/^(\s*)(forceInit:.*$)/\1forceInit: true/" ~/.dblab/server_test.yml
 
-# TMP: turn off "initialize" completely
-
 sudo docker run \
   --detach \
   --name dblab_test \
@@ -38,7 +35,7 @@ sudo docker run \
   --privileged \
   --publish 12345:12345 \
   --volume /var/run/docker.sock:/var/run/docker.sock \
-  --volume /var/lib/dblab/data:/var/lib/dblab/data:rshared \
+  --volume /var/lib/dblab:/var/lib/dblab:rshared \
   --volume ~/.dblab/server_test.yml:/home/dblab/configs/config.yml \
   "${IMAGE2TEST}"
 
