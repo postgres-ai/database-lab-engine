@@ -18,10 +18,9 @@ server:
   verificationToken: "secret_token"
 
   # The host which the Database Lab server accepts HTTP connections to.
-  # By default: "127.0.0.1".
+  # By default uses an empty string to accept connections to all network interfaces.
   # Keep it default when running inside a Docker container.
-  # Use an empty string to accept connections to all network interfaces.
-  host: "127.0.0.1"
+  host: ""
 
   # HTTP server port. Default: 2345.
   port: 2345
@@ -65,9 +64,9 @@ provision:
   #      dataDir (PostgreSQL data directory):  /var/lib/dblab/data
   #      pgDataSubdir:  /pgdata
   # -- in this case, we assume that the mount point is: /var/lib/dblab
-  # Note, that, despite the fact that it alwats begins with "/",
+  # Note, that, despite the fact that it always begins with "/",
   # it is a relative path. Default: "/".
-  pgDataSubdir: "/data"
+  pgDataSubdir: "/"
 
   # Database username that will be used for Postgres management connections.
   # This user must exist.
