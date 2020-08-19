@@ -72,3 +72,16 @@ dblab clone list
 export PGPASSWORD=testuser
 psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
 
+### Step ?. Restart containers
+sudo docker ps -a --filter 'label=dblab_control' \
+    | grep -v CONTAINER \
+    | awk '{print $1}' \
+    | sudo xargs --no-run-if-empty docker restart \
+  || true
+sudo docker ps -a --filter 'label=dblab-clone' \
+    | grep -v CONTAINER \
+    | awk '{print $1}' \
+    | sudo xargs --no-run-if-empty docker restart \
+  || true
+
+psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
