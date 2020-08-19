@@ -15,39 +15,45 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/components"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/logical"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/physical"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
 )
 
 // Retrieval describes a data retrieval.
 type Retrieval struct {
-	config       *config.Config
-	stageBuilder components.StageBuilder
-	stages       []components.StageRunner
-	cloneManager thinclones.Manager
+	config          *config.Config
+	retrievalRunner components.JobBuilder
+	cloneManager    thinclones.Manager
+	jobs            []components.JobRunner
 }
 
 // New creates a new data retrieval.
 func New(cfg *dblabCfg.Config, dockerCLI *client.Client, cloneManager thinclones.Manager) (*Retrieval, error) {
-	stageBuilder, err := engine.StageBuilder(&cfg.Global, dockerCLI, cloneManager)
+	retrievalRunner, err := engine.JobBuilder(&cfg.Global, dockerCLI, cloneManager)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get stageBuilder")
+		return nil, errors.Wrap(err, "failed to get a job builder")
 	}
 
 	return &Retrieval{
-		config:       &cfg.Retrieval,
-		stageBuilder: stageBuilder,
-		cloneManager: cloneManager,
+		config:          &cfg.Retrieval,
+		retrievalRunner: retrievalRunner,
+		cloneManager:    cloneManager,
 	}, nil
 }
 
 // Run start retrieving process.
-func (p *Retrieval) Run(ctx context.Context) error {
-	if err := p.parseStages(); err != nil {
-		return errors.Wrap(err, "failed to parse retrieval stages")
+func (r *Retrieval) Run(ctx context.Context) error {
+	if err := r.parseJobs(); err != nil {
+		return errors.Wrap(err, "failed to parse retrieval jobs")
 	}
 
-	for _, s := range p.stages {
-		if err := s.Run(ctx); err != nil {
+	if err := r.validate(); err != nil {
+		return errors.Wrap(err, "invalid initialize stage configuration")
+	}
+
+	for _, j := range r.jobs {
+		if err := j.Run(ctx); err != nil {
 			return err
 		}
 	}
@@ -55,30 +61,45 @@ func (p *Retrieval) Run(ctx context.Context) error {
 	return nil
 }
 
-// parseStages processes configuration to define data retrieval stages and jobs.
-func (p *Retrieval) parseStages() error {
-	for _, stageName := range p.config.Stages {
-		stageRunner, err := p.stageBuilder.BuildStageRunner(stageName)
+// parseJobs processes configuration to define data retrieval jobs.
+func (r *Retrieval) parseJobs() error {
+	for _, jobName := range r.config.Jobs {
+		jobConfig, ok := r.config.JobsSpec[jobName]
+		if !ok {
+			return errors.Errorf("Job %q not found", jobName)
+		}
+
+		jobConfig.Name = jobName
+
+		job, err := r.retrievalRunner.BuildJob(jobConfig)
 		if err != nil {
-			return errors.Wrap(err, "failed to build stage")
+			return errors.Wrap(err, "failed to build job")
 		}
 
-		for _, jobConfig := range p.config.StageSpec[stageName].Jobs {
-			job, err := stageRunner.BuildJob(jobConfig)
-			if err != nil {
-				return errors.Wrap(err, "failed to build job")
-			}
-
-			stageRunner.AddJob(job)
-		}
-
-		p.addStage(stageRunner)
+		r.addJob(job)
 	}
 
 	return nil
 }
 
-// addStage applies a stage to the current data retrieval.
-func (p *Retrieval) addStage(stage components.StageRunner) {
-	p.stages = append(p.stages, stage)
+// addJob applies a stage to the current data retrieval.
+func (r *Retrieval) addJob(job components.JobRunner) {
+	r.jobs = append(r.jobs, job)
+}
+
+func (r *Retrieval) validate() error {
+	jobsList := make(map[string]struct{}, len(r.jobs))
+
+	for _, job := range r.jobs {
+		jobsList[job.Name()] = struct{}{}
+	}
+
+	_, hasLogical := jobsList[logical.RestoreJobType]
+	_, hasPhysical := jobsList[physical.RestoreJobType]
+
+	if hasLogical && hasPhysical {
+		return errors.New("must not contain physical and logical restore jobs simultaneously")
+	}
+
+	return nil
 }

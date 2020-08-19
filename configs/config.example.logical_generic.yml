@@ -44,9 +44,9 @@ global:
   # data initialization is configured (see below).
   dataDir: "/var/lib/dblab/data"
 
-# Debugging, when enabled, allows to see more in the Database Lab logs
-# (not PostgreSQL logs). Enable in the case of troubleshooting.
-debug: false
+  # Debugging, when enabled, allows to see more in the Database Lab logs
+  # (not PostgreSQL logs). Enable in the case of troubleshooting.
+  debug: false
 
 # Details of provisioning – where data is located,
 # thin cloning method, etc.
@@ -131,110 +131,109 @@ provision:
 #                blocks location. Not supported for managed cloud Postgres services
 #                such as Amazon RDS.
 retrieval:
-  stages:
-    - initialize
+  # The jobs section must not contain physical and logical restore jobs simultaneously.
+  jobs:
+    - logical-dump
+    - logical-restore
+    - logical-snapshot
 
   spec:
-    # The initialize stage provides declarative initialization of the PostgreSQL data directory used by Database Lab Engine.
-    # The stage must not contain physical and logical restore jobs simultaneously.
-    initialize:
-      jobs:
-        # Dumps PostgreSQL database from provided source.
-        - name: logical-dump
-          options:
-            # The dump file will be automatically created on this location and then used to restore.
-            # Ensure that there is enough disk space.
-            dumpLocation: "/var/lib/dblab/db.dump"
+    # Dumps PostgreSQL database from provided source.
+    logical-dump:
+      options:
+        # The dump file will be automatically created on this location and then used to restore.
+        # Ensure that there is enough disk space.
+        dumpLocation: "/var/lib/dblab/db.dump"
 
-            # The Docker image containing the tools required to get a dump.
-            dockerImage: "postgres:12-alpine"
+        # The Docker image containing the tools required to get a dump.
+        dockerImage: "postgres:12-alpine"
 
-            # Source of data.
-            source:
-              # Source types: "local", "remote", "rds"
-              type: remote
+        # Source of data.
+        source:
+          # Source types: "local", "remote", "rds"
+          type: remote
 
-              # Connection parameters of the database to be dumped.
-              connection:
-                # Database connection parameters.
-                # Currently, only password can be specified via environment variable (PGPASSWORD),
-                # everything else needs to be specified here.
-                dbname: postgres
-                host: 34.56.78.90
-                port: 5432
-                username: postgres
+          # Connection parameters of the database to be dumped.
+          connection:
+            # Database connection parameters.
+            # Currently, only password can be specified via environment variable (PGPASSWORD),
+            # everything else needs to be specified here.
+            dbname: postgres
+            host: 34.56.78.90
+            port: 5432
+            username: postgres
 
-                # Connection password. The environment variable PGPASSWORD can be used instead of this option.
-                # The environment variable has a higher priority.
-                password: postgres
+            # Connection password. The environment variable PGPASSWORD can be used instead of this option.
+            # The environment variable has a higher priority.
+            password: postgres
 
-            # Options for a partial dump.
-            # partial:
-            #   tables:
-            #     - test
+        # Options for a partial dump.
+        # partial:
+        #   tables:
+        #     - test
 
-            # Use parallel jobs to dump faster.
-            # It's ignored if "restore" is present because "pg_dump | pg_restore" is always single-threaded.
-            parallelJobs: 2
+        # Use parallel jobs to dump faster.
+        # It's ignored if "restore" is present because "pg_dump | pg_restore" is always single-threaded.
+        parallelJobs: 2
 
-            # Options for direct restore to Database Lab Engine instance.
-            # Uncomment this if you prefer restoring from the dump on the fly. In this case,
-            # you do not need to use "logical-restore" job. Keep in mind that unlike "logical-restore",
-            # this option does not support parallelization, it is always a single-threaded (both for
-            # dumping on the source, and restoring on the destination end).
-            # restore:
-            #   # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
-            #   # Note the existing data might be overwritten.
-            #   forceInit: false
+        # Options for direct restore to Database Lab Engine instance.
+        # Uncomment this if you prefer restoring from the dump on the fly. In this case,
+        # you do not need to use "logical-restore" job. Keep in mind that unlike "logical-restore",
+        # this option does not support parallelization, it is always a single-threaded (both for
+        # dumping on the source, and restoring on the destination end).
+        # restore:
+        #   # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
+        #   # Note the existing data might be overwritten.
+        #   forceInit: false
 
-        # Restores PostgreSQL database from the provided dump. If you use this block, do not use
-        # "restore" option in the "logical-dump" job.
-        - name: logical-restore
-          options:
-            dbname: "test"
+    # Restores PostgreSQL database from the provided dump. If you use this block, do not use
+    # "restore" option in the "logical-dump" job.
+    logical-restore:
+      options:
+        dbname: "test"
 
-            # The location of the archive file (or directory, for a directory-format archive) to be restored.
-            dumpLocation: "/var/lib/dblab/db.dump"
+        # The location of the archive file (or directory, for a directory-format archive) to be restored.
+        dumpLocation: "/var/lib/dblab/db.dump"
 
-            # The Docker image containing the tools required to restore.
-            dockerImage: "postgres:12-alpine"
+        # The Docker image containing the tools required to restore.
+        dockerImage: "postgres:12-alpine"
 
-            # Use parallel jobs to restore faster.
-            parallelJobs: 2
+        # Use parallel jobs to restore faster.
+        parallelJobs: 2
 
 
-            # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
-            # Note the existing data might be overwritten.
-            forceInit: false
+        # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
+        # Note the existing data might be overwritten.
+        forceInit: false
 
-            # Options for a partial dump.
-            # partial:
-            #   tables:
-            #     - test
+        # Options for a partial dump.
+        # partial:
+        #   tables:
+        #     - test
 
-        - name: logical-snapshot
-          options:
-            # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
-            # Default: empty string (no pre-processing defined).
-            # This can be used for scrubbing eliminating PII data, to define data masking, etc.
-            preprocessingScript: ""
+    logical-snapshot:
+      options:
+        # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
+        # Default: empty string (no pre-processing defined).
+        # This can be used for scrubbing eliminating PII data, to define data masking, etc.
+        preprocessingScript: ""
 
-            # Adjust PostgreSQL configuration
-            configs:
-              # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
-              shared_buffers: 1GB
-              # shared_preload_libraries – copy the value from the source
-              shared_preload_libraries: "pg_stat_statements"
-              # work_mem and all the Query Planning parameters – copy the values from the source.
-              # To do it, use this query:
-              #     select format($$%s = '%s'$$, name, setting)
-              #     from pg_settings
-              #     where
-              #       name ~ '(work_mem$|^enable_|_cost$|scan_size$|effective_cache_size|^jit)'
-              #       or name ~ '(^geqo|default_statistics_target|constraint_exclusion|cursor_tuple_fraction)'
-              #       or name ~ '(collapse_limit$|parallel|plan_cache_mode)';
-              work_mem: "100MB"
-              # ... put Query Planning parameters here
+        # Adjust PostgreSQL configuration
+        configs:
+          # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
+          shared_buffers: 1GB
+          # shared_preload_libraries – copy the value from the source
+          shared_preload_libraries: "pg_stat_statements"
+          # work_mem and all the Query Planning parameters – copy the values from the source.
+          # To do it, use this query:
+          #     select format($$%s = '%s'$$, name, setting)
+          #     from pg_settings
+          #     where
+          #       name ~ '(work_mem$|^enable_|_cost$|scan_size$|effective_cache_size|^jit)'
+          #       or name ~ '(^geqo|default_statistics_target|constraint_exclusion|cursor_tuple_fraction)'
+          #       or name ~ '(collapse_limit$|parallel|plan_cache_mode)';
+          work_mem: "100MB"
+          # ... put Query Planning parameters here
 
 cloning:
   # Deprecated field. Default: "base".

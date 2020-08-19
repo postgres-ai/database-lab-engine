@@ -2,7 +2,7 @@
 2020 © Postgres.ai
 */
 
-// Package options provides helpers to process retriever options.
+// Package options provides helpers to process retrieval options.
 package options
 
 import (

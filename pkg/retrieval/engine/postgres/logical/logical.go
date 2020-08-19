@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
 )
 
 func recalculateStats(ctx context.Context, dockerClient *client.Client, contID string, analyzeCmd []string) error {
