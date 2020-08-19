@@ -38,8 +38,7 @@ type Config struct {
 	ModeLocal ModeLocalConfig `yaml:"local"`
 
 	// Postgres options.
-	PgVersion    string `yaml:"pgVersion"`
-	PgDataSubdir string `yaml:"pgDataSubdir"`
+	PgVersion string `yaml:"pgVersion"`
 
 	// Database user will be created with the specified credentials.
 	PgMgmtUsername string `yaml:"pgMgmtUsername"`

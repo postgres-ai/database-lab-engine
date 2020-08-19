@@ -6,10 +6,13 @@
 package docker
 
 import (
+	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/shirou/gopsutil/host"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
@@ -21,17 +24,44 @@ const (
 
 // RunContainer runs specified container.
 func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
+	hostInfo, err := host.Info()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get host info")
+	}
+
+	// Directly mount PGDATA if Database Lab is running without any virtualization.
+	socketVolume := fmt.Sprintf("--volume %s:%s", c.Datadir, c.Datadir)
+
+	if hostInfo.VirtualizationRole == "guest" {
+		// Use volumes from the Database Lab instance if it's running inside Docker container.
+		socketVolume = "--volumes-from=" + hostInfo.Hostname
+	}
+
+	if err := createSocketCloneDir(c.UnixSocketCloneDir); err != nil {
+		return "", errors.Wrap(err, "failed to create socket clone directory")
+	}
+
 	dockerRunCmd := "docker run " +
 		"--name " + c.CloneName + " " +
 		"--detach " +
-		"--publish " + strconv.FormatUint(uint64(c.Port), 10) + ":5432 " +
-		"--env PGDATA=/var/lib/postgresql/pgdata " +
-		"--volume " + c.Datadir + ":/var/lib/postgresql/pgdata " +
-		"--volume " + c.UnixSocketCloneDir + ":/var/run/postgresql " +
+		"--publish " + strconv.Itoa(int(c.Port)) + ":5432 " +
+		"--env PGDATA=" + c.Datadir + " " + socketVolume + " " +
 		"--label " + labelClone + " " +
-		c.DockerImage
+		c.DockerImage + " -k " + c.UnixSocketCloneDir
 
 	return r.Run(dockerRunCmd, true)
+}
+
+func createSocketCloneDir(socketCloneDir string) error {
+	if err := os.MkdirAll(socketCloneDir, 0777); err != nil {
+		return err
+	}
+
+	if err := os.Chmod(socketCloneDir, 0777); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // StopContainer stops specified container.

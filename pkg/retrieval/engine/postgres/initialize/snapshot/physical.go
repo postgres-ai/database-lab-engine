@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
+	"github.com/sethvargo/go-password/password"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -327,9 +328,14 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to scan image pulling response")
 	}
 
+	pwd, err := password.Generate(tools.PasswordLength, tools.PasswordMinDigits, tools.PasswordMinSymbols, false, true)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate PostgreSQL password")
+	}
+
 	// Run promotion container.
 	cont, err := p.dockerClient.ContainerCreate(ctx,
-		p.buildContainerConfig(clonePath, promoteImage),
+		p.buildContainerConfig(clonePath, promoteImage, pwd),
 		hostConfig,
 		&network.NetworkingConfig{},
 		p.promoteContainerName(),
@@ -463,12 +469,12 @@ func (p *PhysicalInitial) adjustRecoveryConfiguration(pgVersion, clonePGDataDir 
 	return nil
 }
 
-func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage string) *container.Config {
+func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password string) *container.Config {
 	return &container.Config{
 		Labels: map[string]string{"label": tools.DBLabControlLabel},
 		Env: []string{
 			"PGDATA=" + clonePath,
-			"POSTGRES_HOST_AUTH_METHOD=trust",
+			"POSTGRES_PASSWORD=" + password,
 		},
 		Image: promoteImage,
 		Healthcheck: health.GetConfig(
