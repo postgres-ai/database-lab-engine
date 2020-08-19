@@ -54,6 +54,8 @@ sudo docker run \
   --volume ~/.dblab/server_test.yml:/home/dblab/configs/config.yml \
   "${IMAGE2TEST}"
 
+sudo docker logs -f dblab_test 2>&1 | awk '{print "[CONTAINER dblab_test]: "$0}' &
+
 ### Waiting fori dblab initialization 
 while true; do
   curl http://localhost:12345 && break
