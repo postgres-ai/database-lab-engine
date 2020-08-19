@@ -40,7 +40,8 @@ sed -ri 's/^(\s*)(host:.*$)/\1host: ""/' ~/.dblab/server_test.yml
 sed -ri 's/^(\s*)(port: 2345$)/\1port: 12345/' ~/.dblab/server_test.yml
 sed -ri 's/^(\s*)(debug:.*$)/\1debug: true/' ~/.dblab/server_test.yml
 sed -ri 's/^(\s*)(pool:.*$)/\1pool: "test_pool"/' ~/.dblab/server_test.yml
-sed -ri 's/^(\s*)(pool:.*$)/\1pool: "test_pool"/' ~/.dblab/server_test.yml
+#sed -ri 's/^(\s*)(pool:.*$)/\1pool: "test_pool"/' ~/.dblab/server_test.yml
+sed -ri 's/^(\s*)(pgDataSubdir:.*$)/\1pgDataSubdir: "\/"/' ~/.dblab/server_test.yml
 
 sudo docker run \
   --detach \
@@ -64,4 +65,10 @@ curl https://gitlab.com/postgres-ai/database-lab/-/raw/master/scripts/cli_instal
 dblab --version
 dblab init --url http://localhost:12345 --token secret_token --environment-id test
 dblab instance status
+
+### Step ?. Create clone and connect to it
+dblab clone create --username testuser --password testuser --id testclone
+dblab clone list
+export PGPASSWORD=testuser
+psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
 

@@ -7,7 +7,8 @@ curl --version || sudo apt-get update && sudo apt-get install -y \
   curl \
   gnupg-agent \
   software-properties-common \
-  curl
+  curl \
+  postgresql-client  
 
 # ZFS
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
