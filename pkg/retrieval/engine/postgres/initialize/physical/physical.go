@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
+	"github.com/sethvargo/go-password/password"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -245,8 +246,13 @@ func (r *RestoreJob) startContainer(ctx context.Context, containerName string) (
 		return "", errors.Wrap(err, "failed to build container host config")
 	}
 
+	pwd, err := password.Generate(tools.PasswordLength, tools.PasswordMinDigits, tools.PasswordMinSymbols, false, true)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to generate PostgreSQL password")
+	}
+
 	syncInstance, err := r.dockerClient.ContainerCreate(ctx,
-		r.buildContainerConfig(),
+		r.buildContainerConfig(pwd),
 		hostConfig,
 		&network.NetworkingConfig{},
 		containerName,
@@ -345,9 +351,9 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 	return nil
 }
 
-func (r *RestoreJob) getEnvironmentVariables() []string {
+func (r *RestoreJob) getEnvironmentVariables(password string) []string {
 	envVariables := append([]string{
-		"POSTGRES_HOST_AUTH_METHOD=trust",
+		"POSTGRES_PASSWORD=" + password,
 		"PGDATA=" + r.globalCfg.DataDir,
 	}, r.restorer.GetEnvVariables()...)
 
@@ -358,10 +364,10 @@ func (r *RestoreJob) getEnvironmentVariables() []string {
 	return envVariables
 }
 
-func (r *RestoreJob) buildContainerConfig() *container.Config {
+func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 	return &container.Config{
 		Labels: map[string]string{"label": tools.DBLabControlLabel},
-		Env:    r.getEnvironmentVariables(),
+		Env:    r.getEnvironmentVariables(password),
 		Image:  r.DockerImage,
 	}
 }

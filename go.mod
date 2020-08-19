@@ -25,6 +25,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/xid v1.2.1
 	github.com/sergi/go-diff v1.1.0
+	github.com/sethvargo/go-password v0.2.0
 	github.com/shirou/gopsutil v2.20.7+incompatible
 	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.5.1

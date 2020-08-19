@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
+	"github.com/sethvargo/go-password/password"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -124,8 +125,13 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to build container host config")
 	}
 
+	pwd, err := password.Generate(tools.PasswordLength, tools.PasswordMinDigits, tools.PasswordMinSymbols, false, true)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate PostgreSQL password")
+	}
+
 	cont, err := r.dockerClient.ContainerCreate(ctx,
-		r.buildContainerConfig(),
+		r.buildContainerConfig(pwd),
 		hostConfig,
 		&network.NetworkingConfig{},
 		r.restoreContainerName(),
@@ -194,12 +200,12 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	return nil
 }
 
-func (r *RestoreJob) buildContainerConfig() *container.Config {
+func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 	return &container.Config{
 		Labels: map[string]string{"label": tools.DBLabControlLabel},
 		Env: []string{
 			"PGDATA=" + r.globalCfg.DataDir,
-			"POSTGRES_HOST_AUTH_METHOD=trust",
+			"POSTGRES_PASSWORD=" + password,
 		},
 		Image:       r.RestoreOptions.DockerImage,
 		Healthcheck: health.GetConfig(),

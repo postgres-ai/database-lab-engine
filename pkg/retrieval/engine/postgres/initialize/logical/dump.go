@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
+	"github.com/sethvargo/go-password/password"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -224,7 +225,12 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to build container host config")
 	}
 
-	cont, err := d.dockerClient.ContainerCreate(ctx, d.buildContainerConfig(), hostConfig, &network.NetworkingConfig{},
+	pwd, err := password.Generate(tools.PasswordLength, tools.PasswordMinDigits, tools.PasswordMinSymbols, false, true)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate PostgreSQL password")
+	}
+
+	cont, err := d.dockerClient.ContainerCreate(ctx, d.buildContainerConfig(pwd), hostConfig, &network.NetworkingConfig{},
 		d.dumpContainerName(),
 	)
 	if err != nil {
@@ -328,9 +334,9 @@ func (d *DumpJob) performDumpCommand(ctx context.Context, cmdOutput io.Writer, c
 	return nil
 }
 
-func (d *DumpJob) getEnvironmentVariables() []string {
+func (d *DumpJob) getEnvironmentVariables(password string) []string {
 	envs := []string{
-		"POSTGRES_HOST_AUTH_METHOD=trust",
+		"POSTGRES_PASSWORD=" + password,
 	}
 
 	// Avoid initialization of PostgreSQL directory in case of preparing of a dump.
@@ -346,10 +352,10 @@ func (d *DumpJob) getEnvironmentVariables() []string {
 	return envs
 }
 
-func (d *DumpJob) buildContainerConfig() *container.Config {
+func (d *DumpJob) buildContainerConfig(password string) *container.Config {
 	return &container.Config{
 		Labels:      map[string]string{"label": tools.DBLabControlLabel},
-		Env:         d.getEnvironmentVariables(),
+		Env:         d.getEnvironmentVariables(password),
 		Image:       d.DockerImage,
 		Healthcheck: health.GetConfig(),
 	}

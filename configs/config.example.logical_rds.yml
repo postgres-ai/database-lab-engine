@@ -55,19 +55,6 @@ provision:
   # Do not edit this.
   mode: "local"
 
-  # Subdir where PGDATA located relative to the pool root dir.
-  # It is a part of global.dataDir, *with* leading slashes.
-  # If PGDATA is supposed to be in global.dataDir and this is the mount point,
-  # then use "/" in pgDataSubdir.
-  # Otherwise, use the final part (everything except the mount point), with leading slash.
-  # Example:
-  #      dataDir (PostgreSQL data directory):  /var/lib/dblab/data
-  #      pgDataSubdir:  /pgdata
-  # -- in this case, we assume that the mount point is: /var/lib/dblab
-  # Note, that, despite the fact that it always begins with "/",
-  # it is a relative path. Default: "/".
-  pgDataSubdir: "/"
-
   # Database username that will be used for Postgres management connections.
   # This user must exist.
   # The password is not needed – it will be set automatically.

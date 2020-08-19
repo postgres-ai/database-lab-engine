@@ -474,7 +474,7 @@ func (j *provisionModeLocal) getAppConfig(name string, port uint) *resources.App
 		CloneName:          name,
 		Version:            j.config.PgVersion,
 		DockerImage:        j.config.ModeLocal.DockerImage,
-		Datadir:            path.Clean(j.config.ModeLocal.MountDir + name + j.config.PgDataSubdir),
+		Datadir:            path.Clean(j.config.ModeLocal.MountDir + name),
 		Host:               host,
 		Port:               port,
 		UnixSocketCloneDir: unixSocketCloneDir,
