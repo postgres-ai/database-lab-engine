@@ -23,9 +23,9 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools/defaults"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools/health"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 )
 

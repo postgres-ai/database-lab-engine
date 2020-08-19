@@ -11,9 +11,10 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 )
 
-// StageBuilder builds a StageRunner.
-type StageBuilder interface {
-	BuildStageRunner(stageName string) (StageRunner, error)
+// JobBuilder builds jobs.
+type JobBuilder interface {
+	// BuildJob builds retrieval jobs.
+	BuildJob(config.JobConfig) (JobRunner, error)
 }
 
 // JobRunner performs a job.
@@ -22,17 +23,5 @@ type JobRunner interface {
 	Name() string
 
 	// Run starts a job.
-	Run(ctx context.Context) error
-}
-
-// StageRunner declares stage content and performs stage jobs.
-type StageRunner interface {
-	// AddJob applies jobs to the current stage.
-	AddJob(JobRunner)
-
-	// BuildJob builds stage jobs.
-	BuildJob(config.JobConfig) (JobRunner, error)
-
-	// Run starts stage jobs.
 	Run(ctx context.Context) error
 }

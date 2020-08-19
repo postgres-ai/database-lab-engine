@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 )
 
 const (

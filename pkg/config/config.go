@@ -29,13 +29,13 @@ type Config struct {
 	Platform  platform.Config  `yaml:"platform"`
 	Global    Global           `yaml:"global"`
 	Retrieval config.Config    `yaml:"retrieval"`
-	Debug     bool             `yaml:"debug"`
 }
 
 // Global contains global Database Lab configurations.
 type Global struct {
 	InstanceID string
 	Engine     string `yaml:"engine"`
+	Debug      bool   `yaml:"debug"`
 	DataDir    string `yaml:"dataDir"`
 	MountDir   string // TODO (akartasov): Use MountDir for the ModeLocalConfig of a Provision service.
 }

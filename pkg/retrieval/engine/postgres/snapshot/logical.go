@@ -14,7 +14,7 @@ import (
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/initialize/tools"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/configuration"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"

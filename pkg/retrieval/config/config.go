@@ -7,13 +7,8 @@ package config
 
 // Config describes of data retrieval stages.
 type Config struct {
-	Stages    []string        `yaml:"stages,flow"`
-	StageSpec map[string]Spec `yaml:"spec"`
-}
-
-// Spec describes a retrieval job.
-type Spec struct {
-	Jobs []JobConfig `yaml:"jobs,flow"`
+	Jobs     []string             `yaml:"jobs,flow"`
+	JobsSpec map[string]JobConfig `yaml:"spec"`
 }
 
 // JobConfig contains details about a job.
