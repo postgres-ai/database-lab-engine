@@ -36,6 +36,7 @@ sudo docker rm dblab_pg_initdb
 ### Step ?. Configure and launch the Database Lab server
 mkdir -p ~/.dblab
 cp ./configs/config.example.physical_generic.yml ~/.dblab/server_test.yml
+sed -ri 's/^(\s*)(host:.*$)/\1host: ""/' ~/.dblab/server_test.yml
 sed -ri 's/^(\s*)(port: 2345$)/\1port: 12345/' ~/.dblab/server_test.yml
 sed -ri 's/^(\s*)(debug:.*$)/\1debug: true/' ~/.dblab/server_test.yml
 sed -ri 's/^(\s*)(pool:.*$)/\1pool: "test_pool"/' ~/.dblab/server_test.yml
@@ -52,4 +53,15 @@ sudo docker run \
   --volume ~/.dblab/server_test.yml:/home/dblab/configs/config.yml \
   "${IMAGE2TEST}"
 
-### Step ?. Setup Database Lab client CLI
+### Waiting fori dblab initialization 
+while true; do
+  curl http://localhost:12345 && break
+  sleep 10
+done
+
+### Step ?. Setup Dnd init atabase Lab client CLI
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/master/scripts/cli_install.sh | bash
+dblab --version
+dblab init --url http://localhost:12345 --token secret_token --environment-id test
+dblab instance status
+
