@@ -16,4 +16,4 @@ sudo umount /var/lib/dblab/data || true
 sudo rm -f "${ZFS_FILE}"
 rm -f ~/.dblab/server_test.yml
 
-dblab config remove test
+dblab config remove test || true
