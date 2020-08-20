@@ -1,4 +1,4 @@
-# Run with config.yml mount:
+# Run with server.yml mount:
 # sudo docker run \
 #   --name dblab_server \
 #   --label dblab_control \
@@ -7,7 +7,7 @@
 #   --restart on-failure \
 #   --volume /var/run/docker.sock:/var/run/docker.sock \
 #   --volume /var/lib/dblab:/var/lib/dblab:rshared \
-#   --volume ~/.dblab/configs/config.yml:/home/dblab/configs/config.yml \
+#   --volume ~/.dblab/server.yml:/home/dblab/configs/config.yml \
 #   --env VERIFICATION_TOKEN=secret_token \
 #   --detach \
 #   postgresai/dblab-server:latest
@@ -21,7 +21,7 @@
 #   --restart on-failure \
 #   --volume /var/run/docker.sock:/var/run/docker.sock \
 #   --volume /var/lib/dblab:/var/lib/dblab:rshared \
-#   --volume ~/.dblab/configs/config.yml:/home/dblab/configs/config.yml \
+#   --volume ~/.dblab/server.yml:/home/dblab/configs/config.yml \
 #   --env VERIFICATION_TOKEN=token \
 #   --env MOUNT_DIR=/var/lib/dblab/clones \
 #   --env UNIX_SOCKET_DIR=/var/lib/dblab/sockets \
