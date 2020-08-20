@@ -20,7 +20,7 @@ sudo docker run \
   --detach \
   postgres:12-alpine
 
-while true; do
+for i in {1..300}; do
   sudo docker exec -it dblab_pg_initdb psql -U postgres -c 'select' && break
   sleep 1
 done
