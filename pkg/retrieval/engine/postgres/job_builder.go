@@ -2,7 +2,7 @@
 2020 © Postgres.ai
 */
 
-// Package postgres contains data retrieval stages and jobs for a Postgres engine.
+// Package postgres contains data retrieval jobs for a Postgres engine.
 package postgres
 
 import (

@@ -108,7 +108,7 @@ type setTuple struct {
 }
 
 // CreateClone creates a new ZFS clone.
-func CreateClone(r runners.Runner, pool, name, snapshot, mountDir, osUsername string) error {
+func CreateClone(r runners.Runner, pool, name, snapshot, clonesMountDir, osUsername string) error {
 	exists, err := CloneExists(r, name)
 	if err != nil {
 		return errors.Wrap(err, "clone does not exist")
@@ -119,10 +119,10 @@ func CreateClone(r runners.Runner, pool, name, snapshot, mountDir, osUsername st
 	}
 
 	cmd := "zfs clone " +
-		"-o mountpoint=" + mountDir + name + " " +
+		"-o mountpoint=" + clonesMountDir + name + " " +
 		snapshot + " " +
 		pool + "/" + name + " && " +
-		"chown -R " + osUsername + " " + mountDir + name
+		"chown -R " + osUsername + " " + clonesMountDir + name
 
 	out, err := r.Run(cmd)
 	if err != nil {

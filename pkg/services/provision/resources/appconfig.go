@@ -8,7 +8,6 @@ package resources
 type AppConfig struct {
 	CloneName string
 
-	Version     string
 	DockerImage string
 
 	// PGDATA.

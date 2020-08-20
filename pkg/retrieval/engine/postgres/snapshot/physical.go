@@ -219,7 +219,7 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 
 	// Promotion.
 	if p.options.Promote {
-		if err := p.promoteInstance(ctx, path.Join(p.globalCfg.MountDir, cloneName)); err != nil {
+		if err := p.promoteInstance(ctx, path.Join(p.globalCfg.ClonesMountDir, cloneName)); err != nil {
 			return err
 		}
 	}

@@ -66,13 +66,13 @@ type DumpJob struct {
 
 // DumpOptions defines a logical dump options.
 type DumpOptions struct {
-	DumpLocation string         `yaml:"dumpLocation"`
-	DockerImage  string         `yaml:"dockerImage"`
-	Connection   Connection     `yaml:"connection"`
-	Source       Source         `yaml:"source"`
-	Partial      Partial        `yaml:"partial"`
-	ParallelJobs int            `yaml:"parallelJobs"`
-	Restore      *DirectRestore `yaml:"restore,omitempty"`
+	DumpLocation string            `yaml:"dumpLocation"`
+	DockerImage  string            `yaml:"dockerImage"`
+	Connection   Connection        `yaml:"connection"`
+	Source       Source            `yaml:"source"`
+	Partial      Partial           `yaml:"partial"`
+	ParallelJobs int               `yaml:"parallelJobs"`
+	Restore      *ImmediateRestore `yaml:"immediateRestore,omitempty"`
 }
 
 // Source describes source of data to dump.
@@ -107,8 +107,8 @@ type Connection struct {
 	Password string `yaml:"password"`
 }
 
-// DirectRestore contains options for direct data restoring.
-type DirectRestore struct {
+// ImmediateRestore contains options for direct data restore without saving the dump file on disk.
+type ImmediateRestore struct {
 	ForceInit bool `yaml:"forceInit"`
 }
 

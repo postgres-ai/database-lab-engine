@@ -9,20 +9,13 @@ package provision
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
-)
-
-const (
-	// ModeLocal defines provisioning for local mode.
-	ModeLocal = "local"
 )
 
 // NoRoomError defines a specific error type.
@@ -32,13 +25,7 @@ type NoRoomError struct {
 
 // Config defines configuration for provisioning.
 type Config struct {
-	// Provision mode.
-	Mode string `yaml:"mode"`
-
-	ModeLocal ModeLocalConfig `yaml:"local"`
-
-	// Postgres options.
-	PgVersion string `yaml:"pgVersion"`
+	Options LocalModeOptions `yaml:"options"`
 
 	// Database user will be created with the specified credentials.
 	PgMgmtUsername string `yaml:"pgMgmtUsername"`
@@ -72,44 +59,18 @@ type provision struct {
 }
 
 // New creates a new Provision instance.
-func New(ctx context.Context, config Config) (Provision, error) {
-	// nolint
-	switch config.Mode {
-	case ModeLocal:
-		log.Dbg(`Using "local" mode.`)
-
-		// TODO(akartasov): Make it configurable.
-		dockerClient, err := client.NewEnvClient()
-		if err != nil {
-			log.Fatalf(errors.WithMessage(err, `Failed to create Docker client.`))
-		}
-
-		return NewProvisionModeLocal(ctx, config, dockerClient)
+func New(ctx context.Context, cfg Config, dockerClient *client.Client) (Provision, error) {
+	if err := isValidConfig(cfg); err != nil {
+		return nil, errors.Wrap(err, "configuration is not valid")
 	}
 
-	return nil, errors.New("unsupported mode specified")
+	// TODO (akartasov): Support more modes of provisioning.
+	return NewProvisionModeLocal(ctx, cfg, dockerClient)
 }
 
-// IsValidConfig defines a method for validation of a configuration.
-func IsValidConfig(c Config) bool {
-	result := true
-
-	if len(c.PgVersion) == 0 {
-		log.Err("pgVersion must be set.")
-
-		result = false
-	}
-
-	switch c.Mode {
-	case ModeLocal:
-		result = result && isValidConfigModeLocal(c)
-	default:
-		log.Err(fmt.Sprintf(`Unsupported mode specified: "%s".`, c.Mode))
-
-		result = false
-	}
-
-	return result
+// isValidConfig defines a method for validation of a configuration.
+func isValidConfig(cfg Config) error {
+	return isValidConfigModeLocal(cfg)
 }
 
 // NewNoRoomError instances a new NoRoomError.
