@@ -58,19 +58,19 @@ func main() {
 
 	// TODO(anatoly): Annotate envs in configs. Use different lib for flags/configs?
 	if len(opts.MountDir) > 0 {
-		cfg.Provision.ModeLocal.MountDir = opts.MountDir
+		cfg.Provision.Options.ClonesMountDir = opts.MountDir
 	}
 
 	if len(opts.UnixSocketDir) > 0 {
-		cfg.Provision.ModeLocal.UnixSocketDir = opts.UnixSocketDir
+		cfg.Provision.Options.UnixSocketDir = opts.UnixSocketDir
 	}
 
 	if len(opts.DockerImage) > 0 {
-		cfg.Provision.ModeLocal.DockerImage = opts.DockerImage
+		cfg.Provision.Options.DockerImage = opts.DockerImage
 	}
 
-	if cfg.Provision.ModeLocal.MountDir != "" {
-		cfg.Global.MountDir = cfg.Provision.ModeLocal.MountDir
+	if cfg.Provision.Options.ClonesMountDir != "" {
+		cfg.Global.ClonesMountDir = cfg.Provision.Options.ClonesMountDir
 	}
 
 	cfg.Global.InstanceID = xid.New().String()
@@ -78,15 +78,15 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Create a cloning service to provision new clones.
-	provisionSvc, err := provision.New(ctx, cfg.Provision)
-	if err != nil {
-		log.Fatalf(errors.WithMessage(err, `error in the "provision" section of the config`))
-	}
-
 	dockerCLI, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		log.Fatal("Failed to create a Docker client:", err)
+	}
+
+	// Create a cloning service to provision new clones.
+	provisionSvc, err := provision.New(ctx, cfg.Provision, dockerCLI)
+	if err != nil {
+		log.Fatalf(errors.WithMessage(err, `error in the "provision" section of the config`))
 	}
 
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
@@ -99,11 +99,7 @@ func main() {
 		log.Fatal("Failed to run the data retrieval service:", err)
 	}
 
-	cloningSvc, err := cloning.New(&cfg.Cloning, provisionSvc)
-	if err != nil {
-		log.Fatalf(errors.WithMessage(err, "failed to init a new cloning service"))
-	}
-
+	cloningSvc := cloning.New(&cfg.Cloning, provisionSvc)
 	if err = cloningSvc.Run(ctx); err != nil {
 		log.Fatalf(err)
 	}

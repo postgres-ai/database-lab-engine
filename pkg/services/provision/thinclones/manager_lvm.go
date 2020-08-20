@@ -61,12 +61,14 @@ func (m *managerLVM) CleanupSnapshots(_ int) ([]string, error) {
 	return nil, nil
 }
 
-func (m *managerLVM) CreateClone(name, snapshotID string) error {
-	return lvm.CreateVolume(m.runner, m.volumeGroup, m.logicVolume, name, m.config.MountDir)
+// CreateClone creates a new volume.
+func (m *managerLVM) CreateClone(name, _ string) error {
+	return lvm.CreateVolume(m.runner, m.volumeGroup, m.logicVolume, name, m.config.ClonesMountDir)
 }
 
+// DestroyClone destroys volumes.
 func (m *managerLVM) DestroyClone(name string) error {
-	return lvm.RemoveVolume(m.runner, m.volumeGroup, m.logicVolume, name, m.config.MountDir)
+	return lvm.RemoveVolume(m.runner, m.volumeGroup, m.logicVolume, name, m.config.ClonesMountDir)
 }
 
 func (m *managerLVM) ListClonesNames() ([]string, error) {

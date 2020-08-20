@@ -49,7 +49,7 @@ func (r *Retrieval) Run(ctx context.Context) error {
 	}
 
 	if err := r.validate(); err != nil {
-		return errors.Wrap(err, "invalid initialize stage configuration")
+		return errors.Wrap(err, "invalid data retrieval configuration")
 	}
 
 	for _, j := range r.jobs {
@@ -82,7 +82,7 @@ func (r *Retrieval) parseJobs() error {
 	return nil
 }
 
-// addJob applies a stage to the current data retrieval.
+// addJob applies a job to the current data retrieval.
 func (r *Retrieval) addJob(job components.JobRunner) {
 	r.jobs = append(r.jobs, job)
 }

@@ -5,7 +5,7 @@
 // Package config contains configuration options of the data retrieval.
 package config
 
-// Config describes of data retrieval stages.
+// Config describes of data retrieval jobs.
 type Config struct {
 	Jobs     []string             `yaml:"jobs,flow"`
 	JobsSpec map[string]JobConfig `yaml:"spec"`

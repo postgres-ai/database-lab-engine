@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	labelClone = "dblab-clone"
+	labelClone = "dblab_clone"
 )
 
 // RunContainer runs specified container.

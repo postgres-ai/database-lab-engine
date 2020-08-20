@@ -41,7 +41,7 @@ func (m *managerZFS) CreateSnapshot(poolSuffix, dataStateAt string) (string, err
 		pool += "/" + poolSuffix
 	}
 
-	return zfs.CreateSnapshot(m.runner, pool, dataStateAt, m.config.SnapshotFilterSuffix)
+	return zfs.CreateSnapshot(m.runner, pool, dataStateAt, m.config.PreSnapshotSuffix)
 }
 
 // DestroySnapshot destroys the snapshot.
@@ -55,7 +55,7 @@ func (m *managerZFS) CleanupSnapshots(retentionLimit int) ([]string, error) {
 }
 
 func (m *managerZFS) CreateClone(name, snapshotID string) error {
-	return zfs.CreateClone(m.runner, m.config.Pool, name, snapshotID, m.config.MountDir, m.config.OSUsername)
+	return zfs.CreateClone(m.runner, m.config.Pool, name, snapshotID, m.config.ClonesMountDir, m.config.OSUsername)
 }
 
 func (m *managerZFS) DestroyClone(name string) error {
@@ -143,7 +143,8 @@ func (m *managerZFS) GetSnapshots() ([]resources.Snapshot, error) {
 	snapshots := make([]resources.Snapshot, 0, len(entries))
 
 	for _, entry := range entries {
-		if strings.HasSuffix(entry.Name, m.config.SnapshotFilterSuffix) {
+		// Filter pre-snapshots, they will not be allowed to be used for cloning.
+		if strings.HasSuffix(entry.Name, m.config.PreSnapshotSuffix) {
 			continue
 		}
 

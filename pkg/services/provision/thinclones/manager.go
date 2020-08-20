@@ -39,11 +39,11 @@ type Manager interface {
 
 // ManagerConfig defines thin-clone manager config.
 type ManagerConfig struct {
-	Pool                 string
-	SnapshotFilterSuffix string
-	MountDir             string
-	OSUsername           string
-	ClonePrefix          string
+	Pool              string
+	PreSnapshotSuffix string
+	ClonesMountDir    string
+	OSUsername        string
+	ClonePrefix       string
 }
 
 // NewManager defines constructor for thin-clone managers.

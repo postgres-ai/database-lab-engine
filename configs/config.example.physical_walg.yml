@@ -51,18 +51,14 @@ global:
 # Details of provisioning – where data is located,
 # thin cloning method, etc.
 provision:
-  # Provision mode. Default (and the only supported): "local".
-  # Do not edit this.
-  mode: "local"
-
   # Database username that will be used for Postgres management connections.
   # This user must exist.
   # The password is not needed – it will be set automatically.
   # Connections will be made via a Unix domain socket (local).
   pgMgmtUsername: "postgres"
 
-  # "Local" mode related parameters.
-  local:
+  # Options related to provisioning.
+  options:
     # Thin-clone managing module used for thin cloning.
     # Available options: "zfs" (recommended), "lvm".
     thinCloneManager: "zfs"
@@ -79,14 +75,14 @@ provision:
 
     # Directory that will be used to mount clones. Subdirectories in this directory
     # will be used as mount points for clones. Subdirectory names will
-    # correspond to ports. E.g., subdirectory "6000" for the clone running on port 6000.
-    mountDir: /var/lib/dblab/clones
+    # correspond to ports. E.g., subdirectory "dblab_clone_6000" for the clone running on port 6000.
+    clonesMountDir: /var/lib/dblab/clones
 
     # Unix domain socket directory used to establish local connections to cloned databases.
     unixSocketDir: /var/lib/dblab/sockets
 
-    # Snapshots with the suffix will not be accessible to use for cloning.
-    snapshotFilterSuffix: "_pre"
+    # Snapshots with this suffix are considered preliminary. They are not supposed to be accessible to end-users.
+    preSnapshotSuffix: "_pre"
 
     # Database Lab provisions thin clones using Docker containers, we need
     # to specify which Postgres Docker image is to be used when cloning.
@@ -194,9 +190,6 @@ retrieval:
             limit: 4
 
 cloning:
-  # Deprecated field. Default: "base".
-  mode: "base"
-
   # Host that will be specified in database connection info for all clones
   # Use public IP address if database connections are allowed from outside
   # This value is only used to inform users about how to connect to database clones

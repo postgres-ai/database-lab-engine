@@ -49,26 +49,26 @@ const (
 
 	dockerLogHeaderLength = 8
 
-	defaultMountDir = "/var/lib/dblab/clones/"
+	defaultClonesMountDir = "/var/lib/dblab/clones/"
 
 	defaultUnixSocketDir = "/var/lib/dblab/sockets/"
 )
 
-// ModeLocalPortPool describes an available port range for clones.
-type ModeLocalPortPool struct {
+// LocalModePortPool describes an available port range for clones.
+type LocalModePortPool struct {
 	From uint `yaml:"from"`
 	To   uint `yaml:"to"`
 }
 
-// ModeLocalConfig describes provisioning configs for local mode.
-type ModeLocalConfig struct {
-	PortPool             ModeLocalPortPool `yaml:"portPool"`
-	ClonePool            string            `yaml:"pool"`
-	MountDir             string            `yaml:"mountDir"`
-	UnixSocketDir        string            `yaml:"unixSocketDir"`
-	SnapshotFilterSuffix string            `yaml:"snapshotFilterSuffix"`
-	DockerImage          string            `yaml:"dockerImage"`
-	UseSudo              bool              `yaml:"useSudo"`
+// LocalModeOptions describes provisioning configs for local mode.
+type LocalModeOptions struct {
+	PortPool          LocalModePortPool `yaml:"portPool"`
+	ClonePool         string            `yaml:"pool"`
+	ClonesMountDir    string            `yaml:"clonesMountDir"`
+	UnixSocketDir     string            `yaml:"unixSocketDir"`
+	PreSnapshotSuffix string            `yaml:"preSnapshotSuffix"`
+	DockerImage       string            `yaml:"dockerImage"`
+	UseSudo           bool              `yaml:"useSudo"`
 
 	// Thin-clone manager.
 	ThinCloneManager string `yaml:"thinCloneManager"`
@@ -87,7 +87,7 @@ type provisionModeLocal struct {
 // NewProvisionModeLocal creates a new Provision instance of ModeLocal.
 func NewProvisionModeLocal(ctx context.Context, config Config, dockerClient *client.Client) (Provision, error) {
 	p := &provisionModeLocal{
-		runner:       runners.NewLocalRunner(config.ModeLocal.UseSudo),
+		runner:       runners.NewLocalRunner(config.Options.UseSudo),
 		mu:           &sync.Mutex{},
 		dockerClient: dockerClient,
 		provision: provision{
@@ -98,13 +98,13 @@ func NewProvisionModeLocal(ctx context.Context, config Config, dockerClient *cli
 
 	setDefault(&p.config)
 
-	thinCloneManager, err := thinclones.NewManager(p.config.ModeLocal.ThinCloneManager,
+	thinCloneManager, err := thinclones.NewManager(p.config.Options.ThinCloneManager,
 		p.runner, thinclones.ManagerConfig{
-			Pool:                 p.config.ModeLocal.ClonePool,
-			SnapshotFilterSuffix: p.config.ModeLocal.SnapshotFilterSuffix,
-			MountDir:             p.config.ModeLocal.MountDir,
-			OSUsername:           p.config.OSUsername,
-			ClonePrefix:          ClonePrefix,
+			Pool:              p.config.Options.ClonePool,
+			PreSnapshotSuffix: p.config.Options.PreSnapshotSuffix,
+			ClonesMountDir:    p.config.Options.ClonesMountDir,
+			OSUsername:        p.config.OSUsername,
+			ClonePrefix:       ClonePrefix,
 		})
 
 	if err != nil {
@@ -117,20 +117,20 @@ func NewProvisionModeLocal(ctx context.Context, config Config, dockerClient *cli
 }
 
 func setDefault(cfg *Config) {
-	if !strings.HasSuffix(cfg.ModeLocal.MountDir, Slash) {
-		cfg.ModeLocal.MountDir += Slash
+	if !strings.HasSuffix(cfg.Options.ClonesMountDir, Slash) {
+		cfg.Options.ClonesMountDir += Slash
 	}
 
-	if !strings.HasSuffix(cfg.ModeLocal.UnixSocketDir, Slash) {
-		cfg.ModeLocal.UnixSocketDir += Slash
+	if !strings.HasSuffix(cfg.Options.UnixSocketDir, Slash) {
+		cfg.Options.UnixSocketDir += Slash
 	}
 
-	if cfg.ModeLocal.MountDir == "" {
-		cfg.ModeLocal.MountDir = defaultMountDir
+	if cfg.Options.ClonesMountDir == "" {
+		cfg.Options.ClonesMountDir = defaultClonesMountDir
 	}
 
-	if cfg.ModeLocal.UnixSocketDir == "" {
-		cfg.ModeLocal.UnixSocketDir = defaultUnixSocketDir
+	if cfg.Options.UnixSocketDir == "" {
+		cfg.Options.UnixSocketDir = defaultUnixSocketDir
 	}
 
 	if cfg.PgMgmtUsername == "" {
@@ -142,30 +142,22 @@ func setDefault(cfg *Config) {
 	}
 }
 
-func isValidConfigModeLocal(config Config) bool {
-	result := true
-
-	portPool := config.ModeLocal.PortPool
+func isValidConfigModeLocal(config Config) error {
+	portPool := config.Options.PortPool
 
 	if portPool.From == 0 {
-		log.Err(`wrong configuration: "portPool.from" must be defined and be greather than 0`)
-
-		result = false
+		return errors.New(`"portPool.from" must be defined and be greater than 0`)
 	}
 
 	if portPool.To == 0 {
-		log.Err(`wrong configuration: "portPool.to" must be defined and be greather than 0`)
-
-		result = false
+		return errors.New(`"portPool.to" must be defined and be greater than 0`)
 	}
 
 	if portPool.To <= portPool.From {
-		log.Err(`wrong configuration: port pool must consist of at least one port`)
-
-		result = false
+		return errors.New(`"portPool" must include at least one port`)
 	}
 
-	return result
+	return nil
 }
 
 // Provision interface implementation.
@@ -180,7 +172,7 @@ func (j *provisionModeLocal) Init() error {
 		return errors.Wrap(err, "failed to init port pool")
 	}
 
-	imageExists, err := docker.ImageExists(j.runner, j.config.ModeLocal.DockerImage)
+	imageExists, err := docker.ImageExists(j.runner, j.config.Options.DockerImage)
 	if err != nil {
 		return errors.Wrap(err, "cannot check docker image existence")
 	}
@@ -189,7 +181,7 @@ func (j *provisionModeLocal) Init() error {
 		return nil
 	}
 
-	err = docker.PullImage(j.runner, j.config.ModeLocal.DockerImage)
+	err = docker.PullImage(j.runner, j.config.Options.DockerImage)
 	if err != nil {
 		return errors.Wrap(err, "cannot pull docker image")
 	}
@@ -372,7 +364,7 @@ func (j *provisionModeLocal) getSnapshotID(snapshotID string) (string, error) {
 // nolint
 func (j *provisionModeLocal) initPortPool() error {
 	// Init session pool.
-	portOpts := j.config.ModeLocal.PortPool
+	portOpts := j.config.Options.PortPool
 	size := portOpts.To - portOpts.From
 	j.ports = make([]bool, size)
 
@@ -382,7 +374,7 @@ func (j *provisionModeLocal) initPortPool() error {
 
 // allocatePort tries to find a free port and occupy it.
 func (j *provisionModeLocal) allocatePort() (uint, error) {
-	portOpts := j.config.ModeLocal.PortPool
+	portOpts := j.config.Options.PortPool
 
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -413,7 +405,7 @@ func (j *provisionModeLocal) freePort(port uint) error {
 // setPortStatus updates the port status.
 // It's not safe to invoke without ports mutex locking. Use allocatePort and freePort methods.
 func (j *provisionModeLocal) setPortStatus(port uint, bind bool) error {
-	portOpts := j.config.ModeLocal.PortPool
+	portOpts := j.config.Options.PortPool
 
 	if port < portOpts.From || port >= portOpts.To {
 		return errors.Errorf("port %d is out of bounds of the port pool", port)
@@ -464,7 +456,7 @@ func (j *provisionModeLocal) getName(port uint) string {
 
 func (j *provisionModeLocal) getAppConfig(name string, port uint) *resources.AppConfig {
 	host := DefaultHost
-	unixSocketCloneDir := j.config.ModeLocal.UnixSocketDir + name
+	unixSocketCloneDir := j.config.Options.UnixSocketDir + name
 
 	if UseUnixSocket {
 		host = unixSocketCloneDir
@@ -472,9 +464,8 @@ func (j *provisionModeLocal) getAppConfig(name string, port uint) *resources.App
 
 	appConfig := &resources.AppConfig{
 		CloneName:          name,
-		Version:            j.config.PgVersion,
-		DockerImage:        j.config.ModeLocal.DockerImage,
-		Datadir:            path.Clean(j.config.ModeLocal.MountDir + name),
+		DockerImage:        j.config.Options.DockerImage,
+		Datadir:            path.Clean(j.config.Options.ClonesMountDir + name),
 		Host:               host,
 		Port:               port,
 		UnixSocketCloneDir: unixSocketCloneDir,
@@ -533,7 +524,7 @@ func (j *provisionModeLocal) LastSessionActivity(session *resources.Session, sin
 	return nil, pglog.ErrNotFound
 }
 
-func (j *provisionModeLocal) prepareDB(username string, password string, pgConf *resources.AppConfig) error {
+func (j *provisionModeLocal) prepareDB(username, password string, pgConf *resources.AppConfig) error {
 	whitelist := []string{j.config.PgMgmtUsername}
 
 	if err := postgres.ResetAllPasswords(j.runner, pgConf, whitelist); err != nil {

@@ -9,29 +9,19 @@ import (
 	"context"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 )
 
 const (
-	// ModeBase defines a base mode of cloning.
-	ModeBase = "base"
-
-	// ModeMock defines a mock mode of cloning.
-	ModeMock = "mock"
-
 	// cloneDiffSize defines a default clone size.
 	cloneDiffSize = 10
 )
 
 // Config contains a cloning configuration.
 type Config struct {
-	Mode           string `yaml:"mode"`
 	MaxIdleMinutes uint   `yaml:"maxIdleMinutes"`
 	AccessHost     string `yaml:"accessHost"`
 }
@@ -70,18 +60,8 @@ type CloneWrapper struct {
 }
 
 // New returns a cloning interface depends on configuration mode.
-func New(config *Config, provision provision.Provision) (Cloning, error) {
-	switch config.Mode {
-	case "", ModeBase:
-		log.Dbg("Using base cloning mode.")
-		return NewBaseCloning(config, provision), nil
-
-	case ModeMock:
-		log.Dbg("Using mock cloning mode.")
-		return nil, nil
-	}
-
-	return nil, errors.New("unsupported mode specified")
+func New(cfg *Config, provision provision.Provision) Cloning {
+	return NewBaseCloning(cfg, provision)
 }
 
 // NewCloneWrapper constructs a new CloneWrapper.
