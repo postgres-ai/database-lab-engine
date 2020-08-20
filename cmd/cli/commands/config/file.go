@@ -6,15 +6,15 @@ package config
 
 import (
 	"io/ioutil"
-	"os"
 	"os/user"
+	"path"
 
 	"gopkg.in/yaml.v2"
 )
 
 const (
 	configPath     = ".dblab"
-	configFilename = "config"
+	configFilename = "cli.yml"
 )
 
 // GetDirname returns the CLI config path located in the current user's home directory.
@@ -24,7 +24,7 @@ func GetDirname() (string, error) {
 		return "", err
 	}
 
-	dirname := currentUser.HomeDir + string(os.PathSeparator) + configPath
+	dirname := path.Join(currentUser.HomeDir, configPath)
 
 	return dirname, nil
 }
@@ -41,7 +41,7 @@ func GetFilename() (string, error) {
 
 // BuildFileName builds a config filename.
 func BuildFileName(dirname string) string {
-	return dirname + string(os.PathSeparator) + configFilename
+	return path.Join(dirname, configFilename)
 }
 
 // Load loads a CLI config by a provided filename.
