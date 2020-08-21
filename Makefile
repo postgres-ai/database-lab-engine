@@ -4,10 +4,9 @@ SERVER_BINARY = dblab-server
 CLI_BINARY = dblab
 GOARCH = amd64
 
-VERSION?=0.3.1
+COMMIT?=$(shell git rev-parse HEAD)
 BUILD_TIME?=$(shell date -u '+%Y%m%d-%H%M')
-COMMIT?=no #$(shell git rev-parse HEAD)
-BRANCH?=no #$(shell git rev-parse --abbrev-ref HEAD)
+VERSION=$(shell git describe --tags 2>/dev/null || echo "${COMMIT}")
 
 # Symlink into GOPATH
 BUILD_DIR=${GOPATH}/${SERVER_BINARY}
@@ -15,8 +14,6 @@ BUILD_DIR=${GOPATH}/${SERVER_BINARY}
 # Setup the -ldflags option for go build here, interpolate the variable values
 LDFLAGS = -ldflags "-s -w \
 	-X gitlab.com/postgres-ai/database-lab/version.version=${VERSION} \
-	-X main.commit=${COMMIT} \
-	-X main.branch=${BRANCH}\
 	-X gitlab.com/postgres-ai/database-lab/version.buildTime=${BUILD_TIME}"
 
 # Go tooling command aliases
