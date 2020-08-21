@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -40,11 +39,10 @@ func TestClientListSnapshots(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "testVerify",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -65,11 +63,10 @@ func TestClientListSnapshotsWithFailedRequest(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "testVerify",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient

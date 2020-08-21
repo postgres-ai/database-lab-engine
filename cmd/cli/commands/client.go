@@ -42,5 +42,5 @@ func ClientByCLIContext(cliCtx *cli.Context) (*dblabapi.Client, error) {
 	}
 
 	// TODO(akartasov): Init and use logger.
-	return dblabapi.NewClient(options, nil)
+	return dblabapi.NewClient(options)
 }

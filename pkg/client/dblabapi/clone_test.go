@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -52,11 +51,10 @@ func TestClientListClones(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -77,11 +75,10 @@ func TestClientListClonesWithFailedRequest(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -143,11 +140,10 @@ func TestClientCreateClone(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -213,11 +209,10 @@ func TestClientCreateCloneAsync(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -250,11 +245,10 @@ func TestClientCreateCloneWithFailedRequest(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -299,11 +293,10 @@ func TestClientGetClone(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -324,11 +317,10 @@ func TestClientGetCloneWithFailedRequest(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -383,11 +375,10 @@ func TestClientUpdateClone(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -418,11 +409,10 @@ func TestClientUpdateCloneWithFailedRequest(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -459,11 +449,10 @@ func TestClientDestroyClone(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -485,11 +474,10 @@ func TestClientDestroyCloneAsync(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -517,11 +505,10 @@ func TestClientDestroyCloneWithFailedRequest(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -560,11 +547,10 @@ func TestClientResetClone(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -586,11 +572,10 @@ func TestClientResetCloneAsync(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient
@@ -618,11 +603,10 @@ func TestClientResetCloneWithFailedRequest(t *testing.T) {
 		}
 	})
 
-	logger, _ := test.NewNullLogger()
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "token",
-	}, logger)
+	})
 	require.NoError(t, err)
 
 	c.client = mockClient

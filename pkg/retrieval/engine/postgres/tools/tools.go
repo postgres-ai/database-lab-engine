@@ -18,10 +18,12 @@ import (
 	"time"
 
 	"github.com/AlekSi/pointer"
+	"github.com/docker/cli/cli/streams"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/host"
@@ -216,7 +218,7 @@ func PullImage(ctx context.Context, dockerClient *client.Client, image string) e
 
 	defer func() { _ = pullOutput.Close() }()
 
-	if _, err := io.Copy(os.Stdout, pullOutput); err != nil {
+	if err := jsonmessage.DisplayJSONMessagesToStream(pullOutput, streams.NewOut(os.Stdout), nil); err != nil {
 		log.Err("Failed to render pull image output: ", err)
 	}
 
