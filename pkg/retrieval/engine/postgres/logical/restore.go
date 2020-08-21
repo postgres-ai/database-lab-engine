@@ -8,6 +8,7 @@ package logical
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -203,10 +204,10 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 	return &container.Config{
 		Labels: map[string]string{"label": tools.DBLabControlLabel},
-		Env: []string{
+		Env: append(os.Environ(), []string{
 			"PGDATA=" + r.globalCfg.DataDir,
 			"POSTGRES_PASSWORD=" + password,
-		},
+		}...),
 		Image:       r.RestoreOptions.DockerImage,
 		Healthcheck: health.GetConfig(),
 	}

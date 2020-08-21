@@ -400,16 +400,10 @@ func (d *DumpJob) getContainerNetworkMode() container.NetworkMode {
 }
 
 func (d *DumpJob) getExecEnvironmentVariables() []string {
-	execEnvs := d.dumper.GetCmdEnvVariables()
+	execEnvs := append(os.Environ(), d.dumper.GetCmdEnvVariables()...)
 
-	pgPassword := d.config.db.Password
-
-	if pgPassword == "" && os.Getenv("PGPASSWORD") != "" {
-		pgPassword = os.Getenv("PGPASSWORD")
-	}
-
-	if pgPassword != "" {
-		execEnvs = append(execEnvs, "PGPASSWORD="+pgPassword)
+	if d.config.db.Password != "" && os.Getenv("PGPASSWORD") == "" {
+		execEnvs = append(execEnvs, "PGPASSWORD="+d.config.db.Password)
 	}
 
 	return execEnvs

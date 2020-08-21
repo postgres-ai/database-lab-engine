@@ -10,7 +10,7 @@ import (
 	"io/ioutil"
 	"os/user"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
+	retConfig "gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
@@ -28,7 +28,7 @@ type Config struct {
 	Cloning   cloning.Config   `yaml:"cloning"`
 	Platform  platform.Config  `yaml:"platform"`
 	Global    Global           `yaml:"global"`
-	Retrieval config.Config    `yaml:"retrieval"`
+	Retrieval retConfig.Config `yaml:"retrieval"`
 }
 
 // Global contains global Database Lab configurations.

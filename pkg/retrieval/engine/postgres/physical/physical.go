@@ -171,7 +171,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to start container: %v", contID)
 	}
 
-	log.Msg("Running restore command")
+	log.Msg("Running restore command: ", r.restorer.GetRestoreCommand())
 
 	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{
 		Cmd: []string{"bash", "-c", r.restorer.GetRestoreCommand()},
@@ -352,11 +352,16 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 }
 
 func (r *RestoreJob) getEnvironmentVariables(password string) []string {
-	envVariables := append([]string{
+	// Pass Database Lab environment variables.
+	envVariables := append(os.Environ(), []string{
 		"POSTGRES_PASSWORD=" + password,
 		"PGDATA=" + r.globalCfg.DataDir,
-	}, r.restorer.GetEnvVariables()...)
+	}...)
 
+	// Add restore-specific environment variables.
+	envVariables = append(envVariables, r.restorer.GetEnvVariables()...)
+
+	// Add user-defined environment variables.
 	for env, value := range r.Envs {
 		envVariables = append(envVariables, fmt.Sprintf("%s=%s", env, value))
 	}
