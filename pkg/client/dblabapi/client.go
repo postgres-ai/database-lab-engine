@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
@@ -38,7 +37,6 @@ type Client struct {
 	url               *url.URL
 	verificationToken string
 	client            *http.Client
-	logger            logrus.FieldLogger
 	pollingInterval   time.Duration
 }
 
@@ -55,7 +53,7 @@ const (
 )
 
 // NewClient constructs a new Client struct.
-func NewClient(options Options, logger logrus.FieldLogger) (*Client, error) {
+func NewClient(options Options) (*Client, error) {
 	u, err := url.Parse(options.Host)
 	if err != nil {
 		return nil, err
@@ -71,7 +69,6 @@ func NewClient(options Options, logger logrus.FieldLogger) (*Client, error) {
 		url:               u,
 		verificationToken: options.VerificationToken,
 		client:            &http.Client{Transport: tr, Timeout: defaultPollingTimeout},
-		logger:            logger,
 		pollingInterval:   defaultPollingInterval,
 	}, nil
 }

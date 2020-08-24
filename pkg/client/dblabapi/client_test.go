@@ -28,7 +28,7 @@ func TestNewClient(t *testing.T) {
 	c, err := NewClient(Options{
 		Host:              "https://example.com//",
 		VerificationToken: "testVerify",
-	}, nil)
+	})
 	require.NoError(t, err)
 
 	assert.IsType(t, &Client{}, c)
@@ -41,7 +41,7 @@ func TestClientURL(t *testing.T) {
 	c, err := NewClient(Options{
 		Host:              "https://example.com/",
 		VerificationToken: "testVerify",
-	}, nil)
+	})
 	require.NoError(t, err)
 
 	assert.Equal(t, "https://example.com/test-url", c.URL("test-url").String())
