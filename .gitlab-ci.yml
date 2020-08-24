@@ -1,4 +1,4 @@
-image: golang:1.13
+image: golang:1.14
 
 stages:
   - test
@@ -38,7 +38,7 @@ lint:
   when: manual
 
 build-binary-alpine:
-  image: golang:1.13-alpine
+  image: golang:1.14-alpine
   stage: build-binary
   only:
     refs:

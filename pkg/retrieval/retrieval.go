@@ -7,6 +7,8 @@ package retrieval
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
@@ -22,7 +24,8 @@ import (
 
 // Retrieval describes a data retrieval.
 type Retrieval struct {
-	config          *config.Config
+	cfg             *config.Config
+	globalCfg       *dblabCfg.Global
 	retrievalRunner components.JobBuilder
 	cloneManager    thinclones.Manager
 	jobs            []components.JobRunner
@@ -36,7 +39,8 @@ func New(cfg *dblabCfg.Config, dockerCLI *client.Client, cloneManager thinclones
 	}
 
 	return &Retrieval{
-		config:          &cfg.Retrieval,
+		cfg:             &cfg.Retrieval,
+		globalCfg:       &cfg.Global,
 		retrievalRunner: retrievalRunner,
 		cloneManager:    cloneManager,
 	}, nil
@@ -44,12 +48,20 @@ func New(cfg *dblabCfg.Config, dockerCLI *client.Client, cloneManager thinclones
 
 // Run start retrieving process.
 func (r *Retrieval) Run(ctx context.Context) error {
+	if len(r.cfg.Jobs) == 0 {
+		return nil
+	}
+
 	if err := r.parseJobs(); err != nil {
 		return errors.Wrap(err, "failed to parse retrieval jobs")
 	}
 
 	if err := r.validate(); err != nil {
 		return errors.Wrap(err, "invalid data retrieval configuration")
+	}
+
+	if err := r.prepareEnvironment(); err != nil {
+		return errors.Wrap(err, "failed to prepare retrieval environment")
 	}
 
 	for _, j := range r.jobs {
@@ -63,8 +75,8 @@ func (r *Retrieval) Run(ctx context.Context) error {
 
 // parseJobs processes configuration to define data retrieval jobs.
 func (r *Retrieval) parseJobs() error {
-	for _, jobName := range r.config.Jobs {
-		jobConfig, ok := r.config.JobsSpec[jobName]
+	for _, jobName := range r.cfg.Jobs {
+		jobConfig, ok := r.cfg.JobsSpec[jobName]
 		if !ok {
 			return errors.Errorf("Job %q not found", jobName)
 		}
@@ -102,4 +114,19 @@ func (r *Retrieval) validate() error {
 	}
 
 	return nil
+}
+
+func (r *Retrieval) prepareEnvironment() error {
+	if err := os.MkdirAll(r.globalCfg.DataDir, 0700); err != nil {
+		return err
+	}
+
+	return filepath.Walk(r.globalCfg.DataDir, func(name string, info os.FileInfo, err error) error {
+		if err == nil {
+			// PGDATA dir permissions must be 0700 to avoid errors.
+			err = os.Chmod(name, 0700)
+		}
+
+		return err
+	})
 }
