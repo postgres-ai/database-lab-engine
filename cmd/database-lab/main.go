@@ -26,6 +26,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 	"gitlab.com/postgres-ai/database-lab/pkg/srv"
+	"gitlab.com/postgres-ai/database-lab/version"
 )
 
 var opts struct {
@@ -39,6 +40,8 @@ var opts struct {
 }
 
 func main() {
+	log.Msg("Database Lab version: ", version.GetVersion())
+
 	// Load CLI options.
 	if _, err := parseArgs(); err != nil {
 		if flags.WroteHelp(err) {
