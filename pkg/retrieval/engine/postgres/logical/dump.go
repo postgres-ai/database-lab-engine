@@ -42,7 +42,7 @@ const (
 	// Defines dump source types.
 	sourceTypeLocal  = "local"
 	sourceTypeRemote = "remote"
-	sourceTypeRDS    = "rds"
+	sourceTypeRDS    = "rdsIam"
 
 	// reservePort defines reserve port in case of a local dump.
 	reservePort = 9999
@@ -79,7 +79,7 @@ type DumpOptions struct {
 type Source struct {
 	Type       string     `yaml:"type"`
 	Connection Connection `yaml:"connection"`
-	RDS        *RDSConfig `yaml:"rds"`
+	RDS        *RDSConfig `yaml:"rdsIam"`
 }
 
 type dumpJobConfig struct {
@@ -174,12 +174,12 @@ func (d *DumpJob) setupDumper() error {
 
 	case sourceTypeRDS:
 		if d.Source.RDS == nil {
-			return errors.New("the RDS configuration section must not be empty when using the RDS source type")
+			return errors.New("the RDS IAM configuration section must not be empty when using the RDS IAM source type")
 		}
 
 		dumper, err := newRDSDumper(d.Source.RDS)
 		if err != nil {
-			return errors.Wrap(err, "failed to create an RDS dumper")
+			return errors.Wrap(err, "failed to create an RDS IAM dumper")
 		}
 
 		d.dumper = dumper
@@ -446,7 +446,8 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 }
 
 func (d *DumpJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"|", "pg_restore", "--username", defaults.Username, "--create", "--dbname", defaults.DBName, "--no-privileges"}
+	restoreCmd := []string{"|", "pg_restore", "--username", defaults.Username, "--create", "--dbname", defaults.DBName,
+		"--no-privileges", "--no-owner"}
 
 	if d.Restore.ForceInit {
 		restoreCmd = append(restoreCmd, "--clean", "--if-exists")
