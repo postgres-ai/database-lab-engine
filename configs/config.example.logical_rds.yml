@@ -139,7 +139,7 @@ retrieval:
       options:
         # The dump file will be automatically created on this location and then used to restore.
         # Ensure that there is enough disk space.
-        dumpLocation: "/var/lib/dblab/db.dump"
+        dumpLocation: "/var/lib/dblab/rds_db.dump"
 
         # The Docker image containing the tools required to get a dump.
         dockerImage: "postgres:12-alpine"
@@ -148,6 +148,10 @@ retrieval:
         source:
           # Source types: "local", "remote", "rds"
           type: rds
+          # RDS database details for pg_dump
+          connection:
+            dbname: test
+            username: test_user
 
           # Optional definition of RDS data source.
           rds:
@@ -158,7 +162,7 @@ retrieval:
             awsRegion: us-east-2
 
             # AWS username.
-            username: db_user
+            username: aws_user
 
             # RDS instance Identifier.
             dbInstanceIdentifier: database-1
@@ -192,7 +196,7 @@ retrieval:
         dbname: "test"
 
         # The location of the archive file (or directory, for a directory-format archive) to be restored.
-        dumpLocation: "/var/lib/dblab/db.dump"
+        dumpLocation: "/var/lib/dblab/rds_db.dump"
 
         # The Docker image containing the tools required to restore.
         dockerImage: "postgres:12-alpine"
