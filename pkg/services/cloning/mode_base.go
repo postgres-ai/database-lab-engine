@@ -322,6 +322,7 @@ func (c *baseCloning) GetInstanceState() (*models.InstanceStatus, error) {
 
 	c.instanceStatus.FileSystem.Size = disk.Size
 	c.instanceStatus.FileSystem.Free = disk.Free
+	c.instanceStatus.FileSystem.Used = disk.Used
 	c.instanceStatus.DataSize = disk.DataSize
 	c.instanceStatus.ExpectedCloningTime = c.getExpectedCloningTime()
 	c.instanceStatus.Clones = c.GetClones()

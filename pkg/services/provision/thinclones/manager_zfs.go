@@ -128,6 +128,7 @@ func (m *managerZFS) GetDiskState() (*resources.Disk, error) {
 	disk := &resources.Disk{
 		Size:     parentPoolEntry.Available + parentPoolEntry.Used,
 		Free:     parentPoolEntry.Available,
+		Used:     parentPoolEntry.Used,
 		DataSize: poolEntry.LogicalReferenced,
 	}
 
