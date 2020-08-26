@@ -32,6 +32,7 @@ type Session struct {
 type Disk struct {
 	Size     uint64
 	Free     uint64
+	Used     uint64
 	DataSize uint64
 }
 
