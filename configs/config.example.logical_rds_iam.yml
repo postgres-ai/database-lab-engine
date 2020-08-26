@@ -29,16 +29,6 @@ global:
   # Database engine. Currently, the only supported option: "postgres".
   engine: postgres
 
-  # Docker image to perform various tasks, such as:
-  #   - initial data retrieval,
-  #   - continuous data synchronization,
-  #   - pre-processing.
-  # Default: "official" PostgreSQL image from Docker.
-  # Alternative: an extended image from the Postgres.ai team,
-  # containing a number of popular extensions, including those
-  # RDS provides. See https://postgres.ai/docs/database-lab/supported_databases
-  dockerImage: "postgres:12-alpine"
-
   # Full path to data directory. This directory must already exist
   # before launching Database Lab instance. It may be empty if
   # data initialization is configured (see below).
@@ -146,16 +136,17 @@ retrieval:
 
         # Source of data.
         source:
-          # Source types: "local", "remote", "rds"
-          type: rds
+          # Source types: "local", "remote", "rdsIam"
+          type: rdsIam
+
           # RDS database details for pg_dump
           connection:
             dbname: test
             username: test_user
 
           # Optional definition of RDS data source.
-          rds:
-            # RDS policy name.
+          rdsIam:
+            # RDS IAM policy name.
             iamPolicyName: rds-dblab-retrieval
 
             # AWS Region.

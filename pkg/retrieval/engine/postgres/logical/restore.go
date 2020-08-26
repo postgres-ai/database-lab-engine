@@ -282,14 +282,12 @@ func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID string) (st
 }
 
 func (r *RestoreJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"pg_restore", "--username", defaults.Username, "--dbname", defaults.DBName, "--create", "--no-privileges"}
+	restoreCmd := []string{"pg_restore", "--username", defaults.Username, "--dbname", defaults.DBName, "--create",
+		"--no-privileges", "--no-owner"}
 
 	if r.ForceInit {
 		restoreCmd = append(restoreCmd, "--clean", "--if-exists")
 	}
-	//else {
-	//	restoreCmd = append(restoreCmd)
-	//}
 
 	restoreCmd = append(restoreCmd, "--jobs", strconv.Itoa(r.ParallelJobs))
 
