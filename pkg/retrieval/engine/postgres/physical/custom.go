@@ -49,8 +49,10 @@ func (c *custom) GetRestoreCommand() string {
 func (c *custom) GetRecoveryConfig() []byte {
 	buffer := bytes.Buffer{}
 
-	buffer.WriteString("standby_mode = 'on'\n")
-	buffer.WriteString(fmt.Sprintf("restore_command = '%s'\n", c.options.RestoreCommand))
+	if c.options.RestoreCommand != "" {
+		buffer.WriteString("standby_mode = 'on'\n")
+		buffer.WriteString(fmt.Sprintf("restore_command = '%s'\n", c.options.RestoreCommand))
+	}
 
 	return buffer.Bytes()
 }
