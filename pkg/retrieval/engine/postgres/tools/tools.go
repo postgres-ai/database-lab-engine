@@ -15,6 +15,8 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/AlekSi/pointer"
@@ -29,6 +31,7 @@ import (
 	"github.com/shirou/gopsutil/host"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 )
 
 const (
@@ -89,8 +92,21 @@ func DetectPGVersion(dataDir string) (string, error) {
 	return string(bytes.TrimSpace(version)), nil
 }
 
+// StartingPostgresConfig provides configuration to start Postgres.
+func StartingPostgresConfig(pgDataDir, pgVersion string) types.ExecConfig {
+	command := fmt.Sprintf("/usr/lib/postgresql/%s/bin/postgres", pgVersion)
+
+	return types.ExecConfig{
+		AttachStdout: true,
+		AttachStderr: true,
+		Cmd:          []string{command, "-D", pgDataDir},
+		User:         defaults.Username,
+		Env:          os.Environ(),
+	}
+}
+
 // AddVolumesToHostConfig adds volumes to container host configuration depends on process environment.
-func AddVolumesToHostConfig(hostConfig *container.HostConfig, dataDir string) error {
+func AddVolumesToHostConfig(ctx context.Context, dockerClient *client.Client, hostConfig *container.HostConfig, dataDir string) error {
 	hostInfo, err := host.Info()
 	if err != nil {
 		return errors.Wrap(err, "failed to get host info")
@@ -99,13 +115,67 @@ func AddVolumesToHostConfig(hostConfig *container.HostConfig, dataDir string) er
 	log.Dbg("Virtualization system: ", hostInfo.VirtualizationSystem)
 
 	if hostInfo.VirtualizationRole == "guest" {
-		hostConfig.VolumesFrom = []string{hostInfo.Hostname}
+		insp, err := dockerClient.ContainerInspect(ctx, hostInfo.Hostname)
+		if err != nil {
+			return err
+		}
+
+		for _, mountPoint := range insp.Mounts {
+			if !strings.HasPrefix(dataDir, mountPoint.Destination) {
+				continue
+			}
+
+			suffix := strings.TrimPrefix(dataDir, mountPoint.Destination)
+
+			hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
+				Type:     mountPoint.Type,
+				Source:   path.Join(mountPoint.Source, suffix),
+				Target:   dataDir,
+				ReadOnly: !mountPoint.RW,
+				BindOptions: &mount.BindOptions{
+					Propagation: mountPoint.Propagation,
+				},
+			})
+		}
+
+		log.Dbg(hostConfig.Mounts)
 	} else {
 		hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
 			Type:   mount.TypeBind,
 			Source: dataDir,
 			Target: dataDir,
 		})
+	}
+
+	return nil
+}
+
+// RunPostgres runs Postgres inside.
+func RunPostgres(ctx context.Context, dockerClient *client.Client, containerID, dataDir string) error {
+	// Set permissions.
+	if err := ExecCommand(ctx, dockerClient, containerID, types.ExecConfig{
+		Cmd: []string{"chown", "-R", "postgres", dataDir},
+	}); err != nil {
+		return errors.Wrap(err, "failed to set permissions")
+	}
+
+	pgVersion, err := DetectPGVersion(dataDir)
+	if err != nil {
+		return errors.Wrap(err, "failed to detect PostgreSQL version")
+	}
+
+	startSyncCommand, err := dockerClient.ContainerExecCreate(ctx, containerID, StartingPostgresConfig(dataDir, pgVersion))
+	if err != nil {
+		return errors.Wrap(err, "failed to create exec command")
+	}
+
+	if err = dockerClient.ContainerExecStart(ctx, startSyncCommand.ID, types.ExecStartCheck{
+		Detach: true, Tty: true}); err != nil {
+		return errors.Wrap(err, "failed to attach to exec command")
+	}
+
+	if err := InspectCommandResponse(ctx, dockerClient, containerID, startSyncCommand.ID); err != nil {
+		return errors.Wrap(err, "failed to perform exec command")
 	}
 
 	return nil

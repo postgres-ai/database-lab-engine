@@ -220,7 +220,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to scan pulling image response")
 	}
 
-	hostConfig, err := d.buildHostConfig()
+	hostConfig, err := d.buildHostConfig(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to build container host config")
 	}
@@ -361,13 +361,13 @@ func (d *DumpJob) buildContainerConfig(password string) *container.Config {
 	}
 }
 
-func (d *DumpJob) buildHostConfig() (*container.HostConfig, error) {
+func (d *DumpJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
 	hostConfig := &container.HostConfig{
 		Mounts:      d.getMountVolumes(),
 		NetworkMode: d.getContainerNetworkMode(),
 	}
 
-	if err := tools.AddVolumesToHostConfig(hostConfig, d.globalCfg.DataDir); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, d.dockerClient, hostConfig, d.globalCfg.DataDir); err != nil {
 		return nil, err
 	}
 

@@ -47,8 +47,8 @@ const (
 	promoteContainerPrefix = "dblab_promote_"
 
 	// Defines container health check options.
-	hcPromoteInterval = 2 * time.Second
-	hcPromoteRetries  = 100
+	hcPromoteInterval = 5 * time.Second
+	hcPromoteRetries  = 200
 
 	syncContainerStopTimeout = 2 * time.Minute
 )
@@ -142,7 +142,10 @@ func (p *PhysicalInitial) Name() string {
 
 // Run starts the job.
 func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
-	p.scheduleOnce.Do(p.startScheduler(ctx))
+	// Start scheduling after initial snapshot.
+	defer func() {
+		p.scheduleOnce.Do(p.startScheduler(ctx))
+	}()
 
 	select {
 	case <-ctx.Done():
@@ -180,6 +183,10 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 
 			if err := p.dockerClient.ContainerStart(ctx, syncContainer.ID, types.ContainerStartOptions{}); err != nil {
 				log.Err(fmt.Sprintf("failed to start %q: %v", p.syncInstanceName(), err))
+			}
+
+			if err := tools.RunPostgres(ctx, p.dockerClient, syncContainer.ID, p.globalCfg.DataDir); err != nil {
+				log.Err(fmt.Sprintf("failed to start PostgreSQL instance inside %q: %v", p.syncInstanceName(), err))
 			}
 		}()
 	}
@@ -307,7 +314,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return err
 	}
 
-	pgVersion, err := tools.DetectPGVersion(p.globalCfg.DataDir)
+	pgVersion, err := tools.DetectPGVersion(clonePath)
 	if err != nil {
 		return errors.Wrap(err, "failed to detect the Postgres version")
 	}
@@ -317,7 +324,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to adjust recovery configuration")
 	}
 
-	hostConfig, err := p.buildHostConfig(clonePath)
+	hostConfig, err := p.buildHostConfig(ctx, clonePath)
 	if err != nil {
 		return errors.Wrap(err, "failed to build container host config")
 	}
@@ -359,27 +366,9 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", p.promoteContainerName(), cont.ID))
 
-	// Set permissions.
-	if err := tools.ExecCommand(ctx, p.dockerClient, cont.ID, types.ExecConfig{
-		Cmd: []string{"chown", "-R", "postgres", clonePath},
-	}); err != nil {
-		return errors.Wrap(err, "failed to set permissions")
-	}
-
 	// Start PostgreSQL instance.
-	startCommand, err := p.dockerClient.ContainerExecCreate(ctx, cont.ID, types.ExecConfig{
-		Cmd:  []string{"postgres", "-D", clonePath},
-		User: defaults.Username,
-	})
-
-	if err != nil {
-		return errors.Wrap(err, "failed to create an exec command")
-	}
-
-	log.Msg("Running PostgreSQL instance")
-
-	if _, err := p.dockerClient.ContainerExecAttach(ctx, startCommand.ID, types.ExecStartCheck{Tty: true}); err != nil {
-		return errors.Wrap(err, "failed to attach to the exec command")
+	if err := tools.RunPostgres(ctx, p.dockerClient, cont.ID, clonePath); err != nil {
+		return errors.Wrap(err, "failed to start PostgreSQL instance")
 	}
 
 	if err := tools.CheckContainerReadiness(ctx, p.dockerClient, cont.ID); err != nil {
@@ -484,10 +473,10 @@ func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password
 	}
 }
 
-func (p *PhysicalInitial) buildHostConfig(clonePath string) (*container.HostConfig, error) {
+func (p *PhysicalInitial) buildHostConfig(ctx context.Context, clonePath string) (*container.HostConfig, error) {
 	hostConfig := &container.HostConfig{}
 
-	if err := tools.AddVolumesToHostConfig(hostConfig, clonePath); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, p.dockerClient, hostConfig, clonePath); err != nil {
 		return nil, err
 	}
 

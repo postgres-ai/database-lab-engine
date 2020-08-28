@@ -121,7 +121,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to scan image pulling response")
 	}
 
-	hostConfig, err := r.buildHostConfig()
+	hostConfig, err := r.buildHostConfig(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to build container host config")
 	}
@@ -213,7 +213,7 @@ func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 	}
 }
 
-func (r *RestoreJob) buildHostConfig() (*container.HostConfig, error) {
+func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
 	hostConfig := &container.HostConfig{
 		Mounts: []mount.Mount{
 			{
@@ -224,7 +224,7 @@ func (r *RestoreJob) buildHostConfig() (*container.HostConfig, error) {
 		},
 	}
 
-	if err := tools.AddVolumesToHostConfig(hostConfig, r.globalCfg.DataDir); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.globalCfg.DataDir); err != nil {
 		return nil, err
 	}
 

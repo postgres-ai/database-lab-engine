@@ -130,7 +130,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Msg(fmt.Sprintf("Run job: %s. Options: %v", r.Name(), r.CopyOptions))
 
 	defer func() {
-		if err != nil && r.CopyOptions.SyncInstance {
+		if err == nil && r.CopyOptions.SyncInstance {
 			if syncErr := r.runSyncInstance(ctx); syncErr != nil {
 				log.Err("Failed to run sync instance", syncErr)
 			}
@@ -146,10 +146,6 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		log.Msg("Data directory is not empty. Skipping physical restore.")
 
 		return nil
-	}
-
-	if err := tools.PullImage(ctx, r.dockerClient, r.CopyOptions.DockerImage); err != nil {
-		return errors.Wrap(err, "failed to scan image pulling response")
 	}
 
 	contID, err := r.startContainer(ctx, r.restoreContainerName())
@@ -216,7 +212,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	}
 
 	// Start PostgreSQL instance.
-	startCommand, err := r.dockerClient.ContainerExecCreate(ctx, contID, startingPostgresConfig(r.globalCfg.DataDir))
+	startCommand, err := r.dockerClient.ContainerExecCreate(ctx, contID, startingPostgresConfig(r.globalCfg.DataDir, pgVersion))
 
 	if err != nil {
 		return errors.Wrap(err, "failed to create an exec command")
@@ -241,7 +237,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 }
 
 func (r *RestoreJob) startContainer(ctx context.Context, containerName string) (string, error) {
-	hostConfig, err := r.buildHostConfig()
+	hostConfig, err := r.buildHostConfig(ctx)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to build container host config")
 	}
@@ -249,6 +245,10 @@ func (r *RestoreJob) startContainer(ctx context.Context, containerName string) (
 	pwd, err := password.Generate(tools.PasswordLength, tools.PasswordMinDigits, tools.PasswordMinSymbols, false, true)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to generate PostgreSQL password")
+	}
+
+	if err := tools.PullImage(ctx, r.dockerClient, r.CopyOptions.DockerImage); err != nil {
+		return "", errors.Wrap(err, "failed to scan image pulling response")
 	}
 
 	syncInstance, err := r.dockerClient.ContainerCreate(ctx,
@@ -269,12 +269,15 @@ func (r *RestoreJob) startContainer(ctx context.Context, containerName string) (
 	return syncInstance.ID, nil
 }
 
-func startingPostgresConfig(pgDataDir string) types.ExecConfig {
+func startingPostgresConfig(pgDataDir, pgVersion string) types.ExecConfig {
+	command := fmt.Sprintf("/usr/lib/postgresql/%s/bin/postgres", pgVersion)
+
 	return types.ExecConfig{
 		AttachStdout: true,
 		AttachStderr: true,
-		Cmd:          []string{"postgres", "-D", pgDataDir},
+		Cmd:          []string{command, "-D", pgDataDir},
 		User:         defaults.Username,
+		Env:          os.Environ(),
 	}
 }
 
@@ -284,11 +287,17 @@ func isDatabaseReady(input io.Reader) error {
 	timer := time.NewTimer(time.Minute)
 	defer timer.Stop()
 
-	for scanner.Scan() {
+LOOP:
+	for {
 		select {
 		case <-timer.C:
 			return errors.New("timeout exceeded")
 		default:
+			if !scanner.Scan() {
+				break LOOP
+			}
+
+			timer.Reset(time.Minute)
 		}
 
 		text := scanner.Text()
@@ -335,16 +344,29 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 		return err
 	}
 
-	startSyncCommand, err := r.dockerClient.ContainerExecCreate(ctx, syncInstanceID, startingPostgresConfig(r.globalCfg.DataDir))
+	// Set permissions.
+	if err := tools.ExecCommand(ctx, r.dockerClient, syncInstanceID, types.ExecConfig{
+		Cmd: []string{"chown", "-R", "postgres", r.globalCfg.DataDir},
+	}); err != nil {
+		return errors.Wrap(err, "failed to set permissions")
+	}
+
+	pgVersion, err := tools.DetectPGVersion(r.globalCfg.DataDir)
+	if err != nil {
+		return err
+	}
+
+	startSyncCommand, err := r.dockerClient.ContainerExecCreate(ctx, syncInstanceID, startingPostgresConfig(r.globalCfg.DataDir, pgVersion))
 	if err != nil {
 		return errors.Wrap(err, "failed to create exec command")
 	}
 
-	if err = r.dockerClient.ContainerExecStart(ctx, startSyncCommand.ID, types.ExecStartCheck{Tty: true}); err != nil {
+	if err = r.dockerClient.ContainerExecStart(ctx, startSyncCommand.ID, types.ExecStartCheck{
+		Detach: true, Tty: true}); err != nil {
 		return errors.Wrap(err, "failed to attach to exec command")
 	}
 
-	if err := tools.InspectCommandResponse(ctx, r.dockerClient, startSyncCommand.ID, startSyncCommand.ID); err != nil {
+	if err := tools.InspectCommandResponse(ctx, r.dockerClient, syncInstanceID, startSyncCommand.ID); err != nil {
 		return errors.Wrap(err, "failed to perform exec command")
 	}
 
@@ -373,16 +395,16 @@ func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 	return &container.Config{
 		Labels: map[string]string{"label": tools.DBLabControlLabel},
 		Env:    r.getEnvironmentVariables(password),
-		Image:  r.DockerImage,
+		Image:  r.CopyOptions.DockerImage,
 	}
 }
 
-func (r *RestoreJob) buildHostConfig() (*container.HostConfig, error) {
+func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
 	hostConfig := &container.HostConfig{
 		Mounts: r.restorer.GetMounts(),
 	}
 
-	if err := tools.AddVolumesToHostConfig(hostConfig, r.globalCfg.DataDir); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.globalCfg.DataDir); err != nil {
 		return nil, err
 	}
 
