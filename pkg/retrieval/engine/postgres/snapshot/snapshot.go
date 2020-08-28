@@ -53,7 +53,7 @@ func applyUsersConfigs(usersConfig map[string]string, filename string) error {
 	sb.WriteString("\n")
 
 	for configKey, configValue := range usersConfig {
-		sb.WriteString(fmt.Sprintf("%s = %s\n", configKey, configValue))
+		sb.WriteString(fmt.Sprintf("%s = '%s'\n", configKey, configValue))
 	}
 
 	_, err = configFile.WriteString(sb.String())
