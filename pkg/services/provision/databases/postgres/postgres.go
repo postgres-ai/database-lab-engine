@@ -115,23 +115,20 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 func Stop(r runners.Runner, c *resources.AppConfig) error {
 	log.Dbg("Stopping Postgres container...")
 
-	_, err := docker.RemoveContainer(r, c)
-	if err != nil {
+	if _, err := docker.RemoveContainer(r, c); err != nil {
 		return errors.Wrap(err, "failed to remove container")
 	}
 
-	//err = os.RemoveAll(c.UnixSocketCloneDir)
-	_, err = r.Run("rm -rf " + c.UnixSocketCloneDir + "/*")
-	if err != nil {
+	if _, err := r.Run("rm -rf " + c.UnixSocketCloneDir + "/*"); err != nil {
 		return errors.Wrap(err, "failed to clean unix socket directory")
 	}
 
 	return nil
 }
 
-// List gets started Postgres instances.
-func List(r runners.Runner, prefix string) ([]string, error) {
-	return docker.ListContainers(r)
+// List gets started Postgres instances filtered by label.
+func List(r runners.Runner, label string) ([]string, error) {
+	return docker.ListContainers(r, label)
 }
 
 func pgctlPromote(r runners.Runner, c *resources.AppConfig) (string, error) {

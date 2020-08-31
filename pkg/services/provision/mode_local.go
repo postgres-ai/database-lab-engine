@@ -418,7 +418,7 @@ func (j *provisionModeLocal) setPortStatus(port uint, bind bool) error {
 }
 
 func (j *provisionModeLocal) stopAllSessions() error {
-	instances, err := postgres.List(j.runner, ClonePrefix)
+	instances, err := postgres.List(j.runner, j.config.Options.ClonePool)
 	if err != nil {
 		return errors.Wrap(err, "failed to list containers")
 	}
@@ -464,6 +464,7 @@ func (j *provisionModeLocal) getAppConfig(name string, port uint) *resources.App
 
 	appConfig := &resources.AppConfig{
 		CloneName:          name,
+		ClonePool:          j.config.Options.ClonePool,
 		DockerImage:        j.config.Options.DockerImage,
 		Datadir:            path.Clean(j.config.Options.ClonesMountDir + name),
 		Host:               host,

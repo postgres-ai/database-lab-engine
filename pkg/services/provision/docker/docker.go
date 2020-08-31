@@ -47,6 +47,7 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 		"--publish " + strconv.Itoa(int(c.Port)) + ":5432 " +
 		"--env PGDATA=" + c.Datadir + " " + socketVolume + " " +
 		"--label " + labelClone + " " +
+		"--label " + c.ClonePool + " " +
 		c.DockerImage + " -k " + c.UnixSocketCloneDir
 
 	return r.Run(dockerRunCmd, true)
@@ -79,10 +80,9 @@ func RemoveContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 }
 
 // ListContainers lists containers.
-func ListContainers(r runners.Runner) ([]string, error) {
-	dockerListCmd := "docker container ls " +
-		"--filter \"label=" + labelClone + "\" " +
-		"--all --quiet"
+func ListContainers(r runners.Runner, clonePool string) ([]string, error) {
+	dockerListCmd := fmt.Sprintf(`docker container ls --filter "label=%s" --filter "label=%s" --all --quiet`,
+		labelClone, clonePool)
 
 	out, err := r.Run(dockerListCmd, true)
 	if err != nil {

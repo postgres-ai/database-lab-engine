@@ -7,7 +7,6 @@ package zfs
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -171,17 +170,26 @@ func CloneExists(r runners.Runner, name string) (bool, error) {
 }
 
 // ListClones lists ZFS clones.
-func ListClones(r runners.Runner, prefix string) ([]string, error) {
-	listZfsClonesCmd := "zfs list"
+func ListClones(r runners.Runner, pool, prefix string) ([]string, error) {
+	listZfsClonesCmd := "zfs list -o name -H"
 
-	re := regexp.MustCompile(fmt.Sprintf(`(%s[0-9]+)`, prefix))
-
-	out, err := r.Run(listZfsClonesCmd, false)
+	cmdOutput, err := r.Run(listZfsClonesCmd, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list clones")
 	}
 
-	return util.Unique(re.FindAllString(out, -1)), nil
+	cloneNames := []string{}
+	poolPrefix := pool + "/"
+	clonePoolPrefix := pool + "/" + prefix
+	lines := strings.Split(strings.TrimSpace(cmdOutput), "\n")
+
+	for _, line := range lines {
+		if strings.HasPrefix(line, clonePoolPrefix) {
+			cloneNames = append(cloneNames, strings.TrimPrefix(line, poolPrefix))
+		}
+	}
+
+	return util.Unique(cloneNames), nil
 }
 
 // CreateSnapshot creates ZFS snapshot.

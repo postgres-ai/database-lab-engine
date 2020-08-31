@@ -63,7 +63,7 @@ func (m *managerZFS) DestroyClone(name string) error {
 }
 
 func (m *managerZFS) ListClonesNames() ([]string, error) {
-	return zfs.ListClones(m.runner, m.config.ClonePrefix)
+	return zfs.ListClones(m.runner, m.config.Pool, m.config.ClonePrefix)
 }
 
 func (m *managerZFS) GetSessionState(name string) (*resources.SessionState, error) {
