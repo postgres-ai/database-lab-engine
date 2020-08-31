@@ -7,6 +7,7 @@ package resources
 // AppConfig currently stores Postgres configuration (other application in the future too).
 type AppConfig struct {
 	CloneName string
+	ClonePool string
 
 	DockerImage string
 
