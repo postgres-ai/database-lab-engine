@@ -144,7 +144,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return nil
 	}
 
-	contID, err := r.startContainer(ctx, r.restoreContainerName())
+	contID, err := r.startContainer(ctx, r.restoreContainerName(), tools.DBLabRestoreLabel)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create container: %s", r.restoreContainerName())
 	}
@@ -232,7 +232,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	return nil
 }
 
-func (r *RestoreJob) startContainer(ctx context.Context, containerName string) (string, error) {
+func (r *RestoreJob) startContainer(ctx context.Context, containerName, containerLabel string) (string, error) {
 	hostConfig, err := r.buildHostConfig(ctx)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to build container host config")
@@ -248,7 +248,7 @@ func (r *RestoreJob) startContainer(ctx context.Context, containerName string) (
 	}
 
 	syncInstance, err := r.dockerClient.ContainerCreate(ctx,
-		r.buildContainerConfig(pwd),
+		r.buildContainerConfig(pwd, containerLabel),
 		hostConfig,
 		&network.NetworkingConfig{},
 		containerName,
@@ -335,7 +335,7 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 
 	log.Msg("Starting sync instance: ", r.syncInstanceName())
 
-	syncInstanceID, err := r.startContainer(ctx, r.syncInstanceName())
+	syncInstanceID, err := r.startContainer(ctx, r.syncInstanceName(), tools.DBLabSyncLabel)
 	if err != nil {
 		return err
 	}
@@ -387,9 +387,9 @@ func (r *RestoreJob) getEnvironmentVariables(password string) []string {
 	return envVariables
 }
 
-func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
+func (r *RestoreJob) buildContainerConfig(password, label string) *container.Config {
 	return &container.Config{
-		Labels: map[string]string{"label": tools.DBLabControlLabel},
+		Labels: map[string]string{tools.DBLabControlLabel: label},
 		Env:    r.getEnvironmentVariables(password),
 		Image:  r.CopyOptions.DockerImage,
 	}

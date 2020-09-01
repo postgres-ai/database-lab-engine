@@ -353,7 +353,7 @@ func (d *DumpJob) getEnvironmentVariables(password string) []string {
 
 func (d *DumpJob) buildContainerConfig(password string) *container.Config {
 	return &container.Config{
-		Labels:      map[string]string{"label": tools.DBLabControlLabel},
+		Labels:      map[string]string{tools.DBLabControlLabel: tools.DBLabDumpLabel},
 		Env:         d.getEnvironmentVariables(password),
 		Image:       d.DockerImage,
 		Healthcheck: health.GetConfig(),

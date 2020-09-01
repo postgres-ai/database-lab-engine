@@ -6,7 +6,7 @@ IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:master"
 SOURCE_HOST="${SOURCE_HOST:-172.31.39.142}"
 SOURCE_USERNAME="${SOURCE_USERNAME:-postgres}"
 SOURCE_PASSWORD="${SOURCE_PASSWORD:-qwerty}"
-POSTGRES_VERSION="${SOURCE_PASSWORD:-10}"
+POSTGRES_VERSION="${POSTGRES_VERSION:-10}"
 
 ### Step 1: Prepare a machine with two disks, Docker and ZFS
 
@@ -67,25 +67,8 @@ dblab clone reset testclone
 dblab clone status testclone
 psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
 
-### Step 9. Destroy clone
+### Step 7. Destroy clone
 dblab clone create --username testuser --password testuser --id testclone2
 dblab clone list
 dblab clone destroy testclone2
 dblab clone list
-
-### Step ?. Restart containers
-sudo docker ps -a --filter 'label=dblab_control' \
-    | grep -v CONTAINER \
-    | awk '{print $1}' \
-    | sudo xargs --no-run-if-empty docker restart \
-  || true
-sudo docker ps -a --filter 'label=dblab-clone' \
-    | grep -v CONTAINER \
-    | awk '{print $1}' \
-    | sudo xargs --no-run-if-empty docker restart \
-  || true
-
-for i in {1..300}; do
-  psql "host=localhost port=6000 user=testuser dbname=test" -c '\l' 2>/dev/null  && break || echo "cloned database is not ready yet"
-  sleep 1
-done
