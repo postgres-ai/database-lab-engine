@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	sslRootCert = "/tmp/cert/ssl-combined-ca-bundle.pem"
+	sslRootCert = "/cert/ssl-combined-ca-bundle.pem"
 
 	// AWS service names.
 	serviceIAM   = "iam"
@@ -98,6 +98,7 @@ func (r *rdsDumper) GetMounts() []mount.Mount {
 	mounts := []mount.Mount{}
 
 	if r.rdsCfg != nil && r.rdsCfg.SSLRootCert != "" {
+		// TODO (akartasov): Remove mounting after the image contains a built-in certificate.
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
 			Source: r.rdsCfg.SSLRootCert,

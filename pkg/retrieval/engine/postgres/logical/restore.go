@@ -14,7 +14,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
@@ -51,7 +50,7 @@ type RestoreJob struct {
 
 // RestoreOptions defines a logical restore options.
 type RestoreOptions struct {
-	DumpFile     string  `yaml:"dumpLocation"`
+	DumpLocation string  `yaml:"dumpLocation"`
 	DockerImage  string  `yaml:"dockerImage"`
 	DBName       string  `yaml:"dbname"`
 	ForceInit    bool    `yaml:"forceInit"`
@@ -214,15 +213,7 @@ func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 }
 
 func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
-	hostConfig := &container.HostConfig{
-		Mounts: []mount.Mount{
-			{
-				Type:   mount.TypeBind,
-				Source: r.RestoreOptions.DumpFile,
-				Target: r.RestoreOptions.DumpFile,
-			},
-		},
-	}
+	hostConfig := &container.HostConfig{}
 
 	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.globalCfg.DataDir); err != nil {
 		return nil, err
@@ -253,7 +244,7 @@ func (r *RestoreJob) markDatabase(ctx context.Context, contID string) error {
 }
 
 func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID string) (string, error) {
-	restoreMetaCmd := []string{"sh", "-c", "pg_restore --list " + r.RestoreOptions.DumpFile + " | head -n 10"}
+	restoreMetaCmd := []string{"sh", "-c", "pg_restore --list " + r.RestoreOptions.DumpLocation + " | head -n 10"}
 
 	log.Dbg("Running a restore metadata command: ", restoreMetaCmd)
 
@@ -295,7 +286,7 @@ func (r *RestoreJob) buildLogicalRestoreCommand() []string {
 		restoreCmd = append(restoreCmd, "--table", table)
 	}
 
-	restoreCmd = append(restoreCmd, r.RestoreOptions.DumpFile)
+	restoreCmd = append(restoreCmd, r.RestoreOptions.DumpLocation)
 
 	return restoreCmd
 }

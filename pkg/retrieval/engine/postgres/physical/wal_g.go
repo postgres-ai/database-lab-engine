@@ -7,14 +7,11 @@ package physical
 import (
 	"bytes"
 	"fmt"
-
-	"github.com/docker/docker/api/types/mount"
 )
 
 const (
-	walgTool                = "walg"
-	credentialsInternalPath = "/etc/sa/credentials.json"
-	gcsStorage              = "gcs"
+	walgTool   = "walg"
+	gcsStorage = "gcs"
 )
 
 // walg defines a WAL-G as an archival restoration tool.
@@ -41,27 +38,10 @@ func (w *walg) GetEnvVariables() []string {
 	envVars := []string{}
 
 	if w.options.Storage == gcsStorage {
-		envVars = append(envVars, "GOOGLE_APPLICATION_CREDENTIALS="+credentialsInternalPath)
+		envVars = append(envVars, "GOOGLE_APPLICATION_CREDENTIALS="+w.options.CredentialsFile)
 	}
 
 	return envVars
-}
-
-// GetMounts returns restorer volume configurations for mounting.
-func (w *walg) GetMounts() []mount.Mount {
-	mounts := []mount.Mount{}
-
-	if w.options.CredentialsFile != "" {
-		mounts = append(mounts,
-			mount.Mount{
-				Type:   mount.TypeBind,
-				Source: w.options.CredentialsFile,
-				Target: credentialsInternalPath,
-			},
-		)
-	}
-
-	return mounts
 }
 
 // GetRestoreCommand returns a command to restore data.

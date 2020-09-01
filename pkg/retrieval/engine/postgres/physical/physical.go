@@ -18,7 +18,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
@@ -69,9 +68,6 @@ type CopyOptions struct {
 type restorer interface {
 	// GetEnvVariables returns restorer environment variables.
 	GetEnvVariables() []string
-
-	// GetMounts returns restorer volume configurations for mounting.
-	GetMounts() []mount.Mount
 
 	// GetRestoreCommand returns a command to restore data.
 	GetRestoreCommand() string
@@ -400,9 +396,7 @@ func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 }
 
 func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
-	hostConfig := &container.HostConfig{
-		Mounts: r.restorer.GetMounts(),
-	}
+	hostConfig := &container.HostConfig{}
 
 	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.globalCfg.DataDir); err != nil {
 		return nil, err

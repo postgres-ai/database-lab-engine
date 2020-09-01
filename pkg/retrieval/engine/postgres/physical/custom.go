@@ -7,8 +7,6 @@ package physical
 import (
 	"bytes"
 	"fmt"
-
-	"github.com/docker/docker/api/types/mount"
 )
 
 const (
@@ -33,11 +31,6 @@ func newCustomTool(options customOptions) *custom {
 // GetEnvVariables returns environment variables for a custom restore command.
 func (c *custom) GetEnvVariables() []string {
 	return []string{}
-}
-
-// GetMounts returns volume configurations for a custom restore command.
-func (c *custom) GetMounts() []mount.Mount {
-	return []mount.Mount{}
 }
 
 // GetRestoreCommand returns a custom command to restore data.
