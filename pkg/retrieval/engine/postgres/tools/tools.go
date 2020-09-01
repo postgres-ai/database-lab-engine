@@ -115,22 +115,23 @@ func AddVolumesToHostConfig(ctx context.Context, dockerClient *client.Client, ho
 	log.Dbg("Virtualization system: ", hostInfo.VirtualizationSystem)
 
 	if hostInfo.VirtualizationRole == "guest" {
-		insp, err := dockerClient.ContainerInspect(ctx, hostInfo.Hostname)
+		inspection, err := dockerClient.ContainerInspect(ctx, hostInfo.Hostname)
 		if err != nil {
 			return err
 		}
 
-		for _, mountPoint := range insp.Mounts {
-			if !strings.HasPrefix(dataDir, mountPoint.Destination) {
-				continue
+		for _, mountPoint := range inspection.Mounts {
+			// Rewrite mounting to data directory.
+			if strings.HasPrefix(dataDir, mountPoint.Destination) {
+				suffix := strings.TrimPrefix(dataDir, mountPoint.Destination)
+				mountPoint.Source = path.Join(mountPoint.Source, suffix)
+				mountPoint.Destination = dataDir
 			}
-
-			suffix := strings.TrimPrefix(dataDir, mountPoint.Destination)
 
 			hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
 				Type:     mountPoint.Type,
-				Source:   path.Join(mountPoint.Source, suffix),
-				Target:   dataDir,
+				Source:   mountPoint.Source,
+				Target:   mountPoint.Destination,
 				ReadOnly: !mountPoint.RW,
 				BindOptions: &mount.BindOptions{
 					Propagation: mountPoint.Propagation,

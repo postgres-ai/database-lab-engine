@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -363,7 +362,7 @@ func (d *DumpJob) buildContainerConfig(password string) *container.Config {
 
 func (d *DumpJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
 	hostConfig := &container.HostConfig{
-		Mounts:      d.getMountVolumes(),
+		Mounts:      d.dumper.GetMounts(),
 		NetworkMode: d.getContainerNetworkMode(),
 	}
 
@@ -372,21 +371,6 @@ func (d *DumpJob) buildHostConfig(ctx context.Context) (*container.HostConfig, e
 	}
 
 	return hostConfig, nil
-}
-
-// getMountVolumes returns a list of mount volumes.
-func (d *DumpJob) getMountVolumes() []mount.Mount {
-	mounts := d.dumper.GetMounts()
-
-	if d.DumpOptions.DumpLocation != "" {
-		mounts = append(mounts, mount.Mount{
-			Type:   mount.TypeBind,
-			Source: filepath.Dir(d.DumpOptions.DumpLocation),
-			Target: filepath.Dir(d.DumpOptions.DumpLocation),
-		})
-	}
-
-	return mounts
 }
 
 func (d *DumpJob) getContainerNetworkMode() container.NetworkMode {
