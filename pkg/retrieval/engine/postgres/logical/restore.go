@@ -31,7 +31,7 @@ import (
 
 const (
 	// RestoreJobType declares a job type for logical dumping.
-	RestoreJobType = "logical-restore"
+	RestoreJobType = "logicalRestore"
 
 	// const defines restore options.
 	restoreContainerPrefix = "dblab_lr_"

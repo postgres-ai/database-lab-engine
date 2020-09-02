@@ -119,12 +119,12 @@ provision:
 retrieval:
   # The jobs section must not contain physical and logical restore jobs simultaneously.
   jobs:
-    - physical-restore
-    - physical-snapshot
+    - physicalRestore
+    - physicalSnapshot
 
   spec:
     # Restores database data from a physical backup.
-    physical-restore:
+    physicalRestore:
       options:
         tool: customTool
         dockerImage: "postgresai/sync-instance:12"
@@ -148,7 +148,7 @@ retrieval:
           # PostgreSQL "restore_command" configuration option.
           restore_command: ""
 
-    physical-snapshot:
+    physicalSnapshot:
       options:
         # Promote PGDATA after data fetching.
         promote: true

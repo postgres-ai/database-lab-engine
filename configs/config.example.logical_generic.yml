@@ -119,13 +119,13 @@ provision:
 retrieval:
   # The jobs section must not contain physical and logical restore jobs simultaneously.
   jobs:
-    - logical-dump
-    - logical-restore
-    - logical-snapshot
+    - logicalDump
+    - logicalRestore
+    - logicalSnapshot
 
   spec:
     # Dumps PostgreSQL database from provided source.
-    logical-dump:
+    logicalDump:
       options:
         # The dump file will be automatically created on this location and then used to restore.
         # Ensure that there is enough disk space.
@@ -164,7 +164,7 @@ retrieval:
 
         # Options for direct restore to Database Lab Engine instance.
         # Uncomment this if you prefer restoring from the dump on the fly. In this case,
-        # you do not need to use "logical-restore" job. Keep in mind that unlike "logical-restore",
+        # you do not need to use "logicalRestore" job. Keep in mind that unlike "logicalRestore",
         # this option does not support parallelization, it is always a single-threaded (both for
         # dumping on the source, and restoring on the destination end).
         # immediateRestore:
@@ -173,8 +173,8 @@ retrieval:
         #   forceInit: false
 
     # Restores PostgreSQL database from the provided dump. If you use this block, do not use
-    # "restore" option in the "logical-dump" job.
-    logical-restore:
+    # "restore" option in the "logicalDump" job.
+    logicalRestore:
       options:
         dbname: "test"
 
@@ -197,7 +197,7 @@ retrieval:
         #   tables:
         #     - test
 
-    logical-snapshot:
+    logicalSnapshot:
       options:
         # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
         # Default: empty string (no pre-processing defined).

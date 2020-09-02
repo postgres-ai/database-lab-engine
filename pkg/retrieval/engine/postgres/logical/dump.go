@@ -32,7 +32,7 @@ import (
 
 const (
 	// DumpJobType declares a job type for logical dumping.
-	DumpJobType = "logical-dump"
+	DumpJobType = "logicalDump"
 
 	// Defines dump options.
 	dumpContainerPrefix = "dblab_ld_"

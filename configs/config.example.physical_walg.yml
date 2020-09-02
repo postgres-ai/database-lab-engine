@@ -119,12 +119,12 @@ provision:
 retrieval:
   # The jobs section must not contain physical and logical restore jobs simultaneously.
   jobs:
-    - physical-restore
-    - physical-snapshot
+    - physicalRestore
+    - physicalSnapshot
 
   spec:
     # Restores database data from a physical backup.
-    physical-restore:
+    physicalRestore:
       options:
         tool: walg
         dockerImage: "postgresai/sync-instance:12"
@@ -137,7 +137,7 @@ retrieval:
           # credentialsFile is used in the case of GCP. For AWS and MinIO, use "envs".
           credentialsFile: /tmp/sa.json
 
-    physical-snapshot:
+    physicalSnapshot:
       options:
         # Promote PGDATA after data fetching.
         promote: true
