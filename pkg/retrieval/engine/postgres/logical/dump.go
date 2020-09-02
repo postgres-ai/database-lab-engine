@@ -15,7 +15,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
@@ -89,9 +88,6 @@ type dumpJobConfig struct {
 type dumper interface {
 	// GetEnvVariables returns dumper environment variables.
 	GetCmdEnvVariables() []string
-
-	// GetMounts returns dumper volume configurations for mounting.
-	GetMounts() []mount.Mount
 
 	// SetConnectionOptions sets connection options for dumping.
 	SetConnectionOptions(context.Context, *Connection) error
@@ -362,7 +358,6 @@ func (d *DumpJob) buildContainerConfig(password string) *container.Config {
 
 func (d *DumpJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
 	hostConfig := &container.HostConfig{
-		Mounts:      d.dumper.GetMounts(),
 		NetworkMode: d.getContainerNetworkMode(),
 	}
 
