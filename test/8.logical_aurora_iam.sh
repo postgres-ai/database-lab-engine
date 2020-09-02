@@ -3,7 +3,7 @@ set -euxo pipefail
 
 DIR=${0%/*}
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:master"
-POSTGRES_VERSION="${SOURCE_PASSWORD:-10}"
+POSTGRES_VERSION="${POSTGRES_VERSION:-10}"
 AWS_USER="${AWS_USER:-dmitry}"
 RDS_DATABASENAME="${RDS_DATABASENAME:-aurora-test2-instance-1}"
 IAM_POLICY="${IAM_POLICY:-rds-dblab-retrieval-test3}"
