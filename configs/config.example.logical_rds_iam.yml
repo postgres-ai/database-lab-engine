@@ -146,20 +146,14 @@ retrieval:
 
           # Optional definition of RDS data source.
           rdsIam:
-            # RDS IAM policy name.
-            iamPolicyName: rds-dblab-retrieval
-
             # AWS Region.
             awsRegion: us-east-2
-
-            # AWS username.
-            username: aws_user
 
             # RDS instance Identifier.
             dbInstanceIdentifier: database-1
 
             # Path to the SSL root certificate: https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
-            sslRootCert: "/tmp/rds-combined-ca-bundle.pem"
+            sslRootCert: "/cert/rds-combined-ca-bundle.pem"
 
         # Options for a partial dump.
         # partial:
