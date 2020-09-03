@@ -6,14 +6,18 @@
 package docker
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/api/types"
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/host"
 
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
 )
@@ -30,30 +34,101 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 	}
 
 	// Directly mount PGDATA if Database Lab is running without any virtualization.
-	socketVolume := fmt.Sprintf("--volume %s:%s", c.Datadir, c.Datadir)
+	volumes := []string{fmt.Sprintf("--volume %s:%s", c.Datadir, c.Datadir)}
 
 	if hostInfo.VirtualizationRole == "guest" {
-		// Use volumes from the Database Lab instance if it's running inside Docker container.
-		socketVolume = "--volumes-from=" + hostInfo.Hostname
+		// Build custom mounts rely on mounts of the Database Lab instance if it's running inside Docker container.
+		// We cannot use --volumes-from because it removes the ZFS mount point.
+		volumes, err = buildMountVolumes(r, hostInfo.Hostname, c.Datadir, c.UnixSocketCloneDir)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to detect container volumes")
+		}
 	}
 
 	if err := createSocketCloneDir(c.UnixSocketCloneDir); err != nil {
 		return "", errors.Wrap(err, "failed to create socket clone directory")
 	}
 
-	dockerRunCmd := "docker run " +
-		"--name " + c.CloneName + " " +
-		"--detach " +
-		"--publish " + strconv.Itoa(int(c.Port)) + ":5432 " +
-		"--env PGDATA=" + c.Datadir + " " + socketVolume + " " +
-		"--label " + labelClone + " " +
-		"--label " + c.ClonePool + " " +
-		c.DockerImage + " -k " + c.UnixSocketCloneDir
+	dockerRunCmd := strings.Join([]string{
+		"docker run",
+		"--name", c.CloneName,
+		"--detach",
+		"--publish", strconv.Itoa(int(c.Port)) + ":5432",
+		"--env", "PGDATA=" + c.Datadir,
+		strings.Join(volumes, " "),
+		"--label", labelClone,
+		"--label", c.ClonePool,
+		c.DockerImage,
+		"-k", c.UnixSocketCloneDir,
+	}, " ")
 
 	return r.Run(dockerRunCmd, true)
 }
 
+func buildMountVolumes(r runners.Runner, containerID, dataDir, cloneDir string) ([]string, error) {
+	inspectCmd := "docker inspect -f '{{ json .Mounts }}' " + containerID
+
+	var mountPoints []types.MountPoint
+
+	out, err := r.Run(inspectCmd, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get container mounts")
+	}
+
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &mountPoints); err != nil {
+		return nil, errors.Wrap(err, "failed to interpret mount paths")
+	}
+
+	mounts := tools.GetMountsFromMountPoints(dataDir, mountPoints)
+	volumes := make([]string, 0, len(mounts))
+
+	for _, mount := range mounts {
+		// Add extra mount for socket directories.
+		// TODO (akartasov): Add mountDir to global config.
+		if mount.Target == dataDir {
+			volumes = append(volumes, buildSocketMount(mount.Source, dataDir, cloneDir))
+		}
+
+		volume := fmt.Sprintf("--volume %s:%s", mount.Source, mount.Target)
+
+		if mount.BindOptions != nil && mount.BindOptions.Propagation != "" {
+			volume += ":" + string(mount.BindOptions.Propagation)
+		}
+
+		volumes = append(volumes, volume)
+	}
+
+	return volumes, nil
+}
+
+// buildSocketMount builds a socket directory mounting rely on dataDir mounting.
+func buildSocketMount(hostDataDir, dataDir, cloneDir string) string {
+	mountDir := cloneDir
+
+	// Discover the common path prefix supposing it is the mount point.
+	for mountDir != "." {
+		mountDir, _ = path.Split(mountDir)
+
+		if strings.HasPrefix(dataDir, mountDir) {
+			break
+		}
+
+		mountDir = path.Clean(mountDir)
+	}
+
+	clonePath := strings.TrimPrefix(cloneDir, mountDir)
+	dataPath := strings.TrimPrefix(dataDir, mountDir)
+	internalMount := strings.TrimSuffix(hostDataDir, dataPath)
+	internalMountPath := path.Join(internalMount, clonePath)
+
+	return fmt.Sprintf(" --volume %s:%s:rshared", internalMountPath, cloneDir)
+}
+
 func createSocketCloneDir(socketCloneDir string) error {
+	if err := os.RemoveAll(socketCloneDir); err != nil {
+		return err
+	}
+
 	if err := os.MkdirAll(socketCloneDir, 0777); err != nil {
 		return err
 	}

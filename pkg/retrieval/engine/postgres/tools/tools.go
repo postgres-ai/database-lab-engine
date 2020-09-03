@@ -129,24 +129,7 @@ func AddVolumesToHostConfig(ctx context.Context, dockerClient *client.Client, ho
 			return err
 		}
 
-		for _, mountPoint := range inspection.Mounts {
-			// Rewrite mounting to data directory.
-			if strings.HasPrefix(dataDir, mountPoint.Destination) {
-				suffix := strings.TrimPrefix(dataDir, mountPoint.Destination)
-				mountPoint.Source = path.Join(mountPoint.Source, suffix)
-				mountPoint.Destination = dataDir
-			}
-
-			hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
-				Type:     mountPoint.Type,
-				Source:   mountPoint.Source,
-				Target:   mountPoint.Destination,
-				ReadOnly: !mountPoint.RW,
-				BindOptions: &mount.BindOptions{
-					Propagation: mountPoint.Propagation,
-				},
-			})
-		}
+		hostConfig.Mounts = GetMountsFromMountPoints(dataDir, inspection.Mounts)
 
 		log.Dbg(hostConfig.Mounts)
 	} else {
@@ -158,6 +141,32 @@ func AddVolumesToHostConfig(ctx context.Context, dockerClient *client.Client, ho
 	}
 
 	return nil
+}
+
+// GetMountsFromMountPoints creates a list of mounts.
+func GetMountsFromMountPoints(dataDir string, mountPoints []types.MountPoint) []mount.Mount {
+	mounts := make([]mount.Mount, 0, len(mountPoints))
+
+	for _, mountPoint := range mountPoints {
+		// Rewrite mounting to data directory.
+		if strings.HasPrefix(dataDir, mountPoint.Destination) {
+			suffix := strings.TrimPrefix(dataDir, mountPoint.Destination)
+			mountPoint.Source = path.Join(mountPoint.Source, suffix)
+			mountPoint.Destination = dataDir
+		}
+
+		mounts = append(mounts, mount.Mount{
+			Type:     mountPoint.Type,
+			Source:   mountPoint.Source,
+			Target:   mountPoint.Destination,
+			ReadOnly: !mountPoint.RW,
+			BindOptions: &mount.BindOptions{
+				Propagation: mountPoint.Propagation,
+			},
+		})
+	}
+
+	return mounts
 }
 
 // RunPostgres runs Postgres inside.
