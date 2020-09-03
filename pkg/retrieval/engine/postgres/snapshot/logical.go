@@ -38,7 +38,7 @@ type LogicalOptions struct {
 
 const (
 	// LogicalInitialType declares a job type for preparing a logical initial snapshot.
-	LogicalInitialType = "logical-snapshot"
+	LogicalInitialType = "logicalSnapshot"
 )
 
 // NewLogicalInitialJob creates a new logical initial job.

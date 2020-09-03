@@ -41,7 +41,7 @@ import (
 
 const (
 	// PhysicalInitialType declares a job type for preparing a physical snapshot.
-	PhysicalInitialType = "physical-snapshot"
+	PhysicalInitialType = "physicalSnapshot"
 
 	pre                    = "_pre"
 	promoteContainerPrefix = "dblab_promote_"

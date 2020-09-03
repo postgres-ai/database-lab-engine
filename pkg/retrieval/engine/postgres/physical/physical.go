@@ -37,7 +37,7 @@ import (
 
 const (
 	// RestoreJobType defines the physical job type.
-	RestoreJobType = "physical-restore"
+	RestoreJobType = "physicalRestore"
 
 	restoreContainerPrefix = "dblab_phr_"
 	readyLogLine           = "database system is ready to accept"
