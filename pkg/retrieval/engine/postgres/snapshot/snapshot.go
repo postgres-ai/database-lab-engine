@@ -8,13 +8,13 @@ package snapshot
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
 )
 
 func extractDataStateAt(dbMarker *dbmarker.Marker) string {
@@ -31,12 +31,12 @@ func extractDataStateAt(dbMarker *dbmarker.Marker) string {
 }
 
 func runPreprocessingScript(preprocessingScript string) error {
-	commandOutput, err := exec.Command("bash", preprocessingScript).Output()
+	commandOutput, err := runners.NewLocalRunner(false).Run(preprocessingScript)
 	if err != nil {
 		return errors.Wrap(err, "failed to run custom script")
 	}
 
-	log.Msg(string(commandOutput))
+	log.Msg(commandOutput)
 
 	return nil
 }

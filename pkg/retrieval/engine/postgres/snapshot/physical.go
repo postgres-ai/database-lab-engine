@@ -70,6 +70,7 @@ type PhysicalInitial struct {
 // PhysicalOptions describes options for a physical initialization job.
 type PhysicalOptions struct {
 	Promote             bool              `yaml:"promote"`
+	DockerImage         string            `yaml:"dockerImage"`
 	PreprocessingScript string            `yaml:"preprocessingScript"`
 	Configs             map[string]string `yaml:"configs"`
 	Scheduler           *Scheduler        `yaml:"scheduler"`
@@ -329,7 +330,10 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to build container host config")
 	}
 
-	promoteImage := fmt.Sprintf("postgresai/sync-instance:%s", pgVersion)
+	promoteImage := p.options.DockerImage
+	if promoteImage == "" {
+		promoteImage = fmt.Sprintf("postgresai/sync-instance:%s", pgVersion)
+	}
 
 	if err := tools.PullImage(ctx, p.dockerClient, promoteImage); err != nil {
 		return errors.Wrap(err, "failed to scan image pulling response")
