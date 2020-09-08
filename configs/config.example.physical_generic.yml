@@ -153,6 +153,9 @@ retrieval:
         # Promote PGDATA after data fetching.
         promote: true
 
+        # Custom Docker image for data promotion.
+        dockerImage: "postgresai/sync-instance:12"
+
         # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
         # Default: empty string (no pre-processing defined).
         # This can be used for scrubbing eliminating PII data, to define data masking, etc.
