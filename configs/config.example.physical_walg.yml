@@ -131,11 +131,9 @@ retrieval:
         syncInstance: true
         envs:
           WALG_GS_PREFIX: "gs://{BUCKET}/{SCOPE}"
+          GOOGLE_APPLICATION_CREDENTIALS: "/tmp/sa.json"
         walg:
-          storage: gcs
           backupName: LATEST
-          # credentialsFile is used in the case of GCP. For AWS and MinIO, use "envs".
-          credentialsFile: /tmp/sa.json
 
     physicalSnapshot:
       options:

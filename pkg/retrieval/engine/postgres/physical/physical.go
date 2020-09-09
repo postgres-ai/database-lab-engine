@@ -66,9 +66,6 @@ type CopyOptions struct {
 
 // restorer describes the interface of tools for physical restore.
 type restorer interface {
-	// GetEnvVariables returns restorer environment variables.
-	GetEnvVariables() []string
-
 	// GetRestoreCommand returns a command to restore data.
 	GetRestoreCommand() string
 
@@ -375,9 +372,6 @@ func (r *RestoreJob) getEnvironmentVariables(password string) []string {
 		"POSTGRES_PASSWORD=" + password,
 		"PGDATA=" + r.globalCfg.DataDir,
 	}...)
-
-	// Add restore-specific environment variables.
-	envVariables = append(envVariables, r.restorer.GetEnvVariables()...)
 
 	// Add user-defined environment variables.
 	for env, value := range r.Envs {
