@@ -28,11 +28,6 @@ func newCustomTool(options customOptions) *custom {
 	}
 }
 
-// GetEnvVariables returns environment variables for a custom restore command.
-func (c *custom) GetEnvVariables() []string {
-	return []string{}
-}
-
 // GetRestoreCommand returns a custom command to restore data.
 func (c *custom) GetRestoreCommand() string {
 	return c.options.Command

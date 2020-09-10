@@ -10,8 +10,7 @@ import (
 )
 
 const (
-	walgTool   = "walg"
-	gcsStorage = "gcs"
+	walgTool = "walg"
 )
 
 // walg defines a WAL-G as an archival restoration tool.
@@ -21,9 +20,7 @@ type walg struct {
 }
 
 type walgOptions struct {
-	Storage         string `yaml:"storage"`
-	BackupName      string `yaml:"backupName"`
-	CredentialsFile string `yaml:"credentialsFile"`
+	BackupName string `yaml:"backupName"`
 }
 
 func newWalg(pgDataDir string, options walgOptions) *walg {
@@ -31,17 +28,6 @@ func newWalg(pgDataDir string, options walgOptions) *walg {
 		pgDataDir: pgDataDir,
 		options:   options,
 	}
-}
-
-// GetEnvVariables returns restorer environment variables.
-func (w *walg) GetEnvVariables() []string {
-	envVars := []string{}
-
-	if w.options.Storage == gcsStorage {
-		envVars = append(envVars, "GOOGLE_APPLICATION_CREDENTIALS="+w.options.CredentialsFile)
-	}
-
-	return envVars
 }
 
 // GetRestoreCommand returns a command to restore data.
