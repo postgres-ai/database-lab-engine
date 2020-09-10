@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -51,7 +52,20 @@ const (
 	hcPromoteRetries  = 200
 
 	syncContainerStopTimeout = 2 * time.Minute
+	supportedSysctlPrefix    = "fs.mqueue."
 )
+
+// supportedSysctls describes supported sysctls for Promote Docker image.
+var supportedSysctls = map[string]struct{}{
+	"kernel.msgmax":          {},
+	"kernel.msgmnb":          {},
+	"kernel.msgmni":          {},
+	"kernel.sem":             {},
+	"kernel.shmall":          {},
+	"kernel.shmmax":          {},
+	"kernel.shmmni":          {},
+	"kernel.shm_rmid_forced": {},
+}
 
 // PhysicalInitial describes a job for preparing a physical initial snapshot.
 type PhysicalInitial struct {
@@ -73,6 +87,7 @@ type PhysicalOptions struct {
 	DockerImage         string            `yaml:"dockerImage"`
 	PreprocessingScript string            `yaml:"preprocessingScript"`
 	Configs             map[string]string `yaml:"configs"`
+	Sysctls             map[string]string `yaml:"sysctls"`
 	Scheduler           *Scheduler        `yaml:"scheduler"`
 }
 
@@ -104,6 +119,10 @@ func NewPhysicalInitialJob(cfg config.JobConfig, docker *client.Client, cloneMan
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
+	if err := p.validateConfig(); err != nil {
+		return nil, errors.Wrap(err, "invalid physicalSnapshot configuration")
+	}
+
 	if err := p.setupScheduler(); err != nil {
 		return nil, errors.Wrap(err, "failed to set up scheduler")
 	}
@@ -128,6 +147,23 @@ func (p *PhysicalInitial) setupScheduler() error {
 	}
 
 	p.scheduler = cron.New()
+
+	return nil
+}
+
+func (p *PhysicalInitial) validateConfig() error {
+	notSupportedSysctls := []string{}
+
+	for sysctl := range p.options.Sysctls {
+		if _, ok := supportedSysctls[sysctl]; !ok && !strings.HasPrefix(sysctl, supportedSysctlPrefix) {
+			notSupportedSysctls = append(notSupportedSysctls, sysctl)
+		}
+	}
+
+	if len(notSupportedSysctls) > 0 {
+		return errors.Errorf("Docker does not support following kernel parameters (sysctls): %s",
+			strings.Join(notSupportedSysctls, ", "))
+	}
 
 	return nil
 }
@@ -478,7 +514,9 @@ func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password
 }
 
 func (p *PhysicalInitial) buildHostConfig(ctx context.Context, clonePath string) (*container.HostConfig, error) {
-	hostConfig := &container.HostConfig{}
+	hostConfig := &container.HostConfig{
+		Sysctls: p.options.Sysctls,
+	}
 
 	if err := tools.AddVolumesToHostConfig(ctx, p.dockerClient, hostConfig, clonePath); err != nil {
 		return nil, err
