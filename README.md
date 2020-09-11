@@ -1,10 +1,10 @@
 # Database Lab - thin database clones for faster development
 
 <img src="./assets/db-lab.png" align="right" border="0" />
+
 Database Lab Engine is an opens-source technology that allows blazing-fast cloning of Postgres databases of any size in seconds. This helps solve many problems such as:
 - help build dev/QA/staging environments involving full-size production-like databases,
-- provide temporary full-size database clones for SQL query analysis optimization (see
-[Joe bot](https://gitlab.com/postgres-ai/joe)),
+- provide temporary full-size database clones for SQL query analysis optimization (see [Joe bot](https://gitlab.com/postgres-ai/joe)),
 - automatically verify database migrations (DB schema changes) and massive data operations to avoid downtime and performance bottlenecks.
 
 As an example, cloning of 10 TiB PostgreSQL database takes less than 2 seconds.
@@ -22,8 +22,8 @@ However, nowadays, not many open-source projects are hosted at GitLab.com unfort
 
 ## Engine setup
 See Database Lab tutorials:
-    - [Database Lab tutorial for Amazon RDS](https://postgres.ai/docs/tutorials/database-lab-tutorial-amazon-rds),
-    - [Database Lab tutorial for any PostgreSQL database](https://postgres.ai/docs/tutorials/database-lab-tutorial).
+- [Database Lab tutorial for Amazon RDS](https://postgres.ai/docs/tutorials/database-lab-tutorial-amazon-rds),
+- [Database Lab tutorial for any PostgreSQL database](https://postgres.ai/docs/tutorials/database-lab-tutorial).
 
 For stable Docker images see [postgresai/dblab-server](https://hub.docker.com/repository/docker/postgresai/dblab-server) repository on DockerHub.
 
