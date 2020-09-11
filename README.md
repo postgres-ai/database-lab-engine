@@ -14,7 +14,7 @@ Read more at [Postgres.ai](https://postgres.ai) and in [the Docs](https://postgr
 ## Why on GitLab.com?
 Database Lab Engine is hosted and developed on GitLab.com.
 
-GitLab Inc. is our (Postgres.ai) long-term client and early adopter (see [GitLab Development Docs](https://docs.gitlab.com/ee/development/understanding_explain_plans.html#database-lab)). GitLab is open-source. Last but not least: GitLab uses PostgreSQL.
+GitLab Inc. is our (Postgres.ai) long-term client and early adopter (see [GitLab Development Docs](https://docs.gitlab.com/ee/development/understanding_explain_plans.html#database-lab)). GitLab has an open-source version. Last but not least: GitLab uses PostgreSQL.
 
 However, nowadays, not many open-source projects are hosted at GitLab.com unfortunately. Please support the project giving a GitLab star! It's on [the main page](https://gitlab.com/postgres-ai/database-lab), at the upper right corner:
 
