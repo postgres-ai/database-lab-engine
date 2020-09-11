@@ -143,6 +143,7 @@ retrieval:
           PGUSER: "postgres"
           PGPASSWORD: "postgres"
           PGHOST: "source.hostname"
+          PGPORT: 5432
 
         customTool:
           # To use pg_basebackup, specify environment variables in "envs".
