@@ -38,7 +38,7 @@ func NewJobBuilder(global *dblabCfg.Global, dockerClient *client.Client, cloneMa
 		dockerClient: dockerClient,
 		globalCfg:    global,
 		cloneManager: cloneManager,
-		dbMarker:     dbmarker.NewMarker(global.DataDir),
+		dbMarker:     dbmarker.NewMarker(global.DataDir()),
 	}
 }
 

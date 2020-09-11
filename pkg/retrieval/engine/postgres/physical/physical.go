@@ -100,7 +100,7 @@ func NewJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Global
 func (r *RestoreJob) getRestorer(tool string) (restorer, error) {
 	switch tool {
 	case walgTool:
-		return newWalg(r.globalCfg.DataDir, r.WALG), nil
+		return newWALG(r.globalCfg.DataDir(), r.WALG), nil
 
 	case customTool:
 		return newCustomTool(r.CustomTool), nil
@@ -130,7 +130,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	isEmpty, err := tools.IsEmptyDirectory(r.globalCfg.DataDir)
+	isEmpty, err := tools.IsEmptyDirectory(r.globalCfg.DataDir())
 	if err != nil {
 		return errors.Wrap(err, "failed to explore the data directory")
 	}
@@ -174,7 +174,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		log.Err("Failed to mark database data: ", err)
 	}
 
-	pgVersion, err := tools.DetectPGVersion(r.globalCfg.DataDir)
+	pgVersion, err := tools.DetectPGVersion(r.globalCfg.DataDir())
 	if err != nil {
 		return errors.Wrap(err, "failed to detect the Postgres version")
 	}
@@ -185,27 +185,27 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "cannot get path to default configs")
 	}
 
-	if err := fs.CopyDirectoryContent(sourceConfigDir, r.globalCfg.DataDir); err != nil {
+	if err := fs.CopyDirectoryContent(sourceConfigDir, r.globalCfg.DataDir()); err != nil {
 		return errors.Wrap(err, "failed to set default configuration files")
 	}
 
-	if err := configuration.Run(r.globalCfg.DataDir); err != nil {
+	if err := configuration.Run(r.globalCfg.DataDir()); err != nil {
 		return errors.Wrap(err, "failed to configure")
 	}
 
-	if err := r.adjustRecoveryConfiguration(pgVersion, r.globalCfg.DataDir); err != nil {
+	if err := r.adjustRecoveryConfiguration(pgVersion, r.globalCfg.DataDir()); err != nil {
 		return err
 	}
 
 	// Set permissions.
 	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{
-		Cmd: []string{"chown", "-R", "postgres", r.globalCfg.DataDir},
+		Cmd: []string{"chown", "-R", "postgres", r.globalCfg.DataDir()},
 	}); err != nil {
 		return errors.Wrap(err, "failed to set permissions")
 	}
 
 	// Start PostgreSQL instance.
-	startCommand, err := r.dockerClient.ContainerExecCreate(ctx, contID, startingPostgresConfig(r.globalCfg.DataDir, pgVersion))
+	startCommand, err := r.dockerClient.ContainerExecCreate(ctx, contID, startingPostgresConfig(r.globalCfg.DataDir(), pgVersion))
 
 	if err != nil {
 		return errors.Wrap(err, "failed to create an exec command")
@@ -339,17 +339,17 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 
 	// Set permissions.
 	if err := tools.ExecCommand(ctx, r.dockerClient, syncInstanceID, types.ExecConfig{
-		Cmd: []string{"chown", "-R", "postgres", r.globalCfg.DataDir},
+		Cmd: []string{"chown", "-R", "postgres", r.globalCfg.DataDir()},
 	}); err != nil {
 		return errors.Wrap(err, "failed to set permissions")
 	}
 
-	pgVersion, err := tools.DetectPGVersion(r.globalCfg.DataDir)
+	pgVersion, err := tools.DetectPGVersion(r.globalCfg.DataDir())
 	if err != nil {
 		return err
 	}
 
-	startSyncCommand, err := r.dockerClient.ContainerExecCreate(ctx, syncInstanceID, startingPostgresConfig(r.globalCfg.DataDir, pgVersion))
+	startSyncCommand, err := r.dockerClient.ContainerExecCreate(ctx, syncInstanceID, startingPostgresConfig(r.globalCfg.DataDir(), pgVersion))
 	if err != nil {
 		return errors.Wrap(err, "failed to create exec command")
 	}
@@ -370,7 +370,7 @@ func (r *RestoreJob) getEnvironmentVariables(password string) []string {
 	// Pass Database Lab environment variables.
 	envVariables := append(os.Environ(), []string{
 		"POSTGRES_PASSWORD=" + password,
-		"PGDATA=" + r.globalCfg.DataDir,
+		"PGDATA=" + r.globalCfg.DataDir(),
 	}...)
 
 	// Add user-defined environment variables.
@@ -392,7 +392,8 @@ func (r *RestoreJob) buildContainerConfig(password, label string) *container.Con
 func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
 	hostConfig := &container.HostConfig{}
 
-	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.globalCfg.DataDir); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig,
+		r.globalCfg.MountDir, r.globalCfg.DataDir()); err != nil {
 		return nil, err
 	}
 
