@@ -39,7 +39,7 @@ const (
 func Start(r runners.Runner, c *resources.AppConfig) error {
 	log.Dbg("Starting Postgres container...")
 
-	if err := configuration.Run(c.Datadir); err != nil {
+	if err := configuration.Run(c.DataDir()); err != nil {
 		return errors.Wrap(err, "cannot update configs")
 	}
 
@@ -132,7 +132,7 @@ func List(r runners.Runner, label string) ([]string, error) {
 }
 
 func pgctlPromote(r runners.Runner, c *resources.AppConfig) (string, error) {
-	promoteCmd := `pg_ctl --pgdata ` + c.Datadir + ` ` +
+	promoteCmd := `pg_ctl --pgdata ` + c.DataDir() + ` ` +
 		`-W ` + // No wait.
 		`promote`
 

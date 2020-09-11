@@ -198,7 +198,7 @@ func (d *DumpJob) Name() string {
 func (d *DumpJob) Run(ctx context.Context) (err error) {
 	log.Msg(fmt.Sprintf("Run job: %s. Options: %v", d.Name(), d.DumpOptions))
 
-	isEmpty, err := tools.IsEmptyDirectory(d.globalCfg.DataDir)
+	isEmpty, err := tools.IsEmptyDirectory(d.globalCfg.DataDir())
 	if err != nil {
 		return errors.Wrap(err, "failed to explore the data directory")
 	}
@@ -336,7 +336,7 @@ func (d *DumpJob) getEnvironmentVariables(password string) []string {
 
 	// Avoid initialization of PostgreSQL directory in case of preparing of a dump.
 	if d.DumpOptions.Restore != nil {
-		envs = append(envs, "PGDATA="+d.globalCfg.DataDir)
+		envs = append(envs, "PGDATA="+d.globalCfg.DataDir())
 	}
 
 	if d.DumpOptions.Source.Type == sourceTypeLocal && d.DumpOptions.Source.Connection.Port == defaults.Port {
@@ -361,7 +361,8 @@ func (d *DumpJob) buildHostConfig(ctx context.Context) (*container.HostConfig, e
 		NetworkMode: d.getContainerNetworkMode(),
 	}
 
-	if err := tools.AddVolumesToHostConfig(ctx, d.dockerClient, hostConfig, d.globalCfg.DataDir); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, d.dockerClient, hostConfig,
+		d.globalCfg.MountDir, d.globalCfg.DataDir()); err != nil {
 		return nil, err
 	}
 

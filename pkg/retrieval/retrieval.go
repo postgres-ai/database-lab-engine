@@ -117,11 +117,11 @@ func (r *Retrieval) validate() error {
 }
 
 func (r *Retrieval) prepareEnvironment() error {
-	if err := os.MkdirAll(r.globalCfg.DataDir, 0700); err != nil {
+	if err := os.MkdirAll(r.globalCfg.DataDir(), 0700); err != nil {
 		return err
 	}
 
-	return filepath.Walk(r.globalCfg.DataDir, func(name string, info os.FileInfo, err error) error {
+	return filepath.Walk(r.globalCfg.DataDir(), func(name string, info os.FileInfo, err error) error {
 		if err == nil {
 			// PGDATA dir permissions must be 0700 to avoid errors.
 			err = os.Chmod(name, 0700)

@@ -23,7 +23,7 @@ type walgOptions struct {
 	BackupName string `yaml:"backupName"`
 }
 
-func newWalg(pgDataDir string, options walgOptions) *walg {
+func newWALG(pgDataDir string, options walgOptions) *walg {
 	return &walg{
 		pgDataDir: pgDataDir,
 		options:   options,

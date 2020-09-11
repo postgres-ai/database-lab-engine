@@ -9,6 +9,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os/user"
+	"path"
+
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 
 	retConfig "gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
@@ -16,9 +20,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 	"gitlab.com/postgres-ai/database-lab/pkg/srv"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
-
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 )
 
 // Config contains a common database-lab configuration.
@@ -36,18 +37,24 @@ type Global struct {
 	InstanceID     string
 	Engine         string `yaml:"engine"`
 	Debug          bool   `yaml:"debug"`
-	DataDir        string `yaml:"dataDir"`
+	MountDir       string `yaml:"mountDir"`
+	DataSubDir     string `yaml:"dataSubDir"`
 	ClonesMountDir string // TODO (akartasov): Use ClonesMountDir for the LocalModeOptions of a Provision service.
+}
+
+// DataDir provides full path to data directory.
+func (g Global) DataDir() string {
+	return path.Join(g.MountDir, g.DataSubDir)
 }
 
 // LoadConfig instances a new Config by configuration filename.
 func LoadConfig(name string) (*Config, error) {
-	path, err := util.GetConfigPath(name)
+	configPath, err := util.GetConfigPath(name)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get config path")
 	}
 
-	b, err := ioutil.ReadFile(path)
+	b, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		return nil, errors.Errorf("error loading %s config file", name)
 	}
@@ -57,12 +64,22 @@ func LoadConfig(name string) (*Config, error) {
 		return nil, fmt.Errorf("error parsing %s config", name)
 	}
 
+	if err := cfg.setUpProvisionParams(); err != nil {
+		return nil, errors.Wrap(err, "failed to set up provision options")
+	}
+
+	return cfg, nil
+}
+
+func (cfg *Config) setUpProvisionParams() error {
 	osUser, err := user.Current()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get current user")
+		return errors.Wrap(err, "failed to get current user")
 	}
 
 	cfg.Provision.OSUsername = osUser.Username
+	cfg.Provision.MountDir = cfg.Global.MountDir
+	cfg.Provision.DataSubDir = cfg.Global.DataSubDir
 
-	return cfg, nil
+	return nil
 }

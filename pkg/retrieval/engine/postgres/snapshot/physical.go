@@ -186,7 +186,7 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 				log.Err(fmt.Sprintf("failed to start %q: %v", p.syncInstanceName(), err))
 			}
 
-			if err := tools.RunPostgres(ctx, p.dockerClient, syncContainer.ID, p.globalCfg.DataDir); err != nil {
+			if err := tools.RunPostgres(ctx, p.dockerClient, syncContainer.ID, p.globalCfg.DataDir()); err != nil {
 				log.Err(fmt.Sprintf("failed to start PostgreSQL instance inside %q: %v", p.syncInstanceName(), err))
 			}
 		}()
@@ -227,7 +227,7 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 
 	// Promotion.
 	if p.options.Promote {
-		if err := p.promoteInstance(ctx, path.Join(p.globalCfg.ClonesMountDir, cloneName)); err != nil {
+		if err := p.promoteInstance(ctx, path.Join(p.globalCfg.ClonesMountDir, cloneName, p.globalCfg.DataSubDir)); err != nil {
 			return err
 		}
 	}
@@ -480,7 +480,8 @@ func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password
 func (p *PhysicalInitial) buildHostConfig(ctx context.Context, clonePath string) (*container.HostConfig, error) {
 	hostConfig := &container.HostConfig{}
 
-	if err := tools.AddVolumesToHostConfig(ctx, p.dockerClient, hostConfig, clonePath); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, p.dockerClient, hostConfig,
+		p.globalCfg.MountDir, clonePath); err != nil {
 		return nil, err
 	}
 

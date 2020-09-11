@@ -32,6 +32,8 @@ type Config struct {
 	PgMgmtPassword string
 
 	OSUsername string
+	MountDir   string
+	DataSubDir string
 }
 
 // Provision defines provision interface.

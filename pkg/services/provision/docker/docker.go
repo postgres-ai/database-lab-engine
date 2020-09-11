@@ -34,12 +34,12 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 	}
 
 	// Directly mount PGDATA if Database Lab is running without any virtualization.
-	volumes := []string{fmt.Sprintf("--volume %s:%s", c.Datadir, c.Datadir)}
+	volumes := []string{fmt.Sprintf("--volume %s:%s", c.DataDir(), c.DataDir())}
 
 	if hostInfo.VirtualizationRole == "guest" {
 		// Build custom mounts rely on mounts of the Database Lab instance if it's running inside Docker container.
 		// We cannot use --volumes-from because it removes the ZFS mount point.
-		volumes, err = buildMountVolumes(r, hostInfo.Hostname, c.Datadir, c.UnixSocketCloneDir)
+		volumes, err = buildMountVolumes(r, c, hostInfo.Hostname)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to detect container volumes")
 		}
@@ -54,7 +54,7 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 		"--name", c.CloneName,
 		"--detach",
 		"--publish", strconv.Itoa(int(c.Port)) + ":5432",
-		"--env", "PGDATA=" + c.Datadir,
+		"--env", "PGDATA=" + c.DataDir(),
 		strings.Join(volumes, " "),
 		"--label", labelClone,
 		"--label", c.ClonePool,
@@ -65,7 +65,7 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 	return r.Run(dockerRunCmd, true)
 }
 
-func buildMountVolumes(r runners.Runner, containerID, dataDir, cloneDir string) ([]string, error) {
+func buildMountVolumes(r runners.Runner, c *resources.AppConfig, containerID string) ([]string, error) {
 	inspectCmd := "docker inspect -f '{{ json .Mounts }}' " + containerID
 
 	var mountPoints []types.MountPoint
@@ -79,14 +79,13 @@ func buildMountVolumes(r runners.Runner, containerID, dataDir, cloneDir string) 
 		return nil, errors.Wrap(err, "failed to interpret mount paths")
 	}
 
-	mounts := tools.GetMountsFromMountPoints(dataDir, mountPoints)
+	mounts := tools.GetMountsFromMountPoints(c.MountDir, c.DataDir(), mountPoints)
 	volumes := make([]string, 0, len(mounts))
 
 	for _, mount := range mounts {
 		// Add extra mount for socket directories.
-		// TODO (akartasov): Add mountDir to global config.
-		if mount.Target == dataDir {
-			volumes = append(volumes, buildSocketMount(mount.Source, dataDir, cloneDir))
+		if mount.Target == c.DataDir() && strings.HasPrefix(c.UnixSocketCloneDir, c.MountDir) {
+			volumes = append(volumes, buildSocketMount(c, mount.Source))
 		}
 
 		volume := fmt.Sprintf("--volume %s:%s", mount.Source, mount.Target)
@@ -102,26 +101,13 @@ func buildMountVolumes(r runners.Runner, containerID, dataDir, cloneDir string) 
 }
 
 // buildSocketMount builds a socket directory mounting rely on dataDir mounting.
-func buildSocketMount(hostDataDir, dataDir, cloneDir string) string {
-	mountDir := cloneDir
+func buildSocketMount(c *resources.AppConfig, hostDataDir string) string {
+	socketPath := strings.TrimPrefix(c.UnixSocketCloneDir, c.MountDir)
+	dataPath := strings.TrimPrefix(c.DataDir(), c.MountDir)
+	externalMount := strings.TrimSuffix(hostDataDir, dataPath)
+	hostSocketDir := path.Join(externalMount, socketPath)
 
-	// Discover the common path prefix supposing it is the mount point.
-	for mountDir != "." {
-		mountDir, _ = path.Split(mountDir)
-
-		if strings.HasPrefix(dataDir, mountDir) {
-			break
-		}
-
-		mountDir = path.Clean(mountDir)
-	}
-
-	clonePath := strings.TrimPrefix(cloneDir, mountDir)
-	dataPath := strings.TrimPrefix(dataDir, mountDir)
-	internalMount := strings.TrimSuffix(hostDataDir, dataPath)
-	internalMountPath := path.Join(internalMount, clonePath)
-
-	return fmt.Sprintf(" --volume %s:%s:rshared", internalMountPath, cloneDir)
+	return fmt.Sprintf(" --volume %s:%s:rshared", hostSocketDir, c.UnixSocketCloneDir)
 }
 
 func createSocketCloneDir(socketCloneDir string) error {

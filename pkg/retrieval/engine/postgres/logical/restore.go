@@ -102,18 +102,18 @@ func (r *RestoreJob) Name() string {
 func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Msg(fmt.Sprintf("Run job: %s. Options: %v", r.Name(), r.RestoreOptions))
 
-	isEmpty, err := tools.IsEmptyDirectory(r.globalCfg.DataDir)
+	isEmpty, err := tools.IsEmptyDirectory(r.globalCfg.DataDir())
 	if err != nil {
-		return errors.Wrapf(err, "failed to explore the data directory %q", r.globalCfg.DataDir)
+		return errors.Wrapf(err, "failed to explore the data directory %q", r.globalCfg.DataDir())
 	}
 
 	if !isEmpty {
 		if !r.ForceInit {
 			return errors.Errorf("the data directory %q is not empty. Use 'forceInit' or empty the data directory",
-				r.globalCfg.DataDir)
+				r.globalCfg.DataDir())
 		}
 
-		log.Msg(fmt.Sprintf("The data directory %q is not empty. Existing data may be overwritten.", r.globalCfg.DataDir))
+		log.Msg(fmt.Sprintf("The data directory %q is not empty. Existing data may be overwritten.", r.globalCfg.DataDir()))
 	}
 
 	if err := tools.PullImage(ctx, r.dockerClient, r.RestoreOptions.DockerImage); err != nil {
@@ -204,7 +204,7 @@ func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 	return &container.Config{
 		Labels: map[string]string{tools.DBLabControlLabel: tools.DBLabRestoreLabel},
 		Env: append(os.Environ(), []string{
-			"PGDATA=" + r.globalCfg.DataDir,
+			"PGDATA=" + r.globalCfg.DataDir(),
 			"POSTGRES_PASSWORD=" + password,
 		}...),
 		Image:       r.RestoreOptions.DockerImage,
@@ -215,7 +215,8 @@ func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
 	hostConfig := &container.HostConfig{}
 
-	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.globalCfg.DataDir); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig,
+		r.globalCfg.MountDir, r.globalCfg.DataDir()); err != nil {
 		return nil, err
 	}
 

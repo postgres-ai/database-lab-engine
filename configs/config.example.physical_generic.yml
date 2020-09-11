@@ -29,10 +29,18 @@ global:
   # Database engine. Currently, the only supported option: "postgres".
   engine: postgres
 
-  # Full path to data directory. This directory must already exist
-  # before launching Database Lab instance. It may be empty if
+  # Full path to the pool mount directory.
+  mountDir: "/var/lib/dblab"
+
+  # Subdir where PGDATA located relative to the pool mount directory.
+  # This directory must already exist before launching Database Lab instance. It may be empty if
   # data initialization is configured (see below).
-  dataDir: "/var/lib/dblab/data"
+  # Note, it is a relative path. Default: "data".
+  # For example, for the PostgreSQL data directory "/var/lib/dblab/data" set:
+  #      mountDir:  /var/lib/dblab
+  #      dataSubDir:  data
+  # In this case, we assume that the mount point is: /var/lib/dblab
+  dataSubDir: "data"
 
   # Debugging, when enabled, allows to see more in the Database Lab logs
   # (not PostgreSQL logs). Enable in the case of troubleshooting.

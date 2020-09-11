@@ -456,7 +456,7 @@ func (j *provisionModeLocal) getName(port uint) string {
 
 func (j *provisionModeLocal) getAppConfig(name string, port uint) *resources.AppConfig {
 	host := DefaultHost
-	unixSocketCloneDir := j.config.Options.UnixSocketDir + name
+	unixSocketCloneDir := path.Join(j.config.Options.UnixSocketDir, name)
 
 	if UseUnixSocket {
 		host = unixSocketCloneDir
@@ -466,9 +466,11 @@ func (j *provisionModeLocal) getAppConfig(name string, port uint) *resources.App
 		CloneName:          name,
 		ClonePool:          j.config.Options.ClonePool,
 		DockerImage:        j.config.Options.DockerImage,
-		Datadir:            path.Clean(j.config.Options.ClonesMountDir + name),
 		Host:               host,
 		Port:               port,
+		MountDir:           j.config.MountDir,
+		DataSubDir:         j.config.DataSubDir,
+		ClonesMountDir:     j.config.Options.ClonesMountDir,
 		UnixSocketCloneDir: unixSocketCloneDir,
 		OSUsername:         j.config.OSUsername,
 	}

@@ -76,12 +76,12 @@ func (s *LogicalInitial) Run(_ context.Context) error {
 	}
 
 	// Run basic PostgreSQL configuration.
-	if err := configuration.Run(s.globalCfg.DataDir); err != nil {
+	if err := configuration.Run(s.globalCfg.DataDir()); err != nil {
 		return errors.Wrap(err, "failed to adjust PostgreSQL configs")
 	}
 
 	// Apply user defined configs.
-	if err := applyUsersConfigs(s.options.Configs, path.Join(s.globalCfg.DataDir, "postgresql.conf")); err != nil {
+	if err := applyUsersConfigs(s.options.Configs, path.Join(s.globalCfg.DataDir(), "postgresql.conf")); err != nil {
 		return errors.Wrap(err, "failed to apply user-defined configs")
 	}
 
@@ -95,9 +95,9 @@ func (s *LogicalInitial) Run(_ context.Context) error {
 }
 
 func (s *LogicalInitial) touchConfigFiles() error {
-	if err := tools.TouchFile(path.Join(s.globalCfg.DataDir, "postgresql.conf")); err != nil {
+	if err := tools.TouchFile(path.Join(s.globalCfg.DataDir(), "postgresql.conf")); err != nil {
 		return err
 	}
 
-	return tools.TouchFile(path.Join(s.globalCfg.DataDir, "pg_hba.conf"))
+	return tools.TouchFile(path.Join(s.globalCfg.DataDir(), "pg_hba.conf"))
 }

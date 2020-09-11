@@ -4,6 +4,10 @@
 
 package resources
 
+import (
+	"path"
+)
+
 // AppConfig currently stores Postgres configuration (other application in the future too).
 type AppConfig struct {
 	CloneName string
@@ -12,8 +16,9 @@ type AppConfig struct {
 	DockerImage string
 
 	// PGDATA.
-	Datadir string
-
+	MountDir           string
+	DataSubDir         string
+	ClonesMountDir     string
 	UnixSocketCloneDir string
 
 	Host string
@@ -68,4 +73,9 @@ func (c *AppConfig) DBName() string {
 // SetDBName sets dbName in AppConfig.
 func (c *AppConfig) SetDBName(dbName string) {
 	c.dbName = dbName
+}
+
+// DataDir returns the path of clone data.
+func (c *AppConfig) DataDir() string {
+	return path.Join(c.ClonesMountDir, c.CloneName, c.DataSubDir)
 }
