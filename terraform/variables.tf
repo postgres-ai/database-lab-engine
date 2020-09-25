@@ -29,5 +29,5 @@ variable "allow_ssh_from_cidrs" {
 
 variable "tag_name" {
     description = "Value of the tags Name to apply to all resources"
-    default = "http-benchmarking"
+    default = "DBLABserver"
 }
