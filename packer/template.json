@@ -3,7 +3,7 @@
         "ami_name_prefix": "{{env `AMI_NAME_PREFIX`}}"
     },
     "builders": [{
-        "ami_description": "An AMI with DBLAB server and cli installed, based on Ubuntu.",
+        "ami_description": "Installed AMI with Ubuntu 18.04, ZFS, Docker, and Database Lab Engine 2.0 with client CLI.",
         "ami_name": "{{user `ami_name_prefix`}}-{{isotime | clean_resource_name}}",
         "instance_type": "t2.micro",
         "region": "{{user `region`}}",
