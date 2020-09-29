@@ -116,7 +116,7 @@ func StartingPostgresConfig(pgDataDir, pgVersion string) types.ExecConfig {
 
 // AddVolumesToHostConfig adds volumes to container host configuration depends on process environment.
 func AddVolumesToHostConfig(ctx context.Context, dockerClient *client.Client, hostConfig *container.HostConfig,
-	mountDir, dataDir string) error {
+	dataDir string) error {
 	hostInfo, err := host.Info()
 	if err != nil {
 		return errors.Wrap(err, "failed to get host info")
@@ -130,7 +130,7 @@ func AddVolumesToHostConfig(ctx context.Context, dockerClient *client.Client, ho
 			return err
 		}
 
-		hostConfig.Mounts = GetMountsFromMountPoints(mountDir, dataDir, inspection.Mounts)
+		hostConfig.Mounts = GetMountsFromMountPoints(dataDir, inspection.Mounts)
 
 		log.Dbg(hostConfig.Mounts)
 	} else {
@@ -145,12 +145,12 @@ func AddVolumesToHostConfig(ctx context.Context, dockerClient *client.Client, ho
 }
 
 // GetMountsFromMountPoints creates a list of mounts.
-func GetMountsFromMountPoints(mountDir, dataDir string, mountPoints []types.MountPoint) []mount.Mount {
+func GetMountsFromMountPoints(dataDir string, mountPoints []types.MountPoint) []mount.Mount {
 	mounts := make([]mount.Mount, 0, len(mountPoints))
 
 	for _, mountPoint := range mountPoints {
 		// Rewrite mounting to data directory.
-		if mountDir == mountPoint.Destination {
+		if strings.HasPrefix(dataDir, mountPoint.Destination) {
 			suffix := strings.TrimPrefix(dataDir, mountPoint.Destination)
 			mountPoint.Source = path.Join(mountPoint.Source, suffix)
 			mountPoint.Destination = dataDir

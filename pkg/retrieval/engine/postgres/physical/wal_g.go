@@ -39,6 +39,7 @@ func (w *walg) GetRestoreCommand() string {
 func (w *walg) GetRecoveryConfig() []byte {
 	buffer := bytes.Buffer{}
 
+	buffer.WriteString("\n")
 	buffer.WriteString("standby_mode = 'on'\n")
 	buffer.WriteString("restore_command = 'wal-g wal-fetch %f %p'\n")
 

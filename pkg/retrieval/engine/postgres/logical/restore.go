@@ -215,8 +215,7 @@ func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
 	hostConfig := &container.HostConfig{}
 
-	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig,
-		r.globalCfg.MountDir, r.globalCfg.DataDir()); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.globalCfg.DataDir()); err != nil {
 		return nil, err
 	}
 
