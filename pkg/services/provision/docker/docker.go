@@ -79,15 +79,18 @@ func buildMountVolumes(r runners.Runner, c *resources.AppConfig, containerID str
 		return nil, errors.Wrap(err, "failed to interpret mount paths")
 	}
 
-	mounts := tools.GetMountsFromMountPoints(c.MountDir, c.DataDir(), mountPoints)
+	mounts := tools.GetMountsFromMountPoints(c.DataDir(), mountPoints)
 	volumes := make([]string, 0, len(mounts))
 
-	for _, mount := range mounts {
+	for _, mountPoint := range mountPoints {
 		// Add extra mount for socket directories.
-		if mount.Target == c.DataDir() && strings.HasPrefix(c.UnixSocketCloneDir, c.MountDir) {
-			volumes = append(volumes, buildSocketMount(c, mount.Source))
+		if strings.HasPrefix(c.UnixSocketCloneDir, mountPoint.Destination) {
+			volumes = append(volumes, buildSocketMount(c.UnixSocketCloneDir, mountPoint.Source, mountPoint.Destination))
+			break
 		}
+	}
 
+	for _, mount := range mounts {
 		volume := fmt.Sprintf("--volume %s:%s", mount.Source, mount.Target)
 
 		if mount.BindOptions != nil && mount.BindOptions.Propagation != "" {
@@ -101,13 +104,11 @@ func buildMountVolumes(r runners.Runner, c *resources.AppConfig, containerID str
 }
 
 // buildSocketMount builds a socket directory mounting rely on dataDir mounting.
-func buildSocketMount(c *resources.AppConfig, hostDataDir string) string {
-	socketPath := strings.TrimPrefix(c.UnixSocketCloneDir, c.MountDir)
-	dataPath := strings.TrimPrefix(c.DataDir(), c.MountDir)
-	externalMount := strings.TrimSuffix(hostDataDir, dataPath)
-	hostSocketDir := path.Join(externalMount, socketPath)
+func buildSocketMount(socketDir, hostDataDir, destinationDir string) string {
+	socketPath := strings.TrimPrefix(socketDir, destinationDir)
+	hostSocketDir := path.Join(hostDataDir, socketPath)
 
-	return fmt.Sprintf(" --volume %s:%s:rshared", hostSocketDir, c.UnixSocketCloneDir)
+	return fmt.Sprintf(" --volume %s:%s:rshared", hostSocketDir, socketDir)
 }
 
 func createSocketCloneDir(socketCloneDir string) error {

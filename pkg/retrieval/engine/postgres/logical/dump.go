@@ -361,8 +361,7 @@ func (d *DumpJob) buildHostConfig(ctx context.Context) (*container.HostConfig, e
 		NetworkMode: d.getContainerNetworkMode(),
 	}
 
-	if err := tools.AddVolumesToHostConfig(ctx, d.dockerClient, hostConfig,
-		d.globalCfg.MountDir, d.globalCfg.DataDir()); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, d.dockerClient, hostConfig, d.globalCfg.DataDir()); err != nil {
 		return nil, err
 	}
 

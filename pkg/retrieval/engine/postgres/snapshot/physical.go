@@ -518,8 +518,7 @@ func (p *PhysicalInitial) buildHostConfig(ctx context.Context, clonePath string)
 		Sysctls: p.options.Sysctls,
 	}
 
-	if err := tools.AddVolumesToHostConfig(ctx, p.dockerClient, hostConfig,
-		p.globalCfg.MountDir, clonePath); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, p.dockerClient, hostConfig, clonePath); err != nil {
 		return nil, err
 	}
 
