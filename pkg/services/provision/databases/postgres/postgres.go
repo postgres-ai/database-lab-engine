@@ -8,6 +8,7 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -147,7 +148,7 @@ func getPgConnStr(c *resources.AppConfig) string {
 		sb.WriteString("host=" + c.Host + " ")
 	}
 
-	sb.WriteString("port=5432 ")
+	sb.WriteString("port=" + strconv.Itoa(int(c.Port)) + " ")
 
 	if c.DBName() != "" {
 		sb.WriteString("dbname=" + c.DBName() + " ")

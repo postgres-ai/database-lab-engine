@@ -49,16 +49,18 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 		return "", errors.Wrap(err, "failed to create socket clone directory")
 	}
 
+	instancePort := strconv.Itoa(int(c.Port))
 	dockerRunCmd := strings.Join([]string{
 		"docker run",
 		"--name", c.CloneName,
 		"--detach",
-		"--publish", strconv.Itoa(int(c.Port)) + ":5432",
+		"--publish", fmt.Sprintf("%[1]s:%[1]s", instancePort),
 		"--env", "PGDATA=" + c.DataDir(),
 		strings.Join(volumes, " "),
 		"--label", labelClone,
 		"--label", c.ClonePool,
 		c.DockerImage,
+		"-p", instancePort,
 		"-k", c.UnixSocketCloneDir,
 	}, " ")
 
