@@ -33,6 +33,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
@@ -169,7 +170,7 @@ func (p *PhysicalInitial) validateConfig() error {
 }
 
 func (p *PhysicalInitial) syncInstanceName() string {
-	return tools.SyncInstanceContainerPrefix + p.globalCfg.InstanceID
+	return cont.SyncInstanceContainerPrefix + p.globalCfg.InstanceID
 }
 
 // Name returns a name of the job.
@@ -381,7 +382,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 	}
 
 	// Run promotion container.
-	cont, err := p.dockerClient.ContainerCreate(ctx,
+	promoteCont, err := p.dockerClient.ContainerCreate(ctx,
 		p.buildContainerConfig(clonePath, promoteImage, pwd),
 		hostConfig,
 		&network.NetworkingConfig{},
@@ -392,7 +393,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to create container")
 	}
 
-	defer tools.RemoveContainer(ctx, p.dockerClient, cont.ID, tools.StopTimeout)
+	defer tools.RemoveContainer(ctx, p.dockerClient, promoteCont.ID, cont.StopTimeout)
 
 	defer func() {
 		if err != nil {
@@ -400,22 +401,22 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		}
 	}()
 
-	if err := p.dockerClient.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{}); err != nil {
+	if err := p.dockerClient.ContainerStart(ctx, promoteCont.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrap(err, "failed to start container")
 	}
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", p.promoteContainerName(), cont.ID))
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", p.promoteContainerName(), promoteCont.ID))
 
 	// Start PostgreSQL instance.
-	if err := tools.RunPostgres(ctx, p.dockerClient, cont.ID, clonePath); err != nil {
+	if err := tools.RunPostgres(ctx, p.dockerClient, promoteCont.ID, clonePath); err != nil {
 		return errors.Wrap(err, "failed to start PostgreSQL instance")
 	}
 
-	if err := tools.CheckContainerReadiness(ctx, p.dockerClient, cont.ID); err != nil {
+	if err := tools.CheckContainerReadiness(ctx, p.dockerClient, promoteCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
 	}
 
-	shouldBePromoted, err := p.checkRecovery(ctx, cont.ID)
+	shouldBePromoted, err := p.checkRecovery(ctx, promoteCont.ID)
 	if err != nil {
 		return errors.Wrap(err, "failed to read response of the exec command")
 	}
@@ -424,7 +425,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	// Detect dataStateAt.
 	if shouldBePromoted == "t" {
-		extractedDataStateAt, err := p.extractDataStateAt(ctx, cont.ID)
+		extractedDataStateAt, err := p.extractDataStateAt(ctx, promoteCont.ID)
 		if err != nil {
 			return errors.Wrap(err,
 				`Failed to get data_state_at: PGDATA should be promoted, but pg_last_xact_replay_timestamp() returns empty result.
@@ -444,13 +445,13 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		log.Msg("Data state at: ", p.dbMark.DataStateAt)
 
 		// Promote PGDATA.
-		if err := p.runPromoteCommand(ctx, cont.ID, clonePath); err != nil {
+		if err := p.runPromoteCommand(ctx, promoteCont.ID, clonePath); err != nil {
 			return errors.Wrapf(err, "failed to promote PGDATA: %s", clonePath)
 		}
 	}
 
 	// Checkpoint.
-	if err := p.checkpoint(ctx, cont.ID); err != nil {
+	if err := p.checkpoint(ctx, promoteCont.ID); err != nil {
 		return err
 	}
 
@@ -500,7 +501,10 @@ func (p *PhysicalInitial) adjustRecoveryConfiguration(pgVersion, clonePGDataDir 
 
 func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password string) *container.Config {
 	return &container.Config{
-		Labels: map[string]string{tools.DBLabControlLabel: tools.DBLabPromoteLabel},
+		Labels: map[string]string{
+			cont.DBLabControlLabel:    cont.DBLabPromoteLabel,
+			cont.DBLabInstanceIDLabel: p.globalCfg.InstanceID,
+		},
 		Env: []string{
 			"PGDATA=" + clonePath,
 			"POSTGRES_PASSWORD=" + password,

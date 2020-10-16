@@ -24,6 +24,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
@@ -130,7 +131,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to generate PostgreSQL password")
 	}
 
-	cont, err := r.dockerClient.ContainerCreate(ctx,
+	restoreCont, err := r.dockerClient.ContainerCreate(ctx,
 		r.buildContainerConfig(pwd),
 		hostConfig,
 		&network.NetworkingConfig{},
@@ -140,7 +141,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to create container %q", r.restoreContainerName())
 	}
 
-	defer tools.RemoveContainer(ctx, r.dockerClient, cont.ID, tools.StopTimeout)
+	defer tools.RemoveContainer(ctx, r.dockerClient, restoreCont.ID, cont.StopTimeout)
 
 	defer func() {
 		if err != nil {
@@ -148,20 +149,20 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	if err := r.dockerClient.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{}); err != nil {
+	if err := r.dockerClient.ContainerStart(ctx, restoreCont.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to start container %q", r.restoreContainerName())
 	}
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", r.restoreContainerName(), cont.ID))
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", r.restoreContainerName(), restoreCont.ID))
 
-	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, cont.ID); err != nil {
+	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, restoreCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
 	}
 
 	restoreCommand := r.buildLogicalRestoreCommand()
 	log.Msg("Running restore command: ", restoreCommand)
 
-	execCommand, err := r.dockerClient.ContainerExecCreate(ctx, cont.ID, types.ExecConfig{
+	execCommand, err := r.dockerClient.ContainerExecCreate(ctx, restoreCont.ID, types.ExecConfig{
 		AttachStdout: true,
 		AttachStderr: true,
 		Tty:          true,
@@ -180,15 +181,15 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to run restore command")
 	}
 
-	if err := tools.InspectCommandResponse(ctx, r.dockerClient, cont.ID, execCommand.ID); err != nil {
+	if err := tools.InspectCommandResponse(ctx, r.dockerClient, restoreCont.ID, execCommand.ID); err != nil {
 		return errors.Wrap(err, "failed to exec restore command")
 	}
 
-	if err := r.markDatabase(ctx, cont.ID); err != nil {
+	if err := r.markDatabase(ctx, restoreCont.ID); err != nil {
 		return errors.Wrap(err, "failed to mark the database")
 	}
 
-	if err := recalculateStats(ctx, r.dockerClient, cont.ID, buildAnalyzeCommand(Connection{
+	if err := recalculateStats(ctx, r.dockerClient, restoreCont.ID, buildAnalyzeCommand(Connection{
 		Username: defaults.Username,
 		DBName:   r.RestoreOptions.DBName,
 	}, r.RestoreOptions.ParallelJobs)); err != nil {
@@ -202,7 +203,10 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 	return &container.Config{
-		Labels: map[string]string{tools.DBLabControlLabel: tools.DBLabRestoreLabel},
+		Labels: map[string]string{
+			cont.DBLabControlLabel:    cont.DBLabRestoreLabel,
+			cont.DBLabInstanceIDLabel: r.globalCfg.InstanceID,
+		},
 		Env: append(os.Environ(), []string{
 			"PGDATA=" + r.globalCfg.DataDir(),
 			"POSTGRES_PASSWORD=" + password,

@@ -22,6 +22,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
@@ -99,6 +100,10 @@ func main() {
 	}
 
 	if err := retrievalSvc.Run(ctx); err != nil {
+		if cleanUpErr := cont.CleanUpServiceContainers(ctx, dockerCLI, cfg.Global.InstanceID); cleanUpErr != nil {
+			log.Err("Failed to clean up service containers:", cleanUpErr)
+		}
+
 		log.Fatal("Failed to run the data retrieval service:", err)
 	}
 
