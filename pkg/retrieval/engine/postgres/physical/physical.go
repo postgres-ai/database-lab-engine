@@ -28,6 +28,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/fs"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
@@ -141,12 +142,12 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return nil
 	}
 
-	contID, err := r.startContainer(ctx, r.restoreContainerName(), tools.DBLabRestoreLabel)
+	contID, err := r.startContainer(ctx, r.restoreContainerName(), cont.DBLabRestoreLabel)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create container: %s", r.restoreContainerName())
 	}
 
-	defer tools.RemoveContainer(ctx, r.dockerClient, contID, tools.StopTimeout)
+	defer tools.RemoveContainer(ctx, r.dockerClient, contID, cont.StopTimeout)
 
 	defer func() {
 		if err != nil {
@@ -310,7 +311,7 @@ LOOP:
 }
 
 func (r *RestoreJob) syncInstanceName() string {
-	return tools.SyncInstanceContainerPrefix + r.globalCfg.InstanceID
+	return cont.SyncInstanceContainerPrefix + r.globalCfg.InstanceID
 }
 
 func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
@@ -327,12 +328,12 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 
 		log.Msg("Removing non-running sync instance")
 
-		tools.RemoveContainer(ctx, r.dockerClient, syncContainer.ID, tools.StopTimeout)
+		tools.RemoveContainer(ctx, r.dockerClient, syncContainer.ID, cont.StopTimeout)
 	}
 
 	log.Msg("Starting sync instance: ", r.syncInstanceName())
 
-	syncInstanceID, err := r.startContainer(ctx, r.syncInstanceName(), tools.DBLabSyncLabel)
+	syncInstanceID, err := r.startContainer(ctx, r.syncInstanceName(), cont.DBLabSyncLabel)
 	if err != nil {
 		return err
 	}
@@ -383,9 +384,12 @@ func (r *RestoreJob) getEnvironmentVariables(password string) []string {
 
 func (r *RestoreJob) buildContainerConfig(password, label string) *container.Config {
 	return &container.Config{
-		Labels: map[string]string{tools.DBLabControlLabel: label},
-		Env:    r.getEnvironmentVariables(password),
-		Image:  r.CopyOptions.DockerImage,
+		Labels: map[string]string{
+			cont.DBLabControlLabel:    label,
+			cont.DBLabInstanceIDLabel: r.globalCfg.InstanceID,
+		},
+		Env:   r.getEnvironmentVariables(password),
+		Image: r.CopyOptions.DockerImage,
 	}
 }
 

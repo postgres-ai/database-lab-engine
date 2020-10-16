@@ -25,6 +25,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
@@ -225,7 +226,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to generate PostgreSQL password")
 	}
 
-	cont, err := d.dockerClient.ContainerCreate(ctx, d.buildContainerConfig(pwd), hostConfig, &network.NetworkingConfig{},
+	dumpCont, err := d.dockerClient.ContainerCreate(ctx, d.buildContainerConfig(pwd), hostConfig, &network.NetworkingConfig{},
 		d.dumpContainerName(),
 	)
 	if err != nil {
@@ -234,7 +235,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to create container %q", d.dumpContainerName())
 	}
 
-	defer tools.RemoveContainer(ctx, d.dockerClient, cont.ID, tools.StopTimeout)
+	defer tools.RemoveContainer(ctx, d.dockerClient, dumpCont.ID, cont.StopTimeout)
 
 	defer func() {
 		if err != nil {
@@ -242,13 +243,13 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	if err := d.dockerClient.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{}); err != nil {
+	if err := d.dockerClient.ContainerStart(ctx, dumpCont.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to start container %q", d.dumpContainerName())
 	}
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", d.dumpContainerName(), cont.ID))
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", d.dumpContainerName(), dumpCont.ID))
 
-	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, cont.ID); err != nil {
+	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, dumpCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
 	}
 
@@ -259,7 +260,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 	dumpCommand := d.buildLogicalDumpCommand()
 	log.Msg("Running dump command", dumpCommand)
 
-	execCommand, err := d.dockerClient.ContainerExecCreate(ctx, cont.ID, types.ExecConfig{
+	execCommand, err := d.dockerClient.ContainerExecCreate(ctx, dumpCont.ID, types.ExecConfig{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          dumpCommand,
@@ -274,7 +275,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		log.Msg("Partial dump will be run. Tables for dumping: ", strings.Join(d.Partial.Tables, ", "))
 	}
 
-	if err := d.performDumpCommand(ctx, os.Stdout, cont.ID, execCommand.ID); err != nil {
+	if err := d.performDumpCommand(ctx, os.Stdout, dumpCont.ID, execCommand.ID); err != nil {
 		return errors.Wrap(err, "failed to dump a database")
 	}
 
@@ -283,7 +284,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 			return errors.Wrap(err, "failed to mark the created dump")
 		}
 
-		if err := recalculateStats(ctx, d.dockerClient, cont.ID, buildAnalyzeCommand(Connection{
+		if err := recalculateStats(ctx, d.dockerClient, dumpCont.ID, buildAnalyzeCommand(Connection{
 			DBName:   d.config.db.DBName,
 			Username: defaults.Username,
 		}, d.DumpOptions.ParallelJobs)); err != nil {
@@ -349,7 +350,10 @@ func (d *DumpJob) getEnvironmentVariables(password string) []string {
 
 func (d *DumpJob) buildContainerConfig(password string) *container.Config {
 	return &container.Config{
-		Labels:      map[string]string{tools.DBLabControlLabel: tools.DBLabDumpLabel},
+		Labels: map[string]string{
+			cont.DBLabControlLabel:    cont.DBLabDumpLabel,
+			cont.DBLabInstanceIDLabel: d.globalCfg.InstanceID,
+		},
 		Env:         d.getEnvironmentVariables(password),
 		Image:       d.DockerImage,
 		Healthcheck: health.GetConfig(),
