@@ -160,10 +160,20 @@ retrieval:
     physicalSnapshot:
       options:
         # Promote PGDATA after data fetching.
-        promote: true
+        promotion:
+          # Enable PGDATA promotion.
+          enabled: true
 
-        # Custom Docker image for data promotion.
-        dockerImage: "postgresai/sync-instance:12"
+          # Custom Docker image for data promotion.
+          dockerImage: "postgresai/sync-instance:12"
+
+          # Custom health check options for a data promotion container.
+          healthCheck:
+            # Health check interval for a data promotion container (in seconds).
+            interval: 5
+
+            # Maximum number of health check retries.
+            maxRetries: 200
 
         # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
         # Default: empty string (no pre-processing defined).

@@ -48,8 +48,8 @@ const (
 	promoteContainerPrefix = "dblab_promote_"
 
 	// Defines container health check options.
-	hcPromoteInterval = 5 * time.Second
-	hcPromoteRetries  = 200
+	hcDefaultPromotionInterval = 5 * time.Second
+	hcDefaultPromotionRetries  = 200
 
 	syncContainerStopTimeout = 2 * time.Minute
 	supportedSysctlPrefix    = "fs.mqueue."
@@ -83,12 +83,24 @@ type PhysicalInitial struct {
 
 // PhysicalOptions describes options for a physical initialization job.
 type PhysicalOptions struct {
-	Promote             bool              `yaml:"promote"`
-	DockerImage         string            `yaml:"dockerImage"`
+	Promotion           Promotion         `yaml:"promotion"`
 	PreprocessingScript string            `yaml:"preprocessingScript"`
 	Configs             map[string]string `yaml:"configs"`
 	Sysctls             map[string]string `yaml:"sysctls"`
 	Scheduler           *Scheduler        `yaml:"scheduler"`
+}
+
+// Promotion describes promotion options.
+type Promotion struct {
+	Enabled     bool        `yaml:"enabled"`
+	DockerImage string      `yaml:"dockerImage"`
+	HealthCheck HealthCheck `yaml:"healthCheck"`
+}
+
+// HealthCheck describes health check options of a promotion.
+type HealthCheck struct {
+	Interval   int64 `yaml:"interval"`
+	MaxRetries int   `yaml:"maxRetries"`
 }
 
 // Scheduler provides scheduler options.
@@ -262,7 +274,7 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 	}()
 
 	// Promotion.
-	if p.options.Promote {
+	if p.options.Promotion.Enabled {
 		if err := p.promoteInstance(ctx, path.Join(p.globalCfg.ClonesMountDir, cloneName, p.globalCfg.DataSubDir)); err != nil {
 			return err
 		}
@@ -366,7 +378,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to build container host config")
 	}
 
-	promoteImage := p.options.DockerImage
+	promoteImage := p.options.Promotion.DockerImage
 	if promoteImage == "" {
 		promoteImage = fmt.Sprintf("postgresai/sync-instance:%s", pgVersion)
 	}
@@ -499,6 +511,17 @@ func (p *PhysicalInitial) adjustRecoveryConfiguration(pgVersion, clonePGDataDir 
 }
 
 func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password string) *container.Config {
+	hcPromotionInterval := hcDefaultPromotionInterval
+	hcPromotionRetries := hcDefaultPromotionRetries
+
+	if p.options.Promotion.HealthCheck.Interval != 0 {
+		hcPromotionInterval = time.Duration(p.options.Promotion.HealthCheck.Interval) * time.Second
+	}
+
+	if p.options.Promotion.HealthCheck.MaxRetries != 0 {
+		hcPromotionRetries = p.options.Promotion.HealthCheck.MaxRetries
+	}
+
 	return &container.Config{
 		Labels: map[string]string{tools.DBLabControlLabel: tools.DBLabPromoteLabel},
 		Env: []string{
@@ -507,8 +530,8 @@ func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password
 		},
 		Image: promoteImage,
 		Healthcheck: health.GetConfig(
-			health.OptionInterval(hcPromoteInterval),
-			health.OptionRetries(hcPromoteRetries),
+			health.OptionInterval(hcPromotionInterval),
+			health.OptionRetries(hcPromotionRetries),
 		),
 	}
 }
