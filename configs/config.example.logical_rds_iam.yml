@@ -256,7 +256,7 @@ cloning:
 #
 #  # Token for authorization in Platform API. This token can be obtained on
 #  # the Postgres.ai Console: https://postgres.ai/console/YOUR_ORG_NAME/tokens
-#  # This token needs to be kept in secret, known only to the administrtor.
+#  # This token needs to be kept in secret, known only to the administrator.
 #  accessToken: "platform_access_token"
 #
 #  # Enable authorization with personal tokens of the organization's members.

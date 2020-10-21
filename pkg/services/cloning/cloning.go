@@ -38,6 +38,7 @@ type Cloning interface {
 	DestroyClone(string) error
 	GetClone(string) (*models.Clone, error)
 	UpdateClone(string, *types.CloneUpdateRequest) (*models.Clone, error)
+	UpdateCloneStatus(string, models.Status) error
 	ResetClone(string) error
 
 	GetInstanceState() (*models.InstanceStatus, error)

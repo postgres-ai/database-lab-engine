@@ -34,7 +34,6 @@ func TestClientListClones(t *testing.T) {
 			Username: "john",
 			Password: "doe",
 		},
-		Project: "testProject",
 	}}
 
 	mockClient := NewTestClient(func(req *http.Request) *http.Response {
@@ -106,7 +105,6 @@ func TestClientCreateClone(t *testing.T) {
 			Username: "john",
 			Password: "doe",
 		},
-		Project: "testProject",
 	}
 
 	mockClient := NewTestClient(func(r *http.Request) *http.Response {
@@ -154,8 +152,8 @@ func TestClientCreateClone(t *testing.T) {
 
 	// Send a request.
 	newClone, err := c.CreateClone(ctx, types.CloneCreateRequest{
-		ID:        "testCloneID",
-		Project:   "testProject",
+		ID: "testCloneID",
+
 		Protected: true,
 		DB: &types.DatabaseRequest{
 			Username: "john",
@@ -185,7 +183,6 @@ func TestClientCreateCloneAsync(t *testing.T) {
 			Username: "john",
 			Password: "doe",
 		},
-		Project: "testProject",
 	}
 
 	mockClient := NewTestClient(func(r *http.Request) *http.Response {
@@ -224,7 +221,6 @@ func TestClientCreateCloneAsync(t *testing.T) {
 	// Send a request.
 	newClone, err := c.CreateCloneAsync(ctx, types.CloneCreateRequest{
 		ID:        "testCloneID",
-		Project:   "testProject",
 		Protected: true,
 		DB: &types.DatabaseRequest{
 			Username: "john",
@@ -276,7 +272,6 @@ func TestClientGetClone(t *testing.T) {
 			Username: "john",
 			Password: "doe",
 		},
-		Project: "testProject",
 	}
 
 	mockClient := NewTestClient(func(r *http.Request) *http.Response {
@@ -348,7 +343,6 @@ func TestClientUpdateClone(t *testing.T) {
 			Username: "john",
 			Password: "doe",
 		},
-		Project: "testProject",
 	}
 
 	mockClient := NewTestClient(func(r *http.Request) *http.Response {

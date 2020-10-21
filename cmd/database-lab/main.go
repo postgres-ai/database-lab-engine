@@ -21,6 +21,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/observer"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
@@ -122,8 +123,13 @@ func main() {
 		cfg.Server.VerificationToken = opts.VerificationToken
 	}
 
+	observerCfg := &observer.Config{
+		CloneDir:  cfg.Provision.Options.ClonesMountDir,
+		SocketDir: cfg.Provision.Options.UnixSocketDir,
+	}
+
 	// Start the Database Lab.
-	server := srv.NewServer(&cfg.Server, cloningSvc, platformSvc)
+	server := srv.NewServer(&cfg.Server, observerCfg, cloningSvc, platformSvc, dockerCLI)
 	if err = server.Run(); err != nil {
 		log.Fatalf(err)
 	}

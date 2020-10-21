@@ -14,9 +14,6 @@ type Clone struct {
 	Status    Status        `json:"status"`
 	DB        Database      `json:"db"`
 	Metadata  CloneMetadata `json:"metadata"`
-
-	// TODO(anatoly): Remove?
-	Project string `json:"project"`
 }
 
 // CloneMetadata contains fields describing a clone model.

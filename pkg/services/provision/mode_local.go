@@ -5,9 +5,11 @@
 package provision
 
 import (
-	"bufio"
 	"context"
+	"encoding/csv"
 	"fmt"
+	"io"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -15,7 +17,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
@@ -25,13 +26,11 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
+	"gitlab.com/postgres-ai/database-lab/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/pkg/util/pglog"
 )
 
 const (
-	// ClonePrefix defines a Database Lab clone prefix.
-	ClonePrefix = "dblab_clone_"
-
 	// Slash represents a slash symbol.
 	Slash = "/"
 
@@ -46,8 +45,6 @@ const (
 
 	// UseUnixSocket defines the need to connect to Postgres using Unix sockets.
 	UseUnixSocket = true
-
-	dockerLogHeaderLength = 8
 
 	defaultClonesMountDir = "/var/lib/dblab/clones/"
 
@@ -104,7 +101,7 @@ func NewProvisionModeLocal(ctx context.Context, config Config, dockerClient *cli
 			PreSnapshotSuffix: p.config.Options.PreSnapshotSuffix,
 			ClonesMountDir:    p.config.Options.ClonesMountDir,
 			OSUsername:        p.config.OSUsername,
-			ClonePrefix:       ClonePrefix,
+			ClonePrefix:       util.ClonePrefix,
 		})
 
 	if err != nil {
@@ -198,7 +195,8 @@ func (j *provisionModeLocal) ThinCloneManager() thinclones.Manager {
 	return j.thinCloneManager
 }
 
-func (j *provisionModeLocal) StartSession(username, password, snapshotID string) (*resources.Session, error) {
+func (j *provisionModeLocal) StartSession(username, password, snapshotID string,
+	extraConfig map[string]string) (*resources.Session, error) {
 	snapshotID, err := j.getSnapshotID(snapshotID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get snapshots")
@@ -209,7 +207,7 @@ func (j *provisionModeLocal) StartSession(username, password, snapshotID string)
 		return nil, errors.New("failed to get a free port")
 	}
 
-	name := j.getName(port)
+	name := util.GetCloneName(port)
 
 	log.Dbg(fmt.Sprintf(`Starting session for port: %d.`, port))
 
@@ -228,19 +226,20 @@ func (j *provisionModeLocal) StartSession(username, password, snapshotID string)
 		return nil, errors.Wrap(err, "failed to create a clone")
 	}
 
-	err = postgres.Start(j.runner, j.getAppConfig(name, port))
+	appConfig := j.getAppConfig(name, port)
+	appConfig.SetExtraConf(extraConfig)
+
+	err = postgres.Start(j.runner, appConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start a container")
 	}
 
-	err = j.prepareDB(username, password, j.getAppConfig(name, port))
+	err = j.prepareDB(username, password, appConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare a database")
 	}
 
 	atomic.AddUint32(&j.sessionCounter, 1)
-
-	appConfig := j.getAppConfig(name, port)
 
 	session := &resources.Session{
 		ID:                strconv.FormatUint(uint64(j.sessionCounter), 10),
@@ -251,15 +250,16 @@ func (j *provisionModeLocal) StartSession(username, password, snapshotID string)
 		SocketHost:        appConfig.Host,
 		EphemeralUser:     username,
 		EphemeralPassword: password,
+		ExtraConfig:       extraConfig,
 	}
 
 	return session, nil
 }
 
 func (j *provisionModeLocal) StopSession(session *resources.Session) error {
-	name := j.getName(session.Port)
+	name := util.GetCloneName(session.Port)
 
-	err := postgres.Stop(j.runner, j.getAppConfig(name, 0))
+	err := postgres.Stop(j.runner, j.getAppConfig(name, session.Port))
 	if err != nil {
 		return errors.Wrap(err, "failed to stop a container")
 	}
@@ -278,7 +278,7 @@ func (j *provisionModeLocal) StopSession(session *resources.Session) error {
 }
 
 func (j *provisionModeLocal) ResetSession(session *resources.Session, snapshotID string) error {
-	name := j.getName(session.Port)
+	name := util.GetCloneName(session.Port)
 
 	snapshotID, err := j.getSnapshotID(snapshotID)
 	if err != nil {
@@ -291,7 +291,10 @@ func (j *provisionModeLocal) ResetSession(session *resources.Session, snapshotID
 		}
 	}()
 
-	err = postgres.Stop(j.runner, j.getAppConfig(name, 0))
+	appConfig := j.getAppConfig(name, session.Port)
+	appConfig.SetExtraConf(session.ExtraConfig)
+
+	err = postgres.Stop(j.runner, appConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to stop a container")
 	}
@@ -306,12 +309,12 @@ func (j *provisionModeLocal) ResetSession(session *resources.Session, snapshotID
 		return errors.Wrap(err, "failed to create a clone")
 	}
 
-	err = postgres.Start(j.runner, j.getAppConfig(name, session.Port))
+	err = postgres.Start(j.runner, appConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to start a container")
 	}
 
-	err = j.prepareDB(session.EphemeralUser, session.EphemeralPassword, j.getAppConfig(name, session.Port))
+	err = j.prepareDB(session.EphemeralUser, session.EphemeralPassword, appConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to prepare a database")
 	}
@@ -328,7 +331,7 @@ func (j *provisionModeLocal) GetDiskState() (*resources.Disk, error) {
 }
 
 func (j *provisionModeLocal) GetSessionState(s *resources.Session) (*resources.SessionState, error) {
-	return j.thinCloneManager.GetSessionState(j.getName(s.Port))
+	return j.thinCloneManager.GetSessionState(util.GetCloneName(s.Port))
 }
 
 // Other methods.
@@ -450,10 +453,6 @@ func (j *provisionModeLocal) stopAllSessions() error {
 	return nil
 }
 
-func (j *provisionModeLocal) getName(port uint) string {
-	return ClonePrefix + strconv.FormatUint(uint64(port), 10)
-}
-
 func (j *provisionModeLocal) getAppConfig(name string, port uint) *resources.AppConfig {
 	host := DefaultHost
 	unixSocketCloneDir := path.Join(j.config.Options.UnixSocketDir, name)
@@ -482,49 +481,85 @@ func (j *provisionModeLocal) getAppConfig(name string, port uint) *resources.App
 	return appConfig
 }
 
-func (j *provisionModeLocal) LastSessionActivity(session *resources.Session, since time.Duration) (*time.Time, error) {
-	cloneName := j.getName(session.Port)
-
+func (j *provisionModeLocal) LastSessionActivity(port uint, minimumTime time.Time) (*time.Time, error) {
 	ctx, cancel := context.WithCancel(j.ctx)
 	defer cancel()
 
-	logStream, err := j.dockerClient.ContainerLogs(ctx, cloneName, types.ContainerLogsOptions{
-		ShowStdout: true,
-		ShowStderr: true,
-		Since:      since.String(),
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "failed get Docker logs")
+	fileSelector := pglog.NewSelector(j.config.Options.ClonesMountDir, port)
+
+	if err := fileSelector.DiscoverLogDir(); err != nil {
+		return nil, errors.Wrap(err, "failed to init file selector")
 	}
 
-	defer func() {
-		if err := logStream.Close(); err != nil {
-			log.Errf("Failed to close Docker log stream: %s", err.Error())
-		}
-	}()
+	fileSelector.SetMinimumTime(minimumTime)
+	fileSelector.FilterOldFilesInList()
 
-	scanner := bufio.NewScanner(logStream)
-	for scanner.Scan() {
-		if len(scanner.Bytes()) < dockerLogHeaderLength {
+	for {
+		filename, err := fileSelector.Next()
+		if err != nil {
+			if err == pglog.ErrLastFile {
+				break
+			}
+
+			return nil, errors.Wrap(err, "failed get CSV log filenames")
+		}
+
+		activity, err := j.scanCSVLogFile(ctx, filename, minimumTime)
+		if err == io.EOF {
 			continue
 		}
 
-		// Skip stream headers.
-		logLine := string(scanner.Bytes()[8:])
+		return activity, err
+	}
 
-		lastActivity, err := pglog.GetPostgresLastActivity(logLine)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get the time of last activity of %q", cloneName)
+	return nil, pglog.ErrNotFound
+}
+
+const csvMessageLogFieldsLength = 14
+
+func (j *provisionModeLocal) scanCSVLogFile(ctx context.Context, filename string, availableTime time.Time) (*time.Time, error) {
+	csvFile, err := os.Open(filename)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open a CSV log file")
+	}
+
+	defer func() {
+		if err := csvFile.Close(); err != nil {
+			log.Errf("Failed to close a CSV log file: %s", err.Error())
+		}
+	}()
+
+	csvReader := csv.NewReader(csvFile)
+
+	for {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
 		}
 
-		if lastActivity == nil {
+		entry, err := csvReader.Read()
+		if err != nil {
+			return nil, err
+		}
+
+		if len(entry) < csvMessageLogFieldsLength {
+			return nil, errors.New("wrong CSV file content")
+		}
+
+		logTime := entry[0]
+		logMessage := entry[13]
+
+		lastActivity, err := pglog.ParsePostgresLastActivity(logTime, logMessage)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get the time of last activity")
+		}
+
+		// Filter invalid and non-recent activity.
+		if lastActivity == nil || lastActivity.Before(availableTime) {
 			continue
 		}
 
 		return lastActivity, nil
 	}
-
-	return nil, pglog.ErrNotFound
 }
 
 func (j *provisionModeLocal) prepareDB(username, password string, pgConf *resources.AppConfig) error {

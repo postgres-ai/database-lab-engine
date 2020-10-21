@@ -63,7 +63,7 @@ func errDetailsMsg(r *http.Request, err error) string {
 		queryString = queryUnescape
 	}
 
-	return fmt.Sprintf("[ERROR] - %s %s - %+v", r.Method, queryString, err)
+	return fmt.Sprintf("[ERROR] - %s %s - %v", r.Method, queryString, err)
 }
 
 // toStatusCode converts an error to an HTTP status code.

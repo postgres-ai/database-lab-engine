@@ -31,6 +31,8 @@ type AppConfig struct {
 	password string
 
 	OSUsername string
+
+	extraConf map[string]string
 }
 
 // Username return username defined in AppConfig or default value.
@@ -61,7 +63,7 @@ func (c *AppConfig) SetPassword(password string) {
 	c.password = password
 }
 
-// DBName return Name defined in AppConfig or default value.
+// DBName return a database name defined in AppConfig or default value.
 func (c *AppConfig) DBName() string {
 	if c.dbName != "" {
 		return c.dbName
@@ -78,4 +80,14 @@ func (c *AppConfig) SetDBName(dbName string) {
 // DataDir returns the path of clone data.
 func (c *AppConfig) DataDir() string {
 	return path.Join(c.ClonesMountDir, c.CloneName, c.DataSubDir)
+}
+
+// ExtraConf returns a map with an extra configuration.
+func (c *AppConfig) ExtraConf() map[string]string {
+	return c.extraConf
+}
+
+// SetExtraConf sets a map with an extra configuration.
+func (c *AppConfig) SetExtraConf(extraConf map[string]string) {
+	c.extraConf = extraConf
 }

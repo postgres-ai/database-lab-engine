@@ -28,8 +28,8 @@ type Config struct {
 
 // Service defines a Platform service.
 type Service struct {
+	Client         *platform.Client
 	cfg            Config
-	client         *platform.Client
 	organizationID uint
 }
 
@@ -42,10 +42,6 @@ func New(cfg Config) *Service {
 
 // Init initialize a Platform service instance.
 func (s *Service) Init(ctx context.Context) error {
-	if !s.IsPersonalTokenEnabled() {
-		return nil
-	}
-
 	client, err := platform.NewClient(platform.ClientConfig{
 		URL:         s.cfg.URL,
 		AccessToken: s.cfg.AccessToken,
@@ -54,7 +50,11 @@ func (s *Service) Init(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create a new Platform Client")
 	}
 
-	s.client = client
+	s.Client = client
+
+	if !s.IsPersonalTokenEnabled() {
+		return nil
+	}
 
 	platformToken, err := client.CheckPlatformToken(ctx, platform.TokenCheckRequest{Token: s.cfg.AccessToken})
 	if err != nil {
@@ -76,7 +76,7 @@ func (s *Service) IsAllowedToken(ctx context.Context, personalToken string) bool
 		return true
 	}
 
-	platformToken, err := s.client.CheckPlatformToken(ctx, platform.TokenCheckRequest{Token: personalToken})
+	platformToken, err := s.Client.CheckPlatformToken(ctx, platform.TokenCheckRequest{Token: personalToken})
 	if err != nil {
 		return false
 	}

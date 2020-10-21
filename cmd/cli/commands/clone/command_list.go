@@ -31,7 +31,7 @@ func CommandList() []*cli.Command {
 			{
 				Name:   "create",
 				Usage:  "create new clone",
-				Action: create(),
+				Action: create,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:     "username",
@@ -51,10 +51,6 @@ func CommandList() []*cli.Command {
 						Name:  "snapshot-id",
 						Usage: "snapshot ID (optional)",
 					},
-					&cli.StringFlag{
-						Name:  "project",
-						Usage: "project name (optional)",
-					},
 					&cli.BoolFlag{
 						Name:    "protected",
 						Usage:   "mark instance as protected from deletion",
@@ -64,6 +60,10 @@ func CommandList() []*cli.Command {
 						Name:    "async",
 						Usage:   "run the command asynchronously",
 						Aliases: []string{"a"},
+					},
+					&cli.StringSliceFlag{
+						Name:  "extra-config",
+						Usage: "set an extra database configuration for the clone. An example: statement_timeout='1s'",
 					},
 				},
 			},
@@ -110,50 +110,39 @@ func CommandList() []*cli.Command {
 				},
 			},
 			{
-				Name:      "observe",
-				Usage:     "[EXPERIMENTAL] monitor clone state",
+				Name:      "start-observation",
+				Usage:     "[EXPERIMENTAL] start clone state monitoring",
 				ArgsUsage: "CLONE_ID",
 				Before:    checkCloneIDBefore,
-				Action:    observe(),
+				Action:    startObservation,
 				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:     "password",
-						Usage:    "clone database password",
-						EnvVars:  []string{"CLONE_PASSWORD"},
-						Required: true,
-					},
-					&cli.StringFlag{
-						Name:    "sslmode",
-						Usage:   "connection SSL mode",
-						EnvVars: []string{"SSLMODE"},
-						Value:   "disable",
-					},
-					&cli.BoolFlag{
-						Name:    "follow",
-						Usage:   "follow state monitor output",
-						Aliases: []string{"f"},
+					&cli.IntFlag{
+						Name:    "observation-interval",
+						Usage:   "interval of metric gathering and output (in seconds)",
+						EnvVars: []string{"DBLAB_OBSERVATION_INTERVAL"},
 					},
 					&cli.IntFlag{
-						Name:    "interval-seconds",
-						Usage:   "interval of metric gathering and output",
-						EnvVars: []string{"DBLAB_INTERVAL_SECONDS"},
+						Name:    "max-lock-duration",
+						Usage:   "maximum allowed duration for locks (in seconds)",
+						EnvVars: []string{"DBLAB_MAX_LOCK_DURATION"},
 					},
 					&cli.IntFlag{
-						Name:    "max-lock-duration-seconds",
-						Usage:   "maximum allowed duration for locks",
-						EnvVars: []string{"DBLAB_MAX_LOCK_DURATION_SECONDS"},
+						Name:    "max-duration",
+						Usage:   "maximum allowed duration for observation (in seconds)",
+						EnvVars: []string{"DBLAB_MAX_DURATION"},
 					},
-					&cli.IntFlag{
-						Name:    "max-duration-seconds",
-						Usage:   "maximum allowed duration for operation",
-						EnvVars: []string{"DBLAB_MAX_DURATION_SECONDS"},
+					&cli.StringSliceFlag{
+						Name:  "tags",
+						Usage: "set tags for the observation session. An example: branch=patch-1",
 					},
 				},
 			},
 			{
-				Name:   "observe-summary",
-				Usage:  "[EXPERIMENTAL] summarize clone monitoring and check results",
-				Action: observeSummary(),
+				Name:      "stop-observation",
+				Usage:     "[EXPERIMENTAL] summarize clone monitoring and check results",
+				ArgsUsage: "CLONE_ID",
+				Before:    checkCloneIDBefore,
+				Action:    stopObservation,
 			},
 			{
 				Name:  "port-forward",

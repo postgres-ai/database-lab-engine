@@ -44,7 +44,6 @@ func TestClientStatus(t *testing.T) {
 				Username: "john",
 				Password: "doe",
 			},
-			Project: "testProject",
 		}},
 	}
 

@@ -107,6 +107,14 @@ func (c *mockCloning) UpdateClone(id string, patch *types.CloneUpdateRequest) (*
 	return &models.Clone{}, nil
 }
 
+func (c *mockCloning) UpdateCloneStatus(id string, _ models.Status) error {
+	if _, ok := c.clones[id]; !ok {
+		return errors.New("clone not found")
+	}
+
+	return nil
+}
+
 func (c *mockCloning) ResetClone(id string) error {
 	if _, ok := c.clones[id]; !ok {
 		return errors.New("clone not found")

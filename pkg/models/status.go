@@ -19,6 +19,7 @@ const (
 	StatusCreating  StatusCode = "CREATING"
 	StatusResetting StatusCode = "RESETTING"
 	StatusDeleting  StatusCode = "DELETING"
+	StatusExporting StatusCode = "EXPORTING"
 	StatusFatal     StatusCode = "FATAL"
 
 	CloneMessageOK        = "Clone is ready to accept Postgres connections."

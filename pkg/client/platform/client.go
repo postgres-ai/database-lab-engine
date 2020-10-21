@@ -86,6 +86,16 @@ func newJSONParser(v interface{}) responseParser {
 	}
 }
 
+func newUploadParser(v interface{}) responseParser {
+	return func(resp *http.Response) error {
+		if resp.StatusCode != http.StatusOK {
+			return json.NewDecoder(resp.Body).Decode(v)
+		}
+
+		return nil
+	}
+}
+
 func (p *Client) doRequest(ctx context.Context, request *http.Request, parser responseParser) error {
 	request.Header.Add(accessToken, p.accessToken)
 	request = request.WithContext(ctx)
@@ -136,33 +146,23 @@ func (p *Client) doPost(ctx context.Context, path string, data interface{}, resp
 	return nil
 }
 
-// TokenCheckRequest represents token checking request.
-type TokenCheckRequest struct {
-	Token string `json:"token"`
-}
+func (p *Client) doUpload(ctx context.Context, path string, reqData []byte, headers map[string]string, response interface{}) error {
+	postURL := p.buildURL(path).String()
 
-// TokenCheckResponse represents a response of a token checking request.
-type TokenCheckResponse struct {
-	APIResponse
-	OrganizationID uint `json:"org_id"`
-	Personal       bool `json:"is_personal"`
-}
-
-// CheckPlatformToken makes an HTTP request to check the Platform Access Token.
-func (p *Client) CheckPlatformToken(ctx context.Context, request TokenCheckRequest) (TokenCheckResponse, error) {
-	respData := TokenCheckResponse{}
-
-	if err := p.doPost(ctx, "/rpc/dblab_token_check", request, &respData); err != nil {
-		return respData, errors.Wrap(err, "failed to post request")
+	r, err := http.NewRequest(http.MethodPost, postURL, bytes.NewBuffer(reqData))
+	if err != nil {
+		return errors.Wrap(err, "failed to create request")
 	}
 
-	if respData.Code != "" || respData.Message != "" {
-		log.Dbg(fmt.Sprintf("Unsuccessful response given. Request: %v", request))
-
-		return respData, errors.Errorf("error: %v", respData)
+	for key, value := range headers {
+		r.Header.Add(key, value)
 	}
 
-	return respData, nil
+	if err := p.doRequest(ctx, r, newUploadParser(&response)); err != nil {
+		return errors.Wrap(err, "failed to perform request")
+	}
+
+	return nil
 }
 
 // URL builds URL for a specific endpoint.

@@ -6,6 +6,7 @@
 package configuration
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path"
 	"strings"
@@ -27,8 +28,23 @@ const (
 	pgConfName = "postgresql.conf"
 )
 
-// Run configures PGDATA with Database Lab configs.
-func Run(dataDir string) error {
+// Corrector defines a struct to correct PostgreSQL configuration.
+type Corrector struct {
+	ExtraConfig map[string]string
+}
+
+// NewCorrector creates a new corrector.
+func NewCorrector() *Corrector {
+	return &Corrector{}
+}
+
+// NewCorrectorWithExtraConfig creates a new corrector with an extra configuration.
+func NewCorrectorWithExtraConfig(extraConfig map[string]string) *Corrector {
+	return &Corrector{ExtraConfig: extraConfig}
+}
+
+// Run corrects PGDATA with Database Lab configs.
+func (c Corrector) Run(dataDir string) error {
 	log.Dbg("Configuring Postgres...")
 
 	// Copy pg_hba.conf.
@@ -91,6 +107,10 @@ func Run(dataDir string) error {
 		if len(strings.TrimSpace(line)) > 0 {
 			pgConfDstLines = append(pgConfDstLines, line)
 		}
+	}
+
+	for configKey, configValue := range c.ExtraConfig {
+		pgConfDstLines = append(pgConfDstLines, fmt.Sprintf("%s = '%s'", configKey, configValue))
 	}
 
 	output := strings.Join(pgConfDstLines, "\n")

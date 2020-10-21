@@ -28,7 +28,8 @@ import (
 )
 
 const (
-	idleCheckDuration = 5 * time.Minute
+	//idleCheckDuration = 5 * time.Minute
+	idleCheckDuration = 20 * time.Second
 
 	defaultDatabaseName = "postgres"
 )
@@ -121,7 +122,6 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 			Username: cloneRequest.DB.Username,
 			Password: cloneRequest.DB.Password,
 		},
-		Project: cloneRequest.Project,
 	}
 
 	w := NewCloneWrapper(clone)
@@ -137,12 +137,12 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 	c.setWrapper(clone.ID, w)
 
 	go func() {
-		session, err := c.provision.StartSession(w.username, w.password, w.snapshot.ID)
+		session, err := c.provision.StartSession(w.username, w.password, w.snapshot.ID, cloneRequest.ExtraConf)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
 			log.Errf("Failed to start session: %v.", err)
 
-			if updateErr := c.updateCloneStatus(cloneID, models.Status{
+			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: errors.Cause(err).Error(),
 			}); updateErr != nil {
@@ -196,7 +196,7 @@ func (c *baseCloning) DestroyClone(cloneID string) error {
 		return models.New(models.ErrCodeBadRequest, "clone is protected")
 	}
 
-	if err := c.updateCloneStatus(cloneID, models.Status{
+	if err := c.UpdateCloneStatus(cloneID, models.Status{
 		Code:    models.StatusDeleting,
 		Message: models.CloneMessageDeleting,
 	}); err != nil {
@@ -213,7 +213,7 @@ func (c *baseCloning) DestroyClone(cloneID string) error {
 		if err := c.provision.StopSession(w.session); err != nil {
 			log.Errf("Failed to delete a clone: %+v.", err)
 
-			if updateErr := c.updateCloneStatus(cloneID, models.Status{
+			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: errors.Cause(err).Error(),
 			}); updateErr != nil {
@@ -271,13 +271,28 @@ func (c *baseCloning) UpdateClone(id string, patch *types.CloneUpdateRequest) (*
 	return clone, nil
 }
 
+// UpdateCloneStatus updates the clone status.
+func (c *baseCloning) UpdateCloneStatus(cloneID string, status models.Status) error {
+	c.cloneMutex.Lock()
+	defer c.cloneMutex.Unlock()
+
+	w, ok := c.clones[cloneID]
+	if !ok {
+		return errors.Errorf("clone %q not found", cloneID)
+	}
+
+	w.clone.Status = status
+
+	return nil
+}
+
 func (c *baseCloning) ResetClone(cloneID string) error {
 	w, ok := c.findWrapper(cloneID)
 	if !ok {
 		return models.New(models.ErrCodeNotFound, "clone not found")
 	}
 
-	if err := c.updateCloneStatus(cloneID, models.Status{
+	if err := c.UpdateCloneStatus(cloneID, models.Status{
 		Code:    models.StatusResetting,
 		Message: models.CloneMessageResetting,
 	}); err != nil {
@@ -293,7 +308,7 @@ func (c *baseCloning) ResetClone(cloneID string) error {
 		if err != nil {
 			log.Errf("Failed to reset a clone: %+v.", err)
 
-			if updateErr := c.updateCloneStatus(cloneID, models.Status{
+			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: errors.Cause(err).Error(),
 			}); updateErr != nil {
@@ -303,7 +318,7 @@ func (c *baseCloning) ResetClone(cloneID string) error {
 			return
 		}
 
-		if err := c.updateCloneStatus(cloneID, models.Status{
+		if err := c.UpdateCloneStatus(cloneID, models.Status{
 			Code:    models.StatusOK,
 			Message: models.CloneMessageOK,
 		}); err != nil {
@@ -377,21 +392,6 @@ func (c *baseCloning) setWrapper(id string, wrapper *CloneWrapper) {
 	c.cloneMutex.Lock()
 	c.clones[id] = wrapper
 	c.cloneMutex.Unlock()
-}
-
-// updateCloneStatus updates the clone status.
-func (c *baseCloning) updateCloneStatus(cloneID string, status models.Status) error {
-	c.cloneMutex.Lock()
-	defer c.cloneMutex.Unlock()
-
-	w, ok := c.clones[cloneID]
-	if !ok {
-		return errors.Errorf("clone %q not found", cloneID)
-	}
-
-	w.clone.Status = status
-
-	return nil
 }
 
 // deleteClone removes the clone by ID.
@@ -530,9 +530,9 @@ func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 	currentTime := time.Now()
 
 	idleDuration := time.Duration(c.Config.MaxIdleMinutes) * time.Minute
+	minimumTime := currentTime.Add(-idleDuration)
 
-	availableIdleTime := wrapper.timeStartedAt.Add(idleDuration)
-	if wrapper.clone.Protected || availableIdleTime.After(currentTime) {
+	if wrapper.clone.Protected || wrapper.clone.Status.Code == models.StatusExporting || wrapper.timeStartedAt.After(minimumTime) {
 		return false, nil
 	}
 
@@ -543,11 +543,10 @@ func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 		return false, errors.New("failed to get clone session")
 	}
 
-	lastSessionActivity, err := c.provision.LastSessionActivity(session, idleDuration)
-	if err != nil {
+	if _, err := c.provision.LastSessionActivity(session.Port, minimumTime); err != nil {
 		if err == pglog.ErrNotFound {
-			log.Dbg(fmt.Sprintf("Not found recent activity for the session: %q. Session name: %q",
-				session.ID, session.Name))
+			log.Dbg(fmt.Sprintf("Not found recent activity for the session: %q. Clone name: %q",
+				session.ID, util.GetCloneName(session.Port)))
 
 			return hasNotQueryActivity(session)
 		}
@@ -555,13 +554,7 @@ func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 		return false, errors.Wrap(err, "failed to get the last session activity")
 	}
 
-	// Check extracted activity time.
-	availableSessionActivity := lastSessionActivity.Add(idleDuration)
-	if availableSessionActivity.After(currentTime) {
-		return false, nil
-	}
-
-	return hasNotQueryActivity(session)
+	return false, nil
 }
 
 const pgDriverName = "postgres"
@@ -585,9 +578,8 @@ func hasNotQueryActivity(session *resources.Session) (bool, error) {
 	return checkActiveQueryNotExists(db)
 }
 
-// TODO(akartasov): Move the function to the provision service.
 func getSocketConnStr(session *resources.Session) string {
-	return fmt.Sprintf("host=%s user=%s dbname=postgres", session.SocketHost, session.User)
+	return fmt.Sprintf("host=%s user=%s port=%d dbname=postgres", session.SocketHost, session.User, session.Port)
 }
 
 // checkActiveQueryNotExists runs query to check a user activity.
