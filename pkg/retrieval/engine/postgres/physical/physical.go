@@ -7,6 +7,7 @@ package physical
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -43,6 +44,11 @@ const (
 	restoreContainerPrefix = "dblab_phr_"
 	readyLogLine           = "database system is ready to accept"
 	defaultPgConfigsDir    = "default"
+)
+
+var (
+	// List of original parameters to synchronize on restore.
+	originalParamsToRestore = []string{"max_connections"}
 )
 
 // RestoreJob describes a job for physical restoring.
@@ -131,7 +137,9 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	isEmpty, err := tools.IsEmptyDirectory(r.globalCfg.DataDir())
+	dataDir := r.globalCfg.DataDir()
+
+	isEmpty, err := tools.IsEmptyDirectory(dataDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to explore the data directory")
 	}
@@ -175,7 +183,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		log.Err("Failed to mark database data: ", err)
 	}
 
-	pgVersion, err := tools.DetectPGVersion(r.globalCfg.DataDir())
+	pgVersion, err := tools.DetectPGVersion(dataDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to detect the Postgres version")
 	}
@@ -186,27 +194,33 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "cannot get path to default configs")
 	}
 
-	if err := fs.CopyDirectoryContent(sourceConfigDir, r.globalCfg.DataDir()); err != nil {
+	if err := fs.CopyDirectoryContent(sourceConfigDir, dataDir); err != nil {
 		return errors.Wrap(err, "failed to set default configuration files")
 	}
 
-	if err := configuration.Run(r.globalCfg.DataDir()); err != nil {
+	if err := configuration.Run(dataDir); err != nil {
 		return errors.Wrap(err, "failed to configure")
 	}
 
-	if err := r.adjustRecoveryConfiguration(pgVersion, r.globalCfg.DataDir()); err != nil {
+	if err := r.adjustRecoveryConfiguration(pgVersion, dataDir); err != nil {
 		return err
 	}
 
 	// Set permissions.
 	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{
-		Cmd: []string{"chown", "-R", "postgres", r.globalCfg.DataDir()},
+		Cmd: []string{"chown", "-R", "postgres", dataDir},
 	}); err != nil {
 		return errors.Wrap(err, "failed to set permissions")
 	}
 
+	// Apply important initial configs.
+	if err := r.applyInitParams(ctx, contID, pgVersion, dataDir); err != nil {
+		return errors.Wrap(err, "failed to adjust by init parameters")
+	}
+
 	// Start PostgreSQL instance.
-	startCommand, err := r.dockerClient.ContainerExecCreate(ctx, contID, startingPostgresConfig(r.globalCfg.DataDir(), pgVersion))
+	startCommand, err := r.dockerClient.ContainerExecCreate(ctx, contID,
+		pgCommandConfig("postgres", dataDir, pgVersion))
 
 	if err != nil {
 		return errors.Wrap(err, "failed to create an exec command")
@@ -263,8 +277,8 @@ func (r *RestoreJob) startContainer(ctx context.Context, containerName, containe
 	return syncInstance.ID, nil
 }
 
-func startingPostgresConfig(pgDataDir, pgVersion string) types.ExecConfig {
-	command := fmt.Sprintf("/usr/lib/postgresql/%s/bin/postgres", pgVersion)
+func pgCommandConfig(cmd, pgDataDir, pgVersion string) types.ExecConfig {
+	command := fmt.Sprintf("/usr/lib/postgresql/%s/bin/%s", pgVersion, cmd)
 
 	return types.ExecConfig{
 		AttachStdout: true,
@@ -350,7 +364,8 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 		return err
 	}
 
-	startSyncCommand, err := r.dockerClient.ContainerExecCreate(ctx, syncInstanceID, startingPostgresConfig(r.globalCfg.DataDir(), pgVersion))
+	startSyncCommand, err := r.dockerClient.ContainerExecCreate(ctx, syncInstanceID,
+		pgCommandConfig("postgres", r.globalCfg.DataDir(), pgVersion))
 	if err != nil {
 		return errors.Wrap(err, "failed to create exec command")
 	}
@@ -446,14 +461,90 @@ func (r *RestoreJob) adjustRecoveryConfiguration(pgVersion, pgDataDir string) er
 		recoveryFilename = "recovery.conf"
 	}
 
-	recoveryFile, err := os.OpenFile(path.Join(pgDataDir, recoveryFilename), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	return r.appendConfigFile(path.Join(pgDataDir, recoveryFilename), r.restorer.GetRecoveryConfig())
+}
+
+func (r *RestoreJob) applyInitParams(ctx context.Context, contID, pgVersion, dataDir string) error {
+	initConfCmd, err := r.dockerClient.ContainerExecCreate(ctx, contID,
+		pgCommandConfig("pg_controldata", dataDir, pgVersion))
+
+	if err != nil {
+		return errors.Wrap(err, "failed to create an exec command")
+	}
+
+	log.Msg("Check initial configs")
+
+	attachResponse, err := r.dockerClient.ContainerExecAttach(ctx, initConfCmd.ID, types.ExecStartCheck{})
+	if err != nil {
+		return errors.Wrap(err, "failed to attach to the exec command")
+	}
+
+	defer attachResponse.Close()
+
+	initParams, err := r.extractInitParams(ctx, attachResponse.Reader)
 	if err != nil {
 		return err
 	}
 
-	defer func() { _ = recoveryFile.Close() }()
+	return r.appendInitConfigs(initParams, dataDir)
+}
 
-	if _, err := recoveryFile.Write(r.restorer.GetRecoveryConfig()); err != nil {
+func (r *RestoreJob) extractInitParams(ctx context.Context, read io.Reader) (map[string]string, error) {
+	extractedConfigs := make(map[string]string)
+	scanner := bufio.NewScanner(read)
+
+	const settingSuffix = " setting:"
+
+	for scanner.Scan() {
+		if ctx.Err() != nil {
+			return extractedConfigs, ctx.Err()
+		}
+
+		responseLine := scanner.Text()
+
+		for _, param := range originalParamsToRestore {
+			extractedName := param + settingSuffix
+
+			if !strings.HasPrefix(responseLine, extractedName) {
+				continue
+			}
+
+			value := strings.TrimSpace(strings.TrimPrefix(responseLine, extractedName))
+
+			extractedConfigs[param] = value
+		}
+
+		if len(originalParamsToRestore) == len(extractedConfigs) {
+			break
+		}
+	}
+
+	return extractedConfigs, nil
+}
+
+func (r *RestoreJob) appendInitConfigs(initConfiguration map[string]string, pgDataDir string) error {
+	if len(initConfiguration) == 0 {
+		return nil
+	}
+
+	buffer := bytes.NewBuffer([]byte("\n"))
+
+	for key, value := range initConfiguration {
+		buffer.WriteString(fmt.Sprintf("%s = '%s'\n", key, value))
+	}
+
+	return r.appendConfigFile(path.Join(pgDataDir, "postgresql.conf"), buffer.Bytes())
+}
+
+func (r *RestoreJob) appendConfigFile(file string, data []byte) error {
+	configFile, err := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = configFile.Close() }()
+
+	if _, err := configFile.Write(data); err != nil {
 		return err
 	}
 
