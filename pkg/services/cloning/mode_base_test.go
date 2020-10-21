@@ -78,7 +78,7 @@ func (s *BaseCloningSuite) TestUpdateStatus() {
 	require.True(s.T(), ok)
 	require.NotNil(s.T(), wrapper)
 
-	err := s.cloning.updateCloneStatus("testCloneID", models.Status{
+	err := s.cloning.UpdateCloneStatus("testCloneID", models.Status{
 		Code:    models.StatusOK,
 		Message: models.CloneMessageOK,
 	})

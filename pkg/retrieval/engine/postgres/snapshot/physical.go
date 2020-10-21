@@ -355,7 +355,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	log.Msg("Promote the Postgres instance.")
 
-	if err := configuration.Run(clonePath); err != nil {
+	if err := configuration.NewCorrector().Run(clonePath); err != nil {
 		return errors.Wrap(err, "failed to enforce configs")
 	}
 

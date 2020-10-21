@@ -76,7 +76,7 @@ func (s *LogicalInitial) Run(_ context.Context) error {
 	}
 
 	// Run basic PostgreSQL configuration.
-	if err := configuration.Run(s.globalCfg.DataDir()); err != nil {
+	if err := configuration.NewCorrector().Run(s.globalCfg.DataDir()); err != nil {
 		return errors.Wrap(err, "failed to adjust PostgreSQL configs")
 	}
 

@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/observer"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/validator"
@@ -33,15 +35,18 @@ type Server struct {
 	Cloning   cloning.Cloning
 	Config    *Config
 	Platform  *platform.Service
+	Observer  *observer.Observer
 }
 
 // NewServer initializes a new Server instance with provided configuration.
-func NewServer(cfg *Config, cloning cloning.Cloning, platform *platform.Service) *Server {
+func NewServer(cfg *Config, obsCfg *observer.Config, cloning cloning.Cloning, platform *platform.Service,
+	dockerClient *client.Client) *Server {
 	// TODO(anatoly): Stop using mock data.
 	server := &Server{
 		Config:   cfg,
 		Cloning:  cloning,
 		Platform: platform,
+		Observer: observer.NewObserver(dockerClient, obsCfg, platform.Client),
 	}
 
 	return server
@@ -87,6 +92,9 @@ func (s *Server) Run() error {
 	r.HandleFunc("/clone/{id}", authMW.authorized(s.patchClone)).Methods(http.MethodPatch)
 	r.HandleFunc("/clone/{id}", authMW.authorized(s.getClone)).Methods(http.MethodGet)
 	r.HandleFunc("/clone/{id}/reset", authMW.authorized(s.resetClone)).Methods(http.MethodPost)
+	r.HandleFunc("/clone/{id}", authMW.authorized(s.getClone)).Methods(http.MethodGet)
+	r.HandleFunc("/observation/start", authMW.authorized(s.startObservation)).Methods(http.MethodPost)
+	r.HandleFunc("/observation/stop", authMW.authorized(s.stopObservation)).Methods(http.MethodPost)
 
 	// Health check.
 	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet)

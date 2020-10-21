@@ -17,6 +17,7 @@ require (
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/gorilla/mux v1.7.3
+	github.com/jackc/pgx/v4 v4.9.0
 	github.com/jessevdk/go-flags v1.4.1-0.20181221193153-c0795c8afcf4
 	github.com/lib/pq v1.3.0
 	github.com/morikuni/aec v1.0.0 // indirect
@@ -30,7 +31,7 @@ require (
 	github.com/shirou/gopsutil v2.20.7+incompatible
 	github.com/stretchr/testify v1.5.1
 	github.com/urfave/cli/v2 v2.1.1
-	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1 // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	google.golang.org/grpc v1.31.0 // indirect

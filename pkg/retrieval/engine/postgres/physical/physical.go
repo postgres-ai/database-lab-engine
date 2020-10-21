@@ -198,7 +198,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to set default configuration files")
 	}
 
-	if err := configuration.Run(dataDir); err != nil {
+	if err := configuration.NewCorrector().Run(dataDir); err != nil {
 		return errors.Wrap(err, "failed to configure")
 	}
 

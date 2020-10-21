@@ -1,15 +1,21 @@
 package srv
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/pkg/client/platform"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/pkg/observer"
 	"gitlab.com/postgres-ai/database-lab/version"
 )
 
@@ -147,6 +153,133 @@ func (s *Server) resetClone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Dbg(fmt.Sprintf("Clone ID=%s is being reset", cloneID))
+}
+
+func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
+	var observationRequest *types.StartObservationRequest
+	if err := readJSON(r, &observationRequest); err != nil {
+		sendBadRequestError(w, r, err.Error())
+
+		return
+	}
+
+	clone, err := s.Cloning.GetClone(observationRequest.CloneID)
+	if err != nil {
+		sendNotFoundError(w, r)
+		return
+	}
+
+	session := observer.NewSession(observationRequest.Config)
+	session.StartedAt = time.Now().Round(time.Millisecond)
+	session.Tags = observationRequest.Tags
+
+	s.Observer.AddSession(clone.ID, session)
+
+	// Start session on the Platform.
+	platformRequest := platform.StartObservationRequest{
+		InstanceID: "", // TODO(akartasov): get InstanceID.
+		CloneID:    clone.ID,
+		StartedAt:  session.StartedAt.Format("2006-01-02 15:04:05 UTC"),
+		Config:     session.Config,
+		Tags:       observationRequest.Tags,
+	}
+
+	platformResponse, err := s.Platform.Client.StartObservationSession(context.Background(), platformRequest)
+	if err != nil {
+		sendBadRequestError(w, r, "Failed to start observation session on the Platform")
+		return
+	}
+
+	session.SessionID = platformResponse.SessionID
+
+	go func() {
+		if err := session.Start(clone); err != nil {
+			log.Err("failed to observe clone: ", err)
+			// TODO(akartasov): Update observation (add a request to Platform) with an error.
+			s.Observer.RemoveSession(clone.ID)
+		}
+	}()
+
+	if err := writeJSON(w, http.StatusOK, session); err != nil {
+		sendError(w, r, err)
+		return
+	}
+}
+
+func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
+	var observationRequest *types.StopObservationRequest
+
+	if err := readJSON(r, &observationRequest); err != nil {
+		sendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	session, err := s.Observer.GetSession(observationRequest.CloneID)
+	if err != nil {
+		sendNotFoundError(w, r)
+		return
+	}
+
+	clone, err := s.Cloning.GetClone(observationRequest.CloneID)
+	if err != nil {
+		sendNotFoundError(w, r)
+		return
+	}
+
+	if err := s.Cloning.UpdateCloneStatus(observationRequest.CloneID, models.Status{Code: models.StatusExporting}); err != nil {
+		sendNotFoundError(w, r)
+		return
+	}
+
+	defer s.Observer.RemoveSession(observationRequest.CloneID)
+
+	defer func() {
+		if err := s.Cloning.UpdateCloneStatus(observationRequest.CloneID, models.Status{Code: models.StatusOK}); err != nil {
+			log.Err("failed to update clone status", err)
+		}
+	}()
+
+	session.Stop()
+
+	platformRequest := platform.StopObservationRequest{
+		SessionID:  session.SessionID,
+		FinishedAt: session.FinishedAt.Format("2006-01-02 15:04:05 UTC"),
+		Result:     session.ObservationResult,
+	}
+
+	if _, err := s.Platform.Client.StopObservationSession(context.Background(), platformRequest); err != nil {
+		sendBadRequestError(w, r, "Failed to start observation session on the Platform")
+		return
+	}
+
+	port, err := strconv.Atoi(clone.DB.Port)
+	if err != nil {
+		sendError(w, r, errors.Wrap(err, "failed to parse clone port"))
+		return
+	}
+
+	logs, err := s.Observer.GetCloneLog(context.TODO(), uint(port), session)
+	if err != nil {
+		sendBadRequestError(w, r, "failed to get observation logs")
+		return
+	}
+
+	headers := map[string]string{
+		"Prefer":            "params=multiple-objects",
+		"Content-Type":      "text/csv",
+		"X-PGAI-Session-ID": strconv.FormatUint(session.SessionID, 10),
+		"X-PGAI-Part":       "1", // TODO (akartasov): Support chunks.
+	}
+
+	if err := s.Platform.Client.UploadObservationLogs(context.Background(), logs, headers); err != nil {
+		sendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if err := writeJSON(w, http.StatusOK, session.ObservationResult); err != nil {
+		sendError(w, r, err)
+		return
+	}
 }
 
 // healthCheck provides a health check handler.

@@ -44,7 +44,7 @@ type Provision interface {
 	//  Inject clone manager to provision service directly.
 	ThinCloneManager() thinclones.Manager
 
-	StartSession(username string, password string, snapshotID string) (*resources.Session, error)
+	StartSession(username, password, snapshotID string, extraConfig map[string]string) (*resources.Session, error)
 	StopSession(*resources.Session) error
 	ResetSession(session *resources.Session, snapshotID string) error
 
@@ -52,7 +52,7 @@ type Provision interface {
 
 	GetDiskState() (*resources.Disk, error)
 	GetSessionState(*resources.Session) (*resources.SessionState, error)
-	LastSessionActivity(*resources.Session, time.Duration) (*time.Time, error)
+	LastSessionActivity(port uint, minimalTime time.Time) (*time.Time, error)
 }
 
 type provision struct {

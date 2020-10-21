@@ -11,8 +11,7 @@ import (
 
 // Session defines clone provision information and connection info.
 type Session struct {
-	ID   string
-	Name string
+	ID string
 
 	// Database.
 	Host       string
@@ -25,6 +24,8 @@ type Session struct {
 	// For user-defined username and password.
 	EphemeralUser     string
 	EphemeralPassword string
+
+	ExtraConfig map[string]string
 }
 
 // Disk defines disk status.

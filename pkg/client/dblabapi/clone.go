@@ -10,12 +10,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/pkg/observer"
 )
 
 // ListClones provides a list of Database Lab clones.
@@ -155,30 +157,11 @@ func (c *Client) watchCloneStatus(ctx context.Context, cloneID string, initialSt
 func (c *Client) CreateCloneAsync(ctx context.Context, cloneRequest types.CloneCreateRequest) (*models.Clone, error) {
 	u := c.URL("/clone")
 
-	body := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(body).Encode(cloneRequest); err != nil {
-		return nil, errors.Wrap(err, "failed to encode CloneCreateRequest")
-	}
-
-	request, err := http.NewRequest(http.MethodPost, u.String(), body)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to make a request")
-	}
-
-	response, err := c.Do(ctx, request)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get response")
-	}
-
-	defer func() { _ = response.Body.Close() }()
-
 	var clone models.Clone
 
-	if err := json.NewDecoder(response.Body).Decode(&clone); err != nil {
-		return nil, errors.Wrap(err, "failed to decode a response body")
-	}
+	err := c.request(ctx, u, cloneRequest, &clone)
 
-	return &clone, nil
+	return &clone, err
 }
 
 // UpdateClone updates an existing Database Lab clone.
@@ -305,6 +288,53 @@ func (c *Client) DestroyCloneAsync(ctx context.Context, cloneID string) error {
 	}
 
 	defer func() { _ = response.Body.Close() }()
+
+	return nil
+}
+
+// StartObservation starts a clone observation.
+func (c *Client) StartObservation(ctx context.Context, startRequest types.StartObservationRequest) (*observer.Session, error) {
+	u := c.URL("/observation/start")
+
+	var session observer.Session
+
+	err := c.request(ctx, u, startRequest, &session)
+
+	return &session, err
+}
+
+// StopObservation stops a clone observation.
+func (c *Client) StopObservation(ctx context.Context, stopRequest types.StopObservationRequest) (*models.ObservationResult, error) {
+	u := c.URL("/observation/stop")
+
+	var observationResult models.ObservationResult
+
+	err := c.request(ctx, u, stopRequest, &observationResult)
+
+	return &observationResult, err
+}
+
+func (c *Client) request(ctx context.Context, u *url.URL, requestObject, responseObject interface{}) error {
+	body := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(body).Encode(requestObject); err != nil {
+		return errors.Wrap(err, "failed to encode a request object")
+	}
+
+	request, err := http.NewRequest(http.MethodPost, u.String(), body)
+	if err != nil {
+		return errors.Wrap(err, "failed to make a request")
+	}
+
+	response, err := c.Do(ctx, request)
+	if err != nil {
+		return errors.Wrap(err, "failed to get response")
+	}
+
+	defer func() { _ = response.Body.Close() }()
+
+	if err := json.NewDecoder(response.Body).Decode(&responseObject); err != nil {
+		return errors.Wrap(err, "failed to decode a response body")
+	}
 
 	return nil
 }
