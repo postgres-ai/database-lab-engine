@@ -10,10 +10,10 @@ sudo zpool create -f \
   -O atime=off \
   -O recordsize=8k \
   -O logbias=throughput \
-  -m /var/lib/dblab/data \
+  -m /var/lib/dblab \
   test_pool \
   "${ZFS_FILE}"
 
-sudo chmod 0750 /var/lib/dblab/data
+sudo chmod 0755 /var/lib/dblab/data
 
 zfs list

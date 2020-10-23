@@ -73,6 +73,7 @@ psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
 dblab clone reset testclone
 dblab clone status testclone
 psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
+dblab clone destroy testclone
 
 ### Step 7. Destroy clone
 dblab clone create --username testuser --password testuser --id testclone2

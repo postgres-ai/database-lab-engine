@@ -2,7 +2,7 @@
 set -euxo pipefail
 
 DIR=${0%/*}
-IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:master"
+IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:v2-0"
 POSTGRES_VERSION="${POSTGRES_VERSION:-10}"
 ### Step 1. Prepare a machine with two disks, Docker and ZFS.
 
@@ -13,9 +13,9 @@ source "${DIR}/_zfs.file.sh"
 sudo docker run \
   --name dblab_pg_initdb \
   --label dblab_control \
-  --env PGDATA=/var/lib/postgresql/pgdata \
+  --env PGDATA=/var/lib/dblab/data \
   --env POSTGRES_HOST_AUTH_METHOD=trust \
-  --volume /var/lib/dblab/data:/var/lib/postgresql/pgdata \
+  --volume /var/lib/dblab:/var/lib/dblab \
   --detach \
   postgres:${POSTGRES_VERSION}-alpine
 
@@ -40,6 +40,8 @@ sed -ri 's/^(\s*)(host:.*$)/\1host: ""/' ~/.dblab/server_test.yml
 sed -ri 's/^(\s*)(port: 2345$)/\1port: 12345/' ~/.dblab/server_test.yml
 sed -ri 's/^(\s*)(debug:.*$)/\1debug: true/' ~/.dblab/server_test.yml
 sed -ri 's/^(\s*)(pool:.*$)/\1pool: "test_pool"/' ~/.dblab/server_test.yml
+sed -ri 's/^(\s*)(- physicalRestore$)/\1/' ~/.dblab/server_test.yml
+
 # replace postgres version
 sed -ri "s/:12/:${POSTGRES_VERSION}/g"  ~/.dblab/server_test.yml
 
@@ -80,6 +82,7 @@ psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
 dblab clone reset testclone
 dblab clone status testclone
 psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
+dblab clone destroy testclone
 
 ### Step 7. Destroy clone
 dblab clone create --username testuser --password testuser --id testclone2
