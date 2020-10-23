@@ -1,5 +1,8 @@
 image: golang:1.14
 
+include:
+  - template: Security/SAST.gitlab-ci.yml
+
 stages:
   - test
   - build-binary
