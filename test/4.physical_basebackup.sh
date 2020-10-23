@@ -2,7 +2,7 @@
 set -euxo pipefail
 
 DIR=${0%/*}
-IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:master"
+IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:v2-0"
 SOURCE_HOST="${SOURCE_HOST:-172.31.39.142}"
 SOURCE_USERNAME="${SOURCE_USERNAME:-postgres}"
 SOURCE_PASSWORD="${SOURCE_PASSWORD:-qwerty}"
@@ -66,6 +66,7 @@ psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
 dblab clone reset testclone
 dblab clone status testclone
 psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
+dblab clone destroy testclone
 
 ### Step 7. Destroy clone
 dblab clone create --username testuser --password testuser --id testclone2
