@@ -48,7 +48,13 @@ const (
 
 var (
 	// List of original parameters to synchronize on restore.
-	originalParamsToRestore = []string{"max_connections"}
+	originalParamsToRestore = map[string]string{
+		"max_connections":        "max_connections",
+		"max_prepared_xacts":     "max_prepared_transactions",
+		"max_locks_per_xact":     "max_locks_per_transaction",
+		"max_worker_processes":   "max_worker_processes",
+		"track_commit_timestamp": "track_commit_timestamp",
+	}
 )
 
 // RestoreJob describes a job for physical restoring.
@@ -502,7 +508,7 @@ func (r *RestoreJob) extractInitParams(ctx context.Context, read io.Reader) (map
 
 		responseLine := scanner.Text()
 
-		for _, param := range originalParamsToRestore {
+		for param, configName := range originalParamsToRestore {
 			extractedName := param + settingSuffix
 
 			if !strings.HasPrefix(responseLine, extractedName) {
@@ -511,7 +517,7 @@ func (r *RestoreJob) extractInitParams(ctx context.Context, read io.Reader) (map
 
 			value := strings.TrimSpace(strings.TrimPrefix(responseLine, extractedName))
 
-			extractedConfigs[param] = value
+			extractedConfigs[configName] = value
 		}
 
 		if len(originalParamsToRestore) == len(extractedConfigs) {
