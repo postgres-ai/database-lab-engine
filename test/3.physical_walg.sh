@@ -2,7 +2,7 @@
 set -euxo pipefail
 
 DIR=${0%/*}
-IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:master"
+IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:v2-0"
 POSTGRES_VERSION="${POSTGRES_VERSION:-10}"
 ### Step 1: Prepare a machine with two disks, Docker and ZFS
 
@@ -63,6 +63,7 @@ psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
 dblab clone reset testclone
 dblab clone status testclone
 psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
+dblab clone destroy testclone
 
 ### Step 7. Destroy clone
 dblab clone create --username testuser --password testuser --id testclone2
