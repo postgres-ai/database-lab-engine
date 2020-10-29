@@ -224,28 +224,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to adjust by init parameters")
 	}
 
-	// Start PostgreSQL instance.
-	startCommand, err := r.dockerClient.ContainerExecCreate(ctx, contID,
-		pgCommandConfig("postgres", dataDir, pgVersion))
-
-	if err != nil {
-		return errors.Wrap(err, "failed to create an exec command")
-	}
-
-	log.Msg("Running refresh command")
-
-	attachResponse, err := r.dockerClient.ContainerExecAttach(ctx, startCommand.ID, types.ExecStartCheck{})
-	if err != nil {
-		return errors.Wrap(err, "failed to attach to the exec command")
-	}
-
-	defer attachResponse.Close()
-
-	if err := isDatabaseReady(attachResponse.Reader); err != nil {
-		return errors.Wrap(err, "failed to refresh data")
-	}
-
-	log.Msg("Refresh command has been finished")
+	log.Msg("Configuration has been finished")
 
 	return nil
 }
@@ -283,53 +262,6 @@ func (r *RestoreJob) startContainer(ctx context.Context, containerName, containe
 	return syncInstance.ID, nil
 }
 
-func pgCommandConfig(cmd, pgDataDir, pgVersion string) types.ExecConfig {
-	command := fmt.Sprintf("/usr/lib/postgresql/%s/bin/%s", pgVersion, cmd)
-
-	return types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          []string{command, "-D", pgDataDir},
-		User:         defaults.Username,
-		Env:          os.Environ(),
-	}
-}
-
-func isDatabaseReady(input io.Reader) error {
-	scanner := bufio.NewScanner(input)
-
-	timer := time.NewTimer(time.Minute)
-	defer timer.Stop()
-
-LOOP:
-	for {
-		select {
-		case <-timer.C:
-			return errors.New("timeout exceeded")
-		default:
-			if !scanner.Scan() {
-				break LOOP
-			}
-
-			timer.Reset(time.Minute)
-		}
-
-		text := scanner.Text()
-
-		if strings.Contains(text, readyLogLine) {
-			return nil
-		}
-
-		fmt.Println(text)
-	}
-
-	if err := scanner.Err(); err != nil {
-		return err
-	}
-
-	return errors.New("database instance is not running")
-}
-
 func (r *RestoreJob) syncInstanceName() string {
 	return cont.SyncInstanceContainerPrefix + r.globalCfg.InstanceID
 }
@@ -358,34 +290,61 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 		return err
 	}
 
-	// Set permissions.
-	if err := tools.ExecCommand(ctx, r.dockerClient, syncInstanceID, types.ExecConfig{
-		Cmd: []string{"chown", "-R", "postgres", r.globalCfg.DataDir()},
-	}); err != nil {
-		return errors.Wrap(err, "failed to set permissions")
+	log.Msg("Starting PostgreSQL")
+
+	if err := tools.RunPostgres(ctx, r.dockerClient, syncInstanceID, r.globalCfg.DataDir()); err != nil {
+		return errors.Wrap(err, "failed to start PostgreSQL instance")
 	}
 
-	pgVersion, err := tools.DetectPGVersion(r.globalCfg.DataDir())
+	logs, err := r.dockerClient.ContainerLogs(ctx, syncInstanceID, types.ContainerLogsOptions{
+		ShowStdout: true,
+		Follow:     true,
+	})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get container logs")
 	}
 
-	startSyncCommand, err := r.dockerClient.ContainerExecCreate(ctx, syncInstanceID,
-		pgCommandConfig("postgres", r.globalCfg.DataDir(), pgVersion))
-	if err != nil {
-		return errors.Wrap(err, "failed to create exec command")
-	}
+	defer func() { _ = logs.Close() }()
 
-	if err = r.dockerClient.ContainerExecStart(ctx, startSyncCommand.ID, types.ExecStartCheck{
-		Detach: true, Tty: true}); err != nil {
-		return errors.Wrap(err, "failed to attach to exec command")
-	}
-
-	if err := tools.InspectCommandResponse(ctx, r.dockerClient, syncInstanceID, startSyncCommand.ID); err != nil {
-		return errors.Wrap(err, "failed to perform exec command")
+	if err := isDatabaseReady(logs); err != nil {
+		return errors.Wrap(err, "failed to run PostgreSQL")
 	}
 
 	return nil
+}
+
+func isDatabaseReady(input io.Reader) error {
+	scanner := bufio.NewScanner(input)
+
+	timer := time.NewTimer(time.Minute)
+	defer timer.Stop()
+
+LOOP:
+	for {
+		select {
+		case <-timer.C:
+			return errors.New("timeout exceeded")
+		default:
+			if !scanner.Scan() {
+				break LOOP
+			}
+
+			timer.Reset(time.Minute)
+		}
+
+		text := scanner.Text()
+
+		if strings.Contains(text, readyLogLine) {
+			log.Msg(text)
+			return nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	return errors.New("database instance is not running")
 }
 
 func (r *RestoreJob) getEnvironmentVariables(password string) []string {
@@ -467,12 +426,11 @@ func (r *RestoreJob) adjustRecoveryConfiguration(pgVersion, pgDataDir string) er
 		recoveryFilename = "recovery.conf"
 	}
 
-	return r.appendConfigFile(path.Join(pgDataDir, recoveryFilename), r.restorer.GetRecoveryConfig())
+	return appendConfigFile(path.Join(pgDataDir, recoveryFilename), r.restorer.GetRecoveryConfig())
 }
 
 func (r *RestoreJob) applyInitParams(ctx context.Context, contID, pgVersion, dataDir string) error {
-	initConfCmd, err := r.dockerClient.ContainerExecCreate(ctx, contID,
-		pgCommandConfig("pg_controldata", dataDir, pgVersion))
+	initConfCmd, err := r.dockerClient.ContainerExecCreate(ctx, contID, pgControlDataConfig(dataDir, pgVersion))
 
 	if err != nil {
 		return errors.Wrap(err, "failed to create an exec command")
@@ -487,15 +445,27 @@ func (r *RestoreJob) applyInitParams(ctx context.Context, contID, pgVersion, dat
 
 	defer attachResponse.Close()
 
-	initParams, err := r.extractInitParams(ctx, attachResponse.Reader)
+	initParams, err := extractInitParams(ctx, attachResponse.Reader)
 	if err != nil {
 		return err
 	}
 
-	return r.appendInitConfigs(initParams, dataDir)
+	return appendInitConfigs(initParams, dataDir)
 }
 
-func (r *RestoreJob) extractInitParams(ctx context.Context, read io.Reader) (map[string]string, error) {
+func pgControlDataConfig(pgDataDir, pgVersion string) types.ExecConfig {
+	command := fmt.Sprintf("/usr/lib/postgresql/%s/bin/pg_controldata", pgVersion)
+
+	return types.ExecConfig{
+		AttachStdout: true,
+		AttachStderr: true,
+		Cmd:          []string{command, "-D", pgDataDir},
+		User:         defaults.Username,
+		Env:          os.Environ(),
+	}
+}
+
+func extractInitParams(ctx context.Context, read io.Reader) (map[string]string, error) {
 	extractedConfigs := make(map[string]string)
 	scanner := bufio.NewScanner(read)
 
@@ -528,7 +498,7 @@ func (r *RestoreJob) extractInitParams(ctx context.Context, read io.Reader) (map
 	return extractedConfigs, nil
 }
 
-func (r *RestoreJob) appendInitConfigs(initConfiguration map[string]string, pgDataDir string) error {
+func appendInitConfigs(initConfiguration map[string]string, pgDataDir string) error {
 	if len(initConfiguration) == 0 {
 		return nil
 	}
@@ -539,10 +509,10 @@ func (r *RestoreJob) appendInitConfigs(initConfiguration map[string]string, pgDa
 		buffer.WriteString(fmt.Sprintf("%s = '%s'\n", key, value))
 	}
 
-	return r.appendConfigFile(path.Join(pgDataDir, "postgresql.conf"), buffer.Bytes())
+	return appendConfigFile(path.Join(pgDataDir, "postgresql.conf"), buffer.Bytes())
 }
 
-func (r *RestoreJob) appendConfigFile(file string, data []byte) error {
+func appendConfigFile(file string, data []byte) error {
 	configFile, err := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
