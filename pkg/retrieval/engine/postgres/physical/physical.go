@@ -178,7 +178,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Msg("Running restore command: ", r.restorer.GetRestoreCommand())
 
 	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{
-		Cmd: []string{"bash", "-c", r.restorer.GetRestoreCommand()},
+		Cmd: []string{"bash", "-c", r.restorer.GetRestoreCommand() + " >& /proc/1/fd/1"},
 	}); err != nil {
 		return errors.Wrap(err, "failed to restore data")
 	}
