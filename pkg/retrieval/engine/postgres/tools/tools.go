@@ -31,7 +31,6 @@ import (
 	"github.com/shirou/gopsutil/host"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 )
 
 const (
@@ -83,15 +82,14 @@ func DetectPGVersion(dataDir string) (string, error) {
 	return string(bytes.TrimSpace(version)), nil
 }
 
-// StartingPostgresConfig provides configuration to start Postgres.
-func StartingPostgresConfig(pgDataDir, pgVersion string) types.ExecConfig {
-	command := fmt.Sprintf("/usr/lib/postgresql/%s/bin/postgres", pgVersion)
+// PGRunConfig provides configuration to start Postgres.
+func PGRunConfig(pgDataDir, pgVersion string) types.ExecConfig {
+	command := fmt.Sprintf("sudo -Eu postgres /usr/lib/postgresql/%s/bin/postgres -D %s >& /proc/1/fd/1", pgVersion, pgDataDir)
 
 	return types.ExecConfig{
 		AttachStdout: true,
 		AttachStderr: true,
-		Cmd:          []string{command, "-D", pgDataDir},
-		User:         defaults.Username,
+		Cmd:          []string{"bash", "-c", command},
 		Env:          os.Environ(),
 	}
 }
@@ -166,15 +164,17 @@ func RunPostgres(ctx context.Context, dockerClient *client.Client, containerID, 
 		return errors.Wrap(err, "failed to detect PostgreSQL version")
 	}
 
-	startSyncCommand, err := dockerClient.ContainerExecCreate(ctx, containerID, StartingPostgresConfig(dataDir, pgVersion))
+	startSyncCommand, err := dockerClient.ContainerExecCreate(ctx, containerID, PGRunConfig(dataDir, pgVersion))
 	if err != nil {
 		return errors.Wrap(err, "failed to create exec command")
 	}
 
-	if err = dockerClient.ContainerExecStart(ctx, startSyncCommand.ID, types.ExecStartCheck{
-		Detach: true, Tty: true}); err != nil {
+	attach, err := dockerClient.ContainerExecAttach(ctx, startSyncCommand.ID, types.ExecStartCheck{})
+	if err != nil {
 		return errors.Wrap(err, "failed to attach to exec command")
 	}
+
+	defer attach.Close()
 
 	if err := InspectCommandResponse(ctx, dockerClient, containerID, startSyncCommand.ID); err != nil {
 		return errors.Wrap(err, "failed to perform exec command")
@@ -234,6 +234,14 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 
 			case types.Unhealthy:
 				return errors.New("container health check failed")
+			}
+
+			healthCheckLength := len(resp.State.Health.Log)
+			if healthCheckLength > 0 {
+				lastHealthCheck := resp.State.Health.Log[healthCheckLength-1]
+				if lastHealthCheck.ExitCode > 1 {
+					return errors.Errorf("health check failed. Code: %v, Output: %v", lastHealthCheck.ExitCode, lastHealthCheck.Output)
+				}
 			}
 
 			log.Msg(fmt.Sprintf("Container is not ready yet. The current state is %v.", resp.State.Health.Status))
@@ -308,40 +316,12 @@ func ExecCommand(ctx context.Context, dockerClient *client.Client, containerID s
 		return errors.Wrap(err, "failed to create command")
 	}
 
-	attachResponse, err := dockerClient.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{Tty: true})
-	if err != nil {
-		return errors.Wrap(err, "failed to attach to exec command")
-	}
-
-	defer attachResponse.Close()
-
-	if err := waitForCommandResponse(ctx, attachResponse); err != nil {
-		return errors.Wrap(err, "failed to exec command")
+	if err := dockerClient.ContainerExecStart(ctx, execCommand.ID, types.ExecStartCheck{}); err != nil {
+		return errors.Wrap(err, "failed to start a command")
 	}
 
 	if err := InspectCommandResponse(ctx, dockerClient, containerID, execCommand.ID); err != nil {
 		return errors.Wrap(err, "unsuccessful command response")
-	}
-
-	return nil
-}
-
-func waitForCommandResponse(ctx context.Context, attachResponse types.HijackedResponse) error {
-	waitCommandCh := make(chan struct{})
-
-	go func() {
-		if _, err := io.Copy(os.Stdout, attachResponse.Reader); err != nil {
-			log.Err("failed to get command output:", err)
-		}
-
-		waitCommandCh <- struct{}{}
-	}()
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-
-	case <-waitCommandCh:
 	}
 
 	return nil
