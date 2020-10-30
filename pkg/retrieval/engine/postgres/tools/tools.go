@@ -316,40 +316,12 @@ func ExecCommand(ctx context.Context, dockerClient *client.Client, containerID s
 		return errors.Wrap(err, "failed to create command")
 	}
 
-	attachResponse, err := dockerClient.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{Tty: true})
-	if err != nil {
-		return errors.Wrap(err, "failed to attach to exec command")
-	}
-
-	defer attachResponse.Close()
-
-	if err := waitForCommandResponse(ctx, attachResponse); err != nil {
-		return errors.Wrap(err, "failed to exec command")
+	if err := dockerClient.ContainerExecStart(ctx, execCommand.ID, types.ExecStartCheck{}); err != nil {
+		return errors.Wrap(err, "failed to start a command")
 	}
 
 	if err := InspectCommandResponse(ctx, dockerClient, containerID, execCommand.ID); err != nil {
 		return errors.Wrap(err, "unsuccessful command response")
-	}
-
-	return nil
-}
-
-func waitForCommandResponse(ctx context.Context, attachResponse types.HijackedResponse) error {
-	waitCommandCh := make(chan struct{})
-
-	go func() {
-		if _, err := io.Copy(os.Stdout, attachResponse.Reader); err != nil {
-			log.Err("failed to get command output:", err)
-		}
-
-		waitCommandCh <- struct{}{}
-	}()
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-
-	case <-waitCommandCh:
 	}
 
 	return nil

@@ -597,15 +597,15 @@ func checkRecoveryModeResponse(input io.Reader) (string, error) {
 }
 
 func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID string) (string, error) {
-	promoteCommand := []string{"psql", "-U", defaults.Username, "-d", defaults.DBName, "-XAtc",
+	extractionCommand := []string{"psql", "-U", defaults.Username, "-d", defaults.DBName, "-XAtc",
 		"select to_char(coalesce(pg_last_xact_replay_timestamp(), NOW()) at time zone 'UTC', 'YYYYMMDDHH24MISS')"}
 
-	log.Msg("Running promote command", promoteCommand)
+	log.Msg("Running dataStateAt command", extractionCommand)
 
 	execCommand, err := p.dockerClient.ContainerExecCreate(ctx, containerID, types.ExecConfig{
 		AttachStdout: true,
 		AttachStderr: true,
-		Cmd:          promoteCommand,
+		Cmd:          extractionCommand,
 		User:         defaults.Username,
 	})
 
