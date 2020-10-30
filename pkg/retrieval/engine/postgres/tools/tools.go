@@ -236,6 +236,14 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 				return errors.New("container health check failed")
 			}
 
+			healthCheckLength := len(resp.State.Health.Log)
+			if healthCheckLength > 0 {
+				lastHealthCheck := resp.State.Health.Log[healthCheckLength-1]
+				if lastHealthCheck.ExitCode > 1 {
+					return errors.Errorf("health check failed. Code: %v, Output: %v", lastHealthCheck.ExitCode, lastHealthCheck.Output)
+				}
+			}
+
 			log.Msg(fmt.Sprintf("Container is not ready yet. The current state is %v.", resp.State.Health.Status))
 		}
 
