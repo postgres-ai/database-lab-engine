@@ -485,7 +485,7 @@ func (j *provisionModeLocal) LastSessionActivity(port uint, minimumTime time.Tim
 	ctx, cancel := context.WithCancel(j.ctx)
 	defer cancel()
 
-	fileSelector := pglog.NewSelector(j.config.Options.ClonesMountDir, port)
+	fileSelector := pglog.NewSelector(j.config.Options.ClonesMountDir, j.config.DataSubDir, port)
 
 	if err := fileSelector.DiscoverLogDir(); err != nil {
 		return nil, errors.Wrap(err, "failed to init file selector")

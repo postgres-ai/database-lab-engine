@@ -124,8 +124,9 @@ func main() {
 	}
 
 	observerCfg := &observer.Config{
-		CloneDir:  cfg.Provision.Options.ClonesMountDir,
-		SocketDir: cfg.Provision.Options.UnixSocketDir,
+		CloneDir:   cfg.Provision.Options.ClonesMountDir,
+		DataSubDir: cfg.Global.DataSubDir,
+		SocketDir:  cfg.Provision.Options.UnixSocketDir,
 	}
 
 	// Start the Database Lab.
