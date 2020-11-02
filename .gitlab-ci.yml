@@ -81,6 +81,24 @@ build-binary-client:
     - gsutil -m cp -r bin/cli/* gs://database-lab-cli/${CI_COMMIT_TAG}/
     - gsutil -m cp -r bin/cli/* gs://database-lab-cli/latest/
 
+build-binary-client-rc:
+  <<: *only_tag_rc
+  stage: build-binary
+  when: manual
+  script:
+    - make build-client
+
+    # Install google-cloud-sdk.
+    - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+    - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+    - apt-get update && apt-get install -y google-cloud-sdk
+
+    # Authenticate.
+    - echo $GCP_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
+
+    # Upload artifacts.
+    - gsutil -m cp -r bin/cli/* gs://database-lab-cli/${CI_COMMIT_TAG}/
+
 .job_template: &build_image_definition
   image: docker:19
   stage: build-image

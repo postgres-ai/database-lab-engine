@@ -260,20 +260,20 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 
 	logs, err := s.Observer.GetCloneLog(context.TODO(), uint(port), session)
 	if err != nil {
-		sendBadRequestError(w, r, "failed to get observation logs")
-		return
+		log.Err("Failed to get observation logs", err)
 	}
 
-	headers := map[string]string{
-		"Prefer":            "params=multiple-objects",
-		"Content-Type":      "text/csv",
-		"X-PGAI-Session-ID": strconv.FormatUint(session.SessionID, 10),
-		"X-PGAI-Part":       "1", // TODO (akartasov): Support chunks.
-	}
+	if len(logs) > 0 {
+		headers := map[string]string{
+			"Prefer":            "params=multiple-objects",
+			"Content-Type":      "text/csv",
+			"X-PGAI-Session-ID": strconv.FormatUint(session.SessionID, 10),
+			"X-PGAI-Part":       "1", // TODO (akartasov): Support chunks.
+		}
 
-	if err := s.Platform.Client.UploadObservationLogs(context.Background(), logs, headers); err != nil {
-		sendBadRequestError(w, r, err.Error())
-		return
+		if err := s.Platform.Client.UploadObservationLogs(context.Background(), logs, headers); err != nil {
+			log.Err("Failed to upload observation logs", err)
+		}
 	}
 
 	if err := writeJSON(w, http.StatusOK, session.ObservationResult); err != nil {
