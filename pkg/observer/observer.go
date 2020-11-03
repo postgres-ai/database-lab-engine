@@ -44,8 +44,9 @@ type Observer struct {
 
 // Config defines configuration options for observer.
 type Config struct {
-	CloneDir  string
-	SocketDir string
+	CloneDir   string
+	DataSubDir string
+	SocketDir  string
 }
 
 // NewObserver creates an Observer instance.
@@ -62,7 +63,7 @@ func NewObserver(dockerClient *client.Client, cfg *Config, platform *platform.Cl
 // GetCloneLog gets clone logs.
 // TODO (akartasov): Split log to chunks.
 func (o *Observer) GetCloneLog(ctx context.Context, port uint, session *Session) ([]byte, error) {
-	fileSelector := pglog.NewSelector(o.cfg.CloneDir, port)
+	fileSelector := pglog.NewSelector(o.cfg.CloneDir, o.cfg.DataSubDir, port)
 	fileSelector.SetMinimumTime(session.StartedAt)
 
 	if err := fileSelector.DiscoverLogDir(); err != nil {

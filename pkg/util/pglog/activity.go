@@ -44,9 +44,9 @@ type Selector struct {
 }
 
 // NewSelector creates a new Selector.
-func NewSelector(dir string, port uint) *Selector {
+func NewSelector(dir, subdir string, port uint) *Selector {
 	return &Selector{
-		logDir:    buildLogDirName(dir, port),
+		logDir:    buildLogDirName(dir, subdir, port),
 		fileNames: make([]string, 0),
 	}
 }
@@ -139,6 +139,6 @@ func ParsePostgresLastActivity(logTime, text string) (*time.Time, error) {
 	return &lastActivityTime, nil
 }
 
-func buildLogDirName(cloneDir string, port uint) string {
-	return path.Join(cloneDir, util.GetCloneName(port), csvLogDir)
+func buildLogDirName(cloneDir, dataSubDir string, port uint) string {
+	return path.Join(cloneDir, util.GetCloneName(port), dataSubDir, csvLogDir)
 }
