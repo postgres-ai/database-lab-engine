@@ -46,6 +46,14 @@ global:
   # (not PostgreSQL logs). Enable in the case of troubleshooting.
   debug: false
 
+  # Contains default configuration options of the restored database.
+  database:
+    # Default username.
+    username: postgres
+
+    # Default database name.
+    dbname: postgres
+
 # Details of provisioning – where data is located,
 # thin cloning method, etc.
 provision:

@@ -25,7 +25,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 )
@@ -190,8 +189,8 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	}
 
 	if err := recalculateStats(ctx, r.dockerClient, restoreCont.ID, buildAnalyzeCommand(Connection{
-		Username: defaults.Username,
-		DBName:   r.RestoreOptions.DBName,
+		Username: r.globalCfg.Database.User(),
+		DBName:   r.globalCfg.Database.Name(),
 	}, r.RestoreOptions.ParallelJobs)); err != nil {
 		return errors.Wrap(err, "failed to recalculate statistics after restore")
 	}
@@ -212,7 +211,7 @@ func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 			"POSTGRES_PASSWORD=" + password,
 		}...),
 		Image:       r.RestoreOptions.DockerImage,
-		Healthcheck: health.GetConfig(),
+		Healthcheck: health.GetConfig(r.globalCfg.Database.User(), r.globalCfg.Database.Name()),
 	}
 }
 
@@ -277,7 +276,7 @@ func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID string) (st
 }
 
 func (r *RestoreJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"pg_restore", "--username", defaults.Username, "--dbname", defaults.DBName, "--create",
+	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", r.globalCfg.Database.Name(), "--create",
 		"--no-privileges", "--no-owner"}
 
 	if r.ForceInit {
