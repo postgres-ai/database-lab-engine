@@ -239,7 +239,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 
 	defer func() {
 		if err != nil {
-			tools.PrintContainerLogs(ctx, d.dockerClient, d.dumpContainerName())
+			tools.PrintContainerLogs(ctx, d.dockerClient, d.dumpContainerName(), err)
 		}
 	}()
 

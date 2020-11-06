@@ -144,7 +144,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 	defer func() {
 		if err != nil {
-			tools.PrintContainerLogs(ctx, r.dockerClient, r.restoreContainerName())
+			tools.PrintContainerLogs(ctx, r.dockerClient, r.restoreContainerName(), err)
 		}
 	}()
 
