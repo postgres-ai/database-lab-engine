@@ -19,7 +19,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -52,8 +51,8 @@ const (
 	hcDefaultPromotionInterval = 5 * time.Second
 	hcDefaultPromotionRetries  = 200
 
-	syncContainerStopTimeout = 2 * time.Minute
-	supportedSysctlPrefix    = "fs.mqueue."
+	//syncContainerStopTimeout = 2 * time.Minute
+	supportedSysctlPrefix = "fs.mqueue."
 )
 
 // supportedSysctls describes supported sysctls for Promote Docker image.
@@ -181,10 +180,6 @@ func (p *PhysicalInitial) validateConfig() error {
 	return nil
 }
 
-func (p *PhysicalInitial) syncInstanceName() string {
-	return cont.SyncInstanceContainerPrefix + p.globalCfg.InstanceID
-}
-
 // Name returns a name of the job.
 func (p *PhysicalInitial) Name() string {
 	return p.name
@@ -214,32 +209,6 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 	// Snapshot data.
 	preDataStateAt := time.Now().Format(tools.DataStateAtFormat)
 	cloneName := fmt.Sprintf("clone%s_%s", pre, preDataStateAt)
-
-	// Sync container management.
-	syncContainer, err := p.dockerClient.ContainerInspect(ctx, p.syncInstanceName())
-	if err != nil && !client.IsErrNotFound(err) {
-		return errors.Wrap(err, "failed to inspect sync container")
-	}
-
-	if syncContainer.ContainerJSONBase != nil && syncContainer.State.Running {
-		log.Msg("Stopping sync container before snapshotting")
-
-		if err := p.dockerClient.ContainerStop(ctx, syncContainer.ID, pointer.ToDuration(syncContainerStopTimeout)); err != nil {
-			return errors.Wrapf(err, "failed to stop %q", p.syncInstanceName())
-		}
-
-		defer func() {
-			log.Msg("Starting sync container after snapshotting")
-
-			if err := p.dockerClient.ContainerStart(ctx, syncContainer.ID, types.ContainerStartOptions{}); err != nil {
-				log.Err(fmt.Sprintf("failed to start %q: %v", p.syncInstanceName(), err))
-			}
-
-			if err := tools.RunPostgres(ctx, p.dockerClient, syncContainer.ID, p.globalCfg.DataDir()); err != nil {
-				log.Err(fmt.Sprintf("failed to start PostgreSQL instance inside %q: %v", p.syncInstanceName(), err))
-			}
-		}()
-	}
 
 	defer func() {
 		if _, ok := err.(*skipSnapshotErr); ok {
@@ -405,11 +374,11 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to create container")
 	}
 
-	defer tools.RemoveContainer(ctx, p.dockerClient, promoteCont.ID, cont.StopTimeout)
+	defer tools.RemoveContainer(ctx, p.dockerClient, promoteCont.ID, cont.StopPhysicalTimeout)
 
 	defer func() {
 		if err != nil {
-			tools.PrintContainerLogs(ctx, p.dockerClient, p.promoteContainerName())
+			tools.PrintContainerLogs(ctx, p.dockerClient, p.promoteContainerName(), err)
 		}
 	}()
 

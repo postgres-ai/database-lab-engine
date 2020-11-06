@@ -35,7 +35,7 @@ import (
 
 const (
 	maxValuesToReturn     = 1
-	essentialLogsInterval = "10s"
+	essentialLogsInterval = "5s"
 
 	// ViewLogsCmd tells the command to view docker container logs.
 	ViewLogsCmd = "docker logs --since 1m -f"
@@ -255,7 +255,9 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 }
 
 // PrintContainerLogs prints container output.
-func PrintContainerLogs(ctx context.Context, dockerClient *client.Client, containerName string) {
+func PrintContainerLogs(ctx context.Context, dockerClient *client.Client, containerName string, err error) {
+	log.Err(fmt.Sprintf("Container: %s: %v", containerName, err))
+
 	containerLogs, err := dockerClient.ContainerLogs(ctx, containerName, types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,

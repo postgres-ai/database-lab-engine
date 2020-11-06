@@ -21,7 +21,10 @@ const (
 	labelFilter = "label"
 
 	// StopTimeout defines a container stop timeout.
-	StopTimeout = time.Minute
+	StopTimeout = 30 * time.Second
+
+	// StopPhysicalTimeout defines stop timeout for a physical container.
+	StopPhysicalTimeout = 5 * time.Second
 
 	// SyncInstanceContainerPrefix defines a sync container name.
 	SyncInstanceContainerPrefix = "dblab_sync_"
