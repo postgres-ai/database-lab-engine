@@ -15,6 +15,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	retConfig "gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
@@ -35,16 +36,41 @@ type Config struct {
 // Global contains global Database Lab configurations.
 type Global struct {
 	InstanceID     string
-	Engine         string `yaml:"engine"`
-	Debug          bool   `yaml:"debug"`
-	MountDir       string `yaml:"mountDir"`
-	DataSubDir     string `yaml:"dataSubDir"`
-	ClonesMountDir string // TODO (akartasov): Use ClonesMountDir for the LocalModeOptions of a Provision service.
+	Engine         string   `yaml:"engine"`
+	Debug          bool     `yaml:"debug"`
+	MountDir       string   `yaml:"mountDir"`
+	DataSubDir     string   `yaml:"dataSubDir"`
+	Database       Database `yaml:"database"`
+	ClonesMountDir string   // TODO (akartasov): Use ClonesMountDir for the LocalModeOptions of a Provision service.
 }
 
 // DataDir provides full path to data directory.
 func (g Global) DataDir() string {
 	return path.Join(g.MountDir, g.DataSubDir)
+}
+
+// Database contains default configurations of the managed database.
+type Database struct {
+	Username string `yaml:"username"`
+	DBName   string `yaml:"dbname"`
+}
+
+// User returns default Database username.
+func (d *Database) User() string {
+	if d.Username != "" {
+		return d.Username
+	}
+
+	return defaults.Username
+}
+
+// Name returns default Database name.
+func (d *Database) Name() string {
+	if d.DBName != "" {
+		return d.DBName
+	}
+
+	return defaults.DBName
 }
 
 // LoadConfig instances a new Config by configuration filename.

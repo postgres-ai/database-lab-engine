@@ -79,6 +79,8 @@ func main() {
 
 	cfg.Global.InstanceID = xid.New().String()
 
+	log.Msg("Database Lab Instance ID", cfg.Global.InstanceID)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

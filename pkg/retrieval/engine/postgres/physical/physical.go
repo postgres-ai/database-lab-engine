@@ -291,6 +291,7 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 	}
 
 	log.Msg("Starting PostgreSQL")
+	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, r.syncInstanceName()))
 
 	if err := tools.RunPostgres(ctx, r.dockerClient, syncInstanceID, r.globalCfg.DataDir()); err != nil {
 		return errors.Wrap(err, "failed to start PostgreSQL instance")

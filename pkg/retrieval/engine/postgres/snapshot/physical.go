@@ -418,6 +418,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 	}
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", p.promoteContainerName(), promoteCont.ID))
+	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, p.promoteContainerName()))
 
 	// Start PostgreSQL instance.
 	if err := tools.RunPostgres(ctx, p.dockerClient, promoteCont.ID, clonePath); err != nil {
@@ -534,6 +535,8 @@ func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password
 		},
 		Image: promoteImage,
 		Healthcheck: health.GetConfig(
+			p.globalCfg.Database.User(),
+			p.globalCfg.Database.Name(),
 			health.OptionInterval(hcPromotionInterval),
 			health.OptionRetries(hcPromotionRetries),
 		),
@@ -553,7 +556,7 @@ func (p *PhysicalInitial) buildHostConfig(ctx context.Context, clonePath string)
 }
 
 func (p *PhysicalInitial) checkRecovery(ctx context.Context, containerID string) (string, error) {
-	checkRecoveryCmd := []string{"psql", "-U", defaults.Username, "-XAtc", "select pg_is_in_recovery()"}
+	checkRecoveryCmd := []string{"psql", "-U", p.globalCfg.Database.User(), "-XAtc", "select pg_is_in_recovery()"}
 	log.Msg("Check recovery command", checkRecoveryCmd)
 
 	execCommand, err := p.dockerClient.ContainerExecCreate(ctx, containerID, types.ExecConfig{
@@ -597,7 +600,7 @@ func checkRecoveryModeResponse(input io.Reader) (string, error) {
 }
 
 func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID string) (string, error) {
-	extractionCommand := []string{"psql", "-U", defaults.Username, "-d", defaults.DBName, "-XAtc",
+	extractionCommand := []string{"psql", "-U", p.globalCfg.Database.User(), "-d", p.globalCfg.Database.Name(), "-XAtc",
 		"select to_char(coalesce(pg_last_xact_replay_timestamp(), NOW()) at time zone 'UTC', 'YYYYMMDDHH24MISS')"}
 
 	log.Msg("Running dataStateAt command", extractionCommand)
@@ -657,7 +660,7 @@ func (p *PhysicalInitial) runPromoteCommand(ctx context.Context, containerID, cl
 }
 
 func (p *PhysicalInitial) checkpoint(ctx context.Context, containerID string) error {
-	commandCheckpoint := []string{"psql", "-U", defaults.Username, "-d", defaults.DBName, "-XAtc", "checkpoint"}
+	commandCheckpoint := []string{"psql", "-U", p.globalCfg.Database.User(), "-d", p.globalCfg.Database.Name(), "-XAtc", "checkpoint"}
 	log.Msg("Run checkpoint command", commandCheckpoint)
 
 	execCommand, err := p.dockerClient.ContainerExecCreate(ctx, containerID, types.ExecConfig{
