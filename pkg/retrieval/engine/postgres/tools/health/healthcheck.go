@@ -6,11 +6,10 @@
 package health
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
-
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 )
 
 const (
@@ -24,10 +23,10 @@ const (
 // ContainerOption defines a function to overwrite default options.
 type ContainerOption func(h *container.HealthConfig)
 
-// GetConfig builds a container health config
-func GetConfig(options ...ContainerOption) *container.HealthConfig {
+// GetConfig builds a container health config.
+func GetConfig(username, dbname string, options ...ContainerOption) *container.HealthConfig {
 	healthConfig := &container.HealthConfig{
-		Test:        []string{"CMD-SHELL", "pg_isready -U " + defaults.Username},
+		Test:        []string{"CMD-SHELL", fmt.Sprintf("pg_isready -U %s -d %s", username, dbname)},
 		Interval:    hcInterval,
 		Timeout:     hcTimeout,
 		StartPeriod: hcStartPeriod,

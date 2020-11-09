@@ -19,7 +19,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -52,8 +51,7 @@ const (
 	hcDefaultPromotionInterval = 5 * time.Second
 	hcDefaultPromotionRetries  = 200
 
-	syncContainerStopTimeout = 2 * time.Minute
-	supportedSysctlPrefix    = "fs.mqueue."
+	supportedSysctlPrefix = "fs.mqueue."
 )
 
 // supportedSysctls describes supported sysctls for Promote Docker image.
@@ -181,10 +179,6 @@ func (p *PhysicalInitial) validateConfig() error {
 	return nil
 }
 
-func (p *PhysicalInitial) syncInstanceName() string {
-	return cont.SyncInstanceContainerPrefix + p.globalCfg.InstanceID
-}
-
 // Name returns a name of the job.
 func (p *PhysicalInitial) Name() string {
 	return p.name
@@ -214,32 +208,6 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 	// Snapshot data.
 	preDataStateAt := time.Now().Format(tools.DataStateAtFormat)
 	cloneName := fmt.Sprintf("clone%s_%s", pre, preDataStateAt)
-
-	// Sync container management.
-	syncContainer, err := p.dockerClient.ContainerInspect(ctx, p.syncInstanceName())
-	if err != nil && !client.IsErrNotFound(err) {
-		return errors.Wrap(err, "failed to inspect sync container")
-	}
-
-	if syncContainer.ContainerJSONBase != nil && syncContainer.State.Running {
-		log.Msg("Stopping sync container before snapshotting")
-
-		if err := p.dockerClient.ContainerStop(ctx, syncContainer.ID, pointer.ToDuration(syncContainerStopTimeout)); err != nil {
-			return errors.Wrapf(err, "failed to stop %q", p.syncInstanceName())
-		}
-
-		defer func() {
-			log.Msg("Starting sync container after snapshotting")
-
-			if err := p.dockerClient.ContainerStart(ctx, syncContainer.ID, types.ContainerStartOptions{}); err != nil {
-				log.Err(fmt.Sprintf("failed to start %q: %v", p.syncInstanceName(), err))
-			}
-
-			if err := tools.RunPostgres(ctx, p.dockerClient, syncContainer.ID, p.globalCfg.DataDir()); err != nil {
-				log.Err(fmt.Sprintf("failed to start PostgreSQL instance inside %q: %v", p.syncInstanceName(), err))
-			}
-		}()
-	}
 
 	defer func() {
 		if _, ok := err.(*skipSnapshotErr); ok {
@@ -405,11 +373,11 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to create container")
 	}
 
-	defer tools.RemoveContainer(ctx, p.dockerClient, promoteCont.ID, cont.StopTimeout)
+	defer tools.RemoveContainer(ctx, p.dockerClient, promoteCont.ID, cont.StopPhysicalTimeout)
 
 	defer func() {
 		if err != nil {
-			tools.PrintContainerLogs(ctx, p.dockerClient, p.promoteContainerName())
+			tools.PrintContainerLogs(ctx, p.dockerClient, p.promoteContainerName(), err)
 		}
 	}()
 
@@ -418,6 +386,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 	}
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", p.promoteContainerName(), promoteCont.ID))
+	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, p.promoteContainerName()))
 
 	// Start PostgreSQL instance.
 	if err := tools.RunPostgres(ctx, p.dockerClient, promoteCont.ID, clonePath); err != nil {
@@ -534,6 +503,8 @@ func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password
 		},
 		Image: promoteImage,
 		Healthcheck: health.GetConfig(
+			p.globalCfg.Database.User(),
+			p.globalCfg.Database.Name(),
 			health.OptionInterval(hcPromotionInterval),
 			health.OptionRetries(hcPromotionRetries),
 		),
@@ -553,7 +524,7 @@ func (p *PhysicalInitial) buildHostConfig(ctx context.Context, clonePath string)
 }
 
 func (p *PhysicalInitial) checkRecovery(ctx context.Context, containerID string) (string, error) {
-	checkRecoveryCmd := []string{"psql", "-U", defaults.Username, "-XAtc", "select pg_is_in_recovery()"}
+	checkRecoveryCmd := []string{"psql", "-U", p.globalCfg.Database.User(), "-XAtc", "select pg_is_in_recovery()"}
 	log.Msg("Check recovery command", checkRecoveryCmd)
 
 	execCommand, err := p.dockerClient.ContainerExecCreate(ctx, containerID, types.ExecConfig{
@@ -597,7 +568,7 @@ func checkRecoveryModeResponse(input io.Reader) (string, error) {
 }
 
 func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID string) (string, error) {
-	extractionCommand := []string{"psql", "-U", defaults.Username, "-d", defaults.DBName, "-XAtc",
+	extractionCommand := []string{"psql", "-U", p.globalCfg.Database.User(), "-d", p.globalCfg.Database.Name(), "-XAtc",
 		"select to_char(coalesce(pg_last_xact_replay_timestamp(), NOW()) at time zone 'UTC', 'YYYYMMDDHH24MISS')"}
 
 	log.Msg("Running dataStateAt command", extractionCommand)
@@ -657,7 +628,7 @@ func (p *PhysicalInitial) runPromoteCommand(ctx context.Context, containerID, cl
 }
 
 func (p *PhysicalInitial) checkpoint(ctx context.Context, containerID string) error {
-	commandCheckpoint := []string{"psql", "-U", defaults.Username, "-d", defaults.DBName, "-XAtc", "checkpoint"}
+	commandCheckpoint := []string{"psql", "-U", p.globalCfg.Database.User(), "-d", p.globalCfg.Database.Name(), "-XAtc", "checkpoint"}
 	log.Msg("Run checkpoint command", commandCheckpoint)
 
 	execCommand, err := p.dockerClient.ContainerExecCreate(ctx, containerID, types.ExecConfig{

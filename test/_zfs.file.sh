@@ -14,6 +14,7 @@ sudo zpool create -f \
   test_pool \
   "${ZFS_FILE}"
 
+sudo mkdir -p /var/lib/dblab/data
 sudo chmod 0755 /var/lib/dblab/data
 
 zfs list

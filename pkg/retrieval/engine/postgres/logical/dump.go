@@ -239,7 +239,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 
 	defer func() {
 		if err != nil {
-			tools.PrintContainerLogs(ctx, d.dockerClient, d.dumpContainerName())
+			tools.PrintContainerLogs(ctx, d.dockerClient, d.dumpContainerName(), err)
 		}
 	}()
 
@@ -285,8 +285,8 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		}
 
 		if err := recalculateStats(ctx, d.dockerClient, dumpCont.ID, buildAnalyzeCommand(Connection{
-			DBName:   d.config.db.DBName,
-			Username: defaults.Username,
+			Username: d.globalCfg.Database.User(),
+			DBName:   d.globalCfg.Database.Name(),
 		}, d.DumpOptions.ParallelJobs)); err != nil {
 			return errors.Wrap(err, "failed to recalculate statistics after restore")
 		}
@@ -356,7 +356,7 @@ func (d *DumpJob) buildContainerConfig(password string) *container.Config {
 		},
 		Env:         d.getEnvironmentVariables(password),
 		Image:       d.DockerImage,
-		Healthcheck: health.GetConfig(),
+		Healthcheck: health.GetConfig(d.globalCfg.Database.User(), d.globalCfg.Database.Name()),
 	}
 }
 
@@ -429,7 +429,7 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 }
 
 func (d *DumpJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"|", "pg_restore", "--username", defaults.Username, "--create", "--dbname", defaults.DBName,
+	restoreCmd := []string{"|", "pg_restore", "--username", d.globalCfg.Database.User(), "--create", "--dbname", d.globalCfg.Database.Name(),
 		"--no-privileges", "--no-owner"}
 
 	if d.Restore.ForceInit {

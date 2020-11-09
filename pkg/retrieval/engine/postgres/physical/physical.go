@@ -161,11 +161,11 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to create container: %s", r.restoreContainerName())
 	}
 
-	defer tools.RemoveContainer(ctx, r.dockerClient, contID, cont.StopTimeout)
+	defer tools.RemoveContainer(ctx, r.dockerClient, contID, cont.StopPhysicalTimeout)
 
 	defer func() {
 		if err != nil {
-			tools.PrintContainerLogs(ctx, r.dockerClient, r.restoreContainerName())
+			tools.PrintContainerLogs(ctx, r.dockerClient, r.restoreContainerName(), err)
 		}
 	}()
 
@@ -280,7 +280,7 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 
 		log.Msg("Removing non-running sync instance")
 
-		tools.RemoveContainer(ctx, r.dockerClient, syncContainer.ID, cont.StopTimeout)
+		tools.RemoveContainer(ctx, r.dockerClient, syncContainer.ID, cont.StopPhysicalTimeout)
 	}
 
 	log.Msg("Starting sync instance: ", r.syncInstanceName())
@@ -291,6 +291,7 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 	}
 
 	log.Msg("Starting PostgreSQL")
+	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, r.syncInstanceName()))
 
 	if err := tools.RunPostgres(ctx, r.dockerClient, syncInstanceID, r.globalCfg.DataDir()); err != nil {
 		return errors.Wrap(err, "failed to start PostgreSQL instance")
