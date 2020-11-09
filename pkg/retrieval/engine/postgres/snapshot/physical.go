@@ -51,7 +51,6 @@ const (
 	hcDefaultPromotionInterval = 5 * time.Second
 	hcDefaultPromotionRetries  = 200
 
-	//syncContainerStopTimeout = 2 * time.Minute
 	supportedSysctlPrefix = "fs.mqueue."
 )
 
