@@ -167,6 +167,9 @@ retrieval:
 
     physicalSnapshot:
       options:
+        # Skip taking a snapshot while the retrieval starts.
+        skipStartSnapshot: false
+
         # Promote PGDATA after data fetching.
         promotion:
           # Enable PGDATA promotion.

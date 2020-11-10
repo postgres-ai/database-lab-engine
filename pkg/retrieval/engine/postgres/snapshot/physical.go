@@ -82,6 +82,7 @@ type PhysicalInitial struct {
 
 // PhysicalOptions describes options for a physical initialization job.
 type PhysicalOptions struct {
+	SkipStartSnapshot   bool              `yaml:"skipStartSnapshot"`
 	Promotion           Promotion         `yaml:"promotion"`
 	PreprocessingScript string            `yaml:"preprocessingScript"`
 	Configs             map[string]string `yaml:"configs"`
@@ -201,6 +202,12 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 		return nil
 
 	default:
+	}
+
+	if p.options.SkipStartSnapshot {
+		log.Msg("Skip taking a snapshot at the start")
+
+		return nil
 	}
 
 	p.dbMark.DataStateAt = extractDataStateAt(p.dbMarker)
