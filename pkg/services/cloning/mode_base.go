@@ -585,9 +585,8 @@ func hasNotQueryActivity(session *resources.Session) (bool, error) {
 	return checkActiveQueryNotExists(db)
 }
 
-// TODO(akartasov): Move the function to the provision service.
 func getSocketConnStr(session *resources.Session) string {
-	return fmt.Sprintf("host=%s user=%s dbname=postgres", session.SocketHost, session.User)
+	return fmt.Sprintf("host=%s user=%s port=%d dbname=%s", session.SocketHost, session.User, session.Port, defaultDatabaseName)
 }
 
 // checkActiveQueryNotExists runs query to check a user activity.
