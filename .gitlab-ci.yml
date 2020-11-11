@@ -150,7 +150,9 @@ build-image-latest-server:
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-server"
     DOCKER_NAME: "postgresai/dblab-server"
-    TAGS: "${DOCKER_NAME}:latest,${DOCKER_NAME}:${CI_COMMIT_TAG}"
+  before_script:
+    - export LATEST_TAG=$(echo ${CI_COMMIT_TAG%.*}-latest)
+    - export TAGS="${DOCKER_NAME}:${LATEST_TAG},${DOCKER_NAME}:${CI_COMMIT_TAG}"
 
 build-image-latest-client:
   <<: *build_image_definition
@@ -161,7 +163,9 @@ build-image-latest-client:
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab"
     DOCKER_NAME: "postgresai/dblab"
-    TAGS: "${DOCKER_NAME}:latest,${DOCKER_NAME}:${CI_COMMIT_TAG}"
+  before_script:
+    - export LATEST_TAG=$(echo ${CI_COMMIT_TAG%.*}-latest)
+    - export TAGS="${DOCKER_NAME}:${LATEST_TAG},${DOCKER_NAME}:${CI_COMMIT_TAG}"
 
 build-image-rc-server:
   <<: *build_image_definition
@@ -191,4 +195,6 @@ build-image-swagger-latest:
   variables:
     DOCKER_FILE: "Dockerfile.swagger-ui"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-swagger-ui"
-    TAGS: "${DOCKER_NAME}:latest"
+  before_script:
+    - export LATEST_TAG=$(echo ${CI_COMMIT_TAG%.*}-latest)
+    - export TAGS="${DOCKER_NAME}:${LATEST_TAG}
