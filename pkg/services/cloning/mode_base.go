@@ -142,7 +142,7 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 			// TODO(anatoly): Empty room case.
 			log.Errf("Failed to start session: %v.", err)
 
-			if updateErr := c.updateCloneStatus(cloneID, models.Status{
+			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: errors.Cause(err).Error(),
 			}); updateErr != nil {
@@ -196,7 +196,7 @@ func (c *baseCloning) DestroyClone(cloneID string) error {
 		return models.New(models.ErrCodeBadRequest, "clone is protected")
 	}
 
-	if err := c.updateCloneStatus(cloneID, models.Status{
+	if err := c.UpdateCloneStatus(cloneID, models.Status{
 		Code:    models.StatusDeleting,
 		Message: models.CloneMessageDeleting,
 	}); err != nil {
@@ -213,7 +213,7 @@ func (c *baseCloning) DestroyClone(cloneID string) error {
 		if err := c.provision.StopSession(w.session); err != nil {
 			log.Errf("Failed to delete a clone: %+v.", err)
 
-			if updateErr := c.updateCloneStatus(cloneID, models.Status{
+			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: errors.Cause(err).Error(),
 			}); updateErr != nil {
@@ -271,17 +271,32 @@ func (c *baseCloning) UpdateClone(id string, patch *types.CloneUpdateRequest) (*
 	return clone, nil
 }
 
+// UpdateCloneStatus updates the clone status.
+func (c *baseCloning) UpdateCloneStatus(cloneID string, status models.Status) error {
+	c.cloneMutex.Lock()
+	defer c.cloneMutex.Unlock()
+
+	w, ok := c.clones[cloneID]
+	if !ok {
+		return errors.Errorf("clone %q not found", cloneID)
+	}
+
+	w.clone.Status = status
+
+	return nil
+}
+
 func (c *baseCloning) ResetClone(cloneID string) error {
 	w, ok := c.findWrapper(cloneID)
 	if !ok {
-		return models.New(models.ErrCodeNotFound, "clone not found")
+		return models.New(models.ErrCodeNotFound, "the clone not found")
 	}
 
 	if w.session == nil {
 		return models.New(models.ErrCodeNotFound, "clone is not started yet")
 	}
 
-	if err := c.updateCloneStatus(cloneID, models.Status{
+	if err := c.UpdateCloneStatus(cloneID, models.Status{
 		Code:    models.StatusResetting,
 		Message: models.CloneMessageResetting,
 	}); err != nil {
@@ -293,7 +308,7 @@ func (c *baseCloning) ResetClone(cloneID string) error {
 		if err != nil {
 			log.Errf("Failed to reset a clone: %+v.", err)
 
-			if updateErr := c.updateCloneStatus(cloneID, models.Status{
+			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: errors.Cause(err).Error(),
 			}); updateErr != nil {
@@ -303,7 +318,7 @@ func (c *baseCloning) ResetClone(cloneID string) error {
 			return
 		}
 
-		if err := c.updateCloneStatus(cloneID, models.Status{
+		if err := c.UpdateCloneStatus(cloneID, models.Status{
 			Code:    models.StatusOK,
 			Message: models.CloneMessageOK,
 		}); err != nil {
@@ -377,21 +392,6 @@ func (c *baseCloning) setWrapper(id string, wrapper *CloneWrapper) {
 	c.cloneMutex.Lock()
 	c.clones[id] = wrapper
 	c.cloneMutex.Unlock()
-}
-
-// updateCloneStatus updates the clone status.
-func (c *baseCloning) updateCloneStatus(cloneID string, status models.Status) error {
-	c.cloneMutex.Lock()
-	defer c.cloneMutex.Unlock()
-
-	w, ok := c.clones[cloneID]
-	if !ok {
-		return errors.Errorf("clone %q not found", cloneID)
-	}
-
-	w.clone.Status = status
-
-	return nil
 }
 
 // deleteClone removes the clone by ID.
