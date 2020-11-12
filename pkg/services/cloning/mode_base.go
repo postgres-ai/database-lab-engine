@@ -277,15 +277,15 @@ func (c *baseCloning) ResetClone(cloneID string) error {
 		return models.New(models.ErrCodeNotFound, "clone not found")
 	}
 
+	if w.session == nil {
+		return models.New(models.ErrCodeNotFound, "clone is not started yet")
+	}
+
 	if err := c.updateCloneStatus(cloneID, models.Status{
 		Code:    models.StatusResetting,
 		Message: models.CloneMessageResetting,
 	}); err != nil {
 		return errors.Wrap(err, "failed to update clone status")
-	}
-
-	if w.session == nil {
-		return models.New(models.ErrCodeNotFound, "clone is not started yet")
 	}
 
 	go func() {
