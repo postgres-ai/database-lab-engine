@@ -76,7 +76,6 @@ type PhysicalInitial struct {
 	dbMark         *dbmarker.Config
 	dockerClient   *client.Client
 	scheduler      *cron.Cron
-	scheduleOnce   sync.Once
 	promotionMutex sync.Mutex
 }
 
@@ -188,10 +187,18 @@ func (p *PhysicalInitial) Name() string {
 // Run starts the job.
 func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 	// Start scheduling after initial snapshot.
-	defer func() {
-		p.scheduleOnce.Do(p.startScheduler(ctx))
-	}()
+	defer p.startScheduler(ctx)()
 
+	if p.options.SkipStartSnapshot {
+		log.Msg("Skip taking a snapshot at the start")
+
+		return nil
+	}
+
+	return p.run(ctx)
+}
+
+func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	select {
 	case <-ctx.Done():
 		if p.scheduler != nil {
@@ -202,12 +209,6 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 		return nil
 
 	default:
-	}
-
-	if p.options.SkipStartSnapshot {
-		log.Msg("Skip taking a snapshot at the start")
-
-		return nil
 	}
 
 	p.dbMark.DataStateAt = extractDataStateAt(p.dbMarker)
@@ -304,7 +305,7 @@ func (p *PhysicalInitial) startScheduler(ctx context.Context) func() {
 
 func (p *PhysicalInitial) runAutoSnapshot(ctx context.Context) func() {
 	return func() {
-		if err := p.Run(ctx); err != nil {
+		if err := p.run(ctx); err != nil {
 			log.Err(errors.Wrap(err, "failed to take a snapshot automatically"))
 
 			log.Msg("Interrupt automatic snapshots")

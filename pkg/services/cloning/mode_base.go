@@ -289,7 +289,11 @@ func (c *baseCloning) UpdateCloneStatus(cloneID string, status models.Status) er
 func (c *baseCloning) ResetClone(cloneID string) error {
 	w, ok := c.findWrapper(cloneID)
 	if !ok {
-		return models.New(models.ErrCodeNotFound, "clone not found")
+		return models.New(models.ErrCodeNotFound, "the clone not found")
+	}
+
+	if w.session == nil {
+		return models.New(models.ErrCodeNotFound, "clone is not started yet")
 	}
 
 	if err := c.UpdateCloneStatus(cloneID, models.Status{
@@ -297,10 +301,6 @@ func (c *baseCloning) ResetClone(cloneID string) error {
 		Message: models.CloneMessageResetting,
 	}); err != nil {
 		return errors.Wrap(err, "failed to update clone status")
-	}
-
-	if w.session == nil {
-		return models.New(models.ErrCodeNotFound, "clone is not started yet")
 	}
 
 	go func() {
