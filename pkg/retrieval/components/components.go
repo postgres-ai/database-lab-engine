@@ -22,6 +22,9 @@ type JobRunner interface {
 	// Name returns a job name.
 	Name() string
 
+	// Reload reloads job configuration.
+	Reload(cfg map[string]interface{}) error
+
 	// Run starts a job.
 	Run(ctx context.Context) error
 }

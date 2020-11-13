@@ -13,7 +13,7 @@ func TestPortAllocation(t *testing.T) {
 	p := &provisionModeLocal{
 		mu: &sync.Mutex{},
 		provision: provision{
-			config: Config{
+			config: &Config{
 				Options: LocalModeOptions{
 					PortPool: LocalModePortPool{
 						From: 6000,

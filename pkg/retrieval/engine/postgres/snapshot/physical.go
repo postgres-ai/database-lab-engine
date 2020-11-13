@@ -76,6 +76,7 @@ type PhysicalInitial struct {
 	dbMark         *dbmarker.Config
 	dockerClient   *client.Client
 	scheduler      *cron.Cron
+	schedulerCtx   context.Context
 	promotionMutex sync.Mutex
 }
 
@@ -126,7 +127,7 @@ func NewPhysicalInitialJob(cfg config.JobConfig, docker *client.Client, cloneMan
 		dockerClient: docker,
 	}
 
-	if err := options.Unmarshal(cfg.Options, &p.options); err != nil {
+	if err := p.loadConfig(cfg.Options); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
@@ -134,32 +135,17 @@ func NewPhysicalInitialJob(cfg config.JobConfig, docker *client.Client, cloneMan
 		return nil, errors.Wrap(err, "invalid physicalSnapshot configuration")
 	}
 
-	if err := p.setupScheduler(); err != nil {
-		return nil, errors.Wrap(err, "failed to set up scheduler")
-	}
+	p.setupScheduler()
 
 	return p, nil
 }
 
-func (p *PhysicalInitial) setupScheduler() error {
-	if p.options.Scheduler == nil ||
-		p.options.Scheduler.Snapshot.Timetable == "" && p.options.Scheduler.Retention.Timetable == "" {
-		return nil
-	}
-
-	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-
-	if _, err := specParser.Parse(p.options.Scheduler.Snapshot.Timetable); p.options.Scheduler.Snapshot.Timetable != "" && err != nil {
-		return errors.Wrapf(err, "failed to parse schedule timetable %q", p.options.Scheduler.Snapshot.Timetable)
-	}
-
-	if _, err := specParser.Parse(p.options.Scheduler.Retention.Timetable); p.options.Scheduler.Retention.Timetable != "" && err != nil {
-		return errors.Wrapf(err, "failed to parse retention timetable %q", p.options.Scheduler.Retention.Timetable)
+func (p *PhysicalInitial) setupScheduler() {
+	if !p.hasSchedulingOptions() {
+		return
 	}
 
 	p.scheduler = cron.New()
-
-	return nil
 }
 
 func (p *PhysicalInitial) validateConfig() error {
@@ -176,6 +162,33 @@ func (p *PhysicalInitial) validateConfig() error {
 			strings.Join(notSupportedSysctls, ", "))
 	}
 
+	if err := p.validateScheduler(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *PhysicalInitial) hasSchedulingOptions() bool {
+	return p.options.Scheduler != nil &&
+		(p.options.Scheduler.Snapshot.Timetable != "" || p.options.Scheduler.Retention.Timetable != "")
+}
+
+func (p *PhysicalInitial) validateScheduler() error {
+	if !p.hasSchedulingOptions() {
+		return nil
+	}
+
+	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+
+	if _, err := specParser.Parse(p.options.Scheduler.Snapshot.Timetable); p.options.Scheduler.Snapshot.Timetable != "" && err != nil {
+		return errors.Wrapf(err, "failed to parse schedule timetable %q", p.options.Scheduler.Snapshot.Timetable)
+	}
+
+	if _, err := specParser.Parse(p.options.Scheduler.Retention.Timetable); p.options.Scheduler.Retention.Timetable != "" && err != nil {
+		return errors.Wrapf(err, "failed to parse retention timetable %q", p.options.Scheduler.Retention.Timetable)
+	}
+
 	return nil
 }
 
@@ -184,10 +197,46 @@ func (p *PhysicalInitial) Name() string {
 	return p.name
 }
 
+// Reload reloads job configuration.
+func (p *PhysicalInitial) Reload(cfg map[string]interface{}) (err error) {
+	if err := p.loadConfig(cfg); err != nil {
+		return errors.Wrap(err, "failed to load job config")
+	}
+
+	p.reloadScheduler()
+
+	return nil
+}
+
+func (p *PhysicalInitial) loadConfig(cfg map[string]interface{}) (err error) {
+	if err := options.Unmarshal(cfg, &p.options); err != nil {
+		return errors.Wrap(err, "failed to unmarshal configuration options")
+	}
+
+	return nil
+}
+
+func (p *PhysicalInitial) reloadScheduler() {
+	if p.scheduler == nil {
+		log.Msg("Skip schedule reloading because it has not been initialized")
+		return
+	}
+
+	p.scheduler.Stop()
+
+	for _, ent := range p.scheduler.Entries() {
+		p.scheduler.Remove(ent.ID)
+	}
+
+	p.startScheduler(p.schedulerCtx)
+}
+
 // Run starts the job.
 func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
+	p.schedulerCtx = ctx
+
 	// Start scheduling after initial snapshot.
-	defer p.startScheduler(ctx)()
+	defer p.startScheduler(ctx)
 
 	if p.options.SkipStartSnapshot {
 		log.Msg("Skip taking a snapshot at the start")
@@ -277,30 +326,29 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	return nil
 }
 
-func (p *PhysicalInitial) startScheduler(ctx context.Context) func() {
-	if p.scheduler == nil || p.options.Scheduler == nil ||
-		p.options.Scheduler.Snapshot.Timetable == "" && p.options.Scheduler.Retention.Timetable == "" {
-		return func() {}
+func (p *PhysicalInitial) startScheduler(ctx context.Context) {
+	if p.scheduler == nil || !p.hasSchedulingOptions() {
+		return
 	}
 
-	return func() {
-		if p.options.Scheduler.Snapshot.Timetable != "" {
-			if _, err := p.scheduler.AddFunc(p.options.Scheduler.Snapshot.Timetable, p.runAutoSnapshot(ctx)); err != nil {
-				log.Err(errors.Wrap(err, "failed to schedule a new snapshot job"))
-				return
-			}
+	if p.options.Scheduler.Snapshot.Timetable != "" {
+		if _, err := p.scheduler.AddFunc(p.options.Scheduler.Snapshot.Timetable, p.runAutoSnapshot(ctx)); err != nil {
+			log.Err(errors.Wrap(err, "failed to schedule a new snapshot job"))
+			return
 		}
-
-		if p.options.Scheduler.Retention.Timetable != "" {
-			if _, err := p.scheduler.AddFunc(p.options.Scheduler.Retention.Timetable,
-				p.runAutoCleanup(p.options.Scheduler.Retention.Limit)); err != nil {
-				log.Err(errors.Wrap(err, "failed to schedule a new cleanup job"))
-				return
-			}
-		}
-
-		p.scheduler.Start()
 	}
+
+	if p.options.Scheduler.Retention.Timetable != "" {
+		if _, err := p.scheduler.AddFunc(p.options.Scheduler.Retention.Timetable,
+			p.runAutoCleanup(p.options.Scheduler.Retention.Limit)); err != nil {
+			log.Err(errors.Wrap(err, "failed to schedule a new cleanup job"))
+			return
+		}
+	}
+
+	p.scheduler.Start()
+
+	log.Msg("Scheduler has been reloaded")
 }
 
 func (p *PhysicalInitial) runAutoSnapshot(ctx context.Context) func() {

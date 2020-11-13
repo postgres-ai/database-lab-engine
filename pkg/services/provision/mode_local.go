@@ -88,12 +88,12 @@ func NewProvisionModeLocal(ctx context.Context, config Config, dockerClient *cli
 		mu:           &sync.Mutex{},
 		dockerClient: dockerClient,
 		provision: provision{
-			config: config,
+			config: &config,
 			ctx:    ctx,
 		},
 	}
 
-	setDefault(&p.config)
+	setDefault(p.config)
 
 	thinCloneManager, err := thinclones.NewManager(p.config.Options.ThinCloneManager,
 		p.runner, thinclones.ManagerConfig{
@@ -186,8 +186,10 @@ func (j *provisionModeLocal) Init() error {
 	return nil
 }
 
-func (j *provisionModeLocal) Reinit() error {
-	return fmt.Errorf(`"Reinit" method is unsupported in "local" mode`)
+// Reload reloads provision configuration.
+func (j *provisionModeLocal) Reload(cfg Config) {
+	setDefault(&cfg)
+	*j.config = cfg
 }
 
 // ThinCloneManager provides a thin clone manager.

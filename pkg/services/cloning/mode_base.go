@@ -28,8 +28,7 @@ import (
 )
 
 const (
-	//idleCheckDuration = 5 * time.Minute
-	idleCheckDuration = 20 * time.Second
+	idleCheckDuration = 5 * time.Minute
 
 	defaultDatabaseName = "postgres"
 )
@@ -61,6 +60,10 @@ func NewBaseCloning(cfg *Config, provision provision.Provision) Cloning {
 		},
 		provision: provision,
 	}
+}
+
+func (c *baseCloning) Reload(cfg Config) {
+	*c.Config = cfg
 }
 
 // Initialize and run cloning component.

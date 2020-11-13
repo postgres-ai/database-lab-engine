@@ -51,7 +51,7 @@ func NewLogicalInitialJob(cfg config.JobConfig, cloneManager thinclones.Manager,
 		dbMarker:     marker,
 	}
 
-	if err := options.Unmarshal(cfg.Options, &li.options); err != nil {
+	if err := li.Reload(cfg.Options); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
@@ -61,6 +61,11 @@ func NewLogicalInitialJob(cfg config.JobConfig, cloneManager thinclones.Manager,
 // Name returns a name of the job.
 func (s *LogicalInitial) Name() string {
 	return s.name
+}
+
+// Reload reloads job configuration.
+func (s *LogicalInitial) Reload(cfg map[string]interface{}) (err error) {
+	return options.Unmarshal(cfg, &s.options)
 }
 
 // Run starts the job.
