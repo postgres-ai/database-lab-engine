@@ -73,7 +73,7 @@ func NewJob(cfg config.JobConfig, docker *client.Client, globalCfg *dblabCfg.Glo
 		dbMark:       &dbmarker.Config{DataType: dbmarker.LogicalDataType},
 	}
 
-	if err := options.Unmarshal(cfg.Options, &restoreJob.RestoreOptions); err != nil {
+	if err := restoreJob.Reload(cfg.Options); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
@@ -96,6 +96,17 @@ func (r *RestoreJob) restoreContainerName() string {
 // Name returns a name of the job.
 func (r *RestoreJob) Name() string {
 	return r.name
+}
+
+// Reload reloads job configuration.
+func (r *RestoreJob) Reload(cfg map[string]interface{}) (err error) {
+	if err := options.Unmarshal(cfg, &r.RestoreOptions); err != nil {
+		return errors.Wrap(err, "failed to unmarshal configuration options")
+	}
+
+	r.setDefaults()
+
+	return nil
 }
 
 // Run starts the job.

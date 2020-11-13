@@ -11,11 +11,12 @@
 package main
 
 import (
-	"bytes"
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/docker/docker/client"
-	"github.com/jessevdk/go-flags"
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 
@@ -31,56 +32,17 @@ import (
 	"gitlab.com/postgres-ai/database-lab/version"
 )
 
-var opts struct {
-	VerificationToken string `short:"t" long:"token" description:"API verification token" env:"VERIFICATION_TOKEN"`
-
-	MountDir      string `long:"mount-dir" description:"clones data mount directory" env:"MOUNT_DIR"`
-	UnixSocketDir string `long:"sockets-dir" description:"unix sockets directory for secure connection to clones" env:"UNIX_SOCKET_DIR"`
-	DockerImage   string `long:"docker-image" description:"clones Docker image" env:"DOCKER_IMAGE"`
-
-	ShowHelp func() error `long:"help" description:"Show this help message"`
-}
-
 func main() {
 	log.Msg("Database Lab version: ", version.GetVersion())
 
-	// Load CLI options.
-	if _, err := parseArgs(); err != nil {
-		if flags.WroteHelp(err) {
-			return
-		}
+	instanceID := xid.New().String()
 
-		log.Fatal("Args parse error:", err)
-	}
+	log.Msg("Database Lab Instance ID:", instanceID)
 
-	cfg, err := config.LoadConfig("config.yml")
+	cfg, err := loadConfiguration(instanceID)
 	if err != nil {
 		log.Fatalf(errors.WithMessage(err, "failed to parse config"))
 	}
-
-	log.DEBUG = cfg.Global.Debug
-	log.Dbg("Config loaded", cfg)
-
-	// TODO(anatoly): Annotate envs in configs. Use different lib for flags/configs?
-	if len(opts.MountDir) > 0 {
-		cfg.Provision.Options.ClonesMountDir = opts.MountDir
-	}
-
-	if len(opts.UnixSocketDir) > 0 {
-		cfg.Provision.Options.UnixSocketDir = opts.UnixSocketDir
-	}
-
-	if len(opts.DockerImage) > 0 {
-		cfg.Provision.Options.DockerImage = opts.DockerImage
-	}
-
-	if cfg.Provision.Options.ClonesMountDir != "" {
-		cfg.Global.ClonesMountDir = cfg.Provision.Options.ClonesMountDir
-	}
-
-	cfg.Global.InstanceID = xid.New().String()
-
-	log.Msg("Database Lab Instance ID", cfg.Global.InstanceID)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -121,40 +83,73 @@ func main() {
 		log.Fatalf(errors.WithMessage(err, "failed to create a new platform service"))
 	}
 
-	if len(opts.VerificationToken) > 0 {
-		cfg.Server.VerificationToken = opts.VerificationToken
-	}
-
 	observerCfg := &observer.Config{
 		CloneDir:   cfg.Provision.Options.ClonesMountDir,
 		DataSubDir: cfg.Global.DataSubDir,
 		SocketDir:  cfg.Provision.Options.UnixSocketDir,
 	}
 
-	// Start the Database Lab.
 	server := srv.NewServer(&cfg.Server, observerCfg, cloningSvc, platformSvc, dockerCLI)
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGHUP)
+
+	go func() {
+		for range c {
+			log.Msg("Reloading configuration")
+
+			if err := reloadConfig(instanceID, provisionSvc, retrievalSvc, cloningSvc, platformSvc, server); err != nil {
+				log.Err("Failed to reload configuration", err)
+			}
+
+			log.Msg("Configuration has been reloaded")
+		}
+	}()
+
+	// Start the Database Lab.
 	if err = server.Run(); err != nil {
 		log.Fatalf(err)
 	}
 }
 
-func parseArgs() ([]string, error) {
-	var parser = flags.NewParser(&opts, flags.Default & ^flags.HelpFlag)
-
-	// jessevdk/go-flags lib doesn't allow to use short flag -h because
-	// it's binded to usage help. We need to hack it a bit to use -h
-	// for as a hostname option.
-	// See https://github.com/jessevdk/go-flags/issues/240
-	opts.ShowHelp = func() error {
-		var b bytes.Buffer
-
-		parser.WriteHelp(&b)
-
-		return &flags.Error{
-			Type:    flags.ErrHelp,
-			Message: b.String(),
-		}
+func loadConfiguration(instanceID string) (*config.Config, error) {
+	cfg, err := config.LoadConfig("config.yml")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse config")
 	}
 
-	return parser.Parse()
+	log.DEBUG = cfg.Global.Debug
+	log.Dbg("Config loaded", cfg)
+
+	if cfg.Provision.Options.ClonesMountDir != "" {
+		cfg.Global.ClonesMountDir = cfg.Provision.Options.ClonesMountDir
+	}
+
+	cfg.Global.InstanceID = instanceID
+
+	return cfg, nil
+}
+
+func reloadConfig(instanceID string, provisionSvc provision.Provision, retrievalSvc *retrieval.Retrieval, cloningSvc cloning.Cloning,
+	platformSvc *platform.Service, server *srv.Server) error {
+	cfg, err := loadConfiguration(instanceID)
+	if err != nil {
+		return err
+	}
+
+	if err := provision.IsValidConfig(cfg.Provision); err != nil {
+		return err
+	}
+
+	if err := retrieval.IsValidConfig(cfg); err != nil {
+		return err
+	}
+
+	provisionSvc.Reload(cfg.Provision)
+	retrievalSvc.Reload(cfg)
+	cloningSvc.Reload(cfg.Cloning)
+	platformSvc.Reload(cfg.Platform)
+	server.Reload(cfg.Server)
+
+	return nil
 }

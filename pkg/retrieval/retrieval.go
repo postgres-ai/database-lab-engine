@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/components"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine"
@@ -46,18 +47,28 @@ func New(cfg *dblabCfg.Config, dockerCLI *client.Client, cloneManager thinclones
 	}, nil
 }
 
+// Reload reloads retrieval configuration.
+func (r *Retrieval) Reload(cfg *dblabCfg.Config) {
+	*r.globalCfg = cfg.Global
+	*r.cfg = cfg.Retrieval
+
+	for _, job := range r.jobs {
+		cfg, ok := r.cfg.JobsSpec[job.Name()]
+		if !ok {
+			log.Msg("Skip reloading of the retrieval job", job.Name())
+			continue
+		}
+
+		if err := job.Reload(cfg.Options); err != nil {
+			log.Err("Failed to reload configuration of the retrieval job", job.Name(), err)
+		}
+	}
+}
+
 // Run start retrieving process.
 func (r *Retrieval) Run(ctx context.Context) error {
-	if len(r.cfg.Jobs) == 0 {
-		return nil
-	}
-
-	if err := r.parseJobs(); err != nil {
-		return errors.Wrap(err, "failed to parse retrieval jobs")
-	}
-
-	if err := r.validate(); err != nil {
-		return errors.Wrap(err, "invalid data retrieval configuration")
+	if err := r.configure(); err != nil {
+		return errors.Wrap(err, "failed to configure")
 	}
 
 	if err := r.prepareEnvironment(); err != nil {
@@ -68,6 +79,23 @@ func (r *Retrieval) Run(ctx context.Context) error {
 		if err := j.Run(ctx); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// configure configures retrieval service.
+func (r *Retrieval) configure() error {
+	if len(r.cfg.Jobs) == 0 {
+		return nil
+	}
+
+	if err := r.parseJobs(); err != nil {
+		return errors.Wrap(err, "failed to parse retrieval jobs")
+	}
+
+	if err := r.validate(); err != nil {
+		return errors.Wrap(err, "invalid data retrieval configuration")
 	}
 
 	return nil
@@ -129,4 +157,22 @@ func (r *Retrieval) prepareEnvironment() error {
 
 		return err
 	})
+}
+
+// IsValidConfig checks if the retrieval configuration is valid.
+func IsValidConfig(cfg *dblabCfg.Config) error {
+	rs, err := New(cfg, nil, nil)
+	if err != nil {
+		return err
+	}
+
+	if err := rs.configure(); err != nil {
+		return err
+	}
+
+	if err := rs.validate(); err != nil {
+		return err
+	}
+
+	return nil
 }

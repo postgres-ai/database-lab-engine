@@ -33,6 +33,7 @@ type cloning struct {
 // Cloning defines a Cloning service interface.
 type Cloning interface {
 	Run(ctx context.Context) error
+	Reload(config Config)
 
 	CreateClone(*types.CloneCreateRequest) (*models.Clone, error)
 	DestroyClone(string) error

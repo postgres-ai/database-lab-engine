@@ -120,15 +120,9 @@ func NewDumpJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Gl
 		},
 	}
 
-	if err := options.Unmarshal(cfg.Options, &dumpJob.DumpOptions); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
+	if err := dumpJob.Reload(cfg.Options); err != nil {
+		return nil, errors.Wrap(err, "failed to load job config")
 	}
-
-	if err := dumpJob.validate(); err != nil {
-		return nil, errors.Wrap(err, "invalid logical dump job")
-	}
-
-	dumpJob.setDefaults()
 
 	if err := dumpJob.setupDumper(); err != nil {
 		return nil, errors.Wrap(err, "failed to set up a dump helper")
@@ -193,6 +187,21 @@ func (d *DumpJob) dumpContainerName() string {
 // Name returns a name of the job.
 func (d *DumpJob) Name() string {
 	return d.name
+}
+
+// Reload reloads job configuration.
+func (d *DumpJob) Reload(cfg map[string]interface{}) (err error) {
+	if err := options.Unmarshal(cfg, &d.DumpOptions); err != nil {
+		return errors.Wrap(err, "failed to unmarshal configuration options")
+	}
+
+	if err := d.validate(); err != nil {
+		return errors.Wrap(err, "invalid logical dump job")
+	}
+
+	d.setDefaults()
+
+	return nil
 }
 
 // Run starts the job.

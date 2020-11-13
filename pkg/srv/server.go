@@ -76,6 +76,11 @@ func attachAPI(r *mux.Router) error {
 	return nil
 }
 
+// Reload reloads server configuration.
+func (s *Server) Reload(cfg Config) {
+	*s.Config = cfg
+}
+
 // Run starts HTTP server on specified port in configuration.
 func (s *Server) Run() error {
 	r := mux.NewRouter().StrictSlash(true)

@@ -40,6 +40,11 @@ func New(cfg Config) *Service {
 	}
 }
 
+// Reload reloads service configuration.
+func (s *Service) Reload(cfg Config) {
+	s.cfg = cfg
+}
+
 // Init initialize a Platform service instance.
 func (s *Service) Init(ctx context.Context) error {
 	client, err := platform.NewClient(platform.ClientConfig{

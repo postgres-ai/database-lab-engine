@@ -39,7 +39,7 @@ type Config struct {
 // Provision defines provision interface.
 type Provision interface {
 	Init() error
-	Reinit() error
+	Reload(Config)
 	// TODO (akartasov): Create provision builder to build provision service and clone manager.
 	//  Inject clone manager to provision service directly.
 	ThinCloneManager() thinclones.Manager
@@ -56,13 +56,13 @@ type Provision interface {
 }
 
 type provision struct {
-	config Config
+	config *Config
 	ctx    context.Context
 }
 
 // New creates a new Provision instance.
 func New(ctx context.Context, cfg Config, dockerClient *client.Client) (Provision, error) {
-	if err := isValidConfig(cfg); err != nil {
+	if err := IsValidConfig(cfg); err != nil {
 		return nil, errors.Wrap(err, "configuration is not valid")
 	}
 
@@ -70,8 +70,8 @@ func New(ctx context.Context, cfg Config, dockerClient *client.Client) (Provisio
 	return NewProvisionModeLocal(ctx, cfg, dockerClient)
 }
 
-// isValidConfig defines a method for validation of a configuration.
-func isValidConfig(cfg Config) error {
+// IsValidConfig defines a method for validation of a configuration.
+func IsValidConfig(cfg Config) error {
 	return isValidConfigModeLocal(cfg)
 }
 

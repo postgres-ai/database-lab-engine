@@ -74,6 +74,8 @@ func NewMockClone() *models.Clone {
 	}
 }
 
+func (c *mockCloning) Reload(_ Config) {}
+
 func (c *mockCloning) Run(ctx context.Context) error {
 	return nil
 }

@@ -6,7 +6,6 @@
 package config
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os/user"
 	"path"
@@ -87,7 +86,7 @@ func LoadConfig(name string) (*Config, error) {
 
 	cfg := &Config{}
 	if err := yaml.Unmarshal(b, cfg); err != nil {
-		return nil, fmt.Errorf("error parsing %s config", name)
+		return nil, errors.WithMessagef(err, "error parsing %s config", name)
 	}
 
 	if err := cfg.setUpProvisionParams(); err != nil {
