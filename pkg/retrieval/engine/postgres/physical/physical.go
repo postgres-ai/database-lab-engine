@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
-	"github.com/sethvargo/go-password/password"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -32,6 +31,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/fs"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/configuration"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
@@ -42,7 +42,6 @@ const (
 	RestoreJobType = "physicalRestore"
 
 	restoreContainerPrefix = "dblab_phr_"
-	readyLogLine           = "database system is ready to accept"
 	defaultPgConfigsDir    = "default"
 )
 
@@ -69,12 +68,24 @@ type RestoreJob struct {
 
 // CopyOptions describes options for physical copying.
 type CopyOptions struct {
-	Tool         string            `yaml:"tool"`
-	DockerImage  string            `yaml:"dockerImage"`
-	Envs         map[string]string `yaml:"envs"`
-	WALG         walgOptions       `yaml:"walg"`
-	CustomTool   customOptions     `yaml:"customTool"`
-	SyncInstance bool              `yaml:"syncInstance"`
+	Tool        string            `yaml:"tool"`
+	DockerImage string            `yaml:"dockerImage"`
+	Envs        map[string]string `yaml:"envs"`
+	WALG        walgOptions       `yaml:"walg"`
+	CustomTool  customOptions     `yaml:"customTool"`
+	Sync        Sync              `yaml:"sync"`
+}
+
+// Sync describes sync instance options.
+type Sync struct {
+	Enabled     bool        `yaml:"enabled"`
+	HealthCheck HealthCheck `yaml:"healthCheck"`
+}
+
+// HealthCheck describes health check options of a sync instance.
+type HealthCheck struct {
+	Interval   int64 `yaml:"interval"`
+	MaxRetries int   `yaml:"maxRetries"`
 }
 
 // restorer describes the interface of tools for physical restore.
@@ -141,9 +152,10 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Msg(fmt.Sprintf("Run job: %s. Options: %v", r.Name(), r.CopyOptions))
 
 	defer func() {
-		if err == nil && r.CopyOptions.SyncInstance {
+		if err == nil && r.CopyOptions.Sync.Enabled {
 			if syncErr := r.runSyncInstance(ctx); syncErr != nil {
-				log.Err("Failed to run sync instance", syncErr)
+				log.Err("Failed to run sync instance: ", syncErr)
+				tools.StopContainer(ctx, r.dockerClient, r.syncInstanceName(), time.Second)
 			}
 		}
 	}()
@@ -161,16 +173,21 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return nil
 	}
 
-	contID, err := r.startContainer(ctx, r.restoreContainerName(), cont.DBLabRestoreLabel)
+	pwd, err := tools.GeneratePassword()
 	if err != nil {
-		return errors.Wrapf(err, "failed to create container: %s", r.restoreContainerName())
+		return errors.Wrap(err, "failed to generate PostgreSQL password")
+	}
+
+	contID, err := r.startContainer(ctx, r.restoreContainerName(), r.buildContainerConfig(cont.DBLabRestoreLabel, pwd))
+	if err != nil {
+		return err
 	}
 
 	defer tools.RemoveContainer(ctx, r.dockerClient, contID, cont.StopPhysicalTimeout)
 
 	defer func() {
 		if err != nil {
-			tools.PrintContainerLogs(ctx, r.dockerClient, r.restoreContainerName(), err)
+			tools.PrintContainerLogs(ctx, r.dockerClient, r.restoreContainerName())
 		}
 	}()
 
@@ -181,6 +198,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	}
 
 	log.Msg("Running restore command: ", r.restorer.GetRestoreCommand())
+	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, r.restoreContainerName()))
 
 	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{
 		Cmd: []string{"bash", "-c", r.restorer.GetRestoreCommand() + " >& /proc/1/fd/1"},
@@ -234,44 +252,33 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	return nil
 }
 
-func (r *RestoreJob) startContainer(ctx context.Context, containerName, containerLabel string) (string, error) {
+func (r *RestoreJob) startContainer(ctx context.Context, containerName string, containerConfig *container.Config) (string, error) {
 	hostConfig, err := r.buildHostConfig(ctx)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to build container host config")
 	}
 
-	pwd, err := password.Generate(tools.PasswordLength, tools.PasswordMinDigits, tools.PasswordMinSymbols, false, true)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to generate PostgreSQL password")
-	}
-
 	if err := tools.PullImage(ctx, r.dockerClient, r.CopyOptions.DockerImage); err != nil {
-		return "", errors.Wrap(err, "failed to scan image pulling response")
+		return "", err
 	}
 
-	syncInstance, err := r.dockerClient.ContainerCreate(ctx,
-		r.buildContainerConfig(pwd, containerLabel),
-		hostConfig,
-		&network.NetworkingConfig{},
-		containerName,
-	)
-
+	newContainer, err := r.dockerClient.ContainerCreate(ctx, containerConfig, hostConfig, &network.NetworkingConfig{}, containerName)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to start sync container")
+		return "", errors.Wrapf(err, "failed to create container %s", containerName)
 	}
 
-	if err = r.dockerClient.ContainerStart(ctx, syncInstance.ID, types.ContainerStartOptions{}); err != nil {
-		return "", errors.Wrap(err, "failed to start sync container")
+	if err = r.dockerClient.ContainerStart(ctx, newContainer.ID, types.ContainerStartOptions{}); err != nil {
+		return "", errors.Wrapf(err, "failed to start container %s", containerName)
 	}
 
-	return syncInstance.ID, nil
+	return newContainer.ID, nil
 }
 
 func (r *RestoreJob) syncInstanceName() string {
 	return cont.SyncInstanceContainerPrefix + r.globalCfg.InstanceID
 }
 
-func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
+func (r *RestoreJob) runSyncInstance(ctx context.Context) (err error) {
 	syncContainer, err := r.dockerClient.ContainerInspect(ctx, r.syncInstanceName())
 	if err != nil && !client.IsErrNotFound(err) {
 		return errors.Wrap(err, "failed to inspect sync container")
@@ -288,9 +295,20 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 		tools.RemoveContainer(ctx, r.dockerClient, syncContainer.ID, cont.StopPhysicalTimeout)
 	}
 
+	syncInstanceConfig, err := r.buildSyncInstanceConfig()
+	if err != nil {
+		return errors.Wrap(err, "failed to build a sync instance config")
+	}
+
+	defer func() {
+		if err != nil {
+			tools.PrintContainerLogs(ctx, r.dockerClient, r.syncInstanceName())
+		}
+	}()
+
 	log.Msg("Starting sync instance: ", r.syncInstanceName())
 
-	syncInstanceID, err := r.startContainer(ctx, r.syncInstanceName(), cont.DBLabSyncLabel)
+	syncInstanceID, err := r.startContainer(ctx, r.syncInstanceName(), syncInstanceConfig)
 	if err != nil {
 		return err
 	}
@@ -302,55 +320,64 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 		return errors.Wrap(err, "failed to start PostgreSQL instance")
 	}
 
-	logs, err := r.dockerClient.ContainerLogs(ctx, syncInstanceID, types.ContainerLogsOptions{
-		ShowStdout: true,
-		Follow:     true,
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to get container logs")
+	log.Msg("Waiting for PostgreSQL is ready")
+
+	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, syncInstanceID); err != nil {
+		return errors.Wrap(err, "failed to readiness check")
 	}
 
-	defer func() { _ = logs.Close() }()
-
-	if err := isDatabaseReady(logs); err != nil {
-		return errors.Wrap(err, "failed to run PostgreSQL")
-	}
+	log.Msg("Sync instance has been running")
 
 	return nil
 }
 
-func isDatabaseReady(input io.Reader) error {
-	scanner := bufio.NewScanner(input)
+func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
+	hostConfig := &container.HostConfig{}
 
-	timer := time.NewTimer(time.Minute)
-	defer timer.Stop()
-
-LOOP:
-	for {
-		select {
-		case <-timer.C:
-			return errors.New("timeout exceeded")
-		default:
-			if !scanner.Scan() {
-				break LOOP
-			}
-
-			timer.Reset(time.Minute)
-		}
-
-		text := scanner.Text()
-
-		if strings.Contains(text, readyLogLine) {
-			log.Msg(text)
-			return nil
-		}
+	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.globalCfg.DataDir()); err != nil {
+		return nil, err
 	}
 
-	if err := scanner.Err(); err != nil {
-		return err
+	return hostConfig, nil
+}
+
+func (r *RestoreJob) buildSyncInstanceConfig() (*container.Config, error) {
+	pwd, err := tools.GeneratePassword()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate PostgreSQL password")
 	}
 
-	return errors.New("database instance is not running")
+	hcInterval := health.DefaultRestoreInterval
+	hcRetries := health.DefaultRestoreRetries
+
+	if r.CopyOptions.Sync.HealthCheck.Interval != 0 {
+		hcInterval = time.Duration(r.CopyOptions.Sync.HealthCheck.Interval) * time.Second
+	}
+
+	if r.CopyOptions.Sync.HealthCheck.MaxRetries != 0 {
+		hcRetries = r.CopyOptions.Sync.HealthCheck.MaxRetries
+	}
+
+	return r.buildContainerConfigWithHealthCheck(pwd, cont.DBLabSyncLabel,
+		health.OptionInterval(hcInterval), health.OptionRetries(hcRetries)), nil
+}
+
+func (r *RestoreJob) buildContainerConfigWithHealthCheck(label, password string, hcOptions ...health.ContainerOption) *container.Config {
+	containerCfg := r.buildContainerConfig(password, label)
+	containerCfg.Healthcheck = health.GetConfig(r.globalCfg.Database.User(), r.globalCfg.Database.Name(), hcOptions...)
+
+	return containerCfg
+}
+
+func (r *RestoreJob) buildContainerConfig(label, password string) *container.Config {
+	return &container.Config{
+		Labels: map[string]string{
+			cont.DBLabControlLabel:    label,
+			cont.DBLabInstanceIDLabel: r.globalCfg.InstanceID,
+		},
+		Env:   r.getEnvironmentVariables(password),
+		Image: r.CopyOptions.DockerImage,
+	}
 }
 
 func (r *RestoreJob) getEnvironmentVariables(password string) []string {
@@ -366,27 +393,6 @@ func (r *RestoreJob) getEnvironmentVariables(password string) []string {
 	}
 
 	return envVariables
-}
-
-func (r *RestoreJob) buildContainerConfig(password, label string) *container.Config {
-	return &container.Config{
-		Labels: map[string]string{
-			cont.DBLabControlLabel:    label,
-			cont.DBLabInstanceIDLabel: r.globalCfg.InstanceID,
-		},
-		Env:   r.getEnvironmentVariables(password),
-		Image: r.CopyOptions.DockerImage,
-	}
-}
-
-func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
-	hostConfig := &container.HostConfig{}
-
-	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.globalCfg.DataDir()); err != nil {
-		return nil, err
-	}
-
-	return hostConfig, nil
 }
 
 func (r *RestoreJob) markDatabaseData() error {

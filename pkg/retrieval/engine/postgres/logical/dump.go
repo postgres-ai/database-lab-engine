@@ -7,7 +7,6 @@ package logical
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -18,7 +17,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
-	"github.com/sethvargo/go-password/password"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -230,7 +228,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to build container host config")
 	}
 
-	pwd, err := password.Generate(tools.PasswordLength, tools.PasswordMinDigits, tools.PasswordMinSymbols, false, true)
+	pwd, err := tools.GeneratePassword()
 	if err != nil {
 		return errors.Wrap(err, "failed to generate PostgreSQL password")
 	}
@@ -248,15 +246,17 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 
 	defer func() {
 		if err != nil {
-			tools.PrintContainerLogs(ctx, d.dockerClient, d.dumpContainerName(), err)
+			tools.PrintContainerLogs(ctx, d.dockerClient, d.dumpContainerName())
 		}
 	}()
+
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", d.dumpContainerName(), dumpCont.ID))
 
 	if err := d.dockerClient.ContainerStart(ctx, dumpCont.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to start container %q", d.dumpContainerName())
 	}
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", d.dumpContainerName(), dumpCont.ID))
+	log.Msg("Waiting for container is ready")
 
 	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, dumpCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
@@ -269,22 +269,14 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 	dumpCommand := d.buildLogicalDumpCommand()
 	log.Msg("Running dump command", dumpCommand)
 
-	execCommand, err := d.dockerClient.ContainerExecCreate(ctx, dumpCont.ID, types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          dumpCommand,
-		Env:          d.getExecEnvironmentVariables(),
-	})
-
-	if err != nil {
-		return errors.Wrap(err, "failed to create dump command")
-	}
-
 	if len(d.Partial.Tables) > 0 {
 		log.Msg("Partial dump will be run. Tables for dumping: ", strings.Join(d.Partial.Tables, ", "))
 	}
 
-	if err := d.performDumpCommand(ctx, os.Stdout, dumpCont.ID, execCommand.ID); err != nil {
+	if err := d.performDumpCommand(ctx, dumpCont.ID, types.ExecConfig{
+		Cmd: dumpCommand,
+		Env: d.getExecEnvironmentVariables(),
+	}); err != nil {
 		return errors.Wrap(err, "failed to dump a database")
 	}
 
@@ -293,10 +285,14 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 			return errors.Wrap(err, "failed to mark the created dump")
 		}
 
-		if err := recalculateStats(ctx, d.dockerClient, dumpCont.ID, buildAnalyzeCommand(Connection{
-			Username: d.globalCfg.Database.User(),
-			DBName:   d.globalCfg.Database.Name(),
-		}, d.DumpOptions.ParallelJobs)); err != nil {
+		analyzeCmd := buildAnalyzeCommand(
+			Connection{Username: d.globalCfg.Database.User(), DBName: d.globalCfg.Database.Name()},
+			d.DumpOptions.ParallelJobs,
+		)
+
+		log.Msg("Running analyze command: ", analyzeCmd)
+
+		if err := tools.ExecCommand(ctx, d.dockerClient, dumpCont.ID, types.ExecConfig{Cmd: analyzeCmd}); err != nil {
 			return errors.Wrap(err, "failed to recalculate statistics after restore")
 		}
 	}
@@ -317,26 +313,12 @@ func (d *DumpJob) setupConnectionOptions(ctx context.Context) error {
 	return nil
 }
 
-func (d *DumpJob) performDumpCommand(ctx context.Context, cmdOutput io.Writer, contID, commandID string) error {
+func (d *DumpJob) performDumpCommand(ctx context.Context, contID string, commandCfg types.ExecConfig) error {
 	if d.DumpOptions.Restore != nil {
 		d.dbMark.DataStateAt = time.Now().Format(tools.DataStateAtFormat)
 	}
 
-	execAttach, err := d.dockerClient.ContainerExecAttach(ctx, commandID, types.ExecStartCheck{})
-	if err != nil {
-		return err
-	}
-	defer execAttach.Close()
-
-	if err := tools.ProcessAttachResponse(ctx, execAttach.Reader, cmdOutput); err != nil {
-		return err
-	}
-
-	if err := tools.InspectCommandResponse(ctx, d.dockerClient, contID, commandID); err != nil {
-		return errors.Wrap(err, "failed to exec the dump command")
-	}
-
-	return nil
+	return tools.ExecCommand(ctx, d.dockerClient, contID, commandCfg)
 }
 
 func (d *DumpJob) getEnvironmentVariables(password string) []string {

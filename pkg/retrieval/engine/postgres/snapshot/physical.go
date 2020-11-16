@@ -6,11 +6,9 @@
 package snapshot
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -25,7 +23,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
-	"github.com/sethvargo/go-password/password"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -46,10 +43,6 @@ const (
 
 	pre                    = "_pre"
 	promoteContainerPrefix = "dblab_promote_"
-
-	// Defines container health check options.
-	hcDefaultPromotionInterval = 5 * time.Second
-	hcDefaultPromotionRetries  = 200
 
 	supportedSysctlPrefix = "fs.mqueue."
 )
@@ -302,7 +295,7 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	// Promotion.
 	if p.options.Promotion.Enabled {
 		if err := p.promoteInstance(ctx, path.Join(p.globalCfg.ClonesMountDir, cloneName, p.globalCfg.DataSubDir)); err != nil {
-			return err
+			return errors.Wrap(err, "failed to promote instance")
 		}
 	}
 
@@ -355,8 +348,6 @@ func (p *PhysicalInitial) runAutoSnapshot(ctx context.Context) func() {
 	return func() {
 		if err := p.run(ctx); err != nil {
 			log.Err(errors.Wrap(err, "failed to take a snapshot automatically"))
-
-			log.Msg("Interrupt automatic snapshots")
 		}
 	}
 }
@@ -412,7 +403,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to scan image pulling response")
 	}
 
-	pwd, err := password.Generate(tools.PasswordLength, tools.PasswordMinDigits, tools.PasswordMinSymbols, false, true)
+	pwd, err := tools.GeneratePassword()
 	if err != nil {
 		return errors.Wrap(err, "failed to generate PostgreSQL password")
 	}
@@ -433,15 +424,17 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	defer func() {
 		if err != nil {
-			tools.PrintContainerLogs(ctx, p.dockerClient, p.promoteContainerName(), err)
+			tools.PrintContainerLogs(ctx, p.dockerClient, p.promoteContainerName())
 		}
 	}()
+
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", p.promoteContainerName(), promoteCont.ID))
 
 	if err := p.dockerClient.ContainerStart(ctx, promoteCont.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrap(err, "failed to start container")
 	}
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", p.promoteContainerName(), promoteCont.ID))
+	log.Msg("Starting PostgreSQL")
 	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, p.promoteContainerName()))
 
 	// Start PostgreSQL instance.
@@ -449,13 +442,15 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to start PostgreSQL instance")
 	}
 
+	log.Msg("Waiting for PostgreSQL is ready")
+
 	if err := tools.CheckContainerReadiness(ctx, p.dockerClient, promoteCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
 	}
 
 	shouldBePromoted, err := p.checkRecovery(ctx, promoteCont.ID)
 	if err != nil {
-		return errors.Wrap(err, "failed to read response of the exec command")
+		return errors.Wrap(err, "failed to check recovery mode")
 	}
 
 	log.Msg("Should be promoted: ", shouldBePromoted)
@@ -484,6 +479,15 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		// Promote PGDATA.
 		if err := p.runPromoteCommand(ctx, promoteCont.ID, clonePath); err != nil {
 			return errors.Wrapf(err, "failed to promote PGDATA: %s", clonePath)
+		}
+
+		isInRecovery, err := p.checkRecovery(ctx, promoteCont.ID)
+		if err != nil {
+			return errors.Wrap(err, "failed to check recovery mode after promotion")
+		}
+
+		if isInRecovery != "f" {
+			return errors.Errorf("PostgreSQL is in recovery, promotion has been failed: %s", clonePath)
 		}
 	}
 
@@ -537,8 +541,8 @@ func (p *PhysicalInitial) adjustRecoveryConfiguration(pgVersion, clonePGDataDir 
 }
 
 func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password string) *container.Config {
-	hcPromotionInterval := hcDefaultPromotionInterval
-	hcPromotionRetries := hcDefaultPromotionRetries
+	hcPromotionInterval := health.DefaultRestoreInterval
+	hcPromotionRetries := health.DefaultRestoreRetries
 
 	if p.options.Promotion.HealthCheck.Interval != 0 {
 		hcPromotionInterval = time.Duration(p.options.Promotion.HealthCheck.Interval) * time.Second
@@ -580,47 +584,19 @@ func (p *PhysicalInitial) buildHostConfig(ctx context.Context, clonePath string)
 }
 
 func (p *PhysicalInitial) checkRecovery(ctx context.Context, containerID string) (string, error) {
-	checkRecoveryCmd := []string{"psql", "-U", p.globalCfg.Database.User(), "-XAtc", "select pg_is_in_recovery()"}
+	checkRecoveryCmd := []string{"psql",
+		"-U", p.globalCfg.Database.User(),
+		"-d", p.globalCfg.Database.Name(),
+		"-XAtc", "select pg_is_in_recovery()",
+	}
+
 	log.Msg("Check recovery command", checkRecoveryCmd)
 
-	execCommand, err := p.dockerClient.ContainerExecCreate(ctx, containerID, types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          checkRecoveryCmd,
+	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
+		Cmd: checkRecoveryCmd,
 	})
 
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create exec command")
-	}
-
-	attachResponse, err := p.dockerClient.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{Tty: true})
-	if err != nil {
-		return "", errors.Wrap(err, "failed to attach to exec command")
-	}
-
-	defer attachResponse.Close()
-
-	return checkRecoveryModeResponse(attachResponse.Reader)
-}
-
-func checkRecoveryModeResponse(input io.Reader) (string, error) {
-	scanner := bufio.NewScanner(input)
-
-	for scanner.Scan() {
-		text := scanner.Text()
-
-		fmt.Println(text)
-
-		if text == "f" {
-			return "f", nil
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return "", err
-	}
-
-	return "t", nil
+	return output, err
 }
 
 func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID string) (string, error) {
@@ -629,56 +605,28 @@ func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID st
 
 	log.Msg("Running dataStateAt command", extractionCommand)
 
-	execCommand, err := p.dockerClient.ContainerExecCreate(ctx, containerID, types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          extractionCommand,
-		User:         defaults.Username,
+	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
+		Cmd:  extractionCommand,
+		User: defaults.Username,
 	})
 
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create exec command")
-	}
-
-	attachResponse, err := p.dockerClient.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{Tty: true})
-	if err != nil {
-		return "", errors.Wrap(err, "failed to attach to exec command")
-	}
-
-	defer attachResponse.Close()
-
-	return readDataStateAt(attachResponse.Reader)
-}
-
-func readDataStateAt(input io.Reader) (string, error) {
-	scanner := bufio.NewScanner(input)
-
-	for scanner.Scan() {
-		text := scanner.Text()
-
-		fmt.Println(text)
-
-		return text, nil
-	}
-
-	if err := scanner.Err(); err != nil {
-		return "", err
-	}
-
-	return "", nil
+	return output, err
 }
 
 func (p *PhysicalInitial) runPromoteCommand(ctx context.Context, containerID, clonePath string) error {
-	promoteCommand := []string{"pg_ctl", "-D", clonePath, "-W", "promote"}
+	promoteCommand := []string{"pg_ctl", "-D", clonePath, "-w", "promote"}
 
 	log.Msg("Running promote command", promoteCommand)
 
-	if err := tools.ExecCommand(ctx, p.dockerClient, containerID, types.ExecConfig{
+	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
 		User: defaults.Username,
 		Cmd:  promoteCommand,
-	}); err != nil {
+	})
+	if err != nil {
 		return errors.Wrap(err, "failed to promote instance")
 	}
+
+	log.Msg("Promotion result: ", output)
 
 	return nil
 }
@@ -687,26 +635,12 @@ func (p *PhysicalInitial) checkpoint(ctx context.Context, containerID string) er
 	commandCheckpoint := []string{"psql", "-U", p.globalCfg.Database.User(), "-d", p.globalCfg.Database.Name(), "-XAtc", "checkpoint"}
 	log.Msg("Run checkpoint command", commandCheckpoint)
 
-	execCommand, err := p.dockerClient.ContainerExecCreate(ctx, containerID, types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          commandCheckpoint,
-	})
-
+	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{Cmd: commandCheckpoint})
 	if err != nil {
-		return errors.Wrap(err, "failed to create exec command")
+		return errors.Wrap(err, "failed to make checkpoint")
 	}
 
-	attachResponse, err := p.dockerClient.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{Tty: true})
-	if err != nil {
-		return errors.Wrap(err, "failed to attach to exec command")
-	}
-
-	defer attachResponse.Close()
-
-	if _, err = io.Copy(os.Stdout, attachResponse.Reader); err != nil {
-		return errors.Wrap(err, "failed to read response of exec command")
-	}
+	log.Msg("Checkpoint result: ", output)
 
 	return nil
 }
