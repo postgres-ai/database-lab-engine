@@ -18,6 +18,12 @@ const (
 	hcTimeout     = 2 * time.Second
 	hcStartPeriod = 3 * time.Second
 	hcRetries     = 5
+
+	// DefaultRestoreInterval defines a default health check interval for database restoration.
+	DefaultRestoreInterval = 5 * time.Second
+
+	// DefaultRestoreRetries defines a default number of health check retries for database restoration.
+	DefaultRestoreRetries = 200
 )
 
 // ContainerOption defines a function to overwrite default options.

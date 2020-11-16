@@ -142,9 +142,24 @@ retrieval:
     # Restores database data from a physical backup.
     physicalRestore:
       options:
+        # Defines the tool to restore data.
         tool: customTool
+
+        # Specifies the Docker image containing the restoring tool.
         dockerImage: "postgresai/sync-instance:12"
-        syncInstance: true
+
+        # Sync instance options.
+        sync:
+          # Enable running of a sync instance.
+          enabled: true
+
+          # Custom health check options for a sync instance container.
+          healthCheck:
+            # Health check interval for a sync instance container (in seconds).
+            interval: 5
+
+            # Maximum number of health check retries.
+            maxRetries: 200
 
         # Set environment variables here. See https://www.postgresql.org/docs/current/libpq-envars.html
         envs:

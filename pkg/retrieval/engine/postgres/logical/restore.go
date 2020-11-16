@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
-	"github.com/sethvargo/go-password/password"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -136,7 +135,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to build container host config")
 	}
 
-	pwd, err := password.Generate(tools.PasswordLength, tools.PasswordMinDigits, tools.PasswordMinSymbols, false, true)
+	pwd, err := tools.GeneratePassword()
 	if err != nil {
 		return errors.Wrap(err, "failed to generate PostgreSQL password")
 	}
@@ -155,15 +154,17 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 	defer func() {
 		if err != nil {
-			tools.PrintContainerLogs(ctx, r.dockerClient, r.restoreContainerName(), err)
+			tools.PrintContainerLogs(ctx, r.dockerClient, r.restoreContainerName())
 		}
 	}()
+
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", r.restoreContainerName(), restoreCont.ID))
 
 	if err := r.dockerClient.ContainerStart(ctx, restoreCont.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to start container %q", r.restoreContainerName())
 	}
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", r.restoreContainerName(), restoreCont.ID))
+	log.Msg("Waiting for container is ready")
 
 	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, restoreCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
@@ -172,26 +173,11 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	restoreCommand := r.buildLogicalRestoreCommand()
 	log.Msg("Running restore command: ", restoreCommand)
 
-	execCommand, err := r.dockerClient.ContainerExecCreate(ctx, restoreCont.ID, types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Tty:          true,
-		Cmd:          restoreCommand,
-	})
-
-	if err != nil {
-		return errors.Wrap(err, "failed to create restore command")
-	}
-
 	if len(r.Partial.Tables) > 0 {
 		log.Msg("Partial restore will be run. Tables for restoring: ", strings.Join(r.Partial.Tables, ", "))
 	}
 
-	if err := r.dockerClient.ContainerExecStart(ctx, execCommand.ID, types.ExecStartCheck{Tty: true}); err != nil {
-		return errors.Wrap(err, "failed to run restore command")
-	}
-
-	if err := tools.InspectCommandResponse(ctx, r.dockerClient, restoreCont.ID, execCommand.ID); err != nil {
+	if err := tools.ExecCommand(ctx, r.dockerClient, restoreCont.ID, types.ExecConfig{Cmd: restoreCommand}); err != nil {
 		return errors.Wrap(err, "failed to exec restore command")
 	}
 
@@ -199,10 +185,14 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to mark the database")
 	}
 
-	if err := recalculateStats(ctx, r.dockerClient, restoreCont.ID, buildAnalyzeCommand(Connection{
-		Username: r.globalCfg.Database.User(),
-		DBName:   r.globalCfg.Database.Name(),
-	}, r.RestoreOptions.ParallelJobs)); err != nil {
+	analyzeCmd := buildAnalyzeCommand(
+		Connection{Username: r.globalCfg.Database.User(), DBName: r.globalCfg.Database.Name()},
+		r.RestoreOptions.ParallelJobs,
+	)
+
+	log.Msg("Running analyze command: ", analyzeCmd)
+
+	if err := tools.ExecCommand(ctx, r.dockerClient, restoreCont.ID, types.ExecConfig{Cmd: analyzeCmd}); err != nil {
 		return errors.Wrap(err, "failed to recalculate statistics after restore")
 	}
 
