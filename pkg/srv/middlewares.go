@@ -49,7 +49,8 @@ func (a *authMW) isAccessAllowed(ctx context.Context, token string) bool {
 		return true
 	}
 
-	if a.personalTokenVerifier.IsPersonalTokenEnabled() && a.personalTokenVerifier.IsAllowedToken(ctx, token) {
+	if a.personalTokenVerifier != nil && a.personalTokenVerifier.IsPersonalTokenEnabled() &&
+		a.personalTokenVerifier.IsAllowedToken(ctx, token) {
 		return true
 	}
 

@@ -77,9 +77,9 @@ func main() {
 		log.Fatalf(err)
 	}
 
-	// Create a platform service to verify Platform tokens.
-	platformSvc := platform.New(cfg.Platform)
-	if err := platformSvc.Init(ctx); err != nil {
+	// Create a platform service to make requests to Platform.
+	platformSvc, err := platform.New(ctx, cfg.Platform)
+	if err != nil {
 		log.Fatalf(errors.WithMessage(err, "failed to create a new platform service"))
 	}
 
@@ -98,7 +98,7 @@ func main() {
 		for range c {
 			log.Msg("Reloading configuration")
 
-			if err := reloadConfig(instanceID, provisionSvc, retrievalSvc, cloningSvc, platformSvc, server); err != nil {
+			if err := reloadConfig(ctx, instanceID, provisionSvc, retrievalSvc, cloningSvc, platformSvc, server); err != nil {
 				log.Err("Failed to reload configuration", err)
 			}
 
@@ -130,8 +130,8 @@ func loadConfiguration(instanceID string) (*config.Config, error) {
 	return cfg, nil
 }
 
-func reloadConfig(instanceID string, provisionSvc provision.Provision, retrievalSvc *retrieval.Retrieval, cloningSvc cloning.Cloning,
-	platformSvc *platform.Service, server *srv.Server) error {
+func reloadConfig(ctx context.Context, instanceID string, provisionSvc provision.Provision, retrievalSvc *retrieval.Retrieval,
+	cloningSvc cloning.Cloning, platformSvc *platform.Service, server *srv.Server) error {
 	cfg, err := loadConfiguration(instanceID)
 	if err != nil {
 		return err
@@ -145,10 +145,15 @@ func reloadConfig(instanceID string, provisionSvc provision.Provision, retrieval
 		return err
 	}
 
+	newPlatformSvc, err := platform.New(ctx, cfg.Platform)
+	if err != nil {
+		return err
+	}
+
 	provisionSvc.Reload(cfg.Provision)
 	retrievalSvc.Reload(cfg)
 	cloningSvc.Reload(cfg.Cloning)
-	platformSvc.Reload(cfg.Platform)
+	platformSvc.Reload(newPlatformSvc)
 	server.Reload(cfg.Server)
 
 	return nil

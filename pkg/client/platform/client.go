@@ -25,6 +25,9 @@ const (
 	accessToken = "Access-Token"
 )
 
+// ConfigValidationError represents a config validation error.
+type ConfigValidationError error
+
 // APIResponse represents common fields of an API response.
 type APIResponse struct {
 	Hint    string `json:"hint"`
@@ -72,7 +75,7 @@ func NewClient(platformCfg ClientConfig) (*Client, error) {
 
 func validateConfig(config ClientConfig) error {
 	if config.URL == "" || config.AccessToken == "" {
-		return errors.New("invalid config of Platform Client given: URL and AccessToken must not be empty")
+		return ConfigValidationError(errors.New("invalid config of Platform Client given: URL and AccessToken must not be empty"))
 	}
 
 	return nil
