@@ -40,8 +40,10 @@ const (
 func Start(r runners.Runner, c *resources.AppConfig) error {
 	log.Dbg("Starting Postgres container...")
 
-	if err := configuration.NewCorrectorWithExtraConfig(c.ExtraConf()).Run(c.DataDir()); err != nil {
-		return errors.Wrap(err, "cannot update configs")
+	if extraConf := c.ExtraConf(); len(extraConf) > 0 {
+		if err := configuration.NewCorrectorWithExtraConfig(extraConf).ApplyExtraConf(c.DataDir()); err != nil {
+			return errors.Wrap(err, "cannot update configs")
+		}
 	}
 
 	if _, err := docker.RunContainer(r, c); err != nil {

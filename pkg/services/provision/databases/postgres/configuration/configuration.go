@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/fs"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
 )
 
@@ -109,14 +110,30 @@ func (c Corrector) Run(dataDir string) error {
 		}
 	}
 
-	for configKey, configValue := range c.ExtraConfig {
-		pgConfDstLines = append(pgConfDstLines, fmt.Sprintf("%s = '%s'", configKey, configValue))
-	}
-
 	output := strings.Join(pgConfDstLines, "\n")
 
 	if err := ioutil.WriteFile(pgConfDst, []byte(output), 0644); err != nil {
 		return errors.Wrap(err, "cannot write postgresql.conf to PGDATA")
+	}
+
+	return nil
+}
+
+// ApplyExtraConf applies extra configuration to the provided Postgres directory.
+func (c Corrector) ApplyExtraConf(dataDir string) error {
+	log.Dbg("Applying extra configuration")
+
+	pgConf := path.Join(dataDir, pgConfName)
+	pgConfLines := make([]string, 0, len(c.ExtraConfig))
+
+	for configKey, configValue := range c.ExtraConfig {
+		pgConfLines = append(pgConfLines, fmt.Sprintf("%s = '%s'", configKey, configValue))
+	}
+
+	output := strings.Join(pgConfLines, "\n")
+
+	if err := fs.AppendFile(pgConf, []byte(output)); err != nil {
+		return errors.Wrapf(err, "cannot write extra configuration to %s", pgConf)
 	}
 
 	return nil
