@@ -238,6 +238,13 @@ retrieval:
             # Limit defines how many snapshots should be hold.
             limit: 4
 
+        # Set environment variables here. See https://www.postgresql.org/docs/current/libpq-envars.html
+        envs:
+          PGUSER: "postgres"
+          PGPASSWORD: "postgres"
+          PGHOST: "source.hostname"
+          PGPORT: 5432
+
 cloning:
   # Host that will be specified in database connection info for all clones
   # Use public IP address if database connections are allowed from outside

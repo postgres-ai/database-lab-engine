@@ -189,7 +189,7 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			return ctx.Err()
 		default:
 		}
 

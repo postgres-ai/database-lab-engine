@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
@@ -31,6 +30,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/fs"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/configuration"
@@ -80,6 +80,7 @@ type PhysicalOptions struct {
 	PreprocessingScript string            `yaml:"preprocessingScript"`
 	Configs             map[string]string `yaml:"configs"`
 	Sysctls             map[string]string `yaml:"sysctls"`
+	Envs                map[string]string `yaml:"envs"`
 	Scheduler           *Scheduler        `yaml:"scheduler"`
 }
 
@@ -529,11 +530,9 @@ func (p *PhysicalInitial) adjustRecoveryConfiguration(pgVersion, clonePGDataDir 
 		replicationFilename = "recovery.conf"
 
 		buffer.WriteString("standby_mode = 'on'\n")
-		buffer.WriteString("primary_conninfo = ''\n")
-		buffer.WriteString("restore_command = ''\n")
 	}
 
-	if err := ioutil.WriteFile(path.Join(clonePGDataDir, replicationFilename), buffer.Bytes(), 0666); err != nil {
+	if err := fs.AppendFile(path.Join(clonePGDataDir, replicationFilename), buffer.Bytes()); err != nil {
 		return err
 	}
 
@@ -557,10 +556,7 @@ func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password
 			cont.DBLabControlLabel:    cont.DBLabPromoteLabel,
 			cont.DBLabInstanceIDLabel: p.globalCfg.InstanceID,
 		},
-		Env: []string{
-			"PGDATA=" + clonePath,
-			"POSTGRES_PASSWORD=" + password,
-		},
+		Env:   p.getEnvironmentVariables(clonePath, password),
 		Image: promoteImage,
 		Healthcheck: health.GetConfig(
 			p.globalCfg.Database.User(),
@@ -569,6 +565,20 @@ func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password
 			health.OptionRetries(hcPromotionRetries),
 		),
 	}
+}
+
+func (p *PhysicalInitial) getEnvironmentVariables(clonePath, password string) []string {
+	envVariables := []string{
+		"PGDATA=" + clonePath,
+		"POSTGRES_PASSWORD=" + password,
+	}
+
+	// Add user-defined environment variables.
+	for env, value := range p.options.Envs {
+		envVariables = append(envVariables, fmt.Sprintf("%s=%s", env, value))
+	}
+
+	return envVariables
 }
 
 func (p *PhysicalInitial) buildHostConfig(ctx context.Context, clonePath string) (*container.HostConfig, error) {
@@ -621,6 +631,9 @@ func (p *PhysicalInitial) runPromoteCommand(ctx context.Context, containerID, cl
 	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
 		User: defaults.Username,
 		Cmd:  promoteCommand,
+		Env: []string{
+			fmt.Sprintf("PGCTLTIMEOUT=%d", p.options.Promotion.HealthCheck.MaxRetries*int(p.options.Promotion.HealthCheck.Interval)),
+		},
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to promote instance")

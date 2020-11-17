@@ -228,6 +228,11 @@ retrieval:
             # Limit defines how many snapshots should be hold.
             limit: 4
 
+        # Passes custom environment variables to the promotion Docker container.
+        envs:
+          WALG_GS_PREFIX: "gs://{BUCKET}/{SCOPE}"
+          GOOGLE_APPLICATION_CREDENTIALS: "/tmp/sa.json"
+
 cloning:
   # Host that will be specified in database connection info for all clones
   # Use public IP address if database connections are allowed from outside
