@@ -14,4 +14,7 @@ const (
 
 	// DBName defines a default database name.
 	DBName = "postgres"
+
+	// PGVersion12 defines the PostgreSQL 12 version.
+	PGVersion12 = 12
 )
