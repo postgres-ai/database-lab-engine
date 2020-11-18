@@ -57,3 +57,19 @@ func copyFile(sourceFilename, destinationFilename string) error {
 
 	return nil
 }
+
+// AppendFile appends data to a file.
+func AppendFile(file string, data []byte) error {
+	configFile, err := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = configFile.Close() }()
+
+	if _, err := configFile.Write(data); err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -153,10 +153,12 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 	defer func() {
 		if err == nil && r.CopyOptions.Sync.Enabled {
-			if syncErr := r.runSyncInstance(ctx); syncErr != nil {
-				log.Err("Failed to run sync instance: ", syncErr)
-				tools.StopContainer(ctx, r.dockerClient, r.syncInstanceName(), time.Second)
-			}
+			go func() {
+				if syncErr := r.runSyncInstance(ctx); syncErr != nil {
+					log.Err("Failed to run sync instance: ", syncErr)
+					tools.StopContainer(ctx, r.dockerClient, r.syncInstanceName(), time.Second)
+				}
+			}()
 		}
 	}()
 
@@ -438,7 +440,7 @@ func (r *RestoreJob) adjustRecoveryConfiguration(pgVersion, pgDataDir string) er
 		recoveryFilename = "recovery.conf"
 	}
 
-	return appendConfigFile(path.Join(pgDataDir, recoveryFilename), r.restorer.GetRecoveryConfig())
+	return fs.AppendFile(path.Join(pgDataDir, recoveryFilename), r.restorer.GetRecoveryConfig())
 }
 
 func (r *RestoreJob) applyInitParams(ctx context.Context, contID, pgVersion, dataDir string) error {
@@ -521,20 +523,5 @@ func appendInitConfigs(initConfiguration map[string]string, pgDataDir string) er
 		buffer.WriteString(fmt.Sprintf("%s = '%s'\n", key, value))
 	}
 
-	return appendConfigFile(path.Join(pgDataDir, "postgresql.conf"), buffer.Bytes())
-}
-
-func appendConfigFile(file string, data []byte) error {
-	configFile, err := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = configFile.Close() }()
-
-	if _, err := configFile.Write(data); err != nil {
-		return err
-	}
-
-	return nil
+	return fs.AppendFile(path.Join(pgDataDir, "postgresql.conf"), buffer.Bytes())
 }
