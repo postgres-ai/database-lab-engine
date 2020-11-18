@@ -83,7 +83,7 @@ type restorer interface {
 	GetRestoreCommand() string
 
 	// GetRecoveryConfig returns a recovery config to restore data.
-	GetRecoveryConfig() []byte
+	GetRecoveryConfig(version float64) []byte
 }
 
 // NewJob creates a new physical restore job.
@@ -406,18 +406,16 @@ func (r *RestoreJob) adjustRecoveryConfiguration(pgVersion, pgDataDir string) er
 	// Replication mode.
 	var recoveryFilename string
 
-	if len(r.restorer.GetRecoveryConfig()) == 0 {
-		return nil
-	}
-
 	version, err := strconv.ParseFloat(pgVersion, 64)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse PostgreSQL version")
 	}
 
-	const pgVersion12 = 12
+	if len(r.restorer.GetRecoveryConfig(version)) == 0 {
+		return nil
+	}
 
-	if version >= pgVersion12 {
+	if version >= defaults.PGVersion12 {
 		if err := tools.TouchFile(path.Join(pgDataDir, "standby.signal")); err != nil {
 			return err
 		}
@@ -427,7 +425,7 @@ func (r *RestoreJob) adjustRecoveryConfiguration(pgVersion, pgDataDir string) er
 		recoveryFilename = "recovery.conf"
 	}
 
-	return appendConfigFile(path.Join(pgDataDir, recoveryFilename), r.restorer.GetRecoveryConfig())
+	return appendConfigFile(path.Join(pgDataDir, recoveryFilename), r.restorer.GetRecoveryConfig(version))
 }
 
 func (r *RestoreJob) applyInitParams(ctx context.Context, contID, pgVersion, dataDir string) error {
