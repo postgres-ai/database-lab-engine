@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/client/platform"
+	"gitlab.com/postgres-ai/database-lab/pkg/log"
 )
 
 // PersonalTokenVerifier declares an interface of a struct for Platform Personal Token verification.
@@ -34,45 +35,45 @@ type Service struct {
 }
 
 // New creates a new platform service.
-func New(cfg Config) *Service {
-	return &Service{
-		cfg: cfg,
-	}
-}
+func New(ctx context.Context, cfg Config) (*Service, error) {
+	s := &Service{cfg: cfg}
 
-// Reload reloads service configuration.
-func (s *Service) Reload(cfg Config) {
-	s.cfg = cfg
-}
-
-// Init initialize a Platform service instance.
-func (s *Service) Init(ctx context.Context) error {
 	client, err := platform.NewClient(platform.ClientConfig{
 		URL:         s.cfg.URL,
 		AccessToken: s.cfg.AccessToken,
 	})
 	if err != nil {
-		return errors.Wrap(err, "failed to create a new Platform Client")
+		if _, ok := err.(platform.ConfigValidationError); ok {
+			log.Msg("Warning: ", err)
+			return s, nil
+		}
+
+		return nil, errors.Wrap(err, "failed to create a new Platform Client")
 	}
 
 	s.Client = client
 
 	if !s.IsPersonalTokenEnabled() {
-		return nil
+		return s, nil
 	}
 
 	platformToken, err := client.CheckPlatformToken(ctx, platform.TokenCheckRequest{Token: s.cfg.AccessToken})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if platformToken.OrganizationID == 0 {
-		return errors.New("invalid organization ID associated with the given Platform Access Token")
+		return nil, errors.New("invalid organization ID associated with the given Platform Access Token")
 	}
 
 	s.organizationID = platformToken.OrganizationID
 
-	return nil
+	return s, nil
+}
+
+// Reload reloads service configuration.
+func (s *Service) Reload(newService *Service) {
+	*s = *newService
 }
 
 // IsAllowedToken checks if the Platform Personal Token is allowed.

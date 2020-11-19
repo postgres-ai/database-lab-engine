@@ -156,10 +156,14 @@ func (s *Server) resetClone(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
+	if s.Platform.Client == nil {
+		sendBadRequestError(w, r, "cannot start the session observation because a Platform client is not configured")
+		return
+	}
+
 	var observationRequest *types.StartObservationRequest
 	if err := readJSON(r, &observationRequest); err != nil {
 		sendBadRequestError(w, r, err.Error())
-
 		return
 	}
 
@@ -207,6 +211,11 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
+	if s.Platform.Client == nil {
+		sendBadRequestError(w, r, "cannot stop the session observation because a Platform client is not configured")
+		return
+	}
+
 	var observationRequest *types.StopObservationRequest
 
 	if err := readJSON(r, &observationRequest); err != nil {
