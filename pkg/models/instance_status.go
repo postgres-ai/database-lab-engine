@@ -12,3 +12,8 @@ type InstanceStatus struct {
 	NumClones           uint64      `json:"numClones"`
 	Clones              []*Clone    `json:"clones"`
 }
+
+// Health represents a response for heath-check requests.
+type Health struct {
+	Version string `json:"version"`
+}

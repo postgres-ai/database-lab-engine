@@ -18,7 +18,12 @@ func CommandList() []*cli.Command {
 				{
 					Name:   "status",
 					Usage:  "display instance's status",
-					Action: status(),
+					Action: status,
+				},
+				{
+					Name:   "version",
+					Usage:  "display instance's version",
+					Action: health,
 				},
 			},
 		},

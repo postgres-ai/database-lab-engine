@@ -19,11 +19,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/version"
 )
 
-// HealthResponse represents a response for heath-check requests.
-type HealthResponse struct {
-	Version string `json:"version"`
-}
-
 func (s *Server) getInstanceStatus(w http.ResponseWriter, r *http.Request) {
 	status, err := s.Cloning.GetInstanceState()
 	if err != nil {
@@ -295,7 +290,7 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 func (s *Server) healthCheck(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	healthResponse := HealthResponse{
+	healthResponse := models.Health{
 		Version: version.GetVersion(),
 	}
 
