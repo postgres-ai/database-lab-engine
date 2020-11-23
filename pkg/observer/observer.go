@@ -11,6 +11,7 @@ import (
 	"encoding/csv"
 	"io"
 	"os"
+	"regexp"
 	"sync"
 	"time"
 
@@ -35,29 +36,48 @@ const (
 
 // Observer manages observation sessions.
 type Observer struct {
-	dockerClient *client.Client
-	Platform     *platform.Client
-	storage      map[string]*Session
-	sessionMu    *sync.Mutex
-	cfg          *Config
+	dockerClient     *client.Client
+	Platform         *platform.Client
+	storage          map[string]*Session
+	sessionMu        *sync.Mutex
+	cfg              *Config
+	replacementRules []ReplacementRule
 }
 
 // Config defines configuration options for observer.
 type Config struct {
-	CloneDir   string
-	DataSubDir string
-	SocketDir  string
+	CloneDir         string
+	DataSubDir       string
+	SocketDir        string
+	ReplacementRules map[string]string `yaml:"replacementRules"`
+}
+
+// ReplacementRule describes replacement rules.
+type ReplacementRule struct {
+	re      *regexp.Regexp
+	replace string
 }
 
 // NewObserver creates an Observer instance.
 func NewObserver(dockerClient *client.Client, cfg *Config, platform *platform.Client) *Observer {
-	return &Observer{
-		dockerClient: dockerClient,
-		Platform:     platform,
-		storage:      make(map[string]*Session),
-		sessionMu:    &sync.Mutex{},
-		cfg:          cfg,
+	observer := &Observer{
+		dockerClient:     dockerClient,
+		Platform:         platform,
+		storage:          make(map[string]*Session),
+		sessionMu:        &sync.Mutex{},
+		cfg:              cfg,
+		replacementRules: []ReplacementRule{},
 	}
+
+	for pattern, replace := range cfg.ReplacementRules {
+		rule := ReplacementRule{
+			re:      regexp.MustCompile(pattern),
+			replace: replace,
+		}
+		observer.replacementRules = append(observer.replacementRules, rule)
+	}
+
+	return observer
 }
 
 // GetCloneLog gets clone logs.
@@ -84,7 +104,7 @@ func (o *Observer) GetCloneLog(ctx context.Context, port uint, session *Session)
 			return nil, errors.Wrap(err, "failed to get a CSV log filename")
 		}
 
-		if err := o.processCSVLogFile(ctx, buf, filename, session.StartedAt, session.FinishedAt); err != nil {
+		if err := o.processCSVLogFile(ctx, buf, filename, session); err != nil {
 			if err == pglog.ErrTimeBoundary {
 				break
 			}
@@ -96,7 +116,7 @@ func (o *Observer) GetCloneLog(ctx context.Context, port uint, session *Session)
 	return buf.Bytes(), nil
 }
 
-func (o *Observer) processCSVLogFile(ctx context.Context, buf io.Writer, filename string, since, until time.Time) error {
+func (o *Observer) processCSVLogFile(ctx context.Context, buf io.Writer, filename string, session *Session) error {
 	logFile, err := os.Open(filename)
 	if err != nil {
 		return errors.Wrap(err, "failed to open a CSV log file")
@@ -108,14 +128,14 @@ func (o *Observer) processCSVLogFile(ctx context.Context, buf io.Writer, filenam
 		}
 	}()
 
-	if err := o.scanCSVLogFile(ctx, logFile, buf, since, until); err != nil {
+	if err := o.scanCSVLogFile(ctx, logFile, buf, session); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (o *Observer) scanCSVLogFile(ctx context.Context, reader io.Reader, writer io.Writer, since, until time.Time) error {
+func (o *Observer) scanCSVLogFile(ctx context.Context, reader io.Reader, writer io.Writer, session *Session) error {
 	csvReader := csv.NewReader(reader)
 	csvWriter := csv.NewWriter(writer)
 
@@ -145,12 +165,16 @@ func (o *Observer) scanCSVLogFile(ctx context.Context, reader io.Reader, writer 
 			return err
 		}
 
-		if logTime.Before(since) {
+		if logTime.Before(session.StartedAt) {
 			continue
 		}
 
-		if logTime.After(until) {
+		if logTime.After(session.FinishedAt) {
 			return pglog.ErrTimeBoundary
+		}
+
+		if len(o.replacementRules) > 0 {
+			o.maskLogs(entry, session.maskedIndexes)
 		}
 
 		if err := csvWriter.Write(entry); err != nil {
@@ -159,6 +183,14 @@ func (o *Observer) scanCSVLogFile(ctx context.Context, reader io.Reader, writer 
 	}
 
 	return nil
+}
+
+func (o *Observer) maskLogs(entry []string, maskedFieldIndexes []int) {
+	for _, maskedFieldIndex := range maskedFieldIndexes {
+		for _, rule := range o.replacementRules {
+			entry[maskedFieldIndex] = rule.re.ReplaceAllString(entry[maskedFieldIndex], rule.replace)
+		}
+	}
 }
 
 // AddSession adds a new observation session to storage.

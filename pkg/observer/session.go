@@ -26,6 +26,15 @@ const (
 		"internal_query,internal_query_pos,context,query,query_pos,location,application_name"
 )
 
+// maskedFields contains list of the fields which should be filtered if replacement rules are defined.
+var maskedFields = map[string]struct{}{
+	"message":        {},
+	"detail":         {},
+	"hint":           {},
+	"internal_query": {},
+	"query":          {},
+}
+
 // Session describes a session of service monitoring.
 type Session struct {
 	SessionID                uint64            `json:"session_id"`
@@ -34,6 +43,7 @@ type Session struct {
 	Config                   types.Config      `json:"config"`
 	Tags                     map[string]string `json:"tags"`
 	csvFields                string
+	maskedIndexes            []int
 	models.ObservationResult `json:"-"`
 
 	ctx       context.Context
@@ -58,18 +68,33 @@ func NewSession(config types.Config) *Session {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &Session{
+	session := &Session{
 		Config:    config,
 		ctx:       ctx,
 		cancel:    cancel,
 		done:      make(chan struct{}, 1),
 		csvFields: csvFields,
 	}
+
+	session.fillMaskedIndexes()
+
+	return session
 }
 
 // CsvFields returns a comma-separated list of available csv fields.
 func (s *Session) CsvFields() string {
 	return s.csvFields
+}
+
+// fillMaskedIndexes discovers indexes of the fields which should be masked.
+func (s *Session) fillMaskedIndexes() {
+	s.maskedIndexes = make([]int, 0, len(maskedFields))
+
+	for i, csvField := range strings.Split(s.csvFields, ",") {
+		if _, ok := maskedFields[csvField]; ok {
+			s.maskedIndexes = append(s.maskedIndexes, i)
+		}
+	}
 }
 
 // Start runs observation session.
@@ -150,6 +175,7 @@ where table_name = 'postgres_log'`)
 
 	if fields != "" {
 		s.csvFields = fields
+		s.fillMaskedIndexes()
 	}
 
 	return nil
