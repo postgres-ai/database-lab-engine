@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
+	"gitlab.com/postgres-ai/database-lab/pkg/observer"
 	retConfig "gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
@@ -30,6 +31,7 @@ type Config struct {
 	Platform  platform.Config  `yaml:"platform"`
 	Global    Global           `yaml:"global"`
 	Retrieval retConfig.Config `yaml:"retrieval"`
+	Observer  observer.Config  `yaml:"observer"`
 }
 
 // Global contains global Database Lab configurations.

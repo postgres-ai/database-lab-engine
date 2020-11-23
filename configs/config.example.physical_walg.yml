@@ -267,3 +267,13 @@ cloning:
 #  # If true: "accessToken" is known only to admin, users use their own tokens,
 #  #          and any token can be revoked not affecting others
 #  enablePersonalTokens: true
+#
+# CI Observer configuration.
+#observer:
+#  # Set up regexp rules for Postgres logs.
+#  # These rules are applied before sending the logs to the Platform, to ensure that personal data is masked properly.
+#  # Check the syntax of regular expressions: https://github.com/google/re2/wiki/Syntax
+#  replacementRules:
+#    "regexp": "replace"
+#    "select \\d+": "***"
+#    "[a-z0-9._%+\\-]+(@[a-z0-9.\\-]+\\.[a-z]{2,4})": "***$1"

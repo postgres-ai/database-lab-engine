@@ -22,7 +22,6 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/observer"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
@@ -83,13 +82,11 @@ func main() {
 		log.Fatalf(errors.WithMessage(err, "failed to create a new platform service"))
 	}
 
-	observerCfg := &observer.Config{
-		CloneDir:   cfg.Provision.Options.ClonesMountDir,
-		DataSubDir: cfg.Global.DataSubDir,
-		SocketDir:  cfg.Provision.Options.UnixSocketDir,
-	}
+	cfg.Observer.CloneDir = cfg.Provision.Options.ClonesMountDir
+	cfg.Observer.DataSubDir = cfg.Global.DataSubDir
+	cfg.Observer.SocketDir = cfg.Provision.Options.UnixSocketDir
 
-	server := srv.NewServer(&cfg.Server, observerCfg, cloningSvc, platformSvc, dockerCLI)
+	server := srv.NewServer(&cfg.Server, &cfg.Observer, cloningSvc, platformSvc, dockerCLI)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGHUP)
