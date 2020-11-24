@@ -276,7 +276,7 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	defer func() {
 		if err != nil {
 			if errDestroy := p.cloneManager.DestroySnapshot(snapshotName); errDestroy != nil {
-				log.Err(fmt.Sprintf("Failed to destroy the %q snapshot: %v", snapshotName, err))
+				log.Err(fmt.Sprintf("Failed to destroy the %q snapshot: %v", snapshotName, errDestroy))
 			}
 		}
 	}()
@@ -288,7 +288,7 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	defer func() {
 		if err != nil {
 			if errDestroy := p.cloneManager.DestroyClone(cloneName); errDestroy != nil {
-				log.Err(fmt.Sprintf("Failed to destroy clone %q: %v", cloneName, err))
+				log.Err(fmt.Sprintf("Failed to destroy clone %q: %v", cloneName, errDestroy))
 			}
 		}
 	}()
