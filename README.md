@@ -11,30 +11,24 @@ As an example, cloning of 10 TiB PostgreSQL database takes less than 2 seconds.
 
 Read more at [Postgres.ai](https://postgres.ai) and in [the Docs](https://postgres.ai/docs).
 
-## Why on GitLab.com?
-Database Lab Engine is hosted and developed on GitLab.com.
+> Please support the project giving a GitLab star! It's on [the main page](https://gitlab.com/postgres-ai/database-lab), at the upper right corner:
+>
+> ![Add a star](./assets/star.gif)
 
-GitLab Inc. is our (Postgres.ai) long-term client and early adopter (see [GitLab Development Docs](https://docs.gitlab.com/ee/development/understanding_explain_plans.html#database-lab)). GitLab has an open-source version. Last but not least: GitLab uses PostgreSQL.
-
-However, nowadays, not many open-source projects are hosted at GitLab.com unfortunately. Please support the project giving a GitLab star! It's on [the main page](https://gitlab.com/postgres-ai/database-lab), at the upper right corner:
-
-![Add a star](./assets/star.gif)
-
-## Engine setup
-See Database Lab tutorials:
-- [Database Lab tutorial for Amazon RDS](https://postgres.ai/docs/tutorials/database-lab-tutorial-amazon-rds),
+## Installation
+See the Database Lab tutorials:
 - [Database Lab tutorial for any PostgreSQL database](https://postgres.ai/docs/tutorials/database-lab-tutorial).
+- [Database Lab tutorial for Amazon RDS](https://postgres.ai/docs/tutorials/database-lab-tutorial-amazon-rds),
 
-For stable Docker images see [postgresai/dblab-server](https://hub.docker.com/repository/docker/postgresai/dblab-server) repository on DockerHub.
+The latest stable Docker images are published in [the Docker Hub repository](https://hub.docker.com/repository/docker/postgresai/dblab-server).
 
 ## Client CLI
 ### Installation
-Install Database Lab client CLI on a Linux architecture (e.g., Ubuntu):
+Install Database Lab client CLI on your Linux machine (e.g., Ubuntu):
 ```bash
 curl https://gitlab.com/postgres-ai/database-lab/-/raw/master/scripts/cli_install.sh | bash
 ```
 
-Also, binaries available for download: [Alpine](https://gitlab.com/postgres-ai/database-lab/-/jobs/artifacts/master/browse?job=build-binary-alpine), [other](https://gitlab.com/postgres-ai/database-lab/-/jobs/artifacts/master/browse?job=build-binary-generic).
 
 ### How to use CLI
 - [How to install and initialize Database Lab CLI](https://postgres.ai/docs/guides/cli/cli-install-init)
@@ -53,7 +47,7 @@ Also, binaries available for download: [Alpine](https://gitlab.com/postgres-ai/d
 ## Development
 Open [an Issue](https://gitlab.com/postgres-ai/database-lab/-/issues) to discuss ideas, open [a Merge Request](https://gitlab.com/postgres-ai/database-lab/-/merge_requests) to propose a change.
 
-See our [GitLab Container Registry](https://gitlab.com/postgres-ai/database-lab/container_registry) for develop Docker images.
+See our [GitLab Container Registry](https://gitlab.com/postgres-ai/database-lab/container_registry) to find the images built for development branches.
 <!-- TODO: SDK docs -->
 <!-- TODO: Contribution guideline -->
 
