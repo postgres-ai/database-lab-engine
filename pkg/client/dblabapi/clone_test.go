@@ -20,8 +20,9 @@ func TestClientListClones(t *testing.T) {
 	expectedClones := []*models.Clone{{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
-			CloneDiffSize: 450,
-			CloningTime:   1,
+			CloneDiffSize:   450,
+			CloneDiffSizeHR: "450 B",
+			CloningTime:     1,
 		},
 		Protected: true,
 		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
@@ -91,8 +92,9 @@ func TestClientCreateClone(t *testing.T) {
 	expectedClone := models.Clone{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
-			CloneDiffSize: 450,
-			CloningTime:   1,
+			CloneDiffSize:   450,
+			CloneDiffSizeHR: "450 B",
+			CloningTime:     1,
 		},
 		Protected: true,
 		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
@@ -169,8 +171,9 @@ func TestClientCreateCloneAsync(t *testing.T) {
 	expectedClone := models.Clone{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
-			CloneDiffSize: 450,
-			CloningTime:   1,
+			CloneDiffSize:   450,
+			CloneDiffSizeHR: "450 B",
+			CloningTime:     1,
 		},
 		Protected: true,
 		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
@@ -258,8 +261,9 @@ func TestClientGetClone(t *testing.T) {
 	expectedClone := &models.Clone{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
-			CloneDiffSize: 450,
-			CloningTime:   1,
+			CloneDiffSize:   450,
+			CloneDiffSizeHR: "450 B",
+			CloningTime:     1,
 		},
 		Protected: true,
 		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
@@ -329,8 +333,9 @@ func TestClientUpdateClone(t *testing.T) {
 	cloneModel := &models.Clone{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
-			CloneDiffSize: 450,
-			CloningTime:   1,
+			CloneDiffSize:   450,
+			CloneDiffSizeHR: "450 B",
+			CloningTime:     1,
 		},
 		Protected: true,
 		DeleteAt:  "2020-01-10 00:00:05.000 UTC",

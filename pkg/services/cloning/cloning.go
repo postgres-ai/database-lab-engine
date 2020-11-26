@@ -15,11 +15,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 )
 
-const (
-	// cloneDiffSize defines a default clone size.
-	cloneDiffSize = 10
-)
-
 // Config contains a cloning configuration.
 type Config struct {
 	MaxIdleMinutes uint   `yaml:"maxIdleMinutes"`
