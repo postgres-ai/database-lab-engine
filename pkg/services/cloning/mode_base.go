@@ -8,12 +8,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math/big"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	_ "github.com/lib/pq" // Register Postgres database driver.
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
@@ -178,9 +180,7 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 		clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s user=%s dbname=%s",
 			clone.DB.Host, clone.DB.Port, clone.DB.Username, defaultDatabaseName)
 
-		// TODO(anatoly): Remove mock data.
 		clone.Metadata = models.CloneMetadata{
-			CloneDiffSize:  cloneDiffSize,
 			CloningTime:    w.timeStartedAt.Sub(w.timeCreatedAt).Seconds(),
 			MaxIdleMinutes: c.Config.MaxIdleMinutes,
 		}
@@ -252,6 +252,7 @@ func (c *baseCloning) GetClone(id string) (*models.Clone, error) {
 	}
 
 	w.clone.Metadata.CloneDiffSize = sessionState.CloneDiffSize
+	w.clone.Metadata.CloneDiffSizeHR = humanize.BigIBytes(big.NewInt(int64(sessionState.CloneDiffSize)))
 
 	return w.clone, nil
 }
@@ -342,6 +343,10 @@ func (c *baseCloning) GetInstanceState() (*models.InstanceStatus, error) {
 	c.instanceStatus.FileSystem.Free = disk.Free
 	c.instanceStatus.FileSystem.Used = disk.Used
 	c.instanceStatus.DataSize = disk.DataSize
+	c.instanceStatus.FileSystem.SizeHR = humanize.BigIBytes(big.NewInt(int64(disk.Size)))
+	c.instanceStatus.FileSystem.FreeHR = humanize.BigIBytes(big.NewInt(int64(disk.Free)))
+	c.instanceStatus.FileSystem.UsedHR = humanize.BigIBytes(big.NewInt(int64(disk.Used)))
+	c.instanceStatus.DataSizeHR = humanize.BigIBytes(big.NewInt(int64(disk.DataSize)))
 	c.instanceStatus.ExpectedCloningTime = c.getExpectedCloningTime()
 	c.instanceStatus.Clones = c.GetClones()
 	c.instanceStatus.NumClones = uint64(len(c.instanceStatus.Clones))

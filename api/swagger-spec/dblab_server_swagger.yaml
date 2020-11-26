@@ -302,6 +302,15 @@ definitions:
       size:
         type: "integer"
         format: "int64"
+      used:
+        type: "integer"
+        format: "int64"
+      freeHR:
+        type: "string"
+      sizeHR:
+        type: "string"
+      usedHR:
+        type: "string"
 
   Database:
     type: "object"
@@ -348,6 +357,8 @@ definitions:
       cloneSize:
         type: "integer"
         format: "int64"
+      cloneSizeHR:
+        type: "string"
       cloningTime:
         type: "integer"
         format: "float64"
