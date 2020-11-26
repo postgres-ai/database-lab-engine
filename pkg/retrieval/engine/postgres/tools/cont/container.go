@@ -38,6 +38,8 @@ const (
 	DBLabSyncLabel = "dblab_sync"
 	// DBLabPromoteLabel defines a label value for promote containers.
 	DBLabPromoteLabel = "dblab_promote"
+	// DBLabPatchLabel defines a label value for patch containers.
+	DBLabPatchLabel = "dblab_patch"
 	// DBLabDumpLabel defines a label value for dump containers.
 	DBLabDumpLabel = "dblab_dump"
 	// DBLabRestoreLabel defines a label value for restore containers.
