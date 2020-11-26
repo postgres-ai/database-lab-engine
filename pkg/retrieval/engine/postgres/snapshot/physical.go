@@ -71,6 +71,7 @@ type PhysicalInitial struct {
 	scheduler      *cron.Cron
 	schedulerCtx   context.Context
 	promotionMutex sync.Mutex
+	queryProcessor *queryProcessor
 }
 
 // PhysicalOptions describes options for a physical initialization job.
@@ -86,9 +87,10 @@ type PhysicalOptions struct {
 
 // Promotion describes promotion options.
 type Promotion struct {
-	Enabled     bool        `yaml:"enabled"`
-	DockerImage string      `yaml:"dockerImage"`
-	HealthCheck HealthCheck `yaml:"healthCheck"`
+	Enabled            bool               `yaml:"enabled"`
+	DockerImage        string             `yaml:"dockerImage"`
+	HealthCheck        HealthCheck        `yaml:"healthCheck"`
+	QueryPreprocessing QueryPreprocessing `yaml:"queryPreprocessing"`
 }
 
 // HealthCheck describes health check options of a promotion.
@@ -109,6 +111,12 @@ type ScheduleSpec struct {
 	Limit     int    `yaml:"limit"`
 }
 
+// QueryPreprocessing defines query preprocessing options.
+type QueryPreprocessing struct {
+	QueryPath          string `yaml:"queryPath"`
+	MaxParallelWorkers int    `yaml:"maxParallelWorkers"`
+}
+
 // NewPhysicalInitialJob creates a new physical initial job.
 func NewPhysicalInitialJob(cfg config.JobConfig, docker *client.Client, cloneManager thinclones.Manager,
 	global *dblabCfg.Global, marker *dbmarker.Marker) (*PhysicalInitial, error) {
@@ -127,6 +135,12 @@ func NewPhysicalInitialJob(cfg config.JobConfig, docker *client.Client, cloneMan
 
 	if err := p.validateConfig(); err != nil {
 		return nil, errors.Wrap(err, "invalid physicalSnapshot configuration")
+	}
+
+	if p.options.Promotion.QueryPreprocessing.QueryPath != "" {
+		p.queryProcessor = newQueryProcessor(docker, global.Database.Name(), global.Database.User(),
+			p.options.Promotion.QueryPreprocessing.QueryPath,
+			p.options.Promotion.QueryPreprocessing.MaxParallelWorkers)
 	}
 
 	p.setupScheduler()
@@ -261,7 +275,7 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	cloneName := fmt.Sprintf("clone%s_%s", pre, preDataStateAt)
 
 	defer func() {
-		if _, ok := err.(*skipSnapshotErr); ok {
+		if _, ok := errors.Cause(err).(*skipSnapshotErr); ok {
 			log.Msg(err.Error())
 			err = nil
 		}
@@ -489,6 +503,12 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 		if isInRecovery != "f" {
 			return errors.Errorf("PostgreSQL is in recovery, promotion has been failed: %s", clonePath)
+		}
+	}
+
+	if p.queryProcessor != nil {
+		if err := p.queryProcessor.applyPreprocessingQueries(ctx, promoteCont.ID); err != nil {
+			return errors.Wrap(err, "failed to run preprocessing queries")
 		}
 	}
 

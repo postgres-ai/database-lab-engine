@@ -216,6 +216,18 @@ retrieval:
 
     logicalSnapshot:
       options:
+        # Define pre-precessing SQL queries for data patching. For example, "/tmp/scripts/sql".
+        dataPatching:
+          # The Docker image to run data patching container.
+          dockerImage: "sync-instance:12"
+
+          queryPreprocessing:
+            # Path to SQL pre-processing queries. Default: empty string (no pre-processing defined).
+            queryPath: ""
+
+            # Worker limit for parallel queries.
+            maxParallelWorkers: 2
+
         # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
         # Default: empty string (no pre-processing defined).
         # This can be used for scrubbing eliminating PII data, to define data masking, etc.

@@ -55,7 +55,7 @@ func (s *JobBuilder) BuildJob(jobCfg config.JobConfig) (components.JobRunner, er
 		return physical.NewJob(jobCfg, s.dockerClient, s.globalCfg, s.dbMarker)
 
 	case snapshot.LogicalInitialType:
-		return snapshot.NewLogicalInitialJob(jobCfg, s.cloneManager, s.globalCfg, s.dbMarker)
+		return snapshot.NewLogicalInitialJob(jobCfg, s.dockerClient, s.cloneManager, s.globalCfg, s.dbMarker)
 
 	case snapshot.PhysicalInitialType:
 		return snapshot.NewPhysicalInitialJob(jobCfg, s.dockerClient, s.cloneManager, s.globalCfg, s.dbMarker)
