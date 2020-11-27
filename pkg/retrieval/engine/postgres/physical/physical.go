@@ -78,8 +78,9 @@ type CopyOptions struct {
 
 // Sync describes sync instance options.
 type Sync struct {
-	Enabled     bool        `yaml:"enabled"`
-	HealthCheck HealthCheck `yaml:"healthCheck"`
+	Enabled     bool              `yaml:"enabled"`
+	HealthCheck HealthCheck       `yaml:"healthCheck"`
+	Configs     map[string]string `yaml:"configs"`
 }
 
 // HealthCheck describes health check options of a sync instance.
@@ -247,6 +248,13 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	// Apply important initial configs.
 	if err := r.applyInitParams(ctx, contID, pgVersion, dataDir); err != nil {
 		return errors.Wrap(err, "failed to adjust by init parameters")
+	}
+
+	// Apply sync instance configs.
+	if syncConfig := r.CopyOptions.Sync.Configs; len(syncConfig) > 0 {
+		if err := configuration.NewCorrectorWithExtraConfig(syncConfig).ApplyExtraConf(dataDir); err != nil {
+			return errors.Wrap(err, "cannot update sync instance configs")
+		}
 	}
 
 	log.Msg("Configuration has been finished")

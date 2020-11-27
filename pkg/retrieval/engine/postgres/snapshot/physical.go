@@ -91,6 +91,7 @@ type Promotion struct {
 	DockerImage        string             `yaml:"dockerImage"`
 	HealthCheck        HealthCheck        `yaml:"healthCheck"`
 	QueryPreprocessing QueryPreprocessing `yaml:"queryPreprocessing"`
+	Configs            map[string]string  `yaml:"configs"`
 }
 
 // HealthCheck describes health check options of a promotion.
@@ -389,9 +390,11 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to enforce configs")
 	}
 
-	// Apply users configs.
-	if err := applyUsersConfigs(p.options.Configs, path.Join(clonePath, "postgresql.conf")); err != nil {
-		return err
+	// Apply promotion configs.
+	if syncConfig := p.options.Promotion.Configs; len(syncConfig) > 0 {
+		if err := configuration.NewCorrectorWithExtraConfig(syncConfig).ApplyExtraConf(clonePath); err != nil {
+			return errors.Wrap(err, "cannot update promotion configs")
+		}
 	}
 
 	pgVersion, err := tools.DetectPGVersion(clonePath)
@@ -514,6 +517,11 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	// Checkpoint.
 	if err := p.checkpoint(ctx, promoteCont.ID); err != nil {
+		return err
+	}
+
+	// Apply users configs.
+	if err := applyUsersConfigs(p.options.Configs, path.Join(clonePath, "postgresql.conf")); err != nil {
 		return err
 	}
 
