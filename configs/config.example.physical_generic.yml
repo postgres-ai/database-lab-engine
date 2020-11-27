@@ -163,9 +163,7 @@ retrieval:
 
           # Adjust PostgreSQL configuration of the sync container.
           configs:
-            shared_buffers: 1GB
-            shared_preload_libraries: "pg_stat_statements"
-            work_mem: "100MB"
+            shared_buffers: 128MB
 
         # Set environment variables here. See https://www.postgresql.org/docs/current/libpq-envars.html
         envs:
@@ -218,9 +216,7 @@ retrieval:
 
           # Adjust PostgreSQL configuration of the promotion container.
           configs:
-            shared_buffers: 1GB
-            shared_preload_libraries: "pg_stat_statements"
-            work_mem: "100MB"
+            shared_buffers: 128MB
 
         # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
         # Default: empty string (no pre-processing defined).

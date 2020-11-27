@@ -391,8 +391,8 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 	}
 
 	// Apply promotion configs.
-	if syncConfig := p.options.Promotion.Configs; len(syncConfig) > 0 {
-		if err := configuration.NewCorrectorWithExtraConfig(syncConfig).ApplyExtraConf(clonePath); err != nil {
+	if promotionConfig := p.options.Promotion.Configs; len(promotionConfig) > 0 {
+		if err := configuration.NewCorrectorWithExtraConfig(promotionConfig).ApplyExtraConf(clonePath); err != nil {
 			return errors.Wrap(err, "cannot update promotion configs")
 		}
 	}
