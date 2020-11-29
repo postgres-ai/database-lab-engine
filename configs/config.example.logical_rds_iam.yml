@@ -17,7 +17,7 @@ server:
   # only to the administrator of the Database Lab instance.
   verificationToken: "secret_token"
 
-  # The host which the Database Lab server accepts HTTP connections to.
+  # The host to which the Database Lab server accepts HTTP connections.
   # By default uses an empty string to accept connections to all network interfaces.
   # Keep it default when running inside a Docker container.
   host: ""
@@ -42,7 +42,7 @@ global:
   # In this case, we assume that the mount point is: /var/lib/dblab
   dataSubDir: "data"
 
-  # Debugging, when enabled, allows to see more in the Database Lab logs
+  # Debugging, when enabled, allows seeing more in the Database Lab logs
   # (not PostgreSQL logs). Enable in the case of troubleshooting.
   debug: false
 
@@ -105,7 +105,7 @@ provision:
     useSudo: false
 
 # Data retrieval flow. This section defines both initial retrieval, and rules
-# to keep data directory in synchronized state with the source. Both are optional:
+# to keep the data directory in a synchronized state with the source. Both are optional:
 # you may already have the data directory, so neither initial retrieval nor
 # synchronization are needed.
 # 
@@ -118,7 +118,7 @@ provision:
 #
 # There are two basic ways to organize data retrieval:
 #  - "logical":  use dump/restore processes, obtaining a logical copy of the initial
-#                database (such as set of SQL commands), and then loading it to
+#                database (a sequence  of SQL commands), and then loading it to
 #                the target Database Lab data directory. This is the only option
 #                for managed cloud PostgreSQL services such as Amazon RDS. Physically,
 #                the copy of the database created using this method differs from
@@ -127,7 +127,7 @@ provision:
 #                allowing to do various kinds of development and testing, including
 #                running EXPLAIN command to optimize SQL queries.
 #  - "physical": physically copy the data directory from the source (or from the
-#                archive if a physical backup tool such as WAL-G, pgBackRest or Barman
+#                archive if a physical backup tool such as WAL-G, pgBackRest, or Barman
 #                is used). This approach allows to have a copy of the original database
 #                which is physically identical, including the existing bloat, data
 #                blocks location. Not supported for managed cloud Postgres services
