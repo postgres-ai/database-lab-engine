@@ -164,7 +164,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to start container %q", r.restoreContainerName())
 	}
 
-	log.Msg("Waiting for container is ready")
+	log.Msg("Waiting for container readiness")
 
 	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, restoreCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")

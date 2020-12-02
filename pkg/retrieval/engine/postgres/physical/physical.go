@@ -7,13 +7,10 @@ package physical
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
-	"path"
-	"strconv"
 	"strings"
 	"time"
 
@@ -30,11 +27,9 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/fs"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/configuration"
-	"gitlab.com/postgres-ai/database-lab/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/pgconfig"
 )
 
 const (
@@ -42,7 +37,6 @@ const (
 	RestoreJobType = "physicalRestore"
 
 	restoreContainerPrefix = "dblab_phr_"
-	defaultPgConfigsDir    = "default"
 )
 
 var (
@@ -78,8 +72,10 @@ type CopyOptions struct {
 
 // Sync describes sync instance options.
 type Sync struct {
-	Enabled     bool        `yaml:"enabled"`
-	HealthCheck HealthCheck `yaml:"healthCheck"`
+	Enabled     bool              `yaml:"enabled"`
+	HealthCheck HealthCheck       `yaml:"healthCheck"`
+	Configs     map[string]string `yaml:"configs"`
+	Recovery    map[string]string `yaml:"recovery"`
 }
 
 // HealthCheck describes health check options of a sync instance.
@@ -94,7 +90,7 @@ type restorer interface {
 	GetRestoreCommand() string
 
 	// GetRecoveryConfig returns a recovery config to restore data.
-	GetRecoveryConfig(version float64) []byte
+	GetRecoveryConfig(version float64) map[string]string
 }
 
 // NewJob creates a new physical restore job.
@@ -214,26 +210,34 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		log.Err("Failed to mark database data: ", err)
 	}
 
-	pgVersion, err := tools.DetectPGVersion(dataDir)
+	cfgManager, err := pgconfig.NewCorrector(dataDir)
 	if err != nil {
-		return errors.Wrap(err, "failed to detect the Postgres version")
+		return errors.Wrap(err, "failed to create a config manager")
 	}
 
-	// Prepare configuration files.
-	sourceConfigDir, err := util.GetConfigPath(path.Join(defaultPgConfigsDir, pgVersion))
+	// Apply important pg_control configs.
+	pgControlParams, err := r.getPgControlParams(ctx, contID, dataDir, cfgManager.GetPgVersion())
 	if err != nil {
-		return errors.Wrap(err, "cannot get path to default configs")
+		return errors.Wrap(err, "failed to adjust by init parameters")
 	}
 
-	if err := fs.CopyDirectoryContent(sourceConfigDir, dataDir); err != nil {
-		return errors.Wrap(err, "failed to set default configuration files")
+	if err := cfgManager.ApplyPgControl(pgControlParams); err != nil {
+		return errors.Wrap(err, "failed to adjust pg_control parameters")
 	}
 
-	if err := configuration.NewCorrector().Run(dataDir); err != nil {
-		return errors.Wrap(err, "failed to configure")
+	// Apply sync instance configs.
+	if syncConfig := r.CopyOptions.Sync.Configs; len(syncConfig) > 0 {
+		if err := cfgManager.ApplySync(syncConfig); err != nil {
+			return errors.Wrap(err, "cannot update sync instance configs")
+		}
 	}
 
-	if err := r.adjustRecoveryConfiguration(pgVersion, dataDir); err != nil {
+	// Adjust recovery configuration.
+	if err := cfgManager.AdjustRecoveryFiles(); err != nil {
+		return err
+	}
+
+	if err := cfgManager.ApplyRecovery(r.buildRecoveryConf(cfgManager.GetPgVersion())); err != nil {
 		return err
 	}
 
@@ -242,11 +246,6 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		Cmd: []string{"chown", "-R", "postgres", dataDir},
 	}); err != nil {
 		return errors.Wrap(err, "failed to set permissions")
-	}
-
-	// Apply important initial configs.
-	if err := r.applyInitParams(ctx, contID, pgVersion, dataDir); err != nil {
-		return errors.Wrap(err, "failed to adjust by init parameters")
 	}
 
 	log.Msg("Configuration has been finished")
@@ -322,7 +321,7 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to start PostgreSQL instance")
 	}
 
-	log.Msg("Waiting for PostgreSQL is ready")
+	log.Msg("Waiting for PostgreSQL readiness")
 
 	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, syncInstanceID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
@@ -397,6 +396,19 @@ func (r *RestoreJob) getEnvironmentVariables(password string) []string {
 	return envVariables
 }
 
+func (r *RestoreJob) buildRecoveryConf(pgVersion float64) map[string]string {
+	recoveryConf := r.restorer.GetRecoveryConfig(pgVersion)
+
+	// Add user-defined recovery configuration.
+	if len(r.Sync.Recovery) > 0 {
+		for recoveryKey, recoveryValue := range r.Sync.Recovery {
+			recoveryConf[recoveryKey] = recoveryValue
+		}
+	}
+
+	return recoveryConf
+}
+
 func (r *RestoreJob) markDatabaseData() error {
 	if err := r.dbMarker.CreateConfig(); err != nil {
 		return errors.Wrap(err, "failed to create a DBMarker config of the database")
@@ -405,68 +417,27 @@ func (r *RestoreJob) markDatabaseData() error {
 	return r.dbMarker.SaveConfig(&dbmarker.Config{DataType: dbmarker.PhysicalDataType})
 }
 
-func (r *RestoreJob) adjustRecoveryConfiguration(pgVersion, pgDataDir string) error {
-	// Remove postmaster.pid.
-	if err := os.Remove(path.Join(pgDataDir, "postmaster.pid")); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return errors.Wrap(err, "failed to remove postmaster.pid")
-	}
-
-	// Truncate pg_ident.conf.
-	if err := tools.TouchFile(path.Join(pgDataDir, "pg_ident.conf")); err != nil {
-		return errors.Wrap(err, "failed to truncate pg_ident.conf")
-	}
-
-	// Replication mode.
-	var recoveryFilename string
-
-	version, err := strconv.ParseFloat(pgVersion, 64)
-	if err != nil {
-		return errors.Wrap(err, "failed to parse PostgreSQL version")
-	}
-
-	if len(r.restorer.GetRecoveryConfig(version)) == 0 {
-		return nil
-	}
-
-	if version >= defaults.PGVersion12 {
-		if err := tools.TouchFile(path.Join(pgDataDir, "standby.signal")); err != nil {
-			return err
-		}
-
-		recoveryFilename = "postgresql.conf"
-	} else {
-		recoveryFilename = "recovery.conf"
-	}
-
-	return fs.AppendFile(path.Join(pgDataDir, recoveryFilename), r.restorer.GetRecoveryConfig(version))
-}
-
-func (r *RestoreJob) applyInitParams(ctx context.Context, contID, pgVersion, dataDir string) error {
+func (r *RestoreJob) getPgControlParams(ctx context.Context, contID, dataDir string, pgVersion float64) (map[string]string, error) {
 	initConfCmd, err := r.dockerClient.ContainerExecCreate(ctx, contID, pgControlDataConfig(dataDir, pgVersion))
 
 	if err != nil {
-		return errors.Wrap(err, "failed to create an exec command")
+		return nil, errors.Wrap(err, "failed to create an exec command")
 	}
 
 	log.Msg("Check initial configs")
 
 	attachResponse, err := r.dockerClient.ContainerExecAttach(ctx, initConfCmd.ID, types.ExecStartCheck{})
 	if err != nil {
-		return errors.Wrap(err, "failed to attach to the exec command")
+		return nil, errors.Wrap(err, "failed to attach to the exec command")
 	}
 
 	defer attachResponse.Close()
 
-	initParams, err := extractInitParams(ctx, attachResponse.Reader)
-	if err != nil {
-		return err
-	}
-
-	return appendInitConfigs(initParams, dataDir)
+	return extractInitParams(ctx, attachResponse.Reader)
 }
 
-func pgControlDataConfig(pgDataDir, pgVersion string) types.ExecConfig {
-	command := fmt.Sprintf("/usr/lib/postgresql/%s/bin/pg_controldata", pgVersion)
+func pgControlDataConfig(pgDataDir string, pgVersion float64) types.ExecConfig {
+	command := fmt.Sprintf("/usr/lib/postgresql/%g/bin/pg_controldata", pgVersion)
 
 	return types.ExecConfig{
 		AttachStdout: true,
@@ -508,18 +479,4 @@ func extractInitParams(ctx context.Context, read io.Reader) (map[string]string, 
 	}
 
 	return extractedConfigs, nil
-}
-
-func appendInitConfigs(initConfiguration map[string]string, pgDataDir string) error {
-	if len(initConfiguration) == 0 {
-		return nil
-	}
-
-	buffer := bytes.NewBuffer([]byte("\n"))
-
-	for key, value := range initConfiguration {
-		buffer.WriteString(fmt.Sprintf("%s = '%s'\n", key, value))
-	}
-
-	return fs.AppendFile(path.Join(pgDataDir, "postgresql.conf"), buffer.Bytes())
 }

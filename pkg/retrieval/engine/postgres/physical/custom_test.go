@@ -12,15 +12,15 @@ func TestCustomRecoveryConfig(t *testing.T) {
 	})
 
 	recoveryConfig := customTool.GetRecoveryConfig(11.7)
-	expectedResponse11 := `
-restore_command = 'pg_basebackup -X stream -D dataDirectory'
-standby_mode = 'on'
-`
-	assert.Equal(t, []byte(expectedResponse11), recoveryConfig)
+	expectedResponse11 := map[string]string{
+		"restore_command": "pg_basebackup -X stream -D dataDirectory",
+		"standby_mode":    "on",
+	}
+	assert.Equal(t, expectedResponse11, recoveryConfig)
 
 	recoveryConfig = customTool.GetRecoveryConfig(12.3)
-	expectedResponse12 := `
-restore_command = 'pg_basebackup -X stream -D dataDirectory'
-`
-	assert.Equal(t, []byte(expectedResponse12), recoveryConfig)
+	expectedResponse12 := map[string]string{
+		"restore_command": "pg_basebackup -X stream -D dataDirectory",
+	}
+	assert.Equal(t, expectedResponse12, recoveryConfig)
 }

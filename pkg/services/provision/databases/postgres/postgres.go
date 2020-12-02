@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/configuration"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/docker"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
@@ -41,8 +41,13 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 	log.Dbg("Starting Postgres container...")
 
 	if extraConf := c.ExtraConf(); len(extraConf) > 0 {
-		if err := configuration.NewCorrectorWithExtraConfig(extraConf).ApplyExtraConf(c.DataDir()); err != nil {
-			return errors.Wrap(err, "cannot update configs")
+		configManager, err := pgconfig.NewCorrector(c.DataDir())
+		if err != nil {
+			return errors.Wrap(err, "failed to create a config manager")
+		}
+
+		if err := configManager.ApplyUserConfig(extraConf); err != nil {
+			return errors.Wrap(err, "cannot apply user configs")
 		}
 	}
 

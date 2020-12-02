@@ -256,7 +256,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to start container %q", d.dumpContainerName())
 	}
 
-	log.Msg("Waiting for container is ready")
+	log.Msg("Waiting for container readiness")
 
 	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, dumpCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
@@ -318,7 +318,9 @@ func (d *DumpJob) performDumpCommand(ctx context.Context, contID string, command
 		d.dbMark.DataStateAt = time.Now().Format(tools.DataStateAtFormat)
 	}
 
-	return tools.ExecCommand(ctx, d.dockerClient, contID, commandCfg)
+	_, err := tools.ExecCommandWithOutput(ctx, d.dockerClient, contID, commandCfg)
+
+	return err
 }
 
 func (d *DumpJob) getEnvironmentVariables(password string) []string {
