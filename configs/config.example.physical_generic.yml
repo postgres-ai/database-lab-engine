@@ -144,7 +144,13 @@ retrieval:
       options:
         tool: customTool
         dockerImage: "postgresai/sync-instance:12"
+
+        # Enable running of a sync instance.
         syncInstance: true
+
+        # Adjust PostgreSQL configuration of the sync container.
+        configs:
+          shared_buffers: 1GB
 
         # Set environment variables here. See https://www.postgresql.org/docs/current/libpq-envars.html
         envs:
@@ -186,12 +192,16 @@ retrieval:
             # Maximum number of health check retries.
             maxRetries: 200
 
+          # Adjust PostgreSQL configuration of the promotion container.
+          configs:
+            shared_buffers: 1GB
+
         # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
         # Default: empty string (no pre-processing defined).
         # This can be used for scrubbing eliminating PII data, to define data masking, etc.
         preprocessingScript: ""
 
-        # Adjust PostgreSQL configuration
+        # Adjust PostgreSQL configuration of the snapshot.
         configs:
           # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
           shared_buffers: 1GB

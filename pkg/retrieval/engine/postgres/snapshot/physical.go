@@ -91,9 +91,10 @@ type PhysicalOptions struct {
 
 // Promotion describes promotion options.
 type Promotion struct {
-	Enabled     bool        `yaml:"enabled"`
-	DockerImage string      `yaml:"dockerImage"`
-	HealthCheck HealthCheck `yaml:"healthCheck"`
+	Enabled     bool              `yaml:"enabled"`
+	DockerImage string            `yaml:"dockerImage"`
+	HealthCheck HealthCheck       `yaml:"healthCheck"`
+	Configs     map[string]string `yaml:"configs"`
 }
 
 // HealthCheck describes health check options of a promotion.
@@ -335,9 +336,11 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to enforce configs")
 	}
 
-	// Apply users configs.
-	if err := applyUsersConfigs(p.options.Configs, path.Join(clonePath, "postgresql.conf")); err != nil {
-		return err
+	// Apply promotion configs.
+	if promotionConfig := p.options.Promotion.Configs; len(promotionConfig) > 0 {
+		if err := configuration.ApplyExtraConf(clonePath, promotionConfig); err != nil {
+			return errors.Wrap(err, "cannot update promotion configs")
+		}
 	}
 
 	pgVersion, err := tools.DetectPGVersion(clonePath)
@@ -441,6 +444,11 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	// Checkpoint.
 	if err := p.checkpoint(ctx, promoteCont.ID); err != nil {
+		return err
+	}
+
+	// Apply users configs.
+	if err := applyUsersConfigs(p.options.Configs, path.Join(clonePath, "postgresql.conf")); err != nil {
 		return err
 	}
 

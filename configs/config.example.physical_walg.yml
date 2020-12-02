@@ -142,12 +142,27 @@ retrieval:
     # Restores database data from a physical backup.
     physicalRestore:
       options:
+        # Defines the tool to restore data.
         tool: walg
+
+        # Specifies the Docker image containing the restoring tool.
         dockerImage: "postgresai/sync-instance:12"
+
+        # Enable running of a sync instance.
         syncInstance: true
+
+        # Adjust PostgreSQL configuration of the sync container.
+        configs:
+          shared_buffers: 1GB
+          shared_preload_libraries: "pg_stat_statements"
+          work_mem: "100MB"
+
+        # Passes custom environment variables to the Docker container with the restoring tool.
         envs:
           WALG_GS_PREFIX: "gs://{BUCKET}/{SCOPE}"
           GOOGLE_APPLICATION_CREDENTIALS: "/tmp/sa.json"
+
+        # Defines WAL-G configuration options.
         walg:
           backupName: LATEST
 
@@ -172,12 +187,18 @@ retrieval:
             # Maximum number of health check retries.
             maxRetries: 200
 
+          # Adjust PostgreSQL configuration of the promotion container.
+          configs:
+            shared_buffers: 1GB
+            shared_preload_libraries: "pg_stat_statements"
+            work_mem: "100MB"
+
         # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
         # Default: empty string (no pre-processing defined).
         # This can be used for scrubbing eliminating PII data, to define data masking, etc.
         preprocessingScript: ""
 
-        # Adjust PostgreSQL configuration
+        # Adjust PostgreSQL configuration of the snapshot.
         configs:
           # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
           shared_buffers: 1GB

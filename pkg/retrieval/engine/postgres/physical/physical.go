@@ -75,6 +75,7 @@ type CopyOptions struct {
 	WALG         walgOptions       `yaml:"walg"`
 	CustomTool   customOptions     `yaml:"customTool"`
 	SyncInstance bool              `yaml:"syncInstance"`
+	Configs      map[string]string `yaml:"configs"`
 }
 
 // restorer describes the interface of tools for physical restore.
@@ -222,6 +223,13 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	// Apply important initial configs.
 	if err := r.applyInitParams(ctx, contID, pgVersion, dataDir); err != nil {
 		return errors.Wrap(err, "failed to adjust by init parameters")
+	}
+
+	// Apply sync instance configs.
+	if syncConfig := r.CopyOptions.Configs; len(syncConfig) > 0 {
+		if err := configuration.ApplyExtraConf(dataDir, syncConfig); err != nil {
+			return errors.Wrap(err, "cannot update sync instance configs")
+		}
 	}
 
 	log.Msg("Configuration has been finished")
