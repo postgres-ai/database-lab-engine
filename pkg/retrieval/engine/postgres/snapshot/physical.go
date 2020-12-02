@@ -6,12 +6,9 @@
 package snapshot
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"path"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -30,10 +27,9 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/fs"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/configuration"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
 )
 
@@ -91,6 +87,8 @@ type Promotion struct {
 	DockerImage        string             `yaml:"dockerImage"`
 	HealthCheck        HealthCheck        `yaml:"healthCheck"`
 	QueryPreprocessing QueryPreprocessing `yaml:"queryPreprocessing"`
+	Configs            map[string]string  `yaml:"configs"`
+	Recovery           map[string]string  `yaml:"recovery"`
 }
 
 // HealthCheck describes health check options of a promotion.
@@ -385,23 +383,27 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	log.Msg("Promote the Postgres instance.")
 
-	if err := configuration.NewCorrector().Run(clonePath); err != nil {
-		return errors.Wrap(err, "failed to enforce configs")
-	}
-
-	// Apply users configs.
-	if err := applyUsersConfigs(p.options.Configs, path.Join(clonePath, "postgresql.conf")); err != nil {
-		return err
-	}
-
-	pgVersion, err := tools.DetectPGVersion(clonePath)
+	cfgManager, err := pgconfig.NewCorrector(clonePath)
 	if err != nil {
-		return errors.Wrap(err, "failed to detect the Postgres version")
+		return errors.Wrap(err, "failed to init configs manager")
 	}
 
 	// Adjust recovery configuration.
-	if err := p.adjustRecoveryConfiguration(pgVersion, clonePath); err != nil {
+	if err := cfgManager.AdjustRecoveryFiles(); err != nil {
 		return errors.Wrap(err, "failed to adjust recovery configuration")
+	}
+
+	if len(p.options.Promotion.Recovery) > 0 {
+		if err := cfgManager.ApplyRecovery(p.options.Promotion.Recovery); err != nil {
+			return errors.Wrap(err, "failed to apply recovery configuration")
+		}
+	}
+
+	// Apply promotion configs.
+	if promotionConfig := p.options.Promotion.Configs; len(promotionConfig) > 0 {
+		if err := cfgManager.ApplyPromotion(p.options.Promotion.Configs); err != nil {
+			return errors.Wrap(err, "failed to store prepared configuration")
+		}
 	}
 
 	hostConfig, err := p.buildHostConfig(ctx, clonePath)
@@ -411,7 +413,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	promoteImage := p.options.Promotion.DockerImage
 	if promoteImage == "" {
-		promoteImage = fmt.Sprintf("postgresai/sync-instance:%s", pgVersion)
+		promoteImage = fmt.Sprintf("postgresai/sync-instance:%g", cfgManager.GetPgVersion())
 	}
 
 	if err := tools.PullImage(ctx, p.dockerClient, promoteImage); err != nil {
@@ -457,7 +459,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to start PostgreSQL instance")
 	}
 
-	log.Msg("Waiting for PostgreSQL is ready")
+	log.Msg("Waiting for PostgreSQL readiness")
 
 	if err := tools.CheckContainerReadiness(ctx, p.dockerClient, promoteCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
@@ -517,43 +519,17 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return err
 	}
 
-	return nil
-}
-
-func (p *PhysicalInitial) adjustRecoveryConfiguration(pgVersion, clonePGDataDir string) error {
-	// Remove postmaster.pid.
-	if err := os.Remove(path.Join(clonePGDataDir, "postmaster.pid")); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return errors.Wrap(err, "failed to remove postmaster.pid")
+	if err := cfgManager.TruncateSyncConfig(); err != nil {
+		return errors.Wrap(err, "failed to truncate a sync config file")
 	}
 
-	// Truncate pg_ident.conf.
-	if err := tools.TouchFile(path.Join(clonePGDataDir, "pg_ident.conf")); err != nil {
-		return errors.Wrap(err, "failed to truncate pg_ident.conf")
+	if err := cfgManager.TruncatePromotionConfig(); err != nil {
+		return errors.Wrap(err, "failed to truncate a promotion config file")
 	}
 
-	// Replication mode.
-	var (
-		replicationFilename string
-		buffer              bytes.Buffer
-	)
-
-	version, err := strconv.ParseFloat(pgVersion, 64)
-	if err != nil {
-		return errors.Wrap(err, "failed to parse PostgreSQL version")
-	}
-
-	const pgVersion12 = 12
-
-	if version >= pgVersion12 {
-		replicationFilename = "standby.signal"
-	} else {
-		replicationFilename = "recovery.conf"
-
-		buffer.WriteString("standby_mode = 'on'\n")
-	}
-
-	if err := fs.AppendFile(path.Join(clonePGDataDir, replicationFilename), buffer.Bytes()); err != nil {
-		return err
+	// Apply configs to the snapshot.
+	if err := cfgManager.ApplySnapshot(p.options.Configs); err != nil {
+		return errors.Wrap(err, "failed to store prepared configuration")
 	}
 
 	return nil

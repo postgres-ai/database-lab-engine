@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/pkg/errors"
@@ -81,18 +83,23 @@ func TouchFile(filename string) error {
 }
 
 // DetectPGVersion defines PostgreSQL version of PGDATA.
-func DetectPGVersion(dataDir string) (string, error) {
+func DetectPGVersion(dataDir string) (float64, error) {
 	version, err := exec.Command("cat", fmt.Sprintf(`%s/PG_VERSION`, dataDir)).CombinedOutput()
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
-	return string(bytes.TrimSpace(version)), nil
+	pgVersion, err := strconv.ParseFloat(string(bytes.TrimSpace(version)), 64)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to parse PostgreSQL version")
+	}
+
+	return pgVersion, nil
 }
 
 // PGRunConfig provides configuration to start Postgres.
-func PGRunConfig(pgDataDir, pgVersion string) types.ExecConfig {
-	command := fmt.Sprintf("sudo -Eu postgres /usr/lib/postgresql/%s/bin/postgres -D %s >& /proc/1/fd/1", pgVersion, pgDataDir)
+func PGRunConfig(pgDataDir string, pgVersion float64) types.ExecConfig {
+	command := fmt.Sprintf("sudo -Eu postgres /usr/lib/postgresql/%g/bin/postgres -D %s >& /proc/1/fd/1", pgVersion, pgDataDir)
 
 	return types.ExecConfig{
 		AttachStdout: true,
@@ -276,6 +283,18 @@ func RemoveContainer(ctx context.Context, dockerClient *client.Client, container
 
 // PullImage pulls a Docker image.
 func PullImage(ctx context.Context, dockerClient *client.Client, image string) error {
+	inspectionResult, _, err := dockerClient.ImageInspectWithRaw(ctx, image)
+	if err != nil {
+		if _, ok := err.(errdefs.ErrNotFound); !ok {
+			return errors.Wrapf(err, "failed to inspect image %q", image)
+		}
+	}
+
+	if err == nil && inspectionResult.ID != "" {
+		log.Msg(fmt.Sprintf("Docker image %q already exists locally", image))
+		return nil
+	}
+
 	pullOutput, err := dockerClient.ImagePull(ctx, image, types.ImagePullOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to pull image %q", image)

@@ -6,10 +6,6 @@
 package snapshot
 
 import (
-	"fmt"
-	"os"
-	"strings"
-
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
@@ -39,24 +35,4 @@ func runPreprocessingScript(preprocessingScript string) error {
 	log.Msg(commandOutput)
 
 	return nil
-}
-
-func applyUsersConfigs(usersConfig map[string]string, filename string) error {
-	configFile, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
-	if err != nil {
-		return errors.Wrapf(err, "failed to open configuration file: %v", filename)
-	}
-
-	defer func() { _ = configFile.Close() }()
-
-	sb := strings.Builder{}
-	sb.WriteString("\n")
-
-	for configKey, configValue := range usersConfig {
-		sb.WriteString(fmt.Sprintf("%s = '%s'\n", configKey, configValue))
-	}
-
-	_, err = configFile.WriteString(sb.String())
-
-	return err
 }

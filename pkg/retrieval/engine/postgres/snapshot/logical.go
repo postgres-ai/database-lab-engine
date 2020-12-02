@@ -24,7 +24,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/configuration"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
 )
 
@@ -113,13 +113,14 @@ func (s *LogicalInitial) Run(ctx context.Context) error {
 	dataDir := s.globalCfg.DataDir()
 
 	// Run basic PostgreSQL configuration.
-	if err := configuration.NewCorrector().Run(dataDir); err != nil {
-		return errors.Wrap(err, "failed to adjust PostgreSQL configs")
+	cfgManager, err := pgconfig.NewCorrector(dataDir)
+	if err != nil {
+		return errors.Wrap(err, "failed to create a config manager")
 	}
 
-	// Apply user defined configs.
-	if err := applyUsersConfigs(s.options.Configs, path.Join(dataDir, "postgresql.conf")); err != nil {
-		return errors.Wrap(err, "failed to apply user-defined configs")
+	// Apply snapshot-specific configs.
+	if err := cfgManager.ApplySnapshot(s.options.Configs); err != nil {
+		return errors.Wrap(err, "failed to store PostgreSQL configs for the snapshot")
 	}
 
 	if s.queryProcessor != nil {
@@ -155,7 +156,7 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 
 	patchImage := s.options.DataPatching.DockerImage
 	if patchImage == "" {
-		patchImage = fmt.Sprintf("postgresai/sync-instance:%s", pgVersion)
+		patchImage = fmt.Sprintf("postgresai/sync-instance:%g", pgVersion)
 	}
 
 	if err := tools.PullImage(ctx, s.dockerClient, patchImage); err != nil {
@@ -205,7 +206,7 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 		return errors.Wrap(err, "failed to start PostgreSQL instance")
 	}
 
-	log.Msg("Waiting for PostgreSQL is ready")
+	log.Msg("Waiting for PostgreSQL readiness")
 
 	if err := tools.CheckContainerReadiness(ctx, s.dockerClient, patchCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")

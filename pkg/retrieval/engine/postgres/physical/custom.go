@@ -5,9 +5,6 @@
 package physical
 
 import (
-	"bytes"
-	"fmt"
-
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 )
 
@@ -36,17 +33,16 @@ func (c *custom) GetRestoreCommand() string {
 }
 
 // GetRecoveryConfig returns a recovery config to restore data.
-func (c *custom) GetRecoveryConfig(pgVersion float64) []byte {
-	buffer := bytes.Buffer{}
+func (c *custom) GetRecoveryConfig(pgVersion float64) map[string]string {
+	recoveryCfg := make(map[string]string)
 
 	if c.options.RestoreCommand != "" {
-		buffer.WriteString("\n")
-		buffer.WriteString(fmt.Sprintf("restore_command = '%s'\n", c.options.RestoreCommand))
+		recoveryCfg["restore_command"] = c.options.RestoreCommand
 
 		if pgVersion < defaults.PGVersion12 {
-			buffer.WriteString("standby_mode = 'on'\n")
+			recoveryCfg["standby_mode"] = "on"
 		}
 	}
 
-	return buffer.Bytes()
+	return recoveryCfg
 }
