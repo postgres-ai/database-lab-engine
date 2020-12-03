@@ -7,7 +7,7 @@
 #    --volume /home/service_account.json:/etc/sa/credentials.json \
 #    --volume /var/lib/dblab/data:/var/lib/postgresql/pgdata:rshared \
 #    --detach \
-#    postgresai/sync-instance:12
+#    postgresai/extended-postgres:12
 
 # Set up restore parameters in the postgresql.conf before starting the container:
 # restore_command='/usr/local/bin/wal-g wal-fetch "%f" "%p"'
@@ -16,9 +16,9 @@
 FROM postgres:12
 
 ARG WALG_VERSION
-ENV WALG_VERSION=${WALG_VERSION:-0.2.15}
+ENV WALG_VERSION=${WALG_VERSION:-0.2.19}
 
-# Install dependecies.
+# Install dependencies.
 RUN apt-get update \
     && apt-get install --no-install-recommends -y ca-certificates wget \
     && wget --quiet -O /tmp/wal-g.linux-amd64.tar.gz "https://github.com/wal-g/wal-g/releases/download/v${WALG_VERSION}/wal-g.linux-amd64.tar.gz" \

@@ -94,8 +94,7 @@ provision:
     # to specify which Postgres Docker image is to be used when cloning.
     # The default is the extended Postgres image built on top of the official Postgres image
     # (See https://postgres.ai/docs/database-lab/supported_databases).
-    # Any custom or official Docker image that runs Postgres with PGDATA located
-    # in "/var/lib/postgresql/pgdata" directory. Our Dockerfile
+    # Any custom or official Docker image that runs Postgres. Our Dockerfile
     # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
     # is recommended in case if customization is needed.
     dockerImage: "postgresai/extended-postgres:12"
@@ -219,7 +218,7 @@ retrieval:
         # Define pre-precessing SQL queries for data patching. For example, "/tmp/scripts/sql".
         dataPatching:
           # The Docker image to run data patching container.
-          dockerImage: "sync-instance:12"
+          dockerImage: "postgresai/extended-postgres:12"
 
           queryPreprocessing:
             # Path to SQL pre-processing queries. Default: empty string (no pre-processing defined).
