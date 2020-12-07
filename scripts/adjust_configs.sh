@@ -1,6 +1,12 @@
 #!/bin/bash
 # 2020 © Postgres.ai
 
+### !!! DEPRECATED !!! ###
+### In version 2.0, re-configuration of Postgres and
+### snapshot preparation is automated and defined in
+### the main configuration file. See: 
+### https://postgres.ai/docs/database-lab/config-reference#section-retrieval-data-retrieval
+
 echo "Run adjust script"
 
 set -euxo pipefail
