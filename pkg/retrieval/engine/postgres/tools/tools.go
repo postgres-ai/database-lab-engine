@@ -97,18 +97,6 @@ func DetectPGVersion(dataDir string) (float64, error) {
 	return pgVersion, nil
 }
 
-// PGRunConfig provides configuration to start Postgres.
-func PGRunConfig(pgDataDir string, pgVersion float64) types.ExecConfig {
-	command := fmt.Sprintf("sudo -Eu postgres /usr/lib/postgresql/%g/bin/postgres -D %s >& /proc/1/fd/1", pgVersion, pgDataDir)
-
-	return types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          []string{"bash", "-c", command},
-		Env:          os.Environ(),
-	}
-}
-
 // AddVolumesToHostConfig adds volumes to container host configuration depends on process environment.
 func AddVolumesToHostConfig(ctx context.Context, dockerClient *client.Client, hostConfig *container.HostConfig,
 	dataDir string) error {
@@ -163,32 +151,6 @@ func GetMountsFromMountPoints(dataDir string, mountPoints []types.MountPoint) []
 	}
 
 	return mounts
-}
-
-// RunPostgres runs Postgres inside.
-func RunPostgres(ctx context.Context, dockerClient *client.Client, containerID, dataDir string) error {
-	// Set permissions.
-	if err := ExecCommand(ctx, dockerClient, containerID, types.ExecConfig{
-		Cmd: []string{"chown", "-R", "postgres", dataDir},
-	}); err != nil {
-		return errors.Wrap(err, "failed to set permissions")
-	}
-
-	pgVersion, err := DetectPGVersion(dataDir)
-	if err != nil {
-		return errors.Wrap(err, "failed to detect PostgreSQL version")
-	}
-
-	startPGCommand, err := dockerClient.ContainerExecCreate(ctx, containerID, PGRunConfig(dataDir, pgVersion))
-	if err != nil {
-		return errors.Wrap(err, "failed to create an exec command")
-	}
-
-	if err := dockerClient.ContainerExecStart(ctx, startPGCommand.ID, types.ExecStartCheck{Detach: true}); err != nil {
-		return errors.Wrap(err, "failed to exec command")
-	}
-
-	return nil
 }
 
 // CheckContainerReadiness checks health and reports if container is ready.

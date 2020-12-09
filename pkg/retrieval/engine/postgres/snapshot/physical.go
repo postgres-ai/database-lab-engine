@@ -413,7 +413,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	promoteImage := p.options.Promotion.DockerImage
 	if promoteImage == "" {
-		promoteImage = fmt.Sprintf("postgresai/sync-instance:%g", cfgManager.GetPgVersion())
+		promoteImage = fmt.Sprintf("postgresai/extended-postgres:%g", cfgManager.GetPgVersion())
 	}
 
 	if err := tools.PullImage(ctx, p.dockerClient, promoteImage); err != nil {
@@ -451,15 +451,8 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to start container")
 	}
 
-	log.Msg("Starting PostgreSQL")
+	log.Msg("Starting PostgreSQL and waiting for readiness")
 	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, p.promoteContainerName()))
-
-	// Start PostgreSQL instance.
-	if err := tools.RunPostgres(ctx, p.dockerClient, promoteCont.ID, clonePath); err != nil {
-		return errors.Wrap(err, "failed to start PostgreSQL instance")
-	}
-
-	log.Msg("Waiting for PostgreSQL readiness")
 
 	if err := tools.CheckContainerReadiness(ctx, p.dockerClient, promoteCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")

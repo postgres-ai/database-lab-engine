@@ -66,6 +66,7 @@ func NewLogicalInitialJob(cfg config.JobConfig, dockerClient *client.Client, clo
 	li := &LogicalInitial{
 		name:         cfg.Name,
 		cloneManager: cloneManager,
+		dockerClient: dockerClient,
 		globalCfg:    global,
 		dbMarker:     marker,
 	}
@@ -156,7 +157,7 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 
 	patchImage := s.options.DataPatching.DockerImage
 	if patchImage == "" {
-		patchImage = fmt.Sprintf("postgresai/sync-instance:%g", pgVersion)
+		patchImage = fmt.Sprintf("postgresai/extended-postgres:%g", pgVersion)
 	}
 
 	if err := tools.PullImage(ctx, s.dockerClient, patchImage); err != nil {
@@ -198,15 +199,8 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 		return errors.Wrap(err, "failed to start container")
 	}
 
-	log.Msg("Starting PostgreSQL")
+	log.Msg("Starting PostgreSQL and waiting for readiness")
 	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, s.patchContainerName()))
-
-	// Start PostgreSQL instance.
-	if err := tools.RunPostgres(ctx, s.dockerClient, patchCont.ID, dataDir); err != nil {
-		return errors.Wrap(err, "failed to start PostgreSQL instance")
-	}
-
-	log.Msg("Waiting for PostgreSQL readiness")
 
 	if err := tools.CheckContainerReadiness(ctx, s.dockerClient, patchCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
