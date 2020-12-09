@@ -6,8 +6,10 @@
 package pgconfig
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -94,7 +96,16 @@ func (m *Manager) GetPgVersion() float64 {
 }
 
 func (m *Manager) init() error {
-	// TODO (akartasov): check initialized configs to skip this function.
+	isAlreadyInitialized, err := m.isInitialized()
+	if err != nil {
+		return errors.Wrap(err, "failed to check the initialization state")
+	}
+
+	if isAlreadyInitialized {
+		log.Msg("Configuration is already initialized")
+		return nil
+	}
+
 	pgVersion, err := tools.DetectPGVersion(m.dataDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to detect the Postgres version")
@@ -127,6 +138,31 @@ func (m *Manager) init() error {
 	}
 
 	return nil
+}
+
+// isInitialized checks if the configuration is already initialized.
+func (m *Manager) isInitialized() (bool, error) {
+	pgConfDst := path.Join(m.dataDir, pgConfName)
+
+	postgresFile, err := os.Open(pgConfDst)
+	if err != nil {
+		return false, err
+	}
+
+	line, _, err := bufio.NewReader(postgresFile).ReadLine()
+	if err != nil {
+		if err == io.EOF {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	if string(bytes.TrimSuffix(line, []byte("\n"))) == initializedLabel {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // rewritePostgresConfig completely rewrites a default Postgres configuration file.
@@ -344,7 +380,7 @@ func (m Manager) recoveryFilename() string {
 
 // rewriteConfig completely rewrite a configuration file with provided parameters.
 func (m *Manager) rewriteConfig(pgConf string, extraConfig map[string]string) error {
-	log.Dbg("Applying extra configuration")
+	log.Dbg("Applying configuration: ", pgConf)
 
 	pgConfLines := make([]string, 0, len(extraConfig))
 
