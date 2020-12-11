@@ -44,7 +44,7 @@ func main() {
 
 	cfg, err := loadConfiguration(instanceID)
 	if err != nil {
-		log.Fatalf(errors.WithMessage(err, "failed to parse config"))
+		log.Fatal(errors.WithMessage(err, "failed to parse config"))
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -58,7 +58,7 @@ func main() {
 	// Create a cloning service to provision new clones.
 	provisionSvc, err := provision.New(ctx, cfg.Provision, dockerCLI)
 	if err != nil {
-		log.Fatalf(errors.WithMessage(err, `error in the "provision" section of the config`))
+		log.Fatal(errors.WithMessage(err, `error in the "provision" section of the config`))
 	}
 
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
@@ -77,7 +77,7 @@ func main() {
 
 	cloningSvc := cloning.New(&cfg.Cloning, provisionSvc)
 	if err = cloningSvc.Run(ctx); err != nil {
-		log.Fatalf(err)
+		log.Fatal(err)
 	}
 
 	// Create a platform service to make requests to Platform.

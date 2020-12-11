@@ -9,6 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type mockPortChecker struct{}
+
+func (m mockPortChecker) checkPortAvailability(_ string, _ uint) error {
+	return nil
+}
+
 func TestPortAllocation(t *testing.T) {
 	p := &provisionModeLocal{
 		mu: &sync.Mutex{},
@@ -22,6 +28,7 @@ func TestPortAllocation(t *testing.T) {
 				},
 			},
 		},
+		portChecker: &mockPortChecker{},
 	}
 
 	// Initialize port pool.
