@@ -6,6 +6,7 @@
 package srv
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -36,6 +37,7 @@ type Server struct {
 	Config    *Config
 	Platform  *platform.Service
 	Observer  *observer.Observer
+	httpSrv   *http.Server
 }
 
 // NewServer initializes a new Server instance with provided configuration.
@@ -81,8 +83,8 @@ func (s *Server) Reload(cfg Config) {
 	*s.Config = cfg
 }
 
-// Run starts HTTP server on specified port in configuration.
-func (s *Server) Run() error {
+// InitHandlers initializes handler functions of the HTTP server.
+func (s *Server) InitHandlers() {
 	r := mux.NewRouter().StrictSlash(true)
 
 	authMW := authMW{
@@ -117,9 +119,17 @@ func (s *Server) Run() error {
 	// Show not found error for all other possible routes.
 	r.NotFoundHandler = http.HandlerFunc(sendNotFoundError)
 
-	// Start server.
-	log.Msg(fmt.Sprintf("Server started listening on %s:%d.", s.Config.Host, s.Config.Port))
-	err := http.ListenAndServe(fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port), logging(r))
+	s.httpSrv = &http.Server{Addr: fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port), Handler: logging(r)}
+}
 
-	return errors.WithMessage(err, "HTTP server error")
+// Run starts HTTP server on specified port in configuration.
+func (s *Server) Run() error {
+	log.Msg(fmt.Sprintf("Server started listening on %s:%d.", s.Config.Host, s.Config.Port))
+	return s.httpSrv.ListenAndServe()
+}
+
+// Shutdown gracefully shuts down the server without interrupting any active connections.
+func (s *Server) Shutdown(ctx context.Context) error {
+	log.Msg("Server shutting down...")
+	return s.httpSrv.Shutdown(ctx)
 }

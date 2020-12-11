@@ -33,6 +33,7 @@ import (
 	"github.com/shirou/gopsutil/host"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 )
 
 const (
@@ -151,6 +152,23 @@ func GetMountsFromMountPoints(dataDir string, mountPoints []types.MountPoint) []
 	}
 
 	return mounts
+}
+
+// StopPostgres stops Postgres inside container.
+func StopPostgres(ctx context.Context, dockerClient *client.Client, containerID, dataDir string) error {
+	pgVersion, err := DetectPGVersion(dataDir)
+	if err != nil {
+		return errors.Wrap(err, "failed to detect PostgreSQL version")
+	}
+
+	if err := ExecCommand(ctx, dockerClient, containerID, types.ExecConfig{
+		User: defaults.Username,
+		Cmd:  []string{fmt.Sprintf("/usr/lib/postgresql/%g/bin/pg_ctl", pgVersion), "-D", dataDir, "stop"},
+	}); err != nil {
+		return errors.Wrap(err, "failed to stop Postgres")
+	}
+
+	return nil
 }
 
 // CheckContainerReadiness checks health and reports if container is ready.
