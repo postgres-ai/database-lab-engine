@@ -5,7 +5,6 @@
 // TODO(anatoly):
 // - Validate configs in all components.
 // - Tests.
-// - Graceful shutdown.
 // - Don't kill clones on shutdown/start.
 
 package main
@@ -15,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
@@ -29,6 +29,10 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
 	"gitlab.com/postgres-ai/database-lab/pkg/srv"
 	"gitlab.com/postgres-ai/database-lab/version"
+)
+
+const (
+	shutdownTimeout = 30 * time.Second
 )
 
 func main() {
@@ -64,7 +68,7 @@ func main() {
 	}
 
 	if err := retrievalSvc.Run(ctx); err != nil {
-		if cleanUpErr := cont.CleanUpServiceContainers(ctx, dockerCLI, cfg.Global.InstanceID); cleanUpErr != nil {
+		if cleanUpErr := cont.CleanUpControlContainers(ctx, dockerCLI, cfg.Global.InstanceID); cleanUpErr != nil {
 			log.Err("Failed to clean up service containers:", cleanUpErr)
 		}
 
@@ -88,11 +92,10 @@ func main() {
 
 	server := srv.NewServer(&cfg.Server, &cfg.Observer, cloningSvc, platformSvc, dockerCLI)
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGHUP)
+	reloadCh := setReloadListener()
 
 	go func() {
-		for range c {
+		for range reloadCh {
 			log.Msg("Reloading configuration")
 
 			if err := reloadConfig(ctx, instanceID, provisionSvc, retrievalSvc, cloningSvc, platformSvc, server); err != nil {
@@ -103,10 +106,28 @@ func main() {
 		}
 	}()
 
-	// Start the Database Lab.
-	if err = server.Run(); err != nil {
-		log.Fatalf(err)
+	shutdownCh := setShutdownListener()
+
+	server.InitHandlers()
+
+	go func() {
+		// Start the Database Lab.
+		if err = server.Run(); err != nil {
+			log.Msg(err)
+		}
+	}()
+
+	<-shutdownCh
+	cancel()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Msg(err)
 	}
+
+	shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global)
 }
 
 func loadConfiguration(instanceID string) (*config.Config, error) {
@@ -154,4 +175,28 @@ func reloadConfig(ctx context.Context, instanceID string, provisionSvc provision
 	server.Reload(cfg.Server)
 
 	return nil
+}
+
+func setReloadListener() chan os.Signal {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGHUP)
+
+	return c
+}
+
+func setShutdownListener() chan os.Signal {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	return c
+}
+
+func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, global config.Global) {
+	log.Msg("Stopping control containers")
+
+	if err := cont.StopControlContainers(ctx, dockerCLI, global.InstanceID, global.DataDir()); err != nil {
+		log.Err("Failed to stop control containers", err)
+	}
+
+	log.Msg("Control containers have been stopped")
 }

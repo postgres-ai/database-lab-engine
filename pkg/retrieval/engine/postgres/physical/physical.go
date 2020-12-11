@@ -353,12 +353,12 @@ func (r *RestoreJob) buildSyncInstanceConfig() (*container.Config, error) {
 		hcRetries = r.CopyOptions.Sync.HealthCheck.MaxRetries
 	}
 
-	return r.buildContainerConfigWithHealthCheck(pwd, cont.DBLabSyncLabel,
+	return r.buildContainerConfigWithHealthCheck(cont.DBLabSyncLabel, pwd,
 		health.OptionInterval(hcInterval), health.OptionRetries(hcRetries)), nil
 }
 
 func (r *RestoreJob) buildContainerConfigWithHealthCheck(label, password string, hcOptions ...health.ContainerOption) *container.Config {
-	containerCfg := r.buildContainerConfig(password, label)
+	containerCfg := r.buildContainerConfig(label, password)
 	containerCfg.Healthcheck = health.GetConfig(r.globalCfg.Database.User(), r.globalCfg.Database.Name(), hcOptions...)
 
 	return containerCfg

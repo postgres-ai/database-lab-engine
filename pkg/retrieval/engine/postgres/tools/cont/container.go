@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/client"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
 )
 
 const (
@@ -46,10 +47,68 @@ const (
 	DBLabRestoreLabel = "dblab_restore"
 )
 
-// CleanUpServiceContainers removes service containers run by Database Lab Engine.
-func CleanUpServiceContainers(ctx context.Context, dockerClient *client.Client, instanceID string) error {
-	log.Msg("Cleanup service containers")
+// TODO(akartasov): Control container manager.
 
+// StopControlContainers stops control containers run by Database Lab Engine.
+func StopControlContainers(ctx context.Context, dockerClient *client.Client, instanceID, dataDir string) error {
+	log.Msg("Stop control containers")
+
+	list, err := getControlContainerList(ctx, dockerClient, instanceID)
+	if err != nil {
+		return err
+	}
+
+	for _, controlCont := range list {
+		containerName := getControlContainerName(controlCont)
+
+		controlLabel, ok := controlCont.Labels[DBLabControlLabel]
+		if !ok {
+			log.Msg("Control label not found for container: ", containerName)
+			continue
+		}
+
+		if shouldStopInternalProcess(controlLabel) {
+			log.Msg("Stopping control container: ", containerName)
+
+			if err := tools.StopPostgres(ctx, dockerClient, controlCont.ID, dataDir); err != nil {
+				log.Msg("Failed to stop Postgres", err)
+				tools.PrintContainerLogs(ctx, dockerClient, controlCont.ID)
+
+				continue
+			}
+		}
+
+		log.Msg("Removing control container:", containerName)
+
+		if err := dockerClient.ContainerRemove(ctx, controlCont.ID, types.ContainerRemoveOptions{Force: true}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// CleanUpControlContainers removes control containers run by Database Lab Engine.
+func CleanUpControlContainers(ctx context.Context, dockerClient *client.Client, instanceID string) error {
+	log.Msg("Cleanup control containers")
+
+	list, err := getControlContainerList(ctx, dockerClient, instanceID)
+	if err != nil {
+		return err
+	}
+
+	for _, controlCont := range list {
+		log.Msg("Removing control container:", getControlContainerName(controlCont))
+
+		if err := dockerClient.ContainerRemove(ctx, controlCont.ID, types.ContainerRemoveOptions{Force: true}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getControlContainerList(ctx context.Context, dockerClient *client.Client, instanceID string) ([]types.Container, error) {
 	filterPairs := []filters.KeyValuePair{
 		{
 			Key:   labelFilter,
@@ -61,20 +120,15 @@ func CleanUpServiceContainers(ctx context.Context, dockerClient *client.Client, 
 		},
 	}
 
-	list, err := dockerClient.ContainerList(ctx, types.ContainerListOptions{
+	return dockerClient.ContainerList(ctx, types.ContainerListOptions{
 		Filters: filters.NewArgs(filterPairs...),
 	})
-	if err != nil {
-		return err
-	}
+}
 
-	for _, serviceCont := range list {
-		log.Msg("Removing service container:", strings.Join(serviceCont.Names, ", "))
+func shouldStopInternalProcess(controlLabel string) bool {
+	return controlLabel == DBLabSyncLabel
+}
 
-		if err := dockerClient.ContainerRemove(ctx, serviceCont.ID, types.ContainerRemoveOptions{Force: true}); err != nil {
-			return err
-		}
-	}
-
-	return nil
+func getControlContainerName(controlCont types.Container) string {
+	return strings.Join(controlCont.Names, ", ")
 }
