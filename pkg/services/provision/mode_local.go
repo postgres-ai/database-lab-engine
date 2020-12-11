@@ -5,11 +5,13 @@
 package provision
 
 import (
+	"bytes"
 	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"strconv"
 	"strings"
@@ -49,6 +51,9 @@ const (
 	defaultClonesMountDir = "/var/lib/dblab/clones/"
 
 	defaultUnixSocketDir = "/var/lib/dblab/sockets/"
+
+	maxNumberOfPortsToCheck = 5
+	portCheckingTimeout     = 3 * time.Second
 )
 
 // LocalModePortPool describes an available port range for clones.
@@ -79,6 +84,7 @@ type provisionModeLocal struct {
 	ports            []bool
 	sessionCounter   uint32
 	thinCloneManager thinclones.Manager
+	portChecker      portChecker
 }
 
 // NewProvisionModeLocal creates a new Provision instance of ModeLocal.
@@ -91,6 +97,7 @@ func NewProvisionModeLocal(ctx context.Context, config Config, dockerClient *cli
 			config: &config,
 			ctx:    ctx,
 		},
+		portChecker: &localPortChecker{},
 	}
 
 	setDefault(p.config)
@@ -366,14 +373,26 @@ func (j *provisionModeLocal) getSnapshotID(snapshotID string) (string, error) {
 	return snapshots[0].ID, nil
 }
 
-// nolint
 func (j *provisionModeLocal) initPortPool() error {
-	// Init session pool.
 	portOpts := j.config.Options.PortPool
 	size := portOpts.To - portOpts.From
 	j.ports = make([]bool, size)
 
-	//TODO(anatoly): Check ports.
+	log.Msg(fmt.Sprintf("checking availability of the port range [%d - %d]", portOpts.From, portOpts.To))
+
+	host, err := externalIP()
+	if err != nil {
+		return err
+	}
+
+	for port := portOpts.From; port < portOpts.To; port++ {
+		if err := j.portChecker.checkPortAvailability(host, port); err != nil {
+			return errors.Wrapf(err, "port %d is not available", port)
+		}
+	}
+
+	log.Msg("all ports are available")
+
 	return nil
 }
 
@@ -381,22 +400,53 @@ func (j *provisionModeLocal) initPortPool() error {
 func (j *provisionModeLocal) allocatePort() (uint, error) {
 	portOpts := j.config.Options.PortPool
 
+	attempts := 0
+
+	host, err := externalIP()
+	if err != nil {
+		return 0, err
+	}
+
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	for index, binded := range j.ports {
-		if !binded {
-			port := portOpts.From + uint(index)
-
-			if err := j.setPortStatus(port, true); err != nil {
-				return 0, errors.Wrapf(err, "failed to set status for port %v", port)
-			}
-
-			return port, nil
+	for index, bind := range j.ports {
+		if attempts >= maxNumberOfPortsToCheck {
+			break
 		}
+
+		if bind {
+			continue
+		}
+
+		port := portOpts.From + uint(index)
+
+		log.Msg(fmt.Sprintf("checking port %d ...", port))
+
+		if err := j.portChecker.checkPortAvailability(host, port); err != nil {
+			log.Msg(fmt.Sprintf("port %d is not available: %v", port, err))
+			attempts++
+
+			continue
+		}
+
+		if err := j.setPortStatus(port, true); err != nil {
+			return 0, errors.Wrapf(err, "failed to set status for port %v", port)
+		}
+
+		return port, nil
 	}
 
 	return 0, errors.WithStack(NewNoRoomError("no available ports"))
+}
+
+func externalIP() (string, error) {
+	res, err := exec.Command("bash", "-c", "/sbin/ip route | awk '/default/ { print $3 }'").Output()
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes.TrimSpace(res)), nil
 }
 
 // freePort marks the port as free.
