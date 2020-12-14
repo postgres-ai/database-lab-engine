@@ -62,6 +62,9 @@ provision:
   # The password is not needed – it will be set automatically.
   # Connections will be made via a Unix domain socket (local).
   pgMgmtUsername: "postgres"
+  # Avoid default password resetting in clones and have the ability for
+  # existing users to log in with old passwords.
+  keepUserPasswords: false
 
   # Options related to provisioning.
   options:

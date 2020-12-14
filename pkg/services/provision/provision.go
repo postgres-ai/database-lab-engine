@@ -34,6 +34,8 @@ type Config struct {
 	OSUsername string
 	MountDir   string
 	DataSubDir string
+
+	KeepUserPasswords bool `yaml:"keepUserPasswords"`
 }
 
 // Provision defines provision interface.
