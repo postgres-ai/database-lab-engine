@@ -615,10 +615,12 @@ func (j *provisionModeLocal) scanCSVLogFile(ctx context.Context, filename string
 }
 
 func (j *provisionModeLocal) prepareDB(username, password string, pgConf *resources.AppConfig) error {
-	whitelist := []string{j.config.PgMgmtUsername}
+	if !j.config.KeepUserPasswords {
+		whitelist := []string{j.config.PgMgmtUsername}
 
-	if err := postgres.ResetAllPasswords(j.runner, pgConf, whitelist); err != nil {
-		return errors.Wrap(err, "failed to reset all passwords")
+		if err := postgres.ResetAllPasswords(j.runner, pgConf, whitelist); err != nil {
+			return errors.Wrap(err, "failed to reset all passwords")
+		}
 	}
 
 	if err := postgres.CreateUser(j.runner, pgConf, username, password); err != nil {
