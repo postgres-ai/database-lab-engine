@@ -63,6 +63,8 @@ func IsEmptyDirectory(dir string) (bool, error) {
 		return false, err
 	}
 
+	defer func() { _ = f.Close() }()
+
 	names, err := f.Readdirnames(maxValuesToReturn)
 	if err != nil && err != io.EOF {
 		return false, err

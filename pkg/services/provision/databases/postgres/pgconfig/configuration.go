@@ -149,6 +149,8 @@ func (m *Manager) isInitialized() (bool, error) {
 		return false, err
 	}
 
+	defer func() { _ = postgresFile.Close() }()
+
 	line, _, err := bufio.NewReader(postgresFile).ReadLine()
 	if err != nil {
 		if err == io.EOF {
