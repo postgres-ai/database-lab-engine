@@ -16,5 +16,5 @@ type InstanceStatus struct {
 
 // Health represents a response for heath-check requests.
 type Health struct {
-	Version string `json:"version"`
+	Version string `json:"engine_version"`
 }
