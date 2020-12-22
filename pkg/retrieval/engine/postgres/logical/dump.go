@@ -204,7 +204,7 @@ func (d *DumpJob) Reload(cfg map[string]interface{}) (err error) {
 
 // Run starts the job.
 func (d *DumpJob) Run(ctx context.Context) (err error) {
-	log.Msg(fmt.Sprintf("Run job: %s. Options: %v", d.Name(), d.DumpOptions))
+	log.Msg("Run job: ", d.Name())
 
 	isEmpty, err := tools.IsEmptyDirectory(d.globalCfg.DataDir())
 	if err != nil {
