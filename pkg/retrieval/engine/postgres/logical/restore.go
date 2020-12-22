@@ -110,7 +110,7 @@ func (r *RestoreJob) Reload(cfg map[string]interface{}) (err error) {
 
 // Run starts the job.
 func (r *RestoreJob) Run(ctx context.Context) (err error) {
-	log.Msg(fmt.Sprintf("Run job: %s. Options: %v", r.Name(), r.RestoreOptions))
+	log.Msg("Run job: ", r.Name())
 
 	isEmpty, err := tools.IsEmptyDirectory(r.globalCfg.DataDir())
 	if err != nil {

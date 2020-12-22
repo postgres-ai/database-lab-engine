@@ -145,7 +145,7 @@ func (r *RestoreJob) Reload(cfg map[string]interface{}) (err error) {
 
 // Run starts the job.
 func (r *RestoreJob) Run(ctx context.Context) (err error) {
-	log.Msg(fmt.Sprintf("Run job: %s. Options: %v", r.Name(), r.CopyOptions))
+	log.Msg("Run job: ", r.Name())
 
 	defer func() {
 		if err == nil && r.CopyOptions.Sync.Enabled {
