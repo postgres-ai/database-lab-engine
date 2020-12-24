@@ -170,7 +170,8 @@ retrieval:
 
           # Add PostgreSQL recovery configuration parameters to the sync container.
           recovery:
-            standby_mode: on
+          # Uncomment this only if you are on Postgres version 11 or older.
+          #  standby_mode: on
 
         # Set environment variables here. See https://www.postgresql.org/docs/current/libpq-envars.html
         envs:
@@ -227,7 +228,8 @@ retrieval:
 
           # Add PostgreSQL recovery configuration parameters to the promotion container.
           recovery:
-            standby_mode: on
+            # Uncomment this only if you are on Postgres version 11 or older.
+            # standby_mode: on
 
         # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
         # Default: empty string (no pre-processing defined).
