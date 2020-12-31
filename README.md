@@ -2,7 +2,7 @@
 
 <img src="./assets/db-lab.png" align="right" border="0" />
 
-Database Lab Engine is an opens-source technology that allows blazing-fast cloning of Postgres databases of any size in seconds. This helps solve many problems such as:
+Database Lab Engine is an open-source technology that allows blazing-fast cloning of Postgres databases of any size in seconds. This helps solve many problems such as:
 - help build dev/QA/staging environments involving full-size production-like databases,
 - provide temporary full-size database clones for SQL query analysis optimization (see [Joe bot](https://gitlab.com/postgres-ai/joe)),
 - automatically verify database migrations (DB schema changes) and massive data operations to avoid downtime and performance bottlenecks.
