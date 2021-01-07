@@ -76,6 +76,7 @@ func main() {
 				EnvVars: []string{"DBLAB_CLI_DEBUG"},
 			},
 		},
+		EnableBashCompletion: true,
 	}
 
 	adoptTemplates()
