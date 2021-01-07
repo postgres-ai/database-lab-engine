@@ -195,7 +195,7 @@ func (c *baseCloning) DestroyClone(cloneID string) error {
 		return models.New(models.ErrCodeNotFound, "clone not found")
 	}
 
-	if w.clone.Protected {
+	if w.clone.Protected && w.clone.Status.Code != models.StatusFatal {
 		return models.New(models.ErrCodeBadRequest, "clone is protected")
 	}
 
