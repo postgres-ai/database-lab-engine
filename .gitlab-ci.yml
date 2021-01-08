@@ -51,7 +51,7 @@ build-binary-alpine:
     paths:
       - bin
   script:
-    - apk add --update --no-cache make
+    - apk add --update --no-cache make git
     - make build
 
 build-binary-client-linux:
