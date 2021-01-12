@@ -29,6 +29,11 @@ Install Database Lab client CLI on your Linux machine (e.g., Ubuntu):
 curl https://gitlab.com/postgres-ai/database-lab/-/raw/master/scripts/cli_install.sh | bash
 ```
 
+### Activate CLI autocompletion:
+```bash
+sudo curl https://gitlab.com/postgres-ai/database-lab/-/raw/master/scripts/bash_autocomplete --output /etc/bash_completion.d/dblab 
+source /etc/bash_completion.d/dblab
+```
 
 ### How to use CLI
 - [How to install and initialize Database Lab CLI](https://postgres.ai/docs/guides/cli/cli-install-init)
