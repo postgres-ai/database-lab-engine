@@ -374,10 +374,10 @@ func (m *Manager) getConfigPath(configName string) string {
 // recoveryFilename returns the name of a recovery configuration file.
 func (m Manager) recoveryFilename() string {
 	if m.pgVersion > defaults.PGVersion12 {
-		return pgConfName
+		return configPrefix + pgConfName
 	}
 
-	return recoveryConfName
+	return configPrefix + recoveryConfName
 }
 
 // rewriteConfig completely rewrite a configuration file with provided parameters.
