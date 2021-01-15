@@ -15,7 +15,7 @@ func buildAnalyzeCommand(conn Connection, parallelJobs int) []string {
 		"--analyze",
 		"--jobs", strconv.Itoa(parallelJobs),
 		"--username", conn.Username,
-		"--dbname", conn.DBName,
+		"--dbname", r.globalCfg.Database.Name(),
 	}
 
 	return analyzeCmd
