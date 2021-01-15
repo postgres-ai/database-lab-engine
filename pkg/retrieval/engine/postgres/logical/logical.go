@@ -14,7 +14,7 @@ func buildAnalyzeCommand(conn Connection, parallelJobs int) []string {
 		"vacuumdb",
 		"--analyze",
 		"--jobs", strconv.Itoa(parallelJobs),
-		"--username", conn.Username,
+		"--username", r.globalCfg.Database.User(),
 		"--dbname", r.globalCfg.Database.Name(),
 	}
 
