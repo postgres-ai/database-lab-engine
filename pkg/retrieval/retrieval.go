@@ -99,7 +99,7 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) error {
 	}
 
 	// Check the pool aliveness.
-	if _, err := fsm.GetSnapshots(); err != nil {
+	if _, err := fsm.GetDiskState(); err != nil {
 		return errors.Wrap(errors.Unwrap(err), "filesystem manager is not ready")
 	}
 
