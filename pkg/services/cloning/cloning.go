@@ -57,7 +57,7 @@ type CloneWrapper struct {
 }
 
 // New returns a cloning interface depends on configuration mode.
-func New(cfg *Config, provision provision.Provision) Cloning {
+func New(cfg *Config, provision *provision.Provisioner) Cloning {
 	return NewBaseCloning(cfg, provision)
 }
 

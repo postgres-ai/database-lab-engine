@@ -14,16 +14,13 @@ import (
 )
 
 func extractDataStateAt(dbMarker *dbmarker.Marker) string {
-	dataStateAt := ""
-
 	dbMark, err := dbMarker.GetConfig()
 	if err != nil {
 		log.Err("Failed to retrieve dataStateAt from DBMarker config:", err)
-	} else {
-		dataStateAt = dbMark.DataStateAt
+		return ""
 	}
 
-	return dataStateAt
+	return dbMark.DataStateAt
 }
 
 func runPreprocessingScript(preprocessingScript string) error {

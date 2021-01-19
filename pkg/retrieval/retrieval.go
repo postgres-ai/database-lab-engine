@@ -9,47 +9,52 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
+	"github.com/robfig/cron/v3"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/components"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/logical"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/physical"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
+	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
 )
 
 // Retrieval describes a data retrieval.
 type Retrieval struct {
-	cfg             *config.Config
-	globalCfg       *dblabCfg.Global
-	retrievalRunner components.JobBuilder
-	cloneManager    thinclones.Manager
-	jobs            []components.JobRunner
+	cfg           *config.Config
+	global        *dblabCfg.Global
+	docker        *client.Client
+	poolManager   *pool.Manager
+	runner        runners.Runner
+	jobs          []components.JobRunner
+	scheduler     *cron.Cron
+	retrieveMutex sync.Mutex
+	ctxCancel     context.CancelFunc
 }
 
 // New creates a new data retrieval.
-func New(cfg *dblabCfg.Config, dockerCLI *client.Client, cloneManager thinclones.Manager) (*Retrieval, error) {
-	retrievalRunner, err := engine.JobBuilder(&cfg.Global, dockerCLI, cloneManager)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get a job builder")
-	}
-
+func New(cfg *dblabCfg.Config, docker *client.Client, pm *pool.Manager, runner runners.Runner) *Retrieval {
 	return &Retrieval{
-		cfg:             &cfg.Retrieval,
-		globalCfg:       &cfg.Global,
-		retrievalRunner: retrievalRunner,
-		cloneManager:    cloneManager,
-	}, nil
+		cfg:         &cfg.Retrieval,
+		global:      &cfg.Global,
+		docker:      docker,
+		poolManager: pm,
+		runner:      runner,
+	}
 }
 
 // Reload reloads retrieval configuration.
-func (r *Retrieval) Reload(cfg *dblabCfg.Config) {
-	*r.globalCfg = cfg.Global
+func (r *Retrieval) Reload(ctx context.Context, cfg *dblabCfg.Config) {
 	*r.cfg = cfg.Retrieval
 
 	for _, job := range r.jobs {
@@ -63,16 +68,39 @@ func (r *Retrieval) Reload(cfg *dblabCfg.Config) {
 			log.Err("Failed to reload configuration of the retrieval job", job.Name(), err)
 		}
 	}
+
+	r.setupScheduler(ctx)
 }
 
 // Run start retrieving process.
 func (r *Retrieval) Run(ctx context.Context) error {
-	if err := r.configure(); err != nil {
+	runCtx, cancel := context.WithCancel(ctx)
+	r.ctxCancel = cancel
+
+	if err := r.run(runCtx, r.poolManager.Active()); err != nil {
+		return err
+	}
+
+	r.setupScheduler(ctx)
+
+	return nil
+}
+
+func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) error {
+	r.retrieveMutex.Lock()
+	defer r.retrieveMutex.Unlock()
+
+	if err := r.configure(fsm); err != nil {
 		return errors.Wrap(err, "failed to configure")
 	}
 
-	if err := r.prepareEnvironment(); err != nil {
+	if err := r.prepareEnvironment(fsm); err != nil {
 		return errors.Wrap(err, "failed to prepare retrieval environment")
+	}
+
+	// Check the pool aliveness.
+	if _, err := fsm.GetSnapshots(); err != nil {
+		return errors.Wrap(errors.Unwrap(err), "filesystem manager is not ready")
 	}
 
 	for _, j := range r.jobs {
@@ -85,12 +113,12 @@ func (r *Retrieval) Run(ctx context.Context) error {
 }
 
 // configure configures retrieval service.
-func (r *Retrieval) configure() error {
+func (r *Retrieval) configure(fsm pool.FSManager) error {
 	if len(r.cfg.Jobs) == 0 {
 		return nil
 	}
 
-	if err := r.parseJobs(); err != nil {
+	if err := r.parseJobs(fsm); err != nil {
 		return errors.Wrap(err, "failed to parse retrieval jobs")
 	}
 
@@ -102,16 +130,32 @@ func (r *Retrieval) configure() error {
 }
 
 // parseJobs processes configuration to define data retrieval jobs.
-func (r *Retrieval) parseJobs() error {
+func (r *Retrieval) parseJobs(fsm pool.FSManager) error {
+	retrievalRunner, err := engine.JobBuilder(r.global, fsm)
+	if err != nil {
+		return errors.Wrap(err, "failed to get a job builder")
+	}
+
+	dbMarker := dbmarker.NewMarker(fsm.Pool().DataDir())
+
+	r.jobs = make([]components.JobRunner, 0, len(r.cfg.Jobs))
+
 	for _, jobName := range r.cfg.Jobs {
-		jobConfig, ok := r.cfg.JobsSpec[jobName]
+		jobSpec, ok := r.cfg.JobsSpec[jobName]
 		if !ok {
 			return errors.Errorf("Job %q not found", jobName)
 		}
 
-		jobConfig.Name = jobName
+		jobSpec.Name = jobName
 
-		job, err := r.retrievalRunner.BuildJob(jobConfig)
+		jobCfg := config.JobConfig{
+			Spec:   jobSpec,
+			Docker: r.docker,
+			Marker: dbMarker,
+			FSPool: fsm.Pool(),
+		}
+
+		job, err := retrievalRunner.BuildJob(jobCfg)
 		if err != nil {
 			return errors.Wrap(err, "failed to build job")
 		}
@@ -144,12 +188,13 @@ func (r *Retrieval) validate() error {
 	return nil
 }
 
-func (r *Retrieval) prepareEnvironment() error {
-	if err := os.MkdirAll(r.globalCfg.DataDir(), 0700); err != nil {
+func (r *Retrieval) prepareEnvironment(fsm pool.FSManager) error {
+	dataDir := fsm.Pool().DataDir()
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		return err
 	}
 
-	return filepath.Walk(r.globalCfg.DataDir(), func(name string, info os.FileInfo, err error) error {
+	return filepath.Walk(dataDir, func(name string, info os.FileInfo, err error) error {
 		if err == nil {
 			// PGDATA dir permissions must be 0700 to avoid errors.
 			err = os.Chmod(name, 0700)
@@ -159,14 +204,106 @@ func (r *Retrieval) prepareEnvironment() error {
 	})
 }
 
-// IsValidConfig checks if the retrieval configuration is valid.
-func IsValidConfig(cfg *dblabCfg.Config) error {
-	rs, err := New(cfg, nil, nil)
-	if err != nil {
+func (r *Retrieval) setupScheduler(ctx context.Context) {
+	r.stopScheduler()
+
+	if r.cfg.Refresh.Timetable != "" {
+		if err := r.validateRefreshSchedule(); err != nil {
+			log.Err(errors.Wrap(err, "an invalid full-refresh schedule"))
+			return
+		}
+
+		r.scheduler = cron.New()
+
+		if _, err := r.scheduler.AddFunc(r.cfg.Refresh.Timetable, r.refreshFunc(ctx)); err != nil {
+			log.Err(errors.Wrap(err, "failed to add a full-refresh func"))
+		}
+
+		r.scheduler.Start()
+	}
+}
+
+func (r *Retrieval) validateRefreshSchedule() error {
+	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+
+	if _, err := specParser.Parse(r.cfg.Refresh.Timetable); err != nil {
+		return errors.Wrapf(err, "failed to parse schedule timetable %q", r.cfg.Refresh.Timetable)
+	}
+
+	return nil
+}
+
+func (r *Retrieval) refreshFunc(ctx context.Context) func() {
+	return func() {
+		if err := r.fullRefresh(ctx); err != nil {
+			log.Err("Failed to run full-refresh: ", err)
+		}
+	}
+}
+
+// fullRefresh makes a full refresh for an old filesystem pool.
+func (r *Retrieval) fullRefresh(ctx context.Context) error {
+	// Stop previous runs and snapshot schedulers.
+	if r.ctxCancel != nil {
+		r.ctxCancel()
+	}
+
+	runCtx, cancel := context.WithCancel(ctx)
+	r.ctxCancel = cancel
+	poolToUpdate := r.poolManager.Oldest()
+
+	if poolToUpdate == nil {
+		log.Msg("Pool to full refresh not found. Skip refreshing.")
+		return nil
+	}
+
+	log.Msg("Pool to full refresh: ", poolToUpdate.Pool())
+
+	// Stop service containers: sync-instance, etc.
+	if cleanUpErr := cont.CleanUpControlContainers(runCtx, r.docker, r.global.InstanceID); cleanUpErr != nil {
+		log.Err("Failed to clean up service containers:", cleanUpErr)
+
+		return cleanUpErr
+	}
+
+	current := r.poolManager.Active()
+
+	if err := r.run(runCtx, poolToUpdate); err != nil {
 		return err
 	}
 
-	if err := rs.configure(); err != nil {
+	r.poolManager.SetOldest(current)
+	r.poolManager.SetActive(poolToUpdate)
+
+	return nil
+}
+
+// Stop stops a retrieval service.
+func (r *Retrieval) Stop() {
+	r.stopScheduler()
+}
+
+func (r *Retrieval) stopScheduler() {
+	if r.scheduler != nil {
+		r.scheduler.Stop()
+	}
+}
+
+// IsValidConfig checks if the retrieval configuration is valid.
+func IsValidConfig(cfg *dblabCfg.Config) error {
+	rs := New(cfg, nil, nil, nil)
+
+	cm, err := pool.NewManager(nil, pool.ManagerConfig{
+		Pool: &resources.Pool{
+			Name: "",
+			Mode: "zfs",
+		},
+	})
+	if err != nil {
+		return nil
+	}
+
+	if err := rs.configure(cm); err != nil {
 		return err
 	}
 

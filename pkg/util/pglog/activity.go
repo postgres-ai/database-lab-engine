@@ -14,8 +14,6 @@ import (
 	"time"
 
 	errs "github.com/pkg/errors"
-
-	"gitlab.com/postgres-ai/database-lab/pkg/util"
 )
 
 const (
@@ -44,9 +42,9 @@ type Selector struct {
 }
 
 // NewSelector creates a new Selector.
-func NewSelector(dir, subdir string, port uint) *Selector {
+func NewSelector(dir string) *Selector {
 	return &Selector{
-		logDir:    buildLogDirName(dir, subdir, port),
+		logDir:    buildLogDirName(dir),
 		fileNames: make([]string, 0),
 	}
 }
@@ -139,6 +137,6 @@ func ParsePostgresLastActivity(logTime, text string) (*time.Time, error) {
 	return &lastActivityTime, nil
 }
 
-func buildLogDirName(cloneDir, dataSubDir string, port uint) string {
-	return path.Join(cloneDir, util.GetCloneName(port), dataSubDir, csvLogDir)
+func buildLogDirName(cloneDir string) string {
+	return path.Join(cloneDir, csvLogDir)
 }

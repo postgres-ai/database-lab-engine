@@ -45,7 +45,9 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 		}
 	}
 
-	if err := createSocketCloneDir(c.UnixSocketCloneDir); err != nil {
+	unixSocketCloneDir := c.Pool.SocketCloneDir(c.CloneName)
+
+	if err := createSocketCloneDir(unixSocketCloneDir); err != nil {
 		return "", errors.Wrap(err, "failed to create socket clone directory")
 	}
 
@@ -58,10 +60,10 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 		"--env", "PGDATA=" + c.DataDir(),
 		strings.Join(volumes, " "),
 		"--label", labelClone,
-		"--label", c.ClonePool,
+		"--label", c.Pool.Name,
 		c.DockerImage,
 		"-p", instancePort,
-		"-k", c.UnixSocketCloneDir,
+		"-k", unixSocketCloneDir,
 	}, " ")
 
 	return r.Run(dockerRunCmd, true)
@@ -81,13 +83,14 @@ func buildMountVolumes(r runners.Runner, c *resources.AppConfig, containerID str
 		return nil, errors.Wrap(err, "failed to interpret mount paths")
 	}
 
+	unixSocketCloneDir := c.Pool.SocketCloneDir(c.CloneName)
 	mounts := tools.GetMountsFromMountPoints(c.DataDir(), mountPoints)
 	volumes := make([]string, 0, len(mounts))
 
 	for _, mountPoint := range mountPoints {
 		// Add extra mount for socket directories.
-		if strings.HasPrefix(c.UnixSocketCloneDir, mountPoint.Destination) {
-			volumes = append(volumes, buildSocketMount(c.UnixSocketCloneDir, mountPoint.Source, mountPoint.Destination))
+		if strings.HasPrefix(unixSocketCloneDir, mountPoint.Destination) {
+			volumes = append(volumes, buildSocketMount(unixSocketCloneDir, mountPoint.Source, mountPoint.Destination))
 			break
 		}
 	}
@@ -137,8 +140,8 @@ func StopContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 }
 
 // RemoveContainer removes specified container.
-func RemoveContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
-	dockerRemoveCmd := "docker container rm --force " + c.CloneName
+func RemoveContainer(r runners.Runner, cloneName string) (string, error) {
+	dockerRemoveCmd := "docker container rm --force " + cloneName
 
 	return r.Run(dockerRemoveCmd, true)
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
 )
@@ -22,7 +23,6 @@ const (
 	headerOffset        = 1
 	dataStateAtLabel    = "dblab:datastateat"
 	isRoughStateAtLabel = "dblab:isroughdsa"
-	dataStateAtFormat   = "20060102150405"
 )
 
 // ListEntry defines entry of ZFS list command.
@@ -106,24 +106,55 @@ type setTuple struct {
 	setFunc setFunc
 }
 
+// Manager describes a filesystem manager for ZFS.
+type Manager struct {
+	runner runners.Runner
+	config Config
+}
+
+// Config defines configuration for ZFS filesystem manager.
+type Config struct {
+	Pool              *resources.Pool
+	PreSnapshotSuffix string
+	OSUsername        string
+}
+
+// NewFSManager creates a new Manager instance for ZFS.
+func NewFSManager(runner runners.Runner, config Config) *Manager {
+	m := Manager{
+		runner: runner,
+		config: config,
+	}
+
+	return &m
+}
+
+// Pool gets a filesystem pool.
+func (m *Manager) Pool() *resources.Pool {
+	return m.config.Pool
+}
+
 // CreateClone creates a new ZFS clone.
-func CreateClone(r runners.Runner, pool, name, snapshot, clonesMountDir, osUsername string) error {
-	exists, err := CloneExists(r, name)
+func (m *Manager) CreateClone(cloneName, snapshotID string) error {
+	exists, err := m.cloneExists(cloneName)
 	if err != nil {
 		return errors.Wrap(err, "clone does not exist")
 	}
 
 	if exists {
+		log.Msg(fmt.Sprintf("clone %q is already exists. Skip creation", cloneName))
 		return nil
 	}
 
-	cmd := "zfs clone " +
-		"-o mountpoint=" + clonesMountDir + name + " " +
-		snapshot + " " +
-		pool + "/" + name + " && " +
-		"chown -R " + osUsername + " " + clonesMountDir + name
+	clonesMountDir := m.config.Pool.ClonesDir()
 
-	out, err := r.Run(cmd)
+	cmd := "zfs clone " +
+		"-o mountpoint=" + clonesMountDir + "/" + cloneName + " " +
+		snapshotID + " " +
+		m.config.Pool.Name + "/" + cloneName + " && " +
+		"chown -R " + m.config.OSUsername + " " + clonesMountDir + "/" + cloneName
+
+	out, err := m.runner.Run(cmd)
 	if err != nil {
 		return errors.Wrapf(err, "zfs clone error. Out: %v", out)
 	}
@@ -132,13 +163,14 @@ func CreateClone(r runners.Runner, pool, name, snapshot, clonesMountDir, osUsern
 }
 
 // DestroyClone destroys a ZFS clone.
-func DestroyClone(r runners.Runner, pool string, name string) error {
-	exists, err := CloneExists(r, name)
+func (m *Manager) DestroyClone(cloneName string) error {
+	exists, err := m.cloneExists(cloneName)
 	if err != nil {
 		return errors.Wrap(err, "clone does not exist")
 	}
 
 	if !exists {
+		log.Msg(fmt.Sprintf("clone %q is not exists. Skip deletion", cloneName))
 		return nil
 	}
 
@@ -148,20 +180,20 @@ func DestroyClone(r runners.Runner, pool string, name string) error {
 	// this function to delete clones used during the preparation
 	// of baseline snapshots, we need to omit `-R`, to avoid
 	// unexpected deletion of users' clones.
-	cmd := fmt.Sprintf("zfs destroy -R %s/%s", pool, name)
+	cmd := fmt.Sprintf("zfs destroy -R %s/%s", m.config.Pool.Name, cloneName)
 
-	if _, err = r.Run(cmd); err != nil {
+	if _, err = m.runner.Run(cmd); err != nil {
 		return errors.Wrap(err, "failed to run command")
 	}
 
 	return nil
 }
 
-// CloneExists checks whether a ZFS clone exists.
-func CloneExists(r runners.Runner, name string) (bool, error) {
+// cloneExists checks whether a ZFS clone exists.
+func (m *Manager) cloneExists(name string) (bool, error) {
 	listZfsClonesCmd := "zfs list"
 
-	out, err := r.Run(listZfsClonesCmd, false)
+	out, err := m.runner.Run(listZfsClonesCmd, false)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to list clones")
 	}
@@ -169,18 +201,18 @@ func CloneExists(r runners.Runner, name string) (bool, error) {
 	return strings.Contains(out, name), nil
 }
 
-// ListClones lists ZFS clones.
-func ListClones(r runners.Runner, pool, prefix string) ([]string, error) {
+// ListClonesNames lists ZFS clones.
+func (m *Manager) ListClonesNames() ([]string, error) {
 	listZfsClonesCmd := "zfs list -o name -H"
 
-	cmdOutput, err := r.Run(listZfsClonesCmd, false)
+	cmdOutput, err := m.runner.Run(listZfsClonesCmd, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list clones")
 	}
 
 	cloneNames := []string{}
-	poolPrefix := pool + "/"
-	clonePoolPrefix := pool + "/" + prefix
+	poolPrefix := m.config.Pool.Name + "/"
+	clonePoolPrefix := m.config.Pool.Name + "/" + util.ClonePrefix
 	lines := strings.Split(strings.TrimSpace(cmdOutput), "\n")
 
 	for _, line := range lines {
@@ -192,31 +224,37 @@ func ListClones(r runners.Runner, pool, prefix string) ([]string, error) {
 	return util.Unique(cloneNames), nil
 }
 
-// CreateSnapshot creates ZFS snapshot.
-func CreateSnapshot(r runners.Runner, pool, dataStateAt, cloneSuffix string) (string, error) {
+// CreateSnapshot creates a new snapshot.
+func (m *Manager) CreateSnapshot(poolSuffix, dataStateAt string) (string, error) {
+	poolName := m.config.Pool.Name
+
+	if poolSuffix != "" {
+		poolName += "/" + poolSuffix
+	}
+
 	originalDSA := dataStateAt
 
 	if dataStateAt == "" {
-		dataStateAt = time.Now().Format(dataStateAtFormat)
+		dataStateAt = time.Now().Format(util.DataStateAtFormat)
 	}
 
-	snapshotName := getSnapshotName(pool, dataStateAt)
+	snapshotName := getSnapshotName(poolName, dataStateAt)
 	cmd := fmt.Sprintf("zfs snapshot -r %s", snapshotName)
 
-	if _, err := r.Run(cmd, true); err != nil {
+	if _, err := m.runner.Run(cmd, true); err != nil {
 		return "", errors.Wrap(err, "failed to create snapshot")
 	}
 
-	cmd = fmt.Sprintf("zfs set %s=%q %s", dataStateAtLabel, strings.TrimSuffix(dataStateAt, cloneSuffix), snapshotName)
+	cmd = fmt.Sprintf("zfs set %s=%q %s", dataStateAtLabel, strings.TrimSuffix(dataStateAt, m.config.PreSnapshotSuffix), snapshotName)
 
-	if _, err := r.Run(cmd, true); err != nil {
+	if _, err := m.runner.Run(cmd, true); err != nil {
 		return "", errors.Wrap(err, "failed to set the dataStateAt option for snapshot")
 	}
 
 	if originalDSA == "" {
 		cmd = fmt.Sprintf("zfs set %s=%q %s", isRoughStateAtLabel, "1", snapshotName)
 
-		if _, err := r.Run(cmd, true); err != nil {
+		if _, err := m.runner.Run(cmd, true); err != nil {
 			return "", errors.Wrap(err, "failed to set the rough flag of dataStateAt option for snapshot")
 		}
 	}
@@ -241,24 +279,24 @@ func RollbackSnapshot(r runners.Runner, pool string, snapshot string) error {
 }
 
 // DestroySnapshot destroys the snapshot.
-func DestroySnapshot(r runners.Runner, snapshotName string) error {
+func (m *Manager) DestroySnapshot(snapshotName string) error {
 	cmd := fmt.Sprintf("zfs destroy -R %s", snapshotName)
 
-	if _, err := r.Run(cmd); err != nil {
+	if _, err := m.runner.Run(cmd); err != nil {
 		return errors.Wrap(err, "failed to run command")
 	}
 
 	return nil
 }
 
-// CleanupSnapshots destroys old ZFS snapshots considering retention limit.
-func CleanupSnapshots(r runners.Runner, pool string, retentionLimit int) ([]string, error) {
+// CleanupSnapshots destroys old snapshots considering retention limit.
+func (m *Manager) CleanupSnapshots(retentionLimit int) ([]string, error) {
 	cleanupCmd := fmt.Sprintf(
 		"zfs list -t snapshot -H -o name -s %s -s creation -r %s | grep -v clone | head -n -%d "+
 			"| xargs -n1 --no-run-if-empty zfs destroy -R ",
-		dataStateAtLabel, pool, retentionLimit)
+		dataStateAtLabel, m.config.Pool.Name, retentionLimit)
 
-	out, err := r.Run(cleanupCmd)
+	out, err := m.runner.Run(cleanupCmd)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to clean up snapshots")
 	}
@@ -268,18 +306,118 @@ func CleanupSnapshots(r runners.Runner, pool string, retentionLimit int) ([]stri
 	return lines, nil
 }
 
+// GetSessionState returns a state of a session.
+func (m *Manager) GetSessionState(name string) (*resources.SessionState, error) {
+	entries, err := m.listFilesystems(m.config.Pool.Name)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list filesystems")
+	}
+
+	var sEntry *ListEntry
+
+	entryName := m.config.Pool.Name + "/" + name
+
+	for _, entry := range entries {
+		if entry.Name == entryName {
+			sEntry = entry
+			break
+		}
+	}
+
+	if sEntry == nil {
+		return nil, errors.New("cannot get session state: specified ZFS pool does not exist")
+	}
+
+	state := &resources.SessionState{
+		CloneDiffSize: sEntry.Used,
+	}
+
+	return state, nil
+}
+
+// GetDiskState returns a disk state.
+func (m *Manager) GetDiskState() (*resources.Disk, error) {
+	parts := strings.SplitN(m.config.Pool.Name, "/", 2)
+	if len(parts) == 0 {
+		return nil, errors.New("failed to get a filesystem pool name")
+	}
+
+	parentPool := parts[0]
+
+	entries, err := m.listFilesystems(parentPool)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list filesystems")
+	}
+
+	var parentPoolEntry, poolEntry *ListEntry
+
+	for _, entry := range entries {
+		if entry.Name == parentPool {
+			parentPoolEntry = entry
+		}
+
+		if entry.Name == m.config.Pool.Name {
+			poolEntry = entry
+		}
+
+		if parentPoolEntry != nil && poolEntry != nil {
+			break
+		}
+	}
+
+	if parentPoolEntry == nil || poolEntry == nil {
+		return nil, errors.New("cannot get disk state: pool entries not found")
+	}
+
+	disk := &resources.Disk{
+		Size:     parentPoolEntry.Available + parentPoolEntry.Used,
+		Free:     parentPoolEntry.Available,
+		Used:     parentPoolEntry.Used,
+		DataSize: poolEntry.LogicalReferenced,
+	}
+
+	return disk, nil
+}
+
+// GetSnapshots returns a snapshot list.
+func (m *Manager) GetSnapshots() ([]resources.Snapshot, error) {
+	entries, err := m.listSnapshots(m.config.Pool.Name)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list snapshots")
+	}
+
+	snapshots := make([]resources.Snapshot, 0, len(entries))
+
+	for _, entry := range entries {
+		// Filter pre-snapshots, they will not be allowed to be used for cloning.
+		if strings.HasSuffix(entry.Name, m.config.PreSnapshotSuffix) {
+			continue
+		}
+
+		snapshot := resources.Snapshot{
+			ID:          entry.Name,
+			CreatedAt:   entry.Creation,
+			DataStateAt: entry.DataStateAt,
+		}
+
+		snapshots = append(snapshots, snapshot)
+	}
+
+	return snapshots, nil
+}
+
 // ListFilesystems lists ZFS file systems (clones, pools).
-func ListFilesystems(r runners.Runner, pool string) ([]*ListEntry, error) {
-	return ListDetails(r, pool, "filesystem")
+func (m *Manager) listFilesystems(pool string) ([]*ListEntry, error) {
+	return m.listDetails(pool, "filesystem")
 }
 
 // ListSnapshots lists ZFS snapshots.
-func ListSnapshots(r runners.Runner, pool string) ([]*ListEntry, error) {
-	return ListDetails(r, pool, "snapshot")
+func (m *Manager) listSnapshots(pool string) ([]*ListEntry, error) {
+	return m.listDetails(pool, "snapshot")
 }
 
-// ListDetails lists all ZFS types.
-func ListDetails(r runners.Runner, pool string, dsType string) ([]*ListEntry, error) {
+// listDetails lists all ZFS types.
+func (m *Manager) listDetails(pool, dsType string) ([]*ListEntry, error) {
 	// TODO(anatoly): Return map.
 	// TODO(anatoly): Generalize.
 	numberFields := 12
@@ -289,7 +427,7 @@ func ListDetails(r runners.Runner, pool string, dsType string) ([]*ListEntry, er
 		"-t " + dsType + " " +
 		"-r " + pool
 
-	out, err := r.Run(listCmd, true)
+	out, err := m.runner.Run(listCmd, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list details")
 	}

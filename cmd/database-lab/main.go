@@ -22,11 +22,15 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/observer"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/pkg/srv"
 	"gitlab.com/postgres-ai/database-lab/version"
 )
@@ -50,22 +54,26 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	runner := runners.NewLocalRunner(cfg.Provision.UseSudo)
+
+	pm := pool.NewPoolManager(&cfg.PoolManager, runner)
+	if err := pm.ReloadPools(); err != nil {
+		log.Fatal(err.Error())
+	}
+
 	dockerCLI, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		log.Fatal("Failed to create a Docker client:", err)
 	}
 
-	// Create a cloning service to provision new clones.
-	provisionSvc, err := provision.New(ctx, cfg.Provision, dockerCLI)
+	// Create a platform service to make requests to Platform.
+	platformSvc, err := platform.New(ctx, cfg.Platform)
 	if err != nil {
-		log.Fatal(errors.WithMessage(err, `error in the "provision" section of the config`))
+		log.Fatalf(errors.WithMessage(err, "failed to create a new platform service"))
 	}
 
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
-	retrievalSvc, err := retrieval.New(cfg, dockerCLI, provisionSvc.ThinCloneManager())
-	if err != nil {
-		log.Fatal("Failed to build a retrieval service:", err)
-	}
+	retrievalSvc := retrieval.New(cfg, dockerCLI, pm, runner)
 
 	if err := retrievalSvc.Run(ctx); err != nil {
 		if cleanUpErr := cont.CleanUpControlContainers(ctx, dockerCLI, cfg.Global.InstanceID); cleanUpErr != nil {
@@ -75,22 +83,27 @@ func main() {
 		log.Fatal("Failed to run the data retrieval service:", err)
 	}
 
+	defer retrievalSvc.Stop()
+
+	dbCfg := &resources.DB{
+		Username: cfg.Global.Database.User(),
+		DBName:   cfg.Global.Database.Name(),
+	}
+
+	// Create a cloning service to provision new clones.
+	provisionSvc, err := provision.New(ctx, &cfg.Provision, dbCfg, dockerCLI, pm)
+	if err != nil {
+		log.Fatalf(errors.WithMessage(err, `error in the "provision" section of the config`))
+	}
+
 	cloningSvc := cloning.New(&cfg.Cloning, provisionSvc)
 	if err = cloningSvc.Run(ctx); err != nil {
 		log.Fatal(err)
 	}
 
-	// Create a platform service to make requests to Platform.
-	platformSvc, err := platform.New(ctx, cfg.Platform)
-	if err != nil {
-		log.Fatalf(errors.WithMessage(err, "failed to create a new platform service"))
-	}
+	obs := observer.NewObserver(dockerCLI, &cfg.Observer, platformSvc.Client, pm.Active().Pool())
 
-	cfg.Observer.CloneDir = cfg.Provision.Options.ClonesMountDir
-	cfg.Observer.DataSubDir = cfg.Global.DataSubDir
-	cfg.Observer.SocketDir = cfg.Provision.Options.UnixSocketDir
-
-	server := srv.NewServer(&cfg.Server, &cfg.Observer, cloningSvc, platformSvc, dockerCLI)
+	server := srv.NewServer(&cfg.Server, obs, cloningSvc, platformSvc, dockerCLI)
 
 	reloadCh := setReloadListener()
 
@@ -98,7 +111,7 @@ func main() {
 		for range reloadCh {
 			log.Msg("Reloading configuration")
 
-			if err := reloadConfig(ctx, instanceID, provisionSvc, retrievalSvc, cloningSvc, platformSvc, server); err != nil {
+			if err := reloadConfig(ctx, instanceID, provisionSvc, retrievalSvc, pm, cloningSvc, platformSvc, server); err != nil {
 				log.Err("Failed to reload configuration", err)
 			}
 
@@ -127,7 +140,7 @@ func main() {
 		log.Msg(err)
 	}
 
-	shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global)
+	shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global, pm.Active().Pool())
 }
 
 func loadConfiguration(instanceID string) (*config.Config, error) {
@@ -139,17 +152,13 @@ func loadConfiguration(instanceID string) (*config.Config, error) {
 	log.DEBUG = cfg.Global.Debug
 	log.Dbg("Config loaded", cfg)
 
-	if cfg.Provision.Options.ClonesMountDir != "" {
-		cfg.Global.ClonesMountDir = cfg.Provision.Options.ClonesMountDir
-	}
-
 	cfg.Global.InstanceID = instanceID
 
 	return cfg, nil
 }
 
-func reloadConfig(ctx context.Context, instanceID string, provisionSvc provision.Provision, retrievalSvc *retrieval.Retrieval,
-	cloningSvc cloning.Cloning, platformSvc *platform.Service, server *srv.Server) error {
+func reloadConfig(ctx context.Context, instanceID string, provisionSvc *provision.Provisioner, retrievalSvc *retrieval.Retrieval,
+	pm *pool.Manager, cloningSvc cloning.Cloning, platformSvc *platform.Service, server *srv.Server) error {
 	cfg, err := loadConfiguration(instanceID)
 	if err != nil {
 		return err
@@ -168,8 +177,17 @@ func reloadConfig(ctx context.Context, instanceID string, provisionSvc provision
 		return err
 	}
 
-	provisionSvc.Reload(cfg.Provision)
-	retrievalSvc.Reload(cfg)
+	if err := pm.Reload(cfg.PoolManager); err != nil {
+		return err
+	}
+
+	dbCfg := resources.DB{
+		Username: cfg.Global.Database.User(),
+		DBName:   cfg.Global.Database.Name(),
+	}
+
+	provisionSvc.Reload(cfg.Provision, dbCfg)
+	retrievalSvc.Reload(ctx, cfg)
 	cloningSvc.Reload(cfg.Cloning)
 	platformSvc.Reload(newPlatformSvc)
 	server.Reload(cfg.Server)
@@ -191,10 +209,10 @@ func setShutdownListener() chan os.Signal {
 	return c
 }
 
-func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, global config.Global) {
+func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, global config.Global, fsp *resources.Pool) {
 	log.Msg("Stopping control containers")
 
-	if err := cont.StopControlContainers(ctx, dockerCLI, global.InstanceID, global.DataDir()); err != nil {
+	if err := cont.StopControlContainers(ctx, dockerCLI, global.InstanceID, fsp.DataDir()); err != nil {
 		log.Err("Failed to stop control containers", err)
 	}
 

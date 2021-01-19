@@ -30,7 +30,9 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/pgconfig"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/pkg/util"
 )
 
 const (
@@ -58,7 +60,8 @@ var supportedSysctls = map[string]struct{}{
 // PhysicalInitial describes a job for preparing a physical initial snapshot.
 type PhysicalInitial struct {
 	name           string
-	cloneManager   thinclones.Manager
+	cloneManager   pool.FSManager
+	fsPool         *resources.Pool
 	options        PhysicalOptions
 	globalCfg      *dblabCfg.Global
 	dbMarker       *dbmarker.Marker
@@ -116,18 +119,18 @@ type QueryPreprocessing struct {
 }
 
 // NewPhysicalInitialJob creates a new physical initial job.
-func NewPhysicalInitialJob(cfg config.JobConfig, docker *client.Client, cloneManager thinclones.Manager,
-	global *dblabCfg.Global, marker *dbmarker.Marker) (*PhysicalInitial, error) {
+func NewPhysicalInitialJob(cfg config.JobConfig, global *dblabCfg.Global, cloneManager pool.FSManager) (*PhysicalInitial, error) {
 	p := &PhysicalInitial{
-		name:         cfg.Name,
+		name:         cfg.Spec.Name,
 		cloneManager: cloneManager,
+		fsPool:       cfg.FSPool,
 		globalCfg:    global,
-		dbMarker:     marker,
+		dbMarker:     cfg.Marker,
 		dbMark:       &dbmarker.Config{DataType: dbmarker.PhysicalDataType},
-		dockerClient: docker,
+		dockerClient: cfg.Docker,
 	}
 
-	if err := p.loadConfig(cfg.Options); err != nil {
+	if err := p.loadConfig(cfg.Spec.Options); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
@@ -136,7 +139,7 @@ func NewPhysicalInitialJob(cfg config.JobConfig, docker *client.Client, cloneMan
 	}
 
 	if p.options.Promotion.QueryPreprocessing.QueryPath != "" {
-		p.queryProcessor = newQueryProcessor(docker, global.Database.Name(), global.Database.User(),
+		p.queryProcessor = newQueryProcessor(cfg.Docker, global.Database.Name(), global.Database.User(),
 			p.options.Promotion.QueryPreprocessing.QueryPath,
 			p.options.Promotion.QueryPreprocessing.MaxParallelWorkers)
 	}
@@ -242,7 +245,7 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 	p.schedulerCtx = ctx
 
 	// Start scheduling after initial snapshot.
-	defer p.startScheduler(ctx)
+	defer p.startScheduler(p.schedulerCtx)
 
 	if p.options.SkipStartSnapshot {
 		log.Msg("Skip taking a snapshot at the start")
@@ -250,7 +253,7 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 		return nil
 	}
 
-	return p.run(ctx)
+	return p.run(p.schedulerCtx)
 }
 
 func (p *PhysicalInitial) run(ctx context.Context) (err error) {
@@ -307,7 +310,7 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 
 	// Promotion.
 	if p.options.Promotion.Enabled {
-		if err := p.promoteInstance(ctx, path.Join(p.globalCfg.ClonesMountDir, cloneName, p.globalCfg.DataSubDir)); err != nil {
+		if err := p.promoteInstance(ctx, path.Join(p.fsPool.ClonesDir(), cloneName, p.fsPool.DataSubDir)); err != nil {
 			return errors.Wrap(err, "failed to promote instance")
 		}
 	}
@@ -328,6 +331,8 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	if _, err := p.cloneManager.CreateSnapshot(cloneName, p.dbMark.DataStateAt); err != nil {
 		return errors.Wrap(err, "failed to create a snapshot")
 	}
+
+	p.updateDataStateAt()
 
 	return nil
 }
@@ -354,7 +359,18 @@ func (p *PhysicalInitial) startScheduler(ctx context.Context) {
 
 	p.scheduler.Start()
 
-	log.Msg("Scheduler has been reloaded")
+	log.Msg("Snapshot scheduler has been started")
+
+	go p.waitToStopScheduler()
+}
+
+func (p *PhysicalInitial) waitToStopScheduler() {
+	<-p.schedulerCtx.Done()
+
+	if p.scheduler != nil {
+		log.Msg("Stop snapshot scheduler")
+		p.scheduler.Stop()
+	}
 }
 
 func (p *PhysicalInitial) runAutoSnapshot(ctx context.Context) func() {
@@ -655,7 +671,25 @@ func (p *PhysicalInitial) markDatabaseData() error {
 	return p.dbMarker.SaveConfig(p.dbMark)
 }
 
+// updateDataStateAt updates dataStateAt for in-memory representation of a filesystem pool.
+func (p *PhysicalInitial) updateDataStateAt() {
+	dsaTime, err := time.Parse(util.DataStateAtFormat, p.dbMark.DataStateAt)
+	if err != nil {
+		log.Err("Invalid value for DataStateAt: ", p.dbMark.DataStateAt)
+		return
+	}
+
+	p.fsPool.SetDSA(dsaTime)
+}
+
 func (p *PhysicalInitial) cleanupSnapshots(retentionLimit int) error {
+	select {
+	case <-p.schedulerCtx.Done():
+		log.Msg("Stop automatic snapshot cleanup")
+		return nil
+	default:
+	}
+
 	_, err := p.cloneManager.CleanupSnapshots(retentionLimit)
 	if err != nil {
 		return errors.Wrap(err, "failed to clean up snapshots")

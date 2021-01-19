@@ -41,14 +41,14 @@ type Server struct {
 }
 
 // NewServer initializes a new Server instance with provided configuration.
-func NewServer(cfg *Config, obsCfg *observer.Config, cloning cloning.Cloning, platform *platform.Service,
+func NewServer(cfg *Config, obsCfg *observer.Observer, cloning cloning.Cloning, platform *platform.Service,
 	dockerClient *client.Client) *Server {
 	// TODO(anatoly): Stop using mock data.
 	server := &Server{
 		Config:   cfg,
 		Cloning:  cloning,
 		Platform: platform,
-		Observer: observer.NewObserver(dockerClient, obsCfg, platform.Client),
+		Observer: obsCfg,
 	}
 
 	return server
