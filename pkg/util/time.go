@@ -22,6 +22,9 @@ const (
 
 	// MillisecondsInMinute defines a number of milliseconds in an one minute.
 	MillisecondsInMinute = 60000.0
+
+	// DataStateAtFormat defines the format of a data state timestamp.
+	DataStateAtFormat = "20060102150405"
 )
 
 // SecondsAgo returns a number of seconds elapsed from the current time.

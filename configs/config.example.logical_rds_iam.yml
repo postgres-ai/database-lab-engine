@@ -29,83 +29,70 @@ global:
   # Database engine. Currently, the only supported option: "postgres".
   engine: postgres
 
-  # Full path to the pool mount directory.
-  mountDir: "/var/lib/dblab"
-
-  # Subdir where PGDATA located relative to the pool mount directory.
-  # This directory must already exist before launching Database Lab instance. It may be empty if
-  # data initialization is configured (see below).
-  # Note, it is a relative path. Default: "data".
-  # For example, for the PostgreSQL data directory "/var/lib/dblab/data" set:
-  #      mountDir:  /var/lib/dblab
-  #      dataSubDir:  data
-  # In this case, we assume that the mount point is: /var/lib/dblab
-  dataSubDir: "data"
-
   # Debugging, when enabled, allows seeing more in the Database Lab logs
   # (not PostgreSQL logs). Enable in the case of troubleshooting.
   debug: false
 
   # Contains default configuration options of the restored database.
   database:
-    # Default username.
+    # Default database username that will be used for Postgres management connections.
+    # This user must exist.
     username: postgres
 
     # Default database name.
     dbname: postgres
 
+# Manages filesystem pools (in the case of ZFS) or volume groups.
+poolManager:
+  # The full path which contains the pool mount directories. mountDir can contain multiple pool directories.
+  mountDir: /var/lib/dblab
+
+  # Subdir where PGDATA located relative to the pool mount directory.
+  # This directory must already exist before launching Database Lab instance. It may be empty if
+  # data initialization is configured (see below).
+  # Note, it is a relative path. Default: "data".
+  # For example, for the PostgreSQL data directory "/var/lib/dblab/dblab_pool/data" (`dblab_pool` is a pool mount directory) set:
+  #      mountDir:  /var/lib/dblab
+  #      dataSubDir:  data
+  # In this case, we assume that the mount point is: /var/lib/dblab/dblab_pool
+  dataSubDir: data
+
+  # Directory that will be used to mount clones. Subdirectories in this directory
+  # will be used as mount points for clones. Subdirectory names will
+  # correspond to ports. E.g., subdirectory "dblab_clone_6000" for the clone running on port 6000.
+  clonesMountSubDir: clones
+
+  # Unix domain socket directory used to establish local connections to cloned databases.
+  socketSubDir: sockets
+
+  # Snapshots with this suffix are considered preliminary. They are not supposed to be accessible to end-users.
+  preSnapshotSuffix: "_pre"
+
 # Details of provisioning – where data is located,
 # thin cloning method, etc.
 provision:
-  # Database username that will be used for Postgres management connections.
-  # This user must exist.
-  # The password is not needed – it will be set automatically.
-  # Connections will be made via a Unix domain socket (local).
-  pgMgmtUsername: "postgres"
+  # Pool of ports for Postgres clones. Ports will be allocated sequentially,
+  # starting from the lowest value. The "from" value must be less than "to".
+  portPool:
+    from: 6000
+    to: 6100
+
+  # Database Lab provisions thin clones using Docker containers, we need
+  # to specify which Postgres Docker image is to be used when cloning.
+  # The default is the extended Postgres image built on top of the official Postgres image
+  # (See https://postgres.ai/docs/database-lab/supported_databases).
+  # Any custom or official Docker image that runs Postgres. Our Dockerfile
+  # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
+  # is recommended in case if customization is needed.
+  dockerImage: "postgresai/extended-postgres:13"
+
+  # Use sudo for ZFS/LVM and Docker commands if Database Lab server running
+  # outside a container. Keep it "false" (default) when running in a container.
+  useSudo: false
 
   # Avoid default password resetting in clones and have the ability for
   # existing users to log in with old passwords.
   keepUserPasswords: false
-
-  # Options related to provisioning.
-  options:
-    # Thin-clone managing module used for thin cloning.
-    # Available options: "zfs" (recommended), "lvm".
-    thinCloneManager: "zfs"
-
-    # Name of your pool (in the case of ZFS) or volume group
-    # with logic volume name (e.g. "dblab_vg/pg_lv", in the case of LVM).
-    pool: "dblab_pool"
-
-    # Pool of ports for Postgres clones. Ports will be allocated sequentially,
-    # starting from the lowest value. The "from" value must be less than "to".
-    portPool:
-      from: 6000
-      to: 6100
-
-    # Directory that will be used to mount clones. Subdirectories in this directory
-    # will be used as mount points for clones. Subdirectory names will
-    # correspond to ports. E.g., subdirectory "dblab_clone_6000" for the clone running on port 6000.
-    clonesMountDir: /var/lib/dblab/clones
-
-    # Unix domain socket directory used to establish local connections to cloned databases.
-    unixSocketDir: /var/lib/dblab/sockets
-
-    # Snapshots with this suffix are considered preliminary. They are not supposed to be accessible to end-users.
-    preSnapshotSuffix: "_pre"
-
-    # Database Lab provisions thin clones using Docker containers, we need
-    # to specify which Postgres Docker image is to be used when cloning.
-    # The default is the extended Postgres image built on top of the official Postgres image
-    # (See https://postgres.ai/docs/database-lab/supported_databases).
-    # Any custom or official Docker image that runs Postgres. Our Dockerfile
-    # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
-    # is recommended in case if customization is needed.
-    dockerImage: "postgresai/extended-postgres:12"
-
-    # Use sudo for ZFS/LVM and Docker commands if Database Lab server running
-    # outside a container. Keep it "false" (default) when running in a container.
-    useSudo: false
 
 # Data retrieval flow. This section defines both initial retrieval, and rules
 # to keep the data directory in a synchronized state with the source. Both are optional:
@@ -136,6 +123,11 @@ provision:
 #                blocks location. Not supported for managed cloud Postgres services
 #                such as Amazon RDS.
 retrieval:
+  # Make full data refresh on the schedule defined here. The process requires at least one additional filesystem mount point.
+  refresh:
+    # Timetable is to be defined in crontab format: https://en.wikipedia.org/wiki/Cron#Overview
+    timetable: "0 0 * * 1"
+
   # The jobs section must not contain physical and logical restore jobs simultaneously.
   jobs:
     - logicalDump
@@ -151,7 +143,7 @@ retrieval:
         dumpLocation: "/var/lib/dblab/rds_db.dump"
 
         # The Docker image containing the tools required to get a dump.
-        dockerImage: "postgres:12-alpine"
+        dockerImage: "postgres:13-alpine"
 
         # Source of data.
         source:
@@ -203,7 +195,7 @@ retrieval:
         dumpLocation: "/var/lib/dblab/rds_db.dump"
 
         # The Docker image containing the tools required to restore.
-        dockerImage: "postgres:12-alpine"
+        dockerImage: "postgres:13-alpine"
 
         # Use parallel jobs to restore faster.
         parallelJobs: 2
@@ -222,7 +214,7 @@ retrieval:
         # Define pre-precessing SQL queries for data patching. For example, "/tmp/scripts/sql".
         dataPatching:
           # The Docker image to run data patching container.
-          dockerImage: "postgresai/extended-postgres:12"
+          dockerImage: "postgresai/extended-postgres:13"
 
           queryPreprocessing:
             # Path to SQL pre-processing queries. Default: empty string (no pre-processing defined).

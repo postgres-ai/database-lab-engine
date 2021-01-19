@@ -30,6 +30,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/pgconfig"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 )
 
 const (
@@ -54,6 +55,7 @@ var (
 type RestoreJob struct {
 	name         string
 	dockerClient *client.Client
+	fsPool       *resources.Pool
 	globalCfg    *dblabCfg.Global
 	dbMarker     *dbmarker.Marker
 	restorer     restorer
@@ -94,15 +96,16 @@ type restorer interface {
 }
 
 // NewJob creates a new physical restore job.
-func NewJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Global, marker *dbmarker.Marker) (*RestoreJob, error) {
+func NewJob(cfg config.JobConfig, global *dblabCfg.Global) (*RestoreJob, error) {
 	physicalJob := &RestoreJob{
-		name:         cfg.Name,
-		dockerClient: docker,
+		name:         cfg.Spec.Name,
+		dockerClient: cfg.Docker,
 		globalCfg:    global,
-		dbMarker:     marker,
+		dbMarker:     cfg.Marker,
+		fsPool:       cfg.FSPool,
 	}
 
-	if err := physicalJob.Reload(cfg.Options); err != nil {
+	if err := physicalJob.Reload(cfg.Spec.Options); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
@@ -120,7 +123,7 @@ func NewJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Global
 func (r *RestoreJob) getRestorer(tool string) (restorer, error) {
 	switch tool {
 	case walgTool:
-		return newWALG(r.globalCfg.DataDir(), r.WALG), nil
+		return newWALG(r.fsPool.DataDir(), r.WALG), nil
 
 	case customTool:
 		return newCustomTool(r.CustomTool), nil
@@ -158,7 +161,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	dataDir := r.globalCfg.DataDir()
+	dataDir := r.fsPool.DataDir()
 
 	isEmpty, err := tools.IsEmptyDirectory(dataDir)
 	if err != nil {
@@ -329,7 +332,7 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) (err error) {
 func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
 	hostConfig := &container.HostConfig{}
 
-	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.globalCfg.DataDir()); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.fsPool.DataDir()); err != nil {
 		return nil, err
 	}
 
@@ -379,7 +382,7 @@ func (r *RestoreJob) getEnvironmentVariables(password string) []string {
 	// Pass Database Lab environment variables.
 	envVariables := append(os.Environ(), []string{
 		"POSTGRES_PASSWORD=" + password,
-		"PGDATA=" + r.globalCfg.DataDir(),
+		"PGDATA=" + r.fsPool.DataDir(),
 	}...)
 
 	// Add user-defined environment variables.

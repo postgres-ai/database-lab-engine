@@ -11,13 +11,12 @@ import (
 
 // Session defines clone provision information and connection info.
 type Session struct {
-	ID string
+	ID   string
+	Pool string
 
 	// Database.
-	Host       string
 	Port       uint
 	User       string
-	Password   string
 	SocketHost string
 
 	// TODO(anatoly): Were private fields. How to keep them private?

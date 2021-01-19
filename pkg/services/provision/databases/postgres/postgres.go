@@ -92,7 +92,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 
 				_, err = pgctlPromote(r, c)
 				if err != nil {
-					if runnerError := Stop(r, c); runnerError != nil {
+					if runnerError := Stop(r, &c.Pool, c.CloneName); runnerError != nil {
 						log.Err(runnerError)
 					}
 
@@ -106,7 +106,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 		cnt++
 
 		if cnt > waitPostgresTimeout {
-			if runnerErr := Stop(r, c); runnerErr != nil {
+			if runnerErr := Stop(r, &c.Pool, c.CloneName); runnerErr != nil {
 				log.Err(runnerErr)
 			}
 
@@ -120,14 +120,14 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 }
 
 // Stop stops Postgres instance.
-func Stop(r runners.Runner, c *resources.AppConfig) error {
+func Stop(r runners.Runner, p *resources.Pool, name string) error {
 	log.Dbg("Stopping Postgres container...")
 
-	if _, err := docker.RemoveContainer(r, c); err != nil {
+	if _, err := docker.RemoveContainer(r, name); err != nil {
 		return errors.Wrap(err, "failed to remove container")
 	}
 
-	if _, err := r.Run("rm -rf " + c.UnixSocketCloneDir + "/*"); err != nil {
+	if _, err := r.Run("rm -rf " + p.SocketCloneDir(name) + "/*"); err != nil {
 		return errors.Wrap(err, "failed to clean unix socket directory")
 	}
 
@@ -156,18 +156,8 @@ func getPgConnStr(c *resources.AppConfig) string {
 	}
 
 	sb.WriteString("port=" + strconv.Itoa(int(c.Port)) + " ")
-
-	if c.DBName() != "" {
-		sb.WriteString("dbname=" + c.DBName() + " ")
-	}
-
-	if c.Username() != "" {
-		sb.WriteString("user=" + c.Username() + " ")
-	}
-
-	if c.Password() != "" {
-		sb.WriteString("password=" + c.Password() + " ")
-	}
+	sb.WriteString("dbname=" + c.DB.DBName + " ")
+	sb.WriteString("user=" + c.DB.Username + " ")
 
 	return sb.String()
 }

@@ -14,7 +14,7 @@ import (
 // JobBuilder builds jobs.
 type JobBuilder interface {
 	// BuildJob builds retrieval jobs.
-	BuildJob(config.JobConfig) (JobRunner, error)
+	BuildJob(jobConfig config.JobConfig) (JobRunner, error)
 }
 
 // JobRunner performs a job.

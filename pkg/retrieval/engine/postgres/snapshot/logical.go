@@ -25,13 +25,15 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/pgconfig"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 )
 
 // LogicalInitial describes a job for preparing a logical initial snapshot.
 type LogicalInitial struct {
 	name           string
-	cloneManager   thinclones.Manager
+	cloneManager   pool.FSManager
+	fsPool         *resources.Pool
 	dockerClient   *client.Client
 	options        LogicalOptions
 	globalCfg      *dblabCfg.Global
@@ -61,22 +63,22 @@ const (
 )
 
 // NewLogicalInitialJob creates a new logical initial job.
-func NewLogicalInitialJob(cfg config.JobConfig, dockerClient *client.Client, cloneManager thinclones.Manager,
-	global *dblabCfg.Global, marker *dbmarker.Marker) (*LogicalInitial, error) {
+func NewLogicalInitialJob(cfg config.JobConfig, global *dblabCfg.Global, cloneManager pool.FSManager) (*LogicalInitial, error) {
 	li := &LogicalInitial{
-		name:         cfg.Name,
+		name:         cfg.Spec.Name,
 		cloneManager: cloneManager,
-		dockerClient: dockerClient,
+		fsPool:       cfg.FSPool,
+		dockerClient: cfg.Docker,
 		globalCfg:    global,
-		dbMarker:     marker,
+		dbMarker:     cfg.Marker,
 	}
 
-	if err := li.Reload(cfg.Options); err != nil {
+	if err := li.Reload(cfg.Spec.Options); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
 	if li.options.DataPatching.QueryPreprocessing.QueryPath != "" {
-		li.queryProcessor = newQueryProcessor(dockerClient, global.Database.Name(), global.Database.User(),
+		li.queryProcessor = newQueryProcessor(cfg.Docker, global.Database.Name(), global.Database.User(),
 			li.options.DataPatching.QueryPreprocessing.QueryPath,
 			li.options.DataPatching.QueryPreprocessing.MaxParallelWorkers)
 	}
@@ -111,7 +113,7 @@ func (s *LogicalInitial) Run(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create PostgreSQL configuration files")
 	}
 
-	dataDir := s.globalCfg.DataDir()
+	dataDir := s.fsPool.DataDir()
 
 	// Run basic PostgreSQL configuration.
 	cfgManager, err := pgconfig.NewCorrector(dataDir)
@@ -140,7 +142,7 @@ func (s *LogicalInitial) Run(ctx context.Context) error {
 }
 
 func (s *LogicalInitial) touchConfigFiles() error {
-	dataDir := s.globalCfg.DataDir()
+	dataDir := s.fsPool.DataDir()
 
 	if err := tools.TouchFile(path.Join(dataDir, "postgresql.conf")); err != nil {
 		return err
@@ -216,7 +218,7 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 func (s *LogicalInitial) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
 	hostConfig := &container.HostConfig{}
 
-	if err := tools.AddVolumesToHostConfig(ctx, s.dockerClient, hostConfig, s.globalCfg.DataDir()); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, s.dockerClient, hostConfig, s.fsPool.DataDir()); err != nil {
 		return nil, err
 	}
 

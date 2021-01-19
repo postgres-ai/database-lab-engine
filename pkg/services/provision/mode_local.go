@@ -12,9 +12,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -25,129 +23,73 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/docker"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/pkg/util/pglog"
 )
 
 const (
-	// Slash represents a slash symbol.
-	Slash = "/"
-
-	// DefaultHost defines a default host name.
-	DefaultHost = "localhost"
-
-	// DefaultUsername defines a default user name.
-	DefaultUsername = "postgres"
-
-	// DefaultPassword defines a default password.
-	DefaultPassword = "postgres"
-
-	// UseUnixSocket defines the need to connect to Postgres using Unix sockets.
-	UseUnixSocket = true
-
-	defaultClonesMountDir = "/var/lib/dblab/clones/"
-
-	defaultUnixSocketDir = "/var/lib/dblab/sockets/"
-
 	maxNumberOfPortsToCheck = 5
 	portCheckingTimeout     = 3 * time.Second
 )
 
-// LocalModePortPool describes an available port range for clones.
-type LocalModePortPool struct {
+// PortPool describes an available port range for clones.
+type PortPool struct {
 	From uint `yaml:"from"`
 	To   uint `yaml:"to"`
 }
 
-// LocalModeOptions describes provisioning configs for local mode.
-type LocalModeOptions struct {
-	PortPool          LocalModePortPool `yaml:"portPool"`
-	ClonePool         string            `yaml:"pool"`
-	ClonesMountDir    string            `yaml:"clonesMountDir"`
-	UnixSocketDir     string            `yaml:"unixSocketDir"`
-	PreSnapshotSuffix string            `yaml:"preSnapshotSuffix"`
-	DockerImage       string            `yaml:"dockerImage"`
-	UseSudo           bool              `yaml:"useSudo"`
-
-	// Thin-clone manager.
-	ThinCloneManager string `yaml:"thinCloneManager"`
+// Config defines configuration for provisioning.
+type Config struct {
+	PortPool          PortPool `yaml:"portPool"`
+	DockerImage       string   `yaml:"dockerImage"`
+	UseSudo           bool     `yaml:"useSudo"`
+	KeepUserPasswords bool     `yaml:"keepUserPasswords"`
 }
 
-type provisionModeLocal struct {
-	provision
-	dockerClient     *client.Client
-	runner           runners.Runner
-	mu               *sync.Mutex
-	ports            []bool
-	sessionCounter   uint32
-	thinCloneManager thinclones.Manager
-	portChecker      portChecker
+// Provisioner describes a struct for ports and clones management.
+type Provisioner struct {
+	config         *Config
+	dbCfg          *resources.DB
+	ctx            context.Context
+	dockerClient   *client.Client
+	runner         runners.Runner
+	mu             *sync.Mutex
+	ports          []bool
+	sessionCounter uint32
+	portChecker    portChecker
+	pm             *pool.Manager
 }
 
-// NewProvisionModeLocal creates a new Provision instance of ModeLocal.
-func NewProvisionModeLocal(ctx context.Context, config Config, dockerClient *client.Client) (Provision, error) {
-	p := &provisionModeLocal{
-		runner:       runners.NewLocalRunner(config.Options.UseSudo),
+// New creates a new Provisioner instance.
+func New(ctx context.Context, cfg *Config, dbCfg *resources.DB, docker *client.Client, pm *pool.Manager) (*Provisioner, error) {
+	if err := IsValidConfig(*cfg); err != nil {
+		return nil, errors.Wrap(err, "configuration is not valid")
+	}
+
+	p := &Provisioner{
+		runner:       runners.NewLocalRunner(cfg.UseSudo),
 		mu:           &sync.Mutex{},
-		dockerClient: dockerClient,
-		provision: provision{
-			config: &config,
-			ctx:    ctx,
-		},
-		portChecker: &localPortChecker{},
+		dockerClient: docker,
+		config:       cfg,
+		dbCfg:        dbCfg,
+		ctx:          ctx,
+		portChecker:  &localPortChecker{},
+		pm:           pm,
 	}
-
-	setDefault(p.config)
-
-	thinCloneManager, err := thinclones.NewManager(p.config.Options.ThinCloneManager,
-		p.runner, thinclones.ManagerConfig{
-			Pool:              p.config.Options.ClonePool,
-			PreSnapshotSuffix: p.config.Options.PreSnapshotSuffix,
-			ClonesMountDir:    p.config.Options.ClonesMountDir,
-			OSUsername:        p.config.OSUsername,
-			ClonePrefix:       util.ClonePrefix,
-		})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize thin-clone manager")
-	}
-
-	p.thinCloneManager = thinCloneManager
 
 	return p, nil
 }
 
-func setDefault(cfg *Config) {
-	if !strings.HasSuffix(cfg.Options.ClonesMountDir, Slash) {
-		cfg.Options.ClonesMountDir += Slash
-	}
-
-	if !strings.HasSuffix(cfg.Options.UnixSocketDir, Slash) {
-		cfg.Options.UnixSocketDir += Slash
-	}
-
-	if cfg.Options.ClonesMountDir == "" {
-		cfg.Options.ClonesMountDir = defaultClonesMountDir
-	}
-
-	if cfg.Options.UnixSocketDir == "" {
-		cfg.Options.UnixSocketDir = defaultUnixSocketDir
-	}
-
-	if cfg.PgMgmtUsername == "" {
-		cfg.PgMgmtUsername = DefaultUsername
-	}
-
-	if cfg.PgMgmtPassword == "" {
-		cfg.PgMgmtPassword = DefaultPassword
-	}
+// IsValidConfig defines a method for validation of a configuration.
+func IsValidConfig(cfg Config) error {
+	return isValidConfigModeLocal(cfg)
 }
 
 func isValidConfigModeLocal(config Config) error {
-	portPool := config.Options.PortPool
+	portPool := config.PortPool
 
 	if portPool.From == 0 {
 		return errors.New(`"portPool.from" must be defined and be greater than 0`)
@@ -164,19 +106,19 @@ func isValidConfigModeLocal(config Config) error {
 	return nil
 }
 
-// Provision interface implementation.
-func (j *provisionModeLocal) Init() error {
-	err := j.stopAllSessions()
+// Init inits provision.
+func (p *Provisioner) Init() error {
+	err := p.stopAllSessions()
 	if err != nil {
 		return errors.Wrap(err, "failed to stop all session")
 	}
 
-	err = j.initPortPool()
+	err = p.initPortPool()
 	if err != nil {
 		return errors.Wrap(err, "failed to init port pool")
 	}
 
-	imageExists, err := docker.ImageExists(j.runner, j.config.Options.DockerImage)
+	imageExists, err := docker.ImageExists(p.runner, p.config.DockerImage)
 	if err != nil {
 		return errors.Wrap(err, "cannot check docker image existence")
 	}
@@ -185,7 +127,7 @@ func (j *provisionModeLocal) Init() error {
 		return nil
 	}
 
-	err = docker.PullImage(j.runner, j.config.Options.DockerImage)
+	err = docker.PullImage(p.runner, p.config.DockerImage)
 	if err != nil {
 		return errors.Wrap(err, "cannot pull docker image")
 	}
@@ -194,68 +136,61 @@ func (j *provisionModeLocal) Init() error {
 }
 
 // Reload reloads provision configuration.
-func (j *provisionModeLocal) Reload(cfg Config) {
-	setDefault(&cfg)
-	*j.config = cfg
+func (p *Provisioner) Reload(cfg Config, dbCfg resources.DB) {
+	*p.config = cfg
+	*p.dbCfg = dbCfg
 }
 
-// ThinCloneManager provides a thin clone manager.
-func (j *provisionModeLocal) ThinCloneManager() thinclones.Manager {
-	return j.thinCloneManager
-}
-
-func (j *provisionModeLocal) StartSession(username, password, snapshotID string,
+// StartSession starts a new session.
+func (p *Provisioner) StartSession(username, password, snapshotID string,
 	extraConfig map[string]string) (*resources.Session, error) {
-	snapshotID, err := j.getSnapshotID(snapshotID)
+	snapshotID, err := p.getSnapshotID(snapshotID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get snapshots")
 	}
 
-	port, err := j.allocatePort()
+	port, err := p.allocatePort()
 	if err != nil {
 		return nil, errors.New("failed to get a free port")
 	}
 
 	name := util.GetCloneName(port)
+	fsm := p.pm.Active()
 
 	log.Dbg(fmt.Sprintf(`Starting session for port: %d.`, port))
 
 	defer func() {
 		if err != nil {
-			j.revertSession(name)
+			p.revertSession(name)
 
-			if portErr := j.freePort(port); portErr != nil {
+			if portErr := p.freePort(port); portErr != nil {
 				log.Err(portErr)
 			}
 		}
 	}()
 
-	err = j.thinCloneManager.CreateClone(name, snapshotID)
-	if err != nil {
+	if err := fsm.CreateClone(name, snapshotID); err != nil {
 		return nil, errors.Wrap(err, "failed to create a clone")
 	}
 
-	appConfig := j.getAppConfig(name, port)
+	appConfig := p.getAppConfig(fsm.Pool(), name, port)
 	appConfig.SetExtraConf(extraConfig)
 
-	err = postgres.Start(j.runner, appConfig)
-	if err != nil {
+	if err := postgres.Start(p.runner, appConfig); err != nil {
 		return nil, errors.Wrap(err, "failed to start a container")
 	}
 
-	err = j.prepareDB(username, password, appConfig)
-	if err != nil {
+	if err := p.prepareDB(username, password, appConfig); err != nil {
 		return nil, errors.Wrap(err, "failed to prepare a database")
 	}
 
-	atomic.AddUint32(&j.sessionCounter, 1)
+	atomic.AddUint32(&p.sessionCounter, 1)
 
 	session := &resources.Session{
-		ID:                strconv.FormatUint(uint64(j.sessionCounter), 10),
-		Host:              DefaultHost,
+		ID:                strconv.FormatUint(uint64(p.sessionCounter), 10),
+		Pool:              fsm.Pool().Name,
 		Port:              port,
-		User:              j.config.PgMgmtUsername,
-		Password:          j.config.PgMgmtPassword,
+		User:              appConfig.DB.Username,
 		SocketHost:        appConfig.Host,
 		EphemeralUser:     username,
 		EphemeralPassword: password,
@@ -265,103 +200,115 @@ func (j *provisionModeLocal) StartSession(username, password, snapshotID string,
 	return session, nil
 }
 
-func (j *provisionModeLocal) StopSession(session *resources.Session) error {
+// StopSession stops an existing session.
+func (p *Provisioner) StopSession(session *resources.Session) error {
+	fsm, err := p.pm.GetFSManager(session.Pool)
+	if err != nil {
+		return errors.Wrap(err, "failed to find a filesystem manager of this session")
+	}
+
 	name := util.GetCloneName(session.Port)
 
-	err := postgres.Stop(j.runner, j.getAppConfig(name, session.Port))
-	if err != nil {
+	if err := postgres.Stop(p.runner, fsm.Pool(), name); err != nil {
 		return errors.Wrap(err, "failed to stop a container")
 	}
 
-	err = j.thinCloneManager.DestroyClone(name)
-	if err != nil {
+	if err := fsm.DestroyClone(name); err != nil {
 		return errors.Wrap(err, "failed to destroy a clone")
 	}
 
-	err = j.freePort(session.Port)
-	if err != nil {
+	if err := p.freePort(session.Port); err != nil {
 		return errors.Wrap(err, "failed to unbind a port")
 	}
 
 	return nil
 }
 
-func (j *provisionModeLocal) ResetSession(session *resources.Session, snapshotID string) error {
+// ResetSession resets an existing session.
+func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string) error {
+	fsm, err := p.pm.GetFSManager(session.Pool)
+	if err != nil {
+		return errors.Wrap(err, "failed to find a filesystem manager of this session")
+	}
+
 	name := util.GetCloneName(session.Port)
 
-	snapshotID, err := j.getSnapshotID(snapshotID)
+	snapshotID, err = p.getSnapshotID(snapshotID)
 	if err != nil {
 		return errors.Wrap(err, "failed to get snapshots")
 	}
 
 	defer func() {
 		if err != nil {
-			j.revertSession(name)
+			p.revertSession(name)
 		}
 	}()
 
-	appConfig := j.getAppConfig(name, session.Port)
+	appConfig := p.getAppConfig(fsm.Pool(), name, session.Port)
 	appConfig.SetExtraConf(session.ExtraConfig)
 
-	err = postgres.Stop(j.runner, appConfig)
-	if err != nil {
+	if err := postgres.Stop(p.runner, fsm.Pool(), name); err != nil {
 		return errors.Wrap(err, "failed to stop a container")
 	}
 
-	err = j.thinCloneManager.DestroyClone(name)
-	if err != nil {
+	if err := fsm.DestroyClone(name); err != nil {
 		return errors.Wrap(err, "failed to destroy clone")
 	}
 
-	err = j.thinCloneManager.CreateClone(name, snapshotID)
-	if err != nil {
+	if err := fsm.CreateClone(name, snapshotID); err != nil {
 		return errors.Wrap(err, "failed to create a clone")
 	}
 
-	err = postgres.Start(j.runner, appConfig)
-	if err != nil {
+	if err := postgres.Start(p.runner, appConfig); err != nil {
 		return errors.Wrap(err, "failed to start a container")
 	}
 
-	err = j.prepareDB(session.EphemeralUser, session.EphemeralPassword, appConfig)
-	if err != nil {
+	if err := p.prepareDB(session.EphemeralUser, session.EphemeralPassword, appConfig); err != nil {
 		return errors.Wrap(err, "failed to prepare a database")
 	}
 
 	return nil
 }
 
-func (j *provisionModeLocal) GetSnapshots() ([]resources.Snapshot, error) {
-	return j.thinCloneManager.GetSnapshots()
+// GetSnapshots provides a snapshot list.
+func (p *Provisioner) GetSnapshots() ([]resources.Snapshot, error) {
+	return p.pm.Active().GetSnapshots()
 }
 
-func (j *provisionModeLocal) GetDiskState() (*resources.Disk, error) {
-	return j.thinCloneManager.GetDiskState()
+// GetDiskState describes the state of the managed disk.
+func (p *Provisioner) GetDiskState() (*resources.Disk, error) {
+	return p.pm.Active().GetDiskState()
 }
 
-func (j *provisionModeLocal) GetSessionState(s *resources.Session) (*resources.SessionState, error) {
-	return j.thinCloneManager.GetSessionState(util.GetCloneName(s.Port))
+// GetSessionState describes the state of the session.
+func (p *Provisioner) GetSessionState(s *resources.Session) (*resources.SessionState, error) {
+	fsm, err := p.pm.GetFSManager(s.Pool)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find a filesystem manager of this session")
+	}
+
+	return fsm.GetSessionState(util.GetCloneName(s.Port))
 }
 
 // Other methods.
-func (j *provisionModeLocal) revertSession(name string) {
+func (p *Provisioner) revertSession(name string) {
 	log.Dbg(`Reverting start of a session...`)
 
-	if runnerErr := postgres.Stop(j.runner, j.getAppConfig(name, 0)); runnerErr != nil {
+	if runnerErr := postgres.Stop(p.runner, p.pm.Active().Pool(), name); runnerErr != nil {
 		log.Err(`Revert:`, runnerErr)
 	}
 
-	if runnerErr := j.thinCloneManager.DestroyClone(name); runnerErr != nil {
+	if runnerErr := p.pm.Active().DestroyClone(name); runnerErr != nil {
 		log.Err(`Revert:`, runnerErr)
 	}
 }
 
-func (j *provisionModeLocal) getSnapshotID(snapshotID string) (string, error) {
+func (p *Provisioner) getSnapshotID(snapshotID string) (string, error) {
 	if snapshotID != "" {
 		return snapshotID, nil
 	}
 
-	snapshots, err := j.GetSnapshots()
+	snapshots, err := p.GetSnapshots()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get snapshots")
 	}
@@ -373,10 +320,10 @@ func (j *provisionModeLocal) getSnapshotID(snapshotID string) (string, error) {
 	return snapshots[0].ID, nil
 }
 
-func (j *provisionModeLocal) initPortPool() error {
-	portOpts := j.config.Options.PortPool
+func (p *Provisioner) initPortPool() error {
+	portOpts := p.config.PortPool
 	size := portOpts.To - portOpts.From
-	j.ports = make([]bool, size)
+	p.ports = make([]bool, size)
 
 	log.Msg(fmt.Sprintf("checking availability of the port range [%d - %d]", portOpts.From, portOpts.To))
 
@@ -386,7 +333,7 @@ func (j *provisionModeLocal) initPortPool() error {
 	}
 
 	for port := portOpts.From; port < portOpts.To; port++ {
-		if err := j.portChecker.checkPortAvailability(host, port); err != nil {
+		if err := p.portChecker.checkPortAvailability(host, port); err != nil {
 			return errors.Wrapf(err, "port %d is not available", port)
 		}
 	}
@@ -397,8 +344,8 @@ func (j *provisionModeLocal) initPortPool() error {
 }
 
 // allocatePort tries to find a free port and occupy it.
-func (j *provisionModeLocal) allocatePort() (uint, error) {
-	portOpts := j.config.Options.PortPool
+func (p *Provisioner) allocatePort() (uint, error) {
+	portOpts := p.config.PortPool
 
 	attempts := 0
 
@@ -407,10 +354,10 @@ func (j *provisionModeLocal) allocatePort() (uint, error) {
 		return 0, err
 	}
 
-	j.mu.Lock()
-	defer j.mu.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	for index, bind := range j.ports {
+	for index, bind := range p.ports {
 		if attempts >= maxNumberOfPortsToCheck {
 			break
 		}
@@ -423,14 +370,14 @@ func (j *provisionModeLocal) allocatePort() (uint, error) {
 
 		log.Msg(fmt.Sprintf("checking port %d ...", port))
 
-		if err := j.portChecker.checkPortAvailability(host, port); err != nil {
+		if err := p.portChecker.checkPortAvailability(host, port); err != nil {
 			log.Msg(fmt.Sprintf("port %d is not available: %v", port, err))
 			attempts++
 
 			continue
 		}
 
-		if err := j.setPortStatus(port, true); err != nil {
+		if err := p.setPortStatus(port, true); err != nil {
 			return 0, errors.Wrapf(err, "failed to set status for port %v", port)
 		}
 
@@ -450,54 +397,31 @@ func externalIP() (string, error) {
 }
 
 // freePort marks the port as free.
-func (j *provisionModeLocal) freePort(port uint) error {
-	j.mu.Lock()
-	defer j.mu.Unlock()
+func (p *Provisioner) freePort(port uint) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return j.setPortStatus(port, false)
+	return p.setPortStatus(port, false)
 }
 
 // setPortStatus updates the port status.
 // It's not safe to invoke without ports mutex locking. Use allocatePort and freePort methods.
-func (j *provisionModeLocal) setPortStatus(port uint, bind bool) error {
-	portOpts := j.config.Options.PortPool
+func (p *Provisioner) setPortStatus(port uint, bind bool) error {
+	portOpts := p.config.PortPool
 
 	if port < portOpts.From || port >= portOpts.To {
 		return errors.Errorf("port %d is out of bounds of the port pool", port)
 	}
 
 	index := port - portOpts.From
-	j.ports[index] = bind
+	p.ports[index] = bind
 
 	return nil
 }
 
-func (j *provisionModeLocal) stopAllSessions() error {
-	instances, err := postgres.List(j.runner, j.config.Options.ClonePool)
-	if err != nil {
-		return errors.Wrap(err, "failed to list containers")
-	}
-
-	log.Dbg("Containers running:", instances)
-
-	for _, inst := range instances {
-		log.Dbg("Stopping container:", inst)
-
-		if err = postgres.Stop(j.runner, j.getAppConfig(inst, 0)); err != nil {
-			return errors.Wrap(err, "failed to container")
-		}
-	}
-
-	clones, err := j.thinCloneManager.ListClonesNames()
-	if err != nil {
-		return err
-	}
-
-	log.Dbg("VM clones:", clones)
-
-	for _, clone := range clones {
-		err = j.thinCloneManager.DestroyClone(clone)
-		if err != nil {
+func (p *Provisioner) stopAllSessions() error {
+	for _, fsm := range p.pm.GetFSManagerList() {
+		if err := p.stopPoolSessions(fsm); err != nil {
 			return err
 		}
 	}
@@ -505,39 +429,64 @@ func (j *provisionModeLocal) stopAllSessions() error {
 	return nil
 }
 
-func (j *provisionModeLocal) getAppConfig(name string, port uint) *resources.AppConfig {
-	host := DefaultHost
-	unixSocketCloneDir := path.Join(j.config.Options.UnixSocketDir, name)
+func (p *Provisioner) stopPoolSessions(fsm pool.FSManager) error {
+	fsPool := fsm.Pool()
 
-	if UseUnixSocket {
-		host = unixSocketCloneDir
+	instances, err := postgres.List(p.runner, fsPool.Name)
+	if err != nil {
+		return errors.Wrap(err, "failed to list containers")
 	}
 
+	log.Dbg("Containers running:", instances)
+
+	for _, instance := range instances {
+		log.Dbg("Stopping container:", instance)
+
+		if err = postgres.Stop(p.runner, fsPool, instance); err != nil {
+			return errors.Wrap(err, "failed to container")
+		}
+	}
+
+	clones, err := fsm.ListClonesNames()
+	if err != nil {
+		return err
+	}
+
+	log.Dbg("Clone list:", clones)
+
+	for _, clone := range clones {
+		if err := fsm.DestroyClone(clone); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *Provisioner) getAppConfig(pool *resources.Pool, name string, port uint) *resources.AppConfig {
 	appConfig := &resources.AppConfig{
-		CloneName:          name,
-		ClonePool:          j.config.Options.ClonePool,
-		DockerImage:        j.config.Options.DockerImage,
-		Host:               host,
-		Port:               port,
-		MountDir:           j.config.MountDir,
-		DataSubDir:         j.config.DataSubDir,
-		ClonesMountDir:     j.config.Options.ClonesMountDir,
-		UnixSocketCloneDir: unixSocketCloneDir,
-		OSUsername:         j.config.OSUsername,
+		CloneName:   name,
+		DockerImage: p.config.DockerImage,
+		Host:        pool.SocketCloneDir(name),
+		Port:        port,
+		DB:          p.dbCfg,
+		Pool:        *pool,
 	}
-
-	appConfig.SetDBName("postgres")
-	appConfig.SetUsername(j.config.PgMgmtUsername)
-	appConfig.SetPassword(j.config.PgMgmtPassword)
 
 	return appConfig
 }
 
-func (j *provisionModeLocal) LastSessionActivity(port uint, minimumTime time.Time) (*time.Time, error) {
-	ctx, cancel := context.WithCancel(j.ctx)
+// LastSessionActivity returns the time of the last session activity.
+func (p *Provisioner) LastSessionActivity(session *resources.Session, minimumTime time.Time) (*time.Time, error) {
+	fsm, err := p.pm.GetFSManager(session.Pool)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find a filesystem manager")
+	}
+
+	ctx, cancel := context.WithCancel(p.ctx)
 	defer cancel()
 
-	fileSelector := pglog.NewSelector(j.config.Options.ClonesMountDir, j.config.DataSubDir, port)
+	fileSelector := pglog.NewSelector(fsm.Pool().ClonePath(session.Port))
 
 	if err := fileSelector.DiscoverLogDir(); err != nil {
 		return nil, errors.Wrap(err, "failed to init file selector")
@@ -556,7 +505,7 @@ func (j *provisionModeLocal) LastSessionActivity(port uint, minimumTime time.Tim
 			return nil, errors.Wrap(err, "failed get CSV log filenames")
 		}
 
-		activity, err := j.scanCSVLogFile(ctx, filename, minimumTime)
+		activity, err := p.scanCSVLogFile(ctx, filename, minimumTime)
 		if err == io.EOF {
 			continue
 		}
@@ -569,7 +518,7 @@ func (j *provisionModeLocal) LastSessionActivity(port uint, minimumTime time.Tim
 
 const csvMessageLogFieldsLength = 14
 
-func (j *provisionModeLocal) scanCSVLogFile(ctx context.Context, filename string, availableTime time.Time) (*time.Time, error) {
+func (p *Provisioner) scanCSVLogFile(ctx context.Context, filename string, availableTime time.Time) (*time.Time, error) {
 	csvFile, err := os.Open(filename)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open a CSV log file")
@@ -614,16 +563,16 @@ func (j *provisionModeLocal) scanCSVLogFile(ctx context.Context, filename string
 	}
 }
 
-func (j *provisionModeLocal) prepareDB(username, password string, pgConf *resources.AppConfig) error {
-	if !j.config.KeepUserPasswords {
-		whitelist := []string{j.config.PgMgmtUsername}
+func (p *Provisioner) prepareDB(username, password string, pgConf *resources.AppConfig) error {
+	if !p.config.KeepUserPasswords {
+		whitelist := []string{p.dbCfg.Username}
 
-		if err := postgres.ResetAllPasswords(j.runner, pgConf, whitelist); err != nil {
+		if err := postgres.ResetAllPasswords(pgConf, whitelist); err != nil {
 			return errors.Wrap(err, "failed to reset all passwords")
 		}
 	}
 
-	if err := postgres.CreateUser(j.runner, pgConf, username, password); err != nil {
+	if err := postgres.CreateUser(pgConf, username, password); err != nil {
 		return errors.Wrap(err, "failed to create user")
 	}
 

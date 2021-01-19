@@ -20,6 +20,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/pkg/client/platform"
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/pkg/util/pglog"
 )
 
@@ -42,6 +43,7 @@ type Observer struct {
 	sessionMu        *sync.Mutex
 	cfg              *Config
 	replacementRules []ReplacementRule
+	pool             *resources.Pool
 }
 
 // Config defines configuration options for observer.
@@ -59,13 +61,14 @@ type ReplacementRule struct {
 }
 
 // NewObserver creates an Observer instance.
-func NewObserver(dockerClient *client.Client, cfg *Config, platform *platform.Client) *Observer {
+func NewObserver(dockerClient *client.Client, cfg *Config, platform *platform.Client, pool *resources.Pool) *Observer {
 	observer := &Observer{
 		dockerClient:     dockerClient,
 		Platform:         platform,
 		storage:          make(map[string]*Session),
 		sessionMu:        &sync.Mutex{},
 		cfg:              cfg,
+		pool:             pool,
 		replacementRules: []ReplacementRule{},
 	}
 
@@ -83,7 +86,7 @@ func NewObserver(dockerClient *client.Client, cfg *Config, platform *platform.Cl
 // GetCloneLog gets clone logs.
 // TODO (akartasov): Split log to chunks.
 func (o *Observer) GetCloneLog(ctx context.Context, port uint, session *Session) ([]byte, error) {
-	fileSelector := pglog.NewSelector(o.cfg.CloneDir, o.cfg.DataSubDir, port)
+	fileSelector := pglog.NewSelector(o.pool.ClonePath(port))
 	fileSelector.SetMinimumTime(session.StartedAt)
 
 	if err := fileSelector.DiscoverLogDir(); err != nil {
@@ -197,7 +200,7 @@ func (o *Observer) maskLogs(entry []string, maskedFieldIndexes []int) {
 func (o *Observer) AddSession(cloneID string, session *Session) {
 	o.sessionMu.Lock()
 	defer o.sessionMu.Unlock()
-	session.socketDir = o.cfg.SocketDir
+	session.socketDir = o.pool.SocketDir()
 
 	o.storage[cloneID] = session
 }

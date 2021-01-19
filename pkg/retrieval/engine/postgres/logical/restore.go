@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -26,6 +27,8 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/pkg/util"
 )
 
 const (
@@ -41,6 +44,7 @@ const (
 type RestoreJob struct {
 	name         string
 	dockerClient *client.Client
+	fsPool       *resources.Pool
 	globalCfg    *dblabCfg.Global
 	dbMarker     *dbmarker.Marker
 	dbMark       *dbmarker.Config
@@ -63,16 +67,17 @@ type Partial struct {
 }
 
 // NewJob create a new logical restore job.
-func NewJob(cfg config.JobConfig, docker *client.Client, globalCfg *dblabCfg.Global, marker *dbmarker.Marker) (*RestoreJob, error) {
+func NewJob(cfg config.JobConfig, global *dblabCfg.Global) (*RestoreJob, error) {
 	restoreJob := &RestoreJob{
-		name:         cfg.Name,
-		dockerClient: docker,
-		globalCfg:    globalCfg,
-		dbMarker:     marker,
+		name:         cfg.Spec.Name,
+		dockerClient: cfg.Docker,
+		fsPool:       cfg.FSPool,
+		globalCfg:    global,
+		dbMarker:     cfg.Marker,
 		dbMark:       &dbmarker.Config{DataType: dbmarker.LogicalDataType},
 	}
 
-	if err := restoreJob.Reload(cfg.Options); err != nil {
+	if err := restoreJob.Reload(cfg.Spec.Options); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
@@ -112,18 +117,18 @@ func (r *RestoreJob) Reload(cfg map[string]interface{}) (err error) {
 func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Msg("Run job: ", r.Name())
 
-	isEmpty, err := tools.IsEmptyDirectory(r.globalCfg.DataDir())
+	isEmpty, err := tools.IsEmptyDirectory(r.fsPool.DataDir())
 	if err != nil {
-		return errors.Wrapf(err, "failed to explore the data directory %q", r.globalCfg.DataDir())
+		return errors.Wrapf(err, "failed to explore the data directory %q", r.fsPool.DataDir())
 	}
 
 	if !isEmpty {
 		if !r.ForceInit {
 			return errors.Errorf("the data directory %q is not empty. Use 'forceInit' or empty the data directory",
-				r.globalCfg.DataDir())
+				r.fsPool.DataDir())
 		}
 
-		log.Msg(fmt.Sprintf("The data directory %q is not empty. Existing data may be overwritten.", r.globalCfg.DataDir()))
+		log.Msg(fmt.Sprintf("The data directory %q is not empty. Existing data may be overwritten.", r.fsPool.DataDir()))
 	}
 
 	if err := tools.PullImage(ctx, r.dockerClient, r.RestoreOptions.DockerImage); err != nil {
@@ -208,7 +213,7 @@ func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 			cont.DBLabInstanceIDLabel: r.globalCfg.InstanceID,
 		},
 		Env: append(os.Environ(), []string{
-			"PGDATA=" + r.globalCfg.DataDir(),
+			"PGDATA=" + r.fsPool.DataDir(),
 			"POSTGRES_PASSWORD=" + password,
 		}...),
 		Image:       r.RestoreOptions.DockerImage,
@@ -219,7 +224,7 @@ func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
 	hostConfig := &container.HostConfig{}
 
-	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.globalCfg.DataDir()); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.fsPool.DataDir()); err != nil {
 		return nil, err
 	}
 
@@ -243,6 +248,8 @@ func (r *RestoreJob) markDatabase(ctx context.Context, contID string) error {
 	if err := r.dbMarker.SaveConfig(r.dbMark); err != nil {
 		return errors.Wrap(err, "failed to mark the database")
 	}
+
+	r.updateDataStateAt()
 
 	return nil
 }
@@ -274,6 +281,17 @@ func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID string) (st
 	}
 
 	return dataStateAt, nil
+}
+
+// updateDataStateAt updates dataStateAt for in-memory representation of a filesystem pool.
+func (r *RestoreJob) updateDataStateAt() {
+	dsaTime, err := time.Parse(util.DataStateAtFormat, r.dbMark.DataStateAt)
+	if err != nil {
+		log.Err("Invalid value for DataStateAt: ", r.dbMark.DataStateAt)
+		return
+	}
+
+	r.fsPool.SetDSA(dsaTime)
 }
 
 func (r *RestoreJob) buildLogicalRestoreCommand() []string {

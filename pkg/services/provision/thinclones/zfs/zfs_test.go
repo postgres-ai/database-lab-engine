@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 )
 
 type runnerMock struct {
@@ -19,7 +21,7 @@ func (r runnerMock) Run(string, ...bool) (string, error) {
 
 func TestListClones(t *testing.T) {
 	const (
-		pool        = "datastore"
+		poolName    = "datastore"
 		clonePrefix = "dblab_clone_"
 	)
 
@@ -82,11 +84,17 @@ dblab_pool/dblab_clone_6001
 	}
 
 	for _, testCase := range testCases {
-		runner := runnerMock{
-			cmdOutput: testCase.cmdOutput,
+		m := Manager{
+			runner: runnerMock{
+				cmdOutput: testCase.cmdOutput,
+			},
+			config: Config{
+				Pool:              resources.NewPool(poolName),
+				PreSnapshotSuffix: clonePrefix,
+			},
 		}
 
-		listClones, err := ListClones(runner, pool, clonePrefix)
+		listClones, err := m.ListClonesNames()
 
 		require.NoError(t, err, testCase.caseName)
 		assert.Equal(t, testCase.cloneNames, listClones, testCase.caseName)
@@ -94,11 +102,13 @@ dblab_pool/dblab_clone_6001
 }
 
 func TestFailedListClones(t *testing.T) {
-	runner := runnerMock{
-		err: errors.New("runner error"),
+	m := Manager{
+		runner: runnerMock{
+			err: errors.New("runner error"),
+		},
 	}
 
-	cloneNames, err := ListClones(runner, "pool", "dblab_clone_")
+	cloneNames, err := m.ListClonesNames()
 
 	assert.Nil(t, cloneNames)
 	assert.EqualError(t, err, "failed to list clones: runner error")

@@ -12,7 +12,6 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
 )
 
 // ResetPasswordsQuery provides a template for a reset password query.
@@ -42,7 +41,7 @@ $$;
 const ResetPasswordsQueryWhere = ` and rolname not in (%s)`
 
 // ResetAllPasswords defines a method for resetting password of all Postgres users.
-func ResetAllPasswords(r runners.Runner, c *resources.AppConfig, whitelistUsers []string) error {
+func ResetAllPasswords(c *resources.AppConfig, whitelistUsers []string) error {
 	optionalWhere := ""
 
 	if len(whitelistUsers) > 0 {
@@ -71,7 +70,7 @@ func ResetAllPasswords(r runners.Runner, c *resources.AppConfig, whitelistUsers 
 }
 
 // CreateUser defines a method for creation of Postgres user.
-func CreateUser(r runners.Runner, c *resources.AppConfig, username string, password string) error {
+func CreateUser(c *resources.AppConfig, username string, password string) error {
 	query := fmt.Sprintf("create user \"%s\" with password '%s' login superuser;",
 		username, password)
 

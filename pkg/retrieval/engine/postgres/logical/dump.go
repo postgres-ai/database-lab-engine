@@ -27,6 +27,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 )
 
 const (
@@ -53,6 +54,7 @@ const (
 type DumpJob struct {
 	name         string
 	dockerClient *client.Client
+	fsPool       *resources.Pool
 	globalCfg    *dblabCfg.Global
 	config       dumpJobConfig
 	dumper       dumper
@@ -107,18 +109,19 @@ type ImmediateRestore struct {
 }
 
 // NewDumpJob creates a new DumpJob.
-func NewDumpJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Global, marker *dbmarker.Marker) (*DumpJob, error) {
+func NewDumpJob(jobCfg config.JobConfig, global *dblabCfg.Global) (*DumpJob, error) {
 	dumpJob := &DumpJob{
-		name:         cfg.Name,
-		dockerClient: docker,
+		name:         jobCfg.Spec.Name,
+		dockerClient: jobCfg.Docker,
+		fsPool:       jobCfg.FSPool,
 		globalCfg:    global,
-		dbMarker:     marker,
+		dbMarker:     jobCfg.Marker,
 		dbMark: &dbmarker.Config{
 			DataType: dbmarker.LogicalDataType,
 		},
 	}
 
-	if err := dumpJob.Reload(cfg.Options); err != nil {
+	if err := dumpJob.Reload(jobCfg.Spec.Options); err != nil {
 		return nil, errors.Wrap(err, "failed to load job config")
 	}
 
@@ -206,7 +209,7 @@ func (d *DumpJob) Reload(cfg map[string]interface{}) (err error) {
 func (d *DumpJob) Run(ctx context.Context) (err error) {
 	log.Msg("Run job: ", d.Name())
 
-	isEmpty, err := tools.IsEmptyDirectory(d.globalCfg.DataDir())
+	isEmpty, err := tools.IsEmptyDirectory(d.fsPool.DataDir())
 	if err != nil {
 		return errors.Wrap(err, "failed to explore the data directory")
 	}
@@ -273,6 +276,14 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		log.Msg("Partial dump will be run. Tables for dumping: ", strings.Join(d.Partial.Tables, ", "))
 	}
 
+	if d.DumpOptions.DumpLocation != "" && d.DumpOptions.Restore == nil {
+		if err := tools.ExecCommand(ctx, d.dockerClient, dumpCont.ID, types.ExecConfig{
+			Cmd: []string{"rm", "-rf", d.DumpOptions.DumpLocation},
+		}); err != nil {
+			return errors.Wrap(err, "failed to clean up dump location")
+		}
+	}
+
 	if err := d.performDumpCommand(ctx, dumpCont.ID, types.ExecConfig{
 		Cmd: dumpCommand,
 		Env: d.getExecEnvironmentVariables(),
@@ -330,7 +341,7 @@ func (d *DumpJob) getEnvironmentVariables(password string) []string {
 
 	// Avoid initialization of PostgreSQL directory in case of preparing of a dump.
 	if d.DumpOptions.Restore != nil {
-		envs = append(envs, "PGDATA="+d.globalCfg.DataDir())
+		envs = append(envs, "PGDATA="+d.fsPool.DataDir())
 	}
 
 	if d.DumpOptions.Source.Type == sourceTypeLocal && d.DumpOptions.Source.Connection.Port == defaults.Port {
@@ -358,7 +369,7 @@ func (d *DumpJob) buildHostConfig(ctx context.Context) (*container.HostConfig, e
 		NetworkMode: d.getContainerNetworkMode(),
 	}
 
-	if err := tools.AddVolumesToHostConfig(ctx, d.dockerClient, hostConfig, d.globalCfg.DataDir()); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, d.dockerClient, hostConfig, d.fsPool.DataDir()); err != nil {
 		return nil, err
 	}
 

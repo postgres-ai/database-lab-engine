@@ -16,16 +16,12 @@ func (m mockPortChecker) checkPortAvailability(_ string, _ uint) error {
 }
 
 func TestPortAllocation(t *testing.T) {
-	p := &provisionModeLocal{
+	p := &Provisioner{
 		mu: &sync.Mutex{},
-		provision: provision{
-			config: &Config{
-				Options: LocalModeOptions{
-					PortPool: LocalModePortPool{
-						From: 6000,
-						To:   6002,
-					},
-				},
+		config: &Config{
+			PortPool: PortPool{
+				From: 6000,
+				To:   6002,
 			},
 		},
 		portChecker: &mockPortChecker{},
@@ -38,8 +34,8 @@ func TestPortAllocation(t *testing.T) {
 	port, err := p.allocatePort()
 	require.NoError(t, err)
 
-	assert.GreaterOrEqual(t, port, p.provision.config.Options.PortPool.From)
-	assert.LessOrEqual(t, port, p.provision.config.Options.PortPool.To)
+	assert.GreaterOrEqual(t, port, p.config.PortPool.From)
+	assert.LessOrEqual(t, port, p.config.PortPool.To)
 
 	// Allocate one more port.
 	_, err = p.allocatePort()
@@ -54,8 +50,8 @@ func TestPortAllocation(t *testing.T) {
 	require.NoError(t, p.freePort(port))
 	port, err = p.allocatePort()
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, port, p.provision.config.Options.PortPool.From)
-	assert.LessOrEqual(t, port, p.provision.config.Options.PortPool.To)
+	assert.GreaterOrEqual(t, port, p.config.PortPool.From)
+	assert.LessOrEqual(t, port, p.config.PortPool.To)
 
 	// Try to free a non-existing port.
 	err = p.freePort(1)

@@ -36,22 +36,20 @@ const (
 )
 
 type baseCloning struct {
-	cloning
-
+	config         *Config
 	cloneMutex     sync.RWMutex
 	clones         map[string]*CloneWrapper
 	instanceStatus *models.InstanceStatus
 	snapshotMutex  sync.RWMutex
 	snapshots      []models.Snapshot
-
-	provision provision.Provision
+	provision      *provision.Provisioner
 }
 
 // NewBaseCloning instances a new base Cloning.
-func NewBaseCloning(cfg *Config, provision provision.Provision) Cloning {
+func NewBaseCloning(cfg *Config, provision *provision.Provisioner) Cloning {
 	return &baseCloning{
-		cloning: cloning{Config: cfg},
-		clones:  make(map[string]*CloneWrapper),
+		config: cfg,
+		clones: make(map[string]*CloneWrapper),
 		instanceStatus: &models.InstanceStatus{
 			Status: &models.Status{
 				Code:    models.StatusOK,
@@ -65,7 +63,7 @@ func NewBaseCloning(cfg *Config, provision provision.Provision) Cloning {
 }
 
 func (c *baseCloning) Reload(cfg Config) {
-	*c.Config = cfg
+	*c.config = cfg
 }
 
 // Initialize and run cloning component.
@@ -176,13 +174,13 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 		}
 
 		clone.DB.Port = strconv.FormatUint(uint64(session.Port), 10)
-		clone.DB.Host = c.Config.AccessHost
+		clone.DB.Host = c.config.AccessHost
 		clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s user=%s dbname=%s",
 			clone.DB.Host, clone.DB.Port, clone.DB.Username, defaultDatabaseName)
 
 		clone.Metadata = models.CloneMetadata{
 			CloningTime:    w.timeStartedAt.Sub(w.timeCreatedAt).Seconds(),
-			MaxIdleMinutes: c.Config.MaxIdleMinutes,
+			MaxIdleMinutes: c.config.MaxIdleMinutes,
 		}
 	}()
 
@@ -490,7 +488,7 @@ func (c *baseCloning) getSnapshotByID(snapshotID string) (models.Snapshot, error
 }
 
 func (c *baseCloning) runIdleCheck(ctx context.Context) {
-	if c.Config.MaxIdleMinutes == 0 {
+	if c.config.MaxIdleMinutes == 0 {
 		return
 	}
 
@@ -537,7 +535,7 @@ func (c *baseCloning) destroyIdleClones(ctx context.Context) {
 func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 	currentTime := time.Now()
 
-	idleDuration := time.Duration(c.Config.MaxIdleMinutes) * time.Minute
+	idleDuration := time.Duration(c.config.MaxIdleMinutes) * time.Minute
 	minimumTime := currentTime.Add(-idleDuration)
 
 	if wrapper.clone.Protected || wrapper.clone.Status.Code == models.StatusExporting || wrapper.timeStartedAt.After(minimumTime) {
@@ -551,7 +549,7 @@ func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 		return false, errors.New("failed to get clone session")
 	}
 
-	if _, err := c.provision.LastSessionActivity(session.Port, minimumTime); err != nil {
+	if _, err := c.provision.LastSessionActivity(session, minimumTime); err != nil {
 		if err == pglog.ErrNotFound {
 			log.Dbg(fmt.Sprintf("Not found recent activity for the session: %q. Clone name: %q",
 				session.ID, util.GetCloneName(session.Port)))
