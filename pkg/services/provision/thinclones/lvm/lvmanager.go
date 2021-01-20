@@ -107,7 +107,7 @@ func (m *LVManager) CleanupSnapshots(_ int) ([]string, error) {
 // GetSnapshots is not implemented.
 func (m *LVManager) GetSnapshots() ([]resources.Snapshot, error) {
 	// TODO(anatoly): Not supported in LVM mode warning.
-	return []resources.Snapshot{{ID: "default"}}, nil
+	return []resources.Snapshot{}, nil
 }
 
 // GetSessionState is not implemented.

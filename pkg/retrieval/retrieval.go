@@ -9,6 +9,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/docker/docker/client"
@@ -27,6 +28,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones/zfs"
 )
 
 // Retrieval describes a data retrieval.
@@ -253,11 +255,15 @@ func (r *Retrieval) fullRefresh(ctx context.Context) error {
 	poolToUpdate := r.poolManager.Oldest()
 
 	if poolToUpdate == nil {
-		log.Msg("Pool to full refresh not found. Skip refreshing.")
+		log.Msg("Pool to a full refresh not found. Skip refreshing.")
 		return nil
 	}
 
-	log.Msg("Pool to full refresh: ", poolToUpdate.Pool())
+	log.Msg("Pool to a full refresh: ", poolToUpdate.Pool())
+
+	if err := preparePoolToRefresh(poolToUpdate); err != nil {
+		return errors.Wrap(err, "failed to prepare the pool to a full refresh")
+	}
 
 	// Stop service containers: sync-instance, etc.
 	if cleanUpErr := cont.CleanUpControlContainers(runCtx, r.docker, r.global.InstanceID); cleanUpErr != nil {
@@ -309,6 +315,36 @@ func IsValidConfig(cfg *dblabCfg.Config) error {
 
 	if err := rs.validate(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func preparePoolToRefresh(poolToUpdate pool.FSManager) error {
+	cloneList, err := poolToUpdate.ListClonesNames()
+	if err != nil {
+		return errors.Wrap(err, "failed to check running clones")
+	}
+
+	if len(cloneList) > 0 {
+		return errors.Errorf("there are active clones in the requested pool: %s\nDestroy them to perform a full refresh",
+			strings.Join(cloneList, " "))
+	}
+
+	snapshots, err := poolToUpdate.GetSnapshots()
+	if err != nil {
+		emptyErr, ok := errors.Cause(err).(*zfs.EmptyPoolError)
+		if !ok {
+			return errors.Wrap(err, "failed to check existing snapshots")
+		}
+
+		log.Msg(emptyErr.Error())
+	}
+
+	for _, snapshot := range snapshots {
+		if err := poolToUpdate.DestroySnapshot(snapshot.ID); err != nil {
+			return errors.Wrap(err, "failed to destroy the existing snapshot")
+		}
 	}
 
 	return nil

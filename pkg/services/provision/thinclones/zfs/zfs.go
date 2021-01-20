@@ -106,6 +106,22 @@ type setTuple struct {
 	setFunc setFunc
 }
 
+// EmptyPoolError defines an error when filesystem pool has no available elements.
+type EmptyPoolError struct {
+	dsType string
+	pool   string
+}
+
+// NewEmptyPoolError creates a new EmptyPoolError.
+func NewEmptyPoolError(dsType string, pool string) *EmptyPoolError {
+	return &EmptyPoolError{dsType: dsType, pool: pool}
+}
+
+// Error prints a message describing EmptyPoolError.
+func (e *EmptyPoolError) Error() string {
+	return fmt.Sprintf(`no available %s for pool %q`, e.dsType, e.pool)
+}
+
 // Manager describes a filesystem manager for ZFS.
 type Manager struct {
 	runner runners.Runner
@@ -436,7 +452,7 @@ func (m *Manager) listDetails(pool, dsType string) ([]*ListEntry, error) {
 
 	// First line is header.
 	if len(lines) <= headerOffset {
-		return nil, errors.Errorf(`ZFS error: no available %s for pool %q`, dsType, pool)
+		return nil, NewEmptyPoolError(dsType, pool)
 	}
 
 	entries := make([]*ListEntry, len(lines)-headerOffset)
