@@ -101,8 +101,7 @@ func DetectPGVersion(dataDir string) (float64, error) {
 }
 
 // AddVolumesToHostConfig adds volumes to container host configuration depends on process environment.
-func AddVolumesToHostConfig(ctx context.Context, dockerClient *client.Client, hostConfig *container.HostConfig,
-	dataDir string) error {
+func AddVolumesToHostConfig(ctx context.Context, docker *client.Client, hostConfig *container.HostConfig, dataDir string) error {
 	hostInfo, err := host.Info()
 	if err != nil {
 		return errors.Wrap(err, "failed to get host info")
@@ -111,7 +110,7 @@ func AddVolumesToHostConfig(ctx context.Context, dockerClient *client.Client, ho
 	log.Dbg("Virtualization system: ", hostInfo.VirtualizationSystem)
 
 	if hostInfo.VirtualizationRole == "guest" {
-		inspection, err := dockerClient.ContainerInspect(ctx, hostInfo.Hostname)
+		inspection, err := docker.ContainerInspect(ctx, hostInfo.Hostname)
 		if err != nil {
 			return err
 		}
@@ -254,7 +253,10 @@ func RemoveContainer(ctx context.Context, dockerClient *client.Client, container
 
 	log.Msg(fmt.Sprintf("Container %q has been stopped", containerID))
 
-	if err := dockerClient.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{Force: true}); err != nil {
+	if err := dockerClient.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{
+		RemoveVolumes: true,
+		Force:         true,
+	}); err != nil {
 		log.Err("Failed to remove container: ", err)
 
 		return
