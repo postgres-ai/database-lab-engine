@@ -48,6 +48,10 @@ const (
 	// Container network modes.
 	networkModeDefault = container.NetworkMode("default")
 	networkModeHost    = container.NetworkMode("host")
+
+	// PostgreSQL pg_dump formats.
+	customFormat    = "custom"
+	directoryFormat = "directory"
 )
 
 // DumpJob declares a job for logical dumping.
@@ -397,12 +401,6 @@ func (d *DumpJob) getExecEnvironmentVariables() []string {
 }
 
 func (d *DumpJob) buildLogicalDumpCommand() []string {
-	format := "custom"
-
-	if d.DumpOptions.ParallelJobs > defaultParallelJobs {
-		format = "directory"
-	}
-
 	optionalArgs := map[string]string{
 		"--host":     d.config.db.Host,
 		"--port":     strconv.Itoa(d.config.db.Port),
@@ -411,7 +409,7 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 		"--jobs":     strconv.Itoa(d.DumpOptions.ParallelJobs),
 	}
 
-	dumpCmd := append([]string{"pg_dump", "--create", "--format", format}, prepareCmdOptions(optionalArgs)...)
+	dumpCmd := append([]string{"pg_dump", "--create"}, prepareCmdOptions(optionalArgs)...)
 
 	for _, table := range d.Partial.Tables {
 		dumpCmd = append(dumpCmd, "--table", table)
@@ -419,6 +417,7 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 
 	// Define if restore directly or export to dump location.
 	if d.DumpOptions.Restore != nil {
+		dumpCmd = append(dumpCmd, "--format", customFormat)
 		dumpCmd = append(dumpCmd, d.buildLogicalRestoreCommand()...)
 		cmd := strings.Join(dumpCmd, " ")
 
@@ -427,7 +426,7 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 		return []string{"sh", "-c", cmd}
 	}
 
-	dumpCmd = append(dumpCmd, "--file", d.DumpOptions.DumpLocation)
+	dumpCmd = append(dumpCmd, "--format", directoryFormat, "--file", d.DumpOptions.DumpLocation)
 
 	return dumpCmd
 }

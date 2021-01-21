@@ -40,6 +40,7 @@ type Retrieval struct {
 	scheduler     *cron.Cron
 	retrieveMutex sync.Mutex
 	ctxCancel     context.CancelFunc
+	jobSpecs      map[string]config.JobSpec
 }
 
 // New creates a new data retrieval.
@@ -50,6 +51,7 @@ func New(cfg *dblabCfg.Config, docker *client.Client, pm *pool.Manager, runner r
 		docker:      docker,
 		poolManager: pm,
 		runner:      runner,
+		jobSpecs:    make(map[string]config.JobSpec, len(cfg.Retrieval.Jobs)),
 	}
 }
 
@@ -147,6 +149,7 @@ func (r *Retrieval) parseJobs(fsm pool.FSManager) error {
 		}
 
 		jobSpec.Name = jobName
+		r.jobSpecs[jobName] = jobSpec
 
 		jobCfg := config.JobConfig{
 			Spec:   jobSpec,
@@ -172,16 +175,10 @@ func (r *Retrieval) addJob(job components.JobRunner) {
 }
 
 func (r *Retrieval) validate() error {
-	jobsList := make(map[string]struct{}, len(r.jobs))
+	_, hasLogicalRestore := r.jobSpecs[logical.RestoreJobType]
+	_, hasPhysicalRestore := r.jobSpecs[physical.RestoreJobType]
 
-	for _, job := range r.jobs {
-		jobsList[job.Name()] = struct{}{}
-	}
-
-	_, hasLogical := jobsList[logical.RestoreJobType]
-	_, hasPhysical := jobsList[physical.RestoreJobType]
-
-	if hasLogical && hasPhysical {
+	if hasLogicalRestore && hasPhysicalRestore {
 		return errors.New("must not contain physical and logical restore jobs simultaneously")
 	}
 
