@@ -37,7 +37,9 @@ const (
 
 	// const defines restore options.
 	restoreContainerPrefix = "dblab_lr_"
-	defaultParallelJobs    = 1
+
+	// defaultParallelJobs declares a default number of parallel jobs for logical dump and restore.
+	defaultParallelJobs = 1
 )
 
 // RestoreJob defines a logical restore job.
