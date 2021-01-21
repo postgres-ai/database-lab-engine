@@ -141,7 +141,7 @@ func StopContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 
 // RemoveContainer removes specified container.
 func RemoveContainer(r runners.Runner, cloneName string) (string, error) {
-	dockerRemoveCmd := "docker container rm --force " + cloneName
+	dockerRemoveCmd := "docker container rm --force --volumes " + cloneName
 
 	return r.Run(dockerRemoveCmd, true)
 }
