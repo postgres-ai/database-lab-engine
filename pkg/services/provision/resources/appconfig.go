@@ -17,7 +17,8 @@ type AppConfig struct {
 	Port        uint
 	DB          *DB
 
-	extraConf map[string]string
+	ContainerConf map[string]string
+	pgExtraConf   map[string]string
 }
 
 // DB describes a default database configuration.
@@ -34,10 +35,10 @@ func (c *AppConfig) DataDir() string {
 
 // ExtraConf returns a map with an extra configuration.
 func (c *AppConfig) ExtraConf() map[string]string {
-	return c.extraConf
+	return c.pgExtraConf
 }
 
 // SetExtraConf sets a map with an extra configuration.
 func (c *AppConfig) SetExtraConf(extraConf map[string]string) {
-	c.extraConf = extraConf
+	c.pgExtraConf = extraConf
 }
