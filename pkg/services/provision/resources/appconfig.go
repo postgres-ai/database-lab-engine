@@ -32,7 +32,8 @@ type AppConfig struct {
 
 	OSUsername string
 
-	extraConf map[string]string
+	ContainerConf map[string]string
+	pgExtraConf   map[string]string
 }
 
 // Username return username defined in AppConfig or default value.
@@ -84,10 +85,10 @@ func (c *AppConfig) DataDir() string {
 
 // ExtraConf returns a map with an extra configuration.
 func (c *AppConfig) ExtraConf() map[string]string {
-	return c.extraConf
+	return c.pgExtraConf
 }
 
 // SetExtraConf sets a map with an extra configuration.
 func (c *AppConfig) SetExtraConf(extraConf map[string]string) {
-	c.extraConf = extraConf
+	c.pgExtraConf = extraConf
 }
