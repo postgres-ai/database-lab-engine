@@ -73,7 +73,8 @@ type LocalModeOptions struct {
 	UseSudo           bool              `yaml:"useSudo"`
 
 	// Thin-clone manager.
-	ThinCloneManager string `yaml:"thinCloneManager"`
+	ThinCloneManager string            `yaml:"thinCloneManager"`
+	ContainerConfig  map[string]string `yaml:"containerConfig"`
 }
 
 type provisionModeLocal struct {
@@ -524,6 +525,7 @@ func (j *provisionModeLocal) getAppConfig(name string, port uint) *resources.App
 		ClonesMountDir:     j.config.Options.ClonesMountDir,
 		UnixSocketCloneDir: unixSocketCloneDir,
 		OSUsername:         j.config.OSUsername,
+		ContainerConf:      j.config.Options.ContainerConfig,
 	}
 
 	appConfig.SetDBName("postgres")
