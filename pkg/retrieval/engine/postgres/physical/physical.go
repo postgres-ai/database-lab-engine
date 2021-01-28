@@ -26,7 +26,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/cont"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/pgconfig"
@@ -437,7 +436,6 @@ func pgControlDataConfig(pgDataDir string, pgVersion float64) types.ExecConfig {
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          []string{command, "-D", pgDataDir},
-		User:         defaults.Username,
 		Env:          os.Environ(),
 	}
 }
