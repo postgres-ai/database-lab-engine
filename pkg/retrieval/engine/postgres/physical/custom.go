@@ -41,6 +41,7 @@ func (c *custom) GetRecoveryConfig(pgVersion float64) map[string]string {
 
 		if pgVersion < defaults.PGVersion12 {
 			recoveryCfg["standby_mode"] = "on"
+			recoveryCfg["recovery_target_timeline"] = "latest"
 		}
 	}
 
