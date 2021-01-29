@@ -146,6 +146,10 @@ func (m *Manager) isInitialized() (bool, error) {
 
 	postgresFile, err := os.Open(pgConfDst)
 	if err != nil {
+		if _, ok := err.(*os.PathError); ok {
+			return false, nil
+		}
+
 		return false, err
 	}
 
@@ -303,6 +307,10 @@ func (m *Manager) AdjustRecoveryFiles() error {
 
 // ApplyRecovery applies recovery configuration parameters.
 func (m *Manager) ApplyRecovery(cfg map[string]string) error {
+	if err := tools.TouchFile(path.Join(m.dataDir, m.recoveryFilename())); err != nil {
+		return err
+	}
+
 	if err := appendExtraConf(path.Join(m.dataDir, m.recoveryFilename()), cfg); err != nil {
 		return err
 	}
@@ -373,8 +381,8 @@ func (m *Manager) getConfigPath(configName string) string {
 
 // recoveryFilename returns the name of a recovery configuration file.
 func (m Manager) recoveryFilename() string {
-	if m.pgVersion > defaults.PGVersion12 {
-		return pgConfName
+	if m.pgVersion >= defaults.PGVersion12 {
+		return configPrefix + pgConfName
 	}
 
 	return recoveryConfName
