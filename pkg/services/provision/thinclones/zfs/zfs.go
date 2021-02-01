@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/pkg/errors"
 
@@ -305,12 +306,21 @@ func (m *Manager) DestroySnapshot(snapshotName string) error {
 	return nil
 }
 
-// CleanupSnapshots destroys old snapshots considering retention limit.
+// CleanupSnapshots destroys old snapshots considering retention limit and related clones.
 func (m *Manager) CleanupSnapshots(retentionLimit int) ([]string, error) {
+	clonesCmd := fmt.Sprintf("zfs list -S clones -o name,origin -H -r %s", m.config.Pool.Name)
+
+	clonesOutput, err := m.runner.Run(clonesCmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list snapshots")
+	}
+
+	busySnapshots := m.getBusySnapshotList(clonesOutput)
+
 	cleanupCmd := fmt.Sprintf(
-		"zfs list -t snapshot -H -o name -s %s -s creation -r %s | grep -v clone | head -n -%d "+
+		"zfs list -t snapshot -H -o name -s %s -s creation -r %s | grep -v clone | head -n -%d %s"+
 			"| xargs -n1 --no-run-if-empty zfs destroy -R ",
-		dataStateAtLabel, m.config.Pool.Name, retentionLimit)
+		dataStateAtLabel, m.config.Pool.Name, retentionLimit, excludeBusySnapshots(busySnapshots))
 
 	out, err := m.runner.Run(cleanupCmd)
 	if err != nil {
@@ -320,6 +330,52 @@ func (m *Manager) CleanupSnapshots(retentionLimit int) ([]string, error) {
 	lines := strings.Split(out, "\n")
 
 	return lines, nil
+}
+
+func (m *Manager) getBusySnapshotList(clonesOutput string) []string {
+	systemClones, userClones := make(map[string]string), make(map[string]struct{})
+
+	userClonePrefix := m.config.Pool.Name + "/" + util.ClonePrefix
+
+	for _, line := range strings.Split(clonesOutput, "\n") {
+		cloneLine := strings.FieldsFunc(line, unicode.IsSpace)
+
+		if len(cloneLine) != 2 || cloneLine[1] == "-" {
+			continue
+		}
+
+		if strings.HasPrefix(cloneLine[0], userClonePrefix) {
+			origin := cloneLine[1]
+
+			if idx := strings.Index(origin, "@"); idx != -1 {
+				origin = origin[:idx]
+			}
+
+			userClones[origin] = struct{}{}
+
+			continue
+		}
+
+		systemClones[cloneLine[0]] = cloneLine[1]
+	}
+
+	busySnapshots := make([]string, 0, len(userClones))
+
+	for userClone := range userClones {
+		busySnapshots = append(busySnapshots, systemClones[userClone])
+	}
+
+	return busySnapshots
+}
+
+// excludeBusySnapshots excludes snapshots that match a pattern by name.
+// The exclusion logic relies on the fact that snapshots have unique substrings (timestamps).
+func excludeBusySnapshots(busySnapshots []string) string {
+	if len(busySnapshots) == 0 {
+		return ""
+	}
+
+	return fmt.Sprintf("| grep -Ev '%s' ", strings.Join(busySnapshots, "|"))
 }
 
 // GetSessionState returns a state of a session.
