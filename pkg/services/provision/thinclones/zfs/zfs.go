@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/pkg/errors"
 
@@ -251,12 +252,20 @@ func DestroySnapshot(r runners.Runner, snapshotName string) error {
 	return nil
 }
 
-// CleanupSnapshots destroys old ZFS snapshots considering retention limit.
+// CleanupSnapshots destroys old ZFS snapshots considering retention limit and related clones.
 func CleanupSnapshots(r runners.Runner, pool string, retentionLimit int) ([]string, error) {
+	clonesCmd := fmt.Sprintf("zfs list -S clones -o name,origin -H -r %s", pool)
+
+	clonesOutput, err := r.Run(clonesCmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list snapshots")
+	}
+
+	busySnapshots := getBusySnapshotList(pool, clonesOutput)
 	cleanupCmd := fmt.Sprintf(
-		"zfs list -t snapshot -H -o name -s %s -s creation -r %s | grep -v clone | head -n -%d "+
+		"zfs list -t snapshot -H -o name -s %s -s creation -r %s | grep -v clone | head -n -%d %s"+
 			"| xargs -n1 --no-run-if-empty zfs destroy -R ",
-		dataStateAtLabel, pool, retentionLimit)
+		dataStateAtLabel, pool, retentionLimit, excludeBusySnapshots(busySnapshots))
 
 	out, err := r.Run(cleanupCmd)
 	if err != nil {
@@ -266,6 +275,52 @@ func CleanupSnapshots(r runners.Runner, pool string, retentionLimit int) ([]stri
 	lines := strings.Split(out, "\n")
 
 	return lines, nil
+}
+
+func getBusySnapshotList(pool, clonesOutput string) []string {
+	systemClones, userClones := make(map[string]string), make(map[string]struct{})
+
+	userClonePrefix := pool + "/" + util.ClonePrefix
+
+	for _, line := range strings.Split(clonesOutput, "\n") {
+		cloneLine := strings.FieldsFunc(line, unicode.IsSpace)
+
+		if len(cloneLine) != 2 || cloneLine[1] == "-" {
+			continue
+		}
+
+		if strings.HasPrefix(cloneLine[0], userClonePrefix) {
+			origin := cloneLine[1]
+
+			if idx := strings.Index(origin, "@"); idx != -1 {
+				origin = origin[:idx]
+			}
+
+			userClones[origin] = struct{}{}
+
+			continue
+		}
+
+		systemClones[cloneLine[0]] = cloneLine[1]
+	}
+
+	busySnapshots := make([]string, 0, len(userClones))
+
+	for userClone := range userClones {
+		busySnapshots = append(busySnapshots, systemClones[userClone])
+	}
+
+	return busySnapshots
+}
+
+// excludeBusySnapshots excludes snapshots that match a pattern by name.
+// The exclusion logic relies on the fact that snapshots have unique substrings (timestamps).
+func excludeBusySnapshots(busySnapshots []string) string {
+	if len(busySnapshots) == 0 {
+		return ""
+	}
+
+	return fmt.Sprintf("| grep -Ev '%s' ", strings.Join(busySnapshots, "|"))
 }
 
 // ListFilesystems lists ZFS file systems (clones, pools).

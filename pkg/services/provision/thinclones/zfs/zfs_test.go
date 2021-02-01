@@ -103,3 +103,46 @@ func TestFailedListClones(t *testing.T) {
 	assert.Nil(t, cloneNames)
 	assert.EqualError(t, err, "failed to list clones: runner error")
 }
+
+func TestBusySnapshotList(t *testing.T) {
+	pool := "dblab_pool"
+	out := `dblab_pool	-
+dblab_pool/clone_pre_20210127105215	dblab_pool@snapshot_20210127105215_pre
+dblab_pool/clone_pre_20210127113000	dblab_pool@snapshot_20210127113000_pre
+dblab_pool/clone_pre_20210127120000	dblab_pool@snapshot_20210127120000_pre
+dblab_pool/clone_pre_20210127123000	dblab_pool@snapshot_20210127123000_pre
+dblab_pool/clone_pre_20210127130000	dblab_pool@snapshot_20210127130000_pre
+dblab_pool/clone_pre_20210127133000	dblab_pool@snapshot_20210127133000_pre
+dblab_pool/clone_pre_20210127140000	dblab_pool@snapshot_20210127140000_pre
+dblab_pool/dblab_clone_6000	dblab_pool/clone_pre_20210127133000@snapshot_20210127133008
+dblab_pool/dblab_clone_6001	dblab_pool/clone_pre_20210127123000@snapshot_20210127133008
+`
+	expected := []string{"dblab_pool@snapshot_20210127133000_pre", "dblab_pool@snapshot_20210127123000_pre"}
+
+	list := getBusySnapshotList(pool, out)
+	assert.Equal(t, expected, list)
+}
+
+func TestExcludingBusySnapshots(t *testing.T) {
+	testCases := []struct {
+		snapshotList []string
+		result       string
+	}{
+		{
+			snapshotList: []string{},
+			result:       "",
+		},
+		{
+			snapshotList: []string{"dblab_pool@snapshot_20210127133000_pre"},
+			result:       "| grep -Ev 'dblab_pool@snapshot_20210127133000_pre' ",
+		},
+		{
+			snapshotList: []string{"dblab_pool@snapshot_20210127133000_pre", "dblab_pool@snapshot_20210127123000_pre"},
+			result:       "| grep -Ev 'dblab_pool@snapshot_20210127133000_pre|dblab_pool@snapshot_20210127123000_pre' ",
+		},
+	}
+
+	for _, tc := range testCases {
+		assert.Equal(t, tc.result, excludeBusySnapshots(tc.snapshotList))
+	}
+}
