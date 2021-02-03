@@ -70,9 +70,14 @@ func ResetAllPasswords(c *resources.AppConfig, whitelistUsers []string) error {
 }
 
 // CreateUser defines a method for creation of Postgres user.
-func CreateUser(c *resources.AppConfig, username string, password string) error {
-	query := fmt.Sprintf("create user \"%s\" with password '%s' login superuser;",
-		username, password)
+func CreateUser(c *resources.AppConfig, username, password string, restricted bool) error {
+	var query string
+
+	if restricted {
+		query = restrictedUserQuery(username, password, c.DB.DBName)
+	} else {
+		query = superuserQuery(username, password)
+	}
 
 	out, err := runSimpleSQL(query, c)
 	if err != nil {
@@ -82,4 +87,56 @@ func CreateUser(c *resources.AppConfig, username string, password string) error 
 	log.Dbg("AddUser:", out)
 
 	return nil
+}
+
+func superuserQuery(username, password string) string {
+	return fmt.Sprintf(`create user "%s" with password '%s' login superuser;`, username, password)
+}
+
+const restrictedTemplate = `
+-- create new user 
+create user %[1]s with password '%s' createdb;
+
+-- grant all privileges in the database 
+grant all privileges on database %s to %[1]s;
+
+-- grant all on all objects in all schemas in the database
+do $$
+begin
+  -- grant usage on all schemas in the database
+  execute (
+    select string_agg(format('grant usage on schema %%I to %[1]s', nspname), '; ')
+    from pg_namespace
+    where nspname <> 'information_schema'
+    and nspname not like 'pg\_%%'
+  );
+   
+  -- grant all on all tables in all schemas in database
+  execute (
+    select string_agg(format('grant all on all tables in schema %%I to %[1]s', nspname), '; ')
+    from pg_namespace
+    where nspname <> 'information_schema'
+    and nspname not like 'pg\_%%'
+  );
+
+  -- grant all on all sequences in all custom schemas in the database
+  execute (
+    select string_agg(format('grant all on all sequences in schema %%I to %[1]s', nspname), '; ')
+    from pg_namespace
+    where nspname <> 'information_schema'
+    and nspname not like 'pg\_%%'
+  );
+
+  -- grant all on all functions in all schemas in the database
+  execute (
+    select string_agg(format('grant all on all functions in schema %%I to %[1]s', nspname), '; ')
+    from pg_namespace
+    where nspname <> 'information_schema'
+    and nspname not like 'pg\_%%'
+  );
+end $$; 
+`
+
+func restrictedUserQuery(username, password, database string) string {
+	return fmt.Sprintf(restrictedTemplate, username, password, database)
 }

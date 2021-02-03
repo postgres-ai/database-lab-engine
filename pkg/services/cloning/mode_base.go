@@ -140,7 +140,7 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 	c.setWrapper(clone.ID, w)
 
 	go func() {
-		session, err := c.provision.StartSession(w.username, w.password, w.snapshot.ID, cloneRequest.ExtraConf)
+		session, err := c.provision.StartSession(w.username, w.password, w.snapshot.ID, cloneRequest.DB.Restricted, cloneRequest.ExtraConf)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
 			log.Errf("Failed to start session: %v.", err)
