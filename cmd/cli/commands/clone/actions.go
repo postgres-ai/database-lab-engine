@@ -55,8 +55,9 @@ func create(cliCtx *cli.Context) error {
 		ID:        cliCtx.String("id"),
 		Protected: cliCtx.Bool("protected"),
 		DB: &types.DatabaseRequest{
-			Username: cliCtx.String("username"),
-			Password: cliCtx.String("password"),
+			Username:   cliCtx.String("username"),
+			Password:   cliCtx.String("password"),
+			Restricted: cliCtx.Bool("restricted"),
 		},
 	}
 

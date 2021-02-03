@@ -386,6 +386,9 @@ definitions:
             type: "string"
           password:
             type: "string"
+          restricted:
+            type: "boolean"
+            default: false
 
   UpdateClone:
     type: "object"

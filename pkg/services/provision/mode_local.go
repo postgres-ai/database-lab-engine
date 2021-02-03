@@ -143,7 +143,7 @@ func (p *Provisioner) Reload(cfg Config, dbCfg resources.DB) {
 }
 
 // StartSession starts a new session.
-func (p *Provisioner) StartSession(username, password, snapshotID string,
+func (p *Provisioner) StartSession(username, password, snapshotID string, restricted bool,
 	extraConfig map[string]string) (*resources.Session, error) {
 	snapshotID, err := p.getSnapshotID(snapshotID)
 	if err != nil {
@@ -181,7 +181,7 @@ func (p *Provisioner) StartSession(username, password, snapshotID string,
 		return nil, errors.Wrap(err, "failed to start a container")
 	}
 
-	if err := p.prepareDB(username, password, appConfig); err != nil {
+	if err := p.prepareDB(appConfig, username, password, restricted); err != nil {
 		return nil, errors.Wrap(err, "failed to prepare a database")
 	}
 
@@ -195,6 +195,7 @@ func (p *Provisioner) StartSession(username, password, snapshotID string,
 		SocketHost:        appConfig.Host,
 		EphemeralUser:     username,
 		EphemeralPassword: password,
+		Restricted:        restricted,
 		ExtraConfig:       extraConfig,
 	}
 
@@ -264,7 +265,7 @@ func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string
 		return errors.Wrap(err, "failed to start a container")
 	}
 
-	if err := p.prepareDB(session.EphemeralUser, session.EphemeralPassword, appConfig); err != nil {
+	if err := p.prepareDB(appConfig, session.EphemeralUser, session.EphemeralPassword, session.Restricted); err != nil {
 		return errors.Wrap(err, "failed to prepare a database")
 	}
 
@@ -565,7 +566,7 @@ func (p *Provisioner) scanCSVLogFile(ctx context.Context, filename string, avail
 	}
 }
 
-func (p *Provisioner) prepareDB(username, password string, pgConf *resources.AppConfig) error {
+func (p *Provisioner) prepareDB(pgConf *resources.AppConfig, username, password string, restricted bool) error {
 	if !p.config.KeepUserPasswords {
 		whitelist := []string{p.dbCfg.Username}
 
@@ -574,7 +575,7 @@ func (p *Provisioner) prepareDB(username, password string, pgConf *resources.App
 		}
 	}
 
-	if err := postgres.CreateUser(pgConf, username, password); err != nil {
+	if err := postgres.CreateUser(pgConf, username, password, restricted); err != nil {
 		return errors.Wrap(err, "failed to create user")
 	}
 

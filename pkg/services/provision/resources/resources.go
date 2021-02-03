@@ -23,6 +23,7 @@ type Session struct {
 	// For user-defined username and password.
 	EphemeralUser     string
 	EphemeralPassword string
+	Restricted        bool
 
 	ExtraConfig map[string]string
 }

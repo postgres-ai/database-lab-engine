@@ -21,8 +21,9 @@ type CloneUpdateRequest struct {
 
 // DatabaseRequest represents database params of a clone request.
 type DatabaseRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	Restricted bool   `json:"restricted"`
 }
 
 // SnapshotCloneFieldRequest represents snapshot params of a create request.
