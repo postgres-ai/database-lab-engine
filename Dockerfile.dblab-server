@@ -25,13 +25,13 @@
 #   --env VERIFICATION_TOKEN=token \
 #   --env MOUNT_DIR=/var/lib/dblab/clones \
 #   --env UNIX_SOCKET_DIR=/var/lib/dblab/sockets \
-#   --env DOCKER_IMAGE=postgres:12-alpine \
+#   --env DOCKER_IMAGE=postgres:13-alpine \
 #   --detach \
 #   postgresai/dblab-server:latest
 
-FROM docker:19
+FROM docker:19.03.14
 
-# Install dependecies.
+# Install dependencies.
 RUN apk update && apk add --no-cache zfs lvm2 bash
 
 WORKDIR /home/dblab

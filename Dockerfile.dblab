@@ -1,4 +1,4 @@
-FROM docker:19
+FROM docker:19.03.14
 
 # Install dependencies.
 RUN apk update && apk add --no-cache bash jq
