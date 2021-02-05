@@ -240,7 +240,7 @@ func (r *Retrieval) refreshFunc(ctx context.Context) func() {
 	}
 }
 
-// fullRefresh makes a full refresh for an old filesystem pool.
+// fullRefresh performs full refresh for an unused storage pool and makes it active.
 func (r *Retrieval) fullRefresh(ctx context.Context) error {
 	// Stop previous runs and snapshot schedulers.
 	if r.ctxCancel != nil {
@@ -249,11 +249,16 @@ func (r *Retrieval) fullRefresh(ctx context.Context) error {
 
 	runCtx, cancel := context.WithCancel(ctx)
 	r.ctxCancel = cancel
-	poolToUpdate := r.poolManager.Oldest()
+	elementToUpdate := r.poolManager.GetPoolToUpdate()
 
-	if poolToUpdate == nil {
-		log.Msg("Pool to a full refresh not found. Skip refreshing.")
+	if elementToUpdate == nil || elementToUpdate.Value == nil {
+		log.Msg("Pool to perform full refresh not found. Skip refreshing")
 		return nil
+	}
+
+	poolToUpdate, err := r.poolManager.GetFSManager(elementToUpdate.Value.(string))
+	if err != nil {
+		return errors.Wrap(err, "failed to get FSManager")
 	}
 
 	log.Msg("Pool to a full refresh: ", poolToUpdate.Pool())
@@ -269,14 +274,11 @@ func (r *Retrieval) fullRefresh(ctx context.Context) error {
 		return cleanUpErr
 	}
 
-	current := r.poolManager.Active()
-
 	if err := r.run(runCtx, poolToUpdate); err != nil {
 		return err
 	}
 
-	r.poolManager.SetOldest(current)
-	r.poolManager.SetActive(poolToUpdate)
+	r.poolManager.SetActive(elementToUpdate)
 
 	return nil
 }

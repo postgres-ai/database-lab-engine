@@ -6,6 +6,7 @@ package lvm
 
 import (
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -20,10 +21,10 @@ const (
 
 // LVManager describes an LVM2 filesystem manager.
 type LVManager struct {
-	runner      runners.Runner
-	pool        *resources.Pool
-	volumeGroup string
-	logicVolume string
+	runner        runners.Runner
+	pool          *resources.Pool
+	volumeGroup   string
+	logicalVolume string
 }
 
 // NewFSManager creates a new Manager instance for LVM.
@@ -40,19 +41,19 @@ func NewFSManager(runner runners.Runner, pool *resources.Pool) (*LVManager, erro
 	return &m, nil
 }
 
-// Pool gets a filesystem pool.
+// Pool gets a storage pool.
 func (m *LVManager) Pool() *resources.Pool {
 	return m.pool
 }
 
 // CreateClone creates a new volume.
 func (m *LVManager) CreateClone(name, _ string) error {
-	return CreateVolume(m.runner, m.volumeGroup, m.logicVolume, name, m.pool.ClonesDir())
+	return CreateVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir(), m.pool.DataSubDir)
 }
 
 // DestroyClone destroys volumes.
 func (m *LVManager) DestroyClone(name string) error {
-	return RemoveVolume(m.runner, m.volumeGroup, m.logicVolume, name, m.pool.ClonesDir())
+	return RemoveVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir(), m.pool.DataSubDir)
 }
 
 // ListClonesNames returns a list of clone names.
@@ -72,13 +73,13 @@ func (m *LVManager) ListClonesNames() ([]string, error) {
 }
 
 func (m *LVManager) parsePool() error {
-	parts := strings.SplitN(m.pool.Name, "/", poolPartsLen)
+	parts := strings.SplitN(m.pool.Name, "-", poolPartsLen)
 	if len(parts) < poolPartsLen {
-		return errors.Errorf(`Waiting for PostgreSQL readiness`)
+		return errors.Errorf("failed to extract volume group and logical volume from %q", m.pool.Name)
 	}
 
 	m.volumeGroup = parts[0]
-	m.logicVolume = parts[1]
+	m.logicalVolume = parts[1]
 
 	return nil
 }
@@ -107,7 +108,13 @@ func (m *LVManager) CleanupSnapshots(_ int) ([]string, error) {
 // GetSnapshots is not implemented.
 func (m *LVManager) GetSnapshots() ([]resources.Snapshot, error) {
 	// TODO(anatoly): Not supported in LVM mode warning.
-	return []resources.Snapshot{}, nil
+	return []resources.Snapshot{
+		{
+			ID:          "TechnicalSnapshot",
+			CreatedAt:   time.Now(),
+			DataStateAt: time.Now(),
+		},
+	}, nil
 }
 
 // GetSessionState is not implemented.
