@@ -51,9 +51,6 @@ func main() {
 		log.Fatal(errors.WithMessage(err, "failed to parse config"))
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	runner := runners.NewLocalRunner(cfg.Provision.UseSudo)
 
 	pm := pool.NewPoolManager(&cfg.PoolManager, runner)
@@ -66,10 +63,14 @@ func main() {
 		log.Fatal("Failed to create a Docker client:", err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Create a platform service to make requests to Platform.
 	platformSvc, err := platform.New(ctx, cfg.Platform)
 	if err != nil {
-		log.Fatalf(errors.WithMessage(err, "failed to create a new platform service"))
+		log.Errf(errors.WithMessage(err, "failed to create a new platform service").Error())
+		return
 	}
 
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
@@ -80,7 +81,9 @@ func main() {
 			log.Err("Failed to clean up service containers:", cleanUpErr)
 		}
 
-		log.Fatal("Failed to run the data retrieval service:", err)
+		log.Err("Failed to run the data retrieval service:", err)
+
+		return
 	}
 
 	defer retrievalSvc.Stop()
@@ -93,12 +96,13 @@ func main() {
 	// Create a cloning service to provision new clones.
 	provisionSvc, err := provision.New(ctx, &cfg.Provision, dbCfg, dockerCLI, pm)
 	if err != nil {
-		log.Fatalf(errors.WithMessage(err, `error in the "provision" section of the config`))
+		log.Errf(errors.WithMessage(err, `error in the "provision" section of the config`).Error())
 	}
 
 	cloningSvc := cloning.New(&cfg.Cloning, provisionSvc)
 	if err = cloningSvc.Run(ctx); err != nil {
-		log.Fatal(err)
+		log.Err(err)
+		return
 	}
 
 	obs := observer.NewObserver(dockerCLI, &cfg.Observer, platformSvc.Client, pm.Active().Pool())

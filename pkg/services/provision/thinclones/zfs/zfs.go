@@ -76,7 +76,7 @@ type ListEntry struct {
 	// The amount of data that is accessible by this dataset, which may
 	// or may not be shared with other datasets in the pool. When a snapshot
 	// or clone is created, it initially references the same amount of space
-	//as the  file system or snapshot it was created from, since its contents
+	// as the  file system or snapshot it was created from, since its contents
 	// are identical.
 	Referenced uint64
 
