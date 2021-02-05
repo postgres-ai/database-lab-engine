@@ -11,7 +11,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands"
 )
 
 // list runs a request to list snapshots of an instance.

@@ -13,12 +13,12 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/observer"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/validator"
-	"gitlab.com/postgres-ai/database-lab/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/cloning"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/platform"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/validator"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 
 	"github.com/gorilla/mux"
 )

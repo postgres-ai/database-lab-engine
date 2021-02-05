@@ -8,8 +8,8 @@ import (
 	"context"
 	"net/http"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/platform"
 )
 
 // VerificationTokenHeader defines a verification token name that should be passed in request headers.

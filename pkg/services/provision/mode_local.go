@@ -20,14 +20,14 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/docker"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/pool"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
-	"gitlab.com/postgres-ai/database-lab/pkg/util"
-	"gitlab.com/postgres-ai/database-lab/pkg/util/pglog"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/databases/postgres"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/docker"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/pglog"
 )
 
 const (

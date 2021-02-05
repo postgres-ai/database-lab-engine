@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/config"
 )
 
 func TestRestoreCommandBuilding(t *testing.T) {

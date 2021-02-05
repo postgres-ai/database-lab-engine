@@ -8,15 +8,15 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/clone"
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/config"
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/global"
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/instance"
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/snapshot"
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/templates"
-	dblabLog "gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/version"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands/clone"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands/config"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands/global"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands/instance"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands/snapshot"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/templates"
+	dblabLog "gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/version"
 )
 
 func main() {
