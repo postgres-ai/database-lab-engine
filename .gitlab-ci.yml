@@ -1,4 +1,4 @@
-image: golang:1.14
+image: golang:1.15
 
 include:
   - template: Security/SAST.gitlab-ci.yml
@@ -43,7 +43,7 @@ lint:
   when: manual
 
 build-binary-alpine:
-  image: golang:1.14-alpine
+  image: golang:1.15-alpine
   stage: build-binary
   only:
     refs:

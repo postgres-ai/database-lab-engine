@@ -11,15 +11,15 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/observer"
-	retConfig "gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/pool"
-	"gitlab.com/postgres-ai/database-lab/pkg/srv"
-	"gitlab.com/postgres-ai/database-lab/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
+	retConfig "gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/cloning"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/platform"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/srv"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 )
 
 // Config contains a common database-lab configuration.

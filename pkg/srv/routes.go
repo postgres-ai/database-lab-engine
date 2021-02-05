@@ -11,12 +11,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/pkg/client/platform"
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/pkg/observer"
-	"gitlab.com/postgres-ai/database-lab/version"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/platform"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
+	"gitlab.com/postgres-ai/database-lab/v2/version"
 )
 
 func (s *Server) getInstanceStatus(w http.ResponseWriter, r *http.Request) {

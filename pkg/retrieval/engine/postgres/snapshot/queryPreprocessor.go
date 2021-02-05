@@ -14,8 +14,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools"
 )
 
 const defaultWorkerCount = 2

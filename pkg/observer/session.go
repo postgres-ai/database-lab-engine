@@ -14,10 +14,10 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 )
 
 const (

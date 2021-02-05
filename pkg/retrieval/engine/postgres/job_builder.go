@@ -8,13 +8,13 @@ package postgres
 import (
 	"github.com/pkg/errors"
 
-	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/components"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/logical"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/physical"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/snapshot"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/pool"
+	dblabCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/components"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/logical"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/physical"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/snapshot"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
 )
 
 const (

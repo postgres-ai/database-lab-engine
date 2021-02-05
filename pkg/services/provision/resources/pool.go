@@ -8,7 +8,7 @@ import (
 	"path"
 	"time"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 )
 
 // Pool describes a storage pool.

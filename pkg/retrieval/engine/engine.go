@@ -8,10 +8,10 @@ package engine
 import (
 	"errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/config"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/components"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/components"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
 )
 
 // JobBuilder provides a new job builder.

@@ -14,10 +14,10 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
-	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 )
 
 // list runs a request to list clones of an instance.

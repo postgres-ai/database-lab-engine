@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 )
 
 type runnerMock struct {
@@ -131,7 +131,9 @@ dblab_pool/dblab_clone_6001	dblab_pool/clone_pre_20210127123000@snapshot_2021012
 	expected := []string{"dblab_pool@snapshot_20210127133000_pre", "dblab_pool@snapshot_20210127123000_pre"}
 
 	list := m.getBusySnapshotList(out)
-	assert.Equal(t, expected, list)
+	require.Equal(t, 2, len(list))
+	assert.Contains(t, list, expected[0])
+	assert.Contains(t, list, expected[1])
 }
 
 func TestExcludingBusySnapshots(t *testing.T) {
