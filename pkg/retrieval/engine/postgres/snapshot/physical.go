@@ -671,7 +671,7 @@ func (p *PhysicalInitial) markDatabaseData() error {
 	return p.dbMarker.SaveConfig(p.dbMark)
 }
 
-// updateDataStateAt updates dataStateAt for in-memory representation of a filesystem pool.
+// updateDataStateAt updates dataStateAt for in-memory representation of a storage pool.
 func (p *PhysicalInitial) updateDataStateAt() {
 	dsaTime, err := time.Parse(util.DataStateAtFormat, p.dbMark.DataStateAt)
 	if err != nil {

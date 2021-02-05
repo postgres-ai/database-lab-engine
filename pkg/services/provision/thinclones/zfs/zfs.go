@@ -107,7 +107,7 @@ type setTuple struct {
 	setFunc setFunc
 }
 
-// EmptyPoolError defines an error when filesystem pool has no available elements.
+// EmptyPoolError defines an error when storage pool has no available elements.
 type EmptyPoolError struct {
 	dsType string
 	pool   string
@@ -146,7 +146,7 @@ func NewFSManager(runner runners.Runner, config Config) *Manager {
 	return &m
 }
 
-// Pool gets a filesystem pool.
+// Pool gets a storage pool.
 func (m *Manager) Pool() *resources.Pool {
 	return m.config.Pool
 }
@@ -411,7 +411,7 @@ func (m *Manager) GetSessionState(name string) (*resources.SessionState, error) 
 func (m *Manager) GetDiskState() (*resources.Disk, error) {
 	parts := strings.SplitN(m.config.Pool.Name, "/", 2)
 	if len(parts) == 0 {
-		return nil, errors.New("failed to get a filesystem pool name")
+		return nil, errors.New("failed to get a storage pool name")
 	}
 
 	parentPool := parts[0]

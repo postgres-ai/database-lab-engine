@@ -97,7 +97,7 @@ provision:
   # Custom parameters for clone containers, see
   # https://docs.docker.com/engine/reference/run/#runtime-constraints-on-resources
   containerConfig:
-    "shm-size": 256MB
+    "shm-size": 1gb
 
 # Data retrieval flow. This section defines both initial retrieval, and rules
 # to keep the data directory in a synchronized state with the source. Both are optional:

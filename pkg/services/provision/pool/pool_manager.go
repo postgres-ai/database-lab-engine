@@ -5,6 +5,7 @@
 package pool
 
 import (
+	"container/list"
 	"io/ioutil"
 	"os"
 	"path"
@@ -34,9 +35,8 @@ const (
 type Manager struct {
 	cfg              *Config
 	mu               *sync.Mutex
+	fsManagerList    *list.List
 	fsManagerPool    map[string]FSManager
-	fsManager        FSManager
-	oldFsManager     FSManager
 	runner           runners.Runner
 	blockDeviceTypes map[string]string
 }
@@ -58,6 +58,7 @@ func NewPoolManager(cfg *Config, runner runners.Runner) *Manager {
 		fsManagerPool:    make(map[string]FSManager),
 		runner:           runner,
 		blockDeviceTypes: make(map[string]string),
+		fsManagerList:    list.New(),
 	}
 }
 
@@ -68,24 +69,56 @@ func (pm *Manager) Reload(cfg Config) error {
 	return pm.ReloadPools()
 }
 
-// Active returns the active filesystem pool manager.
+// SetActive sets a new active pool manager element.
+func (pm *Manager) SetActive(element *list.Element) {
+	pm.fsManagerList.MoveToFront(element)
+}
+
+// Active returns the active storage pool manager.
 func (pm *Manager) Active() FSManager {
-	return pm.fsManager
+	active := pm.fsManagerList.Front()
+
+	if active == nil || active.Value == nil {
+		return nil
+	}
+
+	return pm.getFSManager(active.Value.(string))
 }
 
-// SetActive sets a new active pool manager.
-func (pm *Manager) SetActive(active FSManager) {
-	pm.fsManager = active
+func (pm *Manager) getFSManager(pool string) FSManager {
+	pm.mu.Lock()
+	fsm := pm.fsManagerPool[pool]
+	pm.mu.Unlock()
+
+	return fsm
 }
 
-// Oldest returns the oldest filesystem pool manager.
-func (pm *Manager) Oldest() FSManager {
-	return pm.oldFsManager
-}
+// GetPoolToUpdate returns the element to update.
+func (pm *Manager) GetPoolToUpdate() *list.Element {
+	for element := pm.fsManagerList.Back(); element != nil; element = element.Prev() {
+		if element.Value == nil {
+			return nil
+		}
 
-// SetOldest sets a pool manager to update.
-func (pm *Manager) SetOldest(pool FSManager) {
-	pm.oldFsManager = pool
+		// The active pool cannot be updated as it leads to downtime.
+		if element == pm.fsManagerList.Front() {
+			return nil
+		}
+
+		fsm := pm.getFSManager(element.Value.(string))
+
+		clones, err := fsm.ListClonesNames()
+		if err != nil {
+			log.Err("failed to list clones", err)
+			return nil
+		}
+
+		if len(clones) == 0 {
+			return element
+		}
+	}
+
+	return nil
 }
 
 // GetFSManager returns a filesystem manager by name if exists.
@@ -130,24 +163,14 @@ func (pm *Manager) ReloadPools() error {
 	fsPools := pm.examineEntries(entries)
 
 	if len(fsPools) == 0 {
-		return errors.New("no available filesystem pools")
-	}
-
-	active, old := pm.detectWorkingPools(fsPools)
-
-	if active == nil {
-		return errors.New("active pool not found: make sure it exists")
+		return errors.New("no available pools")
 	}
 
 	pm.mu.Lock()
-
 	pm.fsManagerPool = fsPools
-	pm.SetActive(active)
-	pm.SetOldest(old)
-
 	pm.mu.Unlock()
 
-	log.Msg("Available FS pools: ", pm.describeAvailablePools())
+	log.Msg("Available storage pools: ", pm.describeAvailablePools())
 	log.Msg("Active pool: ", pm.Active().Pool().Name)
 
 	return nil
@@ -208,6 +231,13 @@ func (pm *Manager) examineEntries(entries []os.FileInfo) map[string]FSManager {
 
 		// TODO(akartasov): extract pool name.
 		fsManagers[entry.Name()] = fsm
+
+		if pm.Active() == nil || pm.Active().Pool().DSA.Before(pool.DSA) {
+			pm.fsManagerList.PushFront(fsm.Pool().Name)
+			continue
+		}
+
+		pm.fsManagerList.PushBack(fsm.Pool().Name)
 	}
 
 	return fsManagers
@@ -224,33 +254,6 @@ func (pm *Manager) reloadBlockDevices() error {
 	pm.blockDeviceTypes = blockDeviceTypes
 
 	return nil
-}
-
-func (pm *Manager) detectWorkingPools(fsm map[string]FSManager) (FSManager, FSManager) {
-	var fsManager, old FSManager
-
-	for _, manager := range fsm {
-		if fsManager == nil {
-			fsManager = manager
-			continue
-		}
-
-		if fsManager.Pool().DSA.Before(manager.Pool().DSA) {
-			if old == nil {
-				old = fsManager
-			}
-
-			fsManager = manager
-
-			continue
-		}
-
-		if old == nil || manager.Pool().DSA.Before(old.Pool().DSA) {
-			old = manager
-		}
-	}
-
-	return fsManager, old
 }
 
 func extractDataStateAt(dataPath string) (*time.Time, error) {
@@ -294,13 +297,14 @@ func (pm *Manager) getFSInfo(path string) (string, error) {
 func (pm *Manager) describeAvailablePools() []string {
 	availablePools := []string{}
 
-	pm.mu.Lock()
+	for el := pm.fsManagerList.Front(); el != nil; el = el.Next() {
+		if el.Value == nil {
+			log.Err("empty element: skip listing")
+			continue
+		}
 
-	for _, fsm := range pm.fsManagerPool {
-		availablePools = append(availablePools, fsm.Pool().DataDir())
+		availablePools = append(availablePools, el.Value.(string))
 	}
-
-	pm.mu.Unlock()
 
 	return availablePools
 }

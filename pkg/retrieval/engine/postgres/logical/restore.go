@@ -285,7 +285,7 @@ func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID string) (st
 	return dataStateAt, nil
 }
 
-// updateDataStateAt updates dataStateAt for in-memory representation of a filesystem pool.
+// updateDataStateAt updates dataStateAt for in-memory representation of a storage pool.
 func (r *RestoreJob) updateDataStateAt() {
 	dsaTime, err := time.Parse(util.DataStateAtFormat, r.dbMark.DataStateAt)
 	if err != nil {
