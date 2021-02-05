@@ -296,17 +296,21 @@ func (m *Manager) AdjustRecoveryFiles() error {
 		return errors.Wrap(err, "failed to truncate pg_ident.conf")
 	}
 
+	return nil
+}
+
+// ApplyRecovery applies recovery configuration parameters.
+func (m *Manager) ApplyRecovery(cfg map[string]string) error {
+	if len(cfg) == 0 {
+		return nil
+	}
+
 	if m.pgVersion >= defaults.PGVersion12 {
 		if err := tools.TouchFile(path.Join(m.dataDir, "standby.signal")); err != nil {
 			return err
 		}
 	}
 
-	return nil
-}
-
-// ApplyRecovery applies recovery configuration parameters.
-func (m *Manager) ApplyRecovery(cfg map[string]string) error {
 	if err := tools.TouchFile(path.Join(m.dataDir, m.recoveryFilename())); err != nil {
 		return err
 	}
