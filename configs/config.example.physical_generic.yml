@@ -178,7 +178,7 @@ retrieval:
           # complicated snippet, create a shell script, use --mount (-v) option
           # when starting a container with Database Lab and use path to it here.
           # Write your data to dataDir defined in "global.config"
-          command: "pg_basebackup -X stream -D /var/lib/dblab/data"
+          command: "pg_basebackup -X stream -D /var/lib/dblab/dblab_pool/data"
 
           # PostgreSQL "restore_command" configuration option.
           restore_command: ""
