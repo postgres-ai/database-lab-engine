@@ -144,7 +144,7 @@ retrieval:
       options:
         # The dump file will be automatically created on this location and then used to restore.
         # Ensure that there is enough disk space.
-        dumpLocation: "/var/lib/dblab/rds_db.dump"
+        dumpLocation: "/var/lib/dblab/dblab_pool/dump/rds_db.dump"
 
         # The Docker image containing the tools required to get a dump.
         dockerImage: "postgres:13-alpine"
@@ -196,7 +196,7 @@ retrieval:
         dbname: "test"
 
         # The location of the archive file (or directory, for a directory-format archive) to be restored.
-        dumpLocation: "/var/lib/dblab/rds_db.dump"
+        dumpLocation: "/var/lib/dblab/dblab_pool/dump/rds_db.dump"
 
         # The Docker image containing the tools required to restore.
         dockerImage: "postgres:13-alpine"
