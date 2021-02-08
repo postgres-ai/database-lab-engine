@@ -160,7 +160,7 @@ func (pm *Manager) ReloadPools() error {
 		return err
 	}
 
-	fsPools := pm.examineEntries(entries)
+	fsPools, fsManagerList := pm.examineEntries(entries)
 
 	if len(fsPools) == 0 {
 		return errors.New("no available pools")
@@ -168,6 +168,7 @@ func (pm *Manager) ReloadPools() error {
 
 	pm.mu.Lock()
 	pm.fsManagerPool = fsPools
+	pm.fsManagerList = fsManagerList
 	pm.mu.Unlock()
 
 	log.Msg("Available storage pools: ", pm.describeAvailablePools())
@@ -176,8 +177,9 @@ func (pm *Manager) ReloadPools() error {
 	return nil
 }
 
-func (pm *Manager) examineEntries(entries []os.FileInfo) map[string]FSManager {
+func (pm *Manager) examineEntries(entries []os.FileInfo) (map[string]FSManager, *list.List) {
 	fsManagers := make(map[string]FSManager)
+	poolList := &list.List{}
 
 	for _, entry := range entries {
 		if !entry.IsDir() {
@@ -232,15 +234,16 @@ func (pm *Manager) examineEntries(entries []os.FileInfo) map[string]FSManager {
 		// TODO(akartasov): extract pool name.
 		fsManagers[entry.Name()] = fsm
 
-		if pm.Active() == nil || pm.Active().Pool().DSA.Before(pool.DSA) {
-			pm.fsManagerList.PushFront(fsm.Pool().Name)
+		front := poolList.Front()
+		if front == nil || front.Value == nil || fsManagers[front.Value.(string)].Pool().DSA.Before(pool.DSA) {
+			poolList.PushFront(fsm.Pool().Name)
 			continue
 		}
 
-		pm.fsManagerList.PushBack(fsm.Pool().Name)
+		poolList.PushBack(fsm.Pool().Name)
 	}
 
-	return fsManagers
+	return fsManagers, poolList
 }
 
 // reloadBlockDevices gets filesystem types of block devices.
