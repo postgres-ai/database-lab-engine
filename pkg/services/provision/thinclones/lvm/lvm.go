@@ -42,7 +42,7 @@ type ListEntry struct {
 }
 
 // CreateVolume creates LVM volume.
-func CreateVolume(r runners.Runner, vg, lv, name, mountDir, dataSubDir string) error {
+func CreateVolume(r runners.Runner, vg, lv, name, mountDir string) error {
 	fullName := getFullName(vg, name)
 
 	volumeCreateCmd := "lvcreate --snapshot " +
@@ -54,7 +54,7 @@ func CreateVolume(r runners.Runner, vg, lv, name, mountDir, dataSubDir string) e
 		return errors.Wrap(err, "failed to create a volume")
 	}
 
-	fullMountDir := getFullMountDir(mountDir, name, dataSubDir)
+	fullMountDir := getFullMountDir(mountDir, name)
 	mountCmd := "mkdir -p " + fullMountDir + " && " +
 		"mount /dev/" + fullName + " " + fullMountDir
 
@@ -67,10 +67,10 @@ func CreateVolume(r runners.Runner, vg, lv, name, mountDir, dataSubDir string) e
 }
 
 // RemoveVolume removes LVM volume.
-func RemoveVolume(r runners.Runner, vg, lv, name, mountDir, dataSubDir string) error {
+func RemoveVolume(r runners.Runner, vg, _, name, mountDir string) error {
 	fullName := getFullName(vg, name)
 
-	unmountCmd := "umount " + getFullMountDir(mountDir, name, dataSubDir)
+	unmountCmd := "umount " + getFullMountDir(mountDir, name)
 
 	_, err := r.Run(unmountCmd, true)
 	if err != nil {
@@ -116,6 +116,6 @@ func getFullName(vg, name string) string {
 	return fmt.Sprintf("%s/%s", vg, name)
 }
 
-func getFullMountDir(mountDir, name, dataSubDir string) string {
-	return fmt.Sprintf("%s/%s/%s", mountDir, name, dataSubDir)
+func getFullMountDir(mountDir, name string) string {
+	return fmt.Sprintf("%s/%s", mountDir, name)
 }
