@@ -48,12 +48,12 @@ func (m *LVManager) Pool() *resources.Pool {
 
 // CreateClone creates a new volume.
 func (m *LVManager) CreateClone(name, _ string) error {
-	return CreateVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir(), m.pool.DataSubDir)
+	return CreateVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir())
 }
 
 // DestroyClone destroys volumes.
 func (m *LVManager) DestroyClone(name string) error {
-	return RemoveVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir(), m.pool.DataSubDir)
+	return RemoveVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir())
 }
 
 // ListClonesNames returns a list of clone names.
