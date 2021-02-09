@@ -389,6 +389,8 @@ definitions:
           restricted:
             type: "boolean"
             default: false
+          db_name:
+            type: "string"
 
   UpdateClone:
     type: "object"

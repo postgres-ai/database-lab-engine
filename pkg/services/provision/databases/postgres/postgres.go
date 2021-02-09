@@ -73,7 +73,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 			return errors.Wrap(fmt.Errorf("postgres fatal error"), "cannot start Postgres")
 		}
 
-		out, err := runSimpleSQL("select pg_is_in_recovery()", c)
+		out, err := runSimpleSQL("select pg_is_in_recovery()", getPgConnStr(c.Host, c.DB.DBName, c.DB.Username, c.Port))
 
 		if err == nil {
 			// Server does not need promotion if it is not in recovery.
@@ -148,23 +148,22 @@ func pgctlPromote(r runners.Runner, c *resources.AppConfig) (string, error) {
 }
 
 // Generate postgres connection string.
-func getPgConnStr(c *resources.AppConfig) string {
+func getPgConnStr(host, dbname, username string, port uint) string {
 	var sb strings.Builder
 
-	if c.Host != "" {
-		sb.WriteString("host=" + c.Host + " ")
+	if host != "" {
+		sb.WriteString("host=" + host + " ")
 	}
 
-	sb.WriteString("port=" + strconv.Itoa(int(c.Port)) + " ")
-	sb.WriteString("dbname=" + c.DB.DBName + " ")
-	sb.WriteString("user=" + c.DB.Username + " ")
+	sb.WriteString("port=" + strconv.Itoa(int(port)) + " ")
+	sb.WriteString("dbname=" + dbname + " ")
+	sb.WriteString("user=" + username + " ")
 
 	return sb.String()
 }
 
-// Executes simple SQL commands which returns one string value.
-func runSimpleSQL(command string, c *resources.AppConfig) (string, error) {
-	connStr := getPgConnStr(c)
+// runSimpleSQL executes simple SQL commands which returns one string value.
+func runSimpleSQL(command, connStr string) (string, error) {
 	db, err := sql.Open("postgres", connStr)
 
 	if err != nil {

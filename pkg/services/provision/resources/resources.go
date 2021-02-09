@@ -15,17 +15,11 @@ type Session struct {
 	Pool string
 
 	// Database.
-	Port       uint
-	User       string
-	SocketHost string
-
-	// TODO(anatoly): Were private fields. How to keep them private?
-	// For user-defined username and password.
-	EphemeralUser     string
-	EphemeralPassword string
-	Restricted        bool
-
-	ExtraConfig map[string]string
+	Port          uint
+	User          string
+	SocketHost    string
+	EphemeralUser EphemeralUser
+	ExtraConfig   map[string]string
 }
 
 // Disk defines disk status.
@@ -35,6 +29,15 @@ type Disk struct {
 	Free     uint64
 	Used     uint64
 	DataSize uint64
+}
+
+// EphemeralUser describes an ephemeral database user defined by Database Lab users.
+type EphemeralUser struct {
+	// TODO(anatoly): Were private fields. How to keep them private?
+	Name        string
+	Password    string
+	Restricted  bool
+	AvailableDB string
 }
 
 // Snapshot defines snapshot of the data with related meta-information.

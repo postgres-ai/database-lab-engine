@@ -139,8 +139,15 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 
 	c.setWrapper(clone.ID, w)
 
+	ephemeralUser := resources.EphemeralUser{
+		Name:        w.username,
+		Password:    w.password,
+		Restricted:  cloneRequest.DB.Restricted,
+		AvailableDB: cloneRequest.DB.DBName,
+	}
+
 	go func() {
-		session, err := c.provision.StartSession(w.username, w.password, w.snapshot.ID, cloneRequest.DB.Restricted, cloneRequest.ExtraConf)
+		session, err := c.provision.StartSession(w.snapshot.ID, ephemeralUser, cloneRequest.ExtraConf)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
 			log.Errf("Failed to start session: %v.", err)

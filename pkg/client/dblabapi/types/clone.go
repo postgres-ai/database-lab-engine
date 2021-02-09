@@ -24,6 +24,7 @@ type DatabaseRequest struct {
 	Username   string `json:"username"`
 	Password   string `json:"password"`
 	Restricted bool   `json:"restricted"`
+	DBName     string `json:"db_name"`
 }
 
 // SnapshotCloneFieldRequest represents snapshot params of a create request.

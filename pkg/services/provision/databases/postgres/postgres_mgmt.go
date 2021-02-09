@@ -59,7 +59,7 @@ func ResetAllPasswords(c *resources.AppConfig, whitelistUsers []string) error {
 	query := strings.Replace(ResetPasswordsQuery,
 		"{{OPTIONAL_WHERE}}", optionalWhere, 1)
 
-	out, err := runSimpleSQL(query, c)
+	out, err := runSimpleSQL(query, getPgConnStr(c.Host, c.DB.DBName, c.DB.Username, c.Port))
 	if err != nil {
 		return errors.Wrap(err, "failed to run psql")
 	}
@@ -70,16 +70,21 @@ func ResetAllPasswords(c *resources.AppConfig, whitelistUsers []string) error {
 }
 
 // CreateUser defines a method for creation of Postgres user.
-func CreateUser(c *resources.AppConfig, username, password string, restricted bool) error {
+func CreateUser(c *resources.AppConfig, user resources.EphemeralUser) error {
 	var query string
 
-	if restricted {
-		query = restrictedUserQuery(username, password, c.DB.DBName)
-	} else {
-		query = superuserQuery(username, password)
+	dbName := c.DB.DBName
+	if user.AvailableDB != "" {
+		dbName = user.AvailableDB
 	}
 
-	out, err := runSimpleSQL(query, c)
+	if user.Restricted {
+		query = restrictedUserQuery(user.Name, user.Password, dbName)
+	} else {
+		query = superuserQuery(user.Name, user.Password)
+	}
+
+	out, err := runSimpleSQL(query, getPgConnStr(c.Host, dbName, c.DB.Username, c.Port))
 	if err != nil {
 		return errors.Wrap(err, "failed to run psql")
 	}
