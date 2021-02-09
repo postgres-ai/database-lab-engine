@@ -48,6 +48,10 @@ func CommandList() []*cli.Command {
 						Usage: "create a user with restricted permissions",
 					},
 					&cli.StringFlag{
+						Name:  "db-name",
+						Usage: "available database for a user with restricted permissions",
+					},
+					&cli.StringFlag{
 						Name:  "id",
 						Usage: "clone ID (optional)",
 					},

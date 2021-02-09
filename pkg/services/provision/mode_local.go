@@ -143,7 +143,7 @@ func (p *Provisioner) Reload(cfg Config, dbCfg resources.DB) {
 }
 
 // StartSession starts a new session.
-func (p *Provisioner) StartSession(username, password, snapshotID string, restricted bool,
+func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUser,
 	extraConfig map[string]string) (*resources.Session, error) {
 	snapshotID, err := p.getSnapshotID(snapshotID)
 	if err != nil {
@@ -181,22 +181,20 @@ func (p *Provisioner) StartSession(username, password, snapshotID string, restri
 		return nil, errors.Wrap(err, "failed to start a container")
 	}
 
-	if err := p.prepareDB(appConfig, username, password, restricted); err != nil {
+	if err := p.prepareDB(appConfig, user); err != nil {
 		return nil, errors.Wrap(err, "failed to prepare a database")
 	}
 
 	atomic.AddUint32(&p.sessionCounter, 1)
 
 	session := &resources.Session{
-		ID:                strconv.FormatUint(uint64(p.sessionCounter), 10),
-		Pool:              fsm.Pool().Name,
-		Port:              port,
-		User:              appConfig.DB.Username,
-		SocketHost:        appConfig.Host,
-		EphemeralUser:     username,
-		EphemeralPassword: password,
-		Restricted:        restricted,
-		ExtraConfig:       extraConfig,
+		ID:            strconv.FormatUint(uint64(p.sessionCounter), 10),
+		Pool:          fsm.Pool().Name,
+		Port:          port,
+		User:          appConfig.DB.Username,
+		SocketHost:    appConfig.Host,
+		EphemeralUser: user,
+		ExtraConfig:   extraConfig,
 	}
 
 	return session, nil
@@ -265,7 +263,7 @@ func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string
 		return errors.Wrap(err, "failed to start a container")
 	}
 
-	if err := p.prepareDB(appConfig, session.EphemeralUser, session.EphemeralPassword, session.Restricted); err != nil {
+	if err := p.prepareDB(appConfig, session.EphemeralUser); err != nil {
 		return errors.Wrap(err, "failed to prepare a database")
 	}
 
@@ -566,7 +564,7 @@ func (p *Provisioner) scanCSVLogFile(ctx context.Context, filename string, avail
 	}
 }
 
-func (p *Provisioner) prepareDB(pgConf *resources.AppConfig, username, password string, restricted bool) error {
+func (p *Provisioner) prepareDB(pgConf *resources.AppConfig, user resources.EphemeralUser) error {
 	if !p.config.KeepUserPasswords {
 		whitelist := []string{p.dbCfg.Username}
 
@@ -575,7 +573,7 @@ func (p *Provisioner) prepareDB(pgConf *resources.AppConfig, username, password 
 		}
 	}
 
-	if err := postgres.CreateUser(pgConf, username, password, restricted); err != nil {
+	if err := postgres.CreateUser(pgConf, user); err != nil {
 		return errors.Wrap(err, "failed to create user")
 	}
 

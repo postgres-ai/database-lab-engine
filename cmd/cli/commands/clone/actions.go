@@ -58,6 +58,7 @@ func create(cliCtx *cli.Context) error {
 			Username:   cliCtx.String("username"),
 			Password:   cliCtx.String("password"),
 			Restricted: cliCtx.Bool("restricted"),
+			DBName:     cliCtx.String("db-name"),
 		},
 	}
 
