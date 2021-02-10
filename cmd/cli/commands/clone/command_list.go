@@ -49,7 +49,7 @@ func CommandList() []*cli.Command {
 					},
 					&cli.StringFlag{
 						Name:  "db-name",
-						Usage: "available database for a user with restricted permissions",
+						Usage: "database available to the user with restricted permissions",
 					},
 					&cli.StringFlag{
 						Name:  "id",

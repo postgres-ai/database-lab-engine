@@ -84,6 +84,8 @@ func CreateUser(c *resources.AppConfig, user resources.EphemeralUser) error {
 		query = superuserQuery(user.Name, user.Password)
 	}
 
+	log.Msg(query)
+
 	out, err := runSimpleSQL(query, getPgConnStr(c.Host, dbName, c.DB.Username, c.Port))
 	if err != nil {
 		return errors.Wrap(err, "failed to run psql")
@@ -98,50 +100,125 @@ func superuserQuery(username, password string) string {
 	return fmt.Sprintf(`create user "%s" with password '%s' login superuser;`, username, password)
 }
 
-const restrictedTemplate = `
--- create new user 
-create user %[1]s with password '%s' createdb;
+const restrictionTemplate = `
+-- create a new user 
+create user %[1]s with password '%s' login;
 
--- grant all privileges in the database 
-grant all privileges on database %s to %[1]s;
+-- change a database owner
+alter database %s owner to %[1]s; 
 
--- grant all on all objects in all schemas in the database
 do $$
+declare
+  new_owner text;
+  object_type record;
+  r record;
 begin
-  -- grant usage on all schemas in the database
-  execute (
-    select string_agg(format('grant usage on schema %%I to %[1]s', nspname), '; ')
-    from pg_namespace
-    where nspname <> 'information_schema'
-    and nspname not like 'pg\_%%'
-  );
-   
-  -- grant all on all tables in all schemas in database
-  execute (
-    select string_agg(format('grant all on all tables in schema %%I to %[1]s', nspname), '; ')
-    from pg_namespace
-    where nspname <> 'information_schema'
-    and nspname not like 'pg\_%%'
-  );
+  new_owner := '%[1]s';
 
-  -- grant all on all sequences in all custom schemas in the database
-  execute (
-    select string_agg(format('grant all on all sequences in schema %%I to %[1]s', nspname), '; ')
-    from pg_namespace
-    where nspname <> 'information_schema'
-    and nspname not like 'pg\_%%'
-  );
+  -- c: composite type
+  -- t: type (TOAST)
+  -- S: sequence
+  -- i: index
+  -- r: table
+  -- v: view
+  -- m: materialized view
+  for object_type in
+    select
+      unnest('{type,table,sequence,table,view,materialized view}'::text[]) type_name, 
+      unnest('{c,t,S,r,v,m}'::text[]) code
+  loop
+    for r in 
+      execute format(
+        $sql$
+          select n.nspname, c.relname
+          from pg_class c
+          join pg_namespace n on
+            n.oid = c.relnamespace
+            and not n.nspname in ('pg_catalog', 'information_schema')
+            and c.relkind = %%L
+          left join pg_class cc on
+            c.relkind = 't' /*leave 't' hardcoded!*/
+            and cc.oid = nullif(regexp_replace(c.relname, '^pg_toast_(.*)', '\1'), c.relname)::int8
+          left join pg_namespace nn on
+            nn.oid = cc.relnamespace
+          where
+            c.relkind <> 't' /*leave 't' hardcoded!*/
+            or not nn.nspname in ('pg_catalog', 'information_schema')
+        $sql$,
+        object_type.code
+      )
+    loop 
+      raise debug 'Changing ownership of %% %%.%% to %%',
+                   object_type.type_name, r.nspname, r.relname, new_owner;
+      execute format(
+        'alter %%s %%I.%%I owner to %%I;',
+        object_type.type_name,
+        r.nspname,
+        r.relname,
+        new_owner
+      );
+    end loop;
+  end loop;
 
-  -- grant all on all functions in all schemas in the database
-  execute (
-    select string_agg(format('grant all on all functions in schema %%I to %[1]s', nspname), '; ')
-    from pg_namespace
-    where nspname <> 'information_schema'
-    and nspname not like 'pg\_%%'
-  );
-end $$; 
+  -- Functions, 
+  for r in 
+    select
+      p.proname,
+      n.nspname,
+      pg_catalog.pg_get_function_identity_arguments(p.oid) as args
+    from pg_catalog.pg_namespace as n
+    join pg_catalog.pg_proc as p on p.pronamespace = n.oid
+    where not n.nspname in ('pg_catalog', 'information_schema')
+  loop
+    raise debug 'Changing ownership of function %%.%%(%%) to %%', 
+                r.nspname, r.proname, r.args, new_owner;
+    execute format(
+      'alter function %%I.%%I(%%s) owner to %%I', -- todo: check support CamelStyle r.args
+      r.nspname,
+      r.proname,
+      r.args,
+      new_owner
+    );
+  end loop;
+
+  -- full text search dictionary
+  -- TODO: text search configuration
+  for r in 
+    select * 
+    from pg_catalog.pg_namespace n
+    join pg_catalog.pg_ts_dict d on d.dictnamespace = n.oid
+    where not n.nspname in ('pg_catalog', 'information_schema')
+  loop
+    raise debug 'Changing ownership of text search dictionary %%.%% to %%', 
+                 r.nspname, r.dictname, new_owner;
+    execute format(
+      'alter text search dictionary %%I.%%I owner to %%I',
+      r.nspname,
+      r.dictname,
+      new_owner
+    );
+  end loop;
+
+  -- domain
+  for r in 
+     select typname, nspname
+     from pg_catalog.pg_type
+     join pg_catalog.pg_namespace on pg_namespace.oid = pg_type.typnamespace
+     where typtype = 'd' and not nspname in ('pg_catalog', 'information_schema')
+  loop
+    raise debug 'Changing ownership of domain %%.%% to %%', 
+                 r.nspname, r.typname, new_owner;
+    execute format(
+      'alter domain %%I.%%I owner to %%I',
+      r.nspname,
+      r.typname,
+      new_owner
+    );
+  end loop;
+end
+$$;
 `
 
 func restrictedUserQuery(username, password, database string) string {
-	return fmt.Sprintf(restrictedTemplate, username, password, database)
+	return fmt.Sprintf(restrictionTemplate, username, password, database)
 }
