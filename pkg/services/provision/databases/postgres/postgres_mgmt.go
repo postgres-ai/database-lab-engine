@@ -206,6 +206,8 @@ begin
       new_owner
     );
   end loop;
+
+  grant select on pg_stat_activity to %[1]s;
 end
 $$;
 `
