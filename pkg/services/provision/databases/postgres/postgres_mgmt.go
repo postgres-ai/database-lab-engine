@@ -84,8 +84,6 @@ func CreateUser(c *resources.AppConfig, user resources.EphemeralUser) error {
 		query = superuserQuery(user.Name, user.Password)
 	}
 
-	log.Msg(query)
-
 	out, err := runSimpleSQL(query, getPgConnStr(c.Host, dbName, c.DB.Username, c.Port))
 	if err != nil {
 		return errors.Wrap(err, "failed to run psql")
@@ -116,16 +114,16 @@ begin
   new_owner := '%[1]s';
 
   -- c: composite type
-  -- t: type (TOAST)
-  -- S: sequence
+  -- p: partitioned table
   -- i: index
   -- r: table
   -- v: view
   -- m: materialized view
+  -- S: sequence
   for object_type in
     select
-      unnest('{type,table,sequence,table,view,materialized view}'::text[]) type_name, 
-      unnest('{c,t,S,r,v,m}'::text[]) code
+      unnest('{type,table,table,view,materialized view,sequence}'::text[]) type_name,
+      unnest('{c,p,r,v,m,S}'::text[]) code
   loop
     for r in 
       execute format(
@@ -136,14 +134,7 @@ begin
             n.oid = c.relnamespace
             and not n.nspname in ('pg_catalog', 'information_schema')
             and c.relkind = %%L
-          left join pg_class cc on
-            c.relkind = 't' /*leave 't' hardcoded!*/
-            and cc.oid = nullif(regexp_replace(c.relname, '^pg_toast_(.*)', '\1'), c.relname)::int8
-          left join pg_namespace nn on
-            nn.oid = cc.relnamespace
-          where
-            c.relkind <> 't' /*leave 't' hardcoded!*/
-            or not nn.nspname in ('pg_catalog', 'information_schema')
+          order by c.relname
         $sql$,
         object_type.code
       )
