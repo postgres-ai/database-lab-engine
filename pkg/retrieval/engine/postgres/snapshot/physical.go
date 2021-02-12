@@ -474,6 +474,10 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to readiness check")
 	}
 
+	if err := p.markDSA(ctx, promoteCont.ID); err != nil {
+		return errors.Wrap(err, "failed to mark dataStateAt")
+	}
+
 	shouldBePromoted, err := p.checkRecovery(ctx, promoteCont.ID)
 	if err != nil {
 		return errors.Wrap(err, "failed to check recovery mode")
@@ -483,25 +487,6 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	// Detect dataStateAt.
 	if shouldBePromoted == "t" {
-		extractedDataStateAt, err := p.extractDataStateAt(ctx, promoteCont.ID)
-		if err != nil {
-			return errors.Wrap(err,
-				`Failed to get data_state_at: PGDATA should be promoted, but pg_last_xact_replay_timestamp() returns empty result.
-				Check if pg_data is correct, or explicitly define DATA_STATE_AT via an environment variable.`)
-		}
-
-		log.Msg("Extracted Data state at: ", extractedDataStateAt)
-
-		if p.dbMark.DataStateAt != "" && extractedDataStateAt == p.dbMark.DataStateAt {
-			return newSkipSnapshotErr(fmt.Sprintf(
-				`The previous snapshot already contains the latest data: %s. Skip taking a new snapshot.`,
-				p.dbMark.DataStateAt))
-		}
-
-		p.dbMark.DataStateAt = extractedDataStateAt
-
-		log.Msg("Data state at: ", p.dbMark.DataStateAt)
-
 		// Promote PGDATA.
 		if err := p.runPromoteCommand(ctx, promoteCont.ID, clonePath); err != nil {
 			return errors.Wrapf(err, "failed to promote PGDATA: %s", clonePath)
@@ -540,6 +525,29 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 	if err := cfgManager.ApplySnapshot(p.options.Configs); err != nil {
 		return errors.Wrap(err, "failed to store prepared configuration")
 	}
+
+	return nil
+}
+
+func (p *PhysicalInitial) markDSA(ctx context.Context, containerID string) error {
+	extractedDataStateAt, err := p.extractDataStateAt(ctx, containerID)
+	if err != nil {
+		return errors.Wrap(err,
+			`Failed to get data_state_at: PGDATA should be promoted, but pg_last_xact_replay_timestamp() returns empty result.
+				Check if pg_data is correct, or explicitly define DATA_STATE_AT via an environment variable.`)
+	}
+
+	log.Msg("Extracted Data state at: ", extractedDataStateAt)
+
+	if p.dbMark.DataStateAt != "" && extractedDataStateAt == p.dbMark.DataStateAt {
+		return newSkipSnapshotErr(fmt.Sprintf(
+			`The previous snapshot already contains the latest data: %s. Skip taking a new snapshot.`,
+			p.dbMark.DataStateAt))
+	}
+
+	p.dbMark.DataStateAt = extractedDataStateAt
+
+	log.Msg("Data state at: ", p.dbMark.DataStateAt)
 
 	return nil
 }
