@@ -499,7 +499,7 @@ func (m *Manager) listDetails(pool, dsType string) ([]*ListEntry, error) {
 		"-t " + dsType + " " +
 		"-r " + pool
 
-	out, err := m.runner.Run(listCmd, true)
+	out, err := m.runner.Run(listCmd, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list details")
 	}

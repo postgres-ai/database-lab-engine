@@ -40,13 +40,9 @@ func readJSON(r *http.Request, v interface{}) error {
 		return errors.Wrap(err, "failed to read a request body")
 	}
 
-	log.Dbg("Request:", string(reqBody))
-
 	if err = json.Unmarshal(reqBody, v); err != nil {
 		return errors.Wrapf(err, "failed to unmarshal json: %s", string(reqBody))
 	}
-
-	log.Dbg("Request:", v)
 
 	return nil
 }
