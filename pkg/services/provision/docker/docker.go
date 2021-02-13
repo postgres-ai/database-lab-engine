@@ -142,14 +142,14 @@ func createSocketCloneDir(socketCloneDir string) error {
 func StopContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 	dockerStopCmd := "docker container stop " + c.CloneName
 
-	return r.Run(dockerStopCmd, true)
+	return r.Run(dockerStopCmd, false)
 }
 
 // RemoveContainer removes specified container.
 func RemoveContainer(r runners.Runner, cloneName string) (string, error) {
 	dockerRemoveCmd := "docker container rm --force --volumes " + cloneName
 
-	return r.Run(dockerRemoveCmd, true)
+	return r.Run(dockerRemoveCmd, false)
 }
 
 // ListContainers lists containers.
@@ -157,7 +157,7 @@ func ListContainers(r runners.Runner, clonePool string) ([]string, error) {
 	dockerListCmd := fmt.Sprintf(`docker container ls --filter "label=%s" --filter "label=%s" --all --quiet`,
 		labelClone, clonePool)
 
-	out, err := r.Run(dockerListCmd, true)
+	out, err := r.Run(dockerListCmd, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list containers")
 	}
