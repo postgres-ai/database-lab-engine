@@ -160,6 +160,7 @@ begin
     from pg_catalog.pg_namespace as n
     join pg_catalog.pg_proc as p on p.pronamespace = n.oid
     where not n.nspname in ('pg_catalog', 'information_schema')
+    and p.proname not ilike 'dblink%%' -- We do not want dblink to be involved (exclusion)
   loop
     raise debug 'Changing ownership of function %%.%%(%%) to %%', 
                 r.nspname, r.proname, r.args, new_owner;
