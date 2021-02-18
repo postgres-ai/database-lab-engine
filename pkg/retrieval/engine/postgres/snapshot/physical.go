@@ -6,13 +6,17 @@
 package snapshot
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"path"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/araddon/dateparse"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -28,6 +32,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/health"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/pgtool"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
@@ -43,7 +48,18 @@ const (
 	promoteContainerPrefix = "dblab_promote_"
 
 	supportedSysctlPrefix = "fs.mqueue."
+
+	checkpointTimestampLabel = "Time of latest checkpoint:"
+
+	restoreCommandOption = "restore_command"
+	targetActionOption   = "recovery_target_action"
+	promoteTargetAction  = "promote"
 )
+
+var defaultRecoveryCfg = map[string]string{
+	"recovery_target":        "immediate",
+	"recovery_target_action": promoteTargetAction,
+}
 
 // supportedSysctls describes supported sysctls for Promote Docker image.
 var supportedSysctls = map[string]struct{}{
@@ -409,10 +425,21 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to adjust recovery configuration")
 	}
 
-	if len(p.options.Promotion.Recovery) > 0 {
-		if err := cfgManager.ApplyRecovery(p.options.Promotion.Recovery); err != nil {
-			return errors.Wrap(err, "failed to apply recovery configuration")
+	recoveryFileConfig, err := cfgManager.ReadRecoveryConfig()
+	if err != nil {
+		return errors.Wrap(err, "failed to read recovery configuration file")
+	}
+
+	if len(recoveryFileConfig) == 0 {
+		if err := cfgManager.RemoveRecoveryConfig(); err != nil {
+			return errors.Wrap(err, "failed to remove recovery config file")
 		}
+	}
+
+	recoveryConfig := buildRecoveryConfig(recoveryFileConfig, p.options.Promotion.Recovery)
+
+	if err := cfgManager.ApplyRecovery(recoveryFileConfig); err != nil {
+		return errors.Wrap(err, "failed to apply recovery configuration")
 	}
 
 	// Apply promotion configs.
@@ -443,7 +470,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	// Run promotion container.
 	promoteCont, err := p.dockerClient.ContainerCreate(ctx,
-		p.buildContainerConfig(clonePath, promoteImage, pwd),
+		p.buildContainerConfig(clonePath, promoteImage, pwd, recoveryConfig[targetActionOption]),
 		hostConfig,
 		&network.NetworkingConfig{},
 		p.promoteContainerName(),
@@ -483,25 +510,6 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 
 	// Detect dataStateAt.
 	if shouldBePromoted == "t" {
-		extractedDataStateAt, err := p.extractDataStateAt(ctx, promoteCont.ID)
-		if err != nil {
-			return errors.Wrap(err,
-				`Failed to get data_state_at: PGDATA should be promoted, but pg_last_xact_replay_timestamp() returns empty result.
-				Check if pg_data is correct, or explicitly define DATA_STATE_AT via an environment variable.`)
-		}
-
-		log.Msg("Extracted Data state at: ", extractedDataStateAt)
-
-		if p.dbMark.DataStateAt != "" && extractedDataStateAt == p.dbMark.DataStateAt {
-			return newSkipSnapshotErr(fmt.Sprintf(
-				`The previous snapshot already contains the latest data: %s. Skip taking a new snapshot.`,
-				p.dbMark.DataStateAt))
-		}
-
-		p.dbMark.DataStateAt = extractedDataStateAt
-
-		log.Msg("Data state at: ", p.dbMark.DataStateAt)
-
 		// Promote PGDATA.
 		if err := p.runPromoteCommand(ctx, promoteCont.ID, clonePath); err != nil {
 			return errors.Wrapf(err, "failed to promote PGDATA: %s", clonePath)
@@ -517,6 +525,10 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		}
 	}
 
+	if err := p.markDSA(ctx, promoteCont.ID, clonePath, cfgManager.GetPgVersion()); err != nil {
+		return errors.Wrap(err, "failed to mark dataStateAt")
+	}
+
 	if p.queryProcessor != nil {
 		if err := p.queryProcessor.applyPreprocessingQueries(ctx, promoteCont.ID); err != nil {
 			return errors.Wrap(err, "failed to run preprocessing queries")
@@ -528,12 +540,16 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return err
 	}
 
+	if err := cfgManager.RemoveRecoveryConfig(); err != nil {
+		return errors.Wrap(err, "failed to remove recovery config file")
+	}
+
 	if err := cfgManager.TruncateSyncConfig(); err != nil {
-		return errors.Wrap(err, "failed to truncate a sync config file")
+		return errors.Wrap(err, "failed to truncate sync config file")
 	}
 
 	if err := cfgManager.TruncatePromotionConfig(); err != nil {
-		return errors.Wrap(err, "failed to truncate a promotion config file")
+		return errors.Wrap(err, "failed to truncate promotion config file")
 	}
 
 	// Apply configs to the snapshot.
@@ -544,7 +560,44 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 	return nil
 }
 
-func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password string) *container.Config {
+func buildRecoveryConfig(fileConfig, userRecoveryConfig map[string]string) map[string]string {
+	recoveryConf := fileConfig
+
+	if rc, ok := fileConfig[restoreCommandOption]; ok || rc != "" {
+		for k, v := range defaultRecoveryCfg {
+			recoveryConf[k] = v
+		}
+	}
+
+	for k, v := range userRecoveryConfig {
+		recoveryConf[k] = v
+	}
+
+	return recoveryConf
+}
+
+func (p *PhysicalInitial) markDSA(ctx context.Context, containerID, dataDir string, pgVersion float64) error {
+	extractedDataStateAt, err := p.extractDataStateAt(ctx, containerID, dataDir, pgVersion)
+	if err != nil {
+		return errors.Wrap(err, `failed to extract dataStateAt`)
+	}
+
+	log.Msg("Extracted Data state at: ", extractedDataStateAt)
+
+	if p.dbMark.DataStateAt != "" && extractedDataStateAt == p.dbMark.DataStateAt {
+		return newSkipSnapshotErr(fmt.Sprintf(
+			`The previous snapshot already contains the latest data: %s. Skip taking a new snapshot.`,
+			p.dbMark.DataStateAt))
+	}
+
+	p.dbMark.DataStateAt = extractedDataStateAt
+
+	log.Msg("Data state at: ", p.dbMark.DataStateAt)
+
+	return nil
+}
+
+func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password, action string) *container.Config {
 	hcPromotionInterval := health.DefaultRestoreInterval
 	hcPromotionRetries := health.DefaultRestoreRetries
 
@@ -554,6 +607,20 @@ func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password
 
 	if p.options.Promotion.HealthCheck.MaxRetries != 0 {
 		hcPromotionRetries = p.options.Promotion.HealthCheck.MaxRetries
+	}
+
+	hcOptions := []health.ContainerOption{
+		health.OptionInterval(hcPromotionInterval),
+		health.OptionRetries(hcPromotionRetries),
+	}
+
+	// Perform the custom health check in case of automatic promotion.
+	if action == promoteTargetAction {
+		testCommand := fmt.Sprintf("if [ \"`psql -U %s -d %s -XAtc \"select pg_is_in_recovery()\"`\" = \"f\" ];then true;else false;fi",
+			p.globalCfg.Database.User(),
+			p.globalCfg.Database.Name(),
+		)
+		hcOptions = append(hcOptions, health.OptionTest(testCommand))
 	}
 
 	return &container.Config{
@@ -566,8 +633,7 @@ func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password
 		Healthcheck: health.GetConfig(
 			p.globalCfg.Database.User(),
 			p.globalCfg.Database.Name(),
-			health.OptionInterval(hcPromotionInterval),
-			health.OptionRetries(hcPromotionRetries),
+			hcOptions...,
 		),
 	}
 }
@@ -614,9 +680,9 @@ func (p *PhysicalInitial) checkRecovery(ctx context.Context, containerID string)
 	return output, err
 }
 
-func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID string) (string, error) {
+func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID, dataDir string, pgVersion float64) (string, error) {
 	extractionCommand := []string{"psql", "-U", p.globalCfg.Database.User(), "-d", p.globalCfg.Database.Name(), "-XAtc",
-		"select to_char(coalesce(pg_last_xact_replay_timestamp(), NOW()) at time zone 'UTC', 'YYYYMMDDHH24MISS')"}
+		"select to_char(pg_last_xact_replay_timestamp() at time zone 'UTC', 'YYYYMMDDHH24MISS')"}
 
 	log.Msg("Running dataStateAt command", extractionCommand)
 
@@ -625,7 +691,47 @@ func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID st
 		User: defaults.Username,
 	})
 
+	if output == "" {
+		log.Msg("The last replay timestamp not found. Extract the last checkpoint timestamp")
+
+		response, err := pgtool.ReadControlData(ctx, p.dockerClient, containerID, dataDir, pgVersion)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to read control data")
+		}
+
+		defer response.Close()
+
+		output, err = getCheckPointTimestamp(ctx, response.Reader)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to read control data")
+		}
+	}
+
 	return output, err
+}
+
+func getCheckPointTimestamp(ctx context.Context, r io.Reader) (string, error) {
+	scanner := bufio.NewScanner(r)
+	checkpointTitleBytes := []byte(checkpointTimestampLabel)
+
+	for scanner.Scan() {
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
+
+		if bytes.HasPrefix(scanner.Bytes(), checkpointTitleBytes) {
+			checkpointTimestamp := bytes.TrimSpace(bytes.TrimPrefix(scanner.Bytes(), checkpointTitleBytes))
+
+			checkpointDate, err := dateparse.ParseStrict(string(checkpointTimestamp))
+			if err != nil {
+				return "", err
+			}
+
+			return checkpointDate.UTC().Format(util.DataStateAtFormat), nil
+		}
+	}
+
+	return "", errors.New("checkpoint timestamp not found")
 }
 
 func (p *PhysicalInitial) runPromoteCommand(ctx context.Context, containerID, clonePath string) error {

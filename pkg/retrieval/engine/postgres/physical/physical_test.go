@@ -1,3 +1,7 @@
+/*
+2020 © Postgres.ai
+*/
+
 package physical
 
 import (
@@ -28,7 +32,7 @@ track_commit_timestamp setting:       off
 		"track_commit_timestamp":    "off",
 	}
 
-	settings, err := extractInitParams(context.Background(), controlDataOutput)
+	settings, err := extractControlDataParams(context.Background(), controlDataOutput)
 
 	require.Nil(t, err)
 	assert.EqualValues(t, settings, expectedSettings)

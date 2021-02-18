@@ -65,6 +65,7 @@ const (
 var includedDBLabConfigFiles = []string{
 	pgConfName,
 	pgControlName,
+	recoveryConfName,
 	syncConfigName,
 	promotionConfigName,
 	snapshotConfigName,
@@ -96,6 +97,13 @@ func (m *Manager) GetPgVersion() float64 {
 }
 
 func (m *Manager) init() error {
+	pgVersion, err := tools.DetectPGVersion(m.dataDir)
+	if err != nil {
+		return errors.Wrap(err, "failed to determine PostgreSQL version")
+	}
+
+	m.pgVersion = pgVersion
+
 	isAlreadyInitialized, err := m.isInitialized()
 	if err != nil {
 		return errors.Wrap(err, "failed to check the initialization state")
@@ -105,13 +113,6 @@ func (m *Manager) init() error {
 		log.Msg("Configuration is already initialized")
 		return nil
 	}
-
-	pgVersion, err := tools.DetectPGVersion(m.dataDir)
-	if err != nil {
-		return errors.Wrap(err, "failed to detect the Postgres version")
-	}
-
-	m.pgVersion = pgVersion
 
 	// Add default configs to the Postgres directory.
 	sourceConfigDir, err := util.GetConfigPath(path.Join(defaultPgCfgDir, fmt.Sprintf("%g", m.pgVersion)))
@@ -311,15 +312,37 @@ func (m *Manager) ApplyRecovery(cfg map[string]string) error {
 		}
 	}
 
-	if err := tools.TouchFile(path.Join(m.dataDir, m.recoveryFilename())); err != nil {
+	if err := tools.TouchFile(m.recoveryPath()); err != nil {
 		return err
 	}
 
-	if err := appendExtraConf(path.Join(m.dataDir, m.recoveryFilename()), cfg); err != nil {
+	if err := appendExtraConf(m.recoveryPath(), cfg); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// ReadRecoveryConfig reads a recovery configuration file.
+func (m *Manager) ReadRecoveryConfig() (map[string]string, error) {
+	return readConfig(m.recoveryPath())
+}
+
+// TruncateRecoveryConfig truncates a recovery configuration file.
+func (m *Manager) TruncateRecoveryConfig() error {
+	return m.truncateConfig(m.recoveryPath())
+}
+
+// RemoveRecoveryConfig removes a recovery configuration file.
+func (m *Manager) RemoveRecoveryConfig() error {
+	err := os.Remove(m.recoveryPath())
+	if pathError, ok := err.(*os.PathError); ok {
+		log.Dbg("failed to remove a recovery configuration file: ", pathError.Error())
+
+		return nil
+	}
+
+	return err
 }
 
 // ApplyPgControl applies significant configuration parameters extracted by the pg_control tool.
@@ -343,7 +366,7 @@ func (m *Manager) ApplySync(cfg map[string]string) error {
 
 // TruncateSyncConfig truncates a sync configuration file.
 func (m *Manager) TruncateSyncConfig() error {
-	return m.truncateConfig(m.getConfigPath(promotionConfigName))
+	return m.truncateConfig(m.getConfigPath(syncConfigName))
 }
 
 // ApplyPromotion applies promotion configuration parameters.
@@ -383,10 +406,15 @@ func (m *Manager) getConfigPath(configName string) string {
 	return path.Join(m.dataDir, configPrefix+configName)
 }
 
-// recoveryFilename returns the name of a recovery configuration file.
+// recoveryPath returns the path of the recovery configuration file.
+func (m Manager) recoveryPath() string {
+	return path.Join(m.dataDir, m.recoveryFilename())
+}
+
+// recoveryFilename returns the name of the recovery configuration file.
 func (m Manager) recoveryFilename() string {
 	if m.pgVersion >= defaults.PGVersion12 {
-		return configPrefix + pgConfName
+		return configPrefix + recoveryConfName
 	}
 
 	return recoveryConfName
@@ -412,8 +440,8 @@ func (m *Manager) rewriteConfig(pgConf string, extraConfig map[string]string) er
 }
 
 // appendExtraConf appends extra parameters to a provided Postgres configuration file.
-func appendExtraConf(pgConf string, extraConfig map[string]string) error {
-	log.Dbg("Appending extra configuration")
+func appendExtraConf(configFile string, extraConfig map[string]string) error {
+	log.Dbg("Appending configuration to ", configFile)
 
 	pgConfLines := make([]string, 0, len(extraConfig))
 
@@ -423,8 +451,8 @@ func appendExtraConf(pgConf string, extraConfig map[string]string) error {
 
 	output := "\n" + strings.Join(pgConfLines, "\n")
 
-	if err := fs.AppendFile(pgConf, []byte(output)); err != nil {
-		return errors.Wrapf(err, "cannot write extra configuration to %s", pgConf)
+	if err := fs.AppendFile(configFile, []byte(output)); err != nil {
+		return errors.Wrapf(err, "cannot write extra configuration to %s", configFile)
 	}
 
 	return nil
@@ -433,4 +461,36 @@ func appendExtraConf(pgConf string, extraConfig map[string]string) error {
 // truncateConfig truncates a configuration file.
 func (m *Manager) truncateConfig(pgConf string) error {
 	return ioutil.WriteFile(pgConf, []byte{}, 0644)
+}
+
+// readConfig reads a configuration file.
+func readConfig(cfgFile string) (map[string]string, error) {
+	config := make(map[string]string)
+
+	f, err := os.Open(cfgFile)
+	if err != nil {
+		if _, ok := err.(*os.PathError); ok {
+			return config, nil
+		}
+
+		return nil, err
+	}
+
+	defer func() { _ = f.Close() }()
+
+	sc := bufio.NewScanner(f)
+
+	for sc.Scan() {
+		text := sc.Text()
+
+		if !strings.Contains(text, "=") {
+			continue
+		}
+
+		configOption := strings.SplitN(text, "=", 2)
+
+		config[strings.TrimSpace(configOption[0])] = strings.Trim(strings.TrimSpace(configOption[1]), "'")
+	}
+
+	return config, nil
 }
