@@ -59,3 +59,12 @@ func OptionInterval(interval time.Duration) ContainerOption {
 		h.Interval = interval
 	}
 }
+
+// OptionTest allows overwrite a health check test command.
+func OptionTest(testCommand string) ContainerOption {
+	return func(h *container.HealthConfig) {
+		if testCommand != "" {
+			h.Test = []string{"CMD-SHELL", testCommand}
+		}
+	}
+}

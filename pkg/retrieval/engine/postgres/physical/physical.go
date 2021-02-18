@@ -27,6 +27,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/health"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/pgtool"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
@@ -414,36 +415,19 @@ func (r *RestoreJob) markDatabaseData() error {
 }
 
 func (r *RestoreJob) getPgControlParams(ctx context.Context, contID, dataDir string, pgVersion float64) (map[string]string, error) {
-	initConfCmd, err := r.dockerClient.ContainerExecCreate(ctx, contID, pgControlDataConfig(dataDir, pgVersion))
+	log.Msg("Check pg_controldata configuration options")
 
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create an exec command")
-	}
-
-	log.Msg("Check initial configs")
-
-	attachResponse, err := r.dockerClient.ContainerExecAttach(ctx, initConfCmd.ID, types.ExecStartCheck{})
+	attachResponse, err := pgtool.ReadControlData(ctx, r.dockerClient, contID, dataDir, pgVersion)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to attach to the exec command")
 	}
 
 	defer attachResponse.Close()
 
-	return extractInitParams(ctx, attachResponse.Reader)
+	return extractControlDataParams(ctx, attachResponse.Reader)
 }
 
-func pgControlDataConfig(pgDataDir string, pgVersion float64) types.ExecConfig {
-	command := fmt.Sprintf("/usr/lib/postgresql/%g/bin/pg_controldata", pgVersion)
-
-	return types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          []string{command, "-D", pgDataDir},
-		Env:          os.Environ(),
-	}
-}
-
-func extractInitParams(ctx context.Context, read io.Reader) (map[string]string, error) {
+func extractControlDataParams(ctx context.Context, read io.Reader) (map[string]string, error) {
 	extractedConfigs := make(map[string]string)
 	scanner := bufio.NewScanner(read)
 

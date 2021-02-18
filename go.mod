@@ -7,6 +7,7 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/Microsoft/go-winio v0.4.16 // indirect
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
+	github.com/araddon/dateparse v0.0.0-20210207001429-0eec95c9db7e
 	github.com/aws/aws-sdk-go v1.33.8
 	github.com/containerd/containerd v1.4.0 // indirect
 	github.com/docker/cli v0.0.0-20200721130541-80fd48bcb7e7
@@ -29,7 +30,7 @@ require (
 	github.com/sergi/go-diff v1.1.0
 	github.com/sethvargo/go-password v0.2.0
 	github.com/shirou/gopsutil v2.20.9+incompatible
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.1.1
 	golang.org/x/crypto v0.0.0-20201124201722-c8d3bf9c5392
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
