@@ -25,6 +25,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/cont"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
@@ -297,7 +298,7 @@ func (r *RestoreJob) updateDataStateAt() {
 }
 
 func (r *RestoreJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", r.globalCfg.Database.Name(), "--create",
+	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName, "--create",
 		"--no-privileges", "--no-owner"}
 
 	if r.ForceInit {
