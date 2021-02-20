@@ -432,7 +432,7 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 }
 
 func (d *DumpJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"|", "pg_restore", "--username", d.globalCfg.Database.User(), "--create", "--dbname", d.globalCfg.Database.Name(),
+	restoreCmd := []string{"|", "pg_restore", "--username", d.globalCfg.Database.User(), "--create", "--dbname", defaults.DBName,
 		"--no-privileges", "--no-owner"}
 
 	if d.Restore.ForceInit {
