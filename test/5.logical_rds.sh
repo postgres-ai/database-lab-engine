@@ -3,44 +3,17 @@ set -euxo pipefail
 
 TAG="${TAG:-"master"}"
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
-SOURCE_DBNAME="${SOURCE_DBNAME:-test}"
-SOURCE_HOST="${SOURCE_HOST:-172.17.0.1}"
-SOURCE_PORT="${SOURCE_PORT:-7432}"
-SOURCE_USERNAME="${SOURCE_USERNAME:-postgres}"
-SOURCE_PASSWORD="${SOURCE_PASSWORD:-secretpassword}"
 POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
+SOURCE_DBNAME="${SOURCE_DBNAME:-"test"}"
+SOURCE_USERNAME="${SOURCE_USERNAME:-"test_user"}"
+AWS_REGION="${AWS_REGION:-"us-east-2"}"
+RDS_DB_IDENTIFIER="${RDS_DB_IDENTIFIER:-"logical-rds-test1"}"
+set +euxo pipefail # ---- do not display secrets
+AWS_ACCESS_KEY="${AWS_ACCESS_KEY:-""}"
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-""}"
+set -euxo pipefail # ----
 
 DIR=${0%/*}
-
-if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
-### Step 0. Create source database
-  sudo rm -rf "$(pwd)"/postgresql/"${POSTGRES_VERSION}"/test || true
-  sudo docker run \
-    --name postgres"${POSTGRES_VERSION}" \
-    --label pgdb \
-    --privileged \
-    --publish 172.17.0.1:"${SOURCE_PORT}":5432 \
-    --env PGDATA=/var/lib/postgresql/pgdata \
-    --env POSTGRES_USER="${SOURCE_USERNAME}" \
-    --env POSTGRES_PASSWORD="${SOURCE_PASSWORD}" \
-    --env POSTGRES_DB="${SOURCE_DBNAME}" \
-    --env POSTGRES_HOST_AUTH_METHOD=md5 \
-    --volume "$(pwd)"/postgresql/"${POSTGRES_VERSION}"/test:/var/lib/postgresql/pgdata \
-    --detach \
-    postgres:"${POSTGRES_VERSION}-alpine"
-
-  for i in {1..300}; do
-    sudo docker exec -it postgres"${POSTGRES_VERSION}" psql -d "${SOURCE_DBNAME}" -U postgres -c 'select' > /dev/null 2>&1  && break || echo "test database is not ready yet"
-    sleep 1
-  done
-
-  # Generate data in the test database using pgbench
-  # 1,000,000 accounts, ~0.14 GiB of data.
-  sudo docker exec -it postgres"${POSTGRES_VERSION}" pgbench -U postgres -i -s 10 "${SOURCE_DBNAME}"
-
-  # Database info
-  sudo docker exec -it postgres"${POSTGRES_VERSION}" psql -U postgres -c "\l+ ${SOURCE_DBNAME}"
-fi
 
 ### Step 1. Prepare a machine with disk, Docker, and ZFS
 source "${DIR}/_prerequisites.ubuntu.sh"
@@ -52,29 +25,35 @@ source "${DIR}/_zfs.file.sh"
 # Copy the contents of configuration example 
 mkdir -p ~/.dblab
 
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.example.logical_generic.yml \
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.example.logical_rds_iam.yml \
  --output ~/.dblab/server.yml
 
 # Edit the following options
 sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" ~/.dblab/server.yml
 sed -ri "s/^(\s*)(dbname:.*$)/\1dbname: ${SOURCE_DBNAME}/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(host: 34.56.78.90$)/\1host: ${SOURCE_HOST}/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(port: 5432$)/\1port: ${SOURCE_PORT}/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(username: postgres$)/\1username: ${SOURCE_USERNAME}/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(password:.*$)/\1password: ${SOURCE_PASSWORD}/" ~/.dblab/server.yml
+sed -ri "s/^(\s*)(username: test_user.*$)/\1username: \"${SOURCE_USERNAME}\"/" ~/.dblab/server.yml
+sed -ri "s/^(\s*)(awsRegion:.*$)/\1awsRegion: \"${AWS_REGION}\"/" ~/.dblab/server.yml
+sed -ri "s/^(\s*)(dbInstanceIdentifier:.*$)/\1dbInstanceIdentifier: \"${RDS_DB_IDENTIFIER}\"/" ~/.dblab/server.yml
 # replace postgres version
 sed -ri "s/:13/:${POSTGRES_VERSION}/g"  ~/.dblab/server.yml
 
-## Launch Database Lab server
+# Download AWS RDS certificate
+curl https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem \
+  --output ~/.dblab/rds-combined-ca-bundle.pem
+
+## Run Database Lab Engine
 sudo docker run \
   --name dblab_server \
   --label dblab_control \
   --privileged \
   --publish 2345:2345 \
-  --volume /var/run/docker.sock:/var/run/docker.sock \
-  --volume /var/lib/dblab/dblab_pool/dump:/var/lib/dblab/dblab_pool/dump \
-  --volume /var/lib/dblab:/var/lib/dblab/:rshared \
   --volume ~/.dblab/server.yml:/home/dblab/configs/config.yml \
+  --volume /var/lib/dblab/dblab_pool/dump:/var/lib/dblab/dblab_pool/dump \
+  --volume /var/run/docker.sock:/var/run/docker.sock \
+  --volume /var/lib/dblab:/var/lib/dblab/:rshared \
+  --volume ~/.dblab/rds-combined-ca-bundle.pem:/cert/rds-combined-ca-bundle.pem \
+  --env AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY}" \
+  --env AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" \
   --env DOCKER_API_VERSION=1.39 \
   --detach \
   "${IMAGE2TEST}"
@@ -83,9 +62,9 @@ sudo docker run \
 sudo docker logs dblab_server -f 2>&1 | awk '{print "[CONTAINER dblab_server]: "$0}' &
 
 ### Waiting for the Database Lab Engine initialization.
-for i in {1..300}; do
+for i in {1..30}; do
   curl http://localhost:2345 > /dev/null 2>&1 && break || echo "dblab is not ready yet"
-  sleep 1
+  sleep 10
 done
 
 
