@@ -1,72 +1,130 @@
 #!/bin/bash
 set -euxo pipefail
 
-DIR=${0%/*}
-IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:v2-0"
-POSTGRES_VERSION="${POSTGRES_VERSION:-10}"
-### Step 1: Prepare a machine with two disks, Docker and ZFS
+TAG="${TAG:-"master"}"
+IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
+POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
 
+WALG_BACKUP_NAME="${WALG_BACKUP_NAME:-"LATEST"}"
+# AWS
+set +euxo pipefail # ---- do not display secrets
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-""}"
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-""}"
+WALG_S3_PREFIX="${WALG_S3_PREFIX:-""}"
+# GS
+WALG_GS_PREFIX="${WALG_GS_PREFIX:-""}"
+GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-""}"
+# check variables
+[ -z "${WALG_S3_PREFIX}" ] && [ -z "${WALG_GS_PREFIX}" ] && echo "Variables not specified" && exit 1
+set -euxo pipefail # ----
+
+DIR=${0%/*}
+
+
+### Step 1: Prepare a machine with two disks, Docker and ZFS
 source "${DIR}/_prerequisites.ubuntu.sh"
 source "${DIR}/_zfs.file.sh"
 
-### Step 2. Prepare database data directory
+### Step 2. Configure and launch the Database Lab Engine
 
-### Step ?. Configure and launch the Database Lab server
+# Copy the contents of configuration example
 mkdir -p ~/.dblab
-cp ./configs/config.example.physical_walg.yml ~/.dblab/server_test.yml
-sed -ri 's/^(\s\s)(port:.*$)/\1port: 12345/' ~/.dblab/server_test.yml
-sed -ri 's/^(\s*)(debug:.*$)/\1debug: true/' ~/.dblab/server_test.yml
-sed -ri 's/^(\s*)(pool:.*$)/\1pool: "test_pool"/' ~/.dblab/server_test.yml
-# set AWS config
-sed -ri 's/^(\s*)(credentialsFile:.*$)/\1#credentialsFile/' ~/.dblab/server_test.yml
-sed -ri 's/^(\s*)(WALG_GS_PREFIX:.*$)/\1WALE_S3_PREFIX: "s3:\/\/dblab-test-database-backup" \n          AWS_ACCESS_KEY_ID: "A"\n          AWS_SECRET_ACCESS_KEY: "T\/2nOe"/' ~/.dblab/server_test.yml
-sed -ri 's/^(\s*)(storage:.*$)/\1storage: "s3"/' ~/.dblab/server_test.yml
-# replace postgres version 
-sed -ri 's/:12/:11/g'  ~/.dblab/server_test.yml
 
-### Step ? Run dblab
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.example.physical_walg.yml \
+ --output ~/.dblab/server.yml
+
+# Edit the following options
+sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" ~/.dblab/server.yml
+# set WAL-G envs
+sed -ri "s/^(\s*)(backupName:.*$)/\1backupName: ${WALG_BACKUP_NAME}/" ~/.dblab/server.yml
+set +euxo pipefail # ---- do not display secrets
+if [ -n "${WALG_S3_PREFIX}" ] ; then
+sed -ri "s/^(\s*)(WALG_GS_PREFIX:.*$)/\1AWS_ACCESS_KEY_ID: \"${AWS_ACCESS_KEY_ID}\" \n          AWS_SECRET_ACCESS_KEY: \"${AWS_SECRET_ACCESS_KEY}\"\n          WALG_S3_PREFIX: \"${WALG_S3_PREFIX}\"/" ~/.dblab/server.yml
+sed -i "/GOOGLE_APPLICATION_CREDENTIALS/d" ~/.dblab/server.yml
+elif [ -n "${WALG_GS_PREFIX}" ] ; then
+sed -ri "s/^(\s*)(WALG_GS_PREFIX:.*$)/\1WALG_GS_PREFIX: \"${WALG_GS_PREFIX}\"/" ~/.dblab/server.yml
+sed -ri "s/^(\s*)(GOOGLE_APPLICATION_CREDENTIALS:.*$)/\1GOOGLE_APPLICATION_CREDENTIALS: \"${GOOGLE_APPLICATION_CREDENTIALS}\"/" ~/.dblab/server.yml
+fi
+set -euxo pipefail # ----
+# replace postgres version
+sed -ri "s/:13/:${POSTGRES_VERSION}/g"  ~/.dblab/server.yml
+# reduce shared_buffers (optional)
+sed -ri "s/^(\s*)(shared_buffers:.*$)/\1shared_buffers: 512MB/" ~/.dblab/server.yml
+
+
+## Launch Database Lab server
 sudo docker run \
-  --detach \
-  --name dblab_test \
+  --name dblab_server \
   --label dblab_control \
   --privileged \
-  --publish 12345:12345 \
+  --publish 2345:2345 \
   --volume /var/run/docker.sock:/var/run/docker.sock \
-  --volume /var/lib/dblab:/var/lib/dblab:rshared \
-  --volume ~/.dblab/server_test.yml:/home/dblab/configs/config.yml \
+  --volume /var/lib/dblab:/var/lib/dblab/:rshared \
+  --volume ~/.dblab/server.yml:/home/dblab/configs/config.yml \
+  --volume /tmp:/tmp \
+  --env DOCKER_API_VERSION=1.39 \
+  --detach \
   "${IMAGE2TEST}"
 
-sudo docker logs -f dblab_test 2>&1 | awk '{print "[CONTAINER dblab_test]: "$0}' &
+# Check the Database Lab Engine logs
+sudo docker logs dblab_server -f 2>&1 | awk '{print "[CONTAINER dblab_server]: "$0}' &
 
-### Waiting fori dblab initialization
+### Waiting for the Database Lab Engine initialization.
 for i in {1..30}; do
-  curl http://localhost:12345 > /dev/null 2>&1 && break || echo "dblab is not ready yet"
+  curl http://localhost:2345 > /dev/null 2>&1 && break || echo "dblab is not ready yet"
   sleep 10
 done
 
-### Step ?. Setup Dnd init atabase Lab client CLI
+
+### Step 3. Start cloning
+
+# Install Database Lab client CLI
 curl https://gitlab.com/postgres-ai/database-lab/-/raw/master/scripts/cli_install.sh | bash
+sudo mv ~/.dblab/dblab /usr/local/bin/dblab
+
 dblab --version
-dblab init --url http://localhost:12345 --token secret_token --environment-id test
+
+# Initialize CLI configuration
+dblab init \
+  --environment-id=test \
+  --url=http://localhost:2345 \
+  --token=secret_token \
+  --insecure
+
+# Check the configuration by fetching the status of the instance:
 dblab instance status
 
-### Step ?. Create clone and connect to it
-dblab clone create --username testuser --password testuser --id testclone
-dblab clone list
-export PGPASSWORD=testuser
-psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
 
+## Create a clone
+dblab clone create \
+  --username dblab_user_1 \
+  --password secret_password \
+  --id testclone
 
-### Step 6. Reset clone
-psql "host=localhost port=6000 user=testuser dbname=test" -c 'create database reset_database';
-psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
+# Connect to a clone and check the available table
+PGPASSWORD=secret_password psql \
+  "host=localhost port=6000 user=dblab_user_1 dbname=postgres" -c '\dt+'
+
+# Create table
+PGPASSWORD=secret_password psql \
+  "host=localhost port=6000 user=dblab_user_1 dbname=postgres" -c 'create table test_table()'
+
+PGPASSWORD=secret_password psql \
+  "host=localhost port=6000 user=dblab_user_1 dbname=postgres" -c '\dt+'
+
+## Reset clone
 dblab clone reset testclone
-dblab clone status testclone
-psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
-dblab clone destroy testclone
 
-### Step 7. Destroy clone
-dblab clone create --username testuser --password testuser --id testclone2
+# Check the status of the clone
+dblab clone status testclone
+
+# Check the database objects (everything should be the same as when we started)
+PGPASSWORD=secret_password psql \
+  "host=localhost port=6000 user=dblab_user_1 dbname=postgres" -c '\dt+'
+
+### Step 4. Destroy clone
+dblab clone destroy testclone
 dblab clone list
-dblab clone destroy testclone2
-dblab clone list
+
+### Finish. clean up
+source "${DIR}/_cleanup.sh"

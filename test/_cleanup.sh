@@ -3,17 +3,28 @@ set -euxo pipefail
 
 ZFS_FILE="$(pwd)/zfs_file"
 
-# TODO: Remove all docker containers related to the Database Lab.
-sudo docker ps -a --filter 'label=dblab_test' \
-    | grep -v CONTAINER \
-    | awk '{print $1}' \
-    | sudo xargs --no-run-if-empty docker rm -f \
-  || true
-sudo zpool destroy test_pool || true
-sudo rm -rf /var/lib/dle/test/data/
-sudo umount /var/lib/dle/test/data || true
+# Stop and remove all Docker containers
+sudo docker ps -aq | xargs --no-run-if-empty sudo docker rm -f
+
+# Remove all Docker images
+sudo docker images -q | xargs --no-run-if-empty sudo docker rmi
+
+# Clean up the data directory
+sudo rm -rf /var/lib/dblab/dblab_pool/data/*
+
+# Remove dump directory
+sudo umount /var/lib/dblab/dblab_pool/dump || true
+sudo rm -rf /var/lib/dblab/dblab_pool/dump || true
+
+# To start from the very beginning: destroy ZFS storage pool
+sudo zpool destroy dblab_pool || true
+
+# Remove ZFS FILE
 sudo rm -f "${ZFS_FILE}"
-sudo rm -f ~/.dblab/server_test.yml
-sudo rm -rf /var/lib/dle/test/db.dump || true
-sudo rm -rf /var/lib/dle/test/rds_db.dump || true
+
+# Remove CLI configuration
 dblab config remove test || true
+
+# Remove Database Lab client CLI
+sudo rm -f  /usr/local/bin/dblab || true
+
