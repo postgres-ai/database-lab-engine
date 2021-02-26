@@ -215,6 +215,7 @@ func startObservation(cliCtx *cli.Context) error {
 		CloneID: cloneID,
 		Config:  observationConfig,
 		Tags:    splitFlags(cliCtx.StringSlice("tags")),
+		DBName:  cliCtx.String("db-name"),
 	}
 
 	session, err := dblabClient.StartObservation(cliCtx.Context, start)
@@ -252,6 +253,52 @@ func stopObservation(cliCtx *cli.Context) error {
 	}
 
 	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
+
+	return err
+}
+
+// summaryObservation returns the observing summary artifact.
+func summaryObservation(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
+		return err
+	}
+
+	cloneID := cliCtx.String("clone-id")
+	sessionID := cliCtx.String("session-id")
+
+	result, err := dblabClient.SummaryObservation(cliCtx.Context, cloneID, sessionID)
+	if err != nil {
+		return err
+	}
+
+	commandResponse, err := json.MarshalIndent(result, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
+
+	return err
+}
+
+func downloadArtifact(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
+		return err
+	}
+
+	cloneID := cliCtx.String("clone-id")
+	sessionID := cliCtx.String("session-id")
+	artifactType := cliCtx.String("artifact-type")
+	outputFile := cliCtx.String("output")
+
+	artifactPath, err := dblabClient.DownloadArtifact(cliCtx.Context, cloneID, sessionID, artifactType, outputFile)
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(cliCtx.App.Writer, "The file has been successfully downloaded: %s\n", artifactPath)
 
 	return err
 }

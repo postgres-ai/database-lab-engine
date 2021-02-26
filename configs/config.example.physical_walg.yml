@@ -65,6 +65,9 @@ poolManager:
   # Unix domain socket directory used to establish local connections to cloned databases.
   socketSubDir: sockets
 
+  # Directory that will be used to store observability artifacts. The directory will be created inside PGDATA.
+  observerSubDir: observer
+
   # Snapshots with this suffix are considered preliminary. They are not supposed to be accessible to end-users.
   preSnapshotSuffix: "_pre"
 

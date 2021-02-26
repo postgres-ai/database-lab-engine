@@ -102,6 +102,8 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/clone/{id}", authMW.authorized(s.getClone)).Methods(http.MethodGet)
 	r.HandleFunc("/observation/start", authMW.authorized(s.startObservation)).Methods(http.MethodPost)
 	r.HandleFunc("/observation/stop", authMW.authorized(s.stopObservation)).Methods(http.MethodPost)
+	r.HandleFunc("/observation/summary/{clone_id}/{session_id}", authMW.authorized(s.sessionSummaryObservation)).Methods(http.MethodGet)
+	r.HandleFunc("/observation/download", authMW.authorized(s.downloadArtifact)).Methods(http.MethodGet)
 
 	// Health check.
 	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet)

@@ -13,13 +13,14 @@ import (
 
 // Pool describes a storage pool.
 type Pool struct {
-	Name         string
-	Mode         string
-	DSA          time.Time
-	MountDir     string
-	CloneSubDir  string
-	DataSubDir   string
-	SocketSubDir string
+	Name           string
+	Mode           string
+	DSA            time.Time
+	MountDir       string
+	CloneSubDir    string
+	DataSubDir     string
+	SocketSubDir   string
+	ObserverSubDir string
 }
 
 // NewPool creates a new Pool.
@@ -45,6 +46,11 @@ func (p Pool) DataDir() string {
 // SocketDir returns a path to the sockets directory of the storage pool.
 func (p Pool) SocketDir() string {
 	return path.Join(p.MountDir, p.Name, p.SocketSubDir)
+}
+
+// ObserverDir returns a path to the observer directory of the storage pool.
+func (p Pool) ObserverDir(port uint) string {
+	return path.Join(p.ClonePath(port), p.ObserverSubDir)
 }
 
 // ClonesDir returns a path to the clones directory of the storage pool.

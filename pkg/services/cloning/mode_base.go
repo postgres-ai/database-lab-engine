@@ -43,10 +43,11 @@ type baseCloning struct {
 	snapshotMutex  sync.RWMutex
 	snapshots      []models.Snapshot
 	provision      *provision.Provisioner
+	observingCh    chan string
 }
 
 // NewBaseCloning instances a new base Cloning.
-func NewBaseCloning(cfg *Config, provision *provision.Provisioner) Cloning {
+func NewBaseCloning(cfg *Config, provision *provision.Provisioner, observingCh chan string) Cloning {
 	return &baseCloning{
 		config: cfg,
 		clones: make(map[string]*CloneWrapper),
@@ -58,7 +59,8 @@ func NewBaseCloning(cfg *Config, provision *provision.Provisioner) Cloning {
 			FileSystem: &models.FileSystem{},
 			Clones:     make([]*models.Clone, 0),
 		},
-		provision: provision,
+		provision:   provision,
+		observingCh: observingCh,
 	}
 }
 
@@ -124,6 +126,7 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 		DB: models.Database{
 			Username: cloneRequest.DB.Username,
 			Password: cloneRequest.DB.Password,
+			DBName:   cloneRequest.DB.DBName,
 		},
 	}
 
@@ -180,10 +183,15 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 			Message: models.CloneMessageOK,
 		}
 
+		dbName := clone.DB.DBName
+		if dbName == "" {
+			dbName = defaultDatabaseName
+		}
+
 		clone.DB.Port = strconv.FormatUint(uint64(session.Port), 10)
 		clone.DB.Host = c.config.AccessHost
 		clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s user=%s dbname=%s",
-			clone.DB.Host, clone.DB.Port, clone.DB.Username, defaultDatabaseName)
+			clone.DB.Host, clone.DB.Port, clone.DB.Username, dbName)
 
 		clone.Metadata = models.CloneMetadata{
 			CloningTime:    w.timeStartedAt.Sub(w.timeCreatedAt).Seconds(),
@@ -232,6 +240,7 @@ func (c *baseCloning) DestroyClone(cloneID string) error {
 		}
 
 		c.deleteClone(cloneID)
+		c.observingCh <- cloneID
 	}()
 
 	return nil

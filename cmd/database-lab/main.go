@@ -99,13 +99,17 @@ func main() {
 		log.Errf(errors.WithMessage(err, `error in the "provision" section of the config`).Error())
 	}
 
-	cloningSvc := cloning.New(&cfg.Cloning, provisionSvc)
+	obsCh := make(chan string, 1)
+
+	cloningSvc := cloning.New(&cfg.Cloning, provisionSvc, obsCh)
 	if err = cloningSvc.Run(ctx); err != nil {
 		log.Err(err)
 		return
 	}
 
-	obs := observer.NewObserver(dockerCLI, &cfg.Observer, platformSvc.Client, pm.Active().Pool())
+	obs := observer.NewObserver(dockerCLI, &cfg.Observer, platformSvc.Client, pm)
+
+	go removeObservingClones(obsCh, obs)
 
 	server := srv.NewServer(&cfg.Server, obs, cloningSvc, platformSvc, dockerCLI)
 
@@ -221,4 +225,10 @@ func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, gl
 	}
 
 	log.Msg("Control containers have been stopped")
+}
+
+func removeObservingClones(obsCh chan string, obs *observer.Observer) {
+	for cloneID := range obsCh {
+		obs.RemoveObservingClone(cloneID)
+	}
 }

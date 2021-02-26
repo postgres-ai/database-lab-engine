@@ -143,6 +143,10 @@ func CommandList() []*cli.Command {
 						Name:  "tags",
 						Usage: "set tags for the observation session. An example: branch=patch-1",
 					},
+					&cli.StringFlag{
+						Name:  "db-name",
+						Usage: "database name to observe",
+					},
 				},
 			},
 			{
@@ -151,6 +155,54 @@ func CommandList() []*cli.Command {
 				ArgsUsage: "CLONE_ID",
 				Before:    checkCloneIDBefore,
 				Action:    stopObservation,
+			},
+			{
+				Name:   "summary-observation",
+				Usage:  "[EXPERIMENTAL] display summary of an observation session",
+				Action: summaryObservation,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "clone-id",
+						Usage:    "clone ID",
+						Required: true,
+						EnvVars:  []string{"DBLAB_OBSERVATION_CLONE_ID"},
+					},
+					&cli.StringFlag{
+						Name:     "session-id",
+						Usage:    "observing session ID",
+						Required: true,
+						EnvVars:  []string{"DBLAB_OBSERVATION_SESSION_ID"},
+					},
+				},
+			},
+			{
+				Name:   "download-artifact",
+				Usage:  "[EXPERIMENTAL] download artifact of an observation session",
+				Action: downloadArtifact,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "clone-id",
+						Usage:    "clone ID",
+						Required: true,
+						EnvVars:  []string{"DBLAB_OBSERVATION_CLONE_ID"},
+					},
+					&cli.StringFlag{
+						Name:     "session-id",
+						Usage:    "observing session ID",
+						Required: true,
+						EnvVars:  []string{"DBLAB_OBSERVATION_SESSION_ID"},
+					},
+					&cli.StringFlag{
+						Name:     "artifact-type",
+						Usage:    "artifact type to download",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:    "output",
+						Usage:   "write an artifact to file (optional)",
+						Aliases: []string{"o"},
+					},
+				},
 			},
 			{
 				Name:  "port-forward",

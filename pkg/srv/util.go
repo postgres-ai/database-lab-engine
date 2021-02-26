@@ -24,7 +24,7 @@ func writeJSON(w http.ResponseWriter, httpStatusCode int, v interface{}) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(httpStatusCode)
 
-	if _, err = w.Write(b); err != nil {
+	if _, err := w.Write(b); err != nil {
 		return errors.Wrap(err, "failed to write response")
 	}
 
@@ -42,6 +42,18 @@ func readJSON(r *http.Request, v interface{}) error {
 
 	if err = json.Unmarshal(reqBody, v); err != nil {
 		return errors.Wrapf(err, "failed to unmarshal json: %s", string(reqBody))
+	}
+
+	return nil
+}
+
+// writeJSON responds with JSON.
+func writeData(w http.ResponseWriter, httpStatusCode int, b []byte) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(httpStatusCode)
+
+	if _, err := w.Write(b); err != nil {
+		return errors.Wrap(err, "failed to write response")
 	}
 
 	return nil

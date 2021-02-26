@@ -9,8 +9,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
+	"path"
 	"time"
 
 	"github.com/pkg/errors"
@@ -292,7 +296,7 @@ func (c *Client) DestroyCloneAsync(ctx context.Context, cloneID string) error {
 	return nil
 }
 
-// StartObservation starts a clone observation.
+// StartObservation starts a new clone observation.
 func (c *Client) StartObservation(ctx context.Context, startRequest types.StartObservationRequest) (*observer.Session, error) {
 	u := c.URL("/observation/start")
 
@@ -303,15 +307,94 @@ func (c *Client) StartObservation(ctx context.Context, startRequest types.StartO
 	return &session, err
 }
 
-// StopObservation stops a clone observation.
-func (c *Client) StopObservation(ctx context.Context, stopRequest types.StopObservationRequest) (*models.ObservationResult, error) {
+// StopObservation stops the clone observation.
+func (c *Client) StopObservation(ctx context.Context, stopRequest types.StopObservationRequest) (*observer.Session, error) {
 	u := c.URL("/observation/stop")
 
-	var observationResult models.ObservationResult
+	var observerSession observer.Session
 
-	err := c.request(ctx, u, stopRequest, &observationResult)
+	err := c.request(ctx, u, stopRequest, &observerSession)
 
-	return &observationResult, err
+	return &observerSession, err
+}
+
+// SummaryObservation returns the summary of clone observation.
+func (c *Client) SummaryObservation(ctx context.Context, cloneID, sessionID string) (*observer.SummaryArtifact, error) {
+	u := c.URL(fmt.Sprintf("/observation/summary/%s/%s", cloneID, sessionID))
+
+	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to make a request")
+	}
+
+	response, err := c.Do(ctx, request)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get response")
+	}
+
+	defer func() { _ = response.Body.Close() }()
+
+	var observationSummary observer.SummaryArtifact
+
+	if err := json.NewDecoder(response.Body).Decode(&observationSummary); err != nil {
+		return nil, errors.Wrap(err, "failed to decode a response body")
+	}
+
+	return &observationSummary, err
+}
+
+// DownloadArtifact downloads clone observation artifacts.
+func (c *Client) DownloadArtifact(ctx context.Context, cloneID, sessionID, artifactType, outputFile string) (string, error) {
+	u := c.URL("/observation/download")
+
+	values := url.Values{}
+	values.Add("clone_id", cloneID)
+	values.Add("session_id", sessionID)
+	values.Add("artifact_type", artifactType)
+	u.RawQuery = values.Encode()
+
+	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to make a request")
+	}
+
+	response, err := c.Do(ctx, request)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get response")
+	}
+
+	defer func() { _ = response.Body.Close() }()
+
+	if response.StatusCode != http.StatusOK {
+		content, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to read response, status code: %d", response.StatusCode)
+		}
+
+		return "", errors.Errorf("status code: %d. content: %s", response.StatusCode, content)
+	}
+
+	filename := outputFile
+
+	if filename == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return "", err
+		}
+
+		filename = path.Join(wd, observer.BuildArtifactFilename(artifactType))
+	}
+
+	artifactFile, err := os.Create(filename)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to create file %s", filename)
+	}
+
+	defer func() { _ = artifactFile.Close() }()
+
+	_, err = io.Copy(artifactFile, response.Body)
+
+	return filename, err
 }
 
 func (c *Client) request(ctx context.Context, u *url.URL, requestObject, responseObject interface{}) error {
