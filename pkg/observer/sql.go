@@ -16,6 +16,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 )
 
@@ -83,10 +84,15 @@ func unixSocketDir(socketDir, portStr string) (string, error) {
 func buildConnectionString(clone *models.Clone, socketDir string) string {
 	db := clone.DB
 
-	return fmt.Sprintf(`host=%s port=%s user=%s password=%s dbname=postgres application_name='%s'`,
+	if db.DBName == "" {
+		db.DBName = defaults.DBName
+	}
+
+	return fmt.Sprintf(`host=%s port=%s user=%s password='%s' database='%s' application_name='%s'`,
 		socketDir,
 		db.Port,
-		"postgres", // TODO: db.Username,
+		db.Username,
 		db.Password,
+		db.DBName,
 		observerApplicationName)
 }

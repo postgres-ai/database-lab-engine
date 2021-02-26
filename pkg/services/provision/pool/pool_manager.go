@@ -47,6 +47,7 @@ type Config struct {
 	CloneSubDir       string `yaml:"clonesMountSubDir"`
 	DataSubDir        string `yaml:"dataSubDir"`
 	SocketSubDir      string `yaml:"socketSubDir"`
+	ObserverSubDir    string `yaml:"observerSubDir"`
 	PreSnapshotSuffix string `yaml:"preSnapshotSuffix"`
 }
 
@@ -202,12 +203,13 @@ func (pm *Manager) examineEntries(entries []os.FileInfo) (map[string]FSManager, 
 		}
 
 		pool := &resources.Pool{
-			Mode:         fsType,
-			Name:         entry.Name(),
-			MountDir:     pm.cfg.MountDir,
-			CloneSubDir:  pm.cfg.CloneSubDir,
-			DataSubDir:   pm.cfg.DataSubDir,
-			SocketSubDir: pm.cfg.SocketSubDir,
+			Mode:           fsType,
+			Name:           entry.Name(),
+			MountDir:       pm.cfg.MountDir,
+			CloneSubDir:    pm.cfg.CloneSubDir,
+			DataSubDir:     pm.cfg.DataSubDir,
+			SocketSubDir:   pm.cfg.SocketSubDir,
+			ObserverSubDir: pm.cfg.ObserverSubDir,
 		}
 
 		log.Dbg("Data ", pool)

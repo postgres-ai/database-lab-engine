@@ -20,7 +20,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/platform"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/pglog"
 )
 
@@ -39,18 +39,15 @@ const (
 type Observer struct {
 	dockerClient     *client.Client
 	Platform         *platform.Client
-	storage          map[string]*Session
 	sessionMu        *sync.Mutex
+	storage          map[string]*ObservingClone
 	cfg              *Config
 	replacementRules []ReplacementRule
-	pool             *resources.Pool
+	pm               *pool.Manager
 }
 
 // Config defines configuration options for observer.
 type Config struct {
-	CloneDir         string
-	DataSubDir       string
-	SocketDir        string
 	ReplacementRules map[string]string `yaml:"replacementRules"`
 }
 
@@ -61,14 +58,14 @@ type ReplacementRule struct {
 }
 
 // NewObserver creates an Observer instance.
-func NewObserver(dockerClient *client.Client, cfg *Config, platform *platform.Client, pool *resources.Pool) *Observer {
+func NewObserver(dockerClient *client.Client, cfg *Config, platform *platform.Client, pm *pool.Manager) *Observer {
 	observer := &Observer{
 		dockerClient:     dockerClient,
 		Platform:         platform,
-		storage:          make(map[string]*Session),
 		sessionMu:        &sync.Mutex{},
+		storage:          make(map[string]*ObservingClone),
 		cfg:              cfg,
-		pool:             pool,
+		pm:               pm,
 		replacementRules: []ReplacementRule{},
 	}
 
@@ -85,16 +82,16 @@ func NewObserver(dockerClient *client.Client, cfg *Config, platform *platform.Cl
 
 // GetCloneLog gets clone logs.
 // TODO (akartasov): Split log to chunks.
-func (o *Observer) GetCloneLog(ctx context.Context, port uint, session *Session) ([]byte, error) {
-	fileSelector := pglog.NewSelector(o.pool.ClonePath(port))
-	fileSelector.SetMinimumTime(session.StartedAt)
+func (o *Observer) GetCloneLog(ctx context.Context, port uint, obsClone *ObservingClone) ([]byte, error) {
+	fileSelector := pglog.NewSelector(obsClone.pool.ClonePath(port))
+	fileSelector.SetMinimumTime(obsClone.session.StartedAt)
 
 	if err := fileSelector.DiscoverLogDir(); err != nil {
 		return nil, errors.Wrap(err, "failed to init file selector")
 	}
 
-	buf := bytes.NewBuffer(make([]byte, 0, len(session.CsvFields())))
-	buf.WriteString(session.CsvFields())
+	buf := bytes.NewBuffer(make([]byte, 0, len(obsClone.CsvFields())))
+	buf.WriteString(obsClone.CsvFields())
 	buf.WriteString("\n")
 
 	for {
@@ -107,7 +104,7 @@ func (o *Observer) GetCloneLog(ctx context.Context, port uint, session *Session)
 			return nil, errors.Wrap(err, "failed to get a CSV log filename")
 		}
 
-		if err := o.processCSVLogFile(ctx, buf, filename, session); err != nil {
+		if err := o.processCSVLogFile(ctx, buf, filename, obsClone); err != nil {
 			if err == pglog.ErrTimeBoundary {
 				break
 			}
@@ -119,7 +116,7 @@ func (o *Observer) GetCloneLog(ctx context.Context, port uint, session *Session)
 	return buf.Bytes(), nil
 }
 
-func (o *Observer) processCSVLogFile(ctx context.Context, buf io.Writer, filename string, session *Session) error {
+func (o *Observer) processCSVLogFile(ctx context.Context, buf io.Writer, filename string, obsClone *ObservingClone) error {
 	logFile, err := os.Open(filename)
 	if err != nil {
 		return errors.Wrap(err, "failed to open a CSV log file")
@@ -131,14 +128,14 @@ func (o *Observer) processCSVLogFile(ctx context.Context, buf io.Writer, filenam
 		}
 	}()
 
-	if err := o.scanCSVLogFile(ctx, logFile, buf, session); err != nil {
+	if err := o.scanCSVLogFile(ctx, logFile, buf, obsClone); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (o *Observer) scanCSVLogFile(ctx context.Context, reader io.Reader, writer io.Writer, session *Session) error {
+func (o *Observer) scanCSVLogFile(ctx context.Context, reader io.Reader, writer io.Writer, obsClone *ObservingClone) error {
 	csvReader := csv.NewReader(reader)
 	csvWriter := csv.NewWriter(writer)
 
@@ -168,16 +165,16 @@ func (o *Observer) scanCSVLogFile(ctx context.Context, reader io.Reader, writer 
 			return err
 		}
 
-		if logTime.Before(session.StartedAt) {
+		if logTime.Before(obsClone.session.StartedAt) {
 			continue
 		}
 
-		if logTime.After(session.FinishedAt) {
+		if logTime.After(obsClone.session.FinishedAt) {
 			return pglog.ErrTimeBoundary
 		}
 
 		if len(o.replacementRules) > 0 {
-			o.maskLogs(entry, session.maskedIndexes)
+			o.maskLogs(entry, obsClone.maskedIndexes)
 		}
 
 		if err := csvWriter.Write(entry); err != nil {
@@ -196,17 +193,19 @@ func (o *Observer) maskLogs(entry []string, maskedFieldIndexes []int) {
 	}
 }
 
-// AddSession adds a new observation session to storage.
-func (o *Observer) AddSession(cloneID string, session *Session) {
+// AddObservingClone adds a new observing session to storage.
+func (o *Observer) AddObservingClone(cloneID string, port uint, session *ObservingClone) {
 	o.sessionMu.Lock()
 	defer o.sessionMu.Unlock()
-	session.socketDir = o.pool.SocketDir()
+	session.pool = o.pm.Active().Pool()
+	session.cloneID = cloneID
+	session.port = port
 
 	o.storage[cloneID] = session
 }
 
-// GetSession returns an observation session from storage.
-func (o *Observer) GetSession(cloneID string) (*Session, error) {
+// GetObservingClone returns an observation session from storage.
+func (o *Observer) GetObservingClone(cloneID string) (*ObservingClone, error) {
 	o.sessionMu.Lock()
 	defer o.sessionMu.Unlock()
 
@@ -218,10 +217,12 @@ func (o *Observer) GetSession(cloneID string) (*Session, error) {
 	return session, nil
 }
 
-// RemoveSession removes an observation session from storage.
-func (o *Observer) RemoveSession(cloneID string) {
+// RemoveObservingClone removes an observing clone from storage.
+func (o *Observer) RemoveObservingClone(cloneID string) {
 	o.sessionMu.Lock()
 	defer o.sessionMu.Unlock()
 
 	delete(o.storage, cloneID)
+
+	log.Dbg("Observing clone has been removed: ", cloneID)
 }

@@ -168,18 +168,23 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session := observer.NewSession(observationRequest.Config)
-	session.StartedAt = time.Now().Round(time.Millisecond)
-	session.Tags = observationRequest.Tags
+	observingClone := observer.NewObservingClone(observationRequest.Config)
+	startedAt := time.Now().Round(time.Millisecond)
 
-	s.Observer.AddSession(clone.ID, session)
+	port, err := strconv.Atoi(clone.DB.Port)
+	if err != nil {
+		sendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	s.Observer.AddObservingClone(clone.ID, uint(port), observingClone)
 
 	// Start session on the Platform.
 	platformRequest := platform.StartObservationRequest{
 		InstanceID: "", // TODO(akartasov): get InstanceID.
 		CloneID:    clone.ID,
-		StartedAt:  session.StartedAt.Format("2006-01-02 15:04:05 UTC"),
-		Config:     session.Config,
+		StartedAt:  startedAt.Format("2006-01-02 15:04:05 UTC"),
+		Config:     observingClone.Config(),
 		Tags:       observationRequest.Tags,
 	}
 
@@ -189,17 +194,23 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session.SessionID = platformResponse.SessionID
+	if observationRequest.DBName != "" {
+		clone.DB.DBName = observationRequest.DBName
+	}
+
+	if err := observingClone.Init(clone, platformResponse.SessionID, startedAt, observationRequest.Tags); err != nil {
+		sendError(w, r, errors.Wrap(err, "failed to init observing session"))
+		return
+	}
 
 	go func() {
-		if err := session.Start(clone); err != nil {
-			log.Err("failed to observe clone: ", err)
+		if err := observingClone.RunSession(); err != nil {
 			// TODO(akartasov): Update observation (add a request to Platform) with an error.
-			s.Observer.RemoveSession(clone.ID)
+			log.Err("failed to observe clone: ", err)
 		}
 	}()
 
-	if err := writeJSON(w, http.StatusOK, session); err != nil {
+	if err := writeJSON(w, http.StatusOK, observingClone.Session()); err != nil {
 		sendError(w, r, err)
 		return
 	}
@@ -218,7 +229,7 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := s.Observer.GetSession(observationRequest.CloneID)
+	observingClone, err := s.Observer.GetObservingClone(observationRequest.CloneID)
 	if err != nil {
 		sendNotFoundError(w, r)
 		return
@@ -235,20 +246,27 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer s.Observer.RemoveSession(observationRequest.CloneID)
-
 	defer func() {
 		if err := s.Cloning.UpdateCloneStatus(observationRequest.CloneID, models.Status{Code: models.StatusOK}); err != nil {
 			log.Err("failed to update clone status", err)
 		}
 	}()
 
-	session.Stop()
+	if err := observingClone.Stop(); err != nil {
+		sendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	session := observingClone.Session()
+	if session == nil || session.Result == nil {
+		sendBadRequestError(w, r, "observing session has not been initialized")
+		return
+	}
 
 	platformRequest := platform.StopObservationRequest{
 		SessionID:  session.SessionID,
 		FinishedAt: session.FinishedAt.Format("2006-01-02 15:04:05 UTC"),
-		Result:     session.ObservationResult,
+		Result:     *session.Result,
 	}
 
 	if _, err := s.Platform.Client.StopObservationSession(context.Background(), platformRequest); err != nil {
@@ -262,7 +280,7 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logs, err := s.Observer.GetCloneLog(context.TODO(), uint(port), session)
+	logs, err := s.Observer.GetCloneLog(context.TODO(), uint(port), observingClone)
 	if err != nil {
 		log.Err("Failed to get observation logs", err)
 	}
@@ -280,10 +298,66 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := writeJSON(w, http.StatusOK, session.ObservationResult); err != nil {
+	if err := writeJSON(w, http.StatusOK, session); err != nil {
 		sendError(w, r, err)
 		return
 	}
+}
+
+func (s *Server) sessionSummaryObservation(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	cloneID := vars["clone_id"]
+
+	sessionID, err := strconv.ParseUint(vars["session_id"], 10, 64)
+	if err != nil {
+		sendBadRequestError(w, r, fmt.Sprintf("invalid session_id: %v", sessionID))
+		return
+	}
+
+	observingClone, err := s.Observer.GetObservingClone(cloneID)
+	if err != nil || !observingClone.IsExistArtifacts(sessionID) {
+		sendNotFoundError(w, r)
+		return
+	}
+
+	summaryData, err := observingClone.ReadSummary(sessionID)
+	if err != nil {
+		sendBadRequestError(w, r, fmt.Sprintf("failed to read summary: %v", err))
+		return
+	}
+
+	if err := writeData(w, http.StatusOK, summaryData); err != nil {
+		sendError(w, r, err)
+		return
+	}
+}
+
+func (s *Server) downloadArtifact(w http.ResponseWriter, r *http.Request) {
+	values := r.URL.Query()
+	artifactType := values.Get("artifact_type")
+
+	if !observer.IsAvailableArtifactType(artifactType) {
+		sendBadRequestError(w, r, fmt.Sprintf("artifact %q is not available to download", artifactType))
+		return
+	}
+
+	sessionID, err := strconv.ParseUint(values.Get("session_id"), 10, 64)
+	if err != nil {
+		sendBadRequestError(w, r, fmt.Sprintf("invalid session_id: %v", sessionID))
+		return
+	}
+
+	cloneID := values.Get("clone_id")
+
+	observingClone, err := s.Observer.GetObservingClone(cloneID)
+	if err != nil || !observingClone.IsExistArtifacts(sessionID) {
+		sendNotFoundError(w, r)
+		return
+	}
+
+	filePath := observingClone.BuildArtifactPath(sessionID, artifactType)
+	http.ServeFile(w, r, filePath)
 }
 
 // healthCheck provides a health check handler.
