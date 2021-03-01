@@ -13,8 +13,8 @@ BUILD_DIR=${GOPATH}/${SERVER_BINARY}
 
 # Setup the -ldflags option for go build here, interpolate the variable values
 LDFLAGS = -ldflags "-s -w \
-	-X gitlab.com/postgres-ai/database-lab/version.version=${VERSION} \
-	-X gitlab.com/postgres-ai/database-lab/version.buildTime=${BUILD_TIME}"
+	-X gitlab.com/postgres-ai/database-lab/v2/version.version=${VERSION} \
+	-X gitlab.com/postgres-ai/database-lab/v2/version.buildTime=${BUILD_TIME}"
 
 # Go tooling command aliases
 GOBUILD = GO111MODULE=on GOARCH=${GOARCH} go build ${LDFLAGS}
