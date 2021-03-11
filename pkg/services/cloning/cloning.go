@@ -9,6 +9,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgtype/pgxtype"
+
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision"
@@ -31,6 +33,7 @@ type Cloning interface {
 	Reload(config Config)
 
 	CreateClone(*types.CloneCreateRequest) (*models.Clone, error)
+	CloneConnection(ctx context.Context, cloneID string) (pgxtype.Querier, error)
 	DestroyClone(string) error
 	GetClone(string) (*models.Clone, error)
 	UpdateClone(string, *types.CloneUpdateRequest) (*models.Clone, error)

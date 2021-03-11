@@ -21,6 +21,7 @@ import (
 	"github.com/rs/xid"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/estimator"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval"
@@ -108,10 +109,11 @@ func main() {
 	}
 
 	obs := observer.NewObserver(dockerCLI, &cfg.Observer, platformSvc.Client, pm)
+	est := estimator.NewEstimator(&cfg.Estimator)
 
 	go removeObservingClones(obsCh, obs)
 
-	server := srv.NewServer(&cfg.Server, obs, cloningSvc, platformSvc, dockerCLI)
+	server := srv.NewServer(&cfg.Server, obs, cloningSvc, platformSvc, dockerCLI, est)
 
 	reloadCh := setReloadListener()
 
@@ -119,7 +121,7 @@ func main() {
 		for range reloadCh {
 			log.Msg("Reloading configuration")
 
-			if err := reloadConfig(ctx, instanceID, provisionSvc, retrievalSvc, pm, cloningSvc, platformSvc, server); err != nil {
+			if err := reloadConfig(ctx, instanceID, provisionSvc, retrievalSvc, pm, cloningSvc, platformSvc, est, server); err != nil {
 				log.Err("Failed to reload configuration", err)
 			}
 
@@ -166,7 +168,7 @@ func loadConfiguration(instanceID string) (*config.Config, error) {
 }
 
 func reloadConfig(ctx context.Context, instanceID string, provisionSvc *provision.Provisioner, retrievalSvc *retrieval.Retrieval,
-	pm *pool.Manager, cloningSvc cloning.Cloning, platformSvc *platform.Service, server *srv.Server) error {
+	pm *pool.Manager, cloningSvc cloning.Cloning, platformSvc *platform.Service, est *estimator.Estimator, server *srv.Server) error {
 	cfg, err := loadConfiguration(instanceID)
 	if err != nil {
 		return err
@@ -198,6 +200,7 @@ func reloadConfig(ctx context.Context, instanceID string, provisionSvc *provisio
 	retrievalSvc.Reload(ctx, cfg)
 	cloningSvc.Reload(cfg.Cloning)
 	platformSvc.Reload(newPlatformSvc)
+	est.Reload(cfg.Estimator)
 	server.Reload(cfg.Server)
 
 	return nil

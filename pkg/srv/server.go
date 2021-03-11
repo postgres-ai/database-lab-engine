@@ -11,8 +11,10 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/client"
+	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/estimator"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/cloning"
@@ -37,18 +39,22 @@ type Server struct {
 	Config    *Config
 	Platform  *platform.Service
 	Observer  *observer.Observer
+	Estimator *estimator.Estimator
+	upgrader  websocket.Upgrader
 	httpSrv   *http.Server
 }
 
 // NewServer initializes a new Server instance with provided configuration.
 func NewServer(cfg *Config, obsCfg *observer.Observer, cloning cloning.Cloning, platform *platform.Service,
-	dockerClient *client.Client) *Server {
+	dockerClient *client.Client, estimator *estimator.Estimator) *Server {
 	// TODO(anatoly): Stop using mock data.
 	server := &Server{
-		Config:   cfg,
-		Cloning:  cloning,
-		Platform: platform,
-		Observer: obsCfg,
+		Config:    cfg,
+		Cloning:   cloning,
+		Platform:  platform,
+		Observer:  obsCfg,
+		Estimator: estimator,
+		upgrader:  websocket.Upgrader{},
 	}
 
 	return server
@@ -104,6 +110,7 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/observation/stop", authMW.authorized(s.stopObservation)).Methods(http.MethodPost)
 	r.HandleFunc("/observation/summary/{clone_id}/{session_id}", authMW.authorized(s.sessionSummaryObservation)).Methods(http.MethodGet)
 	r.HandleFunc("/observation/download", authMW.authorized(s.downloadArtifact)).Methods(http.MethodGet)
+	r.HandleFunc("/estimate", s.startEstimator).Methods(http.MethodGet)
 
 	// Health check.
 	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet)

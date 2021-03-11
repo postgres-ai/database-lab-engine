@@ -9,10 +9,13 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+	"github.com/jackc/pgtype/pgxtype"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/platform"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/estimator"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
@@ -148,6 +151,152 @@ func (s *Server) resetClone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Dbg(fmt.Sprintf("Clone ID=%s is being reset", cloneID))
+}
+
+func (s *Server) startEstimator(w http.ResponseWriter, r *http.Request) {
+	values := r.URL.Query()
+	cloneID := values.Get("clone_id")
+
+	pid, err := strconv.Atoi(values.Get("pid"))
+	if err != nil {
+		sendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if _, err := s.Cloning.GetClone(cloneID); err != nil {
+		sendNotFoundError(w, r)
+		return
+	}
+
+	ctx := context.Background()
+
+	db, err := s.Cloning.CloneConnection(ctx, cloneID)
+	if err != nil {
+		sendError(w, r, err)
+		return
+	}
+
+	ws, err := s.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		sendError(w, r, err)
+		return
+	}
+
+	defer func() {
+		if err := ws.Close(); err != nil {
+			log.Err(err)
+		}
+	}()
+
+	done := make(chan struct{})
+
+	go wsPing(ws, done)
+
+	if err := s.runEstimator(ctx, ws, db, pid, done); err != nil {
+		sendError(w, r, err)
+		return
+	}
+
+	<-done
+}
+
+func (s *Server) runEstimator(ctx context.Context, ws *websocket.Conn, db pgxtype.Querier, pid int, done chan struct{}) error {
+	defer close(done)
+
+	estCfg := s.Estimator.Config()
+
+	profiler := estimator.NewProfiler(db, estimator.TraceOptions{
+		Pid:             pid,
+		Interval:        estCfg.ProfilingInterval,
+		SampleThreshold: estCfg.SampleThreshold,
+		ReadRatio:       estCfg.ReadRatio,
+		WriteRatio:      estCfg.WriteRatio,
+	})
+
+	// Start profiling.
+	s.Estimator.Run(ctx, profiler)
+
+	readyEventData, err := json.Marshal(estimator.Event{EventType: estimator.ReadyEventType})
+	if err != nil {
+		return err
+	}
+
+	if err := ws.WriteMessage(websocket.TextMessage, readyEventData); err != nil {
+		return errors.Wrap(err, "failed to write message with the ready event")
+	}
+
+	go func() {
+		if err := receiveClientMessages(ctx, ws, profiler); err != nil {
+			log.Dbg("receive client messages: ", err)
+		}
+	}()
+
+	// Wait for profiling results.
+	<-profiler.Finish()
+
+	<-profiler.ReadyToEstimate()
+
+	estTime, err := profiler.EstimateTime(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to estimate time")
+	}
+
+	resultEvent := estimator.ResultEvent{
+		EventType: estimator.ResultEventType,
+		Payload: estimator.Result{
+			IsEnoughStat:    profiler.IsEnoughSamples(),
+			SampleCounter:   profiler.CountSamples(),
+			TotalTime:       profiler.TotalTime(),
+			EstTime:         estTime,
+			RenderedStat:    profiler.RenderStat(),
+			WaitEventsRatio: profiler.WaitEventsRatio(),
+		},
+	}
+
+	resultEventData, err := json.Marshal(resultEvent)
+	if err != nil {
+		return err
+	}
+
+	if err := ws.WriteMessage(websocket.TextMessage, resultEventData); err != nil {
+		return errors.Wrap(err, "failed to write message with the ready event")
+	}
+
+	return nil
+}
+
+func receiveClientMessages(ctx context.Context, ws *websocket.Conn, profiler *estimator.Profiler) error {
+	for {
+		if ctx.Err() != nil {
+			log.Msg(ctx.Err())
+			break
+		}
+
+		_, message, err := ws.ReadMessage()
+		if err != nil {
+			return err
+		}
+
+		event := estimator.Event{}
+		if err := json.Unmarshal(message, &event); err != nil {
+			return err
+		}
+
+		switch event.EventType {
+		case estimator.ReadBlocksType:
+			readBlocksEvent := estimator.ReadBlocksEvent{}
+			if err := json.Unmarshal(message, &readBlocksEvent); err != nil {
+				log.Dbg("failed to read blocks event: ", err)
+				break
+			}
+
+			profiler.SetReadBlocks(readBlocksEvent.ReadBlocks)
+		}
+
+		log.Dbg("received unknown message: ", event.EventType, string(message))
+	}
+
+	return nil
 }
 
 func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
