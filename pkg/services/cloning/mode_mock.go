@@ -7,6 +7,7 @@ package cloning
 import (
 	"context"
 
+	"github.com/jackc/pgtype/pgxtype"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
@@ -82,6 +83,10 @@ func (c *mockCloning) Run(ctx context.Context) error {
 
 func (c *mockCloning) CreateClone(clone *types.CloneCreateRequest) (*models.Clone, error) {
 	return &models.Clone{}, nil
+}
+
+func (c *mockCloning) CloneConnection(ctx context.Context, cloneID string) (pgxtype.Querier, error) {
+	return nil, nil
 }
 
 func (c *mockCloning) DestroyClone(id string) error {

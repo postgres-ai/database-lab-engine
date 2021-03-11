@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/estimator"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
 	retConfig "gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/defaults"
@@ -31,6 +32,7 @@ type Config struct {
 	Global      Global           `yaml:"global"`
 	Retrieval   retConfig.Config `yaml:"retrieval"`
 	Observer    observer.Config  `yaml:"observer"`
+	Estimator   estimator.Config `yaml:"estimator"`
 	PoolManager pool.Config      `yaml:"poolManager"`
 }
 

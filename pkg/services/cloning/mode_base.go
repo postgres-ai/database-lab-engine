@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/jackc/pgtype/pgxtype"
+	"github.com/jackc/pgx/v4"
 	_ "github.com/lib/pq" // Register Postgres database driver.
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
@@ -200,6 +202,28 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 	}()
 
 	return clone, nil
+}
+
+func (c *baseCloning) CloneConnection(ctx context.Context, cloneID string) (pgxtype.Querier, error) {
+	w, ok := c.findWrapper(cloneID)
+	if !ok {
+		return nil, errors.New("not found")
+	}
+
+	connStr := connectionString(
+		w.session.SocketHost, strconv.FormatUint(uint64(w.session.Port), 10), w.session.User, w.clone.DB.DBName)
+
+	db, err := pgx.Connect(ctx, connStr)
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
+}
+
+func connectionString(host, port, username, dbname string) string {
+	return fmt.Sprintf("host=%s port=%s user=%s database='%s'",
+		host, port, username, dbname)
 }
 
 func (c *baseCloning) DestroyClone(cloneID string) error {
