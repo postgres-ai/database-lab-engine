@@ -3,6 +3,11 @@ FROM docker:19.03.14
 # Install dependencies.
 RUN apk update && apk add --no-cache bash jq
 
+RUN echo 'http://dl-cdn.alpinelinux.org/alpine/v3.13/main' >> /etc/apk/repositories \
+  && echo 'http://dl-cdn.alpinelinux.org/alpine/v3.13/community' >> /etc/apk/repositories \
+  && apk add bcc-tools=0.18.0-r0 bcc-doc=0.18.0-r0 && ln -s $(which python3) /usr/bin/python
+
 WORKDIR /home/dblab
 COPY ./bin/dblab ./bin/dblab
-CMD ./bin/dblab
+# TODO: return CMD ./bin/dblab
+CMD sleep infinity
