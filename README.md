@@ -1,8 +1,8 @@
-# Database Lab - thin database clones for faster development
+# Database Lab Engine - thin database clones for faster development
 
 <img src="./assets/db-lab.png" align="right" border="0" />
 
-Database Lab Engine is an open-source technology that allows blazing-fast cloning of Postgres databases of any size in seconds. This helps solve many problems such as:
+Database Lab Engine (DLE) is an open-source technology that allows blazing-fast cloning of Postgres databases of any size in seconds. This helps solve many problems such as:
 - help build dev/QA/staging environments involving full-size production-like databases,
 - provide temporary full-size database clones for SQL query analysis optimization (see [Joe bot](https://gitlab.com/postgres-ai/joe)),
 - automatically verify database migrations (DB schema changes) and massive data operations to avoid downtime and performance bottlenecks.
@@ -20,7 +20,7 @@ See the Database Lab tutorials:
 - [Database Lab tutorial for any PostgreSQL database](https://postgres.ai/docs/tutorials/database-lab-tutorial).
 - [Database Lab tutorial for Amazon RDS](https://postgres.ai/docs/tutorials/database-lab-tutorial-amazon-rds),
 
-The latest stable Docker images are published in [the Docker Hub repository](https://hub.docker.com/repository/docker/postgresai/dblab-server).
+The latest stable Docker images are published in [the Docker Hub repository](https://hub.docker.com/r/postgresai/dblab-server).
 
 ## Client CLI
 ### Installation
@@ -37,12 +37,12 @@ source /etc/bash_completion.d/dblab
 
 ### How to use CLI
 - [How to install and initialize Database Lab CLI](https://postgres.ai/docs/guides/cli/cli-install-init)
-- [Database Lab Client CLI reference (dblab)](https://postgres.ai/docs/database-lab/cli-reference)
+- [Database Lab Client CLI reference (`dblab`)](https://postgres.ai/docs/database-lab/cli-reference)
 
 ## Docker Hub
-- [Server](https://hub.docker.com/repository/docker/postgresai/dblab-server)
-- [CLI client](https://hub.docker.com/repository/docker/postgresai/dblab)
-- [Custom Postgres images](https://hub.docker.com/repository/docker/postgresai/extended-postgres)
+- [Server](https://hub.docker.com/r/postgresai/dblab-server)
+- [CLI client](https://hub.docker.com/r/postgresai/dblab)
+- [Extended Docker Images for PostgreSQL – include tons of extensions](https://hub.docker.com/r/postgresai/extended-postgres)
 
 ## References
 - [Database Lab Engine configuration reference](https://postgres.ai/docs/database-lab/config-reference)
@@ -64,7 +64,7 @@ See our [GitLab Container Registry](https://gitlab.com/postgres-ai/database-lab/
 - or join our Community (links below)
 
 ## Community
-- [Community Slack (English)](https://database-lab-team-slack-invite.herokuapp.com/)
+- [Community Slack (English)](https://slack.postgres.ai)
 - [Telegram (Russian)](https://t.me/databaselabru)
 - [Twitter](https://twitter.com/Database_Lab)
 
