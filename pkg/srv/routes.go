@@ -226,15 +226,13 @@ func (s *Server) runEstimator(ctx context.Context, ws *websocket.Conn, db pgxtyp
 	}
 
 	go func() {
-		if err := receiveClientMessages(ctx, ws, profiler); err != nil {
-			log.Dbg("receive client messages: ", err)
+		if err := profiler.ReadPhysicalBlocks(ctx); err != nil {
+			log.Err(err)
 		}
 	}()
 
 	// Wait for profiling results.
 	<-profiler.Finish()
-
-	<-profiler.ReadyToEstimate()
 
 	estTime, err := profiler.EstimateTime(ctx)
 	if err != nil {
@@ -260,40 +258,6 @@ func (s *Server) runEstimator(ctx context.Context, ws *websocket.Conn, db pgxtyp
 
 	if err := ws.WriteMessage(websocket.TextMessage, resultEventData); err != nil {
 		return errors.Wrap(err, "failed to write message with the ready event")
-	}
-
-	return nil
-}
-
-func receiveClientMessages(ctx context.Context, ws *websocket.Conn, profiler *estimator.Profiler) error {
-	for {
-		if ctx.Err() != nil {
-			log.Msg(ctx.Err())
-			break
-		}
-
-		_, message, err := ws.ReadMessage()
-		if err != nil {
-			return err
-		}
-
-		event := estimator.Event{}
-		if err := json.Unmarshal(message, &event); err != nil {
-			return err
-		}
-
-		switch event.EventType {
-		case estimator.ReadBlocksType:
-			readBlocksEvent := estimator.ReadBlocksEvent{}
-			if err := json.Unmarshal(message, &readBlocksEvent); err != nil {
-				log.Dbg("failed to read blocks event: ", err)
-				break
-			}
-
-			profiler.SetReadBlocks(readBlocksEvent.ReadBlocks)
-		}
-
-		log.Dbg("received unknown message: ", event.EventType, string(message))
 	}
 
 	return nil

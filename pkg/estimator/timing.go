@@ -13,13 +13,12 @@ const delta = 0.05
 
 // Timing defines a timing estimator.
 type Timing struct {
-	dbStat          *StatDatabase
 	readPercentage  float64
 	writePercentage float64
 	normal          float64
 	readRatio       float64
 	writeRatio      float64
-	readBlocks      uint64
+	realReadRatio   float64
 }
 
 // StatDatabase defines database blocks stats.
@@ -53,14 +52,9 @@ func NewTiming(waitEvents map[string]float64, readRatio, writeRatio float64) *Ti
 	return timing
 }
 
-// SetDBStat sets database stats.
-func (est *Timing) SetDBStat(dbStat StatDatabase) {
-	est.dbStat = &dbStat
-}
-
-// SetReadBlocks sets read blocks.
-func (est *Timing) SetReadBlocks(readBlocks uint64) {
-	est.readBlocks = readBlocks
+// SetRealReadRatio sets real read ratio.
+func (est *Timing) SetRealReadRatio(realReadRatio float64) {
+	est.realReadRatio = realReadRatio
 }
 
 // CalcMin calculates the minimum query time estimation for the production environment, given the prepared ratios.
@@ -72,12 +66,13 @@ func (est *Timing) CalcMin(elapsed float64) float64 {
 func (est *Timing) CalcMax(elapsed float64) float64 {
 	readPercentage := est.readPercentage
 
-	if est.dbStat != nil && est.readBlocks != 0 {
-		readSpeed := float64(est.dbStat.BlocksRead) / (est.dbStat.BlockReadTime / millisecondsInSecond)
-		readPercentage = float64(est.readBlocks) / readSpeed
+	var realReadRatio float64 = 1
+
+	if est.realReadRatio != 0 {
+		realReadRatio = est.realReadRatio
 	}
 
-	return (est.normal + readPercentage/est.readRatio + est.writePercentage/est.writeRatio) / totalPercent * elapsed
+	return (est.normal + readPercentage/realReadRatio/est.readRatio + est.writePercentage/est.writeRatio) / totalPercent * elapsed
 }
 
 // EstTime prints estimation timings.
