@@ -3,9 +3,11 @@ package estimator
 import (
 	"bytes"
 	"context"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const sample = `
@@ -87,6 +89,9 @@ func TestOutputScanner(t *testing.T) {
 	for _, tc := range testCases {
 		r := bytes.NewReader([]byte(sample))
 		p := Profiler{
+			pidMapping: map[string]int{
+				strconv.Itoa(tc.pid): tc.pid,
+			},
 			opts: TraceOptions{
 				Pid: tc.pid,
 			},
@@ -96,4 +101,33 @@ func TestOutputScanner(t *testing.T) {
 
 		assert.Equal(t, tc.readBytes, p.readBytes)
 	}
+}
+
+const procStatus = `
+Name:   postgres            
+Umask:  0077                                                                                                                                                                                               State:  S (sleeping)                                                                                 
+Tgid:   2752157          
+Ngid:   0                          
+Pid:    2752157                   
+PPid:   2747061
+TracerPid:      0
+Uid:    999     999     999     999
+Gid:    999     999     999     999
+FDSize: 64
+Groups: 101 
+NStgid: 2752157 674
+NSpid:  2752157 674
+NSpgid: 2752157 674
+NSsid:  2752157 674
+VmPeak:  2316996 kB
+VmSize:  2315104 kB
+`
+
+func TestProcStatParsing(t *testing.T) {
+	p := Profiler{}
+
+	hostPID, err := p.parsePIDMapping([]byte(procStatus))
+
+	require.Nil(t, err)
+	assert.Equal(t, 674, hostPID)
 }

@@ -7,6 +7,7 @@ package estimator
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
@@ -99,6 +100,7 @@ type Profiler struct {
 	readBytes          uint64
 	startReadBlocks    uint64
 	blockSize          uint64
+	pidMapping         map[string]int
 	once               sync.Once
 	exitChan           chan struct{}
 }
@@ -120,6 +122,7 @@ func NewProfiler(conn pgxtype.Querier, opts TraceOptions) *Profiler {
 		waitEventPercents:  make(map[string]float64),
 		exitChan:           make(chan struct{}),
 		blockSize:          defaultBlockSize,
+		pidMapping:         make(map[string]int),
 	}
 }
 
@@ -284,14 +287,31 @@ func (p *Profiler) scanOutput(ctx context.Context, r io.Reader) {
 	scanner := bufio.NewScanner(r)
 
 	for scanner.Scan() {
-		parsedReadBytes := p.parseReadBytes(scanner.Bytes())
-		if parsedReadBytes == 0 {
+		bytesEntry := p.parseReadBytes(scanner.Bytes())
+		if bytesEntry == nil || bytesEntry.totalBytes == 0 {
 			continue
 		}
 
-		log.Dbg("read bytes: ", parsedReadBytes)
+		pid, ok := p.pidMapping[bytesEntry.pid]
+		if !ok {
+			hostPID, err := p.filterPID(bytesEntry.pid)
+			p.pidMapping[bytesEntry.pid] = hostPID
 
-		atomic.AddUint64(&p.readBytes, parsedReadBytes)
+			if err != nil {
+				// log.Err("failed to get PID mapping")
+				continue
+			}
+
+			pid = hostPID
+		}
+
+		if pid != p.opts.Pid {
+			continue
+		}
+
+		log.Dbg("read bytes: ", bytesEntry.totalBytes)
+
+		atomic.AddUint64(&p.readBytes, bytesEntry.totalBytes)
 
 		select {
 		case <-ctx.Done():
@@ -308,29 +328,72 @@ func (p *Profiler) scanOutput(ctx context.Context, r io.Reader) {
 }
 
 const (
-	regExp       = "^[.0-9]+\\s+\\S+\\s+(\\d+)\\s+\\w+\\s+(W|R)\\s+\\d+\\s+(\\d+)\\s+[.0-9]+$"
-	countMatches = 4
+	regExp               = "^[.0-9]+\\s+\\S+\\s+(\\d+)\\s+\\w+\\s+(W|R)\\s+\\d+\\s+(\\d+)\\s+[.0-9]+$"
+	countMatches         = 4
+	expectedMappingParts = 2
 )
 
-var r = regexp.MustCompile(regExp)
+var (
+	r        = regexp.MustCompile(regExp)
+	nsPrefix = []byte("NSpid:")
+)
 
-func (p *Profiler) parseReadBytes(line []byte) uint64 {
+type bytesEntry struct {
+	pid        string
+	totalBytes uint64
+}
+
+func (p *Profiler) filterPID(pid string) (int, error) {
+	procStatus, err := exec.Command("cat", "/host_proc/"+pid+"/status").Output()
+	if err != nil {
+		return 0, err
+	}
+
+	return p.parsePIDMapping(procStatus)
+}
+
+func (p *Profiler) parsePIDMapping(procStatus []byte) (int, error) {
+	sc := bufio.NewScanner(bytes.NewBuffer(procStatus))
+
+	for sc.Scan() {
+		line := sc.Bytes()
+		if !bytes.HasPrefix(line, nsPrefix) {
+			continue
+		}
+
+		val := bytes.TrimSpace(bytes.TrimPrefix(line, nsPrefix))
+
+		pidValues := bytes.SplitN(val, []byte(" "), expectedMappingParts)
+		if len(pidValues) < expectedMappingParts {
+			return 0, nil
+		}
+
+		hostPID, err := strconv.Atoi(string(pidValues[1]))
+		if err != nil {
+			return 0, err
+		}
+
+		return hostPID, nil
+	}
+
+	return 0, nil
+}
+
+func (p *Profiler) parseReadBytes(line []byte) *bytesEntry {
 	submatch := r.FindSubmatch(line)
 	if len(submatch) != countMatches {
-		return 0
+		return nil
 	}
 
-	pid, err := strconv.Atoi(string(submatch[1]))
-	if err != nil || p.opts.Pid != pid {
-		return 0
-	}
-
-	bytes, err := strconv.ParseUint(string(submatch[3]), 10, 64)
+	totalBytes, err := strconv.ParseUint(string(submatch[3]), 10, 64)
 	if err != nil {
-		return 0
+		return nil
 	}
 
-	return bytes
+	return &bytesEntry{
+		pid:        string(submatch[1]),
+		totalBytes: totalBytes,
+	}
 }
 
 // resetCounters deletes all entries from the maps.
