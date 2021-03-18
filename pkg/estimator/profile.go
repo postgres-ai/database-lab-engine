@@ -100,6 +100,7 @@ type Profiler struct {
 	readBytes          uint64
 	startReadBlocks    uint64
 	blockSize          uint64
+	readyToEstimate    chan struct{}
 	pidMapping         map[string]int
 	once               sync.Once
 	exitChan           chan struct{}
@@ -123,6 +124,7 @@ func NewProfiler(conn pgxtype.Querier, opts TraceOptions) *Profiler {
 		exitChan:           make(chan struct{}),
 		blockSize:          defaultBlockSize,
 		pidMapping:         make(map[string]int),
+		readyToEstimate:    make(chan struct{}, 1),
 	}
 }
 
@@ -287,7 +289,13 @@ func (p *Profiler) scanOutput(ctx context.Context, r io.Reader) {
 	scanner := bufio.NewScanner(r)
 
 	for scanner.Scan() {
-		bytesEntry := p.parseReadBytes(scanner.Bytes())
+		scanBytes := scanner.Bytes()
+
+		if !bytes.Contains(scanBytes, []byte("postgres")) && !bytes.Contains(scanBytes, []byte("psql")) {
+			continue
+		}
+
+		bytesEntry := p.parseReadBytes(scanBytes)
 		if bytesEntry == nil || bytesEntry.totalBytes == 0 {
 			continue
 		}
@@ -298,7 +306,7 @@ func (p *Profiler) scanOutput(ctx context.Context, r io.Reader) {
 			p.pidMapping[bytesEntry.pid] = hostPID
 
 			if err != nil {
-				// log.Err("failed to get PID mapping")
+				// log.Dbg("failed to get PID mapping: ", err)
 				continue
 			}
 
@@ -361,14 +369,14 @@ func (p *Profiler) parsePIDMapping(procStatus []byte) (int, error) {
 			continue
 		}
 
-		val := bytes.TrimSpace(bytes.TrimPrefix(line, nsPrefix))
+		nsPID := bytes.TrimSpace(bytes.TrimPrefix(line, nsPrefix))
 
-		pidValues := bytes.SplitN(val, []byte(" "), expectedMappingParts)
+		pidValues := bytes.Fields(nsPID)
 		if len(pidValues) < expectedMappingParts {
 			return 0, nil
 		}
 
-		hostPID, err := strconv.Atoi(string(pidValues[1]))
+		hostPID, err := strconv.Atoi(string(bytes.TrimSpace(pidValues[1])))
 		if err != nil {
 			return 0, err
 		}
