@@ -276,9 +276,11 @@ func (p *Profiler) ReadPhysicalBlocks(ctx context.Context) error {
 		return errors.Wrap(err, "failed to run")
 	}
 
-	if err := cmd.Wait(); err != nil {
-		return errors.Wrap(err, "failed to wait")
-	}
+	// if err := cmd.Wait(); err != nil {
+	//	return errors.Wrap(err, "failed to wait")
+	// }
+
+	<-p.exitChan
 
 	log.Dbg("End read physical")
 
