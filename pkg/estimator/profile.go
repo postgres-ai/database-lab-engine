@@ -498,7 +498,7 @@ func (p *Profiler) EstimateTime(ctx context.Context) (string, error) {
 
 		est.SetRealReadRatio(realReadsRatio)
 
-		log.Dbg(fmt.Sprintf("Start: %d, after: %d, delta: %f.6", p.startReadBlocks, afterReads, deltaBlocks))
+		log.Dbg(fmt.Sprintf("Start: %d, after: %d, delta: %.8f", p.startReadBlocks, afterReads, deltaBlocks))
 		log.Dbg(fmt.Sprintf("Real read ratio: %v", realReadsRatio))
 	}
 
