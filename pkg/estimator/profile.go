@@ -276,10 +276,6 @@ func (p *Profiler) ReadPhysicalBlocks(ctx context.Context) error {
 		return errors.Wrap(err, "failed to run")
 	}
 
-	// if err := cmd.Wait(); err != nil {
-	//	return errors.Wrap(err, "failed to wait")
-	// }
-
 	<-p.exitChan
 
 	log.Dbg("End read physical")
@@ -497,12 +493,12 @@ func (p *Profiler) EstimateTime(ctx context.Context) (string, error) {
 			return "", errors.Wrap(err, "failed to collect database stat after sql running")
 		}
 
-		deltaBlocks := afterReads - p.startReadBlocks
-		realReadsRatio := float64(p.readBytes / defaultBlockSize / deltaBlocks)
+		deltaBlocks := float64(afterReads - p.startReadBlocks)
+		realReadsRatio := float64(p.readBytes) / float64(defaultBlockSize) / deltaBlocks
 
 		est.SetRealReadRatio(realReadsRatio)
 
-		log.Dbg(fmt.Sprintf("Start: %d, after: %d, delta: %d", p.startReadBlocks, afterReads, deltaBlocks))
+		log.Dbg(fmt.Sprintf("Start: %d, after: %d, delta: %f.6", p.startReadBlocks, afterReads, deltaBlocks))
 		log.Dbg(fmt.Sprintf("Real read ratio: %v", realReadsRatio))
 	}
 
