@@ -350,6 +350,16 @@ type bytesEntry struct {
 }
 
 func (p *Profiler) filterPID(pid string) (int, error) {
+	procParallel, err := exec.Command("cat", "/host_proc/"+pid+"/cmdline").Output()
+	if err != nil {
+		return 0, err
+	}
+
+	if bytes.Contains(procParallel, []byte("postgres")) &&
+		bytes.Contains(procParallel, []byte("parallel worker for PID "+strconv.Itoa(p.opts.Pid))) {
+		return p.opts.Pid, nil
+	}
+
 	procStatus, err := exec.Command("cat", "/host_proc/"+pid+"/status").Output()
 	if err != nil {
 		return 0, err
