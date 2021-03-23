@@ -21,9 +21,11 @@ import (
 )
 
 const (
-	regExp               = "^[.0-9]+\\s+\\S+\\s+(\\d+)\\s+\\w+\\s+(W|R)\\s+\\d+\\s+(\\d+)\\s+[.0-9]+$"
-	countMatches         = 4
-	expectedMappingParts = 2
+	regExp                = "^[.0-9]+\\s+\\S+\\s+(\\d+)\\s+\\w+\\s+(W|R)\\s+\\d+\\s+(\\d+)\\s+[.0-9]+$"
+	countMatches          = 4
+	expectedMappingParts  = 2
+	procDir               = "host_proc"
+	parallelWorkerCmdline = "parallel worker for PID "
 )
 
 var (
@@ -51,7 +53,7 @@ func NewMonitor(pid int, container string, profiler *Profiler) *Monitor {
 
 // InspectIOBlocks counts physically read blocks.
 func (m *Monitor) InspectIOBlocks(ctx context.Context) error {
-	log.Dbg("Run read physical")
+	log.Dbg("Start IO inspection")
 
 	cmd := exec.Command("biosnoop")
 
@@ -70,7 +72,7 @@ func (m *Monitor) InspectIOBlocks(ctx context.Context) error {
 
 	<-m.profiler.exitChan
 
-	log.Dbg("End read physical")
+	log.Dbg("Finish IO inspection")
 
 	return nil
 }
@@ -97,11 +99,10 @@ func (m *Monitor) scanOutput(ctx context.Context, r io.Reader) {
 
 		pid, ok := m.pidMapping[bytesEntry.pid]
 		if !ok {
-			hostPID, err := m.filterPID(bytesEntry.pid)
+			hostPID, err := m.detectReferencedPID(bytesEntry.pid)
 			m.pidMapping[bytesEntry.pid] = hostPID
 
 			if err != nil {
-				// log.Dbg("failed to get PID mapping: ", err)
 				continue
 			}
 
@@ -112,17 +113,15 @@ func (m *Monitor) scanOutput(ctx context.Context, r io.Reader) {
 			continue
 		}
 
-		log.Dbg("read bytes: ", bytesEntry.totalBytes)
-
 		atomic.AddUint64(&m.profiler.readBytes, bytesEntry.totalBytes)
 
 		select {
 		case <-ctx.Done():
-			log.Dbg("context")
+			log.Dbg(ctx.Err().Error())
 			return
 
 		case <-m.profiler.exitChan:
-			log.Dbg("exit chan")
+			log.Dbg("finish to scan IO entries")
 			return
 
 		default:
@@ -130,67 +129,36 @@ func (m *Monitor) scanOutput(ctx context.Context, r io.Reader) {
 	}
 }
 
-func getContainerHash(pid int) (string, error) {
-	procParallel, err := exec.Command("cat", fmt.Sprintf("/host_proc/%d/cgroup", pid)).Output()
-	if err != nil {
-		return "", err
-	}
-
-	return isInside(procParallel), nil
-}
-
-func isInside(procParallel []byte) string {
-	sc := bufio.NewScanner(bytes.NewBuffer(procParallel))
-
-	for sc.Scan() {
-		line := sc.Bytes()
-
-		if !bytes.HasPrefix(line, []byte("1:name")) {
-			continue
-		}
-
-		res := bytes.SplitN(line, []byte("/docker/"), 2)
-
-		if len(res) == 1 {
-			return ""
-		}
-
-		return string(res[1])
-	}
-
-	return ""
-}
-
-func (m *Monitor) isValidContainer(hash string) bool {
-	return m.container == hash
-}
-
-func (m *Monitor) filterPID(pid int) (int, error) {
+func (m *Monitor) detectReferencedPID(pid int) (int, error) {
 	hash, err := getContainerHash(pid)
 	if err != nil {
 		return 0, err
 	}
 
-	if !m.isValidContainer(hash) {
+	if hash == "" || !m.isAppropriateContainer(hash) {
 		return 0, nil
 	}
 
-	procParallel, err := exec.Command("cat", fmt.Sprintf("/host_proc/%d/cmdline", pid)).Output()
+	procParallel, err := exec.Command("cat", fmt.Sprintf("/%s/%d/cmdline", procDir, pid)).Output()
 	if err != nil {
 		return 0, err
 	}
 
 	if bytes.Contains(procParallel, []byte("postgres")) &&
-		bytes.Contains(procParallel, []byte("parallel worker for PID "+strconv.Itoa(m.pid))) {
+		bytes.Contains(procParallel, []byte(parallelWorkerCmdline+strconv.Itoa(m.pid))) {
 		return m.pid, nil
 	}
 
-	procStatus, err := exec.Command("cat", fmt.Sprintf("/host_proc/%d/status", pid)).Output()
+	procStatus, err := exec.Command("cat", fmt.Sprintf("/%s/%d/status", procDir, pid)).Output()
 	if err != nil {
 		return 0, err
 	}
 
 	return m.parsePIDMapping(procStatus)
+}
+
+func (m *Monitor) isAppropriateContainer(hash string) bool {
+	return m.container == hash
 }
 
 func (m *Monitor) parsePIDMapping(procStatus []byte) (int, error) {
@@ -240,4 +208,40 @@ func (m *Monitor) parseReadBytes(line []byte) *bytesEntry {
 		pid:        pid,
 		totalBytes: totalBytes,
 	}
+}
+
+func getContainerHash(pid int) (string, error) {
+	procParallel, err := exec.Command("cat", fmt.Sprintf("/%s/%d/cgroup", procDir, pid)).Output()
+	if err != nil {
+		return "", err
+	}
+
+	return detectContainerHash(procParallel), nil
+}
+
+const (
+	procNamePrefix  = "1:name"
+	procDockerEntry = "/docker/"
+)
+
+func detectContainerHash(procParallel []byte) string {
+	sc := bufio.NewScanner(bytes.NewBuffer(procParallel))
+
+	for sc.Scan() {
+		line := sc.Bytes()
+
+		if !bytes.HasPrefix(line, []byte(procNamePrefix)) {
+			continue
+		}
+
+		procNameLine := bytes.SplitN(line, []byte(procDockerEntry), 2)
+
+		if len(procNameLine) == 1 {
+			return ""
+		}
+
+		return string(procNameLine[1])
+	}
+
+	return ""
 }

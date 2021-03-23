@@ -143,7 +143,7 @@ const procCgroup = `
 `
 
 func TestIsInside(t *testing.T) {
-	containerHash := isInside([]byte(procCgroup))
+	containerHash := detectContainerHash([]byte(procCgroup))
 
 	assert.Equal(t, "ad63ab82fdb32dd384ac76ab5a9d20fb7cb48f53be4d4cac52924e920c4a967b", containerHash)
 }
