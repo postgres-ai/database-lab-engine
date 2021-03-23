@@ -6,19 +6,13 @@ Based on the code from Alexey Lesovsky (lesovsky <at> gmail.com) @ https://githu
 package estimator
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
-	"io"
-	"os/exec"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgtype/pgxtype"
@@ -101,7 +95,6 @@ type Profiler struct {
 	startReadBlocks    uint64
 	blockSize          uint64
 	readyToEstimate    chan struct{}
-	pidMapping         map[string]int
 	once               sync.Once
 	exitChan           chan struct{}
 }
@@ -123,8 +116,8 @@ func NewProfiler(conn pgxtype.Querier, opts TraceOptions) *Profiler {
 		waitEventPercents:  make(map[string]float64),
 		exitChan:           make(chan struct{}),
 		blockSize:          defaultBlockSize,
-		pidMapping:         make(map[string]int),
-		readyToEstimate:    make(chan struct{}, 1),
+
+		readyToEstimate: make(chan struct{}, 1),
 	}
 }
 
@@ -255,161 +248,6 @@ func (p *Profiler) countWaitings(curr TraceStat, prev TraceStat) {
 	}
 
 	p.sampleCounter++
-}
-
-// ReadPhysicalBlocks counts physically read blocks.
-func (p *Profiler) ReadPhysicalBlocks(ctx context.Context) error {
-	log.Dbg("Run read physical")
-
-	cmd := exec.Command("biosnoop")
-
-	r, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-
-	cmd.Stderr = cmd.Stdout
-
-	go p.scanOutput(ctx, r)
-
-	if err := cmd.Start(); err != nil {
-		return errors.Wrap(err, "failed to run")
-	}
-
-	<-p.exitChan
-
-	log.Dbg("End read physical")
-
-	return nil
-}
-
-func (p *Profiler) scanOutput(ctx context.Context, r io.Reader) {
-	scanner := bufio.NewScanner(r)
-
-	for scanner.Scan() {
-		scanBytes := scanner.Bytes()
-
-		if !bytes.Contains(scanBytes, []byte("postgres")) && !bytes.Contains(scanBytes, []byte("psql")) {
-			continue
-		}
-
-		bytesEntry := p.parseReadBytes(scanBytes)
-		if bytesEntry == nil || bytesEntry.totalBytes == 0 {
-			continue
-		}
-
-		pid, ok := p.pidMapping[bytesEntry.pid]
-		if !ok {
-			hostPID, err := p.filterPID(bytesEntry.pid)
-			p.pidMapping[bytesEntry.pid] = hostPID
-
-			if err != nil {
-				// log.Dbg("failed to get PID mapping: ", err)
-				continue
-			}
-
-			pid = hostPID
-		}
-
-		if pid != p.opts.Pid {
-			continue
-		}
-
-		log.Dbg("read bytes: ", bytesEntry.totalBytes)
-
-		atomic.AddUint64(&p.readBytes, bytesEntry.totalBytes)
-
-		select {
-		case <-ctx.Done():
-			log.Dbg("context")
-			return
-
-		case <-p.exitChan:
-			log.Dbg("exit chan")
-			return
-
-		default:
-		}
-	}
-}
-
-const (
-	regExp               = "^[.0-9]+\\s+\\S+\\s+(\\d+)\\s+\\w+\\s+(W|R)\\s+\\d+\\s+(\\d+)\\s+[.0-9]+$"
-	countMatches         = 4
-	expectedMappingParts = 2
-)
-
-var (
-	r        = regexp.MustCompile(regExp)
-	nsPrefix = []byte("NSpid:")
-)
-
-type bytesEntry struct {
-	pid        string
-	totalBytes uint64
-}
-
-func (p *Profiler) filterPID(pid string) (int, error) {
-	procParallel, err := exec.Command("cat", "/host_proc/"+pid+"/cmdline").Output()
-	if err != nil {
-		return 0, err
-	}
-
-	if bytes.Contains(procParallel, []byte("postgres")) &&
-		bytes.Contains(procParallel, []byte("parallel worker for PID "+strconv.Itoa(p.opts.Pid))) {
-		return p.opts.Pid, nil
-	}
-
-	procStatus, err := exec.Command("cat", "/host_proc/"+pid+"/status").Output()
-	if err != nil {
-		return 0, err
-	}
-
-	return p.parsePIDMapping(procStatus)
-}
-
-func (p *Profiler) parsePIDMapping(procStatus []byte) (int, error) {
-	sc := bufio.NewScanner(bytes.NewBuffer(procStatus))
-
-	for sc.Scan() {
-		line := sc.Bytes()
-		if !bytes.HasPrefix(line, nsPrefix) {
-			continue
-		}
-
-		nsPID := bytes.TrimSpace(bytes.TrimPrefix(line, nsPrefix))
-
-		pidValues := bytes.Fields(nsPID)
-		if len(pidValues) < expectedMappingParts {
-			return 0, nil
-		}
-
-		hostPID, err := strconv.Atoi(string(bytes.TrimSpace(pidValues[1])))
-		if err != nil {
-			return 0, err
-		}
-
-		return hostPID, nil
-	}
-
-	return 0, nil
-}
-
-func (p *Profiler) parseReadBytes(line []byte) *bytesEntry {
-	submatch := r.FindSubmatch(line)
-	if len(submatch) != countMatches {
-		return nil
-	}
-
-	totalBytes, err := strconv.ParseUint(string(submatch[3]), 10, 64)
-	if err != nil {
-		return nil
-	}
-
-	return &bytesEntry{
-		pid:        string(submatch[1]),
-		totalBytes: totalBytes,
-	}
 }
 
 // resetCounters deletes all entries from the maps.

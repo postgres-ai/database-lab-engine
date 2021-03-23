@@ -3,7 +3,6 @@ package estimator
 import (
 	"bytes"
 	"context"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -88,18 +87,14 @@ func TestOutputScanner(t *testing.T) {
 
 	for _, tc := range testCases {
 		r := bytes.NewReader([]byte(sample))
-		p := Profiler{
-			pidMapping: map[string]int{
-				strconv.Itoa(tc.pid): tc.pid,
-			},
-			opts: TraceOptions{
-				Pid: tc.pid,
-			},
+		monitor := NewMonitor(tc.pid, "", &Profiler{})
+		monitor.pidMapping = map[int]int{
+			tc.pid: tc.pid,
 		}
 
-		p.scanOutput(context.TODO(), r)
+		monitor.scanOutput(context.TODO(), r)
 
-		assert.Equal(t, tc.readBytes, p.readBytes)
+		assert.Equal(t, tc.readBytes, monitor.profiler.readBytes)
 	}
 }
 
@@ -124,10 +119,31 @@ VmSize:  2315104 kB
 `
 
 func TestProcStatParsing(t *testing.T) {
-	p := Profiler{}
+	monitor := Monitor{}
 
-	hostPID, err := p.parsePIDMapping([]byte(procStatus))
+	hostPID, err := monitor.parsePIDMapping([]byte(procStatus))
 
 	require.Nil(t, err)
 	assert.Equal(t, 674, hostPID)
+}
+
+const procCgroup = `
+12:rdma:/
+11:pids:/docker/ad63ab82fdb32dd384ac76ab5a9d20fb7cb48f53be4d4cac52924e920c4a967b
+10:cpuset:/docker/ad63ab82fdb32dd384ac76ab5a9d20fb7cb48f53be4d4cac52924e920c4a967b
+9:perf_event:/docker/ad63ab82fdb32dd384ac76ab5a9d20fb7cb48f53be4d4cac52924e920c4a967b
+8:blkio:/docker/ad63ab82fdb32dd384ac76ab5a9d20fb7cb48f53be4d4cac52924e920c4a967b
+7:freezer:/docker/ad63ab82fdb32dd384ac76ab5a9d20fb7cb48f53be4d4cac52924e920c4a967b
+6:cpu,cpuacct:/docker/ad63ab82fdb32dd384ac76ab5a9d20fb7cb48f53be4d4cac52924e920c4a967b
+5:memory:/docker/ad63ab82fdb32dd384ac76ab5a9d20fb7cb48f53be4d4cac52924e920c4a967b
+4:net_cls,net_prio:/docker/ad63ab82fdb32dd384ac76ab5a9d20fb7cb48f53be4d4cac52924e920c4a967b
+3:devices:/docker/ad63ab82fdb32dd384ac76ab5a9d20fb7cb48f53be4d4cac52924e920c4a967b
+2:hugetlb:/docker/ad63ab82fdb32dd384ac76ab5a9d20fb7cb48f53be4d4cac52924e920c4a967b
+1:name=systemd:/docker/ad63ab82fdb32dd384ac76ab5a9d20fb7cb48f53be4d4cac52924e920c4a967b
+`
+
+func TestIsInside(t *testing.T) {
+	containerHash := isInside([]byte(procCgroup))
+
+	assert.Equal(t, "ad63ab82fdb32dd384ac76ab5a9d20fb7cb48f53be4d4cac52924e920c4a967b", containerHash)
 }

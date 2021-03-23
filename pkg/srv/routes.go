@@ -19,6 +19,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v2/version"
 )
 
@@ -163,12 +164,19 @@ func (s *Server) startEstimator(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := s.Cloning.GetClone(cloneID); err != nil {
+	clone, err := s.Cloning.GetClone(cloneID)
+	if err != nil {
 		sendNotFoundError(w, r)
 		return
 	}
 
 	ctx := context.Background()
+
+	cloneContainer, err := s.docker.ContainerInspect(ctx, util.GetCloneNameStr(clone.DB.Port))
+	if err != nil {
+		sendBadRequestError(w, r, err.Error())
+		return
+	}
 
 	db, err := s.Cloning.CloneConnection(ctx, cloneID)
 	if err != nil {
@@ -192,7 +200,7 @@ func (s *Server) startEstimator(w http.ResponseWriter, r *http.Request) {
 
 	go wsPing(ws, done)
 
-	if err := s.runEstimator(ctx, ws, db, pid, done); err != nil {
+	if err := s.runEstimator(ctx, ws, db, pid, cloneContainer.ID, done); err != nil {
 		sendError(w, r, err)
 		return
 	}
@@ -200,7 +208,8 @@ func (s *Server) startEstimator(w http.ResponseWriter, r *http.Request) {
 	<-done
 }
 
-func (s *Server) runEstimator(ctx context.Context, ws *websocket.Conn, db pgxtype.Querier, pid int, done chan struct{}) error {
+func (s *Server) runEstimator(ctx context.Context, ws *websocket.Conn, db pgxtype.Querier, pid int, containerID string,
+	done chan struct{}) error {
 	defer close(done)
 
 	estCfg := s.Estimator.Config()
@@ -225,8 +234,10 @@ func (s *Server) runEstimator(ctx context.Context, ws *websocket.Conn, db pgxtyp
 		return errors.Wrap(err, "failed to write message with the ready event")
 	}
 
+	monitor := estimator.NewMonitor(pid, containerID, profiler)
+
 	go func() {
-		if err := profiler.ReadPhysicalBlocks(ctx); err != nil {
+		if err := monitor.InspectIOBlocks(ctx); err != nil {
 			log.Err(err)
 		}
 	}()

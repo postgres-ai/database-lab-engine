@@ -42,6 +42,7 @@ type Server struct {
 	Estimator *estimator.Estimator
 	upgrader  websocket.Upgrader
 	httpSrv   *http.Server
+	docker    *client.Client
 }
 
 // NewServer initializes a new Server instance with provided configuration.
@@ -55,6 +56,7 @@ func NewServer(cfg *Config, obsCfg *observer.Observer, cloning cloning.Cloning, 
 		Observer:  obsCfg,
 		Estimator: estimator,
 		upgrader:  websocket.Upgrader{},
+		docker:    dockerClient,
 	}
 
 	return server
