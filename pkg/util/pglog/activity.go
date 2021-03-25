@@ -125,7 +125,7 @@ func (s *Selector) FilterOldFilesInList() {
 
 // ParsePostgresLastActivity extracts the time of last session activity.
 func ParsePostgresLastActivity(logTime, text string) (*time.Time, error) {
-	if logTime == "" || !strings.Contains(text, "statement:") {
+	if logTime == "" || !(strings.Contains(text, "statement:") || strings.Contains(text, "duration:")) {
 		return nil, nil
 	}
 

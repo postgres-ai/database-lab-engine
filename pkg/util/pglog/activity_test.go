@@ -35,6 +35,11 @@ func TestGetPostgresLastActivity(t *testing.T) {
 			logMessage:   "duration: 9.893 ms  statement: SELECT 1;",
 			timeActivity: nil,
 		},
+		{
+			logTime:      "2021-03-24 15:33:56.135 UTC",
+			logMessage:   "duration: 0.544 ms  execute lrupsc_28_0: EXPLAIN (FORMAT TEXT) select 1",
+			timeActivity: pointer.ToTime(time.Date(2021, 3, 24, 15, 33, 56, 135000000, time.UTC)),
+		},
 	}
 
 	for _, tc := range testCases {
