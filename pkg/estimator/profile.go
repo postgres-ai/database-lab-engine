@@ -10,6 +10,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -30,23 +31,22 @@ const (
 				query
 			FROM pg_stat_activity WHERE pid = $1 /* pgcenter profile */`
 
-	dbStatQuery = `
-select
-  blk_write_time,
-  blks_read,
-  blks_hit,
-  blk_read_time
-from pg_stat_bgwriter, pg_stat_database
-where datname = current_database();
-`
+	sharedBlockReadsQuery = `
+select sum(shared_blks_read+shared_blks_hit) as blks_read 
+from pg_stat_statements 
+inner join pg_database pg_db on pg_db.oid = dbid and pg_db.datname = current_database()`
+
+	blockSizeQuery = `select current_setting('block_size') as block_size`
+
+	enableStatStatements = `create extension if not exists pg_stat_statements`
 
 	waitForBackendActivity = 2 * time.Millisecond
 	totalPercent           = 100
-	millisecondsInSecond   = 1000
 
 	// profiling default values.
 	sampleThreshold   = 20
 	profilingInterval = 10 * time.Millisecond
+	defaultBlockSize  = 8192
 )
 
 // waitEvent defines an auxiliary struct to sort events.
@@ -91,7 +91,9 @@ type Profiler struct {
 	waitEventDurations map[string]float64 // wait events and its durations.
 	waitEventPercents  map[string]float64 // wait events and its percent ratios.
 	sampleCounter      int
-	readBlocks         uint64
+	readBytes          uint64
+	startReadBlocks    uint64
+	blockSize          uint64
 	readyToEstimate    chan struct{}
 	once               sync.Once
 	exitChan           chan struct{}
@@ -112,8 +114,10 @@ func NewProfiler(conn pgxtype.Querier, opts TraceOptions) *Profiler {
 		opts:               opts,
 		waitEventDurations: make(map[string]float64),
 		waitEventPercents:  make(map[string]float64),
-		readyToEstimate:    make(chan struct{}, 1),
 		exitChan:           make(chan struct{}),
+		blockSize:          defaultBlockSize,
+
+		readyToEstimate: make(chan struct{}, 1),
 	}
 }
 
@@ -121,6 +125,32 @@ func NewProfiler(conn pgxtype.Querier, opts TraceOptions) *Profiler {
 func (p *Profiler) Start(ctx context.Context) {
 	prev, curr := TraceStat{}, TraceStat{}
 	startup := true
+
+	defer p.Stop()
+
+	if _, err := p.conn.Exec(ctx, enableStatStatements); err != nil {
+		log.Err("failed to enable pg_stat_statements: ", err)
+		return
+	}
+
+	if err := p.conn.QueryRow(ctx, sharedBlockReadsQuery).Scan(&p.startReadBlocks); err != nil {
+		log.Err("failed to get a starting blocks stats: ", err)
+		return
+	}
+
+	var blockSizeValue string
+	if err := p.conn.QueryRow(ctx, blockSizeQuery).Scan(&blockSizeValue); err != nil {
+		log.Err("failed to get block size: ", err)
+		return
+	}
+
+	blockSize, err := strconv.ParseUint(blockSizeValue, 10, 64)
+	if err != nil {
+		log.Err("failed to parse block size: ", err)
+		return
+	}
+
+	p.blockSize = blockSize
 
 	log.Dbg(fmt.Sprintf("Profiling process %d with %s sampling", p.opts.Pid, p.opts.Interval))
 
@@ -187,8 +217,6 @@ func (p *Profiler) Start(ctx context.Context) {
 		// copy current stats snapshot to previous
 		prev = curr
 	}
-
-	p.Stop()
 }
 
 // Stop signals the end of data collection.
@@ -302,36 +330,24 @@ func (p *Profiler) printStat() {
 	p.out.WriteString(fmt.Sprintf("%-*.2f %*.6f\n", 6, totalPct, 12, totalTime))
 }
 
-// SetReadBlocks sets a numbers of read blocks during profiling.
-func (p *Profiler) SetReadBlocks(readBlocks uint64) {
-	p.readBlocks = readBlocks
-	p.readyToEstimate <- struct{}{}
-}
-
-// ReadyToEstimate waits for the moment when profiler is ready to estimate timings.
-func (p *Profiler) ReadyToEstimate() chan struct{} {
-	return p.readyToEstimate
-}
-
 // EstimateTime estimates time.
 func (p *Profiler) EstimateTime(ctx context.Context) (string, error) {
 	est := NewTiming(p.WaitEventsRatio(), p.opts.ReadRatio, p.opts.WriteRatio)
 
-	if p.readBlocks != 0 {
-		dbStat := StatDatabase{}
+	if p.readBytes != 0 {
+		var afterReads uint64
 
-		if err := p.conn.QueryRow(ctx, dbStatQuery).Scan(
-			&dbStat.BlockWriteTime,
-			&dbStat.BlocksRead,
-			&dbStat.BlocksHit,
-			&dbStat.BlockReadTime); err != nil {
-			return "", errors.Wrap(err, "failed to collect database stat")
+		if err := p.conn.QueryRow(ctx, sharedBlockReadsQuery).Scan(&afterReads); err != nil {
+			return "", errors.Wrap(err, "failed to collect database stat after sql running")
 		}
 
-		est.SetDBStat(dbStat)
-		est.SetReadBlocks(p.readBlocks)
+		deltaBlocks := float64(afterReads - p.startReadBlocks)
+		realReadsRatio := float64(p.readBytes) / float64(defaultBlockSize) / deltaBlocks
 
-		log.Dbg(fmt.Sprintf("%#v, readBlocks: %d", dbStat, p.readBlocks))
+		est.SetRealReadRatio(realReadsRatio)
+
+		log.Dbg(fmt.Sprintf("Start: %d, after: %d, delta: %.8f", p.startReadBlocks, afterReads, deltaBlocks))
+		log.Dbg(fmt.Sprintf("Real read ratio: %v", realReadsRatio))
 	}
 
 	return est.EstTime(p.TotalTime()), nil

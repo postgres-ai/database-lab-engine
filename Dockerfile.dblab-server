@@ -33,6 +33,13 @@ FROM docker:19.03.14
 
 # Install dependencies.
 RUN apk update && apk add --no-cache zfs lvm2 bash util-linux
+RUN echo 'http://dl-cdn.alpinelinux.org/alpine/v3.13/main' >> /etc/apk/repositories \
+  && echo 'http://dl-cdn.alpinelinux.org/alpine/v3.13/community' >> /etc/apk/repositories \
+  && apk add bcc-tools=0.18.0-r0 bcc-doc=0.18.0-r0 && ln -s $(which python3) /usr/bin/python \
+  # TODO: remove after release the PR: https://github.com/iovisor/bcc/pull/3286 (issue: https://github.com/iovisor/bcc/issues/3099)
+  && wget https://raw.githubusercontent.com/iovisor/bcc/master/tools/biosnoop.py -O /usr/share/bcc/tools/biosnoop
+
+ENV PATH="${PATH}:/usr/share/bcc/tools"
 
 WORKDIR /home/dblab
 

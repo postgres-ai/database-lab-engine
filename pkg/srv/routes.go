@@ -19,6 +19,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v2/version"
 )
 
@@ -163,12 +164,19 @@ func (s *Server) startEstimator(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := s.Cloning.GetClone(cloneID); err != nil {
+	clone, err := s.Cloning.GetClone(cloneID)
+	if err != nil {
 		sendNotFoundError(w, r)
 		return
 	}
 
 	ctx := context.Background()
+
+	cloneContainer, err := s.docker.ContainerInspect(ctx, util.GetCloneNameStr(clone.DB.Port))
+	if err != nil {
+		sendBadRequestError(w, r, err.Error())
+		return
+	}
 
 	db, err := s.Cloning.CloneConnection(ctx, cloneID)
 	if err != nil {
@@ -192,7 +200,7 @@ func (s *Server) startEstimator(w http.ResponseWriter, r *http.Request) {
 
 	go wsPing(ws, done)
 
-	if err := s.runEstimator(ctx, ws, db, pid, done); err != nil {
+	if err := s.runEstimator(ctx, ws, db, pid, cloneContainer.ID, done); err != nil {
 		sendError(w, r, err)
 		return
 	}
@@ -200,7 +208,8 @@ func (s *Server) startEstimator(w http.ResponseWriter, r *http.Request) {
 	<-done
 }
 
-func (s *Server) runEstimator(ctx context.Context, ws *websocket.Conn, db pgxtype.Querier, pid int, done chan struct{}) error {
+func (s *Server) runEstimator(ctx context.Context, ws *websocket.Conn, db pgxtype.Querier, pid int, containerID string,
+	done chan struct{}) error {
 	defer close(done)
 
 	estCfg := s.Estimator.Config()
@@ -225,16 +234,16 @@ func (s *Server) runEstimator(ctx context.Context, ws *websocket.Conn, db pgxtyp
 		return errors.Wrap(err, "failed to write message with the ready event")
 	}
 
+	monitor := estimator.NewMonitor(pid, containerID, profiler)
+
 	go func() {
-		if err := receiveClientMessages(ctx, ws, profiler); err != nil {
-			log.Dbg("receive client messages: ", err)
+		if err := monitor.InspectIOBlocks(ctx); err != nil {
+			log.Err(err)
 		}
 	}()
 
 	// Wait for profiling results.
 	<-profiler.Finish()
-
-	<-profiler.ReadyToEstimate()
 
 	estTime, err := profiler.EstimateTime(ctx)
 	if err != nil {
@@ -260,40 +269,6 @@ func (s *Server) runEstimator(ctx context.Context, ws *websocket.Conn, db pgxtyp
 
 	if err := ws.WriteMessage(websocket.TextMessage, resultEventData); err != nil {
 		return errors.Wrap(err, "failed to write message with the ready event")
-	}
-
-	return nil
-}
-
-func receiveClientMessages(ctx context.Context, ws *websocket.Conn, profiler *estimator.Profiler) error {
-	for {
-		if ctx.Err() != nil {
-			log.Msg(ctx.Err())
-			break
-		}
-
-		_, message, err := ws.ReadMessage()
-		if err != nil {
-			return err
-		}
-
-		event := estimator.Event{}
-		if err := json.Unmarshal(message, &event); err != nil {
-			return err
-		}
-
-		switch event.EventType {
-		case estimator.ReadBlocksType:
-			readBlocksEvent := estimator.ReadBlocksEvent{}
-			if err := json.Unmarshal(message, &readBlocksEvent); err != nil {
-				log.Dbg("failed to read blocks event: ", err)
-				break
-			}
-
-			profiler.SetReadBlocks(readBlocksEvent.ReadBlocks)
-		}
-
-		log.Dbg("received unknown message: ", event.EventType, string(message))
 	}
 
 	return nil
