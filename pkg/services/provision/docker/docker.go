@@ -26,6 +26,8 @@ const (
 	labelClone = "dblab_clone"
 )
 
+var systemVolumes = []string{"/sys", "/lib", "/proc"}
+
 // RunContainer runs specified container.
 func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 	hostInfo, err := host.Info()
@@ -94,6 +96,11 @@ func buildMountVolumes(r runners.Runner, c *resources.AppConfig, containerID str
 	volumes := make([]string, 0, len(mounts))
 
 	for _, mountPoint := range mountPoints {
+		// Exclude system volumes from a clone container.
+		if isSystemVolume(mountPoint.Source) {
+			continue
+		}
+
 		// Add extra mount for socket directories.
 		if strings.HasPrefix(unixSocketCloneDir, mountPoint.Destination) {
 			volumes = append(volumes, buildSocketMount(unixSocketCloneDir, mountPoint.Source, mountPoint.Destination))
@@ -102,6 +109,11 @@ func buildMountVolumes(r runners.Runner, c *resources.AppConfig, containerID str
 	}
 
 	for _, mount := range mounts {
+		// Exclude system volumes from a clone container.
+		if isSystemVolume(mount.Source) {
+			continue
+		}
+
 		volume := fmt.Sprintf("--volume %s:%s", mount.Source, mount.Target)
 
 		if mount.BindOptions != nil && mount.BindOptions.Propagation != "" {
@@ -112,6 +124,16 @@ func buildMountVolumes(r runners.Runner, c *resources.AppConfig, containerID str
 	}
 
 	return volumes, nil
+}
+
+func isSystemVolume(source string) bool {
+	for _, sysVolume := range systemVolumes {
+		if strings.HasPrefix(source, sysVolume) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // buildSocketMount builds a socket directory mounting rely on dataDir mounting.

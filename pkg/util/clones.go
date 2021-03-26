@@ -17,3 +17,8 @@ const (
 func GetCloneName(port uint) string {
 	return ClonePrefix + strconv.FormatUint(uint64(port), 10)
 }
+
+// GetCloneNameStr returns a clone name.
+func GetCloneNameStr(port string) string {
+	return ClonePrefix + port
+}
