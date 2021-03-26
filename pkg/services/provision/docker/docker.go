@@ -109,6 +109,11 @@ func buildMountVolumes(r runners.Runner, c *resources.AppConfig, containerID str
 	}
 
 	for _, mount := range mounts {
+		// Exclude system volumes from a clone container.
+		if isSystemVolume(mount.Source) {
+			continue
+		}
+
 		volume := fmt.Sprintf("--volume %s:%s", mount.Source, mount.Target)
 
 		if mount.BindOptions != nil && mount.BindOptions.Propagation != "" {
