@@ -38,6 +38,10 @@ func List() []*cli.Command {
 					Name:  "insecure",
 					Usage: "allow insecure server connections when using SSL",
 				},
+				&cli.DurationFlag{
+					Name:  "request-timeout",
+					Usage: "allow changing requests timeout",
+				},
 				&cli.StringFlag{
 					Name:  "forwarding-server-url",
 					Usage: "forwarding server URL of Database Lab instance",
