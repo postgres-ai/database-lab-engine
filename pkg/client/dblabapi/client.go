@@ -37,6 +37,7 @@ type Client struct {
 	url               *url.URL
 	verificationToken string
 	client            *http.Client
+	requestTimeout    time.Duration
 	pollingInterval   time.Duration
 }
 
@@ -45,6 +46,7 @@ type Options struct {
 	Host              string
 	VerificationToken string
 	Insecure          bool
+	RequestTimeout    time.Duration
 }
 
 const (
@@ -65,10 +67,15 @@ func NewClient(options Options) (*Client, error) {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: options.Insecure},
 	}
 
+	if options.RequestTimeout == 0 {
+		options.RequestTimeout = defaultPollingTimeout
+	}
+
 	return &Client{
 		url:               u,
 		verificationToken: options.VerificationToken,
-		client:            &http.Client{Transport: tr, Timeout: defaultPollingTimeout},
+		client:            &http.Client{Transport: tr},
+		requestTimeout:    options.RequestTimeout,
 		pollingInterval:   defaultPollingInterval,
 	}, nil
 }

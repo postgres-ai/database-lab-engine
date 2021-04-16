@@ -15,13 +15,14 @@ import (
 
 // CLI configuration keys.
 const (
-	EnvironmentIDKey = "environment-id"
-	URLKey           = "url"
-	TokenKey         = "token"
-	InsecureKey      = "insecure"
-	FwServerURLKey   = "forwarding-server-url"
-	FwLocalPortKey   = "forwarding-local-port"
-	IdentityFileKey  = "identity-file"
+	EnvironmentIDKey  = "environment-id"
+	URLKey            = "url"
+	TokenKey          = "token"
+	InsecureKey       = "insecure"
+	RequestTimeoutKey = "request-timeout"
+	FwServerURLKey    = "forwarding-server-url"
+	FwLocalPortKey    = "forwarding-local-port"
+	IdentityFileKey   = "identity-file"
 )
 
 // ClientByCLIContext creates a new Database Lab API client.
@@ -39,6 +40,7 @@ func ClientByCLIContext(cliCtx *cli.Context) (*dblabapi.Client, error) {
 		Host:              remoteURL.String(),
 		VerificationToken: cliCtx.String(TokenKey),
 		Insecure:          cliCtx.Bool(InsecureKey),
+		RequestTimeout:    cliCtx.Duration(RequestTimeoutKey),
 	}
 
 	// TODO(akartasov): Init and use logger.

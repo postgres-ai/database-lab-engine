@@ -19,11 +19,12 @@ type CLIConfig struct {
 
 // Environment defines a format of environment configuration.
 type Environment struct {
-	EnvironmentID string     `yaml:"-" json:"environment_id"`
-	URL           string     `yaml:"url" json:"url"`
-	Token         string     `yaml:"token" json:"token"`
-	Insecure      bool       `yaml:"insecure" json:"insecure"`
-	Forwarding    Forwarding `yaml:"forwarding" json:"forwarding"`
+	EnvironmentID  string     `yaml:"-" json:"environment_id"`
+	URL            string     `yaml:"url" json:"url"`
+	Token          string     `yaml:"token" json:"token"`
+	Insecure       bool       `yaml:"insecure" json:"insecure"`
+	RequestTimeout Duration   `yaml:"request_timeout,omitempty" json:"request_timeout,omitempty"`
+	Forwarding     Forwarding `yaml:"forwarding" json:"forwarding"`
 }
 
 // Forwarding defines configuration for port forwarding.
@@ -44,9 +45,10 @@ func AddEnvironmentToConfig(c *cli.Context, cfg *CLIConfig, environmentID string
 	}
 
 	env := Environment{
-		URL:      c.String(commands.URLKey),
-		Token:    c.String(commands.TokenKey),
-		Insecure: c.Bool(commands.InsecureKey),
+		URL:            c.String(commands.URLKey),
+		Token:          c.String(commands.TokenKey),
+		Insecure:       c.Bool(commands.InsecureKey),
+		RequestTimeout: Duration(c.Duration(commands.RequestTimeoutKey)),
 		Forwarding: Forwarding{
 			ServerURL:    c.String(commands.FwServerURLKey),
 			LocalPort:    c.String(commands.FwLocalPortKey),
@@ -91,6 +93,10 @@ func updateEnvironmentInConfig(c *cli.Context, cfg *CLIConfig, environmentID str
 
 	if c.IsSet(commands.InsecureKey) {
 		newEnvironment.Insecure = c.Bool(commands.InsecureKey)
+	}
+
+	if c.IsSet(commands.RequestTimeoutKey) {
+		newEnvironment.RequestTimeout = Duration(c.Duration(commands.RequestTimeoutKey))
 	}
 
 	if c.IsSet(commands.FwServerURLKey) {

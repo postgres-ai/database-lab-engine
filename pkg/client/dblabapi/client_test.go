@@ -3,6 +3,7 @@ package dblabapi
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,12 +29,14 @@ func TestNewClient(t *testing.T) {
 	c, err := NewClient(Options{
 		Host:              "https://example.com//",
 		VerificationToken: "testVerify",
+		RequestTimeout:    30 * time.Second,
 	})
 	require.NoError(t, err)
 
 	assert.IsType(t, &Client{}, c)
 	assert.Equal(t, "https://example.com", c.url.String())
 	assert.Equal(t, "testVerify", c.verificationToken)
+	assert.Equal(t, 30*time.Second, c.requestTimeout)
 	assert.IsType(t, &http.Client{}, c.client)
 }
 

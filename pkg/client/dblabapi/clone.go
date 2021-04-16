@@ -133,7 +133,7 @@ func (c *Client) watchCloneStatus(ctx context.Context, cloneID string, initialSt
 	var cancel context.CancelFunc
 
 	if _, ok := ctx.Deadline(); !ok {
-		ctx, cancel = context.WithTimeout(ctx, defaultPollingTimeout)
+		ctx, cancel = context.WithTimeout(ctx, c.requestTimeout)
 		defer cancel()
 	}
 

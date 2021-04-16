@@ -55,6 +55,11 @@ func main() {
 				Usage:   "allow insecure server connections when using SSL",
 				EnvVars: []string{"DBLAB_INSECURE_SKIP_VERIFY"},
 			},
+			&cli.DurationFlag{
+				Name:    "request-timeout",
+				Usage:   "allow changing requests timeout",
+				EnvVars: []string{"DBLAB_REQUEST_TIMEOUT"},
+			},
 			&cli.StringFlag{
 				Name:    "forwarding-server-url",
 				Usage:   "forwarding server URL of Database Lab instance",
@@ -117,6 +122,12 @@ func loadEnvironmentParams(c *cli.Context) error {
 
 		if !c.IsSet(commands.InsecureKey) {
 			if err := c.Set(commands.InsecureKey, strconv.FormatBool(env.Insecure)); err != nil {
+				return err
+			}
+		}
+
+		if !c.IsSet(commands.RequestTimeoutKey) {
+			if err := c.Set(commands.RequestTimeoutKey, env.RequestTimeout.String()); err != nil {
 				return err
 			}
 		}
