@@ -70,7 +70,7 @@ func StopControlContainers(ctx context.Context, dockerClient *client.Client, ins
 		if shouldStopInternalProcess(controlLabel) {
 			log.Msg("Stopping control container: ", containerName)
 
-			if err := tools.StopPostgres(ctx, dockerClient, controlCont.ID, dataDir); err != nil {
+			if err := tools.StopPostgres(ctx, dockerClient, controlCont.ID, dataDir, tools.DefaultStopTimeout); err != nil {
 				log.Msg("Failed to stop Postgres", err)
 				tools.PrintContainerLogs(ctx, dockerClient, controlCont.ID)
 

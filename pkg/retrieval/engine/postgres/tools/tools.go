@@ -40,6 +40,9 @@ const (
 	maxValuesToReturn     = 1
 	essentialLogsInterval = "10s"
 
+	// DefaultStopTimeout defines the default timeout for Postgres stop.
+	DefaultStopTimeout = 60
+
 	// ViewLogsCmd tells the command to view docker container logs.
 	ViewLogsCmd = "docker logs --since 1m -f"
 
@@ -156,15 +159,20 @@ func GetMountsFromMountPoints(dataDir string, mountPoints []types.MountPoint) []
 }
 
 // StopPostgres stops Postgres inside container.
-func StopPostgres(ctx context.Context, dockerClient *client.Client, containerID, dataDir string) error {
+func StopPostgres(ctx context.Context, dockerClient *client.Client, containerID, dataDir string, timeout int) error {
 	pgVersion, err := DetectPGVersion(dataDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to detect PostgreSQL version")
 	}
 
+	stopCommand := []string{fmt.Sprintf("/usr/lib/postgresql/%g/bin/pg_ctl", pgVersion),
+		"-D", dataDir, "-w", "--timeout", strconv.Itoa(timeout), "stop"}
+
+	log.Msg("Stopping PostgreSQL instance", stopCommand)
+
 	if err := ExecCommand(ctx, dockerClient, containerID, types.ExecConfig{
 		User: defaults.Username,
-		Cmd:  []string{fmt.Sprintf("/usr/lib/postgresql/%g/bin/pg_ctl", pgVersion), "-D", dataDir, "stop"},
+		Cmd:  stopCommand,
 	}); err != nil {
 		return errors.Wrap(err, "failed to stop Postgres")
 	}
