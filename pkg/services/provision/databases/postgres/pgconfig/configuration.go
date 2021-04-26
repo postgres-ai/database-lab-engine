@@ -42,6 +42,12 @@ const (
 	// recoveryConfName defines the name of recovery Postgres (<11) config.
 	recoveryConfName = "recovery.conf"
 
+	// standbySignal defines the name of the file which means that standby mode is initialized for Postgres (>=12).
+	standbySignal = "standby.signal"
+
+	// recoverySignal defines the name of the file which means that recovery is initialized for Postgres (>=12).
+	recoverySignal = "recovery.signal"
+
 	// Database Lab configuration files.
 	// configPrefix defines a file prefix for Database Lab configuration files.
 	configPrefix = "postgresql.dblab."
@@ -307,7 +313,7 @@ func (m *Manager) ApplyRecovery(cfg map[string]string) error {
 	}
 
 	if m.pgVersion >= defaults.PGVersion12 {
-		if err := tools.TouchFile(path.Join(m.dataDir, "standby.signal")); err != nil {
+		if err := tools.TouchFile(path.Join(m.dataDir, standbySignal)); err != nil {
 			return err
 		}
 	}
@@ -335,10 +341,30 @@ func (m *Manager) TruncateRecoveryConfig() error {
 
 // RemoveRecoveryConfig removes a recovery configuration file.
 func (m *Manager) RemoveRecoveryConfig() error {
-	err := os.Remove(m.recoveryPath())
-	if pathError, ok := err.(*os.PathError); ok {
-		log.Dbg("failed to remove a recovery configuration file: ", pathError.Error())
+	if err := m.removeOptionally(m.recoveryPath()); err != nil {
+		return err
+	}
 
+	if m.pgVersion < defaults.PGVersion12 {
+		return nil
+	}
+
+	if err := m.removeOptionally(m.standbySignalPath()); err != nil {
+		return err
+	}
+
+	if err := m.removeOptionally(m.recoverySignalPath()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Manager) removeOptionally(filepath string) error {
+	err := os.Remove(filepath)
+
+	if pathError, ok := err.(*os.PathError); ok {
+		log.Dbg(pathError.Error())
 		return nil
 	}
 
@@ -418,6 +444,16 @@ func (m Manager) recoveryFilename() string {
 	}
 
 	return recoveryConfName
+}
+
+// recoverySignalPath returns the path of the recovery signal file.
+func (m Manager) recoverySignalPath() string {
+	return path.Join(m.dataDir, recoverySignal)
+}
+
+// standbySignalPath returns the path of the standby signal file.
+func (m Manager) standbySignalPath() string {
+	return path.Join(m.dataDir, standbySignal)
 }
 
 // rewriteConfig completely rewrite a configuration file with provided parameters.

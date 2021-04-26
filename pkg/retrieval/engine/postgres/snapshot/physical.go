@@ -298,6 +298,14 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 		}
 	}()
 
+	var syncErr error
+
+	if p.options.Promotion.Enabled {
+		if syncErr = p.checkSyncInstance(ctx); syncErr != nil {
+			log.Dbg(fmt.Sprintf("failed to check the sync instance before snapshotting: %v", syncErr), "Changing the promotion strategy")
+		}
+	}
+
 	// Prepare pre-snapshot.
 	snapshotName, err := p.cloneManager.CreateSnapshot("", preDataStateAt+pre)
 	if err != nil {
@@ -326,7 +334,7 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 
 	// Promotion.
 	if p.options.Promotion.Enabled {
-		if err := p.promoteInstance(ctx, path.Join(p.fsPool.ClonesDir(), cloneName, p.fsPool.DataSubDir)); err != nil {
+		if err := p.promoteInstance(ctx, path.Join(p.fsPool.ClonesDir(), cloneName, p.fsPool.DataSubDir), syncErr); err != nil {
 			return errors.Wrap(err, "failed to promote instance")
 		}
 	}
@@ -351,6 +359,29 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	p.updateDataStateAt()
 
 	return nil
+}
+
+func (p *PhysicalInitial) checkSyncInstance(ctx context.Context) error {
+	syncContainer, err := p.dockerClient.ContainerInspect(ctx, p.syncInstanceName())
+	if err != nil {
+		return err
+	}
+
+	if err := tools.CheckContainerReadiness(ctx, p.dockerClient, syncContainer.ID); err != nil {
+		return errors.Wrap(err, "failed to readiness check")
+	}
+
+	log.Msg("Sync instance has been checked. It is running")
+
+	if err := p.checkpoint(ctx, syncContainer.ID); err != nil {
+		return errors.Wrap(err, "failed to make a checkpoint for sync instance")
+	}
+
+	return nil
+}
+
+func (p *PhysicalInitial) syncInstanceName() string {
+	return cont.SyncInstanceContainerPrefix + p.globalCfg.InstanceID
 }
 
 func (p *PhysicalInitial) startScheduler(ctx context.Context) {
@@ -409,7 +440,7 @@ func (p *PhysicalInitial) promoteContainerName() string {
 	return promoteContainerPrefix + p.globalCfg.InstanceID
 }
 
-func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string) (err error) {
+func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string, syncErr error) (err error) {
 	p.promotionMutex.Lock()
 	defer p.promotionMutex.Unlock()
 
@@ -436,10 +467,17 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		}
 	}
 
-	recoveryConfig := buildRecoveryConfig(recoveryFileConfig, p.options.Promotion.Recovery)
+	recoveryConfig := make(map[string]string)
 
-	if err := cfgManager.ApplyRecovery(recoveryFileConfig); err != nil {
-		return errors.Wrap(err, "failed to apply recovery configuration")
+	// Item 5. Remove a recovery file: https://gitlab.com/postgres-ai/database-lab/-/issues/236#note_513401256
+	if syncErr != nil {
+		recoveryConfig = buildRecoveryConfig(recoveryFileConfig, p.options.Promotion.Recovery)
+
+		if err := cfgManager.ApplyRecovery(recoveryFileConfig); err != nil {
+			return errors.Wrap(err, "failed to apply recovery configuration")
+		}
+	} else if err := cfgManager.RemoveRecoveryConfig(); err != nil {
+		log.Err(errors.Wrap(err, "failed to remove recovery config file"))
 	}
 
 	// Apply promotion configs.
@@ -555,6 +593,13 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 	// Apply configs to the snapshot.
 	if err := cfgManager.ApplySnapshot(p.options.Configs); err != nil {
 		return errors.Wrap(err, "failed to store prepared configuration")
+	}
+
+	const pgStopTimeout = 600
+
+	if err := tools.StopPostgres(ctx, p.dockerClient, promoteCont.ID, clonePath, pgStopTimeout); err != nil {
+		log.Msg("Failed to stop Postgres", err)
+		tools.PrintContainerLogs(ctx, p.dockerClient, promoteCont.ID)
 	}
 
 	return nil
