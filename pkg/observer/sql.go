@@ -6,43 +6,51 @@ package observer
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+	"path"
+	"strconv"
+	"strings"
 
-	_ "github.com/lib/pq" //nolint
+	"github.com/jackc/pgx/v4"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 )
 
-func initConnection(clone *models.Clone, sslMode string) (*sql.DB, error) {
-	db, err := sql.Open("postgres", buildConnectionString(clone, sslMode))
+func initConnection(clone *models.Clone, socketDir string) (*pgx.Conn, error) {
+	host, err := unixSocketDir(socketDir, clone.DB.Port)
 	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse clone port")
+	}
+
+	connectionStr := buildConnectionString(clone, host)
+
+	conn, err := pgx.Connect(context.Background(), connectionStr)
+	if err != nil {
+		log.Err("DB connection:", err)
+		return nil, err
+	}
+
+	if err := conn.Ping(context.Background()); err != nil {
 		return nil, errors.Wrap(err, "cannot init connection")
 	}
 
-	if err := db.PingContext(context.Background()); err != nil {
-		return nil, errors.Wrap(err, "cannot init connection")
-	}
-
-	return db, nil
+	return conn, nil
 }
 
-func runQuery(db *sql.DB, query string, args ...interface{}) (string, error) {
-	var result = ""
+func runQuery(ctx context.Context, db *pgx.Conn, query string, args ...interface{}) (string, error) {
+	result := strings.Builder{}
 
-	rows, err := db.Query(query, args...)
+	rows, err := db.Query(ctx, query, args...)
 	if err != nil {
 		log.Err("DB query:", err)
 		return "", err
 	}
 
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Err("Error when closing:", err)
-		}
-	}()
+	defer rows.Close()
 
 	for rows.Next() {
 		var s string
@@ -52,19 +60,39 @@ func runQuery(db *sql.DB, query string, args ...interface{}) (string, error) {
 			return s, err
 		}
 
-		result += s + "\n"
+		result.WriteString(s)
+		result.WriteString("\n")
 	}
 
 	if err := rows.Err(); err != nil {
 		log.Err("DB query traversal:", err)
-		return result, err
+		return result.String(), err
 	}
 
-	return result, nil
+	return result.String(), nil
 }
 
-func buildConnectionString(clone *models.Clone, sslMode string) string {
+func unixSocketDir(socketDir, portStr string) (string, error) {
+	port, err := strconv.ParseUint(portStr, 10, 64)
+	if err != nil {
+		return "", err
+	}
+
+	return path.Join(socketDir, util.GetCloneName(uint(port))), nil
+}
+
+func buildConnectionString(clone *models.Clone, socketDir string) string {
 	db := clone.DB
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=%s",
-		db.Host, db.Port, db.Username, db.Password, sslMode)
+
+	if db.DBName == "" {
+		db.DBName = defaults.DBName
+	}
+
+	return fmt.Sprintf(`host=%s port=%s user=%s password='%s' database='%s' application_name='%s'`,
+		socketDir,
+		db.Port,
+		db.Username,
+		db.Password,
+		db.DBName,
+		observerApplicationName)
 }

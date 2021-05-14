@@ -12,19 +12,14 @@ import (
 // Session defines clone provision information and connection info.
 type Session struct {
 	ID   string
-	Name string
+	Pool string
 
 	// Database.
-	Host       string
-	Port       uint
-	User       string
-	Password   string
-	SocketHost string
-
-	// TODO(anatoly): Were private fields. How to keep them private?
-	// For user-defined username and password.
-	EphemeralUser     string
-	EphemeralPassword string
+	Port          uint
+	User          string
+	SocketHost    string
+	EphemeralUser EphemeralUser
+	ExtraConfig   map[string]string
 }
 
 // Disk defines disk status.
@@ -34,6 +29,15 @@ type Disk struct {
 	Free     uint64
 	Used     uint64
 	DataSize uint64
+}
+
+// EphemeralUser describes an ephemeral database user defined by Database Lab users.
+type EphemeralUser struct {
+	// TODO(anatoly): Were private fields. How to keep them private?
+	Name        string
+	Password    string
+	Restricted  bool
+	AvailableDB string
 }
 
 // Snapshot defines snapshot of the data with related meta-information.

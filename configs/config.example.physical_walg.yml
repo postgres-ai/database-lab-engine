@@ -17,7 +17,7 @@ server:
   # only to the administrator of the Database Lab instance.
   verificationToken: "secret_token"
 
-  # The host which the Database Lab server accepts HTTP connections to.
+  # The host to which the Database Lab server accepts HTTP connections.
   # By default uses an empty string to accept connections to all network interfaces.
   # Keep it default when running inside a Docker container.
   host: ""
@@ -29,75 +29,80 @@ global:
   # Database engine. Currently, the only supported option: "postgres".
   engine: postgres
 
-  # Full path to the pool mount directory.
-  mountDir: "/var/lib/dblab"
+  # Debugging, when enabled, allows seeing more in the Database Lab logs
+  # (not PostgreSQL logs). Enable in the case of troubleshooting.
+  debug: false
+
+  # Contains default configuration options of the restored database.
+  database:
+    # Default database username that will be used for Postgres management connections.
+    # This user must exist.
+    username: postgres
+
+    # Default database name.
+    dbname: postgres
+
+# Manages filesystem pools (in the case of ZFS) or volume groups.
+poolManager:
+  # The full path which contains the pool mount directories. mountDir can contain multiple pool directories.
+  mountDir: /var/lib/dblab
 
   # Subdir where PGDATA located relative to the pool mount directory.
   # This directory must already exist before launching Database Lab instance. It may be empty if
   # data initialization is configured (see below).
   # Note, it is a relative path. Default: "data".
-  # For example, for the PostgreSQL data directory "/var/lib/dblab/data" set:
+  # For example, for the PostgreSQL data directory "/var/lib/dblab/dblab_pool/data" (`dblab_pool` is a pool mount directory) set:
   #      mountDir:  /var/lib/dblab
   #      dataSubDir:  data
-  # In this case, we assume that the mount point is: /var/lib/dblab
-  dataSubDir: "data"
+  # In this case, we assume that the mount point is: /var/lib/dblab/dblab_pool
+  dataSubDir: data
 
-  # Debugging, when enabled, allows to see more in the Database Lab logs
-  # (not PostgreSQL logs). Enable in the case of troubleshooting.
-  debug: false
+  # Directory that will be used to mount clones. Subdirectories in this directory
+  # will be used as mount points for clones. Subdirectory names will
+  # correspond to ports. E.g., subdirectory "dblab_clone_6000" for the clone running on port 6000.
+  clonesMountSubDir: clones
+
+  # Unix domain socket directory used to establish local connections to cloned databases.
+  socketSubDir: sockets
+
+  # Directory that will be used to store observability artifacts. The directory will be created inside PGDATA.
+  observerSubDir: observer
+
+  # Snapshots with this suffix are considered preliminary. They are not supposed to be accessible to end-users.
+  preSnapshotSuffix: "_pre"
 
 # Details of provisioning – where data is located,
 # thin cloning method, etc.
 provision:
-  # Database username that will be used for Postgres management connections.
-  # This user must exist.
-  # The password is not needed – it will be set automatically.
-  # Connections will be made via a Unix domain socket (local).
-  pgMgmtUsername: "postgres"
+  # Pool of ports for Postgres clones. Ports will be allocated sequentially,
+  # starting from the lowest value. The "from" value must be less than "to".
+  portPool:
+    from: 6000
+    to: 6100
 
-  # Options related to provisioning.
-  options:
-    # Thin-clone managing module used for thin cloning.
-    # Available options: "zfs" (recommended), "lvm".
-    thinCloneManager: "zfs"
+  # Database Lab provisions thin clones using Docker containers, we need
+  # to specify which Postgres Docker image is to be used when cloning.
+  # The default is the extended Postgres image built on top of the official Postgres image
+  # (See https://postgres.ai/docs/database-lab/supported_databases).
+  # Any custom or official Docker image that runs Postgres. Our Dockerfile
+  # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
+  # is recommended in case if customization is needed.
+  dockerImage: "postgresai/extended-postgres:13"
 
-    # Name of your pool (in the case of ZFS) or volume group
-    # with logic volume name (e.g. "dblab_vg/pg_lv", in the case of LVM).
-    pool: "dblab_pool"
+  # Use sudo for ZFS/LVM and Docker commands if Database Lab server running
+  # outside a container. Keep it "false" (default) when running in a container.
+  useSudo: false
 
-    # Pool of ports for Postgres clones. Ports will be allocated sequentially,
-    # starting from the lowest value. The "from" value must be less than "to".
-    portPool:
-      from: 6000
-      to: 6100
+  # Avoid default password resetting in clones and have the ability for
+  # existing users to log in with old passwords.
+  keepUserPasswords: false
 
-    # Directory that will be used to mount clones. Subdirectories in this directory
-    # will be used as mount points for clones. Subdirectory names will
-    # correspond to ports. E.g., subdirectory "dblab_clone_6000" for the clone running on port 6000.
-    clonesMountDir: /var/lib/dblab/clones
-
-    # Unix domain socket directory used to establish local connections to cloned databases.
-    unixSocketDir: /var/lib/dblab/sockets
-
-    # Snapshots with this suffix are considered preliminary. They are not supposed to be accessible to end-users.
-    preSnapshotSuffix: "_pre"
-
-    # Database Lab provisions thin clones using Docker containers, we need
-    # to specify which Postgres Docker image is to be used when cloning.
-    # The default is the extended Postgres image built on top of the official Postgres image
-    # (See https://postgres.ai/docs/database-lab/supported_databases).
-    # Any custom or official Docker image that runs Postgres with PGDATA located
-    # in "/var/lib/postgresql/pgdata" directory. Our Dockerfile
-    # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
-    # is recommended in case if customization is needed.
-    dockerImage: "postgresai/extended-postgres:12"
-
-    # Use sudo for ZFS/LVM and Docker commands if Database Lab server running
-    # outside a container. Keep it "false" (default) when running in a container.
-    useSudo: false
+  # Custom parameters for clone containers (https://docs.docker.com/engine/reference/run/#runtime-constraints-on-resources).
+  containerConfig:
+    "shm-size": 1gb
 
 # Data retrieval flow. This section defines both initial retrieval, and rules
-# to keep data directory in synchronized state with the source. Both are optional:
+# to keep the data directory in a synchronized state with the source. Both are optional:
 # you may already have the data directory, so neither initial retrieval nor
 # synchronization are needed.
 # 
@@ -110,7 +115,7 @@ provision:
 #
 # There are two basic ways to organize data retrieval:
 #  - "logical":  use dump/restore processes, obtaining a logical copy of the initial
-#                database (such as set of SQL commands), and then loading it to
+#                database (a sequence  of SQL commands), and then loading it to
 #                the target Database Lab data directory. This is the only option
 #                for managed cloud PostgreSQL services such as Amazon RDS. Physically,
 #                the copy of the database created using this method differs from
@@ -119,7 +124,7 @@ provision:
 #                allowing to do various kinds of development and testing, including
 #                running EXPLAIN command to optimize SQL queries.
 #  - "physical": physically copy the data directory from the source (or from the
-#                archive if a physical backup tool such as WAL-G, pgBackRest or Barman
+#                archive if a physical backup tool such as WAL-G, pgBackRest, or Barman
 #                is used). This approach allows to have a copy of the original database
 #                which is physically identical, including the existing bloat, data
 #                blocks location. Not supported for managed cloud Postgres services
@@ -134,29 +139,88 @@ retrieval:
     # Restores database data from a physical backup.
     physicalRestore:
       options:
+        # Defines the tool to restore data.
         tool: walg
-        dockerImage: "postgresai/sync-instance:12"
-        syncInstance: true
+
+        # Specifies the Docker image containing the restoring tool.
+        dockerImage: "postgresai/extended-postgres:13"
+
+        # Sync instance options.
+        sync:
+          # Enable running of a sync instance.
+          enabled: true
+
+          # Custom health check options for a sync instance container.
+          healthCheck:
+            # Health check interval for a sync instance container (in seconds).
+            interval: 5
+
+            # Maximum number of health check retries.
+            maxRetries: 200
+
+          # Add PostgreSQL configuration parameters to the sync container.
+          configs:
+            shared_buffers: 2GB
+
+          # Add PostgreSQL recovery configuration parameters to the sync container.
+          recovery:
+            # Uncomment this only if you are on Postgres version 11 or older.
+            # standby_mode: on
+
+        # Passes custom environment variables to the Docker container with the restoring tool.
         envs:
           WALG_GS_PREFIX: "gs://{BUCKET}/{SCOPE}"
           GOOGLE_APPLICATION_CREDENTIALS: "/tmp/sa.json"
+
+        # Defines WAL-G configuration options.
         walg:
           backupName: LATEST
 
     physicalSnapshot:
       options:
-        # Promote PGDATA after data fetching.
-        promote: true
+        # Skip taking a snapshot while the retrieval starts.
+        skipStartSnapshot: false
 
-        # Custom Docker image for data promotion.
-        dockerImage: "postgresai/sync-instance:12"
+        # Promote PGDATA after data fetching.
+        promotion:
+          # Enable PGDATA promotion.
+          enabled: true
+
+          # Custom Docker image for data promotion.
+          dockerImage: "postgresai/extended-postgres:13"
+
+          # Custom health check options for a data promotion container.
+          healthCheck:
+            # Health check interval for a data promotion container (in seconds).
+            interval: 5
+
+            # Maximum number of health check retries.
+            maxRetries: 200
+
+          # It is possible to define pre-precessing SQL queries. For example, "/tmp/scripts/sql".
+          # Default: empty string (no pre-processing defined).
+          queryPreprocessing:
+            # Path to SQL pre-processing queries.
+            queryPath: ""
+
+            # Worker limit for parallel queries.
+            maxParallelWorkers: 2
+
+          # Add PostgreSQL configuration parameters to the promotion container.
+          configs:
+            shared_buffers: 2GB
+
+          # Add PostgreSQL recovery configuration parameters to the promotion container.
+          recovery:
+            # Uncomment this only if you are on Postgres version 11 or older.
+            # standby_mode: on
 
         # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
         # Default: empty string (no pre-processing defined).
         # This can be used for scrubbing eliminating PII data, to define data masking, etc.
         preprocessingScript: ""
 
-        # Adjust PostgreSQL configuration
+        # Adjust PostgreSQL configuration of the snapshot.
         configs:
           # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
           shared_buffers: 1GB
@@ -175,7 +239,7 @@ retrieval:
           work_mem: "100MB"
           # ... put Query Planning parameters here
 
-        # Scheduler contains tasks which run on a schedule.
+        # Scheduler contains tasks that run on a schedule.
         scheduler:
           # Snapshot scheduler creates a new snapshot on a schedule.
           snapshot:
@@ -187,6 +251,11 @@ retrieval:
             timetable: "0 * * * *"
             # Limit defines how many snapshots should be hold.
             limit: 4
+
+        # Passes custom environment variables to the promotion Docker container.
+        envs:
+          WALG_GS_PREFIX: "gs://{BUCKET}/{SCOPE}"
+          GOOGLE_APPLICATION_CREDENTIALS: "/tmp/sa.json"
 
 cloning:
   # Host that will be specified in database connection info for all clones
@@ -214,7 +283,7 @@ cloning:
 #
 #  # Token for authorization in Platform API. This token can be obtained on
 #  # the Postgres.ai Console: https://postgres.ai/console/YOUR_ORG_NAME/tokens
-#  # This token needs to be kept in secret, known only to the administrtor.
+#  # This token needs to be kept in secret, known only to the administrator.
 #  accessToken: "platform_access_token"
 #
 #  # Enable authorization with personal tokens of the organization's members.
@@ -222,3 +291,27 @@ cloning:
 #  # If true: "accessToken" is known only to admin, users use their own tokens,
 #  #          and any token can be revoked not affecting others
 #  enablePersonalTokens: true
+#
+# CI Observer configuration.
+#observer:
+#  # Set up regexp rules for Postgres logs.
+#  # These rules are applied before sending the logs to the Platform, to ensure that personal data is masked properly.
+#  # Check the syntax of regular expressions: https://github.com/google/re2/wiki/Syntax
+#  replacementRules:
+#    "regexp": "replace"
+#    "select \\d+": "***"
+#    "[a-z0-9._%+\\-]+(@[a-z0-9.\\-]+\\.[a-z]{2,4})": "***$1"
+#
+# Tool to calculate timing difference between Database Lab and production environments.
+#estimator:
+#  # The ratio evaluating the timing difference for operations involving IO Read between Database Lab and production environments.
+#  readRatio: 1
+#
+#  # The ratio evaluating the timing difference for operations involving IO Write between Database Lab and production environments.
+#  writeRatio: 1
+#
+#  # Time interval of samples taken by the profiler.
+#  profilingInterval: 10ms
+#
+#  # The minimum number of samples sufficient to display the estimation results.
+#  sampleThreshold: 20

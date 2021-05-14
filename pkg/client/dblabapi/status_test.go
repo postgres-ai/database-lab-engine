@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 )
 
 func TestClientStatus(t *testing.T) {
@@ -21,17 +21,21 @@ func TestClientStatus(t *testing.T) {
 			Message: "Instance is ready",
 		},
 		FileSystem: &models.FileSystem{
-			Size: 15489651156451,
-			Free: 15429651156451,
+			Size:   15489651156451,
+			SizeHR: "14 TiB",
+			Free:   15429651156451,
+			FreeHR: "14 TiB",
 		},
 		DataSize:            2654568125,
+		DataSizeHR:          "2.5 GiB",
 		ExpectedCloningTime: 0,
 		NumClones:           1,
 		Clones: []*models.Clone{{
 			ID: "testCloneID",
 			Metadata: models.CloneMetadata{
-				CloneDiffSize: 45054685181,
-				CloningTime:   1,
+				CloneDiffSize:   450546851,
+				CloneDiffSizeHR: "430 MiB",
+				CloningTime:     1,
 			},
 			Protected: true,
 			DeleteAt:  "2020-01-10 00:00:05.000 UTC",
@@ -44,7 +48,6 @@ func TestClientStatus(t *testing.T) {
 				Username: "john",
 				Password: "doe",
 			},
-			Project: "testProject",
 		}},
 	}
 

@@ -14,16 +14,14 @@ type Clone struct {
 	Status    Status        `json:"status"`
 	DB        Database      `json:"db"`
 	Metadata  CloneMetadata `json:"metadata"`
-
-	// TODO(anatoly): Remove?
-	Project string `json:"project"`
 }
 
 // CloneMetadata contains fields describing a clone model.
 type CloneMetadata struct {
-	CloneDiffSize  uint64  `json:"cloneDiffSize"`
-	CloningTime    float64 `json:"cloningTime"`
-	MaxIdleMinutes uint    `json:"maxIdleMinutes"`
+	CloneDiffSize   uint64  `json:"cloneDiffSize"`
+	CloneDiffSizeHR string  `json:"cloneDiffSizeHR"`
+	CloningTime     float64 `json:"cloningTime"`
+	MaxIdleMinutes  uint    `json:"maxIdleMinutes"`
 }
 
 // PatchCloneRequest defines a struct for clone updating.

@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 
 	"github.com/pkg/errors"
 )
@@ -63,7 +63,7 @@ func errDetailsMsg(r *http.Request, err error) string {
 		queryString = queryUnescape
 	}
 
-	return fmt.Sprintf("[ERROR] - %s %s - %+v", r.Method, queryString, err)
+	return fmt.Sprintf("[ERROR] - %s %s - %v", r.Method, queryString, err)
 }
 
 // toStatusCode converts an error to an HTTP status code.

@@ -9,15 +9,12 @@ import (
 	"context"
 	"time"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
-)
+	"github.com/jackc/pgtype/pgxtype"
 
-const (
-	// cloneDiffSize defines a default clone size.
-	cloneDiffSize = 10
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 )
 
 // Config contains a cloning configuration.
@@ -33,11 +30,14 @@ type cloning struct {
 // Cloning defines a Cloning service interface.
 type Cloning interface {
 	Run(ctx context.Context) error
+	Reload(config Config)
 
 	CreateClone(*types.CloneCreateRequest) (*models.Clone, error)
+	CloneConnection(ctx context.Context, cloneID string) (pgxtype.Querier, error)
 	DestroyClone(string) error
 	GetClone(string) (*models.Clone, error)
 	UpdateClone(string, *types.CloneUpdateRequest) (*models.Clone, error)
+	UpdateCloneStatus(string, models.Status) error
 	ResetClone(string) error
 
 	GetInstanceState() (*models.InstanceStatus, error)
@@ -60,8 +60,8 @@ type CloneWrapper struct {
 }
 
 // New returns a cloning interface depends on configuration mode.
-func New(cfg *Config, provision provision.Provision) Cloning {
-	return NewBaseCloning(cfg, provision)
+func New(cfg *Config, provision *provision.Provisioner, observingCh chan string) Cloning {
+	return NewBaseCloning(cfg, provision, observingCh)
 }
 
 // NewCloneWrapper constructs a new CloneWrapper.

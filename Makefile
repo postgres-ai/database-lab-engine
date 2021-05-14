@@ -13,8 +13,8 @@ BUILD_DIR=${GOPATH}/${SERVER_BINARY}
 
 # Setup the -ldflags option for go build here, interpolate the variable values
 LDFLAGS = -ldflags "-s -w \
-	-X gitlab.com/postgres-ai/database-lab/version.version=${VERSION} \
-	-X gitlab.com/postgres-ai/database-lab/version.buildTime=${BUILD_TIME}"
+	-X gitlab.com/postgres-ai/database-lab/v2/version.version=${VERSION} \
+	-X gitlab.com/postgres-ai/database-lab/v2/version.buildTime=${BUILD_TIME}"
 
 # Go tooling command aliases
 GOBUILD = GO111MODULE=on GOARCH=${GOARCH} go build ${LDFLAGS}
@@ -29,7 +29,7 @@ all: clean build
 
 # Install the linter to $GOPATH/bin which is expected to be in $PATH
 install-lint:
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.30.0
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.35.2
 
 run-lint:
 	golangci-lint run

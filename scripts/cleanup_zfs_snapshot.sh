@@ -1,6 +1,12 @@
 #!/bin/bash
 # 2019 © Postgres.ai
 
+### !!! DEPRECATED !!! ###
+### In version 2.0, snapshotting policy, as well as
+### snapshot retention are now automated and defined in
+### the main configuration file. See: 
+### https://postgres.ai/docs/database-lab/config-reference#section-retrieval-data-retrieval
+
 # Name of the ZFS pool which contains PGDATA.
 zfs_pool=${ZFS_POOL:-"dblab_pool"}
 

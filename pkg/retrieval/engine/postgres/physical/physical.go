@@ -11,8 +11,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
-	"strconv"
 	"strings"
 	"time"
 
@@ -21,18 +19,18 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
-	"github.com/sethvargo/go-password/password"
 
-	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/fs"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/configuration"
-	"gitlab.com/postgres-ai/database-lab/pkg/util"
+	dblabCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/dbmarker"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/cont"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/health"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/pgtool"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/options"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/databases/postgres/pgconfig"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 )
 
 const (
@@ -40,14 +38,24 @@ const (
 	RestoreJobType = "physicalRestore"
 
 	restoreContainerPrefix = "dblab_phr_"
-	readyLogLine           = "database system is ready to accept"
-	defaultPgConfigsDir    = "default"
+)
+
+var (
+	// List of original parameters to synchronize on restore.
+	originalParamsToRestore = map[string]string{
+		"max_connections":        "max_connections",
+		"max_prepared_xacts":     "max_prepared_transactions",
+		"max_locks_per_xact":     "max_locks_per_transaction",
+		"max_worker_processes":   "max_worker_processes",
+		"track_commit_timestamp": "track_commit_timestamp",
+	}
 )
 
 // RestoreJob describes a job for physical restoring.
 type RestoreJob struct {
 	name         string
 	dockerClient *client.Client
+	fsPool       *resources.Pool
 	globalCfg    *dblabCfg.Global
 	dbMarker     *dbmarker.Marker
 	restorer     restorer
@@ -56,12 +64,26 @@ type RestoreJob struct {
 
 // CopyOptions describes options for physical copying.
 type CopyOptions struct {
-	Tool         string            `yaml:"tool"`
-	DockerImage  string            `yaml:"dockerImage"`
-	Envs         map[string]string `yaml:"envs"`
-	WALG         walgOptions       `yaml:"walg"`
-	CustomTool   customOptions     `yaml:"customTool"`
-	SyncInstance bool              `yaml:"syncInstance"`
+	Tool        string            `yaml:"tool"`
+	DockerImage string            `yaml:"dockerImage"`
+	Envs        map[string]string `yaml:"envs"`
+	WALG        walgOptions       `yaml:"walg"`
+	CustomTool  customOptions     `yaml:"customTool"`
+	Sync        Sync              `yaml:"sync"`
+}
+
+// Sync describes sync instance options.
+type Sync struct {
+	Enabled     bool              `yaml:"enabled"`
+	HealthCheck HealthCheck       `yaml:"healthCheck"`
+	Configs     map[string]string `yaml:"configs"`
+	Recovery    map[string]string `yaml:"recovery"`
+}
+
+// HealthCheck describes health check options of a sync instance.
+type HealthCheck struct {
+	Interval   int64 `yaml:"interval"`
+	MaxRetries int   `yaml:"maxRetries"`
 }
 
 // restorer describes the interface of tools for physical restore.
@@ -70,19 +92,20 @@ type restorer interface {
 	GetRestoreCommand() string
 
 	// GetRecoveryConfig returns a recovery config to restore data.
-	GetRecoveryConfig() []byte
+	GetRecoveryConfig(version float64) map[string]string
 }
 
 // NewJob creates a new physical restore job.
-func NewJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Global, marker *dbmarker.Marker) (*RestoreJob, error) {
+func NewJob(cfg config.JobConfig, global *dblabCfg.Global) (*RestoreJob, error) {
 	physicalJob := &RestoreJob{
-		name:         cfg.Name,
-		dockerClient: docker,
+		name:         cfg.Spec.Name,
+		dockerClient: cfg.Docker,
 		globalCfg:    global,
-		dbMarker:     marker,
+		dbMarker:     cfg.Marker,
+		fsPool:       cfg.FSPool,
 	}
 
-	if err := options.Unmarshal(cfg.Options, &physicalJob.CopyOptions); err != nil {
+	if err := physicalJob.Reload(cfg.Spec.Options); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
@@ -100,7 +123,7 @@ func NewJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Global
 func (r *RestoreJob) getRestorer(tool string) (restorer, error) {
 	switch tool {
 	case walgTool:
-		return newWALG(r.globalCfg.DataDir(), r.WALG), nil
+		return newWALG(r.fsPool.DataDir(), r.WALG), nil
 
 	case customTool:
 		return newCustomTool(r.CustomTool), nil
@@ -118,19 +141,29 @@ func (r *RestoreJob) Name() string {
 	return r.name
 }
 
+// Reload reloads job configuration.
+func (r *RestoreJob) Reload(cfg map[string]interface{}) (err error) {
+	return options.Unmarshal(cfg, &r.CopyOptions)
+}
+
 // Run starts the job.
 func (r *RestoreJob) Run(ctx context.Context) (err error) {
-	log.Msg(fmt.Sprintf("Run job: %s. Options: %v", r.Name(), r.CopyOptions))
+	log.Msg("Run job: ", r.Name())
 
 	defer func() {
-		if err == nil && r.CopyOptions.SyncInstance {
-			if syncErr := r.runSyncInstance(ctx); syncErr != nil {
-				log.Err("Failed to run sync instance", syncErr)
-			}
+		if err == nil && r.CopyOptions.Sync.Enabled {
+			go func() {
+				if syncErr := r.runSyncInstance(ctx); syncErr != nil {
+					log.Err("Failed to run sync instance: ", syncErr)
+					tools.StopContainer(ctx, r.dockerClient, r.syncInstanceName(), time.Second)
+				}
+			}()
 		}
 	}()
 
-	isEmpty, err := tools.IsEmptyDirectory(r.globalCfg.DataDir())
+	dataDir := r.fsPool.DataDir()
+
+	isEmpty, err := tools.IsEmptyDirectory(dataDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to explore the data directory")
 	}
@@ -141,12 +174,17 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return nil
 	}
 
-	contID, err := r.startContainer(ctx, r.restoreContainerName(), tools.DBLabRestoreLabel)
+	pwd, err := tools.GeneratePassword()
 	if err != nil {
-		return errors.Wrapf(err, "failed to create container: %s", r.restoreContainerName())
+		return errors.Wrap(err, "failed to generate PostgreSQL password")
 	}
 
-	defer tools.RemoveContainer(ctx, r.dockerClient, contID, tools.StopTimeout)
+	contID, err := r.startContainer(ctx, r.restoreContainerName(), r.buildContainerConfig(cont.DBLabRestoreLabel, pwd))
+	if err != nil {
+		return err
+	}
+
+	defer tools.RemoveContainer(ctx, r.dockerClient, contID, cont.StopPhysicalTimeout)
 
 	defer func() {
 		if err != nil {
@@ -161,9 +199,10 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	}
 
 	log.Msg("Running restore command: ", r.restorer.GetRestoreCommand())
+	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, r.restoreContainerName()))
 
 	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{
-		Cmd: []string{"bash", "-c", r.restorer.GetRestoreCommand()},
+		Cmd: []string{"bash", "-c", r.restorer.GetRestoreCommand() + " >& /proc/1/fd/1"},
 	}); err != nil {
 		return errors.Wrap(err, "failed to restore data")
 	}
@@ -174,146 +213,76 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		log.Err("Failed to mark database data: ", err)
 	}
 
-	pgVersion, err := tools.DetectPGVersion(r.globalCfg.DataDir())
+	cfgManager, err := pgconfig.NewCorrector(dataDir)
 	if err != nil {
-		return errors.Wrap(err, "failed to detect the Postgres version")
+		return errors.Wrap(err, "failed to create a config manager")
 	}
 
-	// Prepare configuration files.
-	sourceConfigDir, err := util.GetConfigPath(path.Join(defaultPgConfigsDir, pgVersion))
+	// Apply important pg_control configs.
+	pgControlParams, err := r.getPgControlParams(ctx, contID, dataDir, cfgManager.GetPgVersion())
 	if err != nil {
-		return errors.Wrap(err, "cannot get path to default configs")
+		return errors.Wrap(err, "failed to adjust by init parameters")
 	}
 
-	if err := fs.CopyDirectoryContent(sourceConfigDir, r.globalCfg.DataDir()); err != nil {
-		return errors.Wrap(err, "failed to set default configuration files")
+	if err := cfgManager.ApplyPgControl(pgControlParams); err != nil {
+		return errors.Wrap(err, "failed to adjust pg_control parameters")
 	}
 
-	if err := configuration.Run(r.globalCfg.DataDir()); err != nil {
-		return errors.Wrap(err, "failed to configure")
+	// Apply sync instance configs.
+	if syncConfig := r.CopyOptions.Sync.Configs; len(syncConfig) > 0 {
+		if err := cfgManager.ApplySync(syncConfig); err != nil {
+			return errors.Wrap(err, "cannot update sync instance configs")
+		}
 	}
 
-	if err := r.adjustRecoveryConfiguration(pgVersion, r.globalCfg.DataDir()); err != nil {
+	// Adjust recovery configuration.
+	if err := cfgManager.AdjustRecoveryFiles(); err != nil {
+		return err
+	}
+
+	if err := cfgManager.ApplyRecovery(r.buildRecoveryConf(cfgManager.GetPgVersion())); err != nil {
 		return err
 	}
 
 	// Set permissions.
 	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{
-		Cmd: []string{"chown", "-R", "postgres", r.globalCfg.DataDir()},
+		Cmd: []string{"chown", "-R", "postgres", dataDir},
 	}); err != nil {
 		return errors.Wrap(err, "failed to set permissions")
 	}
 
-	// Start PostgreSQL instance.
-	startCommand, err := r.dockerClient.ContainerExecCreate(ctx, contID, startingPostgresConfig(r.globalCfg.DataDir(), pgVersion))
-
-	if err != nil {
-		return errors.Wrap(err, "failed to create an exec command")
-	}
-
-	log.Msg("Running refresh command")
-
-	attachResponse, err := r.dockerClient.ContainerExecAttach(ctx, startCommand.ID, types.ExecStartCheck{})
-	if err != nil {
-		return errors.Wrap(err, "failed to attach to the exec command")
-	}
-
-	defer attachResponse.Close()
-
-	if err := isDatabaseReady(attachResponse.Reader); err != nil {
-		return errors.Wrap(err, "failed to refresh data")
-	}
-
-	log.Msg("Refresh command has been finished")
+	log.Msg("Configuration has been finished")
 
 	return nil
 }
 
-func (r *RestoreJob) startContainer(ctx context.Context, containerName, containerLabel string) (string, error) {
+func (r *RestoreJob) startContainer(ctx context.Context, containerName string, containerConfig *container.Config) (string, error) {
 	hostConfig, err := r.buildHostConfig(ctx)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to build container host config")
 	}
 
-	pwd, err := password.Generate(tools.PasswordLength, tools.PasswordMinDigits, tools.PasswordMinSymbols, false, true)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to generate PostgreSQL password")
-	}
-
 	if err := tools.PullImage(ctx, r.dockerClient, r.CopyOptions.DockerImage); err != nil {
-		return "", errors.Wrap(err, "failed to scan image pulling response")
+		return "", err
 	}
 
-	syncInstance, err := r.dockerClient.ContainerCreate(ctx,
-		r.buildContainerConfig(pwd, containerLabel),
-		hostConfig,
-		&network.NetworkingConfig{},
-		containerName,
-	)
-
+	newContainer, err := r.dockerClient.ContainerCreate(ctx, containerConfig, hostConfig, &network.NetworkingConfig{}, containerName)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to start sync container")
+		return "", errors.Wrapf(err, "failed to create container %s", containerName)
 	}
 
-	if err = r.dockerClient.ContainerStart(ctx, syncInstance.ID, types.ContainerStartOptions{}); err != nil {
-		return "", errors.Wrap(err, "failed to start sync container")
+	if err = r.dockerClient.ContainerStart(ctx, newContainer.ID, types.ContainerStartOptions{}); err != nil {
+		return "", errors.Wrapf(err, "failed to start container %s", containerName)
 	}
 
-	return syncInstance.ID, nil
-}
-
-func startingPostgresConfig(pgDataDir, pgVersion string) types.ExecConfig {
-	command := fmt.Sprintf("/usr/lib/postgresql/%s/bin/postgres", pgVersion)
-
-	return types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          []string{command, "-D", pgDataDir},
-		User:         defaults.Username,
-		Env:          os.Environ(),
-	}
-}
-
-func isDatabaseReady(input io.Reader) error {
-	scanner := bufio.NewScanner(input)
-
-	timer := time.NewTimer(time.Minute)
-	defer timer.Stop()
-
-LOOP:
-	for {
-		select {
-		case <-timer.C:
-			return errors.New("timeout exceeded")
-		default:
-			if !scanner.Scan() {
-				break LOOP
-			}
-
-			timer.Reset(time.Minute)
-		}
-
-		text := scanner.Text()
-
-		if strings.Contains(text, readyLogLine) {
-			return nil
-		}
-
-		fmt.Println(text)
-	}
-
-	if err := scanner.Err(); err != nil {
-		return err
-	}
-
-	return errors.New("database instance is not running")
+	return newContainer.ID, nil
 }
 
 func (r *RestoreJob) syncInstanceName() string {
-	return tools.SyncInstanceContainerPrefix + r.globalCfg.InstanceID
+	return cont.SyncInstanceContainerPrefix + r.globalCfg.InstanceID
 }
 
-func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
+func (r *RestoreJob) runSyncInstance(ctx context.Context) (err error) {
 	syncContainer, err := r.dockerClient.ContainerInspect(ctx, r.syncInstanceName())
 	if err != nil && !client.IsErrNotFound(err) {
 		return errors.Wrap(err, "failed to inspect sync container")
@@ -327,50 +296,93 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) error {
 
 		log.Msg("Removing non-running sync instance")
 
-		tools.RemoveContainer(ctx, r.dockerClient, syncContainer.ID, tools.StopTimeout)
+		tools.RemoveContainer(ctx, r.dockerClient, syncContainer.ID, cont.StopPhysicalTimeout)
 	}
+
+	syncInstanceConfig, err := r.buildSyncInstanceConfig()
+	if err != nil {
+		return errors.Wrap(err, "failed to build a sync instance config")
+	}
+
+	defer func() {
+		if err != nil {
+			tools.PrintContainerLogs(ctx, r.dockerClient, r.syncInstanceName())
+		}
+	}()
 
 	log.Msg("Starting sync instance: ", r.syncInstanceName())
 
-	syncInstanceID, err := r.startContainer(ctx, r.syncInstanceName(), tools.DBLabSyncLabel)
+	syncInstanceID, err := r.startContainer(ctx, r.syncInstanceName(), syncInstanceConfig)
 	if err != nil {
 		return err
 	}
 
-	// Set permissions.
-	if err := tools.ExecCommand(ctx, r.dockerClient, syncInstanceID, types.ExecConfig{
-		Cmd: []string{"chown", "-R", "postgres", r.globalCfg.DataDir()},
-	}); err != nil {
-		return errors.Wrap(err, "failed to set permissions")
+	log.Msg("Starting PostgreSQL and waiting for readiness")
+	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, r.syncInstanceName()))
+
+	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, syncInstanceID); err != nil {
+		return errors.Wrap(err, "failed to readiness check")
 	}
 
-	pgVersion, err := tools.DetectPGVersion(r.globalCfg.DataDir())
-	if err != nil {
-		return err
-	}
-
-	startSyncCommand, err := r.dockerClient.ContainerExecCreate(ctx, syncInstanceID, startingPostgresConfig(r.globalCfg.DataDir(), pgVersion))
-	if err != nil {
-		return errors.Wrap(err, "failed to create exec command")
-	}
-
-	if err = r.dockerClient.ContainerExecStart(ctx, startSyncCommand.ID, types.ExecStartCheck{
-		Detach: true, Tty: true}); err != nil {
-		return errors.Wrap(err, "failed to attach to exec command")
-	}
-
-	if err := tools.InspectCommandResponse(ctx, r.dockerClient, syncInstanceID, startSyncCommand.ID); err != nil {
-		return errors.Wrap(err, "failed to perform exec command")
-	}
+	log.Msg("Sync instance has been running")
 
 	return nil
+}
+
+func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
+	hostConfig := &container.HostConfig{}
+
+	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.fsPool.DataDir()); err != nil {
+		return nil, err
+	}
+
+	return hostConfig, nil
+}
+
+func (r *RestoreJob) buildSyncInstanceConfig() (*container.Config, error) {
+	pwd, err := tools.GeneratePassword()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate PostgreSQL password")
+	}
+
+	hcInterval := health.DefaultRestoreInterval
+	hcRetries := health.DefaultRestoreRetries
+
+	if r.CopyOptions.Sync.HealthCheck.Interval != 0 {
+		hcInterval = time.Duration(r.CopyOptions.Sync.HealthCheck.Interval) * time.Second
+	}
+
+	if r.CopyOptions.Sync.HealthCheck.MaxRetries != 0 {
+		hcRetries = r.CopyOptions.Sync.HealthCheck.MaxRetries
+	}
+
+	return r.buildContainerConfigWithHealthCheck(cont.DBLabSyncLabel, pwd,
+		health.OptionInterval(hcInterval), health.OptionRetries(hcRetries)), nil
+}
+
+func (r *RestoreJob) buildContainerConfigWithHealthCheck(label, password string, hcOptions ...health.ContainerOption) *container.Config {
+	containerCfg := r.buildContainerConfig(label, password)
+	containerCfg.Healthcheck = health.GetConfig(r.globalCfg.Database.User(), r.globalCfg.Database.Name(), hcOptions...)
+
+	return containerCfg
+}
+
+func (r *RestoreJob) buildContainerConfig(label, password string) *container.Config {
+	return &container.Config{
+		Labels: map[string]string{
+			cont.DBLabControlLabel:    label,
+			cont.DBLabInstanceIDLabel: r.globalCfg.InstanceID,
+		},
+		Env:   r.getEnvironmentVariables(password),
+		Image: r.CopyOptions.DockerImage,
+	}
 }
 
 func (r *RestoreJob) getEnvironmentVariables(password string) []string {
 	// Pass Database Lab environment variables.
 	envVariables := append(os.Environ(), []string{
 		"POSTGRES_PASSWORD=" + password,
-		"PGDATA=" + r.globalCfg.DataDir(),
+		"PGDATA=" + r.fsPool.DataDir(),
 	}...)
 
 	// Add user-defined environment variables.
@@ -381,23 +393,17 @@ func (r *RestoreJob) getEnvironmentVariables(password string) []string {
 	return envVariables
 }
 
-func (r *RestoreJob) buildContainerConfig(password, label string) *container.Config {
-	return &container.Config{
-		Labels: map[string]string{tools.DBLabControlLabel: label},
-		Env:    r.getEnvironmentVariables(password),
-		Image:  r.CopyOptions.DockerImage,
-	}
-}
+func (r *RestoreJob) buildRecoveryConf(pgVersion float64) map[string]string {
+	recoveryConf := r.restorer.GetRecoveryConfig(pgVersion)
 
-func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
-	hostConfig := &container.HostConfig{}
-
-	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig,
-		r.globalCfg.MountDir, r.globalCfg.DataDir()); err != nil {
-		return nil, err
+	// Add user-defined recovery configuration.
+	if len(r.Sync.Recovery) > 0 {
+		for recoveryKey, recoveryValue := range r.Sync.Recovery {
+			recoveryConf[recoveryKey] = recoveryValue
+		}
 	}
 
-	return hostConfig, nil
+	return recoveryConf
 }
 
 func (r *RestoreJob) markDatabaseData() error {
@@ -408,51 +414,48 @@ func (r *RestoreJob) markDatabaseData() error {
 	return r.dbMarker.SaveConfig(&dbmarker.Config{DataType: dbmarker.PhysicalDataType})
 }
 
-func (r *RestoreJob) adjustRecoveryConfiguration(pgVersion, pgDataDir string) error {
-	// Remove postmaster.pid.
-	if err := os.Remove(path.Join(pgDataDir, "postmaster.pid")); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return errors.Wrap(err, "failed to remove postmaster.pid")
-	}
+func (r *RestoreJob) getPgControlParams(ctx context.Context, contID, dataDir string, pgVersion float64) (map[string]string, error) {
+	log.Msg("Check pg_controldata configuration options")
 
-	// Truncate pg_ident.conf.
-	if err := tools.TouchFile(path.Join(pgDataDir, "pg_ident.conf")); err != nil {
-		return errors.Wrap(err, "failed to truncate pg_ident.conf")
-	}
-
-	// Replication mode.
-	var recoveryFilename string
-
-	if len(r.restorer.GetRecoveryConfig()) == 0 {
-		return nil
-	}
-
-	version, err := strconv.ParseFloat(pgVersion, 64)
+	attachResponse, err := pgtool.ReadControlData(ctx, r.dockerClient, contID, dataDir, pgVersion)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse PostgreSQL version")
+		return nil, errors.Wrap(err, "failed to attach to the exec command")
 	}
 
-	const pgVersion12 = 12
+	defer attachResponse.Close()
 
-	if version >= pgVersion12 {
-		if err := tools.TouchFile(path.Join(pgDataDir, "standby.signal")); err != nil {
-			return err
+	return extractControlDataParams(ctx, attachResponse.Reader)
+}
+
+func extractControlDataParams(ctx context.Context, read io.Reader) (map[string]string, error) {
+	extractedConfigs := make(map[string]string)
+	scanner := bufio.NewScanner(read)
+
+	const settingSuffix = " setting:"
+
+	for scanner.Scan() {
+		if ctx.Err() != nil {
+			return extractedConfigs, ctx.Err()
 		}
 
-		recoveryFilename = "postgresql.conf"
-	} else {
-		recoveryFilename = "recovery.conf"
+		responseLine := scanner.Text()
+
+		for param, configName := range originalParamsToRestore {
+			extractedName := param + settingSuffix
+
+			if !strings.HasPrefix(responseLine, extractedName) {
+				continue
+			}
+
+			value := strings.TrimSpace(strings.TrimPrefix(responseLine, extractedName))
+
+			extractedConfigs[configName] = value
+		}
+
+		if len(originalParamsToRestore) == len(extractedConfigs) {
+			break
+		}
 	}
 
-	recoveryFile, err := os.OpenFile(path.Join(pgDataDir, recoveryFilename), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = recoveryFile.Close() }()
-
-	if _, err := recoveryFile.Write(r.restorer.GetRecoveryConfig()); err != nil {
-		return err
-	}
-
-	return nil
+	return extractedConfigs, nil
 }

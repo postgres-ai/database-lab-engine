@@ -7,10 +7,11 @@ package cloning
 import (
 	"context"
 
+	"github.com/jackc/pgtype/pgxtype"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 )
 
 type mockCloning struct {
@@ -74,12 +75,18 @@ func NewMockClone() *models.Clone {
 	}
 }
 
+func (c *mockCloning) Reload(_ Config) {}
+
 func (c *mockCloning) Run(ctx context.Context) error {
 	return nil
 }
 
 func (c *mockCloning) CreateClone(clone *types.CloneCreateRequest) (*models.Clone, error) {
 	return &models.Clone{}, nil
+}
+
+func (c *mockCloning) CloneConnection(ctx context.Context, cloneID string) (pgxtype.Querier, error) {
+	return nil, nil
 }
 
 func (c *mockCloning) DestroyClone(id string) error {
@@ -105,6 +112,14 @@ func (c *mockCloning) UpdateClone(id string, patch *types.CloneUpdateRequest) (*
 	}
 
 	return &models.Clone{}, nil
+}
+
+func (c *mockCloning) UpdateCloneStatus(id string, _ models.Status) error {
+	if _, ok := c.clones[id]; !ok {
+		return errors.New("clone not found")
+	}
+
+	return nil
 }
 
 func (c *mockCloning) ResetClone(id string) error {

@@ -1,9 +1,13 @@
-image: golang:1.14
+image: golang:1.15
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
 
 stages:
   - test
   - build-binary
   - build-image
+  - integration-test
 
 test:
   stage: test
@@ -14,6 +18,7 @@ lint:
   stage: test
   script:
     - make lint
+
 
 .only_var_template: &only_tag_release
   only:
@@ -38,7 +43,7 @@ lint:
   when: manual
 
 build-binary-alpine:
-  image: golang:1.14-alpine
+  image: golang:1.15-alpine
   stage: build-binary
   only:
     refs:
@@ -48,7 +53,7 @@ build-binary-alpine:
     paths:
       - bin
   script:
-    - apk add --update --no-cache make
+    - apk add --update --no-cache make git
     - make build
 
 build-binary-client-linux:
@@ -77,6 +82,24 @@ build-binary-client:
     # Upload artifacts.
     - gsutil -m cp -r bin/cli/* gs://database-lab-cli/${CI_COMMIT_TAG}/
     - gsutil -m cp -r bin/cli/* gs://database-lab-cli/latest/
+
+build-binary-client-rc:
+  <<: *only_tag_rc
+  stage: build-binary
+  when: manual
+  script:
+    - make build-client
+
+    # Install google-cloud-sdk.
+    - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+    - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+    - apt-get update && apt-get install -y google-cloud-sdk
+
+    # Authenticate.
+    - echo $GCP_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
+
+    # Upload artifacts.
+    - gsutil -m cp -r bin/cli/* gs://database-lab-cli/${CI_COMMIT_TAG}/
 
 .job_template: &build_image_definition
   image: docker:19
@@ -150,7 +173,9 @@ build-image-latest-server:
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-server"
     DOCKER_NAME: "postgresai/dblab-server"
-    TAGS: "${DOCKER_NAME}:latest,${DOCKER_NAME}:${CI_COMMIT_TAG}"
+  before_script:
+    - export LATEST_TAG=$(echo ${CI_COMMIT_TAG%.*}-latest)
+    - export TAGS="${DOCKER_NAME}:${LATEST_TAG},${DOCKER_NAME}:${CI_COMMIT_TAG}"
 
 build-image-latest-client:
   <<: *build_image_definition
@@ -161,7 +186,9 @@ build-image-latest-client:
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab"
     DOCKER_NAME: "postgresai/dblab"
-    TAGS: "${DOCKER_NAME}:latest,${DOCKER_NAME}:${CI_COMMIT_TAG}"
+  before_script:
+    - export LATEST_TAG=$(echo ${CI_COMMIT_TAG%.*}-latest)
+    - export TAGS="${DOCKER_NAME}:${LATEST_TAG},${DOCKER_NAME}:${CI_COMMIT_TAG}"
 
 build-image-rc-server:
   <<: *build_image_definition
@@ -191,4 +218,19 @@ build-image-swagger-latest:
   variables:
     DOCKER_FILE: "Dockerfile.swagger-ui"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-swagger-ui"
-    TAGS: "${DOCKER_NAME}:latest"
+  before_script:
+    - export LATEST_TAG=$(echo ${CI_COMMIT_TAG%.*}-latest)
+    - export TAGS="${DOCKER_NAME}:${LATEST_TAG}"
+
+integration-test:
+  <<: *only_feature
+  stage: integration-test
+  variables:
+    IMAGE_TAG: "${CI_COMMIT_REF_SLUG}"
+  script:
+    - zfs list
+    - bash test/1.synthetic.sh
+  after_script:
+    - bash test/_cleanup.sh
+  tags:
+    - dle-test

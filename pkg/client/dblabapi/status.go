@@ -11,7 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 )
 
 // Status provides an instance status.
@@ -37,4 +37,27 @@ func (c *Client) Status(ctx context.Context) (*models.InstanceStatus, error) {
 	}
 
 	return &instanceStatus, nil
+}
+
+// Health provides instance health info.
+func (c *Client) Health(ctx context.Context) (*models.Health, error) {
+	request, err := http.NewRequest(http.MethodGet, c.URL("/healthz").String(), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to make a request")
+	}
+
+	response, err := c.Do(ctx, request)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get response")
+	}
+
+	defer func() { _ = response.Body.Close() }()
+
+	var health models.Health
+
+	if err := json.NewDecoder(response.Body).Decode(&health); err != nil {
+		return nil, errors.Wrap(err, "failed to get response")
+	}
+
+	return &health, nil
 }

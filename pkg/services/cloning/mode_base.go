@@ -8,23 +8,27 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math/big"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/dustin/go-humanize"
+	"github.com/jackc/pgtype/pgxtype"
+	"github.com/jackc/pgx/v4"
 	_ "github.com/lib/pq" // Register Postgres database driver.
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/pkg/util"
-	"gitlab.com/postgres-ai/database-lab/pkg/util/pglog"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/pglog"
 )
 
 const (
@@ -34,22 +38,21 @@ const (
 )
 
 type baseCloning struct {
-	cloning
-
+	config         *Config
 	cloneMutex     sync.RWMutex
 	clones         map[string]*CloneWrapper
 	instanceStatus *models.InstanceStatus
 	snapshotMutex  sync.RWMutex
 	snapshots      []models.Snapshot
-
-	provision provision.Provision
+	provision      *provision.Provisioner
+	observingCh    chan string
 }
 
 // NewBaseCloning instances a new base Cloning.
-func NewBaseCloning(cfg *Config, provision provision.Provision) Cloning {
+func NewBaseCloning(cfg *Config, provision *provision.Provisioner, observingCh chan string) Cloning {
 	return &baseCloning{
-		cloning: cloning{Config: cfg},
-		clones:  make(map[string]*CloneWrapper),
+		config: cfg,
+		clones: make(map[string]*CloneWrapper),
 		instanceStatus: &models.InstanceStatus{
 			Status: &models.Status{
 				Code:    models.StatusOK,
@@ -58,8 +61,13 @@ func NewBaseCloning(cfg *Config, provision provision.Provision) Cloning {
 			FileSystem: &models.FileSystem{},
 			Clones:     make([]*models.Clone, 0),
 		},
-		provision: provision,
+		provision:   provision,
+		observingCh: observingCh,
 	}
+}
+
+func (c *baseCloning) Reload(cfg Config) {
+	*c.config = cfg
 }
 
 // Initialize and run cloning component.
@@ -120,8 +128,8 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 		DB: models.Database{
 			Username: cloneRequest.DB.Username,
 			Password: cloneRequest.DB.Password,
+			DBName:   cloneRequest.DB.DBName,
 		},
-		Project: cloneRequest.Project,
 	}
 
 	w := NewCloneWrapper(clone)
@@ -136,13 +144,20 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 
 	c.setWrapper(clone.ID, w)
 
+	ephemeralUser := resources.EphemeralUser{
+		Name:        w.username,
+		Password:    w.password,
+		Restricted:  cloneRequest.DB.Restricted,
+		AvailableDB: cloneRequest.DB.DBName,
+	}
+
 	go func() {
-		session, err := c.provision.StartSession(w.username, w.password, w.snapshot.ID)
+		session, err := c.provision.StartSession(w.snapshot.ID, ephemeralUser, cloneRequest.ExtraConf)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
 			log.Errf("Failed to start session: %v.", err)
 
-			if updateErr := c.updateCloneStatus(cloneID, models.Status{
+			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: errors.Cause(err).Error(),
 			}); updateErr != nil {
@@ -170,20 +185,45 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 			Message: models.CloneMessageOK,
 		}
 
-		clone.DB.Port = strconv.FormatUint(uint64(session.Port), 10)
-		clone.DB.Host = c.Config.AccessHost
-		clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s user=%s dbname=%s",
-			clone.DB.Host, clone.DB.Port, clone.DB.Username, defaultDatabaseName)
+		dbName := clone.DB.DBName
+		if dbName == "" {
+			dbName = defaultDatabaseName
+		}
 
-		// TODO(anatoly): Remove mock data.
+		clone.DB.Port = strconv.FormatUint(uint64(session.Port), 10)
+		clone.DB.Host = c.config.AccessHost
+		clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s user=%s dbname=%s",
+			clone.DB.Host, clone.DB.Port, clone.DB.Username, dbName)
+
 		clone.Metadata = models.CloneMetadata{
-			CloneDiffSize:  cloneDiffSize,
 			CloningTime:    w.timeStartedAt.Sub(w.timeCreatedAt).Seconds(),
-			MaxIdleMinutes: c.Config.MaxIdleMinutes,
+			MaxIdleMinutes: c.config.MaxIdleMinutes,
 		}
 	}()
 
 	return clone, nil
+}
+
+func (c *baseCloning) CloneConnection(ctx context.Context, cloneID string) (pgxtype.Querier, error) {
+	w, ok := c.findWrapper(cloneID)
+	if !ok {
+		return nil, errors.New("not found")
+	}
+
+	connStr := connectionString(
+		w.session.SocketHost, strconv.FormatUint(uint64(w.session.Port), 10), w.session.User, w.clone.DB.DBName)
+
+	db, err := pgx.Connect(ctx, connStr)
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
+}
+
+func connectionString(host, port, username, dbname string) string {
+	return fmt.Sprintf("host=%s port=%s user=%s database='%s'",
+		host, port, username, dbname)
 }
 
 func (c *baseCloning) DestroyClone(cloneID string) error {
@@ -192,11 +232,11 @@ func (c *baseCloning) DestroyClone(cloneID string) error {
 		return models.New(models.ErrCodeNotFound, "clone not found")
 	}
 
-	if w.clone.Protected {
+	if w.clone.Protected && w.clone.Status.Code != models.StatusFatal {
 		return models.New(models.ErrCodeBadRequest, "clone is protected")
 	}
 
-	if err := c.updateCloneStatus(cloneID, models.Status{
+	if err := c.UpdateCloneStatus(cloneID, models.Status{
 		Code:    models.StatusDeleting,
 		Message: models.CloneMessageDeleting,
 	}); err != nil {
@@ -213,7 +253,7 @@ func (c *baseCloning) DestroyClone(cloneID string) error {
 		if err := c.provision.StopSession(w.session); err != nil {
 			log.Errf("Failed to delete a clone: %+v.", err)
 
-			if updateErr := c.updateCloneStatus(cloneID, models.Status{
+			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: errors.Cause(err).Error(),
 			}); updateErr != nil {
@@ -224,6 +264,7 @@ func (c *baseCloning) DestroyClone(cloneID string) error {
 		}
 
 		c.deleteClone(cloneID)
+		c.observingCh <- cloneID
 	}()
 
 	return nil
@@ -249,6 +290,7 @@ func (c *baseCloning) GetClone(id string) (*models.Clone, error) {
 	}
 
 	w.clone.Metadata.CloneDiffSize = sessionState.CloneDiffSize
+	w.clone.Metadata.CloneDiffSizeHR = humanize.BigIBytes(big.NewInt(int64(sessionState.CloneDiffSize)))
 
 	return w.clone, nil
 }
@@ -271,21 +313,36 @@ func (c *baseCloning) UpdateClone(id string, patch *types.CloneUpdateRequest) (*
 	return clone, nil
 }
 
+// UpdateCloneStatus updates the clone status.
+func (c *baseCloning) UpdateCloneStatus(cloneID string, status models.Status) error {
+	c.cloneMutex.Lock()
+	defer c.cloneMutex.Unlock()
+
+	w, ok := c.clones[cloneID]
+	if !ok {
+		return errors.Errorf("clone %q not found", cloneID)
+	}
+
+	w.clone.Status = status
+
+	return nil
+}
+
 func (c *baseCloning) ResetClone(cloneID string) error {
 	w, ok := c.findWrapper(cloneID)
 	if !ok {
-		return models.New(models.ErrCodeNotFound, "clone not found")
-	}
-
-	if err := c.updateCloneStatus(cloneID, models.Status{
-		Code:    models.StatusResetting,
-		Message: models.CloneMessageResetting,
-	}); err != nil {
-		return errors.Wrap(err, "failed to update clone status")
+		return models.New(models.ErrCodeNotFound, "the clone not found")
 	}
 
 	if w.session == nil {
 		return models.New(models.ErrCodeNotFound, "clone is not started yet")
+	}
+
+	if err := c.UpdateCloneStatus(cloneID, models.Status{
+		Code:    models.StatusResetting,
+		Message: models.CloneMessageResetting,
+	}); err != nil {
+		return errors.Wrap(err, "failed to update clone status")
 	}
 
 	go func() {
@@ -293,7 +350,7 @@ func (c *baseCloning) ResetClone(cloneID string) error {
 		if err != nil {
 			log.Errf("Failed to reset a clone: %+v.", err)
 
-			if updateErr := c.updateCloneStatus(cloneID, models.Status{
+			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: errors.Cause(err).Error(),
 			}); updateErr != nil {
@@ -303,7 +360,7 @@ func (c *baseCloning) ResetClone(cloneID string) error {
 			return
 		}
 
-		if err := c.updateCloneStatus(cloneID, models.Status{
+		if err := c.UpdateCloneStatus(cloneID, models.Status{
 			Code:    models.StatusOK,
 			Message: models.CloneMessageOK,
 		}); err != nil {
@@ -324,6 +381,10 @@ func (c *baseCloning) GetInstanceState() (*models.InstanceStatus, error) {
 	c.instanceStatus.FileSystem.Free = disk.Free
 	c.instanceStatus.FileSystem.Used = disk.Used
 	c.instanceStatus.DataSize = disk.DataSize
+	c.instanceStatus.FileSystem.SizeHR = humanize.BigIBytes(big.NewInt(int64(disk.Size)))
+	c.instanceStatus.FileSystem.FreeHR = humanize.BigIBytes(big.NewInt(int64(disk.Free)))
+	c.instanceStatus.FileSystem.UsedHR = humanize.BigIBytes(big.NewInt(int64(disk.Used)))
+	c.instanceStatus.DataSizeHR = humanize.BigIBytes(big.NewInt(int64(disk.DataSize)))
 	c.instanceStatus.ExpectedCloningTime = c.getExpectedCloningTime()
 	c.instanceStatus.Clones = c.GetClones()
 	c.instanceStatus.NumClones = uint64(len(c.instanceStatus.Clones))
@@ -377,21 +438,6 @@ func (c *baseCloning) setWrapper(id string, wrapper *CloneWrapper) {
 	c.cloneMutex.Lock()
 	c.clones[id] = wrapper
 	c.cloneMutex.Unlock()
-}
-
-// updateCloneStatus updates the clone status.
-func (c *baseCloning) updateCloneStatus(cloneID string, status models.Status) error {
-	c.cloneMutex.Lock()
-	defer c.cloneMutex.Unlock()
-
-	w, ok := c.clones[cloneID]
-	if !ok {
-		return errors.Errorf("clone %q not found", cloneID)
-	}
-
-	w.clone.Status = status
-
-	return nil
 }
 
 // deleteClone removes the clone by ID.
@@ -482,7 +528,7 @@ func (c *baseCloning) getSnapshotByID(snapshotID string) (models.Snapshot, error
 }
 
 func (c *baseCloning) runIdleCheck(ctx context.Context) {
-	if c.Config.MaxIdleMinutes == 0 {
+	if c.config.MaxIdleMinutes == 0 {
 		return
 	}
 
@@ -529,10 +575,10 @@ func (c *baseCloning) destroyIdleClones(ctx context.Context) {
 func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 	currentTime := time.Now()
 
-	idleDuration := time.Duration(c.Config.MaxIdleMinutes) * time.Minute
+	idleDuration := time.Duration(c.config.MaxIdleMinutes) * time.Minute
+	minimumTime := currentTime.Add(-idleDuration)
 
-	availableIdleTime := wrapper.timeStartedAt.Add(idleDuration)
-	if wrapper.clone.Protected || availableIdleTime.After(currentTime) {
+	if wrapper.clone.Protected || wrapper.clone.Status.Code == models.StatusExporting || wrapper.timeStartedAt.After(minimumTime) {
 		return false, nil
 	}
 
@@ -543,11 +589,10 @@ func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 		return false, errors.New("failed to get clone session")
 	}
 
-	lastSessionActivity, err := c.provision.LastSessionActivity(session, idleDuration)
-	if err != nil {
+	if _, err := c.provision.LastSessionActivity(session, minimumTime); err != nil {
 		if err == pglog.ErrNotFound {
-			log.Dbg(fmt.Sprintf("Not found recent activity for the session: %q. Session name: %q",
-				session.ID, session.Name))
+			log.Dbg(fmt.Sprintf("Not found recent activity for the session: %q. Clone name: %q",
+				session.ID, util.GetCloneName(session.Port)))
 
 			return hasNotQueryActivity(session)
 		}
@@ -555,13 +600,7 @@ func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 		return false, errors.Wrap(err, "failed to get the last session activity")
 	}
 
-	// Check extracted activity time.
-	availableSessionActivity := lastSessionActivity.Add(idleDuration)
-	if availableSessionActivity.After(currentTime) {
-		return false, nil
-	}
-
-	return hasNotQueryActivity(session)
+	return false, nil
 }
 
 const pgDriverName = "postgres"
@@ -585,9 +624,8 @@ func hasNotQueryActivity(session *resources.Session) (bool, error) {
 	return checkActiveQueryNotExists(db)
 }
 
-// TODO(akartasov): Move the function to the provision service.
 func getSocketConnStr(session *resources.Session) string {
-	return fmt.Sprintf("host=%s user=%s dbname=postgres", session.SocketHost, session.User)
+	return fmt.Sprintf("host=%s user=%s port=%d dbname=postgres", session.SocketHost, session.User, session.Port)
 }
 
 // checkActiveQueryNotExists runs query to check a user activity.

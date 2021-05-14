@@ -8,12 +8,10 @@ truncate --size 1GB "${ZFS_FILE}"
 sudo zpool create -f \
   -O compression=on \
   -O atime=off \
-  -O recordsize=8k \
+  -O recordsize=128k \
   -O logbias=throughput \
-  -m /var/lib/dblab/data \
-  test_pool \
+  -m /var/lib/dblab/dblab_pool \
+  dblab_pool \
   "${ZFS_FILE}"
 
-sudo chmod 0750 /var/lib/dblab/data
-
-zfs list
+sudo zfs list

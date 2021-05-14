@@ -8,15 +8,15 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/clone"
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/config"
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/global"
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/instance"
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands/snapshot"
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/templates"
-	dblabLog "gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/version"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands/clone"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands/config"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands/global"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands/instance"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands/snapshot"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/templates"
+	dblabLog "gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/version"
 )
 
 func main() {
@@ -55,6 +55,11 @@ func main() {
 				Usage:   "allow insecure server connections when using SSL",
 				EnvVars: []string{"DBLAB_INSECURE_SKIP_VERIFY"},
 			},
+			&cli.DurationFlag{
+				Name:    "request-timeout",
+				Usage:   "allow changing requests timeout",
+				EnvVars: []string{"DBLAB_REQUEST_TIMEOUT"},
+			},
 			&cli.StringFlag{
 				Name:    "forwarding-server-url",
 				Usage:   "forwarding server URL of Database Lab instance",
@@ -76,6 +81,7 @@ func main() {
 				EnvVars: []string{"DBLAB_CLI_DEBUG"},
 			},
 		},
+		EnableBashCompletion: true,
 	}
 
 	adoptTemplates()
@@ -116,6 +122,12 @@ func loadEnvironmentParams(c *cli.Context) error {
 
 		if !c.IsSet(commands.InsecureKey) {
 			if err := c.Set(commands.InsecureKey, strconv.FormatBool(env.Insecure)); err != nil {
+				return err
+			}
+		}
+
+		if !c.IsSet(commands.RequestTimeoutKey) {
+			if err := c.Set(commands.RequestTimeoutKey, env.RequestTimeout.String()); err != nil {
 				return err
 			}
 		}

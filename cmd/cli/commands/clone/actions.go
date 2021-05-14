@@ -9,20 +9,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"os"
+	"strings"
 	"sync"
 
 	"github.com/urfave/cli/v2"
 
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
-	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/pkg/observer"
-)
-
-const (
-	errorExitStatus = 1
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 )
 
 // list runs a request to list clones of an instance.
@@ -50,48 +45,49 @@ func list() func(*cli.Context) error {
 }
 
 // create runs a request to create a new clone.
-func create() func(*cli.Context) error {
-	return func(cliCtx *cli.Context) error {
-		dblabClient, err := commands.ClientByCLIContext(cliCtx)
-		if err != nil {
-			return err
-		}
-
-		cloneRequest := types.CloneCreateRequest{
-			ID:        cliCtx.String("id"),
-			Project:   cliCtx.String("project"),
-			Protected: cliCtx.Bool("protected"),
-			DB: &types.DatabaseRequest{
-				Username: cliCtx.String("username"),
-				Password: cliCtx.String("password"),
-			},
-		}
-
-		if cliCtx.IsSet("snapshot-id") {
-			cloneRequest.Snapshot = &types.SnapshotCloneFieldRequest{ID: cliCtx.String("snapshot-id")}
-		}
-
-		var clone *models.Clone
-
-		if cliCtx.Bool("async") {
-			clone, err = dblabClient.CreateCloneAsync(cliCtx.Context, cloneRequest)
-		} else {
-			clone, err = dblabClient.CreateClone(cliCtx.Context, cloneRequest)
-		}
-
-		if err != nil {
-			return err
-		}
-
-		commandResponse, err := json.MarshalIndent(clone, "", "    ")
-		if err != nil {
-			return err
-		}
-
-		_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
-
+func create(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
 		return err
 	}
+
+	cloneRequest := types.CloneCreateRequest{
+		ID:        cliCtx.String("id"),
+		Protected: cliCtx.Bool("protected"),
+		DB: &types.DatabaseRequest{
+			Username:   cliCtx.String("username"),
+			Password:   cliCtx.String("password"),
+			Restricted: cliCtx.Bool("restricted"),
+			DBName:     cliCtx.String("db-name"),
+		},
+	}
+
+	if cliCtx.IsSet("snapshot-id") {
+		cloneRequest.Snapshot = &types.SnapshotCloneFieldRequest{ID: cliCtx.String("snapshot-id")}
+	}
+
+	cloneRequest.ExtraConf = splitFlags(cliCtx.StringSlice("extra-config"))
+
+	var clone *models.Clone
+
+	if cliCtx.Bool("async") {
+		clone, err = dblabClient.CreateCloneAsync(cliCtx.Context, cloneRequest)
+	} else {
+		clone, err = dblabClient.CreateClone(cliCtx.Context, cloneRequest)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	commandResponse, err := json.MarshalIndent(clone, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
+
+	return err
 }
 
 // status runs a request to get clone info.
@@ -200,58 +196,111 @@ func destroy() func(*cli.Context) error {
 	}
 }
 
-// observe runs a request to observe clone.
-func observe() func(*cli.Context) error {
-	return func(cliCtx *cli.Context) error {
-		dblabClient, err := commands.ClientByCLIContext(cliCtx)
-		if err != nil {
-			return err
-		}
-
-		cloneID := cliCtx.Args().First()
-
-		clone, err := dblabClient.GetClone(cliCtx.Context, cloneID)
-		if err != nil {
-			return err
-		}
-
-		obsConfig := observer.Config{
-			Follow:                 cliCtx.Bool("follow"),
-			IntervalSeconds:        cliCtx.Uint64("interval-seconds"),
-			MaxLockDurationSeconds: cliCtx.Uint64("max-lock-duration-seconds"),
-			MaxDurationSeconds:     cliCtx.Uint64("max-duration-seconds"),
-			SSLMode:                cliCtx.String("sslmode"),
-		}
-
-		obs := observer.NewObserver(obsConfig, cliCtx.App.Writer)
-
-		clone.DB.Password = cliCtx.String("password")
-
-		return obs.Start(clone)
+// startObservation runs a request to startObservation clone.
+func startObservation(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
+		return err
 	}
+
+	cloneID := cliCtx.Args().First()
+
+	observationConfig := types.Config{
+		ObservationInterval: cliCtx.Uint64("observation-interval"),
+		MaxLockDuration:     cliCtx.Uint64("max-lock-duration"),
+		MaxDuration:         cliCtx.Uint64("max-duration"),
+	}
+
+	start := types.StartObservationRequest{
+		CloneID: cloneID,
+		Config:  observationConfig,
+		Tags:    splitFlags(cliCtx.StringSlice("tags")),
+		DBName:  cliCtx.String("db-name"),
+	}
+
+	session, err := dblabClient.StartObservation(cliCtx.Context, start)
+	if err != nil {
+		return err
+	}
+
+	commandResponse, err := json.MarshalIndent(session, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
+
+	return err
 }
 
-// observeSummary shows observing summary and check satisfaction of performance requirements.
-func observeSummary() func(*cli.Context) error {
-	return func(cliCtx *cli.Context) error {
-		obs := observer.NewObserver(observer.Config{}, cliCtx.App.Writer)
-
-		if err := obs.LoadObserverState(); err != nil {
-			return err
-		}
-
-		if err := obs.PrintSummary(); err != nil {
-			return err
-		}
-
-		if err := obs.CheckPerformanceRequirements(); err != nil {
-			log.Err("Performance check error:", err)
-			// Exit with error status without printing additional error logs.
-			os.Exit(errorExitStatus)
-		}
-
-		return nil
+// stopObservation shows observing summary and check satisfaction of performance requirements.
+func stopObservation(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
+		return err
 	}
+
+	cloneID := cliCtx.Args().First()
+
+	result, err := dblabClient.StopObservation(cliCtx.Context, types.StopObservationRequest{CloneID: cloneID})
+	if err != nil {
+		return err
+	}
+
+	commandResponse, err := json.MarshalIndent(result, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
+
+	return err
+}
+
+// summaryObservation returns the observing summary artifact.
+func summaryObservation(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
+		return err
+	}
+
+	cloneID := cliCtx.String("clone-id")
+	sessionID := cliCtx.String("session-id")
+
+	result, err := dblabClient.SummaryObservation(cliCtx.Context, cloneID, sessionID)
+	if err != nil {
+		return err
+	}
+
+	commandResponse, err := json.MarshalIndent(result, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
+
+	return err
+}
+
+func downloadArtifact(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
+		return err
+	}
+
+	cloneID := cliCtx.String("clone-id")
+	sessionID := cliCtx.String("session-id")
+	artifactType := cliCtx.String("artifact-type")
+	outputFile := cliCtx.String("output")
+
+	artifactPath, err := dblabClient.DownloadArtifact(cliCtx.Context, cloneID, sessionID, artifactType, outputFile)
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(cliCtx.App.Writer, "The file has been successfully downloaded: %s\n", artifactPath)
+
+	return err
 }
 
 func forward(cliCtx *cli.Context) error {
@@ -334,4 +383,21 @@ func retrieveClonePort(cliCtx *cli.Context, wg *sync.WaitGroup, remoteHost *url.
 	}
 
 	return clone.DB.Port, nil
+}
+
+func splitFlags(flags []string) map[string]string {
+	const maxSplitParts = 2
+
+	extraConfig := make(map[string]string, len(flags))
+
+	if len(flags) == 0 {
+		return extraConfig
+	}
+
+	for _, cfg := range flags {
+		parsed := strings.SplitN(cfg, "=", maxSplitParts)
+		extraConfig[parsed[0]] = parsed[1]
+	}
+
+	return extraConfig
 }

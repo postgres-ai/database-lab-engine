@@ -8,8 +8,8 @@ import (
 	"context"
 	"net/http"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/platform"
 )
 
 // VerificationTokenHeader defines a verification token name that should be passed in request headers.
@@ -49,7 +49,8 @@ func (a *authMW) isAccessAllowed(ctx context.Context, token string) bool {
 		return true
 	}
 
-	if a.personalTokenVerifier.IsPersonalTokenEnabled() && a.personalTokenVerifier.IsAllowedToken(ctx, token) {
+	if a.personalTokenVerifier != nil && a.personalTokenVerifier.IsPersonalTokenEnabled() &&
+		a.personalTokenVerifier.IsAllowedToken(ctx, token) {
 		return true
 	}
 

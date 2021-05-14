@@ -9,13 +9,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"net/url"
+	"os"
+	"path"
 	"time"
 
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
 )
 
 // ListClones provides a list of Database Lab clones.
@@ -127,7 +133,7 @@ func (c *Client) watchCloneStatus(ctx context.Context, cloneID string, initialSt
 	var cancel context.CancelFunc
 
 	if _, ok := ctx.Deadline(); !ok {
-		ctx, cancel = context.WithTimeout(ctx, defaultPollingTimeout)
+		ctx, cancel = context.WithTimeout(ctx, c.requestTimeout)
 		defer cancel()
 	}
 
@@ -155,30 +161,11 @@ func (c *Client) watchCloneStatus(ctx context.Context, cloneID string, initialSt
 func (c *Client) CreateCloneAsync(ctx context.Context, cloneRequest types.CloneCreateRequest) (*models.Clone, error) {
 	u := c.URL("/clone")
 
-	body := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(body).Encode(cloneRequest); err != nil {
-		return nil, errors.Wrap(err, "failed to encode CloneCreateRequest")
-	}
-
-	request, err := http.NewRequest(http.MethodPost, u.String(), body)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to make a request")
-	}
-
-	response, err := c.Do(ctx, request)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get response")
-	}
-
-	defer func() { _ = response.Body.Close() }()
-
 	var clone models.Clone
 
-	if err := json.NewDecoder(response.Body).Decode(&clone); err != nil {
-		return nil, errors.Wrap(err, "failed to decode a response body")
-	}
+	err := c.request(ctx, u, cloneRequest, &clone)
 
-	return &clone, nil
+	return &clone, err
 }
 
 // UpdateClone updates an existing Database Lab clone.
@@ -305,6 +292,132 @@ func (c *Client) DestroyCloneAsync(ctx context.Context, cloneID string) error {
 	}
 
 	defer func() { _ = response.Body.Close() }()
+
+	return nil
+}
+
+// StartObservation starts a new clone observation.
+func (c *Client) StartObservation(ctx context.Context, startRequest types.StartObservationRequest) (*observer.Session, error) {
+	u := c.URL("/observation/start")
+
+	var session observer.Session
+
+	err := c.request(ctx, u, startRequest, &session)
+
+	return &session, err
+}
+
+// StopObservation stops the clone observation.
+func (c *Client) StopObservation(ctx context.Context, stopRequest types.StopObservationRequest) (*observer.Session, error) {
+	u := c.URL("/observation/stop")
+
+	var observerSession observer.Session
+
+	err := c.request(ctx, u, stopRequest, &observerSession)
+
+	return &observerSession, err
+}
+
+// SummaryObservation returns the summary of clone observation.
+func (c *Client) SummaryObservation(ctx context.Context, cloneID, sessionID string) (*observer.SummaryArtifact, error) {
+	u := c.URL(fmt.Sprintf("/observation/summary/%s/%s", cloneID, sessionID))
+
+	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to make a request")
+	}
+
+	response, err := c.Do(ctx, request)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get response")
+	}
+
+	defer func() { _ = response.Body.Close() }()
+
+	var observationSummary observer.SummaryArtifact
+
+	if err := json.NewDecoder(response.Body).Decode(&observationSummary); err != nil {
+		return nil, errors.Wrap(err, "failed to decode a response body")
+	}
+
+	return &observationSummary, err
+}
+
+// DownloadArtifact downloads clone observation artifacts.
+func (c *Client) DownloadArtifact(ctx context.Context, cloneID, sessionID, artifactType, outputFile string) (string, error) {
+	u := c.URL("/observation/download")
+
+	values := url.Values{}
+	values.Add("clone_id", cloneID)
+	values.Add("session_id", sessionID)
+	values.Add("artifact_type", artifactType)
+	u.RawQuery = values.Encode()
+
+	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to make a request")
+	}
+
+	response, err := c.Do(ctx, request)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get response")
+	}
+
+	defer func() { _ = response.Body.Close() }()
+
+	if response.StatusCode != http.StatusOK {
+		content, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to read response, status code: %d", response.StatusCode)
+		}
+
+		return "", errors.Errorf("status code: %d. content: %s", response.StatusCode, content)
+	}
+
+	filename := outputFile
+
+	if filename == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return "", err
+		}
+
+		filename = path.Join(wd, observer.BuildArtifactFilename(artifactType))
+	}
+
+	artifactFile, err := os.Create(filename)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to create file %s", filename)
+	}
+
+	defer func() { _ = artifactFile.Close() }()
+
+	_, err = io.Copy(artifactFile, response.Body)
+
+	return filename, err
+}
+
+func (c *Client) request(ctx context.Context, u *url.URL, requestObject, responseObject interface{}) error {
+	body := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(body).Encode(requestObject); err != nil {
+		return errors.Wrap(err, "failed to encode a request object")
+	}
+
+	request, err := http.NewRequest(http.MethodPost, u.String(), body)
+	if err != nil {
+		return errors.Wrap(err, "failed to make a request")
+	}
+
+	response, err := c.Do(ctx, request)
+	if err != nil {
+		return errors.Wrap(err, "failed to get response")
+	}
+
+	defer func() { _ = response.Body.Close() }()
+
+	if err := json.NewDecoder(response.Body).Decode(&responseObject); err != nil {
+		return errors.Wrap(err, "failed to decode a response body")
+	}
 
 	return nil
 }

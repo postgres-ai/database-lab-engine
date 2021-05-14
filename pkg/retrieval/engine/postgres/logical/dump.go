@@ -7,7 +7,6 @@ package logical
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -18,16 +17,17 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
-	"github.com/sethvargo/go-password/password"
 
-	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
+	dblabCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/dbmarker"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/cont"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/health"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/options"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 )
 
 const (
@@ -48,12 +48,17 @@ const (
 	// Container network modes.
 	networkModeDefault = container.NetworkMode("default")
 	networkModeHost    = container.NetworkMode("host")
+
+	// PostgreSQL pg_dump formats.
+	customFormat    = "custom"
+	directoryFormat = "directory"
 )
 
 // DumpJob declares a job for logical dumping.
 type DumpJob struct {
 	name         string
 	dockerClient *client.Client
+	fsPool       *resources.Pool
 	globalCfg    *dblabCfg.Global
 	config       dumpJobConfig
 	dumper       dumper
@@ -108,26 +113,21 @@ type ImmediateRestore struct {
 }
 
 // NewDumpJob creates a new DumpJob.
-func NewDumpJob(cfg config.JobConfig, docker *client.Client, global *dblabCfg.Global, marker *dbmarker.Marker) (*DumpJob, error) {
+func NewDumpJob(jobCfg config.JobConfig, global *dblabCfg.Global) (*DumpJob, error) {
 	dumpJob := &DumpJob{
-		name:         cfg.Name,
-		dockerClient: docker,
+		name:         jobCfg.Spec.Name,
+		dockerClient: jobCfg.Docker,
+		fsPool:       jobCfg.FSPool,
 		globalCfg:    global,
-		dbMarker:     marker,
+		dbMarker:     jobCfg.Marker,
 		dbMark: &dbmarker.Config{
 			DataType: dbmarker.LogicalDataType,
 		},
 	}
 
-	if err := options.Unmarshal(cfg.Options, &dumpJob.DumpOptions); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
+	if err := dumpJob.Reload(jobCfg.Spec.Options); err != nil {
+		return nil, errors.Wrap(err, "failed to load job config")
 	}
-
-	if err := dumpJob.validate(); err != nil {
-		return nil, errors.Wrap(err, "invalid logical dump job")
-	}
-
-	dumpJob.setDefaults()
 
 	if err := dumpJob.setupDumper(); err != nil {
 		return nil, errors.Wrap(err, "failed to set up a dump helper")
@@ -194,11 +194,26 @@ func (d *DumpJob) Name() string {
 	return d.name
 }
 
+// Reload reloads job configuration.
+func (d *DumpJob) Reload(cfg map[string]interface{}) (err error) {
+	if err := options.Unmarshal(cfg, &d.DumpOptions); err != nil {
+		return errors.Wrap(err, "failed to unmarshal configuration options")
+	}
+
+	if err := d.validate(); err != nil {
+		return errors.Wrap(err, "invalid logical dump job")
+	}
+
+	d.setDefaults()
+
+	return nil
+}
+
 // Run starts the job.
 func (d *DumpJob) Run(ctx context.Context) (err error) {
-	log.Msg(fmt.Sprintf("Run job: %s. Options: %v", d.Name(), d.DumpOptions))
+	log.Msg("Run job: ", d.Name())
 
-	isEmpty, err := tools.IsEmptyDirectory(d.globalCfg.DataDir())
+	isEmpty, err := tools.IsEmptyDirectory(d.fsPool.DataDir())
 	if err != nil {
 		return errors.Wrap(err, "failed to explore the data directory")
 	}
@@ -220,12 +235,12 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to build container host config")
 	}
 
-	pwd, err := password.Generate(tools.PasswordLength, tools.PasswordMinDigits, tools.PasswordMinSymbols, false, true)
+	pwd, err := tools.GeneratePassword()
 	if err != nil {
 		return errors.Wrap(err, "failed to generate PostgreSQL password")
 	}
 
-	cont, err := d.dockerClient.ContainerCreate(ctx, d.buildContainerConfig(pwd), hostConfig, &network.NetworkingConfig{},
+	dumpCont, err := d.dockerClient.ContainerCreate(ctx, d.buildContainerConfig(pwd), hostConfig, &network.NetworkingConfig{},
 		d.dumpContainerName(),
 	)
 	if err != nil {
@@ -234,7 +249,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to create container %q", d.dumpContainerName())
 	}
 
-	defer tools.RemoveContainer(ctx, d.dockerClient, cont.ID, tools.StopTimeout)
+	defer tools.RemoveContainer(ctx, d.dockerClient, dumpCont.ID, cont.StopTimeout)
 
 	defer func() {
 		if err != nil {
@@ -242,13 +257,15 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	if err := d.dockerClient.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{}); err != nil {
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", d.dumpContainerName(), dumpCont.ID))
+
+	if err := d.dockerClient.ContainerStart(ctx, dumpCont.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to start container %q", d.dumpContainerName())
 	}
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", d.dumpContainerName(), cont.ID))
+	log.Msg("Waiting for container readiness")
 
-	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, cont.ID); err != nil {
+	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, dumpCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
 	}
 
@@ -259,22 +276,22 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 	dumpCommand := d.buildLogicalDumpCommand()
 	log.Msg("Running dump command", dumpCommand)
 
-	execCommand, err := d.dockerClient.ContainerExecCreate(ctx, cont.ID, types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          dumpCommand,
-		Env:          d.getExecEnvironmentVariables(),
-	})
-
-	if err != nil {
-		return errors.Wrap(err, "failed to create dump command")
-	}
-
 	if len(d.Partial.Tables) > 0 {
 		log.Msg("Partial dump will be run. Tables for dumping: ", strings.Join(d.Partial.Tables, ", "))
 	}
 
-	if err := d.performDumpCommand(ctx, os.Stdout, cont.ID, execCommand.ID); err != nil {
+	if d.DumpOptions.DumpLocation != "" && d.DumpOptions.Restore == nil {
+		if err := tools.ExecCommand(ctx, d.dockerClient, dumpCont.ID, types.ExecConfig{
+			Cmd: []string{"rm", "-rf", d.DumpOptions.DumpLocation},
+		}); err != nil {
+			return errors.Wrap(err, "failed to clean up dump location")
+		}
+	}
+
+	if err := d.performDumpCommand(ctx, dumpCont.ID, types.ExecConfig{
+		Cmd: dumpCommand,
+		Env: d.getExecEnvironmentVariables(),
+	}); err != nil {
 		return errors.Wrap(err, "failed to dump a database")
 	}
 
@@ -283,10 +300,14 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 			return errors.Wrap(err, "failed to mark the created dump")
 		}
 
-		if err := recalculateStats(ctx, d.dockerClient, cont.ID, buildAnalyzeCommand(Connection{
-			DBName:   d.config.db.DBName,
-			Username: defaults.Username,
-		}, d.DumpOptions.ParallelJobs)); err != nil {
+		analyzeCmd := buildAnalyzeCommand(
+			Connection{Username: d.globalCfg.Database.User(), DBName: d.globalCfg.Database.Name()},
+			d.DumpOptions.ParallelJobs,
+		)
+
+		log.Msg("Running analyze command: ", analyzeCmd)
+
+		if err := tools.ExecCommand(ctx, d.dockerClient, dumpCont.ID, types.ExecConfig{Cmd: analyzeCmd}); err != nil {
 			return errors.Wrap(err, "failed to recalculate statistics after restore")
 		}
 	}
@@ -307,26 +328,14 @@ func (d *DumpJob) setupConnectionOptions(ctx context.Context) error {
 	return nil
 }
 
-func (d *DumpJob) performDumpCommand(ctx context.Context, cmdOutput io.Writer, contID, commandID string) error {
+func (d *DumpJob) performDumpCommand(ctx context.Context, contID string, commandCfg types.ExecConfig) error {
 	if d.DumpOptions.Restore != nil {
 		d.dbMark.DataStateAt = time.Now().Format(tools.DataStateAtFormat)
 	}
 
-	execAttach, err := d.dockerClient.ContainerExecAttach(ctx, commandID, types.ExecStartCheck{})
-	if err != nil {
-		return err
-	}
-	defer execAttach.Close()
+	_, err := tools.ExecCommandWithOutput(ctx, d.dockerClient, contID, commandCfg)
 
-	if err := tools.ProcessAttachResponse(ctx, execAttach.Reader, cmdOutput); err != nil {
-		return err
-	}
-
-	if err := tools.InspectCommandResponse(ctx, d.dockerClient, contID, commandID); err != nil {
-		return errors.Wrap(err, "failed to exec the dump command")
-	}
-
-	return nil
+	return err
 }
 
 func (d *DumpJob) getEnvironmentVariables(password string) []string {
@@ -336,7 +345,7 @@ func (d *DumpJob) getEnvironmentVariables(password string) []string {
 
 	// Avoid initialization of PostgreSQL directory in case of preparing of a dump.
 	if d.DumpOptions.Restore != nil {
-		envs = append(envs, "PGDATA="+d.globalCfg.DataDir())
+		envs = append(envs, "PGDATA="+d.fsPool.DataDir())
 	}
 
 	if d.DumpOptions.Source.Type == sourceTypeLocal && d.DumpOptions.Source.Connection.Port == defaults.Port {
@@ -349,10 +358,13 @@ func (d *DumpJob) getEnvironmentVariables(password string) []string {
 
 func (d *DumpJob) buildContainerConfig(password string) *container.Config {
 	return &container.Config{
-		Labels:      map[string]string{tools.DBLabControlLabel: tools.DBLabDumpLabel},
+		Labels: map[string]string{
+			cont.DBLabControlLabel:    cont.DBLabDumpLabel,
+			cont.DBLabInstanceIDLabel: d.globalCfg.InstanceID,
+		},
 		Env:         d.getEnvironmentVariables(password),
 		Image:       d.DockerImage,
-		Healthcheck: health.GetConfig(),
+		Healthcheck: health.GetConfig(d.globalCfg.Database.User(), d.globalCfg.Database.Name()),
 	}
 }
 
@@ -361,8 +373,7 @@ func (d *DumpJob) buildHostConfig(ctx context.Context) (*container.HostConfig, e
 		NetworkMode: d.getContainerNetworkMode(),
 	}
 
-	if err := tools.AddVolumesToHostConfig(ctx, d.dockerClient, hostConfig,
-		d.globalCfg.MountDir, d.globalCfg.DataDir()); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, d.dockerClient, hostConfig, d.fsPool.DataDir()); err != nil {
 		return nil, err
 	}
 
@@ -390,12 +401,6 @@ func (d *DumpJob) getExecEnvironmentVariables() []string {
 }
 
 func (d *DumpJob) buildLogicalDumpCommand() []string {
-	format := "custom"
-
-	if d.DumpOptions.ParallelJobs > defaultParallelJobs {
-		format = "directory"
-	}
-
 	optionalArgs := map[string]string{
 		"--host":     d.config.db.Host,
 		"--port":     strconv.Itoa(d.config.db.Port),
@@ -404,7 +409,7 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 		"--jobs":     strconv.Itoa(d.DumpOptions.ParallelJobs),
 	}
 
-	dumpCmd := append([]string{"pg_dump", "--create", "--format", format}, prepareCmdOptions(optionalArgs)...)
+	dumpCmd := append([]string{"pg_dump", "--create"}, prepareCmdOptions(optionalArgs)...)
 
 	for _, table := range d.Partial.Tables {
 		dumpCmd = append(dumpCmd, "--table", table)
@@ -412,6 +417,7 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 
 	// Define if restore directly or export to dump location.
 	if d.DumpOptions.Restore != nil {
+		dumpCmd = append(dumpCmd, "--format", customFormat)
 		dumpCmd = append(dumpCmd, d.buildLogicalRestoreCommand()...)
 		cmd := strings.Join(dumpCmd, " ")
 
@@ -420,13 +426,13 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 		return []string{"sh", "-c", cmd}
 	}
 
-	dumpCmd = append(dumpCmd, "--file", d.DumpOptions.DumpLocation)
+	dumpCmd = append(dumpCmd, "--format", directoryFormat, "--file", d.DumpOptions.DumpLocation)
 
 	return dumpCmd
 }
 
 func (d *DumpJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"|", "pg_restore", "--username", defaults.Username, "--create", "--dbname", defaults.DBName,
+	restoreCmd := []string{"|", "pg_restore", "--username", d.globalCfg.Database.User(), "--create", "--dbname", defaults.DBName,
 		"--no-privileges", "--no-owner"}
 
 	if d.Restore.ForceInit {

@@ -11,22 +11,25 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
-	"github.com/sethvargo/go-password/password"
 
-	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
+	dblabCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/dbmarker"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/cont"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/health"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/options"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 )
 
 const (
@@ -35,13 +38,16 @@ const (
 
 	// const defines restore options.
 	restoreContainerPrefix = "dblab_lr_"
-	defaultParallelJobs    = 1
+
+	// defaultParallelJobs declares a default number of parallel jobs for logical dump and restore.
+	defaultParallelJobs = 1
 )
 
 // RestoreJob defines a logical restore job.
 type RestoreJob struct {
 	name         string
 	dockerClient *client.Client
+	fsPool       *resources.Pool
 	globalCfg    *dblabCfg.Global
 	dbMarker     *dbmarker.Marker
 	dbMark       *dbmarker.Config
@@ -64,16 +70,17 @@ type Partial struct {
 }
 
 // NewJob create a new logical restore job.
-func NewJob(cfg config.JobConfig, docker *client.Client, globalCfg *dblabCfg.Global, marker *dbmarker.Marker) (*RestoreJob, error) {
+func NewJob(cfg config.JobConfig, global *dblabCfg.Global) (*RestoreJob, error) {
 	restoreJob := &RestoreJob{
-		name:         cfg.Name,
-		dockerClient: docker,
-		globalCfg:    globalCfg,
-		dbMarker:     marker,
+		name:         cfg.Spec.Name,
+		dockerClient: cfg.Docker,
+		fsPool:       cfg.FSPool,
+		globalCfg:    global,
+		dbMarker:     cfg.Marker,
 		dbMark:       &dbmarker.Config{DataType: dbmarker.LogicalDataType},
 	}
 
-	if err := options.Unmarshal(cfg.Options, &restoreJob.RestoreOptions); err != nil {
+	if err := restoreJob.Reload(cfg.Spec.Options); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
@@ -98,22 +105,33 @@ func (r *RestoreJob) Name() string {
 	return r.name
 }
 
+// Reload reloads job configuration.
+func (r *RestoreJob) Reload(cfg map[string]interface{}) (err error) {
+	if err := options.Unmarshal(cfg, &r.RestoreOptions); err != nil {
+		return errors.Wrap(err, "failed to unmarshal configuration options")
+	}
+
+	r.setDefaults()
+
+	return nil
+}
+
 // Run starts the job.
 func (r *RestoreJob) Run(ctx context.Context) (err error) {
-	log.Msg(fmt.Sprintf("Run job: %s. Options: %v", r.Name(), r.RestoreOptions))
+	log.Msg("Run job: ", r.Name())
 
-	isEmpty, err := tools.IsEmptyDirectory(r.globalCfg.DataDir())
+	isEmpty, err := tools.IsEmptyDirectory(r.fsPool.DataDir())
 	if err != nil {
-		return errors.Wrapf(err, "failed to explore the data directory %q", r.globalCfg.DataDir())
+		return errors.Wrapf(err, "failed to explore the data directory %q", r.fsPool.DataDir())
 	}
 
 	if !isEmpty {
 		if !r.ForceInit {
 			return errors.Errorf("the data directory %q is not empty. Use 'forceInit' or empty the data directory",
-				r.globalCfg.DataDir())
+				r.fsPool.DataDir())
 		}
 
-		log.Msg(fmt.Sprintf("The data directory %q is not empty. Existing data may be overwritten.", r.globalCfg.DataDir()))
+		log.Msg(fmt.Sprintf("The data directory %q is not empty. Existing data may be overwritten.", r.fsPool.DataDir()))
 	}
 
 	if err := tools.PullImage(ctx, r.dockerClient, r.RestoreOptions.DockerImage); err != nil {
@@ -125,12 +143,12 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to build container host config")
 	}
 
-	pwd, err := password.Generate(tools.PasswordLength, tools.PasswordMinDigits, tools.PasswordMinSymbols, false, true)
+	pwd, err := tools.GeneratePassword()
 	if err != nil {
 		return errors.Wrap(err, "failed to generate PostgreSQL password")
 	}
 
-	cont, err := r.dockerClient.ContainerCreate(ctx,
+	restoreCont, err := r.dockerClient.ContainerCreate(ctx,
 		r.buildContainerConfig(pwd),
 		hostConfig,
 		&network.NetworkingConfig{},
@@ -140,7 +158,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to create container %q", r.restoreContainerName())
 	}
 
-	defer tools.RemoveContainer(ctx, r.dockerClient, cont.ID, tools.StopTimeout)
+	defer tools.RemoveContainer(ctx, r.dockerClient, restoreCont.ID, cont.StopTimeout)
 
 	defer func() {
 		if err != nil {
@@ -148,50 +166,41 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	if err := r.dockerClient.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{}); err != nil {
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", r.restoreContainerName(), restoreCont.ID))
+
+	if err := r.dockerClient.ContainerStart(ctx, restoreCont.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to start container %q", r.restoreContainerName())
 	}
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", r.restoreContainerName(), cont.ID))
+	log.Msg("Waiting for container readiness")
 
-	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, cont.ID); err != nil {
+	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, restoreCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
 	}
 
 	restoreCommand := r.buildLogicalRestoreCommand()
 	log.Msg("Running restore command: ", restoreCommand)
 
-	execCommand, err := r.dockerClient.ContainerExecCreate(ctx, cont.ID, types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Tty:          true,
-		Cmd:          restoreCommand,
-	})
-
-	if err != nil {
-		return errors.Wrap(err, "failed to create restore command")
-	}
-
 	if len(r.Partial.Tables) > 0 {
 		log.Msg("Partial restore will be run. Tables for restoring: ", strings.Join(r.Partial.Tables, ", "))
 	}
 
-	if err := r.dockerClient.ContainerExecStart(ctx, execCommand.ID, types.ExecStartCheck{Tty: true}); err != nil {
-		return errors.Wrap(err, "failed to run restore command")
-	}
-
-	if err := tools.InspectCommandResponse(ctx, r.dockerClient, cont.ID, execCommand.ID); err != nil {
+	if err := tools.ExecCommand(ctx, r.dockerClient, restoreCont.ID, types.ExecConfig{Cmd: restoreCommand}); err != nil {
 		return errors.Wrap(err, "failed to exec restore command")
 	}
 
-	if err := r.markDatabase(ctx, cont.ID); err != nil {
+	if err := r.markDatabase(ctx, restoreCont.ID); err != nil {
 		return errors.Wrap(err, "failed to mark the database")
 	}
 
-	if err := recalculateStats(ctx, r.dockerClient, cont.ID, buildAnalyzeCommand(Connection{
-		Username: defaults.Username,
-		DBName:   r.RestoreOptions.DBName,
-	}, r.RestoreOptions.ParallelJobs)); err != nil {
+	analyzeCmd := buildAnalyzeCommand(
+		Connection{Username: r.globalCfg.Database.User(), DBName: r.globalCfg.Database.Name()},
+		r.RestoreOptions.ParallelJobs,
+	)
+
+	log.Msg("Running analyze command: ", analyzeCmd)
+
+	if err := tools.ExecCommand(ctx, r.dockerClient, restoreCont.ID, types.ExecConfig{Cmd: analyzeCmd}); err != nil {
 		return errors.Wrap(err, "failed to recalculate statistics after restore")
 	}
 
@@ -202,21 +211,23 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 	return &container.Config{
-		Labels: map[string]string{tools.DBLabControlLabel: tools.DBLabRestoreLabel},
+		Labels: map[string]string{
+			cont.DBLabControlLabel:    cont.DBLabRestoreLabel,
+			cont.DBLabInstanceIDLabel: r.globalCfg.InstanceID,
+		},
 		Env: append(os.Environ(), []string{
-			"PGDATA=" + r.globalCfg.DataDir(),
+			"PGDATA=" + r.fsPool.DataDir(),
 			"POSTGRES_PASSWORD=" + password,
 		}...),
 		Image:       r.RestoreOptions.DockerImage,
-		Healthcheck: health.GetConfig(),
+		Healthcheck: health.GetConfig(r.globalCfg.Database.User(), r.globalCfg.Database.Name()),
 	}
 }
 
 func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
 	hostConfig := &container.HostConfig{}
 
-	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig,
-		r.globalCfg.MountDir, r.globalCfg.DataDir()); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.fsPool.DataDir()); err != nil {
 		return nil, err
 	}
 
@@ -240,6 +251,8 @@ func (r *RestoreJob) markDatabase(ctx context.Context, contID string) error {
 	if err := r.dbMarker.SaveConfig(r.dbMark); err != nil {
 		return errors.Wrap(err, "failed to mark the database")
 	}
+
+	r.updateDataStateAt()
 
 	return nil
 }
@@ -273,8 +286,19 @@ func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID string) (st
 	return dataStateAt, nil
 }
 
+// updateDataStateAt updates dataStateAt for in-memory representation of a storage pool.
+func (r *RestoreJob) updateDataStateAt() {
+	dsaTime, err := time.Parse(util.DataStateAtFormat, r.dbMark.DataStateAt)
+	if err != nil {
+		log.Err("Invalid value for DataStateAt: ", r.dbMark.DataStateAt)
+		return
+	}
+
+	r.fsPool.SetDSA(dsaTime)
+}
+
 func (r *RestoreJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"pg_restore", "--username", defaults.Username, "--dbname", defaults.DBName, "--create",
+	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName, "--create",
 		"--no-privileges", "--no-owner"}
 
 	if r.ForceInit {

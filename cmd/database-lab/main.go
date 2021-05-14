@@ -5,142 +5,233 @@
 // TODO(anatoly):
 // - Validate configs in all components.
 // - Tests.
-// - Graceful shutdown.
 // - Don't kill clones on shutdown/start.
 
 package main
 
 import (
-	"bytes"
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/docker/docker/client"
-	"github.com/jessevdk/go-flags"
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/config"
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/cloning"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/platform"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision"
-	"gitlab.com/postgres-ai/database-lab/pkg/srv"
-	"gitlab.com/postgres-ai/database-lab/version"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/estimator"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/cont"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/cloning"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/platform"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/srv"
+	"gitlab.com/postgres-ai/database-lab/v2/version"
 )
 
-var opts struct {
-	VerificationToken string `short:"t" long:"token" description:"API verification token" env:"VERIFICATION_TOKEN"`
-
-	MountDir      string `long:"mount-dir" description:"clones data mount directory" env:"MOUNT_DIR"`
-	UnixSocketDir string `long:"sockets-dir" description:"unix sockets directory for secure connection to clones" env:"UNIX_SOCKET_DIR"`
-	DockerImage   string `long:"docker-image" description:"clones Docker image" env:"DOCKER_IMAGE"`
-
-	ShowHelp func() error `long:"help" description:"Show this help message"`
-}
+const (
+	shutdownTimeout = 30 * time.Second
+)
 
 func main() {
 	log.Msg("Database Lab version: ", version.GetVersion())
 
-	// Load CLI options.
-	if _, err := parseArgs(); err != nil {
-		if flags.WroteHelp(err) {
-			return
-		}
+	instanceID := xid.New().String()
 
-		log.Fatal("Args parse error:", err)
-	}
+	log.Msg("Database Lab Instance ID:", instanceID)
 
-	cfg, err := config.LoadConfig("config.yml")
+	cfg, err := loadConfiguration(instanceID)
 	if err != nil {
-		log.Fatalf(errors.WithMessage(err, "failed to parse config"))
+		log.Fatal(errors.WithMessage(err, "failed to parse config"))
 	}
 
-	log.DEBUG = cfg.Global.Debug
-	log.Dbg("Config loaded", cfg)
+	runner := runners.NewLocalRunner(cfg.Provision.UseSudo)
 
-	// TODO(anatoly): Annotate envs in configs. Use different lib for flags/configs?
-	if len(opts.MountDir) > 0 {
-		cfg.Provision.Options.ClonesMountDir = opts.MountDir
+	pm := pool.NewPoolManager(&cfg.PoolManager, runner)
+	if err := pm.ReloadPools(); err != nil {
+		log.Fatal(err.Error())
 	}
-
-	if len(opts.UnixSocketDir) > 0 {
-		cfg.Provision.Options.UnixSocketDir = opts.UnixSocketDir
-	}
-
-	if len(opts.DockerImage) > 0 {
-		cfg.Provision.Options.DockerImage = opts.DockerImage
-	}
-
-	if cfg.Provision.Options.ClonesMountDir != "" {
-		cfg.Global.ClonesMountDir = cfg.Provision.Options.ClonesMountDir
-	}
-
-	cfg.Global.InstanceID = xid.New().String()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	dockerCLI, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		log.Fatal("Failed to create a Docker client:", err)
 	}
 
-	// Create a cloning service to provision new clones.
-	provisionSvc, err := provision.New(ctx, cfg.Provision, dockerCLI)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Create a platform service to make requests to Platform.
+	platformSvc, err := platform.New(ctx, cfg.Platform)
 	if err != nil {
-		log.Fatalf(errors.WithMessage(err, `error in the "provision" section of the config`))
+		log.Errf(errors.WithMessage(err, "failed to create a new platform service").Error())
+		return
 	}
 
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
-	retrievalSvc, err := retrieval.New(cfg, dockerCLI, provisionSvc.ThinCloneManager())
-	if err != nil {
-		log.Fatal("Failed to build a retrieval service:", err)
-	}
+	retrievalSvc := retrieval.New(cfg, dockerCLI, pm, runner)
 
 	if err := retrievalSvc.Run(ctx); err != nil {
-		log.Fatal("Failed to run the data retrieval service:", err)
+		if cleanUpErr := cont.CleanUpControlContainers(ctx, dockerCLI, cfg.Global.InstanceID); cleanUpErr != nil {
+			log.Err("Failed to clean up service containers:", cleanUpErr)
+		}
+
+		log.Err("Failed to run the data retrieval service:", err)
+
+		return
 	}
 
-	cloningSvc := cloning.New(&cfg.Cloning, provisionSvc)
+	defer retrievalSvc.Stop()
+
+	dbCfg := &resources.DB{
+		Username: cfg.Global.Database.User(),
+		DBName:   cfg.Global.Database.Name(),
+	}
+
+	// Create a cloning service to provision new clones.
+	provisionSvc, err := provision.New(ctx, &cfg.Provision, dbCfg, dockerCLI, pm)
+	if err != nil {
+		log.Errf(errors.WithMessage(err, `error in the "provision" section of the config`).Error())
+	}
+
+	obsCh := make(chan string, 1)
+
+	cloningSvc := cloning.New(&cfg.Cloning, provisionSvc, obsCh)
 	if err = cloningSvc.Run(ctx); err != nil {
-		log.Fatalf(err)
+		log.Err(err)
+		return
 	}
 
-	// Create a platform service to verify Platform tokens.
-	platformSvc := platform.New(cfg.Platform)
-	if err := platformSvc.Init(ctx); err != nil {
-		log.Fatalf(errors.WithMessage(err, "failed to create a new platform service"))
+	obs := observer.NewObserver(dockerCLI, &cfg.Observer, platformSvc.Client, pm)
+	est := estimator.NewEstimator(&cfg.Estimator)
+
+	go removeObservingClones(obsCh, obs)
+
+	server := srv.NewServer(&cfg.Server, obs, cloningSvc, platformSvc, dockerCLI, est)
+
+	reloadCh := setReloadListener()
+
+	go func() {
+		for range reloadCh {
+			log.Msg("Reloading configuration")
+
+			if err := reloadConfig(ctx, instanceID, provisionSvc, retrievalSvc, pm, cloningSvc, platformSvc, est, server); err != nil {
+				log.Err("Failed to reload configuration", err)
+			}
+
+			log.Msg("Configuration has been reloaded")
+		}
+	}()
+
+	shutdownCh := setShutdownListener()
+
+	server.InitHandlers()
+
+	go func() {
+		// Start the Database Lab.
+		if err = server.Run(); err != nil {
+			log.Msg(err)
+		}
+	}()
+
+	<-shutdownCh
+	cancel()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Msg(err)
 	}
 
-	if len(opts.VerificationToken) > 0 {
-		cfg.Server.VerificationToken = opts.VerificationToken
-	}
-
-	// Start the Database Lab.
-	server := srv.NewServer(&cfg.Server, cloningSvc, platformSvc)
-	if err = server.Run(); err != nil {
-		log.Fatalf(err)
-	}
+	shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global, pm.Active().Pool())
 }
 
-func parseArgs() ([]string, error) {
-	var parser = flags.NewParser(&opts, flags.Default & ^flags.HelpFlag)
-
-	// jessevdk/go-flags lib doesn't allow to use short flag -h because
-	// it's binded to usage help. We need to hack it a bit to use -h
-	// for as a hostname option.
-	// See https://github.com/jessevdk/go-flags/issues/240
-	opts.ShowHelp = func() error {
-		var b bytes.Buffer
-
-		parser.WriteHelp(&b)
-
-		return &flags.Error{
-			Type:    flags.ErrHelp,
-			Message: b.String(),
-		}
+func loadConfiguration(instanceID string) (*config.Config, error) {
+	cfg, err := config.LoadConfig("config.yml")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse config")
 	}
 
-	return parser.Parse()
+	log.DEBUG = cfg.Global.Debug
+	log.Dbg("Config loaded", cfg)
+
+	cfg.Global.InstanceID = instanceID
+
+	return cfg, nil
+}
+
+func reloadConfig(ctx context.Context, instanceID string, provisionSvc *provision.Provisioner, retrievalSvc *retrieval.Retrieval,
+	pm *pool.Manager, cloningSvc cloning.Cloning, platformSvc *platform.Service, est *estimator.Estimator, server *srv.Server) error {
+	cfg, err := loadConfiguration(instanceID)
+	if err != nil {
+		return err
+	}
+
+	if err := provision.IsValidConfig(cfg.Provision); err != nil {
+		return err
+	}
+
+	if err := retrieval.IsValidConfig(cfg); err != nil {
+		return err
+	}
+
+	newPlatformSvc, err := platform.New(ctx, cfg.Platform)
+	if err != nil {
+		return err
+	}
+
+	if err := pm.Reload(cfg.PoolManager); err != nil {
+		return err
+	}
+
+	dbCfg := resources.DB{
+		Username: cfg.Global.Database.User(),
+		DBName:   cfg.Global.Database.Name(),
+	}
+
+	provisionSvc.Reload(cfg.Provision, dbCfg)
+	retrievalSvc.Reload(ctx, cfg)
+	cloningSvc.Reload(cfg.Cloning)
+	platformSvc.Reload(newPlatformSvc)
+	est.Reload(cfg.Estimator)
+	server.Reload(cfg.Server)
+
+	return nil
+}
+
+func setReloadListener() chan os.Signal {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGHUP)
+
+	return c
+}
+
+func setShutdownListener() chan os.Signal {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	return c
+}
+
+func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, global config.Global, fsp *resources.Pool) {
+	log.Msg("Stopping control containers")
+
+	if err := cont.StopControlContainers(ctx, dockerCLI, global.InstanceID, fsp.DataDir()); err != nil {
+		log.Err("Failed to stop control containers", err)
+	}
+
+	log.Msg("Control containers have been stopped")
+}
+
+func removeObservingClones(obsCh chan string, obs *observer.Observer) {
+	for cloneID := range obsCh {
+		obs.RemoveObservingClone(cloneID)
+	}
 }

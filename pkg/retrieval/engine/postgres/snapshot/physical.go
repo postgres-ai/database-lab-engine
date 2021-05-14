@@ -11,33 +11,33 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"os"
 	"path"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/AlekSi/pointer"
+	"github.com/araddon/dateparse"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
-	"github.com/sethvargo/go-password/password"
 
-	dblabCfg "gitlab.com/postgres-ai/database-lab/pkg/config"
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/config"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/dbmarker"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/defaults"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools/health"
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/options"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/configuration"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/thinclones"
+	dblabCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/dbmarker"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/cont"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/health"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/pgtool"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/options"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/databases/postgres/pgconfig"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 )
 
 const (
@@ -47,13 +47,19 @@ const (
 	pre                    = "_pre"
 	promoteContainerPrefix = "dblab_promote_"
 
-	// Defines container health check options.
-	hcPromoteInterval = 5 * time.Second
-	hcPromoteRetries  = 200
+	supportedSysctlPrefix = "fs.mqueue."
 
-	syncContainerStopTimeout = 2 * time.Minute
-	supportedSysctlPrefix    = "fs.mqueue."
+	checkpointTimestampLabel = "Time of latest checkpoint:"
+
+	restoreCommandOption = "restore_command"
+	targetActionOption   = "recovery_target_action"
+	promoteTargetAction  = "promote"
 )
+
+var defaultRecoveryCfg = map[string]string{
+	"recovery_target":        "immediate",
+	"recovery_target_action": promoteTargetAction,
+}
 
 // supportedSysctls describes supported sysctls for Promote Docker image.
 var supportedSysctls = map[string]struct{}{
@@ -70,25 +76,44 @@ var supportedSysctls = map[string]struct{}{
 // PhysicalInitial describes a job for preparing a physical initial snapshot.
 type PhysicalInitial struct {
 	name           string
-	cloneManager   thinclones.Manager
+	cloneManager   pool.FSManager
+	fsPool         *resources.Pool
 	options        PhysicalOptions
 	globalCfg      *dblabCfg.Global
 	dbMarker       *dbmarker.Marker
 	dbMark         *dbmarker.Config
 	dockerClient   *client.Client
 	scheduler      *cron.Cron
-	scheduleOnce   sync.Once
+	schedulerCtx   context.Context
 	promotionMutex sync.Mutex
+	queryProcessor *queryProcessor
 }
 
 // PhysicalOptions describes options for a physical initialization job.
 type PhysicalOptions struct {
-	Promote             bool              `yaml:"promote"`
-	DockerImage         string            `yaml:"dockerImage"`
+	SkipStartSnapshot   bool              `yaml:"skipStartSnapshot"`
+	Promotion           Promotion         `yaml:"promotion"`
 	PreprocessingScript string            `yaml:"preprocessingScript"`
 	Configs             map[string]string `yaml:"configs"`
 	Sysctls             map[string]string `yaml:"sysctls"`
+	Envs                map[string]string `yaml:"envs"`
 	Scheduler           *Scheduler        `yaml:"scheduler"`
+}
+
+// Promotion describes promotion options.
+type Promotion struct {
+	Enabled            bool               `yaml:"enabled"`
+	DockerImage        string             `yaml:"dockerImage"`
+	HealthCheck        HealthCheck        `yaml:"healthCheck"`
+	QueryPreprocessing QueryPreprocessing `yaml:"queryPreprocessing"`
+	Configs            map[string]string  `yaml:"configs"`
+	Recovery           map[string]string  `yaml:"recovery"`
+}
+
+// HealthCheck describes health check options of a promotion.
+type HealthCheck struct {
+	Interval   int64 `yaml:"interval"`
+	MaxRetries int   `yaml:"maxRetries"`
 }
 
 // Scheduler provides scheduler options.
@@ -103,19 +128,25 @@ type ScheduleSpec struct {
 	Limit     int    `yaml:"limit"`
 }
 
+// QueryPreprocessing defines query preprocessing options.
+type QueryPreprocessing struct {
+	QueryPath          string `yaml:"queryPath"`
+	MaxParallelWorkers int    `yaml:"maxParallelWorkers"`
+}
+
 // NewPhysicalInitialJob creates a new physical initial job.
-func NewPhysicalInitialJob(cfg config.JobConfig, docker *client.Client, cloneManager thinclones.Manager,
-	global *dblabCfg.Global, marker *dbmarker.Marker) (*PhysicalInitial, error) {
+func NewPhysicalInitialJob(cfg config.JobConfig, global *dblabCfg.Global, cloneManager pool.FSManager) (*PhysicalInitial, error) {
 	p := &PhysicalInitial{
-		name:         cfg.Name,
+		name:         cfg.Spec.Name,
 		cloneManager: cloneManager,
+		fsPool:       cfg.FSPool,
 		globalCfg:    global,
-		dbMarker:     marker,
+		dbMarker:     cfg.Marker,
 		dbMark:       &dbmarker.Config{DataType: dbmarker.PhysicalDataType},
-		dockerClient: docker,
+		dockerClient: cfg.Docker,
 	}
 
-	if err := options.Unmarshal(cfg.Options, &p.options); err != nil {
+	if err := p.loadConfig(cfg.Spec.Options); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
@@ -123,32 +154,23 @@ func NewPhysicalInitialJob(cfg config.JobConfig, docker *client.Client, cloneMan
 		return nil, errors.Wrap(err, "invalid physicalSnapshot configuration")
 	}
 
-	if err := p.setupScheduler(); err != nil {
-		return nil, errors.Wrap(err, "failed to set up scheduler")
+	if p.options.Promotion.QueryPreprocessing.QueryPath != "" {
+		p.queryProcessor = newQueryProcessor(cfg.Docker, global.Database.Name(), global.Database.User(),
+			p.options.Promotion.QueryPreprocessing.QueryPath,
+			p.options.Promotion.QueryPreprocessing.MaxParallelWorkers)
 	}
+
+	p.setupScheduler()
 
 	return p, nil
 }
 
-func (p *PhysicalInitial) setupScheduler() error {
-	if p.options.Scheduler == nil ||
-		p.options.Scheduler.Snapshot.Timetable == "" && p.options.Scheduler.Retention.Timetable == "" {
-		return nil
-	}
-
-	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-
-	if _, err := specParser.Parse(p.options.Scheduler.Snapshot.Timetable); p.options.Scheduler.Snapshot.Timetable != "" && err != nil {
-		return errors.Wrapf(err, "failed to parse schedule timetable %q", p.options.Scheduler.Snapshot.Timetable)
-	}
-
-	if _, err := specParser.Parse(p.options.Scheduler.Retention.Timetable); p.options.Scheduler.Retention.Timetable != "" && err != nil {
-		return errors.Wrapf(err, "failed to parse retention timetable %q", p.options.Scheduler.Retention.Timetable)
+func (p *PhysicalInitial) setupScheduler() {
+	if !p.hasSchedulingOptions() {
+		return
 	}
 
 	p.scheduler = cron.New()
-
-	return nil
 }
 
 func (p *PhysicalInitial) validateConfig() error {
@@ -165,11 +187,34 @@ func (p *PhysicalInitial) validateConfig() error {
 			strings.Join(notSupportedSysctls, ", "))
 	}
 
+	if err := p.validateScheduler(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (p *PhysicalInitial) syncInstanceName() string {
-	return tools.SyncInstanceContainerPrefix + p.globalCfg.InstanceID
+func (p *PhysicalInitial) hasSchedulingOptions() bool {
+	return p.options.Scheduler != nil &&
+		(p.options.Scheduler.Snapshot.Timetable != "" || p.options.Scheduler.Retention.Timetable != "")
+}
+
+func (p *PhysicalInitial) validateScheduler() error {
+	if !p.hasSchedulingOptions() {
+		return nil
+	}
+
+	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+
+	if _, err := specParser.Parse(p.options.Scheduler.Snapshot.Timetable); p.options.Scheduler.Snapshot.Timetable != "" && err != nil {
+		return errors.Wrapf(err, "failed to parse schedule timetable %q", p.options.Scheduler.Snapshot.Timetable)
+	}
+
+	if _, err := specParser.Parse(p.options.Scheduler.Retention.Timetable); p.options.Scheduler.Retention.Timetable != "" && err != nil {
+		return errors.Wrapf(err, "failed to parse retention timetable %q", p.options.Scheduler.Retention.Timetable)
+	}
+
+	return nil
 }
 
 // Name returns a name of the job.
@@ -177,13 +222,57 @@ func (p *PhysicalInitial) Name() string {
 	return p.name
 }
 
+// Reload reloads job configuration.
+func (p *PhysicalInitial) Reload(cfg map[string]interface{}) (err error) {
+	if err := p.loadConfig(cfg); err != nil {
+		return errors.Wrap(err, "failed to load job config")
+	}
+
+	p.reloadScheduler()
+
+	return nil
+}
+
+func (p *PhysicalInitial) loadConfig(cfg map[string]interface{}) (err error) {
+	if err := options.Unmarshal(cfg, &p.options); err != nil {
+		return errors.Wrap(err, "failed to unmarshal configuration options")
+	}
+
+	return nil
+}
+
+func (p *PhysicalInitial) reloadScheduler() {
+	if p.scheduler == nil {
+		log.Msg("Skip schedule reloading because it has not been initialized")
+		return
+	}
+
+	p.scheduler.Stop()
+
+	for _, ent := range p.scheduler.Entries() {
+		p.scheduler.Remove(ent.ID)
+	}
+
+	p.startScheduler(p.schedulerCtx)
+}
+
 // Run starts the job.
 func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
-	// Start scheduling after initial snapshot.
-	defer func() {
-		p.scheduleOnce.Do(p.startScheduler(ctx))
-	}()
+	p.schedulerCtx = ctx
 
+	// Start scheduling after initial snapshot.
+	defer p.startScheduler(p.schedulerCtx)
+
+	if p.options.SkipStartSnapshot {
+		log.Msg("Skip taking a snapshot at the start")
+
+		return nil
+	}
+
+	return p.run(p.schedulerCtx)
+}
+
+func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	select {
 	case <-ctx.Done():
 		if p.scheduler != nil {
@@ -202,38 +291,20 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 	preDataStateAt := time.Now().Format(tools.DataStateAtFormat)
 	cloneName := fmt.Sprintf("clone%s_%s", pre, preDataStateAt)
 
-	// Sync container management.
-	syncContainer, err := p.dockerClient.ContainerInspect(ctx, p.syncInstanceName())
-	if err != nil && !client.IsErrNotFound(err) {
-		return errors.Wrap(err, "failed to inspect sync container")
-	}
-
-	if syncContainer.ContainerJSONBase != nil && syncContainer.State.Running {
-		log.Msg("Stopping sync container before snapshotting")
-
-		if err := p.dockerClient.ContainerStop(ctx, syncContainer.ID, pointer.ToDuration(syncContainerStopTimeout)); err != nil {
-			return errors.Wrapf(err, "failed to stop %q", p.syncInstanceName())
-		}
-
-		defer func() {
-			log.Msg("Starting sync container after snapshotting")
-
-			if err := p.dockerClient.ContainerStart(ctx, syncContainer.ID, types.ContainerStartOptions{}); err != nil {
-				log.Err(fmt.Sprintf("failed to start %q: %v", p.syncInstanceName(), err))
-			}
-
-			if err := tools.RunPostgres(ctx, p.dockerClient, syncContainer.ID, p.globalCfg.DataDir()); err != nil {
-				log.Err(fmt.Sprintf("failed to start PostgreSQL instance inside %q: %v", p.syncInstanceName(), err))
-			}
-		}()
-	}
-
 	defer func() {
-		if _, ok := err.(*skipSnapshotErr); ok {
+		if _, ok := errors.Cause(err).(*skipSnapshotErr); ok {
 			log.Msg(err.Error())
 			err = nil
 		}
 	}()
+
+	var syncErr error
+
+	if p.options.Promotion.Enabled {
+		if syncErr = p.checkSyncInstance(ctx); syncErr != nil {
+			log.Dbg(fmt.Sprintf("failed to check the sync instance before snapshotting: %v", syncErr), "Changing the promotion strategy")
+		}
+	}
 
 	// Prepare pre-snapshot.
 	snapshotName, err := p.cloneManager.CreateSnapshot("", preDataStateAt+pre)
@@ -244,7 +315,7 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 	defer func() {
 		if err != nil {
 			if errDestroy := p.cloneManager.DestroySnapshot(snapshotName); errDestroy != nil {
-				log.Err(fmt.Sprintf("Failed to destroy the %q snapshot: %v", snapshotName, err))
+				log.Err(fmt.Sprintf("Failed to destroy the %q snapshot: %v", snapshotName, errDestroy))
 			}
 		}
 	}()
@@ -256,15 +327,15 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 	defer func() {
 		if err != nil {
 			if errDestroy := p.cloneManager.DestroyClone(cloneName); errDestroy != nil {
-				log.Err(fmt.Sprintf("Failed to destroy clone %q: %v", cloneName, err))
+				log.Err(fmt.Sprintf("Failed to destroy clone %q: %v", cloneName, errDestroy))
 			}
 		}
 	}()
 
 	// Promotion.
-	if p.options.Promote {
-		if err := p.promoteInstance(ctx, path.Join(p.globalCfg.ClonesMountDir, cloneName, p.globalCfg.DataSubDir)); err != nil {
-			return err
+	if p.options.Promotion.Enabled {
+		if err := p.promoteInstance(ctx, path.Join(p.fsPool.ClonesDir(), cloneName, p.fsPool.DataSubDir), syncErr); err != nil {
+			return errors.Wrap(err, "failed to promote instance")
 		}
 	}
 
@@ -285,41 +356,74 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to create a snapshot")
 	}
 
+	p.updateDataStateAt()
+
 	return nil
 }
 
-func (p *PhysicalInitial) startScheduler(ctx context.Context) func() {
-	if p.scheduler == nil || p.options.Scheduler == nil ||
-		p.options.Scheduler.Snapshot.Timetable == "" && p.options.Scheduler.Retention.Timetable == "" {
-		return func() {}
+func (p *PhysicalInitial) checkSyncInstance(ctx context.Context) error {
+	syncContainer, err := p.dockerClient.ContainerInspect(ctx, p.syncInstanceName())
+	if err != nil {
+		return err
 	}
 
-	return func() {
-		if p.options.Scheduler.Snapshot.Timetable != "" {
-			if _, err := p.scheduler.AddFunc(p.options.Scheduler.Snapshot.Timetable, p.runAutoSnapshot(ctx)); err != nil {
-				log.Err(errors.Wrap(err, "failed to schedule a new snapshot job"))
-				return
-			}
-		}
+	if err := tools.CheckContainerReadiness(ctx, p.dockerClient, syncContainer.ID); err != nil {
+		return errors.Wrap(err, "failed to readiness check")
+	}
 
-		if p.options.Scheduler.Retention.Timetable != "" {
-			if _, err := p.scheduler.AddFunc(p.options.Scheduler.Retention.Timetable,
-				p.runAutoCleanup(p.options.Scheduler.Retention.Limit)); err != nil {
-				log.Err(errors.Wrap(err, "failed to schedule a new cleanup job"))
-				return
-			}
-		}
+	log.Msg("Sync instance has been checked. It is running")
 
-		p.scheduler.Start()
+	if err := p.checkpoint(ctx, syncContainer.ID); err != nil {
+		return errors.Wrap(err, "failed to make a checkpoint for sync instance")
+	}
+
+	return nil
+}
+
+func (p *PhysicalInitial) syncInstanceName() string {
+	return cont.SyncInstanceContainerPrefix + p.globalCfg.InstanceID
+}
+
+func (p *PhysicalInitial) startScheduler(ctx context.Context) {
+	if p.scheduler == nil || !p.hasSchedulingOptions() {
+		return
+	}
+
+	if p.options.Scheduler.Snapshot.Timetable != "" {
+		if _, err := p.scheduler.AddFunc(p.options.Scheduler.Snapshot.Timetable, p.runAutoSnapshot(ctx)); err != nil {
+			log.Err(errors.Wrap(err, "failed to schedule a new snapshot job"))
+			return
+		}
+	}
+
+	if p.options.Scheduler.Retention.Timetable != "" {
+		if _, err := p.scheduler.AddFunc(p.options.Scheduler.Retention.Timetable,
+			p.runAutoCleanup(p.options.Scheduler.Retention.Limit)); err != nil {
+			log.Err(errors.Wrap(err, "failed to schedule a new cleanup job"))
+			return
+		}
+	}
+
+	p.scheduler.Start()
+
+	log.Msg("Snapshot scheduler has been started")
+
+	go p.waitToStopScheduler()
+}
+
+func (p *PhysicalInitial) waitToStopScheduler() {
+	<-p.schedulerCtx.Done()
+
+	if p.scheduler != nil {
+		log.Msg("Stop snapshot scheduler")
+		p.scheduler.Stop()
 	}
 }
 
 func (p *PhysicalInitial) runAutoSnapshot(ctx context.Context) func() {
 	return func() {
-		if err := p.Run(ctx); err != nil {
+		if err := p.run(ctx); err != nil {
 			log.Err(errors.Wrap(err, "failed to take a snapshot automatically"))
-
-			log.Msg("Interrupt automatic snapshots")
 		}
 	}
 }
@@ -336,29 +440,51 @@ func (p *PhysicalInitial) promoteContainerName() string {
 	return promoteContainerPrefix + p.globalCfg.InstanceID
 }
 
-func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string) (err error) {
+func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string, syncErr error) (err error) {
 	p.promotionMutex.Lock()
 	defer p.promotionMutex.Unlock()
 
 	log.Msg("Promote the Postgres instance.")
 
-	if err := configuration.Run(clonePath); err != nil {
-		return errors.Wrap(err, "failed to enforce configs")
-	}
-
-	// Apply users configs.
-	if err := applyUsersConfigs(p.options.Configs, path.Join(clonePath, "postgresql.conf")); err != nil {
-		return err
-	}
-
-	pgVersion, err := tools.DetectPGVersion(clonePath)
+	cfgManager, err := pgconfig.NewCorrector(clonePath)
 	if err != nil {
-		return errors.Wrap(err, "failed to detect the Postgres version")
+		return errors.Wrap(err, "failed to init configs manager")
 	}
 
 	// Adjust recovery configuration.
-	if err := p.adjustRecoveryConfiguration(pgVersion, clonePath); err != nil {
+	if err := cfgManager.AdjustRecoveryFiles(); err != nil {
 		return errors.Wrap(err, "failed to adjust recovery configuration")
+	}
+
+	recoveryFileConfig, err := cfgManager.ReadRecoveryConfig()
+	if err != nil {
+		return errors.Wrap(err, "failed to read recovery configuration file")
+	}
+
+	if len(recoveryFileConfig) == 0 {
+		if err := cfgManager.RemoveRecoveryConfig(); err != nil {
+			return errors.Wrap(err, "failed to remove recovery config file")
+		}
+	}
+
+	recoveryConfig := make(map[string]string)
+
+	// Item 5. Remove a recovery file: https://gitlab.com/postgres-ai/database-lab/-/issues/236#note_513401256
+	if syncErr != nil {
+		recoveryConfig = buildRecoveryConfig(recoveryFileConfig, p.options.Promotion.Recovery)
+
+		if err := cfgManager.ApplyRecovery(recoveryFileConfig); err != nil {
+			return errors.Wrap(err, "failed to apply recovery configuration")
+		}
+	} else if err := cfgManager.RemoveRecoveryConfig(); err != nil {
+		log.Err(errors.Wrap(err, "failed to remove recovery config file"))
+	}
+
+	// Apply promotion configs.
+	if promotionConfig := p.options.Promotion.Configs; len(promotionConfig) > 0 {
+		if err := cfgManager.ApplyPromotion(p.options.Promotion.Configs); err != nil {
+			return errors.Wrap(err, "failed to store prepared configuration")
+		}
 	}
 
 	hostConfig, err := p.buildHostConfig(ctx, clonePath)
@@ -366,23 +492,23 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to build container host config")
 	}
 
-	promoteImage := p.options.DockerImage
+	promoteImage := p.options.Promotion.DockerImage
 	if promoteImage == "" {
-		promoteImage = fmt.Sprintf("postgresai/sync-instance:%s", pgVersion)
+		promoteImage = fmt.Sprintf("postgresai/extended-postgres:%g", cfgManager.GetPgVersion())
 	}
 
 	if err := tools.PullImage(ctx, p.dockerClient, promoteImage); err != nil {
 		return errors.Wrap(err, "failed to scan image pulling response")
 	}
 
-	pwd, err := password.Generate(tools.PasswordLength, tools.PasswordMinDigits, tools.PasswordMinSymbols, false, true)
+	pwd, err := tools.GeneratePassword()
 	if err != nil {
 		return errors.Wrap(err, "failed to generate PostgreSQL password")
 	}
 
 	// Run promotion container.
-	cont, err := p.dockerClient.ContainerCreate(ctx,
-		p.buildContainerConfig(clonePath, promoteImage, pwd),
+	promoteCont, err := p.dockerClient.ContainerCreate(ctx,
+		p.buildContainerConfig(clonePath, promoteImage, pwd, recoveryConfig[targetActionOption]),
 		hostConfig,
 		&network.NetworkingConfig{},
 		p.promoteContainerName(),
@@ -392,7 +518,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		return errors.Wrap(err, "failed to create container")
 	}
 
-	defer tools.RemoveContainer(ctx, p.dockerClient, cont.ID, tools.StopTimeout)
+	defer tools.RemoveContainer(ctx, p.dockerClient, promoteCont.ID, cont.StopPhysicalTimeout)
 
 	defer func() {
 		if err != nil {
@@ -400,117 +526,175 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string)
 		}
 	}()
 
-	if err := p.dockerClient.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{}); err != nil {
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", p.promoteContainerName(), promoteCont.ID))
+
+	if err := p.dockerClient.ContainerStart(ctx, promoteCont.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrap(err, "failed to start container")
 	}
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", p.promoteContainerName(), cont.ID))
+	log.Msg("Starting PostgreSQL and waiting for readiness")
+	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, p.promoteContainerName()))
 
-	// Start PostgreSQL instance.
-	if err := tools.RunPostgres(ctx, p.dockerClient, cont.ID, clonePath); err != nil {
-		return errors.Wrap(err, "failed to start PostgreSQL instance")
-	}
-
-	if err := tools.CheckContainerReadiness(ctx, p.dockerClient, cont.ID); err != nil {
+	if err := tools.CheckContainerReadiness(ctx, p.dockerClient, promoteCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
 	}
 
-	shouldBePromoted, err := p.checkRecovery(ctx, cont.ID)
+	shouldBePromoted, err := p.checkRecovery(ctx, promoteCont.ID)
 	if err != nil {
-		return errors.Wrap(err, "failed to read response of the exec command")
+		return errors.Wrap(err, "failed to check recovery mode")
 	}
 
 	log.Msg("Should be promoted: ", shouldBePromoted)
 
 	// Detect dataStateAt.
 	if shouldBePromoted == "t" {
-		extractedDataStateAt, err := p.extractDataStateAt(ctx, cont.ID)
-		if err != nil {
-			return errors.Wrap(err,
-				`Failed to get data_state_at: PGDATA should be promoted, but pg_last_xact_replay_timestamp() returns empty result.
-				Check if pg_data is correct, or explicitly define DATA_STATE_AT via an environment variable.`)
-		}
-
-		log.Msg("Extracted Data state at: ", extractedDataStateAt)
-
-		if p.dbMark.DataStateAt != "" && extractedDataStateAt == p.dbMark.DataStateAt {
-			return newSkipSnapshotErr(fmt.Sprintf(
-				`The previous snapshot already contains the latest data: %s. Skip taking a new snapshot.`,
-				p.dbMark.DataStateAt))
-		}
-
-		p.dbMark.DataStateAt = extractedDataStateAt
-
-		log.Msg("Data state at: ", p.dbMark.DataStateAt)
-
 		// Promote PGDATA.
-		if err := p.runPromoteCommand(ctx, cont.ID, clonePath); err != nil {
+		if err := p.runPromoteCommand(ctx, promoteCont.ID, clonePath); err != nil {
 			return errors.Wrapf(err, "failed to promote PGDATA: %s", clonePath)
+		}
+
+		isInRecovery, err := p.checkRecovery(ctx, promoteCont.ID)
+		if err != nil {
+			return errors.Wrap(err, "failed to check recovery mode after promotion")
+		}
+
+		if isInRecovery != "f" {
+			return errors.Errorf("PostgreSQL is in recovery, promotion has been failed: %s", clonePath)
+		}
+	}
+
+	if err := p.markDSA(ctx, promoteCont.ID, clonePath, cfgManager.GetPgVersion()); err != nil {
+		return errors.Wrap(err, "failed to mark dataStateAt")
+	}
+
+	if p.queryProcessor != nil {
+		if err := p.queryProcessor.applyPreprocessingQueries(ctx, promoteCont.ID); err != nil {
+			return errors.Wrap(err, "failed to run preprocessing queries")
 		}
 	}
 
 	// Checkpoint.
-	if err := p.checkpoint(ctx, cont.ID); err != nil {
+	if err := p.checkpoint(ctx, promoteCont.ID); err != nil {
 		return err
+	}
+
+	if err := cfgManager.RemoveRecoveryConfig(); err != nil {
+		return errors.Wrap(err, "failed to remove recovery config file")
+	}
+
+	if err := cfgManager.TruncateSyncConfig(); err != nil {
+		return errors.Wrap(err, "failed to truncate sync config file")
+	}
+
+	if err := cfgManager.TruncatePromotionConfig(); err != nil {
+		return errors.Wrap(err, "failed to truncate promotion config file")
+	}
+
+	// Apply configs to the snapshot.
+	if err := cfgManager.ApplySnapshot(p.options.Configs); err != nil {
+		return errors.Wrap(err, "failed to store prepared configuration")
+	}
+
+	const pgStopTimeout = 600
+
+	if err := tools.StopPostgres(ctx, p.dockerClient, promoteCont.ID, clonePath, pgStopTimeout); err != nil {
+		log.Msg("Failed to stop Postgres", err)
+		tools.PrintContainerLogs(ctx, p.dockerClient, promoteCont.ID)
 	}
 
 	return nil
 }
 
-func (p *PhysicalInitial) adjustRecoveryConfiguration(pgVersion, clonePGDataDir string) error {
-	// Remove postmaster.pid.
-	if err := os.Remove(path.Join(clonePGDataDir, "postmaster.pid")); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return errors.Wrap(err, "failed to remove postmaster.pid")
+func buildRecoveryConfig(fileConfig, userRecoveryConfig map[string]string) map[string]string {
+	recoveryConf := fileConfig
+
+	if rc, ok := fileConfig[restoreCommandOption]; ok || rc != "" {
+		for k, v := range defaultRecoveryCfg {
+			recoveryConf[k] = v
+		}
 	}
 
-	// Truncate pg_ident.conf.
-	if err := tools.TouchFile(path.Join(clonePGDataDir, "pg_ident.conf")); err != nil {
-		return errors.Wrap(err, "failed to truncate pg_ident.conf")
+	for k, v := range userRecoveryConfig {
+		recoveryConf[k] = v
 	}
 
-	// Replication mode.
-	var (
-		replicationFilename string
-		buffer              bytes.Buffer
-	)
+	return recoveryConf
+}
 
-	version, err := strconv.ParseFloat(pgVersion, 64)
+func (p *PhysicalInitial) markDSA(ctx context.Context, containerID, dataDir string, pgVersion float64) error {
+	extractedDataStateAt, err := p.extractDataStateAt(ctx, containerID, dataDir, pgVersion)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse PostgreSQL version")
+		return errors.Wrap(err, `failed to extract dataStateAt`)
 	}
 
-	const pgVersion12 = 12
+	log.Msg("Extracted Data state at: ", extractedDataStateAt)
 
-	if version >= pgVersion12 {
-		replicationFilename = "standby.signal"
-	} else {
-		replicationFilename = "recovery.conf"
-
-		buffer.WriteString("standby_mode = 'on'\n")
-		buffer.WriteString("primary_conninfo = ''\n")
-		buffer.WriteString("restore_command = ''\n")
+	if p.dbMark.DataStateAt != "" && extractedDataStateAt == p.dbMark.DataStateAt {
+		return newSkipSnapshotErr(fmt.Sprintf(
+			`The previous snapshot already contains the latest data: %s. Skip taking a new snapshot.`,
+			p.dbMark.DataStateAt))
 	}
 
-	if err := ioutil.WriteFile(path.Join(clonePGDataDir, replicationFilename), buffer.Bytes(), 0666); err != nil {
-		return err
-	}
+	p.dbMark.DataStateAt = extractedDataStateAt
+
+	log.Msg("Data state at: ", p.dbMark.DataStateAt)
 
 	return nil
 }
 
-func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password string) *container.Config {
+func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password, action string) *container.Config {
+	hcPromotionInterval := health.DefaultRestoreInterval
+	hcPromotionRetries := health.DefaultRestoreRetries
+
+	if p.options.Promotion.HealthCheck.Interval != 0 {
+		hcPromotionInterval = time.Duration(p.options.Promotion.HealthCheck.Interval) * time.Second
+	}
+
+	if p.options.Promotion.HealthCheck.MaxRetries != 0 {
+		hcPromotionRetries = p.options.Promotion.HealthCheck.MaxRetries
+	}
+
+	hcOptions := []health.ContainerOption{
+		health.OptionInterval(hcPromotionInterval),
+		health.OptionRetries(hcPromotionRetries),
+	}
+
+	// Perform the custom health check in case of automatic promotion.
+	if action == promoteTargetAction {
+		testCommand := fmt.Sprintf("if [ \"`psql -U %s -d %s -XAtc \"select pg_is_in_recovery()\"`\" = \"f\" ];then true;else false;fi",
+			p.globalCfg.Database.User(),
+			p.globalCfg.Database.Name(),
+		)
+		hcOptions = append(hcOptions, health.OptionTest(testCommand))
+	}
+
 	return &container.Config{
-		Labels: map[string]string{tools.DBLabControlLabel: tools.DBLabPromoteLabel},
-		Env: []string{
-			"PGDATA=" + clonePath,
-			"POSTGRES_PASSWORD=" + password,
+		Labels: map[string]string{
+			cont.DBLabControlLabel:    cont.DBLabPromoteLabel,
+			cont.DBLabInstanceIDLabel: p.globalCfg.InstanceID,
 		},
+		Env:   p.getEnvironmentVariables(clonePath, password),
 		Image: promoteImage,
 		Healthcheck: health.GetConfig(
-			health.OptionInterval(hcPromoteInterval),
-			health.OptionRetries(hcPromoteRetries),
+			p.globalCfg.Database.User(),
+			p.globalCfg.Database.Name(),
+			hcOptions...,
 		),
 	}
+}
+
+func (p *PhysicalInitial) getEnvironmentVariables(clonePath, password string) []string {
+	envVariables := []string{
+		"PGDATA=" + clonePath,
+		"POSTGRES_PASSWORD=" + password,
+	}
+
+	// Add user-defined environment variables.
+	for env, value := range p.options.Envs {
+		envVariables = append(envVariables, fmt.Sprintf("%s=%s", env, value))
+	}
+
+	return envVariables
 }
 
 func (p *PhysicalInitial) buildHostConfig(ctx context.Context, clonePath string) (*container.HostConfig, error) {
@@ -518,8 +702,7 @@ func (p *PhysicalInitial) buildHostConfig(ctx context.Context, clonePath string)
 		Sysctls: p.options.Sysctls,
 	}
 
-	if err := tools.AddVolumesToHostConfig(ctx, p.dockerClient, hostConfig,
-		p.globalCfg.MountDir, clonePath); err != nil {
+	if err := tools.AddVolumesToHostConfig(ctx, p.dockerClient, hostConfig, clonePath); err != nil {
 		return nil, err
 	}
 
@@ -527,133 +710,106 @@ func (p *PhysicalInitial) buildHostConfig(ctx context.Context, clonePath string)
 }
 
 func (p *PhysicalInitial) checkRecovery(ctx context.Context, containerID string) (string, error) {
-	checkRecoveryCmd := []string{"psql", "-U", defaults.Username, "-XAtc", "select pg_is_in_recovery()"}
+	checkRecoveryCmd := []string{"psql",
+		"-U", p.globalCfg.Database.User(),
+		"-d", p.globalCfg.Database.Name(),
+		"-XAtc", "select pg_is_in_recovery()",
+	}
+
 	log.Msg("Check recovery command", checkRecoveryCmd)
 
-	execCommand, err := p.dockerClient.ContainerExecCreate(ctx, containerID, types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          checkRecoveryCmd,
+	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
+		Cmd: checkRecoveryCmd,
 	})
 
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create exec command")
-	}
-
-	attachResponse, err := p.dockerClient.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{Tty: true})
-	if err != nil {
-		return "", errors.Wrap(err, "failed to attach to exec command")
-	}
-
-	defer attachResponse.Close()
-
-	return checkRecoveryModeResponse(attachResponse.Reader)
+	return output, err
 }
 
-func checkRecoveryModeResponse(input io.Reader) (string, error) {
-	scanner := bufio.NewScanner(input)
+func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID, dataDir string, pgVersion float64) (string, error) {
+	extractionCommand := []string{"psql", "-U", p.globalCfg.Database.User(), "-d", p.globalCfg.Database.Name(), "-XAtc",
+		"select to_char(pg_last_xact_replay_timestamp() at time zone 'UTC', 'YYYYMMDDHH24MISS')"}
 
-	for scanner.Scan() {
-		text := scanner.Text()
+	log.Msg("Running dataStateAt command", extractionCommand)
 
-		fmt.Println(text)
+	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
+		Cmd:  extractionCommand,
+		User: defaults.Username,
+	})
 
-		if text == "f" {
-			return "f", nil
+	if output == "" {
+		log.Msg("The last replay timestamp not found. Extract the last checkpoint timestamp")
+
+		response, err := pgtool.ReadControlData(ctx, p.dockerClient, containerID, dataDir, pgVersion)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to read control data")
+		}
+
+		defer response.Close()
+
+		output, err = getCheckPointTimestamp(ctx, response.Reader)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to read control data")
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		return "", err
-	}
-
-	return "t", nil
+	return output, err
 }
 
-func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID string) (string, error) {
-	promoteCommand := []string{"psql", "-U", defaults.Username, "-d", defaults.DBName, "-XAtc",
-		"select to_char(coalesce(pg_last_xact_replay_timestamp(), NOW()) at time zone 'UTC', 'YYYYMMDDHH24MISS')"}
-
-	log.Msg("Running promote command", promoteCommand)
-
-	execCommand, err := p.dockerClient.ContainerExecCreate(ctx, containerID, types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          promoteCommand,
-		User:         defaults.Username,
-	})
-
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create exec command")
-	}
-
-	attachResponse, err := p.dockerClient.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{Tty: true})
-	if err != nil {
-		return "", errors.Wrap(err, "failed to attach to exec command")
-	}
-
-	defer attachResponse.Close()
-
-	return readDataStateAt(attachResponse.Reader)
-}
-
-func readDataStateAt(input io.Reader) (string, error) {
-	scanner := bufio.NewScanner(input)
+func getCheckPointTimestamp(ctx context.Context, r io.Reader) (string, error) {
+	scanner := bufio.NewScanner(r)
+	checkpointTitleBytes := []byte(checkpointTimestampLabel)
 
 	for scanner.Scan() {
-		text := scanner.Text()
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
 
-		fmt.Println(text)
+		if bytes.HasPrefix(scanner.Bytes(), checkpointTitleBytes) {
+			checkpointTimestamp := bytes.TrimSpace(bytes.TrimPrefix(scanner.Bytes(), checkpointTitleBytes))
 
-		return text, nil
+			checkpointDate, err := dateparse.ParseStrict(string(checkpointTimestamp))
+			if err != nil {
+				return "", err
+			}
+
+			return checkpointDate.UTC().Format(util.DataStateAtFormat), nil
+		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		return "", err
-	}
-
-	return "", nil
+	return "", errors.New("checkpoint timestamp not found")
 }
 
 func (p *PhysicalInitial) runPromoteCommand(ctx context.Context, containerID, clonePath string) error {
-	promoteCommand := []string{"pg_ctl", "-D", clonePath, "-W", "promote"}
+	promoteCommand := []string{"pg_ctl", "-D", clonePath, "-w", "promote"}
 
 	log.Msg("Running promote command", promoteCommand)
 
-	if err := tools.ExecCommand(ctx, p.dockerClient, containerID, types.ExecConfig{
+	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
 		User: defaults.Username,
 		Cmd:  promoteCommand,
-	}); err != nil {
+		Env: []string{
+			fmt.Sprintf("PGCTLTIMEOUT=%d", p.options.Promotion.HealthCheck.MaxRetries*int(p.options.Promotion.HealthCheck.Interval)),
+		},
+	})
+	if err != nil {
 		return errors.Wrap(err, "failed to promote instance")
 	}
+
+	log.Msg("Promotion result: ", output)
 
 	return nil
 }
 
 func (p *PhysicalInitial) checkpoint(ctx context.Context, containerID string) error {
-	commandCheckpoint := []string{"psql", "-U", defaults.Username, "-d", defaults.DBName, "-XAtc", "checkpoint"}
+	commandCheckpoint := []string{"psql", "-U", p.globalCfg.Database.User(), "-d", p.globalCfg.Database.Name(), "-XAtc", "checkpoint"}
 	log.Msg("Run checkpoint command", commandCheckpoint)
 
-	execCommand, err := p.dockerClient.ContainerExecCreate(ctx, containerID, types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          commandCheckpoint,
-	})
-
+	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{Cmd: commandCheckpoint})
 	if err != nil {
-		return errors.Wrap(err, "failed to create exec command")
+		return errors.Wrap(err, "failed to make checkpoint")
 	}
 
-	attachResponse, err := p.dockerClient.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{Tty: true})
-	if err != nil {
-		return errors.Wrap(err, "failed to attach to exec command")
-	}
-
-	defer attachResponse.Close()
-
-	if _, err = io.Copy(os.Stdout, attachResponse.Reader); err != nil {
-		return errors.Wrap(err, "failed to read response of exec command")
-	}
+	log.Msg("Checkpoint result: ", output)
 
 	return nil
 }
@@ -666,7 +822,25 @@ func (p *PhysicalInitial) markDatabaseData() error {
 	return p.dbMarker.SaveConfig(p.dbMark)
 }
 
+// updateDataStateAt updates dataStateAt for in-memory representation of a storage pool.
+func (p *PhysicalInitial) updateDataStateAt() {
+	dsaTime, err := time.Parse(util.DataStateAtFormat, p.dbMark.DataStateAt)
+	if err != nil {
+		log.Err("Invalid value for DataStateAt: ", p.dbMark.DataStateAt)
+		return
+	}
+
+	p.fsPool.SetDSA(dsaTime)
+}
+
 func (p *PhysicalInitial) cleanupSnapshots(retentionLimit int) error {
+	select {
+	case <-p.schedulerCtx.Done():
+		log.Msg("Stop automatic snapshot cleanup")
+		return nil
+	default:
+	}
+
 	_, err := p.cloneManager.CleanupSnapshots(retentionLimit)
 	if err != nil {
 		return errors.Wrap(err, "failed to clean up snapshots")

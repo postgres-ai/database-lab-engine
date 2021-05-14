@@ -7,7 +7,7 @@ package clone
 import (
 	"github.com/urfave/cli/v2"
 
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands"
 )
 
 // CommandList returns available commands for a clones management.
@@ -31,7 +31,7 @@ func CommandList() []*cli.Command {
 			{
 				Name:   "create",
 				Usage:  "create new clone",
-				Action: create(),
+				Action: create,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:     "username",
@@ -43,6 +43,14 @@ func CommandList() []*cli.Command {
 						Usage:    "database password",
 						Required: true,
 					},
+					&cli.BoolFlag{
+						Name:  "restricted",
+						Usage: "create a user with restricted permissions",
+					},
+					&cli.StringFlag{
+						Name:  "db-name",
+						Usage: "database available to the user with restricted permissions",
+					},
 					&cli.StringFlag{
 						Name:  "id",
 						Usage: "clone ID (optional)",
@@ -50,10 +58,6 @@ func CommandList() []*cli.Command {
 					&cli.StringFlag{
 						Name:  "snapshot-id",
 						Usage: "snapshot ID (optional)",
-					},
-					&cli.StringFlag{
-						Name:  "project",
-						Usage: "project name (optional)",
 					},
 					&cli.BoolFlag{
 						Name:    "protected",
@@ -64,6 +68,10 @@ func CommandList() []*cli.Command {
 						Name:    "async",
 						Usage:   "run the command asynchronously",
 						Aliases: []string{"a"},
+					},
+					&cli.StringSliceFlag{
+						Name:  "extra-config",
+						Usage: "set an extra database configuration for the clone. An example: statement_timeout='1s'",
 					},
 				},
 			},
@@ -110,50 +118,91 @@ func CommandList() []*cli.Command {
 				},
 			},
 			{
-				Name:      "observe",
-				Usage:     "[EXPERIMENTAL] monitor clone state",
+				Name:      "start-observation",
+				Usage:     "[EXPERIMENTAL] start clone state monitoring",
 				ArgsUsage: "CLONE_ID",
 				Before:    checkCloneIDBefore,
-				Action:    observe(),
+				Action:    startObservation,
 				Flags: []cli.Flag{
+					&cli.IntFlag{
+						Name:    "observation-interval",
+						Usage:   "interval of metric gathering and output (in seconds)",
+						EnvVars: []string{"DBLAB_OBSERVATION_INTERVAL"},
+					},
+					&cli.IntFlag{
+						Name:    "max-lock-duration",
+						Usage:   "maximum allowed duration for locks (in seconds)",
+						EnvVars: []string{"DBLAB_MAX_LOCK_DURATION"},
+					},
+					&cli.IntFlag{
+						Name:    "max-duration",
+						Usage:   "maximum allowed duration for observation (in seconds)",
+						EnvVars: []string{"DBLAB_MAX_DURATION"},
+					},
+					&cli.StringSliceFlag{
+						Name:  "tags",
+						Usage: "set tags for the observation session. An example: branch=patch-1",
+					},
 					&cli.StringFlag{
-						Name:     "password",
-						Usage:    "clone database password",
-						EnvVars:  []string{"CLONE_PASSWORD"},
-						Required: true,
-					},
-					&cli.StringFlag{
-						Name:    "sslmode",
-						Usage:   "connection SSL mode",
-						EnvVars: []string{"SSLMODE"},
-						Value:   "disable",
-					},
-					&cli.BoolFlag{
-						Name:    "follow",
-						Usage:   "follow state monitor output",
-						Aliases: []string{"f"},
-					},
-					&cli.IntFlag{
-						Name:    "interval-seconds",
-						Usage:   "interval of metric gathering and output",
-						EnvVars: []string{"DBLAB_INTERVAL_SECONDS"},
-					},
-					&cli.IntFlag{
-						Name:    "max-lock-duration-seconds",
-						Usage:   "maximum allowed duration for locks",
-						EnvVars: []string{"DBLAB_MAX_LOCK_DURATION_SECONDS"},
-					},
-					&cli.IntFlag{
-						Name:    "max-duration-seconds",
-						Usage:   "maximum allowed duration for operation",
-						EnvVars: []string{"DBLAB_MAX_DURATION_SECONDS"},
+						Name:  "db-name",
+						Usage: "database name to observe",
 					},
 				},
 			},
 			{
-				Name:   "observe-summary",
-				Usage:  "[EXPERIMENTAL] summarize clone monitoring and check results",
-				Action: observeSummary(),
+				Name:      "stop-observation",
+				Usage:     "[EXPERIMENTAL] summarize clone monitoring and check results",
+				ArgsUsage: "CLONE_ID",
+				Before:    checkCloneIDBefore,
+				Action:    stopObservation,
+			},
+			{
+				Name:   "summary-observation",
+				Usage:  "[EXPERIMENTAL] display summary of an observation session",
+				Action: summaryObservation,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "clone-id",
+						Usage:    "clone ID",
+						Required: true,
+						EnvVars:  []string{"DBLAB_OBSERVATION_CLONE_ID"},
+					},
+					&cli.StringFlag{
+						Name:     "session-id",
+						Usage:    "observing session ID",
+						Required: true,
+						EnvVars:  []string{"DBLAB_OBSERVATION_SESSION_ID"},
+					},
+				},
+			},
+			{
+				Name:   "download-artifact",
+				Usage:  "[EXPERIMENTAL] download artifact of an observation session",
+				Action: downloadArtifact,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "clone-id",
+						Usage:    "clone ID",
+						Required: true,
+						EnvVars:  []string{"DBLAB_OBSERVATION_CLONE_ID"},
+					},
+					&cli.StringFlag{
+						Name:     "session-id",
+						Usage:    "observing session ID",
+						Required: true,
+						EnvVars:  []string{"DBLAB_OBSERVATION_SESSION_ID"},
+					},
+					&cli.StringFlag{
+						Name:     "artifact-type",
+						Usage:    "artifact type to download",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:    "output",
+						Usage:   "write an artifact to file (optional)",
+						Aliases: []string{"o"},
+					},
+				},
 			},
 			{
 				Name:  "port-forward",

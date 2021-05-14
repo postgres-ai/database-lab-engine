@@ -12,16 +12,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 )
 
 func TestClientListClones(t *testing.T) {
 	expectedClones := []*models.Clone{{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
-			CloneDiffSize: 450,
-			CloningTime:   1,
+			CloneDiffSize:   450,
+			CloneDiffSizeHR: "450 B",
+			CloningTime:     1,
 		},
 		Protected: true,
 		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
@@ -34,7 +35,6 @@ func TestClientListClones(t *testing.T) {
 			Username: "john",
 			Password: "doe",
 		},
-		Project: "testProject",
 	}}
 
 	mockClient := NewTestClient(func(req *http.Request) *http.Response {
@@ -92,8 +92,9 @@ func TestClientCreateClone(t *testing.T) {
 	expectedClone := models.Clone{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
-			CloneDiffSize: 450,
-			CloningTime:   1,
+			CloneDiffSize:   450,
+			CloneDiffSizeHR: "450 B",
+			CloningTime:     1,
 		},
 		Protected: true,
 		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
@@ -106,7 +107,6 @@ func TestClientCreateClone(t *testing.T) {
 			Username: "john",
 			Password: "doe",
 		},
-		Project: "testProject",
 	}
 
 	mockClient := NewTestClient(func(r *http.Request) *http.Response {
@@ -154,8 +154,8 @@ func TestClientCreateClone(t *testing.T) {
 
 	// Send a request.
 	newClone, err := c.CreateClone(ctx, types.CloneCreateRequest{
-		ID:        "testCloneID",
-		Project:   "testProject",
+		ID: "testCloneID",
+
 		Protected: true,
 		DB: &types.DatabaseRequest{
 			Username: "john",
@@ -171,8 +171,9 @@ func TestClientCreateCloneAsync(t *testing.T) {
 	expectedClone := models.Clone{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
-			CloneDiffSize: 450,
-			CloningTime:   1,
+			CloneDiffSize:   450,
+			CloneDiffSizeHR: "450 B",
+			CloningTime:     1,
 		},
 		Protected: true,
 		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
@@ -185,7 +186,6 @@ func TestClientCreateCloneAsync(t *testing.T) {
 			Username: "john",
 			Password: "doe",
 		},
-		Project: "testProject",
 	}
 
 	mockClient := NewTestClient(func(r *http.Request) *http.Response {
@@ -224,7 +224,6 @@ func TestClientCreateCloneAsync(t *testing.T) {
 	// Send a request.
 	newClone, err := c.CreateCloneAsync(ctx, types.CloneCreateRequest{
 		ID:        "testCloneID",
-		Project:   "testProject",
 		Protected: true,
 		DB: &types.DatabaseRequest{
 			Username: "john",
@@ -262,8 +261,9 @@ func TestClientGetClone(t *testing.T) {
 	expectedClone := &models.Clone{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
-			CloneDiffSize: 450,
-			CloningTime:   1,
+			CloneDiffSize:   450,
+			CloneDiffSizeHR: "450 B",
+			CloningTime:     1,
 		},
 		Protected: true,
 		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
@@ -276,7 +276,6 @@ func TestClientGetClone(t *testing.T) {
 			Username: "john",
 			Password: "doe",
 		},
-		Project: "testProject",
 	}
 
 	mockClient := NewTestClient(func(r *http.Request) *http.Response {
@@ -334,8 +333,9 @@ func TestClientUpdateClone(t *testing.T) {
 	cloneModel := &models.Clone{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
-			CloneDiffSize: 450,
-			CloningTime:   1,
+			CloneDiffSize:   450,
+			CloneDiffSizeHR: "450 B",
+			CloningTime:     1,
 		},
 		Protected: true,
 		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
@@ -348,7 +348,6 @@ func TestClientUpdateClone(t *testing.T) {
 			Username: "john",
 			Password: "doe",
 		},
-		Project: "testProject",
 	}
 
 	mockClient := NewTestClient(func(r *http.Request) *http.Response {

@@ -8,17 +8,18 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	_ "github.com/lib/pq" // Register Postgres database driver.
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/databases/postgres/configuration"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/docker"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/databases/postgres/pgconfig"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/docker"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/runners"
 )
 
 const (
@@ -39,8 +40,15 @@ const (
 func Start(r runners.Runner, c *resources.AppConfig) error {
 	log.Dbg("Starting Postgres container...")
 
-	if err := configuration.Run(c.DataDir()); err != nil {
-		return errors.Wrap(err, "cannot update configs")
+	if extraConf := c.ExtraConf(); len(extraConf) > 0 {
+		configManager, err := pgconfig.NewCorrector(c.DataDir())
+		if err != nil {
+			return errors.Wrap(err, "failed to create a config manager")
+		}
+
+		if err := configManager.ApplyUserConfig(extraConf); err != nil {
+			return errors.Wrap(err, "cannot apply user configs")
+		}
 	}
 
 	if _, err := docker.RunContainer(r, c); err != nil {
@@ -65,7 +73,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 			return errors.Wrap(fmt.Errorf("postgres fatal error"), "cannot start Postgres")
 		}
 
-		out, err := runSimpleSQL("select pg_is_in_recovery()", c)
+		out, err := runSimpleSQL("select pg_is_in_recovery()", getPgConnStr(c.Host, c.DB.DBName, c.DB.Username, c.Port))
 
 		if err == nil {
 			// Server does not need promotion if it is not in recovery.
@@ -84,7 +92,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 
 				_, err = pgctlPromote(r, c)
 				if err != nil {
-					if runnerError := Stop(r, c); runnerError != nil {
+					if runnerError := Stop(r, &c.Pool, c.CloneName); runnerError != nil {
 						log.Err(runnerError)
 					}
 
@@ -98,7 +106,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 		cnt++
 
 		if cnt > waitPostgresTimeout {
-			if runnerErr := Stop(r, c); runnerErr != nil {
+			if runnerErr := Stop(r, &c.Pool, c.CloneName); runnerErr != nil {
 				log.Err(runnerErr)
 			}
 
@@ -112,14 +120,14 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 }
 
 // Stop stops Postgres instance.
-func Stop(r runners.Runner, c *resources.AppConfig) error {
+func Stop(r runners.Runner, p *resources.Pool, name string) error {
 	log.Dbg("Stopping Postgres container...")
 
-	if _, err := docker.RemoveContainer(r, c); err != nil {
+	if _, err := docker.RemoveContainer(r, name); err != nil {
 		return errors.Wrap(err, "failed to remove container")
 	}
 
-	if _, err := r.Run("rm -rf " + c.UnixSocketCloneDir + "/*"); err != nil {
+	if _, err := r.Run("rm -rf " + p.SocketCloneDir(name) + "/*"); err != nil {
 		return errors.Wrap(err, "failed to clean unix socket directory")
 	}
 
@@ -140,33 +148,22 @@ func pgctlPromote(r runners.Runner, c *resources.AppConfig) (string, error) {
 }
 
 // Generate postgres connection string.
-func getPgConnStr(c *resources.AppConfig) string {
+func getPgConnStr(host, dbname, username string, port uint) string {
 	var sb strings.Builder
 
-	if c.Host != "" {
-		sb.WriteString("host=" + c.Host + " ")
+	if host != "" {
+		sb.WriteString("host=" + host + " ")
 	}
 
-	sb.WriteString("port=5432 ")
-
-	if c.DBName() != "" {
-		sb.WriteString("dbname=" + c.DBName() + " ")
-	}
-
-	if c.Username() != "" {
-		sb.WriteString("user=" + c.Username() + " ")
-	}
-
-	if c.Password() != "" {
-		sb.WriteString("password=" + c.Password() + " ")
-	}
+	sb.WriteString("port=" + strconv.Itoa(int(port)) + " ")
+	sb.WriteString("dbname=" + dbname + " ")
+	sb.WriteString("user=" + username + " ")
 
 	return sb.String()
 }
 
-// Executes simple SQL commands which returns one string value.
-func runSimpleSQL(command string, c *resources.AppConfig) (string, error) {
-	connStr := getPgConnStr(c)
+// runSimpleSQL executes simple SQL commands which returns one string value.
+func runSimpleSQL(command, connStr string) (string, error) {
 	db, err := sql.Open("postgres", connStr)
 
 	if err != nil {

@@ -2,6 +2,8 @@
 
 # 2020 © Postgres.ai
 
+cli_version=${DBLAB_CLI_VERSION:-"latest"}
+
 mkdir -p ~/.dblab
 
 uname_os() {
@@ -13,7 +15,7 @@ uname_os() {
 }
 
 curl --location --fail --output ~/.dblab/dblab \
-  https://storage.googleapis.com/database-lab-cli/latest/dblab-$(uname_os)-amd64 \
+  https://storage.googleapis.com/database-lab-cli/${cli_version}/dblab-$(uname_os)-amd64 \
   && chmod a+x ~/.dblab/dblab
 
 {

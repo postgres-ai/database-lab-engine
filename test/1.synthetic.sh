@@ -1,88 +1,131 @@
 #!/bin/bash
 set -euxo pipefail
 
-DIR=${0%/*}
-IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:master"
-POSTGRES_VERSION="${POSTGRES_VERSION:-10}"
-### Step 1. Prepare a machine with two disks, Docker and ZFS.
+TAG="${TAG:-"master"}"
+IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
+POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
 
+DIR=${0%/*}
+
+### Step 1. Prepare a machine with disk, Docker, and ZFS
 source "${DIR}/_prerequisites.ubuntu.sh"
 source "${DIR}/_zfs.file.sh"
 
-### Step 2. Prepare database data directory.
+
+### Step 2. Configure and launch the Database Lab Engine
+
+## Prepare database data directory.
 sudo docker run \
   --name dblab_pg_initdb \
-  --label dblab_control \
+  --label dblab_sync \
   --env PGDATA=/var/lib/postgresql/pgdata \
   --env POSTGRES_HOST_AUTH_METHOD=trust \
-  --volume /var/lib/dblab/data:/var/lib/postgresql/pgdata \
+  --volume /var/lib/dblab/dblab_pool/data:/var/lib/postgresql/pgdata \
   --detach \
-  postgres:${POSTGRES_VERSION}-alpine
+  postgres:"${POSTGRES_VERSION}"-alpine
 
 for i in {1..300}; do
   sudo docker exec -it dblab_pg_initdb psql -U postgres -c 'select' > /dev/null 2>&1  && break || echo "test database is not ready yet"
   sleep 1
 done
 
-sleep 10
+# Create the test database
 sudo docker exec -it dblab_pg_initdb psql -U postgres -c 'create database test'
 
+# Generate data in the test database using pgbench
 # 1,000,000 accounts, ~0.14 GiB of data.
 sudo docker exec -it dblab_pg_initdb pgbench -U postgres -i -s 10 test
 
+# Stop and remove the container
 sudo docker stop dblab_pg_initdb
 sudo docker rm dblab_pg_initdb
 
-### Step 3. Configure and launch the Database Lab server.
+# Copy the contents of configuration example 
 mkdir -p ~/.dblab
-cp ./configs/config.example.physical_generic.yml ~/.dblab/server_test.yml
-sed -ri 's/^(\s*)(host:.*$)/\1host: ""/' ~/.dblab/server_test.yml
-sed -ri 's/^(\s*)(port: 2345$)/\1port: 12345/' ~/.dblab/server_test.yml
-sed -ri 's/^(\s*)(debug:.*$)/\1debug: true/' ~/.dblab/server_test.yml
-sed -ri 's/^(\s*)(pool:.*$)/\1pool: "test_pool"/' ~/.dblab/server_test.yml
-# replace postgres version
-sed -ri "s/:12/:${POSTGRES_VERSION}/g"  ~/.dblab/server_test.yml
 
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.example.logical_generic.yml \
+ --output ~/.dblab/server.yml
+
+# Edit the following options
+sed -ri 's/^(\s*)(debug:.*$)/\1debug: true/' ~/.dblab/server.yml
+sed -ri 's/^(\s*)(- logicalDump$)/\1/' ~/.dblab/server.yml
+sed -ri 's/^(\s*)(- logicalRestore$)/\1/' ~/.dblab/server.yml
+# replace postgres version
+sed -ri "s/:13/:${POSTGRES_VERSION}/g"  ~/.dblab/server.yml
+
+## Launch Database Lab server
 sudo docker run \
-  --detach \
-  --name dblab_test \
+  --name dblab_server \
   --label dblab_control \
   --privileged \
-  --publish 12345:12345 \
+  --publish 2345:2345 \
   --volume /var/run/docker.sock:/var/run/docker.sock \
-  --volume /var/lib/dblab:/var/lib/dblab:rshared \
-  --volume ~/.dblab/server_test.yml:/home/dblab/configs/config.yml \
+  --volume /var/lib/dblab/dblab_pool/dump:/var/lib/dblab/dblab_pool/dump \
+  --volume /var/lib/dblab:/var/lib/dblab/:rshared \
+  --volume ~/.dblab/server.yml:/home/dblab/configs/config.yml \
+  --env DOCKER_API_VERSION=1.39 \
+  --detach \
   "${IMAGE2TEST}"
 
-sudo docker logs -f dblab_test 2>&1 | awk '{print "[CONTAINER dblab_test]: "$0}' &
+# Check the Database Lab Engine logs
+sudo docker logs dblab_server -f 2>&1 | awk '{print "[CONTAINER dblab_server]: "$0}' &
 
 ### Waiting for the Database Lab Engine initialization.
-for i in {1..30}; do
-  curl http://localhost:12345 > /dev/null 2>&1 && break || echo "dblab is not ready yet"
-  sleep 10
+for i in {1..300}; do
+  curl http://localhost:2345 > /dev/null 2>&1 && break || echo "dblab is not ready yet"
+  sleep 1
 done
 
-### Step 4. Setup Database Lab CLI.
+
+### Step 3. Start cloning
+
+# Install Database Lab client CLI
 curl https://gitlab.com/postgres-ai/database-lab/-/raw/master/scripts/cli_install.sh | bash
+sudo mv ~/.dblab/dblab /usr/local/bin/dblab
+
 dblab --version
-dblab init --url http://localhost:12345 --token secret_token --environment-id test
+
+# Initialize CLI configuration
+dblab init \
+  --environment-id=test \
+  --url=http://localhost:2345 \
+  --token=secret_token \
+  --insecure
+
+# Check the configuration by fetching the status of the instance:
 dblab instance status
 
-### Step 5. Create a clone and connect to it.
-dblab clone create --username testuser --password testuser --id testclone
-dblab clone list
-export PGPASSWORD=testuser
-psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
 
-### Step 6. Reset clone
-psql "host=localhost port=6000 user=testuser dbname=test" -c 'create database reset_database';
-psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
+## Create a clone
+dblab clone create \
+  --username dblab_user_1 \
+  --password secret_password \
+  --id testclone
+
+# Connect to a clone and check the available table
+PGPASSWORD=secret_password psql \
+  "host=localhost port=6000 user=dblab_user_1 dbname=test" -c '\dt+'
+
+# Drop table
+PGPASSWORD=secret_password psql \
+  "host=localhost port=6000 user=dblab_user_1 dbname=test" -c 'drop table pgbench_accounts'
+
+PGPASSWORD=secret_password psql \
+  "host=localhost port=6000 user=dblab_user_1 dbname=test" -c '\dt+'
+
+## Reset clone
 dblab clone reset testclone
-dblab clone status testclone
-psql "host=localhost port=6000 user=testuser dbname=test" -c '\l'
 
-### Step 7. Destroy clone
-dblab clone create --username testuser --password testuser --id testclone2
+# Check the status of the clone
+dblab clone status testclone
+
+# Check the database objects (everything should be the same as when we started)
+PGPASSWORD=secret_password psql \
+  "host=localhost port=6000 user=dblab_user_1 dbname=test" -c '\dt+'
+
+### Step 4. Destroy clone
+dblab clone destroy testclone
 dblab clone list
-dblab clone destroy testclone2
-dblab clone list
+
+### Finish. clean up
+source "${DIR}/_cleanup.sh"

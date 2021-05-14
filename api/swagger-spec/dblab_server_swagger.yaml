@@ -1,7 +1,7 @@
 swagger: "2.0"
 info:
   description: "This is a Database Lab sample server."
-  version: "0.1.0"
+  version: "2.0.0"
   title: "Database Lab"
   contact:
     email: "team@postgres.ai"
@@ -10,11 +10,11 @@ info:
     url: "https://gitlab.com/postgres-ai/database-lab/blob/master/LICENSE"
 basePath: "/"
 tags:
-  - name: "Database Lab"
+  - name: "Database Lab Engine"
     description: "API Reference"
     externalDocs:
-      description: "Database Lab Docs"
-      url: "https://postgres.ai/docs/database-lab/what_is_database_lab"
+      description: "Database Lab Engine Docs"
+      url: "https://postgres.ai/docs/database-lab"
 schemes:
   - "https"
   - "http"
@@ -302,6 +302,15 @@ definitions:
       size:
         type: "integer"
         format: "int64"
+      used:
+        type: "integer"
+        format: "int64"
+      freeHR:
+        type: "string"
+      sizeHR:
+        type: "string"
+      usedHR:
+        type: "string"
 
   Database:
     type: "object"
@@ -348,6 +357,8 @@ definitions:
       cloneSize:
         type: "integer"
         format: "int64"
+      cloneSizeHR:
+        type: "string"
       cloningTime:
         type: "integer"
         format: "float64"
@@ -374,6 +385,11 @@ definitions:
           username:
             type: "string"
           password:
+            type: "string"
+          restricted:
+            type: "boolean"
+            default: false
+          db_name:
             type: "string"
 
   UpdateClone:

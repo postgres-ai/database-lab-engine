@@ -11,7 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 )
 
 // writeJSON responds with JSON.
@@ -24,7 +24,7 @@ func writeJSON(w http.ResponseWriter, httpStatusCode int, v interface{}) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(httpStatusCode)
 
-	if _, err = w.Write(b); err != nil {
+	if _, err := w.Write(b); err != nil {
 		return errors.Wrap(err, "failed to write response")
 	}
 
@@ -40,13 +40,21 @@ func readJSON(r *http.Request, v interface{}) error {
 		return errors.Wrap(err, "failed to read a request body")
 	}
 
-	log.Dbg("Request:", string(reqBody))
-
 	if err = json.Unmarshal(reqBody, v); err != nil {
 		return errors.Wrapf(err, "failed to unmarshal json: %s", string(reqBody))
 	}
 
-	log.Dbg("Request:", v)
+	return nil
+}
+
+// writeJSON responds with JSON.
+func writeData(w http.ResponseWriter, httpStatusCode int, b []byte) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(httpStatusCode)
+
+	if _, err := w.Write(b); err != nil {
+		return errors.Wrap(err, "failed to write response")
+	}
 
 	return nil
 }

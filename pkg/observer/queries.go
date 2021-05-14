@@ -31,13 +31,13 @@ const queryLocks = `with lock_data as (
     a.pid
   from pg_stat_activity a
   join pg_locks l on l.pid = a.pid
-  where l.mode = 'AccessExclusiveLock' and l.locktype = 'relation'
+  where l.mode = 'AccessExclusiveLock' and l.locktype = 'relation' and a.application_name <> '%s'
 )
 select row_to_json(lock_data)
 from lock_data
 where query_duration > interval '%d second'
 order by query_duration desc;`
 
-func buildLocksMetricQuery(maxLockDurationSeconds uint64) string {
-	return fmt.Sprintf(queryLocks, maxLockDurationSeconds)
+func buildLocksMetricQuery(exclusionApplicationName string, maxLockDurationSeconds uint64) string {
+	return fmt.Sprintf(queryLocks, exclusionApplicationName, maxLockDurationSeconds)
 }

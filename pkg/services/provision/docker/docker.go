@@ -17,14 +17,16 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/host"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/retrieval/engine/postgres/tools"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/runners"
 )
 
 const (
 	labelClone = "dblab_clone"
 )
+
+var systemVolumes = []string{"/sys", "/lib", "/proc"}
 
 // RunContainer runs specified container.
 func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
@@ -45,21 +47,31 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 		}
 	}
 
-	if err := createSocketCloneDir(c.UnixSocketCloneDir); err != nil {
+	unixSocketCloneDir := c.Pool.SocketCloneDir(c.CloneName)
+
+	if err := createSocketCloneDir(unixSocketCloneDir); err != nil {
 		return "", errors.Wrap(err, "failed to create socket clone directory")
 	}
 
+	containerFlags := make([]string, 0, len(c.ContainerConf))
+	for flagName, flagValue := range c.ContainerConf {
+		containerFlags = append(containerFlags, fmt.Sprintf("--%s=%s", flagName, flagValue))
+	}
+
+	instancePort := strconv.Itoa(int(c.Port))
 	dockerRunCmd := strings.Join([]string{
 		"docker run",
 		"--name", c.CloneName,
 		"--detach",
-		"--publish", strconv.Itoa(int(c.Port)) + ":5432",
+		"--publish", fmt.Sprintf("%[1]s:%[1]s", instancePort),
 		"--env", "PGDATA=" + c.DataDir(),
 		strings.Join(volumes, " "),
 		"--label", labelClone,
-		"--label", c.ClonePool,
+		"--label", c.Pool.Name,
+		strings.Join(containerFlags, " "),
 		c.DockerImage,
-		"-k", c.UnixSocketCloneDir,
+		"-p", instancePort,
+		"-k", unixSocketCloneDir,
 	}, " ")
 
 	return r.Run(dockerRunCmd, true)
@@ -79,13 +91,27 @@ func buildMountVolumes(r runners.Runner, c *resources.AppConfig, containerID str
 		return nil, errors.Wrap(err, "failed to interpret mount paths")
 	}
 
-	mounts := tools.GetMountsFromMountPoints(c.MountDir, c.DataDir(), mountPoints)
+	unixSocketCloneDir := c.Pool.SocketCloneDir(c.CloneName)
+	mounts := tools.GetMountsFromMountPoints(c.DataDir(), mountPoints)
 	volumes := make([]string, 0, len(mounts))
 
-	for _, mount := range mounts {
+	for _, mountPoint := range mountPoints {
+		// Exclude system volumes from a clone container.
+		if isSystemVolume(mountPoint.Source) {
+			continue
+		}
+
 		// Add extra mount for socket directories.
-		if mount.Target == c.DataDir() && strings.HasPrefix(c.UnixSocketCloneDir, c.MountDir) {
-			volumes = append(volumes, buildSocketMount(c, mount.Source))
+		if strings.HasPrefix(unixSocketCloneDir, mountPoint.Destination) {
+			volumes = append(volumes, buildSocketMount(unixSocketCloneDir, mountPoint.Source, mountPoint.Destination))
+			break
+		}
+	}
+
+	for _, mount := range mounts {
+		// Exclude system volumes from a clone container.
+		if isSystemVolume(mount.Source) {
+			continue
 		}
 
 		volume := fmt.Sprintf("--volume %s:%s", mount.Source, mount.Target)
@@ -100,14 +126,22 @@ func buildMountVolumes(r runners.Runner, c *resources.AppConfig, containerID str
 	return volumes, nil
 }
 
-// buildSocketMount builds a socket directory mounting rely on dataDir mounting.
-func buildSocketMount(c *resources.AppConfig, hostDataDir string) string {
-	socketPath := strings.TrimPrefix(c.UnixSocketCloneDir, c.MountDir)
-	dataPath := strings.TrimPrefix(c.DataDir(), c.MountDir)
-	externalMount := strings.TrimSuffix(hostDataDir, dataPath)
-	hostSocketDir := path.Join(externalMount, socketPath)
+func isSystemVolume(source string) bool {
+	for _, sysVolume := range systemVolumes {
+		if strings.HasPrefix(source, sysVolume) {
+			return true
+		}
+	}
 
-	return fmt.Sprintf(" --volume %s:%s:rshared", hostSocketDir, c.UnixSocketCloneDir)
+	return false
+}
+
+// buildSocketMount builds a socket directory mounting rely on dataDir mounting.
+func buildSocketMount(socketDir, hostDataDir, destinationDir string) string {
+	socketPath := strings.TrimPrefix(socketDir, destinationDir)
+	hostSocketDir := path.Join(hostDataDir, socketPath)
+
+	return fmt.Sprintf(" --volume %s:%s:rshared", hostSocketDir, socketDir)
 }
 
 func createSocketCloneDir(socketCloneDir string) error {
@@ -130,14 +164,14 @@ func createSocketCloneDir(socketCloneDir string) error {
 func StopContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 	dockerStopCmd := "docker container stop " + c.CloneName
 
-	return r.Run(dockerStopCmd, true)
+	return r.Run(dockerStopCmd, false)
 }
 
 // RemoveContainer removes specified container.
-func RemoveContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
-	dockerRemoveCmd := "docker container rm --force " + c.CloneName
+func RemoveContainer(r runners.Runner, cloneName string) (string, error) {
+	dockerRemoveCmd := "docker container rm --force --volumes " + cloneName
 
-	return r.Run(dockerRemoveCmd, true)
+	return r.Run(dockerRemoveCmd, false)
 }
 
 // ListContainers lists containers.
@@ -145,7 +179,7 @@ func ListContainers(r runners.Runner, clonePool string) ([]string, error) {
 	dockerListCmd := fmt.Sprintf(`docker container ls --filter "label=%s" --filter "label=%s" --all --quiet`,
 		labelClone, clonePool)
 
-	out, err := r.Run(dockerListCmd, true)
+	out, err := r.Run(dockerListCmd, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list containers")
 	}

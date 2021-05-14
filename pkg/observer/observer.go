@@ -6,18 +6,22 @@
 package observer
 
 import (
-	"encoding/json"
-	"fmt"
+	"bytes"
+	"context"
+	"encoding/csv"
 	"io"
-	"io/ioutil"
-	"strings"
+	"os"
+	"regexp"
+	"sync"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/platform"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/pglog"
 )
 
 const (
@@ -25,200 +29,200 @@ const (
 	defaultMaxLockDurationSeconds = 10
 	defaultMaxDurationSeconds     = 60 * 60 // 1 hour.
 
-	stateFilePath = "/tmp/dblab-observe-state.json"
+	statusPassed = "passed"
+	statusFailed = "failed"
+
+	observerApplicationName = "observer"
 )
+
+// Observer manages observation sessions.
+type Observer struct {
+	dockerClient     *client.Client
+	Platform         *platform.Client
+	sessionMu        *sync.Mutex
+	storage          map[string]*ObservingClone
+	cfg              *Config
+	replacementRules []ReplacementRule
+	pm               *pool.Manager
+}
 
 // Config defines configuration options for observer.
 type Config struct {
-	Follow                 bool   `json:"follow"`
-	IntervalSeconds        uint64 `json:"intervalSeconds"`
-	MaxLockDurationSeconds uint64 `json:"maxLockDurationSeconds"`
-	MaxDurationSeconds     uint64 `json:"maxDurationSeconds"`
-	SSLMode                string `json:"sslmode"`
+	ReplacementRules map[string]string `yaml:"replacementRules"`
 }
 
-// Observer defines monitoring service.
-type Observer struct {
-	StartedAt      time.Time     `json:"startedAt"`
-	Elapsed        time.Duration `json:"elapsed"`
-	CounterTotal   uint64        `json:"counterTotal"`
-	CounterWarning uint64        `json:"counterWarning"`
-	CounterSuccess uint64        `json:"counterSuccess"`
-	Config         Config        `json:"config"`
-
-	writer io.Writer
+// ReplacementRule describes replacement rules.
+type ReplacementRule struct {
+	re      *regexp.Regexp
+	replace string
 }
 
-// NewObserver creates Observer instance.
-func NewObserver(config Config, writer io.Writer) *Observer {
-	if config.IntervalSeconds == 0 {
-		config.IntervalSeconds = defaultIntervalSeconds
+// NewObserver creates an Observer instance.
+func NewObserver(dockerClient *client.Client, cfg *Config, platform *platform.Client, pm *pool.Manager) *Observer {
+	observer := &Observer{
+		dockerClient:     dockerClient,
+		Platform:         platform,
+		sessionMu:        &sync.Mutex{},
+		storage:          make(map[string]*ObservingClone),
+		cfg:              cfg,
+		pm:               pm,
+		replacementRules: []ReplacementRule{},
 	}
 
-	if config.MaxLockDurationSeconds == 0 {
-		config.MaxLockDurationSeconds = defaultMaxLockDurationSeconds
+	for pattern, replace := range cfg.ReplacementRules {
+		rule := ReplacementRule{
+			re:      regexp.MustCompile(pattern),
+			replace: replace,
+		}
+		observer.replacementRules = append(observer.replacementRules, rule)
 	}
 
-	if config.MaxDurationSeconds == 0 {
-		config.MaxDurationSeconds = defaultMaxDurationSeconds
-	}
-
-	return &Observer{
-		Config: config,
-		writer: writer,
-	}
+	return observer
 }
 
-// Start runs clone monitoring.
-func (obs *Observer) Start(clone *models.Clone) error {
-	log.Dbg("Start observing...")
+// GetCloneLog gets clone logs.
+// TODO (akartasov): Split log to chunks.
+func (o *Observer) GetCloneLog(ctx context.Context, port uint, obsClone *ObservingClone) ([]byte, error) {
+	fileSelector := pglog.NewSelector(obsClone.pool.ClonePath(port))
+	fileSelector.SetMinimumTime(obsClone.session.StartedAt)
 
-	db, err := initConnection(clone, obs.Config.SSLMode)
-	if err != nil {
-		return errors.Wrap(err, "cannot connect to database")
+	if err := fileSelector.DiscoverLogDir(); err != nil {
+		return nil, errors.Wrap(err, "failed to init file selector")
 	}
 
-	obs.StartedAt = time.Now()
+	buf := bytes.NewBuffer(make([]byte, 0, len(obsClone.CsvFields())))
+	buf.WriteString(obsClone.CsvFields())
+	buf.WriteString("\n")
 
 	for {
-		now := time.Now()
-		obs.Elapsed = time.Since(obs.StartedAt)
-
-		var output strings.Builder
-
-		output.WriteString(fmt.Sprintf("[%s] Database Lab Observer:\n", util.FormatTime(now)))
-		output.WriteString(fmt.Sprintf("  Elapsed: %s\n", util.DurationToString(obs.Elapsed)))
-		output.WriteString("  Dangerous locks:\n")
-
-		dangerousLocks, err := runQuery(db, buildLocksMetricQuery(obs.Config.MaxLockDurationSeconds))
+		filename, err := fileSelector.Next()
 		if err != nil {
-			return errors.Wrap(err, "cannot query metrics")
+			if err == pglog.ErrLastFile {
+				break
+			}
+
+			return nil, errors.Wrap(err, "failed to get a CSV log filename")
 		}
 
-		obs.CounterTotal++
+		if err := o.processCSVLogFile(ctx, buf, filename, obsClone); err != nil {
+			if err == pglog.ErrTimeBoundary {
+				break
+			}
 
-		if len(dangerousLocks) > 0 {
-			obs.CounterWarning++
-		} else {
-			dangerousLocks = "    Not observed\n"
-			obs.CounterSuccess++
+			return nil, errors.Wrap(err, "failed to process a CSV log file")
 		}
+	}
 
-		output.WriteString(dangerousLocks)
+	return buf.Bytes(), nil
+}
 
-		output.WriteString("  Observed intervals:\n")
-		output.WriteString(fmt.Sprintf("    Successful: %d\n", obs.CounterSuccess))
-		output.WriteString(fmt.Sprintf("    With dangerous locks: %d\n", obs.CounterWarning))
+func (o *Observer) processCSVLogFile(ctx context.Context, buf io.Writer, filename string, obsClone *ObservingClone) error {
+	logFile, err := os.Open(filename)
+	if err != nil {
+		return errors.Wrap(err, "failed to open a CSV log file")
+	}
 
-		_, err = fmt.Fprintln(obs.writer, output.String())
-		if err != nil {
-			return errors.Wrap(err, "cannot print")
+	defer func() {
+		if err := logFile.Close(); err != nil {
+			log.Errf("Failed to close a CSV log file: %s", err.Error())
 		}
+	}()
 
-		err = obs.SaveObserverState()
-		if err != nil {
-			return errors.Wrap(err, "cannot save observer state")
-		}
+	if err := o.scanCSVLogFile(ctx, logFile, buf, obsClone); err != nil {
+		return err
+	}
 
-		if !obs.Config.Follow {
+	return nil
+}
+
+func (o *Observer) scanCSVLogFile(ctx context.Context, reader io.Reader, writer io.Writer, obsClone *ObservingClone) error {
+	csvReader := csv.NewReader(reader)
+	csvWriter := csv.NewWriter(writer)
+
+	defer csvWriter.Flush()
+
+	for {
+		if ctx.Err() != nil {
 			break
 		}
 
-		time.Sleep(time.Duration(obs.Config.IntervalSeconds) * time.Second)
+		entry, err := csvReader.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			return err
+		}
+
+		// Check an application name to skip observer log entries.
+		if entry[22] == observerApplicationName {
+			continue
+		}
+
+		logTime, err := time.Parse("2006-01-02 15:04:05.999 MST", entry[0])
+		if err != nil {
+			return err
+		}
+
+		if logTime.Before(obsClone.session.StartedAt) {
+			continue
+		}
+
+		if logTime.After(obsClone.session.FinishedAt) {
+			return pglog.ErrTimeBoundary
+		}
+
+		if len(o.replacementRules) > 0 {
+			o.maskLogs(entry, obsClone.maskedIndexes)
+		}
+
+		if err := csvWriter.Write(entry); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-// SaveObserverState saves observer state to the disk.
-func (obs *Observer) SaveObserverState() error {
-	bytes, err := json.MarshalIndent(obs, "", "  ")
-	if err != nil {
-		return err
+func (o *Observer) maskLogs(entry []string, maskedFieldIndexes []int) {
+	for _, maskedFieldIndex := range maskedFieldIndexes {
+		for _, rule := range o.replacementRules {
+			entry[maskedFieldIndex] = rule.re.ReplaceAllString(entry[maskedFieldIndex], rule.replace)
+		}
+	}
+}
+
+// AddObservingClone adds a new observing session to storage.
+func (o *Observer) AddObservingClone(cloneID string, port uint, session *ObservingClone) {
+	o.sessionMu.Lock()
+	defer o.sessionMu.Unlock()
+	session.pool = o.pm.Active().Pool()
+	session.cloneID = cloneID
+	session.port = port
+
+	o.storage[cloneID] = session
+}
+
+// GetObservingClone returns an observation session from storage.
+func (o *Observer) GetObservingClone(cloneID string) (*ObservingClone, error) {
+	o.sessionMu.Lock()
+	defer o.sessionMu.Unlock()
+
+	session, ok := o.storage[cloneID]
+	if !ok {
+		return nil, errors.New("observer not found")
 	}
 
-	err = ioutil.WriteFile(stateFilePath, bytes, 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return session, nil
 }
 
-// LoadObserverState loads observer state from the disk.
-func (obs *Observer) LoadObserverState() error {
-	bytes, err := ioutil.ReadFile(stateFilePath)
-	if err != nil {
-		return err
-	}
+// RemoveObservingClone removes an observing clone from storage.
+func (o *Observer) RemoveObservingClone(cloneID string) {
+	o.sessionMu.Lock()
+	defer o.sessionMu.Unlock()
 
-	err = json.Unmarshal(bytes, &obs)
-	if err != nil {
-		return err
-	}
+	delete(o.storage, cloneID)
 
-	return nil
-}
-
-// PrintSummary prints monitoring summary.
-func (obs *Observer) PrintSummary() error {
-	maxDuration := time.Duration(obs.Config.MaxDurationSeconds) * time.Second
-
-	var summary strings.Builder
-
-	summary.WriteString("Summary:\n")
-	summary.WriteString(formatSummaryItem(fmt.Sprintf("Duration: %s", util.DurationToString(obs.Elapsed))))
-	summary.WriteString(formatSummaryItem(fmt.Sprintf("Intervals with dangerous locks: %d", obs.CounterWarning)))
-	summary.WriteString(formatSummaryItem(fmt.Sprintf("Total number of observed intervals: %d", obs.CounterTotal)))
-	summary.WriteString("\nPerformance checklist:\n")
-	summary.WriteString(formatChecklistItem(fmt.Sprintf("Duration < %s", util.DurationToString(maxDuration)), obs.CheckDuration()))
-	summary.WriteString(formatChecklistItem("No dangerous locks", obs.CheckLocks()))
-
-	_, err := fmt.Fprint(obs.writer, summary.String())
-	if err != nil {
-		return errors.Wrap(err, "cannot print")
-	}
-
-	return nil
-}
-
-// CheckPerformanceRequirements checks monitoring data and returns an error if any of performance requires was not satisfied.
-func (obs *Observer) CheckPerformanceRequirements() error {
-	if !obs.CheckDuration() || !obs.CheckLocks() {
-		return errors.New("performance requirements not satisfied")
-	}
-
-	return nil
-}
-
-// CheckDuration checks duration of the operation.
-func (obs *Observer) CheckDuration() bool {
-	return obs.Elapsed < time.Duration(obs.Config.MaxDurationSeconds)*time.Second
-}
-
-// CheckLocks checks long-lasting locks during the operation.
-func (obs *Observer) CheckLocks() bool {
-	return obs.CounterWarning == 0
-}
-
-func formatSummaryItem(str string) string {
-	return "  " + str + "\n"
-}
-
-func formatChecklistItem(str string, state bool) string {
-	stateStr := colorizeRed("FAILED")
-
-	if state {
-		stateStr = colorizeGreen("PASSED")
-	}
-
-	return "  " + str + ": " + stateStr + "\n"
-}
-
-func colorizeRed(str string) string {
-	return fmt.Sprintf("\033[1;31m%s\033[0m", str)
-}
-
-func colorizeGreen(str string) string {
-	return fmt.Sprintf("\033[1;32m%s\033[0m", str)
+	log.Dbg("Observing clone has been removed: ", cloneID)
 }

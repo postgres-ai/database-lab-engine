@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 )
 
 func TestBaseCloningSuite(t *testing.T) {
@@ -78,7 +78,7 @@ func (s *BaseCloningSuite) TestUpdateStatus() {
 	require.True(s.T(), ok)
 	require.NotNil(s.T(), wrapper)
 
-	err := s.cloning.updateCloneStatus("testCloneID", models.Status{
+	err := s.cloning.UpdateCloneStatus("testCloneID", models.Status{
 		Code:    models.StatusOK,
 		Message: models.CloneMessageOK,
 	})

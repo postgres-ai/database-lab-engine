@@ -7,8 +7,8 @@ package global
 import (
 	"github.com/urfave/cli/v2"
 
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/commands"
-	"gitlab.com/postgres-ai/database-lab/cmd/cli/templates"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/templates"
 )
 
 // List provides commands for getting started.
@@ -37,6 +37,10 @@ func List() []*cli.Command {
 				&cli.BoolFlag{
 					Name:  "insecure",
 					Usage: "allow insecure server connections when using SSL",
+				},
+				&cli.DurationFlag{
+					Name:  "request-timeout",
+					Usage: "allow changing requests timeout",
 				},
 				&cli.StringFlag{
 					Name:  "forwarding-server-url",

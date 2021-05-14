@@ -12,8 +12,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/pkg/services/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/runners"
 )
 
 const (
@@ -67,7 +67,7 @@ func CreateVolume(r runners.Runner, vg, lv, name, mountDir string) error {
 }
 
 // RemoveVolume removes LVM volume.
-func RemoveVolume(r runners.Runner, vg, lv, name, mountDir string) error {
+func RemoveVolume(r runners.Runner, vg, _, name, mountDir string) error {
 	fullName := getFullName(vg, name)
 
 	unmountCmd := "umount " + getFullMountDir(mountDir, name)
