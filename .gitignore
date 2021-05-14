@@ -8,6 +8,3 @@
 /deploy/
 
 /configs/config.yml
-
-terraform/terraform.tfstate.backup
-terraform/.terraform
