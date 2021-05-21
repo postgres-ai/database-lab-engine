@@ -182,6 +182,8 @@ func StopPostgres(ctx context.Context, dockerClient *client.Client, containerID,
 
 // CheckContainerReadiness checks health and reports if container is ready.
 func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, containerID string) (err error) {
+	log.Msg("Check container readiness: ", containerID)
+
 	for {
 		select {
 		case <-ctx.Done():
