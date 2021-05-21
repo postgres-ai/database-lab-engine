@@ -134,6 +134,12 @@ type QueryPreprocessing struct {
 	MaxParallelWorkers int    `yaml:"maxParallelWorkers"`
 }
 
+// syncState defines state of a sync instance.
+type syncState struct {
+	DSA string
+	Err error
+}
+
 // NewPhysicalInitialJob creates a new physical initial job.
 func NewPhysicalInitialJob(cfg config.JobConfig, global *dblabCfg.Global, cloneManager pool.FSManager) (*PhysicalInitial, error) {
 	p := &PhysicalInitial{
@@ -298,11 +304,14 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 		}
 	}()
 
-	var syncErr error
+	var syState syncState
 
 	if p.options.Promotion.Enabled {
-		if syncErr = p.checkSyncInstance(ctx); syncErr != nil {
-			log.Dbg(fmt.Sprintf("failed to check the sync instance before snapshotting: %v", syncErr), "Changing the promotion strategy")
+		syState.DSA, syState.Err = p.checkSyncInstance(ctx)
+
+		if syState.Err != nil {
+			log.Dbg(fmt.Sprintf("failed to check the sync instance before snapshotting: %v", syState),
+				"Recovery configs will be applied on the promotion stage")
 		}
 	}
 
@@ -334,7 +343,7 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 
 	// Promotion.
 	if p.options.Promotion.Enabled {
-		if err := p.promoteInstance(ctx, path.Join(p.fsPool.ClonesDir(), cloneName, p.fsPool.DataSubDir), syncErr); err != nil {
+		if err := p.promoteInstance(ctx, path.Join(p.fsPool.ClonesDir(), cloneName, p.fsPool.DataSubDir), syState); err != nil {
 			return errors.Wrap(err, "failed to promote instance")
 		}
 	}
@@ -361,23 +370,32 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	return nil
 }
 
-func (p *PhysicalInitial) checkSyncInstance(ctx context.Context) error {
+func (p *PhysicalInitial) checkSyncInstance(ctx context.Context) (string, error) {
+	log.Msg("Check the sync instance state: ", p.syncInstanceName())
+
 	syncContainer, err := p.dockerClient.ContainerInspect(ctx, p.syncInstanceName())
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if err := tools.CheckContainerReadiness(ctx, p.dockerClient, syncContainer.ID); err != nil {
-		return errors.Wrap(err, "failed to readiness check")
+		return "", errors.Wrap(err, "failed to readiness check")
 	}
 
 	log.Msg("Sync instance has been checked. It is running")
 
 	if err := p.checkpoint(ctx, syncContainer.ID); err != nil {
-		return errors.Wrap(err, "failed to make a checkpoint for sync instance")
+		return "", errors.Wrap(err, "failed to make a checkpoint for sync instance")
 	}
 
-	return nil
+	extractedDataStateAt, err := p.getLastXActReplayTimestamp(ctx, syncContainer.ID)
+	if err != nil {
+		return "", errors.Wrap(err, `failed to get last xact replay timestamp from the sync instance`)
+	}
+
+	log.Msg("Sync instance data state at: ", extractedDataStateAt)
+
+	return extractedDataStateAt, nil
 }
 
 func (p *PhysicalInitial) syncInstanceName() string {
@@ -440,7 +458,7 @@ func (p *PhysicalInitial) promoteContainerName() string {
 	return promoteContainerPrefix + p.globalCfg.InstanceID
 }
 
-func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string, syncErr error) (err error) {
+func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string, syState syncState) (err error) {
 	p.promotionMutex.Lock()
 	defer p.promotionMutex.Unlock()
 
@@ -470,7 +488,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 	recoveryConfig := make(map[string]string)
 
 	// Item 5. Remove a recovery file: https://gitlab.com/postgres-ai/database-lab/-/issues/236#note_513401256
-	if syncErr != nil {
+	if syState.Err != nil {
 		recoveryConfig = buildRecoveryConfig(recoveryFileConfig, p.options.Promotion.Recovery)
 
 		if err := cfgManager.ApplyRecovery(recoveryFileConfig); err != nil {
@@ -563,7 +581,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 		}
 	}
 
-	if err := p.markDSA(ctx, promoteCont.ID, clonePath, cfgManager.GetPgVersion()); err != nil {
+	if err := p.markDSA(ctx, syState.DSA, promoteCont.ID, clonePath, cfgManager.GetPgVersion()); err != nil {
 		return errors.Wrap(err, "failed to mark dataStateAt")
 	}
 
@@ -621,13 +639,18 @@ func buildRecoveryConfig(fileConfig, userRecoveryConfig map[string]string) map[s
 	return recoveryConf
 }
 
-func (p *PhysicalInitial) markDSA(ctx context.Context, containerID, dataDir string, pgVersion float64) error {
+func (p *PhysicalInitial) markDSA(ctx context.Context, defaultDSA, containerID, dataDir string, pgVersion float64) error {
 	extractedDataStateAt, err := p.extractDataStateAt(ctx, containerID, dataDir, pgVersion)
 	if err != nil {
-		return errors.Wrap(err, `failed to extract dataStateAt`)
+		if defaultDSA == "" {
+			return errors.Wrap(err, `failed to extract dataStateAt`)
+		}
+
+		log.Msg("failed to extract dataStateAt. Use value from the sync instance: ", defaultDSA)
+		extractedDataStateAt = defaultDSA
 	}
 
-	log.Msg("Extracted Data state at: ", extractedDataStateAt)
+	log.Msg("Data state at: ", extractedDataStateAt)
 
 	if p.dbMark.DataStateAt != "" && extractedDataStateAt == p.dbMark.DataStateAt {
 		return newSkipSnapshotErr(fmt.Sprintf(
@@ -637,7 +660,7 @@ func (p *PhysicalInitial) markDSA(ctx context.Context, containerID, dataDir stri
 
 	p.dbMark.DataStateAt = extractedDataStateAt
 
-	log.Msg("Data state at: ", p.dbMark.DataStateAt)
+	log.Msg("Mark data state at: ", p.dbMark.DataStateAt)
 
 	return nil
 }
@@ -726,15 +749,7 @@ func (p *PhysicalInitial) checkRecovery(ctx context.Context, containerID string)
 }
 
 func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID, dataDir string, pgVersion float64) (string, error) {
-	extractionCommand := []string{"psql", "-U", p.globalCfg.Database.User(), "-d", p.globalCfg.Database.Name(), "-XAtc",
-		"select to_char(pg_last_xact_replay_timestamp() at time zone 'UTC', 'YYYYMMDDHH24MISS')"}
-
-	log.Msg("Running dataStateAt command", extractionCommand)
-
-	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
-		Cmd:  extractionCommand,
-		User: defaults.Username,
-	})
+	output, err := p.getLastXActReplayTimestamp(ctx, containerID)
 
 	if output == "" {
 		log.Msg("The last replay timestamp not found. Extract the last checkpoint timestamp")
@@ -751,6 +766,22 @@ func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID, d
 			return "", errors.Wrap(err, "failed to read control data")
 		}
 	}
+
+	return output, err
+}
+
+func (p *PhysicalInitial) getLastXActReplayTimestamp(ctx context.Context, containerID string) (string, error) {
+	extractionCommand := []string{"psql", "-U", p.globalCfg.Database.User(), "-d", p.globalCfg.Database.Name(), "-XAtc",
+		"select to_char(pg_last_xact_replay_timestamp() at time zone 'UTC', 'YYYYMMDDHH24MISS')"}
+
+	log.Msg("Running dataStateAt command", extractionCommand)
+
+	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
+		Cmd:  extractionCommand,
+		User: defaults.Username,
+	})
+
+	log.Msg("Extracted last replay timestamp: ", output)
 
 	return output, err
 }
