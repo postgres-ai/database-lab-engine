@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"path"
 	"strings"
 	"sync"
@@ -54,6 +55,9 @@ const (
 	restoreCommandOption = "restore_command"
 	targetActionOption   = "recovery_target_action"
 	promoteTargetAction  = "promote"
+
+	// WAL parsing constants.
+	walNameLen = 24
 )
 
 var defaultRecoveryCfg = map[string]string{
@@ -390,7 +394,7 @@ func (p *PhysicalInitial) checkSyncInstance(ctx context.Context) (string, error)
 
 	extractedDataStateAt, err := p.getLastXActReplayTimestamp(ctx, syncContainer.ID)
 	if err != nil {
-		return "", errors.Wrap(err, `failed to get last xact replay timestamp from the sync instance`)
+		return "", errors.Wrap(err, `failed to get last replay timestamp from the sync instance`)
 	}
 
 	log.Msg("Sync instance data state at: ", extractedDataStateAt)
@@ -550,6 +554,19 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 		return errors.Wrap(err, "failed to start container")
 	}
 
+	if syState.DSA == "" {
+		dsa, err := p.getDSAFromWAL(ctx, cfgManager.GetPgVersion(), promoteCont.ID, clonePath)
+		if err != nil {
+			log.Dbg("cannot extract DSA form WAL files: ", err)
+		}
+
+		if dsa != "" {
+			log.Msg("DataStateAt extracted from WAL files: ", dsa)
+
+			syState.DSA = dsa
+		}
+	}
+
 	log.Msg("Starting PostgreSQL and waiting for readiness")
 	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, p.promoteContainerName()))
 
@@ -623,6 +640,85 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 	return nil
 }
 
+func (p *PhysicalInitial) getDSAFromWAL(ctx context.Context, pgVersion float64, containerID, cloneDir string) (string, error) {
+	log.Dbg(cloneDir)
+
+	infos, err := ioutil.ReadDir(path.Join(cloneDir, "pg_wal"))
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read the pg_wal dir")
+	}
+
+	// Walk in the reverse order.
+	for i := len(infos) - 1; i >= 0; i-- {
+		fileName := infos[i].Name()
+		walFilePath := path.Join(cloneDir, "pg_wal", fileName)
+
+		log.Dbg("Look up into file: ", walFilePath)
+
+		if len(fileName) != walNameLen {
+			continue
+		}
+
+		dateTime := p.parseWAL(ctx, containerID, pgVersion, walFilePath)
+		if dateTime != "" {
+			return dateTime, nil
+		}
+	}
+
+	log.Dbg("no found dataStateAt in WAL files")
+
+	return "", nil
+}
+
+func (p *PhysicalInitial) parseWAL(ctx context.Context, containerID string, pgVersion float64, walFilePath string) string {
+	cmd := fmt.Sprintf("/usr/lib/postgresql/%g/bin/pg_waldump %s -r Transaction | tail -1", pgVersion, walFilePath)
+
+	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
+		Cmd: []string{"sh", "-c", cmd},
+	})
+	if err != nil {
+		log.Dbg("failed to parse WAL: ", err)
+		return ""
+	}
+
+	if output == "" {
+		log.Dbg("empty timestamp output given")
+		return ""
+	}
+
+	log.Dbg("Parse the line from a WAL file", output)
+
+	return parseWALLine(output)
+}
+
+func parseWALLine(line string) string {
+	const (
+		commitToken = "COMMIT"
+		tokenLen    = len(commitToken)
+		layout      = "2006-01-02 15:04:05.000000 MST"
+	)
+
+	commitIndex := strings.LastIndex(line, commitToken)
+	if commitIndex == -1 {
+		log.Dbg("timestamp not found", line)
+		return ""
+	}
+
+	dateTimeString := strings.TrimSpace(line[commitIndex+tokenLen:])
+
+	if idx := strings.IndexByte(dateTimeString, ';'); idx > 0 {
+		dateTimeString = dateTimeString[:idx]
+	}
+
+	parsedDate, err := time.Parse(layout, dateTimeString)
+	if err != nil {
+		log.Dbg("failed to parse WAL time: ", dateTimeString)
+		return ""
+	}
+
+	return parsedDate.Format(tools.DataStateAtFormat)
+}
+
 func buildRecoveryConfig(fileConfig, userRecoveryConfig map[string]string) map[string]string {
 	recoveryConf := fileConfig
 
@@ -640,7 +736,7 @@ func buildRecoveryConfig(fileConfig, userRecoveryConfig map[string]string) map[s
 }
 
 func (p *PhysicalInitial) markDSA(ctx context.Context, defaultDSA, containerID, dataDir string, pgVersion float64) error {
-	extractedDataStateAt, err := p.extractDataStateAt(ctx, containerID, dataDir, pgVersion)
+	extractedDataStateAt, err := p.extractDataStateAt(ctx, containerID, dataDir, pgVersion, defaultDSA)
 	if err != nil {
 		if defaultDSA == "" {
 			return errors.Wrap(err, `failed to extract dataStateAt`)
@@ -748,26 +844,50 @@ func (p *PhysicalInitial) checkRecovery(ctx context.Context, containerID string)
 	return output, err
 }
 
-func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID, dataDir string, pgVersion float64) (string, error) {
+func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID, dataDir string, pgVersion float64,
+	defaultDSA string) (string, error) {
 	output, err := p.getLastXActReplayTimestamp(ctx, containerID)
-
-	if output == "" {
-		log.Msg("The last replay timestamp not found. Extract the last checkpoint timestamp")
-
-		response, err := pgtool.ReadControlData(ctx, p.dockerClient, containerID, dataDir, pgVersion)
-		if err != nil {
-			return "", errors.Wrap(err, "failed to read control data")
-		}
-
-		defer response.Close()
-
-		output, err = getCheckPointTimestamp(ctx, response.Reader)
-		if err != nil {
-			return "", errors.Wrap(err, "failed to read control data")
-		}
+	if err != nil {
+		log.Dbg("unable to get last replay timestamp from the promotion container: ", err)
 	}
 
-	return output, err
+	if output != "" && err == nil {
+		return output, nil
+	}
+
+	if defaultDSA != "" {
+		log.Msg("failed to extract dataStateAt. Use value from the sync instance: ", defaultDSA)
+
+		return defaultDSA, nil
+	}
+
+	// If the sync instance has not yet downloaded WAL when retrieving the default DSA, run it again.
+	dsa, err := p.getDSAFromWAL(ctx, pgVersion, containerID, dataDir)
+	if err != nil {
+		log.Dbg("cannot extract DSA from WAL files in the promotion container: ", err)
+	}
+
+	if dsa != "" {
+		log.Msg("Use dataStateAt value from the promotion WAL files: ", defaultDSA)
+
+		return dsa, nil
+	}
+
+	log.Msg("The last replay timestamp and dataStateAt from the sync instance are not found. Extract the last checkpoint timestamp")
+
+	response, err := pgtool.ReadControlData(ctx, p.dockerClient, containerID, dataDir, pgVersion)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read control data")
+	}
+
+	defer response.Close()
+
+	output, err = getCheckPointTimestamp(ctx, response.Reader)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read control data")
+	}
+
+	return output, nil
 }
 
 func (p *PhysicalInitial) getLastXActReplayTimestamp(ctx context.Context, containerID string) (string, error) {
