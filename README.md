@@ -17,8 +17,8 @@ Read more at [Postgres.ai](https://postgres.ai) and in [the Docs](https://postgr
 
 ## Installation
 See the Database Lab tutorials:
-- [Database Lab tutorial for any PostgreSQL database](https://postgres.ai/docs/tutorials/database-lab-tutorial).
-- [Database Lab tutorial for Amazon RDS](https://postgres.ai/docs/tutorials/database-lab-tutorial-amazon-rds),
+- [Database Lab tutorial for any PostgreSQL database](https://postgres.ai/docs/tutorials/database-lab-tutorial)
+- [Database Lab tutorial for Amazon RDS](https://postgres.ai/docs/tutorials/database-lab-tutorial-amazon-rds)
 
 The latest stable Docker images are published in [the Docker Hub repository](https://hub.docker.com/r/postgresai/dblab-server).
 
