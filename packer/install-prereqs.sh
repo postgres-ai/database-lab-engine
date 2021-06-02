@@ -8,8 +8,8 @@ sudo apt-get install -y \
   gnupg-agent \
   software-properties-common \
   curl \
-  postgresql-client  \
-  postgresql-contrib
+  postgresql-client  
+#  postgresql-contrib
 
 # ZFS
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
@@ -26,3 +26,4 @@ sudo apt-get update && sudo apt-get install -y \
   containerd.io \
   zfsutils-linux
 
+sudo docker pull  postgresai/dblab-server:2.3-latest
