@@ -41,7 +41,7 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 	if hostInfo.VirtualizationRole == "guest" {
 		// Build custom mounts rely on mounts of the Database Lab instance if it's running inside Docker container.
 		// We cannot use --volumes-from because it removes the ZFS mount point.
-		volumes, err = buildMountVolumes(r, c, hostInfo.Hostname)
+		volumes, err = getMountVolumes(r, c, hostInfo.Hostname)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to detect container volumes")
 		}
@@ -77,7 +77,7 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 	return r.Run(dockerRunCmd, true)
 }
 
-func buildMountVolumes(r runners.Runner, c *resources.AppConfig, containerID string) ([]string, error) {
+func getMountVolumes(r runners.Runner, c *resources.AppConfig, containerID string) ([]string, error) {
 	inspectCmd := "docker inspect -f '{{ json .Mounts }}' " + containerID
 
 	var mountPoints []types.MountPoint
@@ -91,17 +91,16 @@ func buildMountVolumes(r runners.Runner, c *resources.AppConfig, containerID str
 		return nil, errors.Wrap(err, "failed to interpret mount paths")
 	}
 
+	return buildVolumesFromMountPoints(c, mountPoints), nil
+}
+
+func buildVolumesFromMountPoints(c *resources.AppConfig, mountPoints []types.MountPoint) []string {
 	unixSocketCloneDir := c.Pool.SocketCloneDir(c.CloneName)
 	mounts := tools.GetMountsFromMountPoints(c.DataDir(), mountPoints)
 	volumes := make([]string, 0, len(mounts))
 
 	for _, mountPoint := range mountPoints {
-		// Exclude system volumes from a clone container.
-		if isSystemVolume(mountPoint.Source) {
-			continue
-		}
-
-		// Add extra mount for socket directories.
+		// Add an extra mount for socket directories.
 		if strings.HasPrefix(unixSocketCloneDir, mountPoint.Destination) {
 			volumes = append(volumes, buildSocketMount(unixSocketCloneDir, mountPoint.Source, mountPoint.Destination))
 			break
@@ -109,8 +108,8 @@ func buildMountVolumes(r runners.Runner, c *resources.AppConfig, containerID str
 	}
 
 	for _, mount := range mounts {
-		// Exclude system volumes from a clone container.
-		if isSystemVolume(mount.Source) {
+		// Exclude system and non-data volumes from a clone container.
+		if isSystemVolume(mount.Source) || !strings.HasPrefix(mount.Source, c.Pool.MountDir) {
 			continue
 		}
 
@@ -123,7 +122,7 @@ func buildMountVolumes(r runners.Runner, c *resources.AppConfig, containerID str
 		volumes = append(volumes, volume)
 	}
 
-	return volumes, nil
+	return volumes
 }
 
 func isSystemVolume(source string) bool {
@@ -141,7 +140,7 @@ func buildSocketMount(socketDir, hostDataDir, destinationDir string) string {
 	socketPath := strings.TrimPrefix(socketDir, destinationDir)
 	hostSocketDir := path.Join(hostDataDir, socketPath)
 
-	return fmt.Sprintf(" --volume %s:%s:rshared", hostSocketDir, socketDir)
+	return fmt.Sprintf("--volume %s:%s:rshared", hostSocketDir, socketDir)
 }
 
 func createSocketCloneDir(socketCloneDir string) error {
