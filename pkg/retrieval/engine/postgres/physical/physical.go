@@ -307,6 +307,7 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) (err error) {
 	defer func() {
 		if err != nil {
 			tools.PrintContainerLogs(ctx, r.dockerClient, r.syncInstanceName())
+			tools.PrintLastPostgresLogs(ctx, r.dockerClient, r.syncInstanceName(), r.fsPool.DataDir())
 		}
 	}()
 
