@@ -50,7 +50,8 @@ set -euxo pipefail # ----
 sed -ri "s/:13/:${POSTGRES_VERSION}/g"  ~/.dblab/server.yml
 # reduce shared_buffers (optional)
 sed -ri "s/^(\s*)(shared_buffers:.*$)/\1shared_buffers: 512MB/" ~/.dblab/server.yml
-
+# skip snapshotting on start to replace some Postgres parameters after PGDATA receiving
+sed -ri "s/^(\s*)(skipStartSnapshot:.*$)/\1skipStartSnapshot: true/" ~/.dblab/server.yml
 
 ## Launch Database Lab server
 sudo docker run \
@@ -75,6 +76,27 @@ for i in {1..30}; do
   sleep 10
 done
 
+# Test increasing default configuration parameters from pg_controldata. If the Database Lab Engine will start successfully, the test is passed.
+sudo docker exec -it dblab_server bash -c 'echo -e "\nmax_connections = 300" >> /var/lib/dblab/dblab_pool/data/postgresql.dblab.postgresql.conf'
+sudo docker exec -it dblab_server bash -c 'echo "max_prepared_transactions = 5" >> /var/lib/dblab/dblab_pool/data/postgresql.dblab.postgresql.conf'
+sudo docker exec -it dblab_server bash -c 'echo "max_locks_per_transaction = 100" >> /var/lib/dblab/dblab_pool/data/postgresql.dblab.postgresql.conf'
+sudo docker exec -it dblab_server bash -c 'echo "max_worker_processes = 12" >> /var/lib/dblab/dblab_pool/data/postgresql.dblab.postgresql.conf'
+sudo docker exec -it dblab_server bash -c 'echo "track_commit_timestamp = on" >> /var/lib/dblab/dblab_pool/data/postgresql.dblab.postgresql.conf'
+sudo docker exec -it dblab_server bash -c 'echo "max_wal_senders = 15" >> /var/lib/dblab/dblab_pool/data/postgresql.dblab.postgresql.conf'
+
+# Enable snapshotting on start to make a new snapshot
+sed -ri "s/^(\s*)(skipStartSnapshot:.*$)/\1skipStartSnapshot: false/" ~/.dblab/server.yml
+
+sudo docker restart dblab_server
+
+# Check the Database Lab Engine logs
+sudo docker logs dblab_server -f 2>&1 | awk '{print "[CONTAINER dblab_server]: "$0}' &
+
+### Waiting for the Database Lab Engine initialization.
+for i in {1..30}; do
+  curl http://localhost:2345 > /dev/null 2>&1 && break || echo "dblab is not ready yet"
+  sleep 10
+done
 
 ### Step 3. Start cloning
 
@@ -100,6 +122,9 @@ dblab clone create \
   --username dblab_user_1 \
   --password secret_password \
   --id testclone
+
+PGPASSWORD=secret_password psql \
+  "host=localhost port=6000 user=dblab_user_1 dbname=test" -c 'show max_wal_senders'
 
 # Connect to a clone and check the available table
 PGPASSWORD=secret_password psql \
