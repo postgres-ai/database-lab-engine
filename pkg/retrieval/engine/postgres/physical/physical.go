@@ -48,6 +48,7 @@ var (
 		"max_locks_per_xact":     "max_locks_per_transaction",
 		"max_worker_processes":   "max_worker_processes",
 		"track_commit_timestamp": "track_commit_timestamp",
+		"max_wal_senders":        "max_wal_senders",
 	}
 )
 
