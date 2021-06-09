@@ -51,6 +51,12 @@ build-client:
 test:
 	${GOTEST} ./...
 
+test-ci-integration:
+	GO111MODULE=on go test -race  -tags=integration ./...
+
+test-local-integration:
+	sudo GO111MODULE=on /usr/local/go/bin/go test -race  -tags=integration ./...
+
 fmt:
 	go fmt $$(go list ./... | grep -v /vendor/)
 
