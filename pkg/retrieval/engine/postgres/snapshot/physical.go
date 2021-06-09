@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
 
@@ -57,7 +58,8 @@ const (
 	promoteTargetAction  = "promote"
 
 	// WAL parsing constants.
-	walNameLen = 24
+	walNameLen  = 24
+	pgVersion10 = 10
 )
 
 var defaultRecoveryCfg = map[string]string{
@@ -533,6 +535,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 		p.buildContainerConfig(clonePath, promoteImage, pwd, recoveryConfig[targetActionOption]),
 		hostConfig,
 		&network.NetworkingConfig{},
+		&specs.Platform{},
 		p.promoteContainerName(),
 	)
 
@@ -643,7 +646,9 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 func (p *PhysicalInitial) getDSAFromWAL(ctx context.Context, pgVersion float64, containerID, cloneDir string) (string, error) {
 	log.Dbg(cloneDir)
 
-	infos, err := ioutil.ReadDir(path.Join(cloneDir, "pg_wal"))
+	walDirectory := walDir(cloneDir, pgVersion)
+
+	infos, err := ioutil.ReadDir(walDirectory)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to read the pg_wal dir")
 	}
@@ -651,7 +656,7 @@ func (p *PhysicalInitial) getDSAFromWAL(ctx context.Context, pgVersion float64, 
 	// Walk in the reverse order.
 	for i := len(infos) - 1; i >= 0; i-- {
 		fileName := infos[i].Name()
-		walFilePath := path.Join(cloneDir, "pg_wal", fileName)
+		walFilePath := path.Join(walDirectory, fileName)
 
 		log.Dbg("Look up into file: ", walFilePath)
 
@@ -670,8 +675,18 @@ func (p *PhysicalInitial) getDSAFromWAL(ctx context.Context, pgVersion float64, 
 	return "", nil
 }
 
+func walDir(cloneDir string, pgVersion float64) string {
+	dir := "pg_wal"
+
+	if pgVersion < pgVersion10 {
+		dir = "pg_xlog"
+	}
+
+	return path.Join(cloneDir, dir)
+}
+
 func (p *PhysicalInitial) parseWAL(ctx context.Context, containerID string, pgVersion float64, walFilePath string) string {
-	cmd := fmt.Sprintf("/usr/lib/postgresql/%g/bin/pg_waldump %s -r Transaction | tail -1", pgVersion, walFilePath)
+	cmd := walCommand(pgVersion, walFilePath)
 
 	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
 		Cmd: []string{"sh", "-c", cmd},
@@ -689,6 +704,16 @@ func (p *PhysicalInitial) parseWAL(ctx context.Context, containerID string, pgVe
 	log.Dbg("Parse the line from a WAL file", output)
 
 	return parseWALLine(output)
+}
+
+func walCommand(pgVersion float64, walFilePath string) string {
+	walDumpUtil := "pg_waldump"
+
+	if pgVersion < pgVersion10 {
+		walDumpUtil = "pg_xlogdump"
+	}
+
+	return fmt.Sprintf("/usr/lib/postgresql/%g/bin/%s %s -r Transaction | tail -1", pgVersion, walDumpUtil, walFilePath)
 }
 
 func parseWALLine(line string) string {

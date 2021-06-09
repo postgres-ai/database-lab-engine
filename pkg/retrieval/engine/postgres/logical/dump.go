@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/config"
@@ -241,7 +242,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 	}
 
 	dumpCont, err := d.dockerClient.ContainerCreate(ctx, d.buildContainerConfig(pwd), hostConfig, &network.NetworkingConfig{},
-		d.dumpContainerName(),
+		&specs.Platform{}, d.dumpContainerName(),
 	)
 	if err != nil {
 		log.Err(err)
