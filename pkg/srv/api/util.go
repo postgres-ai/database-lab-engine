@@ -2,7 +2,7 @@
 2019 © Postgres.ai
 */
 
-package srv
+package api
 
 import (
 	"encoding/json"
@@ -14,8 +14,8 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 )
 
-// writeJSON responds with JSON.
-func writeJSON(w http.ResponseWriter, httpStatusCode int, v interface{}) error {
+// WriteJSON responds with JSON.
+func WriteJSON(w http.ResponseWriter, httpStatusCode int, v interface{}) error {
 	b, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal response")
@@ -33,8 +33,8 @@ func writeJSON(w http.ResponseWriter, httpStatusCode int, v interface{}) error {
 	return nil
 }
 
-// readJSON reads JSON from request.
-func readJSON(r *http.Request, v interface{}) error {
+// ReadJSON reads JSON from request.
+func ReadJSON(r *http.Request, v interface{}) error {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return errors.Wrap(err, "failed to read a request body")
@@ -47,8 +47,8 @@ func readJSON(r *http.Request, v interface{}) error {
 	return nil
 }
 
-// writeJSON responds with JSON.
-func writeData(w http.ResponseWriter, httpStatusCode int, b []byte) error {
+// WriteData responds with JSON.
+func WriteData(w http.ResponseWriter, httpStatusCode int, b []byte) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(httpStatusCode)
 

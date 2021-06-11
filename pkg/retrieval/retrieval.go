@@ -17,6 +17,7 @@ import (
 	"github.com/robfig/cron/v3"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/components"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/config"
@@ -34,7 +35,7 @@ import (
 // Retrieval describes a data retrieval.
 type Retrieval struct {
 	cfg           *config.Config
-	global        *dblabCfg.Global
+	global        *global.Config
 	docker        *client.Client
 	poolManager   *pool.Manager
 	runner        runners.Runner

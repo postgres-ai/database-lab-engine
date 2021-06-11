@@ -1,0 +1,54 @@
+app:
+  # HTTP server IP address or host.
+  # By default uses an empty string to accept connections to all network interfaces.
+  # Keep it default when running inside a Docker container.
+  host: ""
+
+  # HTTP server port.
+  # Default: 2500.
+  port: 2500
+
+  # Debug mode. Default: false.
+  debug: false
+
+  # The token that is used to work with the DB migration checker API.
+  # If the integration with Postgres.ai Platform is configured
+  # (see below, "platform: ..." configuration),
+  # tokens (including personal) generated on the Platform may be used.
+  verificationToken: "secret_token"
+
+# Database Lab instance that starts clone to check DB migrations.
+dle:
+  # URL of Database Lab API server
+  url: "https://dblab.domain.com"
+
+  # Secret token used to communicate with the Database Lab Engine API.
+  verificationToken: "checker_secret_token"
+
+# Integration with Postgres.ai Platform instance. It may be either
+# SaaS (https://postgres.ai) of self-managed instance (usually located inside
+# private infrastructure).
+platform:
+  # Postgres.ai Platform API base URL. Default: https://postgres.ai/api/general.
+  url: "https://postgres.ai/api/general"
+
+  # Postgres.ai Platform API secret token.
+  accessToken: "platform_access_token"
+
+  # Enable authorization with personal tokens of the organization's members.
+  # If false: all users must use "verificationToken" value for any API request
+  # If true: "verificationToken" is known only to admin, users use their own tokens,
+  #           and any token can be revoked not affecting others
+  enablePersonalTokens: true
+
+
+source:
+  # Type of version control system.
+  type: "github"
+
+  # Access token for getting source code from version control system.
+  token: "vcs_secret_token"
+
+runner:
+  # Docker image containing tools for executing database migration commands.
+  image: "postgresai/migration-tools:sqitch"

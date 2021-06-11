@@ -19,7 +19,7 @@ import (
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 
-	dblabCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/dbmarker"
@@ -60,7 +60,7 @@ type DumpJob struct {
 	name         string
 	dockerClient *client.Client
 	fsPool       *resources.Pool
-	globalCfg    *dblabCfg.Global
+	globalCfg    *global.Config
 	config       dumpJobConfig
 	dumper       dumper
 	dbMarker     *dbmarker.Marker
@@ -114,7 +114,7 @@ type ImmediateRestore struct {
 }
 
 // NewDumpJob creates a new DumpJob.
-func NewDumpJob(jobCfg config.JobConfig, global *dblabCfg.Global) (*DumpJob, error) {
+func NewDumpJob(jobCfg config.JobConfig, global *global.Config) (*DumpJob, error) {
 	dumpJob := &DumpJob{
 		name:         jobCfg.Spec.Name,
 		dockerClient: jobCfg.Docker,

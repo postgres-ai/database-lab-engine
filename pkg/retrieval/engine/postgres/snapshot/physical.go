@@ -26,7 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
 
-	dblabCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/dbmarker"
@@ -85,7 +85,7 @@ type PhysicalInitial struct {
 	cloneManager   pool.FSManager
 	fsPool         *resources.Pool
 	options        PhysicalOptions
-	globalCfg      *dblabCfg.Global
+	globalCfg      *global.Config
 	dbMarker       *dbmarker.Marker
 	dbMark         *dbmarker.Config
 	dockerClient   *client.Client
@@ -147,7 +147,7 @@ type syncState struct {
 }
 
 // NewPhysicalInitialJob creates a new physical initial job.
-func NewPhysicalInitialJob(cfg config.JobConfig, global *dblabCfg.Global, cloneManager pool.FSManager) (*PhysicalInitial, error) {
+func NewPhysicalInitialJob(cfg config.JobConfig, global *global.Config, cloneManager pool.FSManager) (*PhysicalInitial, error) {
 	p := &PhysicalInitial{
 		name:         cfg.Spec.Name,
 		cloneManager: cloneManager,

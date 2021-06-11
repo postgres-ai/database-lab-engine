@@ -2,7 +2,7 @@
 2019 © Postgres.ai
 */
 
-package srv
+package api
 
 import (
 	"testing"

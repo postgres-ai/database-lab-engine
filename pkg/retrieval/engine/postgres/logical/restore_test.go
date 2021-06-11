@@ -9,13 +9,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
 )
 
 func TestRestoreCommandBuilding(t *testing.T) {
 	logicalJob := &RestoreJob{
-		globalCfg: &config.Global{
-			Database: config.Database{
+		globalCfg: &global.Config{
+			Database: global.Database{
 				Username: "john",
 				DBName:   "testdb",
 			},

@@ -30,6 +30,8 @@ type State struct {
 	CurrentDBSize    int64
 	MaxDBQueryTimeMS float64
 	ObjectStat       ObjectsStat
+	LogErrors        LogErrors
+	OverallError     bool
 }
 
 // NewSession creates a new observing session.
@@ -40,4 +42,9 @@ func NewSession(sessionID uint64, startedAt time.Time, config types.Config, tags
 		Config:    config,
 		Tags:      tags,
 	}
+}
+
+// IsFinished checks if the value FinishedAt is zero.
+func (s Session) IsFinished() bool {
+	return !s.FinishedAt.IsZero()
 }

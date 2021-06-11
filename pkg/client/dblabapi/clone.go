@@ -13,8 +13,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
-	"path"
 	"time"
 
 	"github.com/pkg/errors"
@@ -344,7 +342,7 @@ func (c *Client) SummaryObservation(ctx context.Context, cloneID, sessionID stri
 }
 
 // DownloadArtifact downloads clone observation artifacts.
-func (c *Client) DownloadArtifact(ctx context.Context, cloneID, sessionID, artifactType, outputFile string) (string, error) {
+func (c *Client) DownloadArtifact(ctx context.Context, cloneID, sessionID, artifactType string) (io.ReadCloser, error) {
 	u := c.URL("/observation/download")
 
 	values := url.Values{}
@@ -355,46 +353,24 @@ func (c *Client) DownloadArtifact(ctx context.Context, cloneID, sessionID, artif
 
 	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to make a request")
+		return nil, errors.Wrap(err, "failed to make a request")
 	}
 
 	response, err := c.Do(ctx, request)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get response")
+		return nil, errors.Wrap(err, "failed to get response")
 	}
-
-	defer func() { _ = response.Body.Close() }()
 
 	if response.StatusCode != http.StatusOK {
 		content, err := ioutil.ReadAll(response.Body)
 		if err != nil {
-			return "", errors.Wrapf(err, "failed to read response, status code: %d", response.StatusCode)
+			return nil, errors.Wrapf(err, "failed to read response, status code: %d", response.StatusCode)
 		}
 
-		return "", errors.Errorf("status code: %d. content: %s", response.StatusCode, content)
+		return nil, errors.Errorf("status code: %d. content: %s", response.StatusCode, content)
 	}
 
-	filename := outputFile
-
-	if filename == "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			return "", err
-		}
-
-		filename = path.Join(wd, observer.BuildArtifactFilename(artifactType))
-	}
-
-	artifactFile, err := os.Create(filename)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to create file %s", filename)
-	}
-
-	defer func() { _ = artifactFile.Close() }()
-
-	_, err = io.Copy(artifactFile, response.Body)
-
-	return filename, err
+	return response.Body, err
 }
 
 func (c *Client) request(ctx context.Context, u *url.URL, requestObject, responseObject interface{}) error {

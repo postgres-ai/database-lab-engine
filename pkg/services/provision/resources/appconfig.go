@@ -16,6 +16,7 @@ type AppConfig struct {
 	Host        string
 	Port        uint
 	DB          *DB
+	NetworkID   string
 
 	ContainerConf map[string]string
 	pgExtraConf   map[string]string

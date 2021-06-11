@@ -2,20 +2,22 @@
 2019 © Postgres.ai
 */
 
-package srv
+// Package api contains helpers to work with HTTP requests and responses.
+package api
 
 import (
 	"fmt"
 	"net/http"
 	"net/url"
 
+	"github.com/pkg/errors"
+
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
-
-	"github.com/pkg/errors"
 )
 
-func sendError(w http.ResponseWriter, r *http.Request, err error) {
+// SendError sends a server error.
+func SendError(w http.ResponseWriter, r *http.Request, err error) {
 	log.Err(errDetailsMsg(r, err))
 
 	errorInternalServer, ok := errors.Cause(err).(models.Error)
@@ -26,34 +28,37 @@ func sendError(w http.ResponseWriter, r *http.Request, err error) {
 		}
 	}
 
-	_ = writeJSON(w, toStatusCode(errorInternalServer), errorInternalServer)
+	_ = WriteJSON(w, toStatusCode(errorInternalServer), errorInternalServer)
 }
 
-func sendBadRequestError(w http.ResponseWriter, r *http.Request, message string) {
+// SendBadRequestError sends a bad request error.
+func SendBadRequestError(w http.ResponseWriter, r *http.Request, message string) {
 	errorBadRequest := models.Error{
 		Code:    models.ErrCodeBadRequest,
 		Message: message,
 	}
 
-	sendError(w, r, errorBadRequest)
+	SendError(w, r, errorBadRequest)
 }
 
-func sendUnauthorizedError(w http.ResponseWriter, r *http.Request) {
+// SendUnauthorizedError sends an unauthorized request error.
+func SendUnauthorizedError(w http.ResponseWriter, r *http.Request) {
 	errorUnauthorized := models.Error{
 		Code:    models.ErrCodeUnauthorized,
 		Message: "Check your verification token.",
 	}
 
-	sendError(w, r, errorUnauthorized)
+	SendError(w, r, errorUnauthorized)
 }
 
-func sendNotFoundError(w http.ResponseWriter, r *http.Request) {
+// SendNotFoundError sends a not found error.
+func SendNotFoundError(w http.ResponseWriter, r *http.Request) {
 	errorNotFound := models.Error{
 		Code:    models.ErrCodeNotFound,
 		Message: "Requested object does not exist. Specify your request.",
 	}
 
-	sendError(w, r, errorNotFound)
+	SendError(w, r, errorNotFound)
 }
 
 // errDetailsMsg formats details of an error message.

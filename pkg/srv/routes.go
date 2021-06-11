@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v2/version"
 )
@@ -26,12 +28,12 @@ import (
 func (s *Server) getInstanceStatus(w http.ResponseWriter, r *http.Request) {
 	status, err := s.Cloning.GetInstanceState()
 	if err != nil {
-		sendError(w, r, err)
+		api.SendError(w, r, err)
 		return
 	}
 
-	if err = writeJSON(w, http.StatusOK, status); err != nil {
-		sendError(w, r, err)
+	if err = api.WriteJSON(w, http.StatusOK, status); err != nil {
+		api.SendError(w, r, err)
 		return
 	}
 }
@@ -39,36 +41,36 @@ func (s *Server) getInstanceStatus(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getSnapshots(w http.ResponseWriter, r *http.Request) {
 	snapshots, err := s.Cloning.GetSnapshots()
 	if err != nil {
-		sendError(w, r, err)
+		api.SendError(w, r, err)
 		return
 	}
 
-	if err = writeJSON(w, http.StatusOK, snapshots); err != nil {
-		sendError(w, r, err)
+	if err = api.WriteJSON(w, http.StatusOK, snapshots); err != nil {
+		api.SendError(w, r, err)
 		return
 	}
 }
 
 func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 	var cloneRequest *types.CloneCreateRequest
-	if err := readJSON(r, &cloneRequest); err != nil {
-		sendBadRequestError(w, r, err.Error())
+	if err := api.ReadJSON(r, &cloneRequest); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
 	if err := s.validator.ValidateCloneRequest(cloneRequest); err != nil {
-		sendBadRequestError(w, r, err.Error())
+		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
 	newClone, err := s.Cloning.CreateClone(cloneRequest)
 	if err != nil {
-		sendError(w, r, errors.Wrap(err, "failed to create clone"))
+		api.SendError(w, r, errors.Wrap(err, "failed to create clone"))
 		return
 	}
 
-	if err := writeJSON(w, http.StatusCreated, newClone); err != nil {
-		sendError(w, r, err)
+	if err := api.WriteJSON(w, http.StatusCreated, newClone); err != nil {
+		api.SendError(w, r, err)
 		return
 	}
 
@@ -79,12 +81,12 @@ func (s *Server) destroyClone(w http.ResponseWriter, r *http.Request) {
 	cloneID := mux.Vars(r)["id"]
 
 	if cloneID == "" {
-		sendBadRequestError(w, r, "ID must not be empty")
+		api.SendBadRequestError(w, r, "ID must not be empty")
 		return
 	}
 
 	if err := s.Cloning.DestroyClone(cloneID); err != nil {
-		sendError(w, r, errors.Wrap(err, "failed to destroy clone"))
+		api.SendError(w, r, errors.Wrap(err, "failed to destroy clone"))
 		return
 	}
 
@@ -95,25 +97,25 @@ func (s *Server) patchClone(w http.ResponseWriter, r *http.Request) {
 	cloneID := mux.Vars(r)["id"]
 
 	if cloneID == "" {
-		sendBadRequestError(w, r, "ID must not be empty")
+		api.SendBadRequestError(w, r, "ID must not be empty")
 		return
 	}
 
 	var patchClone *types.CloneUpdateRequest
-	if err := readJSON(r, &patchClone); err != nil {
-		sendBadRequestError(w, r, err.Error())
+	if err := api.ReadJSON(r, &patchClone); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
 
 		return
 	}
 
 	updatedClone, err := s.Cloning.UpdateClone(cloneID, patchClone)
 	if err != nil {
-		sendError(w, r, errors.Wrap(err, "failed to update clone"))
+		api.SendError(w, r, errors.Wrap(err, "failed to update clone"))
 		return
 	}
 
-	if err := writeJSON(w, http.StatusOK, updatedClone); err != nil {
-		sendError(w, r, err)
+	if err := api.WriteJSON(w, http.StatusOK, updatedClone); err != nil {
+		api.SendError(w, r, err)
 		return
 	}
 }
@@ -122,18 +124,18 @@ func (s *Server) getClone(w http.ResponseWriter, r *http.Request) {
 	cloneID := mux.Vars(r)["id"]
 
 	if cloneID == "" {
-		sendBadRequestError(w, r, "ID must not be empty")
+		api.SendBadRequestError(w, r, "ID must not be empty")
 		return
 	}
 
 	clone, err := s.Cloning.GetClone(cloneID)
 	if err != nil {
-		sendNotFoundError(w, r)
+		api.SendNotFoundError(w, r)
 		return
 	}
 
-	if err := writeJSON(w, http.StatusOK, clone); err != nil {
-		sendError(w, r, err)
+	if err := api.WriteJSON(w, http.StatusOK, clone); err != nil {
+		api.SendError(w, r, err)
 		return
 	}
 }
@@ -142,12 +144,12 @@ func (s *Server) resetClone(w http.ResponseWriter, r *http.Request) {
 	cloneID := mux.Vars(r)["id"]
 
 	if cloneID == "" {
-		sendBadRequestError(w, r, "ID must not be empty")
+		api.SendBadRequestError(w, r, "ID must not be empty")
 		return
 	}
 
 	if err := s.Cloning.ResetClone(cloneID); err != nil {
-		sendError(w, r, errors.Wrap(err, "failed to reset clone"))
+		api.SendError(w, r, errors.Wrap(err, "failed to reset clone"))
 		return
 	}
 
@@ -160,13 +162,13 @@ func (s *Server) startEstimator(w http.ResponseWriter, r *http.Request) {
 
 	pid, err := strconv.Atoi(values.Get("pid"))
 	if err != nil {
-		sendBadRequestError(w, r, err.Error())
+		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
 	clone, err := s.Cloning.GetClone(cloneID)
 	if err != nil {
-		sendNotFoundError(w, r)
+		api.SendNotFoundError(w, r)
 		return
 	}
 
@@ -174,19 +176,19 @@ func (s *Server) startEstimator(w http.ResponseWriter, r *http.Request) {
 
 	cloneContainer, err := s.docker.ContainerInspect(ctx, util.GetCloneNameStr(clone.DB.Port))
 	if err != nil {
-		sendBadRequestError(w, r, err.Error())
+		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
 	db, err := s.Cloning.CloneConnection(ctx, cloneID)
 	if err != nil {
-		sendError(w, r, err)
+		api.SendError(w, r, err)
 		return
 	}
 
 	ws, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		sendError(w, r, err)
+		api.SendError(w, r, err)
 		return
 	}
 
@@ -201,7 +203,7 @@ func (s *Server) startEstimator(w http.ResponseWriter, r *http.Request) {
 	go wsPing(ws, done)
 
 	if err := s.runEstimator(ctx, ws, db, pid, cloneContainer.ID, done); err != nil {
-		sendError(w, r, err)
+		api.SendError(w, r, err)
 		return
 	}
 
@@ -276,28 +278,36 @@ func (s *Server) runEstimator(ctx context.Context, ws *websocket.Conn, db pgxtyp
 
 func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 	if s.Platform.Client == nil {
-		sendBadRequestError(w, r, "cannot start the session observation because a Platform client is not configured")
+		api.SendBadRequestError(w, r, "cannot start the session observation because a Platform client is not configured")
 		return
 	}
 
 	var observationRequest *types.StartObservationRequest
-	if err := readJSON(r, &observationRequest); err != nil {
-		sendBadRequestError(w, r, err.Error())
+	if err := api.ReadJSON(r, &observationRequest); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
 	clone, err := s.Cloning.GetClone(observationRequest.CloneID)
 	if err != nil {
-		sendNotFoundError(w, r)
+		api.SendNotFoundError(w, r)
 		return
 	}
 
-	observingClone := observer.NewObservingClone(observationRequest.Config)
+	clone.DB.Username = s.Global.Database.User()
+
+	db, err := observer.InitConnection(clone, s.pm.Active().Pool().SocketDir())
+	if err != nil {
+		api.SendError(w, r, errors.Wrap(err, "cannot connect to database"))
+		return
+	}
+
+	observingClone := observer.NewObservingClone(observationRequest.Config, db)
 	startedAt := time.Now().Round(time.Millisecond)
 
 	port, err := strconv.Atoi(clone.DB.Port)
 	if err != nil {
-		sendBadRequestError(w, r, err.Error())
+		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
@@ -314,7 +324,7 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 
 	platformResponse, err := s.Platform.Client.StartObservationSession(context.Background(), platformRequest)
 	if err != nil {
-		sendBadRequestError(w, r, "Failed to start observation session on the Platform")
+		api.SendBadRequestError(w, r, "Failed to start observation session on the Platform")
 		return
 	}
 
@@ -323,7 +333,7 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := observingClone.Init(clone, platformResponse.SessionID, startedAt, observationRequest.Tags); err != nil {
-		sendError(w, r, errors.Wrap(err, "failed to init observing session"))
+		api.SendError(w, r, errors.Wrap(err, "failed to init observing session"))
 		return
 	}
 
@@ -334,39 +344,39 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	if err := writeJSON(w, http.StatusOK, observingClone.Session()); err != nil {
-		sendError(w, r, err)
+	if err := api.WriteJSON(w, http.StatusOK, observingClone.Session()); err != nil {
+		api.SendError(w, r, err)
 		return
 	}
 }
 
 func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 	if s.Platform.Client == nil {
-		sendBadRequestError(w, r, "cannot stop the session observation because a Platform client is not configured")
+		api.SendBadRequestError(w, r, "cannot stop the session observation because a Platform client is not configured")
 		return
 	}
 
 	var observationRequest *types.StopObservationRequest
 
-	if err := readJSON(r, &observationRequest); err != nil {
-		sendBadRequestError(w, r, err.Error())
+	if err := api.ReadJSON(r, &observationRequest); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
 	observingClone, err := s.Observer.GetObservingClone(observationRequest.CloneID)
 	if err != nil {
-		sendNotFoundError(w, r)
+		api.SendNotFoundError(w, r)
 		return
 	}
 
 	clone, err := s.Cloning.GetClone(observationRequest.CloneID)
 	if err != nil {
-		sendNotFoundError(w, r)
+		api.SendNotFoundError(w, r)
 		return
 	}
 
 	if err := s.Cloning.UpdateCloneStatus(observationRequest.CloneID, models.Status{Code: models.StatusExporting}); err != nil {
-		sendNotFoundError(w, r)
+		api.SendNotFoundError(w, r)
 		return
 	}
 
@@ -376,14 +386,19 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
+	if observationRequest.OverallError {
+		// This is the single way to determine that an external migration command fails.
+		observingClone.SetOverallError(true)
+	}
+
 	if err := observingClone.Stop(); err != nil {
-		sendBadRequestError(w, r, err.Error())
+		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
 	session := observingClone.Session()
 	if session == nil || session.Result == nil {
-		sendBadRequestError(w, r, "observing session has not been initialized")
+		api.SendBadRequestError(w, r, "observing session has not been initialized")
 		return
 	}
 
@@ -394,36 +409,39 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := s.Platform.Client.StopObservationSession(context.Background(), platformRequest); err != nil {
-		sendBadRequestError(w, r, "Failed to start observation session on the Platform")
+		api.SendBadRequestError(w, r, "Failed to start observation session on the Platform")
 		return
 	}
 
-	port, err := strconv.Atoi(clone.DB.Port)
-	if err != nil {
-		sendError(w, r, errors.Wrap(err, "failed to parse clone port"))
-		return
-	}
+	sessionID := strconv.FormatUint(session.SessionID, 10)
 
-	logs, err := s.Observer.GetCloneLog(context.TODO(), uint(port), observingClone)
+	logs, err := s.Observer.GetCloneLog(context.TODO(), clone.DB.Port, observingClone)
 	if err != nil {
 		log.Err("Failed to get observation logs", err)
 	}
 
 	if len(logs) > 0 {
-		headers := map[string]string{
-			"Prefer":            "params=multiple-objects",
-			"Content-Type":      "text/csv",
-			"X-PGAI-Session-ID": strconv.FormatUint(session.SessionID, 10),
-			"X-PGAI-Part":       "1", // TODO (akartasov): Support chunks.
-		}
-
-		if err := s.Platform.Client.UploadObservationLogs(context.Background(), logs, headers); err != nil {
+		if err := s.Platform.Client.UploadObservationLogs(context.Background(), logs, sessionID); err != nil {
 			log.Err("Failed to upload observation logs", err)
 		}
 	}
 
-	if err := writeJSON(w, http.StatusOK, session); err != nil {
-		sendError(w, r, err)
+	for _, artifactType := range session.Artifacts {
+		artPath := observingClone.BuildArtifactPath(session.SessionID, artifactType)
+
+		data, err := ioutil.ReadFile(artPath)
+		if err != nil {
+			log.Errf("failed to read artifact %s: %s", artPath, err)
+			continue
+		}
+
+		if err := s.Platform.Client.UploadObservationArtifact(context.Background(), data, sessionID, artifactType); err != nil {
+			log.Err("Failed to upload observation artifact", err)
+		}
+	}
+
+	if err := api.WriteJSON(w, http.StatusOK, session); err != nil {
+		api.SendError(w, r, err)
 		return
 	}
 }
@@ -435,24 +453,24 @@ func (s *Server) sessionSummaryObservation(w http.ResponseWriter, r *http.Reques
 
 	sessionID, err := strconv.ParseUint(vars["session_id"], 10, 64)
 	if err != nil {
-		sendBadRequestError(w, r, fmt.Sprintf("invalid session_id: %v", sessionID))
+		api.SendBadRequestError(w, r, fmt.Sprintf("invalid session_id: %v", sessionID))
 		return
 	}
 
 	observingClone, err := s.Observer.GetObservingClone(cloneID)
 	if err != nil || !observingClone.IsExistArtifacts(sessionID) {
-		sendNotFoundError(w, r)
+		api.SendNotFoundError(w, r)
 		return
 	}
 
 	summaryData, err := observingClone.ReadSummary(sessionID)
 	if err != nil {
-		sendBadRequestError(w, r, fmt.Sprintf("failed to read summary: %v", err))
+		api.SendBadRequestError(w, r, fmt.Sprintf("failed to read summary: %v", err))
 		return
 	}
 
-	if err := writeData(w, http.StatusOK, summaryData); err != nil {
-		sendError(w, r, err)
+	if err := api.WriteData(w, http.StatusOK, summaryData); err != nil {
+		api.SendError(w, r, err)
 		return
 	}
 }
@@ -462,13 +480,13 @@ func (s *Server) downloadArtifact(w http.ResponseWriter, r *http.Request) {
 	artifactType := values.Get("artifact_type")
 
 	if !observer.IsAvailableArtifactType(artifactType) {
-		sendBadRequestError(w, r, fmt.Sprintf("artifact %q is not available to download", artifactType))
+		api.SendBadRequestError(w, r, fmt.Sprintf("artifact %q is not available to download", artifactType))
 		return
 	}
 
 	sessionID, err := strconv.ParseUint(values.Get("session_id"), 10, 64)
 	if err != nil {
-		sendBadRequestError(w, r, fmt.Sprintf("invalid session_id: %v", sessionID))
+		api.SendBadRequestError(w, r, fmt.Sprintf("invalid session_id: %v", sessionID))
 		return
 	}
 
@@ -476,7 +494,7 @@ func (s *Server) downloadArtifact(w http.ResponseWriter, r *http.Request) {
 
 	observingClone, err := s.Observer.GetObservingClone(cloneID)
 	if err != nil || !observingClone.IsExistArtifacts(sessionID) {
-		sendNotFoundError(w, r)
+		api.SendNotFoundError(w, r)
 		return
 	}
 

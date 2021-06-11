@@ -21,7 +21,8 @@ type Config struct {
 
 // StopObservationRequest represents a request for the stop observation endpoint.
 type StopObservationRequest struct {
-	CloneID string `json:"clone_id"`
+	CloneID      string `json:"clone_id"`
+	OverallError bool   `json:"overall_error"`
 }
 
 // SummaryObservationRequest represents a request for the summary observation endpoint.
