@@ -8,3 +8,4 @@
 /deploy/
 
 /configs/config.yml
+/configs/run_ci.yaml

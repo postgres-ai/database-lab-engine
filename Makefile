@@ -1,6 +1,7 @@
 .DEFAULT_GOAL = all
 
 SERVER_BINARY = dblab-server
+RUN_CI_BINARY = run-ci
 CLI_BINARY = dblab
 GOARCH = amd64
 
@@ -38,7 +39,11 @@ lint: install-lint run-lint
 
 build:
 	${GOBUILD} -o bin/${SERVER_BINARY} ./cmd/database-lab/main.go
+	${GOBUILD} -o bin/${RUN_CI_BINARY} ./cmd/runci/main.go
 	${GOBUILD} -o bin/${CLI_BINARY} ./cmd/cli/main.go
+
+build-ci-checker:
+	${GOBUILD} -o bin/${RUN_CI_BINARY} ./cmd/runci/main.go
 
 build-client:
 	$(foreach GOOS, $(CLIENT_PLATFORMS),\

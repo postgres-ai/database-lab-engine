@@ -124,6 +124,17 @@ build-image-feature-server:
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-server"
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
 
+build-image-feature-ci-checker:
+  <<: *build_image_definition
+  <<: *only_feature
+  variables:
+    REGISTRY_USER: "${CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.ci-checker"
+    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-ci-checker"
+    TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
+
 build-image-feature-client:
   <<: *build_image_definition
   <<: *only_feature

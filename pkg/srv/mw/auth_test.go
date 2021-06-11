@@ -2,7 +2,7 @@
 2019 © Postgres.ai
 */
 
-package srv
+package mw
 
 import (
 	"context"
@@ -46,7 +46,7 @@ func TestAccess(t *testing.T) {
 		{isPersonalTokenEnabled: true, requestToken: "PlatformAccessToken", result: true, name: "correct PersonalToken with enabled PersonalToken"},
 	}
 
-	mw := authMW{
+	mw := Auth{
 		verificationToken: testVerificationToken,
 	}
 

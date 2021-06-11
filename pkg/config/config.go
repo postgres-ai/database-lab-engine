@@ -11,10 +11,10 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/estimator"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
 	retConfig "gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/config"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/cloning"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/platform"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision"
@@ -29,43 +29,11 @@ type Config struct {
 	Provision   provision.Config `yaml:"provision"`
 	Cloning     cloning.Config   `yaml:"cloning"`
 	Platform    platform.Config  `yaml:"platform"`
-	Global      Global           `yaml:"global"`
+	Global      global.Config    `yaml:"global"`
 	Retrieval   retConfig.Config `yaml:"retrieval"`
 	Observer    observer.Config  `yaml:"observer"`
 	Estimator   estimator.Config `yaml:"estimator"`
 	PoolManager pool.Config      `yaml:"poolManager"`
-}
-
-// Global contains global Database Lab configurations.
-type Global struct {
-	InstanceID string
-	Engine     string   `yaml:"engine"`
-	Debug      bool     `yaml:"debug"`
-	Database   Database `yaml:"database"`
-}
-
-// Database contains default configurations of the managed database.
-type Database struct {
-	Username string `yaml:"username"`
-	DBName   string `yaml:"dbname"`
-}
-
-// User returns default Database username.
-func (d *Database) User() string {
-	if d.Username != "" {
-		return d.Username
-	}
-
-	return defaults.Username
-}
-
-// Name returns default Database name.
-func (d *Database) Name() string {
-	if d.DBName != "" {
-		return d.DBName
-	}
-
-	return defaults.DBName
 }
 
 // LoadConfig instances a new Config by configuration filename.

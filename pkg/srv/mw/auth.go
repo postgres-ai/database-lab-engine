@@ -2,37 +2,37 @@
 2019 © Postgres.ai
 */
 
-package srv
+// Package mw contains middlewares.
+package mw
 
 import (
 	"context"
 	"net/http"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/platform"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/srv/api"
 )
 
 // VerificationTokenHeader defines a verification token name that should be passed in request headers.
 const VerificationTokenHeader = "Verification-Token"
 
-func logging(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Msg("-> ", r.Method, r.RequestURI)
-		next.ServeHTTP(w, r)
-	})
-}
-
-// authMW defines an authorization middleware of the Database Lab HTTP server.
-type authMW struct {
+// Auth defines an authorization middleware of the Database Lab HTTP server.
+type Auth struct {
 	verificationToken     string
 	personalTokenVerifier platform.PersonalTokenVerifier
 }
 
-func (a *authMW) authorized(h http.HandlerFunc) http.HandlerFunc {
+// NewAuth creates a new Auth middleware.
+func NewAuth(verificationToken string, personalTokenVerifier platform.PersonalTokenVerifier) *Auth {
+	return &Auth{verificationToken: verificationToken, personalTokenVerifier: personalTokenVerifier}
+}
+
+// Authorized checks if the user has permission to access.
+func (a *Auth) Authorized(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get(VerificationTokenHeader)
 		if !a.isAccessAllowed(r.Context(), token) {
-			sendUnauthorizedError(w, r)
+			api.SendUnauthorizedError(w, r)
 			return
 		}
 
@@ -40,7 +40,7 @@ func (a *authMW) authorized(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func (a *authMW) isAccessAllowed(ctx context.Context, token string) bool {
+func (a *Auth) isAccessAllowed(ctx context.Context, token string) bool {
 	if token == "" {
 		return false
 	}

@@ -45,6 +45,9 @@ const (
 	DBLabDumpLabel = "dblab_dump"
 	// DBLabRestoreLabel defines a label value for restore containers.
 	DBLabRestoreLabel = "dblab_restore"
+
+	// DBLabRunner defines a label to mark runner containers.
+	DBLabRunner = "dblab_runner"
 )
 
 // TODO(akartasov): Control container manager.

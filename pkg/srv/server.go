@@ -14,12 +14,16 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/estimator"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/cloning"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/platform"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/validator"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/srv/api"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/srv/mw"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 
 	"github.com/gorilla/mux"
@@ -37,26 +41,30 @@ type Server struct {
 	validator validator.Service
 	Cloning   cloning.Cloning
 	Config    *Config
+	Global    *global.Config
 	Platform  *platform.Service
 	Observer  *observer.Observer
 	Estimator *estimator.Estimator
 	upgrader  websocket.Upgrader
 	httpSrv   *http.Server
 	docker    *client.Client
+	pm        *pool.Manager
 }
 
 // NewServer initializes a new Server instance with provided configuration.
-func NewServer(cfg *Config, obsCfg *observer.Observer, cloning cloning.Cloning, platform *platform.Service,
-	dockerClient *client.Client, estimator *estimator.Estimator) *Server {
+func NewServer(cfg *Config, globalCfg *global.Config, observer *observer.Observer, cloning cloning.Cloning,
+	platform *platform.Service, dockerClient *client.Client, estimator *estimator.Estimator, pm *pool.Manager) *Server {
 	// TODO(anatoly): Stop using mock data.
 	server := &Server{
 		Config:    cfg,
+		Global:    globalCfg,
 		Cloning:   cloning,
 		Platform:  platform,
-		Observer:  obsCfg,
+		Observer:  observer,
 		Estimator: estimator,
 		upgrader:  websocket.Upgrader{},
 		docker:    dockerClient,
+		pm:        pm,
 	}
 
 	return server
@@ -95,23 +103,20 @@ func (s *Server) Reload(cfg Config) {
 func (s *Server) InitHandlers() {
 	r := mux.NewRouter().StrictSlash(true)
 
-	authMW := authMW{
-		verificationToken:     s.Config.VerificationToken,
-		personalTokenVerifier: s.Platform,
-	}
+	authMW := mw.NewAuth(s.Config.VerificationToken, s.Platform)
 
-	r.HandleFunc("/status", authMW.authorized(s.getInstanceStatus)).Methods(http.MethodGet)
-	r.HandleFunc("/snapshots", authMW.authorized(s.getSnapshots)).Methods(http.MethodGet)
-	r.HandleFunc("/clone", authMW.authorized(s.createClone)).Methods(http.MethodPost)
-	r.HandleFunc("/clone/{id}", authMW.authorized(s.destroyClone)).Methods(http.MethodDelete)
-	r.HandleFunc("/clone/{id}", authMW.authorized(s.patchClone)).Methods(http.MethodPatch)
-	r.HandleFunc("/clone/{id}", authMW.authorized(s.getClone)).Methods(http.MethodGet)
-	r.HandleFunc("/clone/{id}/reset", authMW.authorized(s.resetClone)).Methods(http.MethodPost)
-	r.HandleFunc("/clone/{id}", authMW.authorized(s.getClone)).Methods(http.MethodGet)
-	r.HandleFunc("/observation/start", authMW.authorized(s.startObservation)).Methods(http.MethodPost)
-	r.HandleFunc("/observation/stop", authMW.authorized(s.stopObservation)).Methods(http.MethodPost)
-	r.HandleFunc("/observation/summary/{clone_id}/{session_id}", authMW.authorized(s.sessionSummaryObservation)).Methods(http.MethodGet)
-	r.HandleFunc("/observation/download", authMW.authorized(s.downloadArtifact)).Methods(http.MethodGet)
+	r.HandleFunc("/status", authMW.Authorized(s.getInstanceStatus)).Methods(http.MethodGet)
+	r.HandleFunc("/snapshots", authMW.Authorized(s.getSnapshots)).Methods(http.MethodGet)
+	r.HandleFunc("/clone", authMW.Authorized(s.createClone)).Methods(http.MethodPost)
+	r.HandleFunc("/clone/{id}", authMW.Authorized(s.destroyClone)).Methods(http.MethodDelete)
+	r.HandleFunc("/clone/{id}", authMW.Authorized(s.patchClone)).Methods(http.MethodPatch)
+	r.HandleFunc("/clone/{id}", authMW.Authorized(s.getClone)).Methods(http.MethodGet)
+	r.HandleFunc("/clone/{id}/reset", authMW.Authorized(s.resetClone)).Methods(http.MethodPost)
+	r.HandleFunc("/clone/{id}", authMW.Authorized(s.getClone)).Methods(http.MethodGet)
+	r.HandleFunc("/observation/start", authMW.Authorized(s.startObservation)).Methods(http.MethodPost)
+	r.HandleFunc("/observation/stop", authMW.Authorized(s.stopObservation)).Methods(http.MethodPost)
+	r.HandleFunc("/observation/summary/{clone_id}/{session_id}", authMW.Authorized(s.sessionSummaryObservation)).Methods(http.MethodGet)
+	r.HandleFunc("/observation/download", authMW.Authorized(s.downloadArtifact)).Methods(http.MethodGet)
 	r.HandleFunc("/estimate", s.startEstimator).Methods(http.MethodGet)
 
 	// Health check.
@@ -128,9 +133,9 @@ func (s *Server) InitHandlers() {
 	}
 
 	// Show not found error for all other possible routes.
-	r.NotFoundHandler = http.HandlerFunc(sendNotFoundError)
+	r.NotFoundHandler = http.HandlerFunc(api.SendNotFoundError)
 
-	s.httpSrv = &http.Server{Addr: fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port), Handler: logging(r)}
+	s.httpSrv = &http.Server{Addr: fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port), Handler: mw.Logging(r)}
 }
 
 // Run starts HTTP server on specified port in configuration.

@@ -20,7 +20,8 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 )
 
-func initConnection(clone *models.Clone, socketDir string) (*pgx.Conn, error) {
+// InitConnection creates a new connection to the clone database.
+func InitConnection(clone *models.Clone, socketDir string) (*pgx.Conn, error) {
 	host, err := unixSocketDir(socketDir, clone.DB.Port)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse clone port")

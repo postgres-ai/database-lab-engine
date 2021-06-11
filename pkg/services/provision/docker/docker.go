@@ -68,6 +68,7 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 		strings.Join(volumes, " "),
 		"--label", labelClone,
 		"--label", c.Pool.Name,
+		"--network", c.NetworkID,
 		strings.Join(containerFlags, " "),
 		c.DockerImage,
 		"-p", instancePort,

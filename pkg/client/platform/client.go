@@ -149,7 +149,7 @@ func (p *Client) doPost(ctx context.Context, path string, data interface{}, resp
 	return nil
 }
 
-func (p *Client) doUpload(ctx context.Context, path string, reqData []byte, headers map[string]string, response interface{}) error {
+func (p *Client) doUpload(ctx context.Context, path string, reqData []byte, headers map[string]string, respData responseParser) error {
 	postURL := p.buildURL(path).String()
 
 	r, err := http.NewRequest(http.MethodPost, postURL, bytes.NewBuffer(reqData))
@@ -161,7 +161,7 @@ func (p *Client) doUpload(ctx context.Context, path string, reqData []byte, head
 		r.Header.Add(key, value)
 	}
 
-	if err := p.doRequest(ctx, r, newUploadParser(&response)); err != nil {
+	if err := p.doRequest(ctx, r, respData); err != nil {
 		return errors.Wrap(err, "failed to perform request")
 	}
 

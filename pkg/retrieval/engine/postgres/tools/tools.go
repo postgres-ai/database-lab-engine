@@ -88,6 +88,15 @@ func TouchFile(filename string) error {
 	return nil
 }
 
+// TrimPort trims a port from a hostname if the port exists.
+func TrimPort(hostname string) string {
+	if idx := strings.Index(hostname, ":"); idx != -1 {
+		return hostname[:idx]
+	}
+
+	return hostname
+}
+
 // DetectPGVersion defines PostgreSQL version of PGDATA.
 func DetectPGVersion(dataDir string) (float64, error) {
 	version, err := exec.Command("cat", fmt.Sprintf(`%s/PG_VERSION`, dataDir)).CombinedOutput()

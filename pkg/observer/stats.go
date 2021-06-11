@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -22,24 +23,42 @@ import (
 )
 
 const (
-	pgStatStatementsType = "pg_stat_statements"
-	pgStatUserTablesType = "pg_stat_user_tables"
-	pgStatDatabaseType   = "pg_stat_database"
-	pgStatBGWriterType   = "pg_stat_bgwriter"
-	objectsSizeType      = "objects_size"
-	artifactsSubDir      = "artifacts"
-	summaryFilename      = "summary.json"
+	pgStatStatementsType   = "pg_stat_statements"
+	pgStatUserTablesType   = "pg_stat_user_tables"
+	pgStatDatabaseType     = "pg_stat_database"
+	pgStatBGWriterType     = "pg_stat_bgwriter"
+	pgStatKCache           = "pg_stat_kcache"
+	pgStatAllIndexesType   = "pg_stat_all_indexes"
+	pgStatAllTablesType    = "pg_stat_all_tables"
+	pgStatIOIndexesType    = "pg_statio_all_indexes"
+	pgStatIOTablesType     = "pg_statio_all_tables"
+	pgStatIOSequencesType  = "pg_statio_all_sequences"
+	pgStatUserFunctionType = "pg_stat_user_functions"
+	pgStatSLRUType         = "pg_stat_slru"
+	objectsSizeType        = "objects_size"
+	logErrorsType          = "log_errors"
+	artifactsSubDir        = "artifacts"
+	summaryFilename        = "summary.json"
 
 	// defaultArtifactFormat defines default format of collected artifacts.
-	defaultArtifactFormat = "csv"
+	defaultArtifactFormat = "json"
 )
 
 var availableArtifactTypes = map[string]struct{}{
-	pgStatStatementsType: {},
-	pgStatUserTablesType: {},
-	pgStatDatabaseType:   {},
-	pgStatBGWriterType:   {},
-	objectsSizeType:      {},
+	pgStatStatementsType:   {},
+	pgStatUserTablesType:   {},
+	pgStatDatabaseType:     {},
+	pgStatBGWriterType:     {},
+	pgStatKCache:           {},
+	pgStatAllIndexesType:   {},
+	pgStatAllTablesType:    {},
+	pgStatIOIndexesType:    {},
+	pgStatIOTablesType:     {},
+	pgStatIOSequencesType:  {},
+	pgStatUserFunctionType: {},
+	pgStatSLRUType:         {},
+	objectsSizeType:        {},
+	logErrorsType:          {},
 }
 
 func (c *ObservingClone) storeSummary() error {
@@ -67,6 +86,7 @@ func (c *ObservingClone) storeSummary() error {
 			TotalInterval:   int(c.session.Result.Summary.TotalIntervals),
 			WarningInterval: int(c.session.Result.Summary.WarningIntervals),
 		},
+		LogErrors:     c.session.state.LogErrors,
 		ArtifactTypes: c.session.Artifacts,
 	}
 
@@ -80,16 +100,25 @@ func (c *ObservingClone) storeSummary() error {
 
 // getDBSize gets the size of database.
 func (c *ObservingClone) getDBSize(ctx context.Context, dbSize *int64) error {
-	row := c.db.QueryRow(ctx, "select pg_database_size(current_database())")
+	row := c.superUserDB.QueryRow(ctx, "select pg_database_size(current_database())")
 
 	return row.Scan(dbSize)
 }
 
 // getMaxQueryTime gets maximum query duration.
 func (c *ObservingClone) getMaxQueryTime(ctx context.Context, maxTime *float64) error {
-	row := c.db.QueryRow(ctx, "select max(max_time) from pg_stat_statements")
+	row := c.superUserDB.QueryRow(ctx, "select max(max_time) from pg_stat_statements")
 
 	return row.Scan(&maxTime)
+}
+
+// countLogErrors counts log errors.
+func (c *ObservingClone) countLogErrors(ctx context.Context, logErrors *LogErrors) error {
+	row := c.superUserDB.QueryRow(ctx, `select sum(count), string_agg(distinct message, ',') 
+	from pg_log_errors_stats() 
+	where type in ('ERROR', 'FATAL') and database = current_database()`)
+
+	return row.Scan(&logErrors.Count, &logErrors.Message)
 }
 
 // dumpStatementsStats dumps stats statements.
@@ -134,17 +163,85 @@ func (c *ObservingClone) dumpRelationsSize(ctx context.Context) error {
 	return c.dumpDBStats(ctx, relationsQuery, BuildArtifactFilename(pgStatUserTablesType))
 }
 
-// dumpDatabaseStats dumps database stats.
+// dumpDatabaseStats stores database-wide statistics.
 func (c *ObservingClone) dumpDatabaseStats(ctx context.Context) error {
 	c.session.Artifacts = append(c.session.Artifacts, pgStatDatabaseType)
-	return c.dumpDBStats(ctx, "select * from pg_stat_database", BuildArtifactFilename(pgStatDatabaseType))
+	return c.dumpDBStats(ctx, "select * from pg_stat_database where datname = current_database()", BuildArtifactFilename(pgStatDatabaseType))
 }
 
-// dumpBGWriterStats stores bgWriter stats.
+// dumpDatabaseStats dumps log errors stats.
+func (c *ObservingClone) dumpDatabaseErrors(ctx context.Context) error {
+	c.session.Artifacts = append(c.session.Artifacts, logErrorsType)
+	return c.dumpDBStats(ctx, "select * from pg_log_errors_stats()", BuildArtifactFilename(logErrorsType))
+}
+
+// dumpBGWriterStats stores statistics about the background writer process's activity.
 func (c *ObservingClone) dumpBGWriterStats(ctx context.Context) error {
 	c.session.Artifacts = append(c.session.Artifacts, pgStatBGWriterType)
 	return c.dumpDBStats(ctx, "select * from pg_stat_bgwriter", BuildArtifactFilename(pgStatBGWriterType))
 }
+
+// dumpKCacheStats stores statistics about real reads and writes done by the filesystem layer.
+func (c *ObservingClone) dumpKCacheStats(ctx context.Context) error {
+	c.session.Artifacts = append(c.session.Artifacts, pgStatKCache)
+	return c.dumpDBStats(ctx, "select * from pg_stat_kcache", BuildArtifactFilename(pgStatKCache))
+}
+
+// dumpIndexStats stores statistics about accesses to specific index.
+func (c *ObservingClone) dumpIndexStats(ctx context.Context) error {
+	c.session.Artifacts = append(c.session.Artifacts, pgStatAllIndexesType)
+	return c.dumpDBStats(ctx, "select * from pg_stat_all_indexes where idx_scan > 0", BuildArtifactFilename(pgStatAllIndexesType))
+}
+
+// dumpAllTablesStats stores statistics about accesses to specific table.
+func (c *ObservingClone) dumpAllTablesStats(ctx context.Context) error {
+	c.session.Artifacts = append(c.session.Artifacts, pgStatAllTablesType)
+
+	return c.dumpDBStats(ctx, `select * from pg_stat_all_tables 
+where seq_scan > 0 or idx_scan > 0 
+or n_tup_ins > 0 or n_tup_upd > 0 or n_tup_del > 0 
+or vacuum_count > 0 or analyze_count > 0`, BuildArtifactFilename(pgStatAllTablesType))
+}
+
+// dumpIOIndexesStats stores statistics about I/O on specific index.
+func (c *ObservingClone) dumpIOIndexesStats(ctx context.Context) error {
+	c.session.Artifacts = append(c.session.Artifacts, pgStatIOIndexesType)
+
+	return c.dumpDBStats(ctx, `select * from pg_statio_all_indexes where idx_blks_read > 0 or idx_blks_hit > 0`,
+		BuildArtifactFilename(pgStatIOIndexesType))
+}
+
+// dumpIOTablesStats stores statistics about I/O on specific table.
+func (c *ObservingClone) dumpIOTablesStats(ctx context.Context) error {
+	c.session.Artifacts = append(c.session.Artifacts, pgStatIOTablesType)
+
+	return c.dumpDBStats(ctx, `select * from pg_statio_all_tables 
+where heap_blks_read > 0 or heap_blks_hit > 0 
+or idx_blks_read > 0 or idx_blks_hit > 0 
+or toast_blks_read > 0 or toast_blks_hit > 0 
+or tidx_blks_read > 0 or tidx_blks_hit > 0`, BuildArtifactFilename(pgStatIOTablesType))
+}
+
+// dumpIOSequencesStats stores statistics about I/O on specific sequence.
+func (c *ObservingClone) dumpIOSequencesStats(ctx context.Context) error {
+	c.session.Artifacts = append(c.session.Artifacts, pgStatIOSequencesType)
+
+	return c.dumpDBStats(ctx, `select * from pg_statio_all_sequences 
+where blks_read > 0 or blks_hit > 0`, BuildArtifactFilename(pgStatIOSequencesType))
+}
+
+// dumpUserFunctionsStats stores statistics about executions of each function.
+func (c *ObservingClone) dumpUserFunctionsStats(ctx context.Context) error {
+	c.session.Artifacts = append(c.session.Artifacts, pgStatUserFunctionType)
+	return c.dumpDBStats(ctx, `select * from pg_stat_user_functions where calls > 0`, BuildArtifactFilename(pgStatUserFunctionType))
+}
+
+// TODO: uncomment for Postgres 13+
+// dumpSLRUStats stores one row for each tracked SLRU cache, showing statistics about access to cached pages.
+// func (c *ObservingClone) dumpSLRUStats(ctx context.Context) error {
+//   c.session.Artifacts = append(c.session.Artifacts, pgStatSLRUType)
+//   return c.dumpDBStats(ctx, `select * from pg_stat_slru`, BuildArtifactFilename(pgStatSLRUType))
+// }
 
 // dumpObjectsSize dumps objects size.
 func (c *ObservingClone) dumpObjectsSize(ctx context.Context) error {
@@ -227,15 +324,48 @@ func (c *ObservingClone) getObjectsSizeStats(ctx context.Context, stat *ObjectsS
 
 // dumpDBStats stores collected statistics.
 func (c *ObservingClone) dumpDBStats(ctx context.Context, query, filename string) error {
-	filePath := path.Join(c.currentArtifactsSessionPath(), artifactsSubDir, filename)
-
-	log.Dbg("Dump data into file", filePath)
-
-	if err := initStatFile(filePath); err != nil {
-		return errors.Wrapf(err, "failed to init the stats file %v", filePath)
+	tempFile, err := ioutil.TempFile("", filename+"_*")
+	if err != nil {
+		return errors.Wrap(err, "failed to create temporary file to store statistics")
 	}
 
-	_, err := c.db.Exec(ctx, fmt.Sprintf(`COPY (%s) TO '%s' delimiter ',' csv header`, query, filePath))
+	defer func() {
+		if err := os.Remove(tempFile.Name()); err != nil {
+			log.Err(err)
+		}
+	}()
+
+	if err := tempFile.Chmod(os.ModePerm); err != nil {
+		log.Err(err)
+	}
+
+	defer func() {
+		if err := tempFile.Close(); err != nil {
+			log.Err(err)
+		}
+	}()
+
+	exportQuery := fmt.Sprintf(
+		`COPY (select coalesce(json_agg(row_to_json(t)), '[]'::json) from (%s) as t) TO PROGRAM $$sed 's/\\\\/\\/g' > %s$$`,
+		query, tempFile.Name())
+	if _, err := c.db.Exec(ctx, exportQuery); err != nil {
+		return errors.Wrap(err, "failed to export data")
+	}
+
+	dstFilePath := path.Join(c.currentArtifactsSessionPath(), artifactsSubDir, filename)
+
+	dstFile, err := os.OpenFile(dstFilePath, os.O_CREATE|os.O_RDWR, os.ModePerm)
+	if err != nil {
+		return errors.Wrapf(err, "failed to init the stats file %v", tempFile)
+	}
+
+	defer func() { _ = dstFile.Close() }()
+
+	log.Dbg("Dump data into file", dstFile.Name())
+
+	if _, err := io.Copy(dstFile, tempFile); err != nil {
+		return errors.Wrap(err, "failed copy")
+	}
 
 	return err
 }

@@ -8,7 +8,7 @@ package postgres
 import (
 	"github.com/pkg/errors"
 
-	dblabCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/components"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/logical"
@@ -25,11 +25,11 @@ const (
 // JobBuilder defines a struct for job building.
 type JobBuilder struct {
 	cloneManager pool.FSManager
-	globalCfg    *dblabCfg.Global
+	globalCfg    *global.Config
 }
 
 // NewJobBuilder create a new job builder.
-func NewJobBuilder(global *dblabCfg.Global, cm pool.FSManager) *JobBuilder {
+func NewJobBuilder(global *global.Config, cm pool.FSManager) *JobBuilder {
 	return &JobBuilder{
 		globalCfg:    global,
 		cloneManager: cm,

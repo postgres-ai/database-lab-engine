@@ -32,6 +32,7 @@ type Summary struct {
 
 // Checklist represents a list of observation checks.
 type Checklist struct {
+	Success  bool `json:"overall_success"`
 	Duration bool `json:"session_duration_acceptable"`
 	Locks    bool `json:"no_long_dangerous_locks"`
 }

@@ -17,7 +17,7 @@ import (
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 
-	dblabCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/dbmarker"
@@ -37,7 +37,7 @@ type LogicalInitial struct {
 	fsPool         *resources.Pool
 	dockerClient   *client.Client
 	options        LogicalOptions
-	globalCfg      *dblabCfg.Global
+	globalCfg      *global.Config
 	dbMarker       *dbmarker.Marker
 	queryProcessor *queryProcessor
 }
@@ -64,7 +64,7 @@ const (
 )
 
 // NewLogicalInitialJob creates a new logical initial job.
-func NewLogicalInitialJob(cfg config.JobConfig, global *dblabCfg.Global, cloneManager pool.FSManager) (*LogicalInitial, error) {
+func NewLogicalInitialJob(cfg config.JobConfig, global *global.Config, cloneManager pool.FSManager) (*LogicalInitial, error) {
 	li := &LogicalInitial{
 		name:         cfg.Spec.Name,
 		cloneManager: cloneManager,

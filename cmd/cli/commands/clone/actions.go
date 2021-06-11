@@ -8,16 +8,21 @@ package clone
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
+	"os"
+	"path"
 	"strings"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 
 	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
 )
 
 // list runs a request to list clones of an instance.
@@ -291,14 +296,40 @@ func downloadArtifact(cliCtx *cli.Context) error {
 	cloneID := cliCtx.String("clone-id")
 	sessionID := cliCtx.String("session-id")
 	artifactType := cliCtx.String("artifact-type")
-	outputFile := cliCtx.String("output")
+	outputPath := cliCtx.String("output")
 
-	artifactPath, err := dblabClient.DownloadArtifact(cliCtx.Context, cloneID, sessionID, artifactType, outputFile)
+	body, err := dblabClient.DownloadArtifact(cliCtx.Context, cloneID, sessionID, artifactType)
 	if err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprintf(cliCtx.App.Writer, "The file has been successfully downloaded: %s\n", artifactPath)
+	defer func() {
+		if err := body.Close(); err != nil {
+			log.Err(err)
+		}
+	}()
+
+	if outputPath == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+
+		outputPath = path.Join(wd, observer.BuildArtifactFilename(artifactType))
+	}
+
+	artifactFile, err := os.Create(outputPath)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create file %s", outputPath)
+	}
+
+	defer func() { _ = artifactFile.Close() }()
+
+	if _, err := io.Copy(artifactFile, body); err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(cliCtx.App.Writer, "The file has been successfully downloaded: %s\n", outputPath)
 
 	return err
 }

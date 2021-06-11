@@ -16,11 +16,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/estimator"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
@@ -33,6 +36,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/srv"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/networks"
 	"gitlab.com/postgres-ai/database-lab/v2/version"
 )
 
@@ -67,6 +71,63 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	hostname := os.Getenv("HOSTNAME")
+	if hostname == "" {
+		log.Err("hostname is empty")
+	}
+
+	networkID := "network_" + instanceID
+
+	internalNetwork, err := dockerCLI.NetworkCreate(ctx, networkID, types.NetworkCreate{
+		Labels: map[string]string{
+			"instance": instanceID,
+			"app":      networks.DLEApp,
+			"type":     networks.InternalType,
+		},
+		Attachable: true,
+		Internal:   true,
+	})
+	if err != nil {
+		log.Errf(err.Error())
+		return
+	}
+
+	defer func() {
+		networkInspect, err := dockerCLI.NetworkInspect(context.Background(), internalNetwork.ID, types.NetworkInspectOptions{})
+		if err != nil {
+			log.Errf(err.Error())
+			return
+		}
+
+		for _, resource := range networkInspect.Containers {
+			log.Dbg("Disconnecting container: ", resource.Name)
+
+			if err := dockerCLI.NetworkDisconnect(context.Background(), internalNetwork.ID, resource.Name, true); err != nil {
+				log.Errf(err.Error())
+				return
+			}
+		}
+
+		if err := dockerCLI.NetworkRemove(context.Background(), internalNetwork.ID); err != nil {
+			log.Errf(err.Error())
+			return
+		}
+	}()
+
+	log.Dbg("New network: ", internalNetwork.ID)
+
+	if err := dockerCLI.NetworkConnect(ctx, internalNetwork.ID, hostname, &network.EndpointSettings{}); err != nil {
+		log.Errf(err.Error())
+		return
+	}
+
+	defer func() {
+		if err := dockerCLI.NetworkDisconnect(context.Background(), internalNetwork.ID, hostname, true); err != nil {
+			log.Errf(err.Error())
+			return
+		}
+	}()
+
 	// Create a platform service to make requests to Platform.
 	platformSvc, err := platform.New(ctx, cfg.Platform)
 	if err != nil {
@@ -95,7 +156,7 @@ func main() {
 	}
 
 	// Create a cloning service to provision new clones.
-	provisionSvc, err := provision.New(ctx, &cfg.Provision, dbCfg, dockerCLI, pm)
+	provisionSvc, err := provision.New(ctx, &cfg.Provision, dbCfg, dockerCLI, pm, internalNetwork.ID)
 	if err != nil {
 		log.Errf(errors.WithMessage(err, `error in the "provision" section of the config`).Error())
 	}
@@ -113,7 +174,7 @@ func main() {
 
 	go removeObservingClones(obsCh, obs)
 
-	server := srv.NewServer(&cfg.Server, obs, cloningSvc, platformSvc, dockerCLI, est)
+	server := srv.NewServer(&cfg.Server, &cfg.Global, obs, cloningSvc, platformSvc, dockerCLI, est, pm)
 
 	reloadCh := setReloadListener()
 
@@ -220,7 +281,7 @@ func setShutdownListener() chan os.Signal {
 	return c
 }
 
-func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, global config.Global, fsp *resources.Pool) {
+func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, global global.Config, fsp *resources.Pool) {
 	log.Msg("Stopping control containers")
 
 	if err := cont.StopControlContainers(ctx, dockerCLI, global.InstanceID, fsp.DataDir()); err != nil {

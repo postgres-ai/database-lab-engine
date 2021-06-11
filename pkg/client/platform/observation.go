@@ -7,6 +7,7 @@ package platform
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -28,6 +29,13 @@ type StartObservationRequest struct {
 type StartObservationResponse struct {
 	APIResponse
 	SessionID uint64 `json:"id"`
+}
+
+// UploadArtifactResponse represents response of a uploading artifact request.
+type UploadArtifactResponse struct {
+	DBLabSessionID int       `json:"dblab_session_id"`
+	ArtifactTime   time.Time `json:"artifact_time"`
+	ArtifactType   string    `json:"artifact_type"`
 }
 
 // StartObservationSession makes an HTTP request to notify Platform about start observation.
@@ -80,22 +88,47 @@ func (p *Client) StopObservationSession(ctx context.Context, request StopObserva
 }
 
 // UploadObservationLogs makes an HTTP request to upload observation logs to Platform.
-func (p *Client) UploadObservationLogs(ctx context.Context, data []byte, headers map[string]string) error {
+func (p *Client) UploadObservationLogs(ctx context.Context, data []byte, sessionID string) error {
+	headers := map[string]string{
+		"Prefer":            "params=multiple-objects",
+		"Content-Type":      "text/csv",
+		"X-PGAI-Session-ID": sessionID,
+		"X-PGAI-Part":       "1", // TODO (akartasov): Support chunks.
+	}
+
 	var respData APIResponse
 
-	log.Dbg(headers)
-
-	if err := p.doUpload(ctx, "/rpc/dblab_session_upload_log", data, headers, &respData); err != nil {
+	if err := p.doUpload(ctx, "/rpc/dblab_session_upload_log", data, headers, newUploadParser(&respData)); err != nil {
 		return errors.Wrap(err, "failed to upload request")
 	}
 
 	if respData.Code != "" || respData.Details != "" {
-		log.Dbg(fmt.Sprintf("Unsuccessful response given. Request len: %v", len(data)))
+		log.Dbg(fmt.Sprintf("Unsuccessful response given. Code: %v. Details: %v", respData.Code, respData.Details))
 
 		return errors.New("failed to upload observation logs")
 	}
 
-	log.Dbg("Upload Observation response", respData)
+	return nil
+}
+
+// UploadObservationArtifact makes an HTTP request to upload an observation artifact to Platform.
+func (p *Client) UploadObservationArtifact(ctx context.Context, data []byte, sessionID, artifactType string) error {
+	headers := map[string]string{
+		"Prefer":               "params=single-object",
+		"Content-Type":         "application/json",
+		"X-PGAI-Session-ID":    sessionID,
+		"X-PGAI-Artifact-Type": artifactType,
+	}
+
+	log.Dbg("Uploading artifact: ", artifactType)
+
+	respData := UploadArtifactResponse{}
+
+	if err := p.doUpload(ctx, "/rpc/dblab_session_upload_artifact", data, headers, newJSONParser(&respData)); err != nil {
+		return errors.Wrap(err, "failed to upload")
+	}
+
+	log.Dbg("Upload artifacts response: ", respData)
 
 	return nil
 }

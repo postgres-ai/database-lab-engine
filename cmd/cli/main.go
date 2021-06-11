@@ -27,7 +27,7 @@ func main() {
 		},
 		Before: loadEnvironmentParams,
 		Commands: joinCommands(
-			// Global commands.
+			// Config commands.
 			global.List(),
 
 			// Database Lab API.

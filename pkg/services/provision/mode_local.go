@@ -62,10 +62,12 @@ type Provisioner struct {
 	sessionCounter uint32
 	portChecker    portChecker
 	pm             *pool.Manager
+	networkID      string
 }
 
 // New creates a new Provisioner instance.
-func New(ctx context.Context, cfg *Config, dbCfg *resources.DB, docker *client.Client, pm *pool.Manager) (*Provisioner, error) {
+func New(ctx context.Context, cfg *Config, dbCfg *resources.DB, docker *client.Client, pm *pool.Manager,
+	networkID string) (*Provisioner, error) {
 	if err := IsValidConfig(*cfg); err != nil {
 		return nil, errors.Wrap(err, "configuration is not valid")
 	}
@@ -79,6 +81,7 @@ func New(ctx context.Context, cfg *Config, dbCfg *resources.DB, docker *client.C
 		ctx:          ctx,
 		portChecker:  &localPortChecker{},
 		pm:           pm,
+		networkID:    networkID,
 	}
 
 	return p, nil
@@ -472,6 +475,7 @@ func (p *Provisioner) getAppConfig(pool *resources.Pool, name string, port uint)
 		DB:            p.dbCfg,
 		Pool:          *pool,
 		ContainerConf: p.config.ContainerConfig,
+		NetworkID:     p.networkID,
 	}
 
 	return appConfig

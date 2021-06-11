@@ -41,9 +41,10 @@ var maskedFields = map[string]struct{}{
 
 // ObservingClone describes an entity containing observability sessions.
 type ObservingClone struct {
-	pool    *resources.Pool
-	cloneID string
-	port    uint
+	pool        *resources.Pool
+	cloneID     string
+	port        uint
+	superUserDB *pgx.Conn
 
 	config types.Config
 
@@ -75,7 +76,7 @@ func (c *ObservingClone) Session() *Session {
 }
 
 // NewObservingClone creates a new observing clone.
-func NewObservingClone(config types.Config) *ObservingClone {
+func NewObservingClone(config types.Config, sudb *pgx.Conn) *ObservingClone {
 	if config.ObservationInterval == 0 {
 		config.ObservationInterval = defaultIntervalSeconds
 	}
@@ -98,6 +99,7 @@ func NewObservingClone(config types.Config) *ObservingClone {
 		csvFields:       csvFields,
 		registryMu:      &sync.Mutex{},
 		sessionRegistry: make(map[uint64]struct{}),
+		superUserDB:     sudb,
 	}
 
 	observingClone.fillMaskedIndexes()
@@ -176,7 +178,7 @@ func (c *ObservingClone) Init(clone *models.Clone, sessionID uint64, startedAt t
 		return errors.Wrap(err, "failed to create the observation directory")
 	}
 
-	db, err := initConnection(clone, c.pool.SocketDir())
+	db, err := InitConnection(clone, c.pool.SocketDir())
 	if err != nil {
 		return errors.Wrap(err, "cannot connect to database")
 	}
@@ -282,20 +284,36 @@ func (c *ObservingClone) createObservationDir() error {
 }
 
 func (c *ObservingClone) resetStat(ctx context.Context) error {
-	if _, err := c.db.Exec(ctx, `create extension if not exists pg_stat_statements`); err != nil {
+	if _, err := c.superUserDB.Exec(ctx, `create extension if not exists pg_stat_statements`); err != nil {
 		return errors.Wrap(err, "failed to reset statistics counters for the current database")
 	}
 
-	if _, err := c.db.Exec(ctx,
-		`select 
-		pg_stat_reset(), 
-		pg_stat_reset_shared('bgwriter')`,
-	); err != nil {
+	if _, err := c.superUserDB.Exec(ctx, `create extension if not exists logerrors`); err != nil {
+		return errors.Wrap(err, "failed to create the logerrors extension")
+	}
+
+	if _, err := c.superUserDB.Exec(ctx,
+		`select
+		pg_stat_reset(),
+		pg_stat_reset_shared('bgwriter')`); err != nil {
 		return errors.Wrap(err, "failed to reset statistics counters for the current database")
 	}
 
-	if _, err := c.db.Exec(ctx, `select pg_stat_statements_reset()`); err != nil {
+	if _, err := c.superUserDB.Exec(ctx, `select pg_stat_statements_reset()`); err != nil {
 		return errors.Wrap(err, "failed to reset statement statistics for the current database")
+	}
+
+	if _, err := c.superUserDB.Exec(ctx, `select pg_stat_kcache_reset()`); err != nil {
+		return errors.Wrap(err, "failed to reset kcache statistics for the current database")
+	}
+
+	// TODO: uncomment for Postgres 13+
+	// if _, err := c.superUserDB.Exec(ctx, `select pg_stat_reset_slru()`); err != nil {
+	//   return errors.Wrap(err, "failed to reset slru statistics for the current database")
+	// }
+
+	if _, err := c.superUserDB.Exec(ctx, `select pg_log_errors_reset()`); err != nil {
+		return errors.Wrap(err, "failed to reset log errors statistics for the current database")
 	}
 
 	log.Dbg("Stats have been reset")
@@ -316,9 +334,46 @@ func (c *ObservingClone) storeArtifacts() error {
 		return err
 	}
 
+	if err := c.dumpDatabaseErrors(ctx); err != nil {
+		return err
+	}
+
 	if err := c.dumpBGWriterStats(ctx); err != nil {
 		return err
 	}
+
+	if err := c.dumpKCacheStats(ctx); err != nil {
+		return err
+	}
+
+	if err := c.dumpIndexStats(ctx); err != nil {
+		return err
+	}
+
+	if err := c.dumpAllTablesStats(ctx); err != nil {
+		return err
+	}
+
+	if err := c.dumpIOIndexesStats(ctx); err != nil {
+		return err
+	}
+
+	if err := c.dumpIOTablesStats(ctx); err != nil {
+		return err
+	}
+
+	if err := c.dumpIOSequencesStats(ctx); err != nil {
+		return err
+	}
+
+	if err := c.dumpUserFunctionsStats(ctx); err != nil {
+		return err
+	}
+
+	// TODO: uncomment for Postgres 13+
+	// if err := c.dumpSLRUStats(ctx); err != nil {
+	// 	 return err
+	// }
 
 	if err := c.dumpRelationsSize(ctx); err != nil {
 		return err
@@ -345,6 +400,10 @@ func (c *ObservingClone) collectCurrentState(ctx context.Context) error {
 	}
 
 	if err := c.getObjectsSizeStats(ctx, &c.session.state.ObjectStat); err != nil {
+		return err
+	}
+
+	if err := c.countLogErrors(ctx, &c.session.state.LogErrors); err != nil {
 		return err
 	}
 
@@ -401,8 +460,11 @@ func (c *ObservingClone) summarize() {
 	c.session.FinishedAt = time.Now()
 	c.session.Result.Summary.Checklist.Duration = c.CheckDuration()
 	c.session.Result.Summary.Checklist.Locks = c.CheckLocks()
+	c.session.Result.Summary.Checklist.Success = c.CheckOverallSuccess()
 
-	if c.session.Result.Summary.Checklist.Duration && c.session.Result.Summary.Checklist.Locks {
+	if c.session.Result.Summary.Checklist.Duration &&
+		c.session.Result.Summary.Checklist.Locks &&
+		c.session.Result.Summary.Checklist.Success {
 		c.session.Result.Status = statusPassed
 	}
 }
@@ -432,4 +494,14 @@ func (c *ObservingClone) CheckDuration() bool {
 // CheckLocks checks long-lasting locks during the operation.
 func (c *ObservingClone) CheckLocks() bool {
 	return c.session.Result.Summary.WarningIntervals == 0
+}
+
+// CheckOverallSuccess checks overall success of queries.
+func (c *ObservingClone) CheckOverallSuccess() bool {
+	return !c.session.state.OverallError
+}
+
+// SetOverallError notes the presence of errors during the session.
+func (c *ObservingClone) SetOverallError(overallErrors bool) {
+	c.session.state.OverallError = overallErrors
 }

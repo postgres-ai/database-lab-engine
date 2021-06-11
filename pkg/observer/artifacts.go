@@ -6,12 +6,13 @@ import (
 
 // SummaryArtifact represents session summary.
 type SummaryArtifact struct {
-	SessionID     uint64   `json:"session_id"`
-	CloneID       string   `json:"clone_id"`
-	Duration      Duration `json:"duration"`
-	DBSize        DBSize   `json:"db_size"`
-	Locks         Locks    `json:"locks"`
-	ArtifactTypes []string `json:"artifact_types"`
+	SessionID     uint64    `json:"session_id"`
+	CloneID       string    `json:"clone_id"`
+	Duration      Duration  `json:"duration"`
+	DBSize        DBSize    `json:"db_size"`
+	Locks         Locks     `json:"locks"`
+	LogErrors     LogErrors `json:"log_errors"`
+	ArtifactTypes []string  `json:"artifact_types"`
 }
 
 // Duration represents summary statistics about session duration.
@@ -43,4 +44,10 @@ type ObjectsStat struct {
 type Locks struct {
 	TotalInterval   int `json:"total_interval"`
 	WarningInterval int `json:"warning_interval"`
+}
+
+// LogErrors contains details about log errors statistics.
+type LogErrors struct {
+	Count   int    `json:"count"`
+	Message string `json:"message"`
 }
