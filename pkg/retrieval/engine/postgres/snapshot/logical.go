@@ -194,6 +194,7 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 	defer func() {
 		if err != nil {
 			tools.PrintContainerLogs(ctx, s.dockerClient, s.patchContainerName())
+			tools.PrintLastPostgresLogs(ctx, s.dockerClient, s.patchContainerName(), dataDir)
 		}
 	}()
 

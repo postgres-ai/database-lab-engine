@@ -548,6 +548,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 	defer func() {
 		if err != nil {
 			tools.PrintContainerLogs(ctx, p.dockerClient, p.promoteContainerName())
+			tools.PrintLastPostgresLogs(ctx, p.dockerClient, p.promoteContainerName(), clonePath)
 		}
 	}()
 

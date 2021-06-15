@@ -251,6 +251,18 @@ func PrintContainerLogs(ctx context.Context, dockerClient *client.Client, contai
 	log.Msg("Container logs:\n", wb.String())
 }
 
+// PrintLastPostgresLogs prints Postgres container logs.
+func PrintLastPostgresLogs(ctx context.Context, dockerClient *client.Client, containerID, clonePath string) {
+	command := []string{"bash", "-c", "tail -n 20 $(ls -t " + clonePath + "/log/*.csv | tail -n 1)"}
+
+	output, err := ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{Cmd: command})
+	if err != nil {
+		log.Err(errors.Wrap(err, "failed to read Postgres logs"))
+	}
+
+	log.Msg("Postgres logs: ", output)
+}
+
 // StopContainer stops container.
 func StopContainer(ctx context.Context, dockerClient *client.Client, containerID string, stopTimeout time.Duration) {
 	log.Msg(fmt.Sprintf("Stopping container ID: %v", containerID))
