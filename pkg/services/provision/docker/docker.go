@@ -29,10 +29,10 @@ const (
 var systemVolumes = []string{"/sys", "/lib", "/proc"}
 
 // RunContainer runs specified container.
-func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
+func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 	hostInfo, err := host.Info()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get host info")
+		return errors.Wrap(err, "failed to get host info")
 	}
 
 	// Directly mount PGDATA if Database Lab is running without any virtualization.
@@ -43,14 +43,14 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 		// We cannot use --volumes-from because it removes the ZFS mount point.
 		volumes, err = getMountVolumes(r, c, hostInfo.Hostname)
 		if err != nil {
-			return "", errors.Wrap(err, "failed to detect container volumes")
+			return errors.Wrap(err, "failed to detect container volumes")
 		}
 	}
 
 	unixSocketCloneDir := c.Pool.SocketCloneDir(c.CloneName)
 
 	if err := createSocketCloneDir(unixSocketCloneDir); err != nil {
-		return "", errors.Wrap(err, "failed to create socket clone directory")
+		return errors.Wrap(err, "failed to create socket clone directory")
 	}
 
 	containerFlags := make([]string, 0, len(c.ContainerConf))
@@ -58,6 +58,7 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 		containerFlags = append(containerFlags, fmt.Sprintf("--%s=%s", flagName, flagValue))
 	}
 
+	// TODO (akartasov): use Docker client instead of command execution.
 	instancePort := strconv.Itoa(int(c.Port))
 	dockerRunCmd := strings.Join([]string{
 		"docker run",
@@ -68,14 +69,23 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) (string, error) {
 		strings.Join(volumes, " "),
 		"--label", labelClone,
 		"--label", c.Pool.Name,
-		"--network", c.NetworkID,
 		strings.Join(containerFlags, " "),
 		c.DockerImage,
 		"-p", instancePort,
 		"-k", unixSocketCloneDir,
 	}, " ")
 
-	return r.Run(dockerRunCmd, true)
+	if _, err := r.Run(dockerRunCmd, true); err != nil {
+		return errors.Wrap(err, "failed to run command")
+	}
+
+	dockerConnectCmd := strings.Join([]string{"docker network connect", c.NetworkID, c.CloneName}, " ")
+
+	if _, err := r.Run(dockerConnectCmd, true); err != nil {
+		return errors.Wrap(err, "failed to connect container to the internal DLE network")
+	}
+
+	return nil
 }
 
 func getMountVolumes(r runners.Runner, c *resources.AppConfig, containerID string) ([]string, error) {
