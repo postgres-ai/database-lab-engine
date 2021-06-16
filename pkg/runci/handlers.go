@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 
@@ -191,7 +190,7 @@ func (s *Server) runCommands(ctx context.Context, clone *models.Clone, runID str
 		networkConfig.EndpointsConfig = map[string]*network.EndpointSettings{"clone_network": {NetworkID: s.networkID}}
 	}
 
-	contRunner, err := s.docker.ContainerCreate(ctx, containerCfg, hostConfig, networkConfig, &specs.Platform{}, containerName)
+	contRunner, err := s.docker.ContainerCreate(ctx, containerCfg, hostConfig, networkConfig, containerName)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create container")
