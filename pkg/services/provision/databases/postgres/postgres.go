@@ -51,7 +51,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 		}
 	}
 
-	if _, err := docker.RunContainer(r, c); err != nil {
+	if err := docker.RunContainer(r, c); err != nil {
 		return errors.Wrap(err, "failed to run container")
 	}
 
