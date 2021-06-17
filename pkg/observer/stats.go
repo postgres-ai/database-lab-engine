@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -114,7 +113,7 @@ func (c *ObservingClone) getMaxQueryTime(ctx context.Context, maxTime *float64) 
 
 // countLogErrors counts log errors.
 func (c *ObservingClone) countLogErrors(ctx context.Context, logErrors *LogErrors) error {
-	row := c.superUserDB.QueryRow(ctx, `select sum(count), string_agg(distinct message, ',') 
+	row := c.superUserDB.QueryRow(ctx, `select coalesce(sum(count), 0), coalesce(string_agg(distinct message, ','), '') 
 	from pg_log_errors_stats() 
 	where type in ('ERROR', 'FATAL') and database = current_database()`)
 
@@ -324,50 +323,28 @@ func (c *ObservingClone) getObjectsSizeStats(ctx context.Context, stat *ObjectsS
 
 // dumpDBStats stores collected statistics.
 func (c *ObservingClone) dumpDBStats(ctx context.Context, query, filename string) error {
-	tempFile, err := ioutil.TempFile("", filename+"_*")
-	if err != nil {
-		return errors.Wrap(err, "failed to create temporary file to store statistics")
+	dstFilePath := path.Join(c.currentArtifactsSessionPath(), artifactsSubDir, filename)
+
+	if err := initStatFile(dstFilePath); err != nil {
+		return errors.Wrapf(err, "cannot init the stat file %s", dstFilePath)
 	}
 
-	defer func() {
-		if err := os.Remove(tempFile.Name()); err != nil {
-			log.Err(err)
-		}
-	}()
-
-	if err := tempFile.Chmod(os.ModePerm); err != nil {
-		log.Err(err)
-	}
-
-	defer func() {
-		if err := tempFile.Close(); err != nil {
-			log.Err(err)
-		}
-	}()
-
+	// Backslash characters (\) can be used in the COPY data to quote data characters
+	// that might otherwise be taken as row or column delimiters.
+	// In particular, the following characters must be preceded by a backslash if they appear as part of a column value:
+	// backslash itself, newline, carriage return, and the current delimiter character.
+	// https://www.postgresql.org/docs/current/sql-copy.html
+	//
+	// It will lead to producing an invalid JSON with double escaped quotes.
+	// To work around this issue, we can pipe the output of the COPY command to `sed` to revert the double escaping of quotes.
 	exportQuery := fmt.Sprintf(
 		`COPY (select coalesce(json_agg(row_to_json(t)), '[]'::json) from (%s) as t) TO PROGRAM $$sed 's/\\\\/\\/g' > %s$$`,
-		query, tempFile.Name())
+		query, dstFilePath)
 	if _, err := c.db.Exec(ctx, exportQuery); err != nil {
 		return errors.Wrap(err, "failed to export data")
 	}
 
-	dstFilePath := path.Join(c.currentArtifactsSessionPath(), artifactsSubDir, filename)
-
-	dstFile, err := os.OpenFile(dstFilePath, os.O_CREATE|os.O_RDWR, os.ModePerm)
-	if err != nil {
-		return errors.Wrapf(err, "failed to init the stats file %v", tempFile)
-	}
-
-	defer func() { _ = dstFile.Close() }()
-
-	log.Dbg("Dump data into file", dstFile.Name())
-
-	if _, err := io.Copy(dstFile, tempFile); err != nil {
-		return errors.Wrap(err, "failed copy")
-	}
-
-	return err
+	return nil
 }
 
 func (c *ObservingClone) storeFileStats(data []byte, filename string) error {
@@ -390,7 +367,7 @@ func initStatFile(filename string) error {
 		return err
 	}
 
-	if err := os.Chmod(filename, 0777); err != nil {
+	if err := os.Chmod(filename, 0666); err != nil {
 		return err
 	}
 

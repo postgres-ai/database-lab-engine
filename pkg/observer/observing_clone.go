@@ -324,6 +324,11 @@ func (c *ObservingClone) resetStat(ctx context.Context) error {
 func (c *ObservingClone) storeArtifacts() error {
 	log.Dbg("Store observation artifacts for SessionID: ", c.session.SessionID)
 
+	dstPath := path.Join(c.currentArtifactsSessionPath(), artifactsSubDir)
+	if err := os.MkdirAll(dstPath, 0666); err != nil {
+		return errors.Wrapf(err, "cannot create an artifact directory %s", dstPath)
+	}
+
 	ctx := context.Background()
 
 	if err := c.dumpStatementsStats(ctx); err != nil {
