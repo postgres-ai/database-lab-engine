@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
@@ -182,7 +181,6 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 		s.buildContainerConfig(dataDir, patchImage, pwd),
 		hostConfig,
 		&network.NetworkingConfig{},
-		&specs.Platform{},
 		s.patchContainerName(),
 	)
 	if err != nil {
