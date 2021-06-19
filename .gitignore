@@ -8,3 +8,5 @@
 /deploy/
 
 /configs/config.yml
+
+packer/example.com.key
