@@ -12,7 +12,7 @@ data "amazon-ami" "base" {
   filters = {
     architecture                       = "x86_64"
     "block-device-mapping.volume-type" = "gp2"
-    name                               = "*ubuntu-bionic-18.04-amd64-server-*"
+    name                               = "*ubuntu-focal-20.04-amd64-server-*"
     root-device-type                   = "ebs"
     virtualization-type                = "hvm"
   }
@@ -21,7 +21,7 @@ data "amazon-ami" "base" {
 }
 
 source "amazon-ebs" "base" {
-  ami_description = "Installed AMI with Ubuntu 18.04, ZFS, Docker, Envoy proxy and Database Lab Engine 2.0 with client CLI."
+  ami_description = "Installed AMI with Ubuntu 20.04, ZFS, Docker, Envoy proxy and Database Lab Engine 2.0 with client CLI."
   ami_name        = "${var.ami_name_prefix}-${var.dle_version}-${formatdate("YYYY-MM-DD", timestamp())}-${uuidv4()}"
   instance_type   = "t2.large"
   source_ami      = "${data.amazon-ami.base.id}"
@@ -55,6 +55,7 @@ build {
   provisioner "shell" {
     environment_vars = ["dle_version=${var.dle_version}"]
     scripts = ["${path.root}/install-prereqs.sh", "${path.root}/install-dblabcli.sh","${path.root}/install-envoy.sh"] 
+#    scripts = ["${path.root}/install-prereqs.sh", "${path.root}/install-dblabcli.sh"]
   }
 
 }
