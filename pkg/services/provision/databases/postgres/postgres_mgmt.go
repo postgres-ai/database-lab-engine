@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lib/pq"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
@@ -95,15 +96,15 @@ func CreateUser(c *resources.AppConfig, user resources.EphemeralUser) error {
 }
 
 func superuserQuery(username, password string) string {
-	return fmt.Sprintf(`create user "%s" with password '%s' login superuser;`, username, password)
+	return fmt.Sprintf(`create user %s with password %s login superuser;`, pq.QuoteIdentifier(username), pq.QuoteLiteral(password))
 }
 
 const restrictionTemplate = `
 -- create a new user 
-create user %[1]s with password '%s' login;
+create user @username with password @password login;
 
 -- change a database owner
-alter database %s owner to %[1]s; 
+alter database @database owner to @username; 
 
 do $$
 declare
@@ -111,7 +112,7 @@ declare
   object_type record;
   r record;
 begin
-  new_owner := '%[1]s';
+  new_owner := @usernameStr;
 
   -- c: composite type
   -- p: partitioned table
@@ -133,16 +134,16 @@ begin
           join pg_namespace n on
             n.oid = c.relnamespace
             and not n.nspname in ('pg_catalog', 'information_schema')
-            and c.relkind = %%L
+            and c.relkind = %L
           order by c.relname
         $sql$,
         object_type.code
       )
     loop 
-      raise debug 'Changing ownership of %% %%.%% to %%',
+      raise debug 'Changing ownership of % %.% to %',
                    object_type.type_name, r.nspname, r.relname, new_owner;
       execute format(
-        'alter %%s %%I.%%I owner to %%I;',
+        'alter %s %I.%I owner to %I;',
         object_type.type_name,
         r.nspname,
         r.relname,
@@ -160,12 +161,12 @@ begin
     from pg_catalog.pg_namespace as n
     join pg_catalog.pg_proc as p on p.pronamespace = n.oid
     where not n.nspname in ('pg_catalog', 'information_schema')
-    and p.proname not ilike 'dblink%%' -- We do not want dblink to be involved (exclusion)
+    and p.proname not ilike 'dblink%' -- We do not want dblink to be involved (exclusion)
   loop
-    raise debug 'Changing ownership of function %%.%%(%%) to %%', 
+    raise debug 'Changing ownership of function %.%(%) to %', 
                 r.nspname, r.proname, r.args, new_owner;
     execute format(
-      'alter function %%I.%%I(%%s) owner to %%I', -- todo: check support CamelStyle r.args
+      'alter function %I.%I(%s) owner to %I', -- todo: check support CamelStyle r.args
       r.nspname,
       r.proname,
       r.args,
@@ -181,10 +182,10 @@ begin
     join pg_catalog.pg_ts_dict d on d.dictnamespace = n.oid
     where not n.nspname in ('pg_catalog', 'information_schema')
   loop
-    raise debug 'Changing ownership of text search dictionary %%.%% to %%', 
+    raise debug 'Changing ownership of text search dictionary %.% to %', 
                  r.nspname, r.dictname, new_owner;
     execute format(
-      'alter text search dictionary %%I.%%I owner to %%I',
+      'alter text search dictionary %I.%I owner to %I',
       r.nspname,
       r.dictname,
       new_owner
@@ -198,21 +199,28 @@ begin
      join pg_catalog.pg_namespace on pg_namespace.oid = pg_type.typnamespace
      where typtype = 'd' and not nspname in ('pg_catalog', 'information_schema')
   loop
-    raise debug 'Changing ownership of domain %%.%% to %%', 
+    raise debug 'Changing ownership of domain %.% to %', 
                  r.nspname, r.typname, new_owner;
     execute format(
-      'alter domain %%I.%%I owner to %%I',
+      'alter domain %I.%I owner to %I',
       r.nspname,
       r.typname,
       new_owner
     );
   end loop;
 
-  grant select on pg_stat_activity to %[1]s;
+  grant select on pg_stat_activity to @username;
 end
 $$;
 `
 
 func restrictedUserQuery(username, password, database string) string {
-	return fmt.Sprintf(restrictionTemplate, username, password, database)
+	repl := strings.NewReplacer(
+		"@usernameStr", pq.QuoteLiteral(username),
+		"@username", pq.QuoteIdentifier(username),
+		"@password", pq.QuoteLiteral(password),
+		"@database", pq.QuoteIdentifier(database),
+	)
+
+	return repl.Replace(restrictionTemplate)
 }
