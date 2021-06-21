@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
 
@@ -535,7 +534,6 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 		p.buildContainerConfig(clonePath, promoteImage, pwd, recoveryConfig[targetActionOption]),
 		hostConfig,
 		&network.NetworkingConfig{},
-		&specs.Platform{},
 		p.promoteContainerName(),
 	)
 

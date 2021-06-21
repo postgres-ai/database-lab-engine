@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/config"
@@ -153,7 +152,6 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		r.buildContainerConfig(pwd),
 		hostConfig,
 		&network.NetworkingConfig{},
-		&specs.Platform{},
 		r.restoreContainerName(),
 	)
 	if err != nil {

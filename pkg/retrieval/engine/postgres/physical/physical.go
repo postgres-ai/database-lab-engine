@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/config"
@@ -269,7 +268,7 @@ func (r *RestoreJob) startContainer(ctx context.Context, containerName string, c
 	}
 
 	newContainer, err := r.dockerClient.ContainerCreate(ctx, containerConfig, hostConfig, &network.NetworkingConfig{},
-		&specs.Platform{}, containerName)
+		containerName)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to create container %s", containerName)
 	}
