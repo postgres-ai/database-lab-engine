@@ -266,7 +266,7 @@ func extractDataStateAt(dataPath string) (*time.Time, error) {
 
 	dblabDescription, err := marker.GetConfig()
 	if err != nil {
-		log.Msg("DBMarker error:", err.Error())
+		log.Msg("cannot read DBMarker configuration: ", err.Error())
 		return nil, err
 	}
 
@@ -277,7 +277,7 @@ func extractDataStateAt(dataPath string) (*time.Time, error) {
 
 	dsa, err := time.Parse(tools.DataStateAtFormat, dblabDescription.DataStateAt)
 	if err != nil {
-		log.Msg("failed to parse DataStateAt")
+		log.Msg("failed to parse DataStateAt: ", err.Error())
 		return nil, err
 	}
 

@@ -16,7 +16,7 @@ import (
 func extractDataStateAt(dbMarker *dbmarker.Marker) string {
 	dbMark, err := dbMarker.GetConfig()
 	if err != nil {
-		log.Err("Failed to retrieve dataStateAt from DBMarker config:", err)
+		log.Msg("Cannot retrieve dataStateAt from DBMarker config:", err)
 		return ""
 	}
 
