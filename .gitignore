@@ -9,3 +9,4 @@
 
 /configs/config.yml
 /configs/run_ci.yaml
+/packer/example.com.key

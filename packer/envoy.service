@@ -1,0 +1,11 @@
+[Unit]
+Description=Envoy
+[Service]
+ExecStart=/usr/bin/envoy -c /etc/envoy/envoy.yaml
+Restart=always
+RestartSec=5
+KillMode=mixed
+SyslogIdentifier=envoy
+LimitNOFILE=640000
+[Install]
+WantedBy=multi-user.target
