@@ -10,7 +10,6 @@ import (
 	"os"
 	"path"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -282,21 +281,6 @@ func extractDataStateAt(dataPath string) (*time.Time, error) {
 	}
 
 	return &dsa, nil
-}
-
-func (pm *Manager) getFSInfo(path string) (string, error) {
-	fs := syscall.Statfs_t{}
-	if err := syscall.Statfs(path, &fs); err != nil {
-		return "", err
-	}
-
-	fsType := detectFSType(fs.Type)
-	if fsType == ext4 {
-		// cannot detect LVM checking the blockDeviceTypes map.
-		return LVM, nil
-	}
-
-	return fsType, nil
 }
 
 func (pm *Manager) describeAvailablePools() []string {

@@ -8,15 +8,10 @@ package pool
 import (
 	"encoding/json"
 	"os/exec"
-	"strconv"
 
 	"github.com/pkg/errors"
 )
 
-var fsTypeToString = map[string]string{
-	"ef53":     ext4,
-	"2fc12fc1": ZFS,
-}
 
 type blockDeviceList struct {
 	BlockDevices []blockDevice `json:"blockdevices"`
@@ -25,11 +20,6 @@ type blockDeviceList struct {
 type blockDevice struct {
 	Type       string `json:"type"`
 	MountPoint string `json:"mountpoint"`
-}
-
-// detectFSType detects the filesystem type of the underlying mounted filesystem.
-func detectFSType(fsType int64) string {
-	return fsTypeToString[strconv.FormatInt(fsType, 16)]
 }
 
 // getBlockDeviceTypes returns a filesystem type list of mounted block devices.
