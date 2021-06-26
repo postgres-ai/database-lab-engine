@@ -48,8 +48,8 @@ curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.e
 
 # Edit the following options
 sed -ri 's/^(\s*)(debug:.*$)/\1debug: true/' ~/.dblab/server.yml
-sed -ri 's/^(\s*)(- logicalDump$)/d' ~/.dblab/server.yml
-sed -ri 's/^(\s*)(- logicalRestore$)/d' ~/.dblab/server.yml
+sed -ri '/^(\s*)(- logicalDump$)/d' ~/.dblab/server.yml
+sed -ri '/^(\s*)(- logicalRestore$)/d' ~/.dblab/server.yml
 # replace postgres version
 sed -ri "s/:13/:${POSTGRES_VERSION}/g"  ~/.dblab/server.yml
 
