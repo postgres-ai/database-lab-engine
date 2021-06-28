@@ -26,6 +26,7 @@ source "amazon-ebs" "base" {
   instance_type   = "t2.large"
   source_ami      = "${data.amazon-ami.base.id}"
   ssh_username    = "ubuntu"
+  ami_groups      = ["all"] # This makes our AMI public
 }
 
 build {
@@ -51,7 +52,7 @@ build {
 
   provisioner "shell" {
     environment_vars = ["dle_version=${var.dle_version}"]
-    scripts = ["${path.root}/install-prereqs.sh", "${path.root}/install-dblabcli.sh","${path.root}/install-envoy.sh"] 
+    scripts = ["${path.root}/install-prereqs.sh", "${path.root}/install-dblabcli.sh","${path.root}/install-envoy.sh"]
   }
 
 }
