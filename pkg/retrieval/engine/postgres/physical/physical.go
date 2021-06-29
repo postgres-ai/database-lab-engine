@@ -156,6 +156,14 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 			go func() {
 				if syncErr := r.runSyncInstance(ctx); syncErr != nil {
 					log.Err("Failed to run sync instance: ", syncErr)
+
+					if ctx.Err() != nil {
+						// if context was canceled
+						// - we can't use shared context
+						// - main routine will stop container
+						return
+					}
+
 					tools.StopContainer(ctx, r.dockerClient, r.syncInstanceName(), time.Second)
 				}
 			}()
