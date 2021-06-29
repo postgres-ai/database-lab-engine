@@ -11,7 +11,7 @@ import (
 
 const (
 	// RepoDir defines a directory to clone and extract repository.
-	RepoDir = "/tmp"
+	RepoDir = "/tmp/ci_checker"
 )
 
 // Config describes the configuration of the plugged version control system.
