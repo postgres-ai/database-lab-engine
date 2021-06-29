@@ -135,16 +135,21 @@ func main() {
 		return
 	}
 
+	emergencyShutdown := func() {
+		cancel()
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer shutdownCancel()
+
+		shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global, pm.Active().Pool())
+	}
+
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
 	retrievalSvc := retrieval.New(cfg, dockerCLI, pm, runner)
 
 	if err := retrievalSvc.Run(ctx); err != nil {
-		if cleanUpErr := cont.CleanUpControlContainers(ctx, dockerCLI, cfg.Global.InstanceID); cleanUpErr != nil {
-			log.Err("Failed to clean up service containers:", cleanUpErr)
-		}
-
 		log.Err("Failed to run the data retrieval service:", err)
-
+		emergencyShutdown()
 		return
 	}
 
@@ -166,6 +171,7 @@ func main() {
 	cloningSvc := cloning.New(&cfg.Cloning, provisionSvc, obsCh)
 	if err = cloningSvc.Run(ctx); err != nil {
 		log.Err(err)
+		emergencyShutdown()
 		return
 	}
 
