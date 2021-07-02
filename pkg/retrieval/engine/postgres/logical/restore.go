@@ -15,6 +15,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
@@ -56,12 +57,13 @@ type RestoreJob struct {
 
 // RestoreOptions defines a logical restore options.
 type RestoreOptions struct {
-	DumpLocation string  `yaml:"dumpLocation"`
-	DockerImage  string  `yaml:"dockerImage"`
-	DBName       string  `yaml:"dbname"`
-	ForceInit    bool    `yaml:"forceInit"`
-	ParallelJobs int     `yaml:"parallelJobs"`
-	Partial      Partial `yaml:"partial"`
+	DumpLocation string            `yaml:"dumpLocation"`
+	DockerImage  string            `yaml:"dockerImage"`
+	DBName       string            `yaml:"dbname"`
+	ForceInit    bool              `yaml:"forceInit"`
+	ParallelJobs int               `yaml:"parallelJobs"`
+	Partial      Partial           `yaml:"partial"`
+	Configs      map[string]string `yaml:"configs"`
 }
 
 // Partial defines tables and rules for a partial logical restore.
@@ -172,13 +174,21 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to start container %q", r.restoreContainerName())
 	}
 
+	dataDir := r.fsPool.DataDir()
+
+	if len(r.RestoreOptions.Configs) > 0 {
+		if err := updateConfigs(ctx, r.dockerClient, dataDir, restoreCont.ID, r.RestoreOptions.Configs); err != nil {
+			return errors.Wrap(err, "failed to update configs")
+		}
+	}
+
 	log.Msg("Waiting for container readiness")
 
 	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, restoreCont.ID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
 	}
 
-	restoreCommand := r.buildLogicalRestoreCommand()
+	restoreCommand := r.buildLogicalRestoreCommand(r.DBName)
 	log.Msg("Running restore command: ", restoreCommand)
 
 	if len(r.Partial.Tables) > 0 {
@@ -230,6 +240,12 @@ func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig
 	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.fsPool.DataDir()); err != nil {
 		return nil, err
 	}
+
+	hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
+		Type:   mount.TypeBind,
+		Source: r.RestoreOptions.DumpLocation,
+		Target: r.RestoreOptions.DumpLocation,
+	})
 
 	return hostConfig, nil
 }
@@ -297,9 +313,14 @@ func (r *RestoreJob) updateDataStateAt() {
 	r.fsPool.SetDSA(dsaTime)
 }
 
-func (r *RestoreJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName, "--create",
+func (r *RestoreJob) buildLogicalRestoreCommand(dbName string) []string {
+	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName,
 		"--no-privileges", "--no-owner"}
+
+	if dbName != defaults.DBName {
+		// To avoid recreating of the default database.
+		restoreCmd = append(restoreCmd, "--create")
+	}
 
 	if r.ForceInit {
 		restoreCmd = append(restoreCmd, "--clean", "--if-exists")

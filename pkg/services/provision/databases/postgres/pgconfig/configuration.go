@@ -36,8 +36,8 @@ const (
 	// pgHbaConfName defines the name of HBA config.
 	pgHbaConfName = "pg_hba.conf"
 
-	// pgConfName defines the name of general Postgres config.
-	pgConfName = "postgresql.conf"
+	// PgConfName defines the name of general Postgres config.
+	PgConfName = "postgresql.conf"
 
 	// recoveryConfName defines the name of recovery Postgres (<11) config.
 	recoveryConfName = "recovery.conf"
@@ -69,7 +69,7 @@ const (
 )
 
 var includedDBLabConfigFiles = []string{
-	pgConfName,
+	PgConfName,
 	pgControlName,
 	recoveryConfName,
 	syncConfigName,
@@ -149,7 +149,7 @@ func (m *Manager) init() error {
 
 // isInitialized checks if the configuration is already initialized.
 func (m *Manager) isInitialized() (bool, error) {
-	pgConfDst := path.Join(m.dataDir, pgConfName)
+	pgConfDst := path.Join(m.dataDir, PgConfName)
 
 	postgresFile, err := os.Open(pgConfDst)
 	if err != nil {
@@ -180,7 +180,7 @@ func (m *Manager) isInitialized() (bool, error) {
 
 // rewritePostgresConfig completely rewrites a default Postgres configuration file.
 func (m *Manager) rewritePostgresConfig() error {
-	pgConfDst := path.Join(m.dataDir, pgConfName)
+	pgConfDst := path.Join(m.dataDir, PgConfName)
 
 	buf := bytes.NewBuffer([]byte{})
 	buf.WriteString(initializedLabel + "\n")
@@ -226,21 +226,21 @@ func (m *Manager) adjustHBAConf() error {
 func (m Manager) adjustGeneralConfigs() error {
 	log.Dbg("Configuring Postgres...")
 
-	pgConfSrc, err := util.GetConfigPath(path.Join(pgCfgDir, pgConfName))
+	pgConfSrc, err := util.GetConfigPath(path.Join(pgCfgDir, PgConfName))
 	if err != nil {
-		return errors.Wrapf(err, "cannot get path to %s in configs", pgConfName)
+		return errors.Wrapf(err, "cannot get path to %s in configs", PgConfName)
 	}
 
-	pgConfDst := path.Join(m.dataDir, configPrefix+pgConfName)
+	pgConfDst := path.Join(m.dataDir, configPrefix+PgConfName)
 
 	pgConfSrcFile, err := ioutil.ReadFile(pgConfSrc)
 	if err != nil {
-		return errors.Wrapf(err, "cannot read %s from configs", pgConfName)
+		return errors.Wrapf(err, "cannot read %s from configs", PgConfName)
 	}
 
 	pgConfDstFile, err := ioutil.ReadFile(pgConfDst)
 	if err != nil {
-		return errors.Wrapf(err, "cannot read %s from PGDATA", pgConfName)
+		return errors.Wrapf(err, "cannot read %s from PGDATA", PgConfName)
 	}
 
 	pgConfSrcLines := strings.Split(string(pgConfSrcFile), "\n")
@@ -322,7 +322,7 @@ func (m *Manager) ApplyRecovery(cfg map[string]string) error {
 		return err
 	}
 
-	if err := appendExtraConf(m.recoveryPath(), cfg); err != nil {
+	if err := AppendExtraConf(m.recoveryPath(), cfg); err != nil {
 		return err
 	}
 
@@ -475,8 +475,8 @@ func (m *Manager) rewriteConfig(pgConf string, extraConfig map[string]string) er
 	return nil
 }
 
-// appendExtraConf appends extra parameters to a provided Postgres configuration file.
-func appendExtraConf(configFile string, extraConfig map[string]string) error {
+// AppendExtraConf appends extra parameters to a provided Postgres configuration file.
+func AppendExtraConf(configFile string, extraConfig map[string]string) error {
 	log.Dbg("Appending configuration to ", configFile)
 
 	pgConfLines := make([]string, 0, len(extraConfig))
