@@ -190,6 +190,9 @@ retrieval:
         #   # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
         #   # Note the existing data might be overwritten.
         #   forceInit: false
+        #
+        #   configs:
+        #      shared_preload_libraries: "pg_stat_statements"
 
     # Restores PostgreSQL database from the provided dump. If you use this block, do not use
     # "restore" option in the "logicalDump" job.
@@ -215,6 +218,10 @@ retrieval:
         # partial:
         #   tables:
         #     - test
+
+        #
+        # configs:
+        #  shared_preload_libraries: "pg_stat_statements"
 
     logicalSnapshot:
       options:
