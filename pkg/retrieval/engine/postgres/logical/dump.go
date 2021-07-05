@@ -350,13 +350,13 @@ func updateConfigs(ctx context.Context, dockerClient *client.Client, dataDir, du
 			return errors.Wrap(err, "failed to init Postgres")
 		}
 
-		log.Dbg("Initialized")
+		log.Dbg("Database has been initialized")
 
 		if err := tools.StartPostgres(ctx, dockerClient, dumpContID, dataDir, tools.DefaultStopTimeout); err != nil {
 			return errors.Wrap(err, "failed to init Postgres")
 		}
 
-		log.Dbg("Started Postgres")
+		log.Dbg("Postgres has been started")
 	}
 
 	log.Msg("Waiting for container readiness")
@@ -367,9 +367,14 @@ func updateConfigs(ctx context.Context, dockerClient *client.Client, dataDir, du
 
 	tools.StopContainer(ctx, dockerClient, dumpContID, cont.StopTimeout)
 
-	pgConfigFile := path.Join(dataDir, pgconfig.PgConfName)
-	if err := pgconfig.AppendExtraConf(pgConfigFile, configs); err != nil {
-		return errors.Wrapf(err, "failed to append extra configuration to %s ", pgConfigFile)
+	// Run basic PostgreSQL configuration.
+	cfgManager, err := pgconfig.NewCorrector(dataDir)
+	if err != nil {
+		return errors.Wrap(err, "failed to create a config manager")
+	}
+
+	if err := cfgManager.AppendGeneralConfig(configs); err != nil {
+		return errors.Wrap(err, "failed to append general configuration")
 	}
 
 	if err := dockerClient.ContainerStart(ctx, dumpContID, types.ContainerStartOptions{}); err != nil {

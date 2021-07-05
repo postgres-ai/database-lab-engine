@@ -231,7 +231,7 @@ func (m Manager) adjustGeneralConfigs() error {
 		return errors.Wrapf(err, "cannot get path to %s in configs", PgConfName)
 	}
 
-	pgConfDst := path.Join(m.dataDir, configPrefix+PgConfName)
+	pgConfDst := m.getConfigPath(PgConfName)
 
 	pgConfSrcFile, err := ioutil.ReadFile(pgConfSrc)
 	if err != nil {
@@ -292,6 +292,15 @@ func (m Manager) adjustGeneralConfigs() error {
 	return nil
 }
 
+// AppendGeneralConfig appends configuration parameters to a general configuration file.
+func (m *Manager) AppendGeneralConfig(cfg map[string]string) error {
+	if err := appendExtraConf(m.getConfigPath(PgConfName), cfg); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // AdjustRecoveryFiles adjusts a recovery files.
 func (m *Manager) AdjustRecoveryFiles() error {
 	if err := os.Remove(path.Join(m.dataDir, "postmaster.pid")); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -322,7 +331,7 @@ func (m *Manager) ApplyRecovery(cfg map[string]string) error {
 		return err
 	}
 
-	if err := AppendExtraConf(m.recoveryPath(), cfg); err != nil {
+	if err := appendExtraConf(m.recoveryPath(), cfg); err != nil {
 		return err
 	}
 
@@ -475,8 +484,8 @@ func (m *Manager) rewriteConfig(pgConf string, extraConfig map[string]string) er
 	return nil
 }
 
-// AppendExtraConf appends extra parameters to a provided Postgres configuration file.
-func AppendExtraConf(configFile string, extraConfig map[string]string) error {
+// appendExtraConf appends extra parameters to a provided Postgres configuration file.
+func appendExtraConf(configFile string, extraConfig map[string]string) error {
 	log.Dbg("Appending configuration to ", configFile)
 
 	pgConfLines := make([]string, 0, len(extraConfig))

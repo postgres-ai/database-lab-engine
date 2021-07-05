@@ -169,14 +169,13 @@ func GetMountsFromMountPoints(dataDir string, mountPoints []types.MountPoint) []
 
 // InitDB stops Postgres inside container.
 func InitDB(ctx context.Context, dockerClient *client.Client, containerID, dataDir string) error {
-	initCommand := []string{"pg_ctl", "-D", dataDir, "-o", `--sync-only --username postgres --debug`, "initdb"}
+	initCommand := []string{"sh", "-c", `su postgres -c "/usr/lib/postgresql/${PG_MAJOR}/bin/pg_ctl initdb -D ` + dataDir + `"`}
 
-	log.Msg("init db", initCommand)
+	log.Dbg("Init db", initCommand)
 
 	out, err := ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
-		Tty:  true,
-		User: defaults.Username,
-		Cmd:  initCommand,
+		Tty: true,
+		Cmd: initCommand,
 	})
 
 	if err != nil {
