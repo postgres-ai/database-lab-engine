@@ -29,7 +29,7 @@
 #   --detach \
 #   postgresai/dblab-server:latest
 
-FROM docker:19.03.14
+FROM docker:19.03
 
 # Install dependencies.
 RUN apk update && apk add --no-cache zfs lvm2 bash util-linux
