@@ -54,6 +54,17 @@ const (
 	passwordMinSymbols = 0
 )
 
+// ErrHealthCheck defines a health check errors.
+type ErrHealthCheck struct {
+	ExitCode int
+	Output   string
+}
+
+// Error prints a health check error.
+func (e *ErrHealthCheck) Error() string {
+	return fmt.Sprintf("health check failed. Code: %d, Output: %s", e.ExitCode, e.Output)
+}
+
 // GeneratePassword generates a new password.
 func GeneratePassword() (string, error) {
 	return password.Generate(passwordLength, passwordMinDigits, passwordMinSymbols, false, true)
@@ -167,6 +178,54 @@ func GetMountsFromMountPoints(dataDir string, mountPoints []types.MountPoint) []
 	return mounts
 }
 
+// InitDB stops Postgres inside container.
+func InitDB(ctx context.Context, dockerClient *client.Client, containerID, dataDir string) error {
+	initCommand := []string{"sh", "-c", `su postgres -c "/usr/lib/postgresql/${PG_MAJOR}/bin/pg_ctl initdb -D ` + dataDir + `"`}
+
+	log.Dbg("Init db", initCommand)
+
+	out, err := ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
+		Tty: true,
+		Cmd: initCommand,
+	})
+
+	if err != nil {
+		return errors.Wrap(err, "failed to init Postgres")
+	}
+
+	log.Dbg(out)
+
+	return nil
+}
+
+// StartPostgres stops Postgres inside container.
+func StartPostgres(ctx context.Context, dockerClient *client.Client, containerID, dataDir string, timeout int) error {
+	log.Dbg("Start Postgres")
+
+	pgVersion, err := DetectPGVersion(dataDir)
+	if err != nil {
+		return errors.Wrap(err, "failed to detect PostgreSQL version")
+	}
+
+	startCommand := []string{fmt.Sprintf("/usr/lib/postgresql/%g/bin/pg_ctl", pgVersion),
+		"-D", dataDir, "-w", "--timeout", strconv.Itoa(timeout), "start"}
+
+	log.Msg("Starting PostgreSQL instance", startCommand)
+
+	out, err := ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
+		User: defaults.Username,
+		Cmd:  startCommand,
+	})
+
+	if err != nil {
+		return errors.Wrap(err, "failed to stop Postgres")
+	}
+
+	log.Dbg(out)
+
+	return nil
+}
+
 // StopPostgres stops Postgres inside container.
 func StopPostgres(ctx context.Context, dockerClient *client.Client, containerID, dataDir string, timeout int) error {
 	pgVersion, err := DetectPGVersion(dataDir)
@@ -214,11 +273,12 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 				return errors.New("container health check failed")
 			}
 
-			healthCheckLength := len(resp.State.Health.Log)
-			if healthCheckLength > 0 {
-				lastHealthCheck := resp.State.Health.Log[healthCheckLength-1]
-				if lastHealthCheck.ExitCode > 1 {
-					return errors.Errorf("health check failed. Code: %v, Output: %v", lastHealthCheck.ExitCode, lastHealthCheck.Output)
+			if healthCheckLength := len(resp.State.Health.Log); healthCheckLength > 0 {
+				if lastHealthCheck := resp.State.Health.Log[healthCheckLength-1]; lastHealthCheck.ExitCode > 1 {
+					return &ErrHealthCheck{
+						ExitCode: lastHealthCheck.ExitCode,
+						Output:   lastHealthCheck.Output,
+					}
 				}
 			}
 		}
