@@ -8,16 +8,17 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
-
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/config"
@@ -27,6 +28,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/options"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 )
 
@@ -109,7 +111,8 @@ type Connection struct {
 
 // ImmediateRestore contains options for direct data restore without saving the dump file on disk.
 type ImmediateRestore struct {
-	ForceInit bool `yaml:"forceInit"`
+	ForceInit bool              `yaml:"forceInit"`
+	Configs   map[string]string `yaml:"configs"`
 }
 
 // NewDumpJob creates a new DumpJob.
@@ -230,6 +233,10 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to scan pulling image response")
 	}
 
+	if err := os.MkdirAll(d.DumpOptions.DumpLocation, 0666); err != nil {
+		return errors.Wrap(err, "failed to create a location directory")
+	}
+
 	hostConfig, err := d.buildHostConfig(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to build container host config")
@@ -263,14 +270,29 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to start container %q", d.dumpContainerName())
 	}
 
-	log.Msg("Waiting for container readiness")
-
-	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, dumpCont.ID); err != nil {
-		return errors.Wrap(err, "failed to readiness check")
-	}
-
 	if err := d.setupConnectionOptions(ctx); err != nil {
 		return errors.Wrap(err, "failed to setup connection options")
+	}
+
+	log.Msg("Waiting for container readiness")
+
+	dataDir := d.fsPool.DataDir()
+
+	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, dumpCont.ID); err != nil {
+		var errHealthCheck *tools.ErrHealthCheck
+		if !errors.As(err, &errHealthCheck) {
+			return errors.Wrap(err, "failed to readiness check")
+		}
+
+		if err := setupPGData(ctx, d.dockerClient, dataDir, dumpCont.ID); err != nil {
+			return errors.Wrap(err, "failed to set up Postgres data")
+		}
+	}
+
+	if d.DumpOptions.Restore != nil && len(d.DumpOptions.Restore.Configs) > 0 {
+		if err := updateConfigs(ctx, d.dockerClient, dataDir, dumpCont.ID, d.DumpOptions.Restore.Configs); err != nil {
+			return errors.Wrap(err, "failed to update configs")
+		}
 	}
 
 	dumpCommand := d.buildLogicalDumpCommand()
@@ -281,9 +303,10 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 	}
 
 	if d.DumpOptions.DumpLocation != "" && d.DumpOptions.Restore == nil {
-		if err := tools.ExecCommand(ctx, d.dockerClient, dumpCont.ID, types.ExecConfig{
-			Cmd: []string{"rm", "-rf", d.DumpOptions.DumpLocation},
+		if out, err := tools.ExecCommandWithOutput(ctx, d.dockerClient, dumpCont.ID, types.ExecConfig{
+			Cmd: []string{"rm", "-rf", path.Join(d.DumpOptions.DumpLocation, "*")},
 		}); err != nil {
+			log.Dbg(out)
 			return errors.Wrap(err, "failed to clean up dump location")
 		}
 	}
@@ -317,6 +340,65 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 	return nil
 }
 
+func setupPGData(ctx context.Context, dockerClient *client.Client, dataDir string, dumpContID string) error {
+	isEmpty, err := tools.IsEmptyDirectory(dataDir)
+	if err != nil {
+		return errors.Wrap(err, "failed to explore the data directory")
+	}
+
+	if !isEmpty {
+		return nil
+	}
+
+	if err := tools.ExecCommand(ctx, dockerClient, dumpContID, types.ExecConfig{
+		Cmd: []string{"chown", "-R", "postgres", dataDir},
+	}); err != nil {
+		return errors.Wrap(err, "failed to set permissions")
+	}
+
+	if err := tools.InitDB(ctx, dockerClient, dumpContID, dataDir); err != nil {
+		return errors.Wrap(err, "failed to init Postgres")
+	}
+
+	log.Dbg("Database has been initialized")
+
+	if err := tools.StartPostgres(ctx, dockerClient, dumpContID, dataDir, tools.DefaultStopTimeout); err != nil {
+		return errors.Wrap(err, "failed to init Postgres")
+	}
+
+	log.Dbg("Postgres has been started")
+
+	return nil
+}
+
+func updateConfigs(ctx context.Context, dockerClient *client.Client, dataDir, contID string, configs map[string]string) error {
+	log.Dbg("Stopping container to update configuration")
+
+	tools.StopContainer(ctx, dockerClient, contID, cont.StopTimeout)
+
+	// Run basic PostgreSQL configuration.
+	cfgManager, err := pgconfig.NewCorrector(dataDir)
+	if err != nil {
+		return errors.Wrap(err, "failed to create a config manager")
+	}
+
+	if err := cfgManager.AppendGeneralConfig(configs); err != nil {
+		return errors.Wrap(err, "failed to append general configuration")
+	}
+
+	if err := dockerClient.ContainerStart(ctx, contID, types.ContainerStartOptions{}); err != nil {
+		return errors.Wrapf(err, "failed to start container %q", contID)
+	}
+
+	log.Dbg("Waiting for container readiness")
+
+	if err := tools.CheckContainerReadiness(ctx, dockerClient, contID); err != nil {
+		return errors.Wrap(err, "failed to readiness check")
+	}
+
+	return nil
+}
+
 // setupConnectionOptions prepares connection options to perform a logical dump.
 func (d *DumpJob) setupConnectionOptions(ctx context.Context) error {
 	d.config.db = d.DumpOptions.Source.Connection
@@ -343,10 +425,7 @@ func (d *DumpJob) getEnvironmentVariables(password string) []string {
 		"POSTGRES_PASSWORD=" + password,
 	}
 
-	// Avoid initialization of PostgreSQL directory in case of preparing of a dump.
-	if d.DumpOptions.Restore != nil {
-		envs = append(envs, "PGDATA="+d.fsPool.DataDir())
-	}
+	envs = append(envs, "PGDATA="+d.fsPool.DataDir())
 
 	if d.DumpOptions.Source.Type == sourceTypeLocal && d.DumpOptions.Source.Connection.Port == defaults.Port {
 		log.Msg(fmt.Sprintf("The default PostgreSQL port is busy, trying to use an alternative one: %d", reservePort))
@@ -376,6 +455,12 @@ func (d *DumpJob) buildHostConfig(ctx context.Context) (*container.HostConfig, e
 	if err := tools.AddVolumesToHostConfig(ctx, d.dockerClient, hostConfig, d.fsPool.DataDir()); err != nil {
 		return nil, err
 	}
+
+	hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
+		Type:   mount.TypeBind,
+		Source: d.DumpOptions.DumpLocation,
+		Target: d.DumpOptions.DumpLocation,
+	})
 
 	return hostConfig, nil
 }
@@ -418,7 +503,7 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 	// Define if restore directly or export to dump location.
 	if d.DumpOptions.Restore != nil {
 		dumpCmd = append(dumpCmd, "--format", customFormat)
-		dumpCmd = append(dumpCmd, d.buildLogicalRestoreCommand()...)
+		dumpCmd = append(dumpCmd, d.buildLogicalRestoreCommand(d.DumpOptions.Source.Connection.DBName)...)
 		cmd := strings.Join(dumpCmd, " ")
 
 		log.Dbg(cmd)
@@ -431,9 +516,14 @@ func (d *DumpJob) buildLogicalDumpCommand() []string {
 	return dumpCmd
 }
 
-func (d *DumpJob) buildLogicalRestoreCommand() []string {
-	restoreCmd := []string{"|", "pg_restore", "--username", d.globalCfg.Database.User(), "--create", "--dbname", defaults.DBName,
+func (d *DumpJob) buildLogicalRestoreCommand(dbName string) []string {
+	restoreCmd := []string{"|", "pg_restore", "--username", d.globalCfg.Database.User(), "--dbname", defaults.DBName,
 		"--no-privileges", "--no-owner"}
+
+	if dbName != defaults.DBName {
+		// To avoid recreating of the default database.
+		restoreCmd = append(restoreCmd, "--create")
+	}
 
 	if d.Restore.ForceInit {
 		restoreCmd = append(restoreCmd, "--clean", "--if-exists")
