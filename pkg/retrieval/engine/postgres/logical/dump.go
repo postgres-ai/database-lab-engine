@@ -425,12 +425,6 @@ func (d *DumpJob) getEnvironmentVariables(password string) []string {
 		"POSTGRES_PASSWORD=" + password,
 	}
 
-	// Avoid initialization of PostgreSQL directory in case of preparing of a dump.
-	if d.DumpOptions.Restore != nil {
-		envs = append(envs, "PGDATA="+d.fsPool.DataDir())
-	}
-
-	// TODO: fix it.
 	envs = append(envs, "PGDATA="+d.fsPool.DataDir())
 
 	if d.DumpOptions.Source.Type == sourceTypeLocal && d.DumpOptions.Source.Connection.Port == defaults.Port {
