@@ -54,6 +54,17 @@ const (
 	passwordMinSymbols = 0
 )
 
+// ErrHealthCheck defines a health check errors.
+type ErrHealthCheck struct {
+	ExitCode int
+	Output   string
+}
+
+// Error prints a health check error.
+func (e *ErrHealthCheck) Error() string {
+	return fmt.Sprintf("health check failed. Code: %d, Output: %s", e.ExitCode, e.Output)
+}
+
 // GeneratePassword generates a new password.
 func GeneratePassword() (string, error) {
 	return password.Generate(passwordLength, passwordMinDigits, passwordMinSymbols, false, true)
@@ -262,11 +273,12 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 				return errors.New("container health check failed")
 			}
 
-			healthCheckLength := len(resp.State.Health.Log)
-			if healthCheckLength > 0 {
-				lastHealthCheck := resp.State.Health.Log[healthCheckLength-1]
-				if lastHealthCheck.ExitCode > 1 {
-					return errors.Errorf("health check failed. Code: %v, Output: %v", lastHealthCheck.ExitCode, lastHealthCheck.Output)
+			if healthCheckLength := len(resp.State.Health.Log); healthCheckLength > 0 {
+				if lastHealthCheck := resp.State.Health.Log[healthCheckLength-1]; lastHealthCheck.ExitCode > 1 {
+					return &ErrHealthCheck{
+						ExitCode: lastHealthCheck.ExitCode,
+						Output:   lastHealthCheck.Output,
+					}
 				}
 			}
 		}

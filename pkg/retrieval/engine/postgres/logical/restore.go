@@ -176,16 +176,23 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 	dataDir := r.fsPool.DataDir()
 
+	log.Msg("Waiting for container readiness")
+
+	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, restoreCont.ID); err != nil {
+		var errHealthCheck *tools.ErrHealthCheck
+		if !errors.As(err, &errHealthCheck) {
+			return errors.Wrap(err, "failed to readiness check")
+		}
+
+		if err := setupPGData(ctx, r.dockerClient, dataDir, restoreCont.ID); err != nil {
+			return errors.Wrap(err, "failed to set up Postgres data")
+		}
+	}
+
 	if len(r.RestoreOptions.Configs) > 0 {
 		if err := updateConfigs(ctx, r.dockerClient, dataDir, restoreCont.ID, r.RestoreOptions.Configs); err != nil {
 			return errors.Wrap(err, "failed to update configs")
 		}
-	}
-
-	log.Msg("Waiting for container readiness")
-
-	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, restoreCont.ID); err != nil {
-		return errors.Wrap(err, "failed to readiness check")
 	}
 
 	restoreCommand := r.buildLogicalRestoreCommand(r.DBName)

@@ -274,18 +274,25 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to setup connection options")
 	}
 
+	log.Msg("Waiting for container readiness")
+
 	dataDir := d.fsPool.DataDir()
+
+	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, dumpCont.ID); err != nil {
+		var errHealthCheck *tools.ErrHealthCheck
+		if !errors.As(err, &errHealthCheck) {
+			return errors.Wrap(err, "failed to readiness check")
+		}
+
+		if err := setupPGData(ctx, d.dockerClient, dataDir, dumpCont.ID); err != nil {
+			return errors.Wrap(err, "failed to set up Postgres data")
+		}
+	}
 
 	if d.DumpOptions.Restore != nil && len(d.DumpOptions.Restore.Configs) > 0 {
 		if err := updateConfigs(ctx, d.dockerClient, dataDir, dumpCont.ID, d.DumpOptions.Restore.Configs); err != nil {
 			return errors.Wrap(err, "failed to update configs")
 		}
-	}
-
-	log.Msg("Waiting for container readiness")
-
-	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, dumpCont.ID); err != nil {
-		return errors.Wrap(err, "failed to readiness check")
 	}
 
 	dumpCommand := d.buildLogicalDumpCommand()
@@ -333,39 +340,41 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 	return nil
 }
 
-func updateConfigs(ctx context.Context, dockerClient *client.Client, dataDir, dumpContID string, configs map[string]string) error {
+func setupPGData(ctx context.Context, dockerClient *client.Client, dataDir string, dumpContID string) error {
 	isEmpty, err := tools.IsEmptyDirectory(dataDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to explore the data directory")
 	}
 
-	if isEmpty {
-		if err := tools.ExecCommand(ctx, dockerClient, dumpContID, types.ExecConfig{
-			Cmd: []string{"chown", "-R", "postgres", dataDir},
-		}); err != nil {
-			return errors.Wrap(err, "failed to set permissions")
-		}
-
-		if err := tools.InitDB(ctx, dockerClient, dumpContID, dataDir); err != nil {
-			return errors.Wrap(err, "failed to init Postgres")
-		}
-
-		log.Dbg("Database has been initialized")
-
-		if err := tools.StartPostgres(ctx, dockerClient, dumpContID, dataDir, tools.DefaultStopTimeout); err != nil {
-			return errors.Wrap(err, "failed to init Postgres")
-		}
-
-		log.Dbg("Postgres has been started")
+	if !isEmpty {
+		return nil
 	}
 
-	log.Msg("Waiting for container readiness")
-
-	if err := tools.CheckContainerReadiness(ctx, dockerClient, dumpContID); err != nil {
-		return errors.Wrap(err, "failed to readiness check")
+	if err := tools.ExecCommand(ctx, dockerClient, dumpContID, types.ExecConfig{
+		Cmd: []string{"chown", "-R", "postgres", dataDir},
+	}); err != nil {
+		return errors.Wrap(err, "failed to set permissions")
 	}
 
-	tools.StopContainer(ctx, dockerClient, dumpContID, cont.StopTimeout)
+	if err := tools.InitDB(ctx, dockerClient, dumpContID, dataDir); err != nil {
+		return errors.Wrap(err, "failed to init Postgres")
+	}
+
+	log.Dbg("Database has been initialized")
+
+	if err := tools.StartPostgres(ctx, dockerClient, dumpContID, dataDir, tools.DefaultStopTimeout); err != nil {
+		return errors.Wrap(err, "failed to init Postgres")
+	}
+
+	log.Dbg("Postgres has been started")
+
+	return nil
+}
+
+func updateConfigs(ctx context.Context, dockerClient *client.Client, dataDir, contID string, configs map[string]string) error {
+	log.Dbg("Stopping container to update configuration")
+
+	tools.StopContainer(ctx, dockerClient, contID, cont.StopTimeout)
 
 	// Run basic PostgreSQL configuration.
 	cfgManager, err := pgconfig.NewCorrector(dataDir)
@@ -377,8 +386,14 @@ func updateConfigs(ctx context.Context, dockerClient *client.Client, dataDir, du
 		return errors.Wrap(err, "failed to append general configuration")
 	}
 
-	if err := dockerClient.ContainerStart(ctx, dumpContID, types.ContainerStartOptions{}); err != nil {
-		return errors.Wrapf(err, "failed to start container %q", dumpContID)
+	if err := dockerClient.ContainerStart(ctx, contID, types.ContainerStartOptions{}); err != nil {
+		return errors.Wrapf(err, "failed to start container %q", contID)
+	}
+
+	log.Dbg("Waiting for container readiness")
+
+	if err := tools.CheckContainerReadiness(ctx, dockerClient, contID); err != nil {
+		return errors.Wrap(err, "failed to readiness check")
 	}
 
 	return nil
