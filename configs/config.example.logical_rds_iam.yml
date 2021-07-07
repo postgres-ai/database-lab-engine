@@ -150,7 +150,7 @@ retrieval:
         dumpLocation: "/var/lib/dblab/dblab_pool/dump/rds_db.dump"
 
         # The Docker image containing the tools required to get a dump.
-        dockerImage: "postgres:13-alpine"
+        dockerImage: "postgresai/extended-postgres:13"
 
         # Source of data.
         source:
@@ -205,7 +205,7 @@ retrieval:
         dumpLocation: "/var/lib/dblab/dblab_pool/dump/rds_db.dump"
 
         # The Docker image containing the tools required to restore.
-        dockerImage: "postgres:13-alpine"
+        dockerImage: "postgresai/extended-postgres:13"
 
         # Use parallel jobs to restore faster.
         parallelJobs: 2

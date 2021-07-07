@@ -167,6 +167,14 @@ build-image-master-server:
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-server"
     TAGS: "${DOCKER_NAME}:master,${DOCKER_NAME}:master-${CI_COMMIT_SHORT_SHA}"
 
+build-image-master-ci-checker:
+  <<: *build_image_definition
+  <<: *only_master
+  variables:
+    DOCKER_FILE: "Dockerfile.ci-checker"
+    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-ci-checker"
+    TAGS: "${DOCKER_NAME}:master,${DOCKER_NAME}:master-${CI_COMMIT_SHORT_SHA}"
+
 build-image-master-client:
   <<: *build_image_definition
   <<: *only_master
@@ -184,6 +192,19 @@ build-image-latest-server:
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-server"
     DOCKER_NAME: "postgresai/dblab-server"
+  before_script:
+    - export LATEST_TAG=$(echo ${CI_COMMIT_TAG%.*}-latest)
+    - export TAGS="${DOCKER_NAME}:${LATEST_TAG},${DOCKER_NAME}:${CI_COMMIT_TAG}"
+
+build-image-latest-ci-checker:
+  <<: *build_image_definition
+  <<: *only_tag_release
+  variables:
+    REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${DH_CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.ci-checker"
+    DOCKER_NAME: "postgresai/dblab-ci-checker"
   before_script:
     - export LATEST_TAG=$(echo ${CI_COMMIT_TAG%.*}-latest)
     - export TAGS="${DOCKER_NAME}:${LATEST_TAG},${DOCKER_NAME}:${CI_COMMIT_TAG}"
@@ -210,6 +231,17 @@ build-image-rc-server:
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-server"
     DOCKER_NAME: "postgresai/dblab-server"
+    TAGS: "${DOCKER_NAME}:${CI_COMMIT_TAG}"
+
+build-image-rc-ci-checker:
+  <<: *build_image_definition
+  <<: *only_tag_rc
+  variables:
+    REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${DH_CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.ci-checker"
+    DOCKER_NAME: "postgresai/dblab-ci-checker"
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_TAG}"
 
 build-image-rc-client:
