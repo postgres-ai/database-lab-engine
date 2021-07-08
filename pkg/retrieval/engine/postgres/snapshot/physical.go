@@ -632,9 +632,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 		return errors.Wrap(err, "failed to store prepared configuration")
 	}
 
-	const pgStopTimeout = 600
-
-	if err := tools.StopPostgres(ctx, p.dockerClient, promoteCont.ID, clonePath, pgStopTimeout); err != nil {
+	if err := tools.StopPostgres(ctx, p.dockerClient, promoteCont.ID, clonePath, tools.DefaultStopTimeout); err != nil {
 		log.Msg("Failed to stop Postgres", err)
 		tools.PrintContainerLogs(ctx, p.dockerClient, promoteCont.ID)
 	}
