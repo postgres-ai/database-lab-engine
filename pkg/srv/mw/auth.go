@@ -7,6 +7,7 @@ package mw
 
 import (
 	"context"
+	"crypto/subtle"
 	"net/http"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/platform"
@@ -45,7 +46,7 @@ func (a *Auth) isAccessAllowed(ctx context.Context, token string) bool {
 		return false
 	}
 
-	if a.verificationToken == token {
+	if subtle.ConstantTimeCompare([]byte(a.verificationToken), []byte(token)) == 1 {
 		return true
 	}
 
