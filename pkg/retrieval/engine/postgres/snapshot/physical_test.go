@@ -49,7 +49,7 @@ Minimum recovery ending location:     0/0
 }
 
 func TestWalDir(t *testing.T) {
-	log.DEBUG = false
+	log.SetDebug(false)
 
 	testCases := []struct {
 		pgVersion      float64
@@ -90,7 +90,7 @@ func TestWalDir(t *testing.T) {
 }
 
 func TestWalCommand(t *testing.T) {
-	log.DEBUG = false
+	log.SetDebug(false)
 
 	testCases := []struct {
 		pgVersion          float64
@@ -131,7 +131,7 @@ func TestWalCommand(t *testing.T) {
 }
 
 func TestParsingWalLine(t *testing.T) {
-	log.DEBUG = false
+	log.SetDebug(false)
 
 	testCases := []struct {
 		line                string

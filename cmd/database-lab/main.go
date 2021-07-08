@@ -226,7 +226,7 @@ func loadConfiguration(instanceID string) (*config.Config, error) {
 		return nil, errors.Wrap(err, "failed to parse config")
 	}
 
-	log.DEBUG = cfg.Global.Debug
+	log.SetDebug(cfg.Global.Debug)
 	log.Dbg("Config loaded", cfg)
 
 	cfg.Global.InstanceID = instanceID
