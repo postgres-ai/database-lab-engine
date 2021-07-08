@@ -8,9 +8,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 )
 
-var DEBUG bool = true
+var debugMode bool = true
+
+var std = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
 
 const (
 	WHITE  = "\x1b[1;37m"
@@ -20,6 +23,10 @@ const (
 	END    = "\x1b[0m"
 	OK     = GREEN + "OK" + END
 	FAIL   = RED + "Fail" + END
+)
+
+const (
+	calldepth = 3
 )
 
 func toString(i1 interface{}) string {
@@ -66,31 +73,50 @@ func prepareMessage(v ...interface{}) string {
 	return message
 }
 
+func println(v ...interface{}) {
+	_ = std.Output(calldepth, fmt.Sprintln(v...))
+}
+
+func printf(format string, v ...interface{}) {
+	_ = std.Output(calldepth, fmt.Sprintf(format, v...))
+}
+
+// SetDebug enables debug logs.
+func SetDebug(enable bool) {
+	debugMode = enable
+
+	if debugMode {
+		std.SetFlags(log.LstdFlags | log.Lshortfile)
+	} else {
+		std.SetFlags(log.LstdFlags)
+	}
+}
+
 // Output message.
 func Msg(v ...interface{}) {
-	log.Println("[INFO]  " + prepareMessage(v...))
+	println("[INFO]  " + prepareMessage(v...))
 }
 
 // Output debug message.
 func Dbg(v ...interface{}) {
-	if DEBUG {
-		log.Println("[DEBUG] " + prepareMessage(v...))
+	if debugMode {
+		println("[DEBUG] " + prepareMessage(v...))
 	}
 }
 
 // Output error message.
 func Err(v ...interface{}) {
-	log.Println("[ERROR] " + prepareMessage(v...))
+	println("[ERROR] " + prepareMessage(v...))
 }
 
 // Errf outputs formatted log.
 func Errf(format string, v ...interface{}) {
-	log.Printf("[ERROR] "+format, v...)
+	printf("[ERROR] "+format, v...)
 }
 
 // Messages for security audit.
 func Audit(v ...interface{}) {
-	log.Println("[AUDIT] " + prepareMessage(v...))
+	println("[AUDIT] " + prepareMessage(v...))
 }
 
 func Fatal(v ...interface{}) {

@@ -147,7 +147,7 @@ func loadConfiguration() (*runci.Config, error) {
 		return nil, errors.WithMessagef(err, "error parsing %s config", configPath)
 	}
 
-	log.DEBUG = cfg.App.Debug
+	log.SetDebug(cfg.App.Debug)
 	log.Dbg("Config loaded: ", cfg)
 
 	return cfg, nil

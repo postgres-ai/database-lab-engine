@@ -93,7 +93,7 @@ func main() {
 
 // loadEnvironmentParams loads environment params from a Database Lab's config file.
 func loadEnvironmentParams(c *cli.Context) error {
-	dblabLog.DEBUG = c.IsSet("debug")
+	dblabLog.SetDebug(c.IsSet("debug"))
 
 	filename, err := config.GetFilename()
 	if err != nil {
