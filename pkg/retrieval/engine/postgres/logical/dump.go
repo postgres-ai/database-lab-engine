@@ -333,6 +333,10 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		if err := tools.ExecCommand(ctx, d.dockerClient, dumpCont.ID, types.ExecConfig{Cmd: analyzeCmd}); err != nil {
 			return errors.Wrap(err, "failed to recalculate statistics after restore")
 		}
+
+		if err := tools.StopPostgres(ctx, d.dockerClient, dumpCont.ID, dataDir, tools.DefaultStopTimeout); err != nil {
+			return errors.Wrap(err, "failed to stop Postgres instance")
+		}
 	}
 
 	log.Msg("Dumping job has been finished")

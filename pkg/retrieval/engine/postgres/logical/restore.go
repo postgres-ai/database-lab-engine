@@ -221,6 +221,10 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to recalculate statistics after restore")
 	}
 
+	if err := tools.StopPostgres(ctx, r.dockerClient, restoreCont.ID, dataDir, tools.DefaultStopTimeout); err != nil {
+		return errors.Wrap(err, "failed to stop Postgres instance")
+	}
+
 	log.Msg("Restoring job has been finished")
 
 	return nil

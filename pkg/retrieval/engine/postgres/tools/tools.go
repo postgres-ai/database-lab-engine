@@ -41,7 +41,7 @@ const (
 	essentialLogsInterval = "10s"
 
 	// DefaultStopTimeout defines the default timeout for Postgres stop.
-	DefaultStopTimeout = 60
+	DefaultStopTimeout = 600
 
 	// ViewLogsCmd tells the command to view docker container logs.
 	ViewLogsCmd = "docker logs --since 1m -f"
