@@ -50,9 +50,14 @@ build {
     destination = "/home/ubuntu/joe.yml"
   }
 
+  provisioner "file"{
+    source = "run_ci.yaml"
+    destination = "/home/ubuntu/run_ci.yaml"
+  }
+
   provisioner "shell" {
     environment_vars = ["dle_version=${var.dle_version}"]
-    scripts = ["${path.root}/install-prereqs.sh", "${path.root}/install-dblabcli.sh","${path.root}/install-envoy.sh"]
+    scripts = ["${path.root}/install-prereqs.sh", "${path.root}/install-envoy.sh"] 
   }
 
 }
