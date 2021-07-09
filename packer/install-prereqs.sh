@@ -16,7 +16,7 @@ sudo apt-get update && sudo apt-get install -y \
   gnupg2 \
   zfsutils-linux
 
-sudo docker pull  postgresai/dblab-server:$dle_version
+#sudo docker pull  postgresai/dblab-server:$dle_version
 
 #install postgres client
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
