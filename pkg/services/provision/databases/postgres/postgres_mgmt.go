@@ -114,6 +114,17 @@ declare
 begin
   new_owner := @usernameStr;
 
+  -- allow working with all schemas
+  for r in select * from pg_namespace loop
+    raise debug 'Changing ownership of schema % to %',
+                r.nspname, new_owner;
+    execute format(
+      'alter schema %I owner to %I;',
+      r.nspname,
+      new_owner
+    );
+  end loop;
+
   -- c: composite type
   -- p: partitioned table
   -- i: index
@@ -210,7 +221,6 @@ begin
   end loop;
 
   grant select on pg_stat_activity to @username;
-
 end
 $$;
 `
