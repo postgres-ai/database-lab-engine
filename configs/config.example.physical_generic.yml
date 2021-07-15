@@ -236,7 +236,9 @@ retrieval:
           shared_buffers: 1GB
 
           # shared_preload_libraries – copy the value from the source
-          shared_preload_libraries: "pg_stat_statements"
+          # Adding shared preload libraries, make sure that there are "pg_stat_statements, auto_explain, logerrors" in the list.
+          # It is necessary to perform query and db migration analysis.
+          shared_preload_libraries: "pg_stat_statements, auto_explain, logerrors"
 
           # work_mem and all the Query Planning parameters – copy the values from the source.
           # To do it, use this query:
