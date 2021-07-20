@@ -173,13 +173,20 @@ retrieval:
             # Path to the SSL root certificate: https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
             sslRootCert: "/cert/rds-combined-ca-bundle.pem"
 
-        # Options for a partial dump.
-        # partial:
-        #   tables:
-        #     - test
+        # Option for specifying the database list that must be copied.
+        # By default, DLE dumps and restores all available databases.
+        # Do not specify the databases section to take all databases.
+        # databases:
+        #   database1:
+        #     # Option for a partial dump. Do not specify the tables section to dump all available tables.
+        #     tables:
+        #       - table1
+        #       - table2
+        #   database2:
+        #   databaseN:
 
         # Use parallel jobs to dump faster.
-        # It's ignored if "restore" is present because "pg_dump | pg_restore" is always single-threaded.
+        # It’s ignored if “immediateRestore.enabled: true” is present because “pg_dump | pg_restore” is always single-threaded.
         parallelJobs: 2
 
         # Options for direct restore to Database Lab Engine instance.
@@ -188,10 +195,13 @@ retrieval:
         # this option does not support parallelization, it is always a single-threaded (both for
         # dumping on the source, and restoring on the destination end).
         # immediateRestore:
+        #   # Enable immediate restore.
+        #   enabled: true
         #   # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
         #   # Note the existing data might be overwritten.
         #   forceInit: false
-        #
+        #   # Option to adjust PostgreSQL configuration for a logical dump job.
+        #   # It's useful if a dumped database contains non-standard extensions.
         #   configs:
         #      shared_preload_libraries: "pg_stat_statements"
 
@@ -199,8 +209,6 @@ retrieval:
     # "restore" option in the "logicalDump" job.
     logicalRestore:
       options:
-        dbname: "test"
-
         # The location of the archive file (or directory, for a directory-format archive) to be restored.
         dumpLocation: "/var/lib/dblab/dblab_pool/dump/rds_db.dump"
 
@@ -214,14 +222,23 @@ retrieval:
         # Note the existing data might be overwritten.
         forceInit: false
 
-        # Options for a partial dump.
-        # partial:
-        #   tables:
-        #     - test
-
-        #
+        # Option to adjust PostgreSQL configuration for a logical restore job
+        # It's useful if a restored database contains non-standard extensions.
         # configs:
         #  shared_preload_libraries: "pg_stat_statements"
+
+        # Option for specifying the database list that must be restored.
+        # By default, DLE restores all available databases.
+        # Do not specify the databases section to restore all available databases.
+        # databases:
+        #   database1:
+        #     # Dump format. Available formats: directory, custom, plain. Default format: directory.
+        #     format: directory
+        #     # Option for a partial restore. Do not specify the tables section to restore all available tables.
+        #     tables:
+        #       - test
+        #   database2:
+        #   databaseN:
 
     logicalSnapshot:
       options:

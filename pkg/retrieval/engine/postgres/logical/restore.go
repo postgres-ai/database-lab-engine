@@ -8,7 +8,9 @@ package logical
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -42,6 +44,12 @@ const (
 
 	// defaultParallelJobs declares a default number of parallel jobs for logical dump and restore.
 	defaultParallelJobs = 1
+
+	// dumpMetafile describes metafile name of a custom dump.
+	dumpMetafile = "toc.dat"
+
+	// prefixDBName describes a prefix of database name inside of a custom dump metafile.
+	prefixDBName = "dbname:"
 )
 
 // RestoreJob defines a logical restore job.
@@ -57,13 +65,12 @@ type RestoreJob struct {
 
 // RestoreOptions defines a logical restore options.
 type RestoreOptions struct {
-	DumpLocation string            `yaml:"dumpLocation"`
-	DockerImage  string            `yaml:"dockerImage"`
-	DBName       string            `yaml:"dbname"`
-	ForceInit    bool              `yaml:"forceInit"`
-	ParallelJobs int               `yaml:"parallelJobs"`
-	Partial      Partial           `yaml:"partial"`
-	Configs      map[string]string `yaml:"configs"`
+	DumpLocation string                  `yaml:"dumpLocation"`
+	DockerImage  string                  `yaml:"dockerImage"`
+	Databases    map[string]DBDefinition `yaml:"databases"`
+	ForceInit    bool                    `yaml:"forceInit"`
+	ParallelJobs int                     `yaml:"parallelJobs"`
+	Configs      map[string]string       `yaml:"configs"`
 }
 
 // Partial defines tables and rules for a partial logical restore.
@@ -195,19 +202,17 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		}
 	}
 
-	restoreCommand := r.buildLogicalRestoreCommand(r.DBName)
-	log.Msg("Running restore command: ", restoreCommand)
-
-	if len(r.Partial.Tables) > 0 {
-		log.Msg("Partial restore will be run. Tables for restoring: ", strings.Join(r.Partial.Tables, ", "))
+	dbList, err := r.getDBList(ctx, r.RestoreOptions.DumpLocation, dumpMetafile, restoreCont.ID)
+	if err != nil {
+		return err
 	}
 
-	if err := tools.ExecCommand(ctx, r.dockerClient, restoreCont.ID, types.ExecConfig{Cmd: restoreCommand}); err != nil {
-		return errors.Wrap(err, "failed to exec restore command")
-	}
+	log.Dbg("Database List to restore: ", dbList)
 
-	if err := r.markDatabase(ctx, restoreCont.ID); err != nil {
-		return errors.Wrap(err, "failed to mark the database")
+	for dbName, dbDefinition := range dbList {
+		if err := r.restoreDB(ctx, restoreCont.ID, dbName, dbDefinition); err != nil {
+			return errors.Wrap(err, "failed to restore a database")
+		}
 	}
 
 	analyzeCmd := buildAnalyzeCommand(
@@ -226,6 +231,85 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	}
 
 	log.Msg("Restoring job has been finished")
+
+	return nil
+}
+
+func (r *RestoreJob) getDBList(ctx context.Context, dumpLocation, dumpFileMeta, contID string) (map[string]DBDefinition, error) {
+	if len(r.Databases) > 0 {
+		return r.Databases, nil
+	}
+
+	dumpMetafilePath := path.Join(dumpLocation, dumpFileMeta)
+
+	if _, err := os.Stat(dumpMetafilePath); err != nil {
+		if os.IsNotExist(err) {
+			return r.discoverDumpDirectories(dumpLocation)
+		}
+
+		return nil, err
+	}
+
+	return r.discoverDumpLocation(ctx, contID, dumpMetafilePath)
+}
+
+// discoverDumpDirectories discovers a dump location when a metafile of a custom dump format does not exist.
+func (r *RestoreJob) discoverDumpDirectories(dumpLocation string) (map[string]DBDefinition, error) {
+	fileInfos, err := ioutil.ReadDir(dumpLocation)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to discover dumped directories")
+	}
+
+	dbList := map[string]DBDefinition{}
+
+	for _, info := range fileInfos {
+		if info.IsDir() {
+			dbList[info.Name()] = DBDefinition{
+				Format: directoryFormat,
+			}
+		}
+	}
+
+	return dbList, nil
+}
+
+// discoverDumpLocation discovers a dump location when a metafile exists in order to to extract a database name.
+func (r *RestoreJob) discoverDumpLocation(ctx context.Context, contID, dumpMetaPath string) (map[string]DBDefinition, error) {
+	extractDBNameCmd := fmt.Sprintf("pg_restore --list %s | grep %s | tr -d '[;]'", dumpMetaPath, prefixDBName)
+	log.Msg("Extract a database name: ", extractDBNameCmd)
+
+	outputLine, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
+		Cmd: []string{"bash", "-c", extractDBNameCmd},
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find a database name to restore")
+	}
+
+	if outputLine == "" {
+		return nil, errors.New("a database name to restore not found")
+	}
+
+	dbName := strings.TrimSpace(strings.TrimPrefix(outputLine, prefixDBName))
+	dbList := map[string]DBDefinition{
+		dbName: {Format: customFormat},
+	}
+
+	return dbList, nil
+}
+
+func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDefinition DBDefinition) error {
+	restoreCommand := r.buildLogicalRestoreCommand(dbName, dbDefinition)
+	log.Msg("Running restore command: ", restoreCommand)
+
+	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{Cmd: restoreCommand}); err != nil {
+		return errors.Wrap(err, "failed to exec restore command")
+	}
+
+	dumpLocation := r.getDumpLocation(dbDefinition.Format, dbName)
+
+	if err := r.markDatabase(ctx, contID, dumpLocation); err != nil {
+		return errors.Wrap(err, "failed to mark the database")
+	}
 
 	return nil
 }
@@ -261,14 +345,15 @@ func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig
 	return hostConfig, nil
 }
 
-func (r *RestoreJob) markDatabase(ctx context.Context, contID string) error {
-	dataStateAt, err := r.retrieveDataStateAt(ctx, contID)
+func (r *RestoreJob) markDatabase(ctx context.Context, contID, dumpLocation string) error {
+	dataStateAt, err := r.retrieveDataStateAt(ctx, contID, dumpLocation)
 	if err != nil {
 		log.Err("Failed to extract dataStateAt: ", err)
 	}
 
 	if dataStateAt != "" {
 		r.dbMark.DataStateAt = dataStateAt
+		log.Msg("Data state at: ", dataStateAt)
 	}
 
 	if err := r.dbMarker.CreateConfig(); err != nil {
@@ -284,8 +369,8 @@ func (r *RestoreJob) markDatabase(ctx context.Context, contID string) error {
 	return nil
 }
 
-func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID string) (string, error) {
-	restoreMetaCmd := []string{"sh", "-c", "pg_restore --list " + r.RestoreOptions.DumpLocation + " | head -n 10"}
+func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID, dumpLocation string) (string, error) {
+	restoreMetaCmd := []string{"sh", "-c", "pg_restore --list " + dumpLocation + " | head -n 10"}
 
 	log.Dbg("Running a restore metadata command: ", restoreMetaCmd)
 
@@ -324,7 +409,7 @@ func (r *RestoreJob) updateDataStateAt() {
 	r.fsPool.SetDSA(dsaTime)
 }
 
-func (r *RestoreJob) buildLogicalRestoreCommand(dbName string) []string {
+func (r *RestoreJob) buildLogicalRestoreCommand(dbName string, definition DBDefinition) []string {
 	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName,
 		"--no-privileges", "--no-owner"}
 
@@ -339,11 +424,25 @@ func (r *RestoreJob) buildLogicalRestoreCommand(dbName string) []string {
 
 	restoreCmd = append(restoreCmd, "--jobs", strconv.Itoa(r.ParallelJobs))
 
-	for _, table := range r.Partial.Tables {
-		restoreCmd = append(restoreCmd, "--table", table)
+	if len(definition.Tables) > 0 {
+		log.Msg("Partial restore will be run. Tables for restoring: ", strings.Join(definition.Tables, ", "))
+
+		for _, table := range definition.Tables {
+			restoreCmd = append(restoreCmd, "--table", table)
+		}
 	}
 
-	restoreCmd = append(restoreCmd, r.RestoreOptions.DumpLocation)
+	restoreCmd = append(restoreCmd, r.getDumpLocation(definition.Format, dbName))
 
 	return restoreCmd
+}
+
+func (r *RestoreJob) getDumpLocation(dumpFormat, dbName string) string {
+	switch dumpFormat {
+	case customFormat, plainFormat:
+		return r.RestoreOptions.DumpLocation
+
+	default:
+		return path.Join(r.RestoreOptions.DumpLocation, dbName)
+	}
 }
