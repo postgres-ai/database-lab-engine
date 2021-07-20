@@ -31,7 +31,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sethvargo/go-password/password"
 	"github.com/shirou/gopsutil/host"
-
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/defaults"
 )
@@ -179,8 +178,8 @@ func GetMountsFromMountPoints(dataDir string, mountPoints []types.MountPoint) []
 }
 
 // InitDB stops Postgres inside container.
-func InitDB(ctx context.Context, dockerClient *client.Client, containerID, dataDir string) error {
-	initCommand := []string{"sh", "-c", `su postgres -c "/usr/lib/postgresql/${PG_MAJOR}/bin/pg_ctl initdb -D ` + dataDir + `"`}
+func InitDB(ctx context.Context, dockerClient *client.Client, containerID string) error {
+	initCommand := []string{"sh", "-c", `su postgres -c "/usr/lib/postgresql/${PG_MAJOR}/bin/pg_ctl initdb -D ${PGDATA}"`}
 
 	log.Dbg("Init db", initCommand)
 
@@ -198,23 +197,54 @@ func InitDB(ctx context.Context, dockerClient *client.Client, containerID, dataD
 	return nil
 }
 
-// StartPostgres stops Postgres inside container.
-func StartPostgres(ctx context.Context, dockerClient *client.Client, containerID, dataDir string, timeout int) error {
-	log.Dbg("Start Postgres")
+// MakeDir creates a new directory inside a container.
+func MakeDir(ctx context.Context, dockerClient *client.Client, dumpContID, dataDir string) error {
+	mkdirCmd := []string{"mkdir", "-p", dataDir}
 
-	pgVersion, err := DetectPGVersion(dataDir)
-	if err != nil {
-		return errors.Wrap(err, "failed to detect PostgreSQL version")
+	log.Msg("Running mkdir command: ", mkdirCmd)
+
+	if out, err := ExecCommandWithOutput(ctx, dockerClient, dumpContID, types.ExecConfig{
+		Cmd:  mkdirCmd,
+		User: defaults.Username,
+	}); err != nil {
+		log.Dbg(out)
+		return errors.Wrap(err, "failed to create a temp location")
 	}
 
-	startCommand := []string{fmt.Sprintf("/usr/lib/postgresql/%g/bin/pg_ctl", pgVersion),
-		"-D", dataDir, "-w", "--timeout", strconv.Itoa(timeout), "start"}
+	return nil
+}
+
+// IsEmptyContainerDirectory checks whether a directory is empty.
+func IsEmptyContainerDirectory(ctx context.Context, dockerClient *client.Client, containerID, dir string) (bool, error) {
+	lsCommand := []string{"ls", "-A", dir}
+
+	log.Dbg("Check directory: ", lsCommand)
+
+	out, err := ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
+		Tty: true,
+		Cmd: lsCommand,
+	})
+
+	if err != nil {
+		log.Dbg(out)
+		return false, errors.Wrap(err, "failed to init Postgres")
+	}
+
+	return out == "", nil
+}
+
+// StartPostgres stops Postgres inside container.
+func StartPostgres(ctx context.Context, dockerClient *client.Client, containerID string, timeout int) error {
+	log.Dbg("Start Postgres")
+
+	startCommand := []string{"sh", "-c",
+		fmt.Sprintf(`su postgres -c "/usr/lib/postgresql/${PG_MAJOR}/bin/pg_ctl -D ${PGDATA} -w --timeout %d start"`, timeout)}
 
 	log.Msg("Starting PostgreSQL instance", startCommand)
 
 	out, err := ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
-		User: defaults.Username,
-		Cmd:  startCommand,
+		Tty: true,
+		Cmd: startCommand,
 	})
 
 	if err != nil {
@@ -238,10 +268,11 @@ func StopPostgres(ctx context.Context, dockerClient *client.Client, containerID,
 
 	log.Msg("Stopping PostgreSQL instance", stopCommand)
 
-	if err := ExecCommand(ctx, dockerClient, containerID, types.ExecConfig{
+	if output, err := ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
 		User: defaults.Username,
 		Cmd:  stopCommand,
 	}); err != nil {
+		log.Dbg(output)
 		return errors.Wrap(err, "failed to stop Postgres")
 	}
 

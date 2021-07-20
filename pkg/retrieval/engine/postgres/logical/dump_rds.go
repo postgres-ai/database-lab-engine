@@ -107,3 +107,7 @@ func (r *rdsDumper) SetConnectionOptions(ctx context.Context, c *Connection) err
 
 	return nil
 }
+
+func (r *rdsDumper) GetDatabaseListQuery() string {
+	return "select datname from pg_catalog.pg_database where not datistemplate"
+}
