@@ -588,6 +588,10 @@ func (d *DumpJob) getExecEnvironmentVariables() []string {
 		execEnvs = append(execEnvs, "PGPASSWORD="+d.config.db.Password)
 	}
 
+	// Set unlimited statement_timeout for the dump session
+	// because there is a risk of dump failure due to exceeding the statement_timeout.
+	execEnvs = append(execEnvs, "PGOPTIONS=-c statement_timeout=0")
+
 	return execEnvs
 }
 
