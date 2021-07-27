@@ -98,6 +98,7 @@ type Source struct {
 type DBDefinition struct {
 	Tables []string `yaml:"tables"`
 	Format string   `yaml:"format"`
+	dbName string
 }
 
 type dumpJobConfig struct {
@@ -426,10 +427,12 @@ func (d *DumpJob) dumpDatabase(ctx context.Context, dumpContID, dbName string, d
 		log.Msg("Partial dump will be run. Tables for dumping: ", strings.Join(dbDefinition.Tables, ", "))
 	}
 
-	if err := d.performDumpCommand(ctx, dumpContID, types.ExecConfig{
+	if output, err := d.performDumpCommand(ctx, dumpContID, types.ExecConfig{
+		Tty: true,
 		Cmd: dumpCommand,
 		Env: d.getExecEnvironmentVariables(),
 	}); err != nil {
+		log.Dbg(output)
 		return errors.Wrap(err, "failed to dump a database")
 	}
 
@@ -508,14 +511,12 @@ func (d *DumpJob) setupConnectionOptions(ctx context.Context) error {
 	return nil
 }
 
-func (d *DumpJob) performDumpCommand(ctx context.Context, contID string, commandCfg types.ExecConfig) error {
+func (d *DumpJob) performDumpCommand(ctx context.Context, contID string, commandCfg types.ExecConfig) (string, error) {
 	if d.DumpOptions.Restore.Enabled {
 		d.dbMark.DataStateAt = time.Now().Format(tools.DataStateAtFormat)
 	}
 
-	_, err := tools.ExecCommandWithOutput(ctx, d.dockerClient, contID, commandCfg)
-
-	return err
+	return tools.ExecCommandWithOutput(ctx, d.dockerClient, contID, commandCfg)
 }
 
 func (d *DumpJob) getEnvironmentVariables(password string) []string {
