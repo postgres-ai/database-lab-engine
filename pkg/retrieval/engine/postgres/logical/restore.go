@@ -6,11 +6,15 @@
 package logical
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +24,7 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/lib/pq"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
@@ -50,6 +55,26 @@ const (
 
 	// prefixDBName describes a prefix of database name inside of a custom dump metafile.
 	prefixDBName = "dbname:"
+
+	// prefixConnectDB describes a prefix for connection to a database construction.
+	prefixConnectDB = `\connect `
+
+	// prefixCreateTable describes a prefix for creation table query.
+	prefixCreateTable = "CREATE TABLE "
+
+	// templateCreateDB provides a template for preparing database creation queries.
+	templateCreateDB = `
+create database @database with template = template0 encoding = 'utf8';
+alter database @database owner to @username; 
+`
+)
+
+var (
+	// errDBNameNotFound occurs when could not detect the name of the database in the provided dump.
+	errDBNameNotFound = errors.New("Database name not found")
+
+	// filenameFormatter replaces all non-word characters to an underscore.
+	filenameFormatter = regexp.MustCompile(`\W`)
 )
 
 // RestoreJob defines a logical restore job.
@@ -242,22 +267,25 @@ func (r *RestoreJob) getDBList(ctx context.Context, dumpLocation, dumpFileMeta, 
 
 	dumpMetafilePath := path.Join(dumpLocation, dumpFileMeta)
 
-	if _, err := os.Stat(dumpMetafilePath); err != nil {
-		if os.IsNotExist(err) {
-			return r.discoverDumpDirectories(dumpLocation)
-		}
-
-		return nil, err
+	_, err := os.Stat(dumpMetafilePath)
+	if err == nil {
+		return r.discoverCustomDump(ctx, contID, dumpMetafilePath)
 	}
 
-	return r.discoverDumpLocation(ctx, contID, dumpMetafilePath)
+	if os.IsNotExist(err) {
+		log.Dbg("Dump of custom format not found. Discovering dump location")
+
+		return r.discoverDumpLocation(dumpLocation)
+	}
+
+	return nil, err
 }
 
-// discoverDumpDirectories discovers a dump location when a metafile of a custom dump format does not exist.
-func (r *RestoreJob) discoverDumpDirectories(dumpLocation string) (map[string]DBDefinition, error) {
+// discoverDumpLocation discovers a dump location when a metafile of a custom dump format does not exist.
+func (r *RestoreJob) discoverDumpLocation(dumpLocation string) (map[string]DBDefinition, error) {
 	fileInfos, err := ioutil.ReadDir(dumpLocation)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to discover dumped directories")
+		return nil, errors.Wrap(err, "failed to discover dump location")
 	}
 
 	dbList := map[string]DBDefinition{}
@@ -267,16 +295,73 @@ func (r *RestoreJob) discoverDumpDirectories(dumpLocation string) (map[string]DB
 			dbList[info.Name()] = DBDefinition{
 				Format: directoryFormat,
 			}
+
+			continue
+		}
+
+		dumpPath := path.Join(dumpLocation, info.Name())
+
+		dbName, err := r.parsePlainFile(dumpPath)
+		if err != nil {
+			if errors.Is(err, errDBNameNotFound) {
+				dbList[info.Name()] = DBDefinition{
+					Format: plainFormat,
+				}
+
+				continue
+			}
+
+			return nil, err
+		}
+
+		dbList[info.Name()] = DBDefinition{
+			Format: plainFormat,
+			dbName: dbName,
 		}
 	}
 
 	return dbList, nil
 }
 
-// discoverDumpLocation discovers a dump location when a metafile exists in order to to extract a database name.
-func (r *RestoreJob) discoverDumpLocation(ctx context.Context, contID, dumpMetaPath string) (map[string]DBDefinition, error) {
+func (r *RestoreJob) parsePlainFile(dumpPath string) (string, error) {
+	f, err := os.Open(dumpPath)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to open dump file")
+	}
+
+	defer func() { _ = f.Close() }()
+
+	connectPrefix := []byte(prefixConnectDB)
+	tablePrefix := []byte(prefixCreateTable)
+
+	sc := bufio.NewScanner(f)
+
+	for sc.Scan() {
+		if bytes.HasPrefix(sc.Bytes(), connectPrefix) {
+			nameCandidate := bytes.TrimSpace(bytes.TrimPrefix(sc.Bytes(), connectPrefix))
+
+			if len(nameCandidate) > 0 {
+				return string(nameCandidate), nil
+			}
+
+			log.Dbg("Cannot parse database name from string: ", sc.Text())
+
+			break
+		}
+
+		if bytes.HasPrefix(sc.Bytes(), tablePrefix) {
+			// The dump does not contain the database name.
+			break
+		}
+	}
+
+	return "", errDBNameNotFound
+}
+
+// discoverCustomDump discovers a dump location when a metafile exists in order to to extract a database name.
+func (r *RestoreJob) discoverCustomDump(ctx context.Context, contID, dumpMetaPath string) (map[string]DBDefinition, error) {
 	extractDBNameCmd := fmt.Sprintf("pg_restore --list %s | grep %s | tr -d '[;]'", dumpMetaPath, prefixDBName)
-	log.Msg("Extract a database name: ", extractDBNameCmd)
+	log.Msg("Extract database name: ", extractDBNameCmd)
 
 	outputLine, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
 		Cmd: []string{"bash", "-c", extractDBNameCmd},
@@ -298,20 +383,71 @@ func (r *RestoreJob) discoverDumpLocation(ctx context.Context, contID, dumpMetaP
 }
 
 func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDefinition DBDefinition) error {
+	// The dump contains no database creation requests, so create a new database by ourselves.
+	if dbDefinition.Format == plainFormat && dbDefinition.dbName == "" {
+		if err := r.prepareDB(ctx, contID, dbName); err != nil {
+			return errors.Wrapf(err, "failed to prepare database for dump: %s", dbName)
+		}
+	}
+
 	restoreCommand := r.buildLogicalRestoreCommand(dbName, dbDefinition)
 	log.Msg("Running restore command: ", restoreCommand)
 
-	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{Cmd: restoreCommand}); err != nil {
+	if output, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
+		Tty: true, Cmd: restoreCommand,
+	}); err != nil {
+		log.Dbg(output)
 		return errors.Wrap(err, "failed to exec restore command")
 	}
 
 	dumpLocation := r.getDumpLocation(dbDefinition.Format, dbName)
+
+	if dbDefinition.Format == plainFormat {
+		// dataStateAt cannot be found.
+		return nil
+	}
 
 	if err := r.markDatabase(ctx, contID, dumpLocation); err != nil {
 		return errors.Wrap(err, "failed to mark the database")
 	}
 
 	return nil
+}
+
+// prepareDB creates a new database if it does not exist in the dump file.
+func (r *RestoreJob) prepareDB(ctx context.Context, contID, dbName string) error {
+	log.Dbg("The dump has a plain-text format with an empty database name. Creating a database for the dump:", dbName)
+
+	replacer := strings.NewReplacer(
+		"@database", pq.QuoteLiteral(formatDBName(dbName)),
+		"@username", pq.QuoteLiteral(r.globalCfg.Database.User()))
+	creationSQL := replacer.Replace(templateCreateDB)
+
+	tempFile, err := ioutil.TempFile(r.DumpLocation, "createdb_"+dbName+"_*.sql")
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = os.Remove(tempFile.Name()) }()
+	defer func() { _ = tempFile.Close() }()
+
+	if err := ioutil.WriteFile(tempFile.Name(), []byte(creationSQL), 0666); err != nil {
+		return err
+	}
+
+	cmd := []string{"psql", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName, "--file", tempFile.Name()}
+	log.Msg("Run command", cmd)
+
+	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{Cmd: cmd}); err != nil {
+		return errors.Wrap(err, "failed to exec restore command")
+	}
+
+	return nil
+}
+
+// formatDBName extracts a database name from a file name and adjusts it.
+func formatDBName(fileName string) string {
+	return filenameFormatter.ReplaceAllString(strings.TrimSuffix(fileName, filepath.Ext(fileName)), "_")
 }
 
 func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
@@ -336,11 +472,14 @@ func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig
 		return nil, err
 	}
 
-	hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
-		Type:   mount.TypeBind,
-		Source: r.RestoreOptions.DumpLocation,
-		Target: r.RestoreOptions.DumpLocation,
-	})
+	// Automatically mount the dump directory if it is a subdirectory of `mountDir`.
+	if strings.HasPrefix(r.RestoreOptions.DumpLocation, r.fsPool.MountDir) {
+		hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
+			Type:   mount.TypeBind,
+			Source: r.RestoreOptions.DumpLocation,
+			Target: r.RestoreOptions.DumpLocation,
+		})
+	}
 
 	return hostConfig, nil
 }
@@ -409,11 +548,40 @@ func (r *RestoreJob) updateDataStateAt() {
 	r.fsPool.SetDSA(dsaTime)
 }
 
-func (r *RestoreJob) buildLogicalRestoreCommand(dbName string, definition DBDefinition) []string {
+func (r *RestoreJob) buildLogicalRestoreCommand(dumpName string, definition DBDefinition) []string {
+	if definition.Format == plainFormat {
+		return r.buildPlainTextCommand(dumpName, definition)
+	}
+
+	return r.buildPGRestoreCommand(dumpName, definition)
+}
+
+func (r *RestoreJob) buildPlainTextCommand(dumpName string, definition DBDefinition) []string {
+	dbName := defaults.DBName
+
+	// It means a required database has been created in the previous step.
+	if definition.dbName == "" {
+		dbName = formatDBName(dumpName)
+	}
+
+	if len(definition.Tables) > 0 {
+		log.Msg("Partial restore is not available for plain-text dump")
+	}
+
+	if r.ParallelJobs > 1 {
+		log.Msg("Parallel restore is not available for plain-text dump. It is always single-threaded")
+	}
+
+	return []string{
+		"psql", "--username", r.globalCfg.Database.User(), "--dbname", dbName, "--file", r.getDumpLocation(definition.Format, dumpName),
+	}
+}
+
+func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DBDefinition) []string {
 	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName,
 		"--no-privileges", "--no-owner"}
 
-	if dbName != defaults.DBName {
+	if dumpName != defaults.DBName {
 		// To avoid recreating of the default database.
 		restoreCmd = append(restoreCmd, "--create")
 	}
@@ -432,14 +600,14 @@ func (r *RestoreJob) buildLogicalRestoreCommand(dbName string, definition DBDefi
 		}
 	}
 
-	restoreCmd = append(restoreCmd, r.getDumpLocation(definition.Format, dbName))
+	restoreCmd = append(restoreCmd, r.getDumpLocation(definition.Format, dumpName))
 
 	return restoreCmd
 }
 
 func (r *RestoreJob) getDumpLocation(dumpFormat, dbName string) string {
 	switch dumpFormat {
-	case customFormat, plainFormat:
+	case customFormat:
 		return r.RestoreOptions.DumpLocation
 
 	default:
