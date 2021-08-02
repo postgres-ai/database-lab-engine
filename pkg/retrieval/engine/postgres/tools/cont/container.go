@@ -11,11 +11,15 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-units"
+	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/options"
 )
 
 const (
@@ -140,4 +144,59 @@ func shouldStopInternalProcess(controlLabel string) bool {
 
 func getControlContainerName(controlCont types.Container) string {
 	return strings.Join(controlCont.Names, ", ")
+}
+
+// BuildHostConfig builds host config.
+func BuildHostConfig(ctx context.Context, docker *client.Client, dataDir string,
+	contConf map[string]interface{}) (*container.HostConfig, error) {
+	hostOptions, err := ResourceOptions(contConf)
+	if err != nil {
+		return nil, err
+	}
+
+	hostConfig := &container.HostConfig{
+		Resources: hostOptions.Resources,
+		ShmSize:   hostOptions.ShmSize,
+	}
+
+	if err := tools.AddVolumesToHostConfig(ctx, docker, hostConfig, dataDir); err != nil {
+		return nil, err
+	}
+
+	return hostConfig, nil
+}
+
+// ResourceOptions parses host config options.
+func ResourceOptions(containerConfigs map[string]interface{}) (*container.HostConfig, error) {
+	normalizedConfig := make(map[string]interface{}, len(containerConfigs))
+
+	for configKey, configValue := range containerConfigs {
+		normalizedKey := strings.ToLower(strings.ReplaceAll(configKey, "-", ""))
+
+		// Convert human-readable string representing an amount of memory.
+		if valueString, ok := configValue.(string); ok {
+			ramInBytes, err := units.RAMInBytes(valueString)
+			if err == nil {
+				normalizedConfig[normalizedKey] = ramInBytes
+				continue
+			}
+		}
+
+		normalizedConfig[normalizedKey] = configValue
+	}
+
+	// Unmarshal twice because composite types do not unmarshal correctly: https://github.com/go-yaml/yaml/issues/63
+	hostConfig := &container.HostConfig{}
+	if err := options.Unmarshal(normalizedConfig, &hostConfig); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal container configuration options")
+	}
+
+	resources := container.Resources{}
+	if err := options.Unmarshal(normalizedConfig, &resources); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal container configuration options")
+	}
+
+	hostConfig.Resources = resources
+
+	return hostConfig, nil
 }

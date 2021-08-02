@@ -29,6 +29,13 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 )
 
+const (
+	// LogicalInitialType declares a job type for preparing a logical initial snapshot.
+	LogicalInitialType = "logicalSnapshot"
+
+	patchContainerPrefix = "dblab_patch_"
+)
+
 // LogicalInitial describes a job for preparing a logical initial snapshot.
 type LogicalInitial struct {
 	name           string
@@ -51,16 +58,10 @@ type LogicalOptions struct {
 
 // DataPatching allows executing queries to transform data before snapshot taking.
 type DataPatching struct {
-	DockerImage        string             `yaml:"dockerImage"`
-	QueryPreprocessing QueryPreprocessing `yaml:"queryPreprocessing"`
+	DockerImage        string                 `yaml:"dockerImage"`
+	QueryPreprocessing QueryPreprocessing     `yaml:"queryPreprocessing"`
+	ContainerConfig    map[string]interface{} `yaml:"containerConfig"`
 }
-
-const (
-	// LogicalInitialType declares a job type for preparing a logical initial snapshot.
-	LogicalInitialType = "logicalSnapshot"
-
-	patchContainerPrefix = "dblab_patch_"
-)
 
 // NewLogicalInitialJob creates a new logical initial job.
 func NewLogicalInitialJob(cfg config.JobConfig, global *global.Config, cloneManager pool.FSManager) (*LogicalInitial, error) {
@@ -171,7 +172,7 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 		return errors.Wrap(err, "failed to generate PostgreSQL password")
 	}
 
-	hostConfig, err := s.buildHostConfig(ctx)
+	hostConfig, err := cont.BuildHostConfig(ctx, s.dockerClient, s.fsPool.DataDir(), s.options.DataPatching.ContainerConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to build container host config")
 	}
@@ -214,16 +215,6 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 	}
 
 	return nil
-}
-
-func (s *LogicalInitial) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
-	hostConfig := &container.HostConfig{}
-
-	if err := tools.AddVolumesToHostConfig(ctx, s.dockerClient, hostConfig, s.fsPool.DataDir()); err != nil {
-		return nil, err
-	}
-
-	return hostConfig, nil
 }
 
 func (s *LogicalInitial) buildContainerConfig(clonePath, patchImage, password string) *container.Config {

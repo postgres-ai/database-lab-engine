@@ -11,6 +11,7 @@ require (
 	github.com/docker/cli v0.0.0-20200721130541-80fd48bcb7e7
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0
+	github.com/docker/go-units v0.4.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/google/go-github/v34 v34.0.0

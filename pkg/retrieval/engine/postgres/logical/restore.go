@@ -90,12 +90,13 @@ type RestoreJob struct {
 
 // RestoreOptions defines a logical restore options.
 type RestoreOptions struct {
-	DumpLocation string                  `yaml:"dumpLocation"`
-	DockerImage  string                  `yaml:"dockerImage"`
-	Databases    map[string]DBDefinition `yaml:"databases"`
-	ForceInit    bool                    `yaml:"forceInit"`
-	ParallelJobs int                     `yaml:"parallelJobs"`
-	Configs      map[string]string       `yaml:"configs"`
+	DumpLocation    string                  `yaml:"dumpLocation"`
+	DockerImage     string                  `yaml:"dockerImage"`
+	ContainerConfig map[string]interface{}  `yaml:"containerConfig"`
+	Databases       map[string]DBDefinition `yaml:"databases"`
+	ForceInit       bool                    `yaml:"forceInit"`
+	ParallelJobs    int                     `yaml:"parallelJobs"`
+	Configs         map[string]string       `yaml:"configs"`
 }
 
 // Partial defines tables and rules for a partial logical restore.
@@ -172,7 +173,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to scan image pulling response")
 	}
 
-	hostConfig, err := r.buildHostConfig(ctx)
+	hostConfig, err := r.getHostConfig(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to build container host config")
 	}
@@ -465,10 +466,9 @@ func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 	}
 }
 
-func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
-	hostConfig := &container.HostConfig{}
-
-	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.fsPool.DataDir()); err != nil {
+func (r *RestoreJob) getHostConfig(ctx context.Context) (*container.HostConfig, error) {
+	hostConfig, err := cont.BuildHostConfig(ctx, r.dockerClient, r.fsPool.DataDir(), r.RestoreOptions.ContainerConfig)
+	if err != nil {
 		return nil, err
 	}
 

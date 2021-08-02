@@ -71,23 +71,51 @@ poolManager:
   # Snapshots with this suffix are considered preliminary. They are not supposed to be accessible to end-users.
   preSnapshotSuffix: "_pre"
 
+# Configure database containers
+databaseContainer: &db_container
+  # Database Lab provisions thin clones using Docker containers and uses auxiliary containers.
+  # We need to specify which Postgres Docker image is to be used for that.
+  # The default is the extended Postgres image built on top of the official Postgres image
+  # (See https://postgres.ai/docs/database-lab/supported_databases).
+  # It is possible to choose any custom or official Docker image that runs Postgres. Our Dockerfile
+  # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
+  # is recommended in case if customization is needed.
+  dockerImage: "postgresai/extended-postgres:13"
+
+  # Custom parameters for containers with PostgreSQL, see
+  # https://docs.docker.com/engine/reference/run/#runtime-constraints-on-resources
+  containerConfig:
+    "shm-size": 1gb
+
+# Adjust database configuration
+databaseConfigs: &db_configs
+  configs:
+    # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
+    shared_buffers: 1GB
+    # shared_preload_libraries – copy the value from the source
+    # Adding shared preload libraries, make sure that there are "pg_stat_statements, auto_explain, logerrors" in the list.
+    # It is necessary to perform query and db migration analysis.
+    shared_preload_libraries: "pg_stat_statements, auto_explain, logerrors"
+    # work_mem and all the Query Planning parameters – copy the values from the source.
+    # To do it, use this query:
+    #     select format($$%s = '%s'$$, name, setting)
+    #     from pg_settings
+    #     where
+    #       name ~ '(work_mem$|^enable_|_cost$|scan_size$|effective_cache_size|^jit)'
+    #       or name ~ '(^geqo|default_statistics_target|constraint_exclusion|cursor_tuple_fraction)'
+    #       or name ~ '(collapse_limit$|parallel|plan_cache_mode)';
+    work_mem: "100MB"
+    # ... put Query Planning parameters here
+
 # Details of provisioning – where data is located,
 # thin cloning method, etc.
 provision:
+  <<: *db_container
   # Pool of ports for Postgres clones. Ports will be allocated sequentially,
   # starting from the lowest value. The "from" value must be less than "to".
   portPool:
     from: 6000
     to: 6100
-
-  # Database Lab provisions thin clones using Docker containers, we need
-  # to specify which Postgres Docker image is to be used when cloning.
-  # The default is the extended Postgres image built on top of the official Postgres image
-  # (See https://postgres.ai/docs/database-lab/supported_databases).
-  # Any custom or official Docker image that runs Postgres. Our Dockerfile
-  # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
-  # is recommended in case if customization is needed.
-  dockerImage: "postgresai/extended-postgres:13"
 
   # Use sudo for ZFS/LVM and Docker commands if Database Lab server running
   # outside a container. Keep it "false" (default) when running in a container.
@@ -96,10 +124,6 @@ provision:
   # Avoid default password resetting in clones and have the ability for
   # existing users to log in with old passwords.
   keepUserPasswords: false
-
-  # Custom parameters for clone containers (https://docs.docker.com/engine/reference/run/#runtime-constraints-on-resources).
-  containerConfig:
-    "shm-size": 1gb
 
 # Data retrieval flow. This section defines both initial retrieval, and rules
 # to keep the data directory in a synchronized state with the source. Both are optional:
@@ -145,12 +169,10 @@ retrieval:
     # Dumps PostgreSQL database from provided source.
     logicalDump:
       options:
+        <<: *db_container
         # The dump file will be automatically created on this location and then used to restore.
         # Ensure that there is enough disk space.
         dumpLocation: "/var/lib/dblab/dblab_pool/dump"
-
-        # The Docker image containing the tools required to get a dump.
-        dockerImage: "postgresai/extended-postgres:13"
 
         # Source of data.
         source:
@@ -202,18 +224,15 @@ retrieval:
         #   forceInit: false
         #   # Option to adjust PostgreSQL configuration for a logical dump job.
         #   # It's useful if a dumped database contains non-standard extensions.
-        #   configs:
-        #      shared_preload_libraries: "pg_stat_statements"
+        #   <<: *pg_configs
 
     # Restores PostgreSQL database from the provided dump. If you use this block, do not use
     # "restore" option in the "logicalDump" job.
     logicalRestore:
       options:
+        <<: *db_container
         # The location of the archive file (or directory, for a directory-format archive) to be restored.
         dumpLocation: "/var/lib/dblab/dblab_pool/dump"
-
-        # The Docker image containing the tools required to restore.
-        dockerImage: "postgresai/extended-postgres:13"
 
         # Use parallel jobs to restore faster.
         parallelJobs: 2
@@ -224,8 +243,7 @@ retrieval:
 
         # Option to adjust PostgreSQL configuration for a logical restore job
         # It's useful if a restored database contains non-standard extensions.
-        # configs:
-        #  shared_preload_libraries: "pg_stat_statements"
+        #   <<: *pg_configs
 
         # Option for specifying the database list that must be restored.
         # By default, DLE restores all available databases.
@@ -242,41 +260,23 @@ retrieval:
 
     logicalSnapshot:
       options:
-        # Define pre-precessing SQL queries for data patching. For example, "/tmp/scripts/sql".
-        dataPatching:
-          # The Docker image to run data patching container.
-          dockerImage: "postgresai/extended-postgres:13"
-
-          queryPreprocessing:
-            # Path to SQL pre-processing queries. Default: empty string (no pre-processing defined).
-            queryPath: ""
-
-            # Worker limit for parallel queries.
-            maxParallelWorkers: 2
+        # Adjust PostgreSQL configuration
+        <<: *db_configs
 
         # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
         # Default: empty string (no pre-processing defined).
         # This can be used for scrubbing eliminating PII data, to define data masking, etc.
         preprocessingScript: ""
 
-        # Adjust PostgreSQL configuration
-        configs:
-          # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
-          shared_buffers: 1GB
-          # shared_preload_libraries – copy the value from the source
-          # Adding shared preload libraries, make sure that there are "pg_stat_statements, auto_explain, logerrors" in the list.
-          # It is necessary to perform query and db migration analysis.
-          shared_preload_libraries: "pg_stat_statements, auto_explain, logerrors"
-          # work_mem and all the Query Planning parameters – copy the values from the source.
-          # To do it, use this query:
-          #     select format($$%s = '%s'$$, name, setting)
-          #     from pg_settings
-          #     where
-          #       name ~ '(work_mem$|^enable_|_cost$|scan_size$|effective_cache_size|^jit)'
-          #       or name ~ '(^geqo|default_statistics_target|constraint_exclusion|cursor_tuple_fraction)'
-          #       or name ~ '(collapse_limit$|parallel|plan_cache_mode)';
-          work_mem: "100MB"
-          # ... put Query Planning parameters here
+        # Define pre-precessing SQL queries for data patching. For example, "/tmp/scripts/sql".
+        dataPatching:
+          <<: *db_container
+          queryPreprocessing:
+            # Path to SQL pre-processing queries. Default: empty string (no pre-processing defined).
+            queryPath: ""
+
+            # Worker limit for parallel queries.
+            maxParallelWorkers: 2
 
 cloning:
   # Host that will be specified in database connection info for all clones
