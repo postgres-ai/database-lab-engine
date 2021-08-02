@@ -107,12 +107,13 @@ type PhysicalOptions struct {
 
 // Promotion describes promotion options.
 type Promotion struct {
-	Enabled            bool               `yaml:"enabled"`
-	DockerImage        string             `yaml:"dockerImage"`
-	HealthCheck        HealthCheck        `yaml:"healthCheck"`
-	QueryPreprocessing QueryPreprocessing `yaml:"queryPreprocessing"`
-	Configs            map[string]string  `yaml:"configs"`
-	Recovery           map[string]string  `yaml:"recovery"`
+	Enabled            bool                   `yaml:"enabled"`
+	DockerImage        string                 `yaml:"dockerImage"`
+	ContainerConfig    map[string]interface{} `yaml:"containerConfig"`
+	HealthCheck        HealthCheck            `yaml:"healthCheck"`
+	QueryPreprocessing QueryPreprocessing     `yaml:"queryPreprocessing"`
+	Configs            map[string]string      `yaml:"configs"`
+	Recovery           map[string]string      `yaml:"recovery"`
 }
 
 // HealthCheck describes health check options of a promotion.
@@ -839,13 +840,12 @@ func (p *PhysicalInitial) getEnvironmentVariables(clonePath, password string) []
 }
 
 func (p *PhysicalInitial) buildHostConfig(ctx context.Context, clonePath string) (*container.HostConfig, error) {
-	hostConfig := &container.HostConfig{
-		Sysctls: p.options.Sysctls,
-	}
-
-	if err := tools.AddVolumesToHostConfig(ctx, p.dockerClient, hostConfig, clonePath); err != nil {
+	hostConfig, err := cont.BuildHostConfig(ctx, p.dockerClient, clonePath, p.options.Promotion.ContainerConfig)
+	if err != nil {
 		return nil, err
 	}
+
+	hostConfig.Sysctls = p.options.Sysctls
 
 	return hostConfig, nil
 }

@@ -65,12 +65,13 @@ type RestoreJob struct {
 
 // CopyOptions describes options for physical copying.
 type CopyOptions struct {
-	Tool        string            `yaml:"tool"`
-	DockerImage string            `yaml:"dockerImage"`
-	Envs        map[string]string `yaml:"envs"`
-	WALG        walgOptions       `yaml:"walg"`
-	CustomTool  customOptions     `yaml:"customTool"`
-	Sync        Sync              `yaml:"sync"`
+	Tool            string                 `yaml:"tool"`
+	DockerImage     string                 `yaml:"dockerImage"`
+	ContainerConfig map[string]interface{} `yaml:"containerConfig"`
+	Envs            map[string]string      `yaml:"envs"`
+	WALG            walgOptions            `yaml:"walg"`
+	CustomTool      customOptions          `yaml:"customTool"`
+	Sync            Sync                   `yaml:"sync"`
 }
 
 // Sync describes sync instance options.
@@ -266,7 +267,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 }
 
 func (r *RestoreJob) startContainer(ctx context.Context, containerName string, containerConfig *container.Config) (string, error) {
-	hostConfig, err := r.buildHostConfig(ctx)
+	hostConfig, err := cont.BuildHostConfig(ctx, r.dockerClient, r.fsPool.DataDir(), r.CopyOptions.ContainerConfig)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to build container host config")
 	}
@@ -338,16 +339,6 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) (err error) {
 	log.Msg("Sync instance has been running")
 
 	return nil
-}
-
-func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
-	hostConfig := &container.HostConfig{}
-
-	if err := tools.AddVolumesToHostConfig(ctx, r.dockerClient, hostConfig, r.fsPool.DataDir()); err != nil {
-		return nil, err
-	}
-
-	return hostConfig, nil
 }
 
 func (r *RestoreJob) buildSyncInstanceConfig() (*container.Config, error) {

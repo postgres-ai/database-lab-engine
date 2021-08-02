@@ -78,13 +78,14 @@ type DumpJob struct {
 
 // DumpOptions defines a logical dump options.
 type DumpOptions struct {
-	DumpLocation string                  `yaml:"dumpLocation"`
-	DockerImage  string                  `yaml:"dockerImage"`
-	Connection   Connection              `yaml:"connection"`
-	Source       Source                  `yaml:"source"`
-	Databases    map[string]DBDefinition `yaml:"databases"`
-	ParallelJobs int                     `yaml:"parallelJobs"`
-	Restore      ImmediateRestore        `yaml:"immediateRestore"`
+	DumpLocation    string                  `yaml:"dumpLocation"`
+	DockerImage     string                  `yaml:"dockerImage"`
+	ContainerConfig map[string]interface{}  `yaml:"containerConfig"`
+	Connection      Connection              `yaml:"connection"`
+	Source          Source                  `yaml:"source"`
+	Databases       map[string]DBDefinition `yaml:"databases"`
+	ParallelJobs    int                     `yaml:"parallelJobs"`
+	Restore         ImmediateRestore        `yaml:"immediateRestore"`
 }
 
 // Source describes source of data to dump.
@@ -554,13 +555,12 @@ func (d *DumpJob) buildContainerConfig(password string) *container.Config {
 }
 
 func (d *DumpJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
-	hostConfig := &container.HostConfig{
-		NetworkMode: d.getContainerNetworkMode(),
-	}
-
-	if err := tools.AddVolumesToHostConfig(ctx, d.dockerClient, hostConfig, d.fsPool.DataDir()); err != nil {
+	hostConfig, err := cont.BuildHostConfig(ctx, d.dockerClient, d.fsPool.DataDir(), d.DumpOptions.ContainerConfig)
+	if err != nil {
 		return nil, err
 	}
+
+	hostConfig.NetworkMode = d.getContainerNetworkMode()
 
 	// Mount the dump location directory.
 	hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{

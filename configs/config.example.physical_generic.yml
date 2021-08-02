@@ -71,23 +71,51 @@ poolManager:
   # Snapshots with this suffix are considered preliminary. They are not supposed to be accessible to end-users.
   preSnapshotSuffix: "_pre"
 
-# Details of provisioning – where data is located,
-# thin cloning method, etc.
-provision:
-  # Pool of ports for Postgres clones. Ports will be allocated sequentially,
-  # starting from the lowest value. The "from" value must be less than "to".
-  portPool:
-    from: 6000
-    to: 6100
-
-  # Database Lab provisions thin clones using Docker containers, we need
-  # to specify which Postgres Docker image is to be used when cloning.
+# Configure PostgreSQL containers
+postgresContainer: &pg_container
+  # Database Lab provisions thin clones using Docker containers and uses auxiliary containers.
+  # We need to specify which Postgres Docker image is to be used for that.
   # The default is the extended Postgres image built on top of the official Postgres image
   # (See https://postgres.ai/docs/database-lab/supported_databases).
   # Any custom or official Docker image that runs Postgres. Our Dockerfile
   # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
   # is recommended in case if customization is needed.
   dockerImage: "postgresai/extended-postgres:13"
+
+  # Custom parameters for containers with PostgreSQL, see
+  # https://docs.docker.com/engine/reference/run/#runtime-constraints-on-resources
+  containerConfig:
+    "shm-size": 1gb
+
+# Adjust PostgreSQL configuration
+postgresConfigs: &pg_configs
+  configs:
+    # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
+    shared_buffers: 1GB
+    # shared_preload_libraries – copy the value from the source
+    # Adding shared preload libraries, make sure that there are "pg_stat_statements, auto_explain, logerrors" in the list.
+    # It is necessary to perform query and db migration analysis.
+    shared_preload_libraries: "pg_stat_statements, auto_explain, logerrors"
+    # work_mem and all the Query Planning parameters – copy the values from the source.
+    # To do it, use this query:
+    #     select format($$%s = '%s'$$, name, setting)
+    #     from pg_settings
+    #     where
+    #       name ~ '(work_mem$|^enable_|_cost$|scan_size$|effective_cache_size|^jit)'
+    #       or name ~ '(^geqo|default_statistics_target|constraint_exclusion|cursor_tuple_fraction)'
+    #       or name ~ '(collapse_limit$|parallel|plan_cache_mode)';
+    work_mem: "100MB"
+    # ... put Query Planning parameters here
+
+# Details of provisioning – where data is located,
+# thin cloning method, etc.
+provision:
+  <<: *pg_container
+  # Pool of ports for Postgres clones. Ports will be allocated sequentially,
+  # starting from the lowest value. The "from" value must be less than "to".
+  portPool:
+    from: 6000
+    to: 6100
 
   # Use sudo for ZFS/LVM and Docker commands if Database Lab server running
   # outside a container. Keep it "false" (default) when running in a container.
@@ -96,10 +124,6 @@ provision:
   # Avoid default password resetting in clones and have the ability for
   # existing users to log in with old passwords.
   keepUserPasswords: false
-
-  # Custom parameters for clone containers (https://docs.docker.com/engine/reference/run/#runtime-constraints-on-resources).
-  containerConfig:
-    "shm-size": 1gb
 
 # Data retrieval flow. This section defines both initial retrieval, and rules
 # to keep the data directory in a synchronized state with the source. Both are optional:
@@ -139,11 +163,9 @@ retrieval:
     # Restores database data from a physical backup.
     physicalRestore:
       options:
+        <<: *pg_container
         # Defines the tool to restore data.
         tool: customTool
-
-        # Specifies the Docker image containing the restoring tool.
-        dockerImage: "postgresai/extended-postgres:13"
 
         # Sync instance options.
         sync:
@@ -191,13 +213,14 @@ retrieval:
         # Skip taking a snapshot while the retrieval starts.
         skipStartSnapshot: false
 
+        # Adjust PostgreSQL configuration of the snapshot.
+        <<: *pg_configs
+
         # Promote PGDATA after data fetching.
         promotion:
+          <<: *pg_container
           # Enable PGDATA promotion.
           enabled: true
-
-          # Custom Docker image for data promotion.
-          dockerImage: "postgresai/extended-postgres:13"
 
           # Custom health check options for a data promotion container.
           healthCheck:
@@ -229,27 +252,6 @@ retrieval:
         # Default: empty string (no pre-processing defined).
         # This can be used for scrubbing eliminating PII data, to define data masking, etc.
         preprocessingScript: ""
-
-        # Adjust PostgreSQL configuration of the snapshot.
-        configs:
-          # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
-          shared_buffers: 1GB
-
-          # shared_preload_libraries – copy the value from the source
-          # Adding shared preload libraries, make sure that there are "pg_stat_statements, auto_explain, logerrors" in the list.
-          # It is necessary to perform query and db migration analysis.
-          shared_preload_libraries: "pg_stat_statements, auto_explain, logerrors"
-
-          # work_mem and all the Query Planning parameters – copy the values from the source.
-          # To do it, use this query:
-          #     select format($$%s = '%s'$$, name, setting)
-          #     from pg_settings
-          #     where
-          #       name ~ '(work_mem$|^enable_|_cost$|scan_size$|effective_cache_size|^jit)'
-          #       or name ~ '(^geqo|default_statistics_target|constraint_exclusion|cursor_tuple_fraction)'
-          #       or name ~ '(collapse_limit$|parallel|plan_cache_mode)';
-          work_mem: "100MB"
-          # ... put Query Planning parameters here
 
         # Scheduler contains tasks that run on a schedule.
         scheduler:
