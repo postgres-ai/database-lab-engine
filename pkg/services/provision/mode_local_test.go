@@ -3,10 +3,13 @@ package provision
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 )
 
 type mockPortChecker struct{}
@@ -56,4 +59,67 @@ func TestPortAllocation(t *testing.T) {
 	// Try to free a non-existing port.
 	err = p.freePort(1)
 	assert.EqualError(t, err, "port 1 is out of bounds of the port pool")
+}
+
+type mockFSManager struct{}
+
+func (m mockFSManager) CreateClone(name, snapshotID string) error {
+	return nil
+}
+
+func (m mockFSManager) DestroyClone(name string) error {
+	return nil
+}
+
+func (m mockFSManager) ListClonesNames() ([]string, error) {
+	return []string{"test_clone_0001", "test_clone_0002"}, nil
+}
+
+func (m mockFSManager) CreateSnapshot(poolSuffix, dataStateAt string) (snapshotName string, err error) {
+	return "", nil
+}
+
+func (m mockFSManager) DestroySnapshot(snapshotName string) (err error) {
+	return nil
+}
+
+func (m mockFSManager) CleanupSnapshots(retentionLimit int) ([]string, error) {
+	return nil, nil
+}
+
+func (m mockFSManager) GetSnapshots() ([]resources.Snapshot, error) {
+	return nil, nil
+}
+
+func (m mockFSManager) GetSessionState(name string) (*resources.SessionState, error) {
+	return nil, nil
+}
+
+func (m mockFSManager) GetDiskState() (*resources.Disk, error) {
+	return nil, nil
+}
+
+func (m mockFSManager) Pool() *resources.Pool {
+	return &resources.Pool{
+		Name: "TestPool",
+		Mode: "zfs",
+		DSA:  time.Date(2021, 8, 1, 0, 0, 0, 0, time.UTC),
+	}
+}
+
+func TestBuildPoolEntry(t *testing.T) {
+	testFSManager := mockFSManager{}
+	active := testFSManager
+
+	expectedEntry := models.PoolEntry{
+		Name:        "TestPool",
+		Mode:        "zfs",
+		DataStateAt: "2021-08-01 00:00:00 +0000 UTC",
+		Status:      models.ActivePool,
+		CloneList:   []string{"test_clone_0001", "test_clone_0002"},
+	}
+
+	poolEntry, err := buildPoolEntry(testFSManager, active)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedEntry, poolEntry)
 }
