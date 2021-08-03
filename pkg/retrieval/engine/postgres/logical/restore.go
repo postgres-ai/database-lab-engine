@@ -21,10 +21,9 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"github.com/lib/pq"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
@@ -50,28 +49,31 @@ const (
 	// defaultParallelJobs declares a default number of parallel jobs for logical dump and restore.
 	defaultParallelJobs = 1
 
-	// dumpMetafile describes metafile name of a custom dump.
+	// dumpMetafile defines metafile name of a directory dump.
 	dumpMetafile = "toc.dat"
 
-	// prefixDBName describes a prefix of database name inside of a custom dump metafile.
+	// prefixDBName defines a prefix of database name inside of a custom dump metafile.
 	prefixDBName = "dbname:"
 
-	// prefixConnectDB describes a prefix for connection to a database construction.
+	// prefixConnectDB defines a prefix for connection to a database construction.
 	prefixConnectDB = `\connect `
 
-	// prefixCreateTable describes a prefix for creation table query.
+	// prefixCreateTable defines a prefix for creation table query.
 	prefixCreateTable = "CREATE TABLE "
 
 	// templateCreateDB provides a template for preparing database creation queries.
 	templateCreateDB = `
-create database @database with template = template0 encoding = 'utf8';
-alter database @database owner to @username; 
+create database "@database" with template = template0 encoding = 'utf8';
+alter database "@database" owner to "@username"; 
 `
 )
 
 var (
 	// errDBNameNotFound occurs when could not detect the name of the database in the provided dump.
-	errDBNameNotFound = errors.New("Database name not found")
+	errDBNameNotFound = errors.New("database name not found")
+
+	// errInvalidDump occurs when invalid dump found in the provided location.
+	errInvalidDump = errors.New("invalid dump provided")
 
 	// filenameFormatter replaces all non-word characters to an underscore.
 	filenameFormatter = regexp.MustCompile(`\W`)
@@ -79,24 +81,25 @@ var (
 
 // RestoreJob defines a logical restore job.
 type RestoreJob struct {
-	name         string
-	dockerClient *client.Client
-	fsPool       *resources.Pool
-	globalCfg    *global.Config
-	dbMarker     *dbmarker.Marker
-	dbMark       *dbmarker.Config
+	name              string
+	dockerClient      *client.Client
+	fsPool            *resources.Pool
+	globalCfg         *global.Config
+	dbMarker          *dbmarker.Marker
+	dbMark            *dbmarker.Config
+	isDumpLocationDir bool
 	RestoreOptions
 }
 
 // RestoreOptions defines a logical restore options.
 type RestoreOptions struct {
-	DumpLocation    string                  `yaml:"dumpLocation"`
-	DockerImage     string                  `yaml:"dockerImage"`
-	ContainerConfig map[string]interface{}  `yaml:"containerConfig"`
-	Databases       map[string]DBDefinition `yaml:"databases"`
-	ForceInit       bool                    `yaml:"forceInit"`
-	ParallelJobs    int                     `yaml:"parallelJobs"`
-	Configs         map[string]string       `yaml:"configs"`
+	DumpLocation    string                    `yaml:"dumpLocation"`
+	DockerImage     string                    `yaml:"dockerImage"`
+	ContainerConfig map[string]interface{}    `yaml:"containerConfig"`
+	Databases       map[string]DumpDefinition `yaml:"databases"`
+	ForceInit       bool                      `yaml:"forceInit"`
+	ParallelJobs    int                       `yaml:"parallelJobs"`
+	Configs         map[string]string         `yaml:"configs"`
 }
 
 // Partial defines tables and rules for a partial logical restore.
@@ -148,6 +151,13 @@ func (r *RestoreJob) Reload(cfg map[string]interface{}) (err error) {
 
 	r.setDefaults()
 
+	stat, err := os.Stat(r.RestoreOptions.DumpLocation)
+	if err != nil {
+		return errors.Wrap(err, "dumpLocation not found")
+	}
+
+	r.isDumpLocationDir = stat.IsDir()
+
 	return nil
 }
 
@@ -173,7 +183,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to scan image pulling response")
 	}
 
-	hostConfig, err := r.getHostConfig(ctx)
+	hostConfig, err := cont.BuildHostConfig(ctx, r.dockerClient, r.fsPool.DataDir(), r.RestoreOptions.ContainerConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to build container host config")
 	}
@@ -228,7 +238,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		}
 	}
 
-	dbList, err := r.getDBList(ctx, r.RestoreOptions.DumpLocation, dumpMetafile, restoreCont.ID)
+	dbList, err := r.getDBList(ctx, restoreCont.ID)
 	if err != nil {
 		return err
 	}
@@ -261,67 +271,92 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	return nil
 }
 
-func (r *RestoreJob) getDBList(ctx context.Context, dumpLocation, dumpFileMeta, contID string) (map[string]DBDefinition, error) {
+func (r *RestoreJob) getDBList(ctx context.Context, contID string) (map[string]DumpDefinition, error) {
 	if len(r.Databases) > 0 {
 		return r.Databases, nil
 	}
 
-	dumpMetafilePath := path.Join(dumpLocation, dumpFileMeta)
-
-	_, err := os.Stat(dumpMetafilePath)
-	if err == nil {
-		return r.discoverCustomDump(ctx, contID, dumpMetafilePath)
-	}
-
-	if os.IsNotExist(err) {
-		log.Dbg("Dump of custom format not found. Discovering dump location")
-
-		return r.discoverDumpLocation(dumpLocation)
-	}
-
-	return nil, err
-}
-
-// discoverDumpLocation discovers a dump location when a metafile of a custom dump format does not exist.
-func (r *RestoreJob) discoverDumpLocation(dumpLocation string) (map[string]DBDefinition, error) {
-	fileInfos, err := ioutil.ReadDir(dumpLocation)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to discover dump location")
-	}
-
-	dbList := map[string]DBDefinition{}
-
-	for _, info := range fileInfos {
-		if info.IsDir() {
-			dbList[info.Name()] = DBDefinition{
-				Format: directoryFormat,
-			}
-
-			continue
+	if !r.isDumpLocationDir {
+		dbDefinition, err := r.exploreDumpFile(ctx, contID, r.RestoreOptions.DumpLocation)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find a database to restore in dump files")
 		}
 
-		dumpPath := path.Join(dumpLocation, info.Name())
+		if dbDefinition == nil {
+			return nil, errors.Wrap(err, "database definition not found")
+		}
 
-		dbName, err := r.parsePlainFile(dumpPath)
-		if err != nil {
-			if errors.Is(err, errDBNameNotFound) {
-				dbList[info.Name()] = DBDefinition{
-					Format: plainFormat,
-				}
+		return map[string]DumpDefinition{
+			filepath.Base(r.RestoreOptions.DumpLocation): *dbDefinition,
+		}, nil
+	}
 
-				continue
-			}
+	return r.discoverDumpLocation(ctx, contID)
+}
 
+// discoverDumpLocation explores dump file to identify its type.
+func (r *RestoreJob) exploreDumpFile(ctx context.Context, contID, dumpPath string) (*DumpDefinition, error) {
+	// Detect if dump is custom.
+	dbName, err := r.extractDBNameFromDump(ctx, contID, dumpPath)
+	if err != nil {
+		if !errors.Is(err, errInvalidDump) {
 			return nil, err
 		}
 
-		dbList[info.Name()] = DBDefinition{
-			Format: plainFormat,
-			dbName: dbName,
-		}
+		log.Dbg(dumpPath + " is not a dump file in the custom format")
 	}
 
-	return dbList, nil
+	if dbName != "" {
+		return &DumpDefinition{
+			Format: customFormat,
+			dbName: dbName,
+		}, nil
+	}
+
+	// Identify type of compression if plain-text dump is archived.
+	dbDefinition := &DumpDefinition{
+		Format:      plainFormat,
+		Compression: getCompressionType(dumpPath),
+	}
+
+	if dbDefinition.Compression != noCompression {
+		return dbDefinition, nil
+	}
+
+	// Extract database name from plain-text dump.
+	dbName, err = r.parsePlainFile(dumpPath)
+	if err != nil {
+		if errors.Is(err, errDBNameNotFound) {
+			return dbDefinition, nil
+		}
+
+		return nil, err
+	}
+
+	dbDefinition.dbName = dbName
+
+	return dbDefinition, nil
+}
+
+// extractDBNameFromDump discovers dump to extract the database name.
+func (r *RestoreJob) extractDBNameFromDump(ctx context.Context, contID, dumpPath string) (string, error) {
+	extractDBNameCmd := fmt.Sprintf("pg_restore --list %s | grep %s | tr -d '[;]'", dumpPath, prefixDBName)
+	log.Msg("Extract database name: ", extractDBNameCmd)
+
+	outputLine, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
+		Cmd: []string{"bash", "-c", extractDBNameCmd},
+	})
+	if err != nil {
+		return "", errInvalidDump
+	}
+
+	if outputLine == "" {
+		return "", errors.New("database name to restore not found")
+	}
+
+	dbName := strings.TrimSpace(strings.TrimPrefix(outputLine, prefixDBName))
+
+	return dbName, nil
 }
 
 func (r *RestoreJob) parsePlainFile(dumpPath string) (string, error) {
@@ -352,38 +387,68 @@ func (r *RestoreJob) parsePlainFile(dumpPath string) (string, error) {
 
 		if bytes.HasPrefix(sc.Bytes(), tablePrefix) {
 			// The dump does not contain the database name.
-			break
+			return "", errDBNameNotFound
 		}
 	}
 
-	return "", errDBNameNotFound
+	return "", errors.Errorf("unknown format of the dump file: %v", dumpPath)
 }
 
-// discoverCustomDump discovers a dump location when a metafile exists in order to to extract a database name.
-func (r *RestoreJob) discoverCustomDump(ctx context.Context, contID, dumpMetaPath string) (map[string]DBDefinition, error) {
-	extractDBNameCmd := fmt.Sprintf("pg_restore --list %s | grep %s | tr -d '[;]'", dumpMetaPath, prefixDBName)
-	log.Msg("Extract database name: ", extractDBNameCmd)
-
-	outputLine, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
-		Cmd: []string{"bash", "-c", extractDBNameCmd},
-	})
+// discoverDumpLocation discovers dump location to find databases ready to restore.
+func (r *RestoreJob) discoverDumpLocation(ctx context.Context, contID string) (map[string]DumpDefinition, error) {
+	fileInfos, err := ioutil.ReadDir(r.RestoreOptions.DumpLocation)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to find a database name to restore")
+		return nil, errors.Wrap(err, "failed to discover dump location")
 	}
 
-	if outputLine == "" {
-		return nil, errors.New("a database name to restore not found")
-	}
+	dbList := make(map[string]DumpDefinition)
 
-	dbName := strings.TrimSpace(strings.TrimPrefix(outputLine, prefixDBName))
-	dbList := map[string]DBDefinition{
-		dbName: {Format: customFormat},
+	for _, info := range fileInfos {
+		log.Dbg("Explore: ", info.Name())
+
+		if info.IsDir() {
+			dumpMetafilePath := path.Join(r.RestoreOptions.DumpLocation, info.Name(), dumpMetafile)
+			if _, err := os.Stat(dumpMetafilePath); err != nil {
+				log.Msg(fmt.Sprintf("TOC file not found: %v. Skip directory: %s", err, info.Name()))
+				continue
+			}
+
+			dbName, err := r.extractDBNameFromDump(ctx, contID, path.Join(r.RestoreOptions.DumpLocation, info.Name()))
+			if err != nil {
+				log.Msg(fmt.Sprintf("Invalid dump: %v. Skip directory: %s", err, info.Name()))
+				continue
+			}
+
+			dbList[info.Name()] = DumpDefinition{
+				Format: directoryFormat,
+				dbName: dbName,
+			}
+
+			log.Msg("Found the directory dump: ", info.Name())
+
+			continue
+		}
+
+		dbDefinition, err := r.exploreDumpFile(ctx, contID, path.Join(r.RestoreOptions.DumpLocation, info.Name()))
+		if err != nil {
+			log.Dbg(fmt.Sprintf("Skip file %q due to failure to find a database to restore: %v", info.Name(), err))
+			continue
+		}
+
+		if dbDefinition == nil {
+			log.Dbg(fmt.Sprintf("Skip file %q because the database definition is empty", info.Name()))
+			continue
+		}
+
+		dbList[info.Name()] = *dbDefinition
+
+		log.Msg(fmt.Sprintf("Found the %s dump file: %s", dbDefinition.Format, info.Name()))
 	}
 
 	return dbList, nil
 }
 
-func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDefinition DBDefinition) error {
+func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDefinition DumpDefinition) error {
 	// The dump contains no database creation requests, so create a new database by ourselves.
 	if dbDefinition.Format == plainFormat && dbDefinition.dbName == "" {
 		if err := r.prepareDB(ctx, contID, dbName); err != nil {
@@ -392,12 +457,17 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 	}
 
 	restoreCommand := r.buildLogicalRestoreCommand(dbName, dbDefinition)
-	log.Msg("Running restore command: ", restoreCommand)
+	log.Msg("Running restore command for "+dbName, restoreCommand)
 
-	if output, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
+	output, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
 		Tty: true, Cmd: restoreCommand,
-	}); err != nil {
-		log.Dbg(output)
+	})
+
+	if output != "" {
+		log.Dbg("Output of the restore command: ", output)
+	}
+
+	if err != nil {
 		return errors.Wrap(err, "failed to exec restore command")
 	}
 
@@ -420,11 +490,11 @@ func (r *RestoreJob) prepareDB(ctx context.Context, contID, dbName string) error
 	log.Dbg("The dump has a plain-text format with an empty database name. Creating a database for the dump:", dbName)
 
 	replacer := strings.NewReplacer(
-		"@database", pq.QuoteLiteral(formatDBName(dbName)),
-		"@username", pq.QuoteLiteral(r.globalCfg.Database.User()))
+		"@database", formatDBName(dbName),
+		"@username", r.globalCfg.Database.User())
 	creationSQL := replacer.Replace(templateCreateDB)
 
-	tempFile, err := ioutil.TempFile(r.DumpLocation, "createdb_"+dbName+"_*.sql")
+	tempFile, err := ioutil.TempFile("", "createdb_"+dbName+"_*.sql")
 	if err != nil {
 		return err
 	}
@@ -436,11 +506,51 @@ func (r *RestoreJob) prepareDB(ctx context.Context, contID, dbName string) error
 		return err
 	}
 
-	cmd := []string{"psql", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName, "--file", tempFile.Name()}
+	dstPath := path.Join("/tmp", dbName)
+
+	// Copy the temporary file to the restore container.
+	if err := r.prepareArchive(ctx, contID, tempFile, dstPath); err != nil {
+		return errors.Wrap(err, "failed to copy auxiliary file")
+	}
+
+	cmd := []string{"psql", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName, "--file", dstPath}
 	log.Msg("Run command", cmd)
 
-	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{Cmd: cmd}); err != nil {
+	if out, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{Tty: true, Cmd: cmd}); err != nil {
+		log.Dbg("Command output: ", out)
 		return errors.Wrap(err, "failed to exec restore command")
+	}
+
+	return nil
+}
+
+func (r *RestoreJob) prepareArchive(ctx context.Context, contID string, tempFile *os.File, dstPath string) error {
+	srcInfo, err := archive.CopyInfoSourcePath(tempFile.Name(), false)
+	if err != nil {
+		return err
+	}
+
+	srcArchive, err := archive.TarResource(srcInfo)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = srcArchive.Close() }()
+
+	dstDir, preparedArchive, err := archive.PrepareArchiveCopy(srcArchive, srcInfo, archive.CopyInfo{Path: dstPath})
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = preparedArchive.Close() }()
+
+	if err := r.dockerClient.CopyToContainer(ctx, contID, dstDir, preparedArchive, types.CopyToContainerOptions{
+		AllowOverwriteDirWithFile: true,
+		CopyUIDGID:                true,
+	}); err != nil {
+		log.Err(err)
+
+		return errors.Wrap(err, "failed to copy auxiliary file")
 	}
 
 	return nil
@@ -464,24 +574,6 @@ func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 		Image:       r.RestoreOptions.DockerImage,
 		Healthcheck: health.GetConfig(r.globalCfg.Database.User(), r.globalCfg.Database.Name()),
 	}
-}
-
-func (r *RestoreJob) getHostConfig(ctx context.Context) (*container.HostConfig, error) {
-	hostConfig, err := cont.BuildHostConfig(ctx, r.dockerClient, r.fsPool.DataDir(), r.RestoreOptions.ContainerConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	// Automatically mount the dump directory if it is a subdirectory of `mountDir`.
-	if strings.HasPrefix(r.RestoreOptions.DumpLocation, r.fsPool.MountDir) {
-		hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
-			Type:   mount.TypeBind,
-			Source: r.RestoreOptions.DumpLocation,
-			Target: r.RestoreOptions.DumpLocation,
-		})
-	}
-
-	return hostConfig, nil
 }
 
 func (r *RestoreJob) markDatabase(ctx context.Context, contID, dumpLocation string) error {
@@ -548,7 +640,7 @@ func (r *RestoreJob) updateDataStateAt() {
 	r.fsPool.SetDSA(dsaTime)
 }
 
-func (r *RestoreJob) buildLogicalRestoreCommand(dumpName string, definition DBDefinition) []string {
+func (r *RestoreJob) buildLogicalRestoreCommand(dumpName string, definition DumpDefinition) []string {
 	if definition.Format == plainFormat {
 		return r.buildPlainTextCommand(dumpName, definition)
 	}
@@ -556,7 +648,7 @@ func (r *RestoreJob) buildLogicalRestoreCommand(dumpName string, definition DBDe
 	return r.buildPGRestoreCommand(dumpName, definition)
 }
 
-func (r *RestoreJob) buildPlainTextCommand(dumpName string, definition DBDefinition) []string {
+func (r *RestoreJob) buildPlainTextCommand(dumpName string, definition DumpDefinition) []string {
 	dbName := defaults.DBName
 
 	// It means a required database has been created in the previous step.
@@ -573,15 +665,16 @@ func (r *RestoreJob) buildPlainTextCommand(dumpName string, definition DBDefinit
 	}
 
 	return []string{
-		"psql", "--username", r.globalCfg.Database.User(), "--dbname", dbName, "--file", r.getDumpLocation(definition.Format, dumpName),
+		"sh", "-c", fmt.Sprintf("%s %s | psql --username %s --dbname %s", getReadingArchiveCommand(definition.Compression),
+			r.getDumpLocation(definition.Format, dumpName), r.globalCfg.Database.User(), dbName),
 	}
 }
 
-func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DBDefinition) []string {
+func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DumpDefinition) []string {
 	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName,
 		"--no-privileges", "--no-owner"}
 
-	if dumpName != defaults.DBName {
+	if definition.dbName != defaults.DBName {
 		// To avoid recreating of the default database.
 		restoreCmd = append(restoreCmd, "--create")
 	}
@@ -608,6 +701,10 @@ func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DBDefinit
 func (r *RestoreJob) getDumpLocation(dumpFormat, dbName string) string {
 	switch dumpFormat {
 	case customFormat:
+		if r.isDumpLocationDir {
+			return path.Join(r.RestoreOptions.DumpLocation, dbName)
+		}
+
 		return r.RestoreOptions.DumpLocation
 
 	default:

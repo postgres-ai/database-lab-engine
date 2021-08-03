@@ -244,6 +244,8 @@ retrieval:
         #   database1:
         #     # Dump format. Available formats: directory, custom, plain. Default format: directory.
         #     format: directory
+        #     # Compression (only for plain-text dumps): "gzip", "bzip2", or "no". Default: "no".
+        #     compression: no
         #     # Option for a partial restore. Do not specify the tables section to restore all available tables.
         #     tables:
         #       - table1

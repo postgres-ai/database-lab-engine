@@ -5,6 +5,7 @@
 package logical
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"path"
@@ -34,7 +35,7 @@ func TestRestoreCommandBuilding(t *testing.T) {
 			CopyOptions: RestoreOptions{
 				ParallelJobs: 1,
 				ForceInit:    false,
-				Databases: map[string]DBDefinition{
+				Databases: map[string]DumpDefinition{
 					"testDB": {
 						Format: customFormat,
 					},
@@ -54,7 +55,7 @@ func TestRestoreCommandBuilding(t *testing.T) {
 			CopyOptions: RestoreOptions{
 				ParallelJobs: 2,
 				ForceInit:    false,
-				Databases:    map[string]DBDefinition{"testDB": {}},
+				Databases:    map[string]DumpDefinition{"testDB": {}},
 				DumpLocation: "/tmp/db.dump",
 			},
 			Command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--create", "--jobs", "2", "/tmp/db.dump/testDB"},
@@ -62,7 +63,7 @@ func TestRestoreCommandBuilding(t *testing.T) {
 		{
 			CopyOptions: RestoreOptions{
 				ParallelJobs: 1,
-				Databases: map[string]DBDefinition{
+				Databases: map[string]DumpDefinition{
 					"testDB": {
 						Tables: []string{"test", "users"},
 						Format: directoryFormat,
@@ -74,7 +75,7 @@ func TestRestoreCommandBuilding(t *testing.T) {
 		},
 		{
 			CopyOptions: RestoreOptions{
-				Databases: map[string]DBDefinition{
+				Databases: map[string]DumpDefinition{
 					"testDB.dump": {
 						Format: plainFormat,
 						dbName: "testDB",
@@ -82,18 +83,18 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				},
 				DumpLocation: "/tmp/db.dump",
 			},
-			Command: []string{"psql", "--username", "john", "--dbname", "postgres", "--file", "/tmp/db.dump/testDB.dump"},
+			Command: []string{"sh", "-c", "cat /tmp/db.dump/testDB.dump | psql --username john --dbname postgres"},
 		},
 		{
 			CopyOptions: RestoreOptions{
-				Databases: map[string]DBDefinition{
+				Databases: map[string]DumpDefinition{
 					"testDB.dump": {
 						Format: plainFormat,
 					},
 				},
 				DumpLocation: "/tmp/db.dump",
 			},
-			Command: []string{"psql", "--username", "john", "--dbname", "testDB", "--file", "/tmp/db.dump/testDB.dump"},
+			Command: []string{"sh", "-c", "cat /tmp/db.dump/testDB.dump | psql --username john --dbname testDB"},
 		},
 	}
 
@@ -107,7 +108,7 @@ func TestRestoreCommandBuilding(t *testing.T) {
 }
 
 func TestDiscoverDumpDirectories(t *testing.T) {
-	r := &RestoreJob{}
+	t.Skip("docker client is required")
 
 	tmpDirRoot, err := ioutil.TempDir("", "dblab_test_restore_")
 	require.Nil(t, err)
@@ -117,26 +118,45 @@ func TestDiscoverDumpDirectories(t *testing.T) {
 	require.Nil(t, err)
 	defer func() { _ = os.Remove(tmpDirDB1) }()
 
+	tmpTOCFile1, err := os.Create(path.Join(tmpDirDB1, "toc.dat"))
+	require.Nil(t, err)
+	err = tmpTOCFile1.Close()
+	require.Nil(t, err)
+	defer func() { _ = os.Remove(tmpTOCFile1.Name()) }()
+
 	tmpDirDB2, err := ioutil.TempDir(tmpDirRoot, "db_")
 	require.Nil(t, err)
 	defer func() { _ = os.Remove(tmpDirDB2) }()
+
+	tmpTOCFile2, err := os.Create(path.Join(tmpDirDB2, "toc.dat"))
+	require.Nil(t, err)
+	err = tmpTOCFile2.Close()
+	require.Nil(t, err)
+	defer func() { _ = os.Remove(tmpTOCFile2.Name()) }()
 
 	tmpDirDB3, err := ioutil.TempDir(tmpDirRoot, "db_")
 	require.Nil(t, err)
 	defer func() { _ = os.Remove(tmpDirDB3) }()
 
-	tmpFile, err := ioutil.TempFile(tmpDirRoot, "file_")
+	tmpTOCFile3, err := os.Create(path.Join(tmpDirDB3, "toc.dat"))
 	require.Nil(t, err)
-	defer func() { _ = os.Remove(tmpFile.Name()) }()
+	err = tmpTOCFile3.Close()
+	require.Nil(t, err)
+	defer func() { _ = os.Remove(tmpTOCFile3.Name()) }()
 
-	expectedMap := map[string]DBDefinition{
-		path.Base(tmpDirDB1):      {Format: directoryFormat},
-		path.Base(tmpDirDB2):      {Format: directoryFormat},
-		path.Base(tmpDirDB3):      {Format: directoryFormat},
-		path.Base(tmpFile.Name()): {Format: plainFormat},
+	expectedMap := map[string]DumpDefinition{
+		path.Base(tmpDirDB1): {Format: directoryFormat},
+		path.Base(tmpDirDB2): {Format: directoryFormat},
+		path.Base(tmpDirDB3): {Format: directoryFormat},
 	}
 
-	dumpDirectories, err := r.discoverDumpLocation(tmpDirRoot)
+	r := &RestoreJob{
+		RestoreOptions: RestoreOptions{
+			DumpLocation: tmpDirRoot,
+		},
+	}
+
+	dumpDirectories, err := r.discoverDumpLocation(context.Background(), "contID")
 	assert.Nil(t, err)
 
 	assert.Equal(t, expectedMap, dumpDirectories)
@@ -248,12 +268,6 @@ func TestParsingPlainFile(t *testing.T) {
 			dbname:  "postgres",
 			err:     nil,
 		},
-		{
-			name:    "invalidDump",
-			content: invalidDump,
-			dbname:  "",
-			err:     errDBNameNotFound,
-		},
 	}
 
 	for _, tc := range testCases {
@@ -275,6 +289,42 @@ func TestParsingPlainFile(t *testing.T) {
 
 		dbName, err := r.parsePlainFile(f.Name())
 		assert.Equal(t, tc.err, err)
+		assert.Equal(t, tc.dbname, dbName)
+	}
+}
+
+func TestParsingInvalidPlainFile(t *testing.T) {
+	testCases := []struct {
+		name    string
+		content string
+		dbname  string
+	}{
+		{
+			name:    "invalid",
+			content: invalidDump,
+			dbname:  "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Log(tc.name)
+
+		f, err := ioutil.TempFile("", "plain_dump_*")
+		require.Nil(t, err)
+
+		// There no many test cases.
+		defer func() {
+			_ = f.Close()
+			_ = os.Remove(f.Name())
+		}()
+
+		err = ioutil.WriteFile(f.Name(), []byte(tc.content), 0666)
+		require.Nil(t, err)
+
+		r := &RestoreJob{}
+
+		dbName, err := r.parsePlainFile(f.Name())
+		assert.Error(t, err)
 		assert.Equal(t, tc.dbname, dbName)
 	}
 }

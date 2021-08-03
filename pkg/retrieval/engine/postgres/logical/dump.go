@@ -78,14 +78,14 @@ type DumpJob struct {
 
 // DumpOptions defines a logical dump options.
 type DumpOptions struct {
-	DumpLocation    string                  `yaml:"dumpLocation"`
-	DockerImage     string                  `yaml:"dockerImage"`
-	ContainerConfig map[string]interface{}  `yaml:"containerConfig"`
-	Connection      Connection              `yaml:"connection"`
-	Source          Source                  `yaml:"source"`
-	Databases       map[string]DBDefinition `yaml:"databases"`
-	ParallelJobs    int                     `yaml:"parallelJobs"`
-	Restore         ImmediateRestore        `yaml:"immediateRestore"`
+	DumpLocation    string                    `yaml:"dumpLocation"`
+	DockerImage     string                    `yaml:"dockerImage"`
+	ContainerConfig map[string]interface{}    `yaml:"containerConfig"`
+	Connection      Connection                `yaml:"connection"`
+	Source          Source                    `yaml:"source"`
+	Databases       map[string]DumpDefinition `yaml:"databases"`
+	ParallelJobs    int                       `yaml:"parallelJobs"`
+	Restore         ImmediateRestore          `yaml:"immediateRestore"`
 }
 
 // Source describes source of data to dump.
@@ -95,11 +95,12 @@ type Source struct {
 	RDS        *RDSConfig `yaml:"rdsIam"`
 }
 
-// DBDefinition describes a database for dumping.
-type DBDefinition struct {
-	Tables []string `yaml:"tables"`
-	Format string   `yaml:"format"`
-	dbName string
+// DumpDefinition describes a database for dumping.
+type DumpDefinition struct {
+	Tables      []string        `yaml:"tables"`
+	Format      string          `yaml:"format"`
+	Compression compressionType `yaml:"compression"`
+	dbName      string
 }
 
 type dumpJobConfig struct {
@@ -366,8 +367,8 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 	return nil
 }
 
-func (d *DumpJob) getDBList(ctx context.Context) (map[string]DBDefinition, error) {
-	dbList := make(map[string]DBDefinition)
+func (d *DumpJob) getDBList(ctx context.Context) (map[string]DumpDefinition, error) {
+	dbList := make(map[string]DumpDefinition)
 
 	connStr := db.ConnectionString(d.config.db.Host, strconv.Itoa(d.config.db.Port), d.config.db.Username, d.config.db.DBName, d.getPassword())
 
@@ -387,7 +388,7 @@ func (d *DumpJob) getDBList(ctx context.Context) (map[string]DBDefinition, error
 			return nil, errors.Wrap(err, "failed to scan next row in database list result set")
 		}
 
-		dbList[dbName] = DBDefinition{}
+		dbList[dbName] = DumpDefinition{}
 	}
 
 	return dbList, nil
@@ -420,12 +421,12 @@ func (d *DumpJob) cleanupDumpLocation(ctx context.Context, dumpContID string) er
 	return nil
 }
 
-func (d *DumpJob) dumpDatabase(ctx context.Context, dumpContID, dbName string, dbDefinition DBDefinition) error {
-	dumpCommand := d.buildLogicalDumpCommand(dbName, dbDefinition.Tables)
+func (d *DumpJob) dumpDatabase(ctx context.Context, dumpContID, dbName string, dumpDefinition DumpDefinition) error {
+	dumpCommand := d.buildLogicalDumpCommand(dbName, dumpDefinition.Tables)
 	log.Msg("Running dump command: ", dumpCommand)
 
-	if len(dbDefinition.Tables) > 0 {
-		log.Msg("Partial dump will be run. Tables for dumping: ", strings.Join(dbDefinition.Tables, ", "))
+	if len(dumpDefinition.Tables) > 0 {
+		log.Msg("Partial dump will be run. Tables for dumping: ", strings.Join(dumpDefinition.Tables, ", "))
 	}
 
 	if output, err := d.performDumpCommand(ctx, dumpContID, types.ExecConfig{
