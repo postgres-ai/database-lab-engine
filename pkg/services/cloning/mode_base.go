@@ -291,6 +291,8 @@ func (c *baseCloning) GetClone(id string) (*models.Clone, error) {
 
 	w.clone.Metadata.CloneDiffSize = sessionState.CloneDiffSize
 	w.clone.Metadata.CloneDiffSizeHR = humanize.BigIBytes(big.NewInt(int64(sessionState.CloneDiffSize)))
+	w.clone.Metadata.LogicalSize = sessionState.LogicalReferenced
+	w.clone.Metadata.LogicalSizeHR = humanize.BigIBytes(big.NewInt(int64(sessionState.LogicalReferenced)))
 
 	return w.clone, nil
 }
@@ -377,17 +379,21 @@ func (c *baseCloning) GetInstanceState() (*models.InstanceStatus, error) {
 		return nil, errors.Wrap(err, "failed to get a disk state")
 	}
 
-	c.instanceStatus.FileSystem.Size = disk.Size
-	c.instanceStatus.FileSystem.Free = disk.Free
-	c.instanceStatus.FileSystem.Used = disk.Used
+	c.instanceStatus.FileSystem = &models.FileSystem{
+		Size:   disk.Size,
+		SizeHR: humanize.BigIBytes(big.NewInt(int64(disk.Size))),
+		Free:   disk.Free,
+		FreeHR: humanize.BigIBytes(big.NewInt(int64(disk.Free))),
+		Used:   disk.Used,
+		UsedHR: humanize.BigIBytes(big.NewInt(int64(disk.Used))),
+	}
+
 	c.instanceStatus.DataSize = disk.DataSize
-	c.instanceStatus.FileSystem.SizeHR = humanize.BigIBytes(big.NewInt(int64(disk.Size)))
-	c.instanceStatus.FileSystem.FreeHR = humanize.BigIBytes(big.NewInt(int64(disk.Free)))
-	c.instanceStatus.FileSystem.UsedHR = humanize.BigIBytes(big.NewInt(int64(disk.Used)))
 	c.instanceStatus.DataSizeHR = humanize.BigIBytes(big.NewInt(int64(disk.DataSize)))
 	c.instanceStatus.ExpectedCloningTime = c.getExpectedCloningTime()
 	c.instanceStatus.Clones = c.GetClones()
 	c.instanceStatus.NumClones = uint64(len(c.instanceStatus.Clones))
+	c.instanceStatus.Pools = c.provision.GetPoolEntryList()
 
 	return c.instanceStatus, nil
 }
@@ -484,9 +490,12 @@ func (c *baseCloning) fetchSnapshots() error {
 
 	for i, entry := range entries {
 		snapshots[i] = models.Snapshot{
-			ID:          entry.ID,
-			CreatedAt:   util.FormatTime(entry.CreatedAt),
-			DataStateAt: util.FormatTime(entry.DataStateAt),
+			ID:           entry.ID,
+			CreatedAt:    util.FormatTime(entry.CreatedAt),
+			DataStateAt:  util.FormatTime(entry.DataStateAt),
+			PhysicalSize: humanize.BigIBytes(big.NewInt(int64(entry.Used))),
+			LogicalSize:  humanize.BigIBytes(big.NewInt(int64(entry.LogicalReferenced))),
+			Pool:         entry.Pool,
 		}
 
 		log.Dbg("snapshot:", snapshots[i])

@@ -42,12 +42,16 @@ type EphemeralUser struct {
 
 // Snapshot defines snapshot of the data with related meta-information.
 type Snapshot struct {
-	ID          string
-	CreatedAt   time.Time
-	DataStateAt time.Time
+	ID                string
+	CreatedAt         time.Time
+	DataStateAt       time.Time
+	Used              uint64
+	LogicalReferenced uint64
+	Pool              string
 }
 
 // SessionState defines current state of a Session.
 type SessionState struct {
-	CloneDiffSize uint64
+	CloneDiffSize     uint64
+	LogicalReferenced uint64
 }

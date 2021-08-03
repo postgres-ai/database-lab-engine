@@ -4,6 +4,7 @@
 
 package models
 
+// Database defines clone database parameters.
 type Database struct {
 	ConnStr  string `json:"connStr"`
 	Host     string `json:"host"`

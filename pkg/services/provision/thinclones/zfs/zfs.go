@@ -401,7 +401,8 @@ func (m *Manager) GetSessionState(name string) (*resources.SessionState, error) 
 	}
 
 	state := &resources.SessionState{
-		CloneDiffSize: sEntry.Used,
+		CloneDiffSize:     sEntry.Used,
+		LogicalReferenced: sEntry.LogicalReferenced,
 	}
 
 	return state, nil
@@ -467,9 +468,12 @@ func (m *Manager) GetSnapshots() ([]resources.Snapshot, error) {
 		}
 
 		snapshot := resources.Snapshot{
-			ID:          entry.Name,
-			CreatedAt:   entry.Creation,
-			DataStateAt: entry.DataStateAt,
+			ID:                entry.Name,
+			CreatedAt:         entry.Creation,
+			DataStateAt:       entry.DataStateAt,
+			Used:              entry.Used,
+			LogicalReferenced: entry.LogicalReferenced,
+			Pool:              m.config.Pool.Name,
 		}
 
 		snapshots = append(snapshots, snapshot)

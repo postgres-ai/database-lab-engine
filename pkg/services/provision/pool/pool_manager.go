@@ -149,6 +149,21 @@ func (pm *Manager) GetFSManagerList() []FSManager {
 	return fs
 }
 
+// GetFSManagerOrderedList returns a filesystem manager list in the order of the queue.
+func (pm *Manager) GetFSManagerOrderedList() []FSManager {
+	fs := []FSManager{}
+
+	for element := pm.fsManagerList.Front(); element != nil; element = element.Next() {
+		if element.Value == nil {
+			continue
+		}
+
+		fs = append(fs, pm.getFSManager(element.Value.(string)))
+	}
+
+	return fs
+}
+
 // ReloadPools updates available pool managers.
 func (pm *Manager) ReloadPools() error {
 	entries, err := ioutil.ReadDir(pm.cfg.MountDir)

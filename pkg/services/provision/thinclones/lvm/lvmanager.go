@@ -113,6 +113,7 @@ func (m *LVManager) GetSnapshots() ([]resources.Snapshot, error) {
 			ID:          "TechnicalSnapshot",
 			CreatedAt:   time.Now(),
 			DataStateAt: time.Now(),
+			Pool:        m.pool.Name,
 		},
 	}, nil
 }

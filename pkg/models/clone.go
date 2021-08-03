@@ -20,6 +20,8 @@ type Clone struct {
 type CloneMetadata struct {
 	CloneDiffSize   uint64  `json:"cloneDiffSize"`
 	CloneDiffSizeHR string  `json:"cloneDiffSizeHR"`
+	LogicalSize     uint64  `json:"logicalSize"`
+	LogicalSizeHR   string  `json:"logicalSizeHR"`
 	CloningTime     float64 `json:"cloningTime"`
 	MaxIdleMinutes  uint    `json:"maxIdleMinutes"`
 }

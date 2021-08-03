@@ -19,6 +19,7 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/databases/postgres"
@@ -291,6 +292,55 @@ func (p *Provisioner) GetSessionState(s *resources.Session) (*resources.SessionS
 	}
 
 	return fsm.GetSessionState(util.GetCloneName(s.Port))
+}
+
+// GetPoolEntryList provides an ordered list of available pools.
+func (p *Provisioner) GetPoolEntryList() []models.PoolEntry {
+	activePool := p.pm.Active()
+	fsmList := p.pm.GetFSManagerOrderedList()
+	pools := make([]models.PoolEntry, 0, len(fsmList))
+
+	for _, fsManager := range fsmList {
+		poolEntry, err := buildPoolEntry(fsManager, activePool)
+		if err != nil {
+			log.Err("skip pool entry: ", err.Error())
+			continue
+		}
+
+		pools = append(pools, poolEntry)
+	}
+
+	return pools
+}
+
+func buildPoolEntry(fsm pool.FSManager, active pool.FSManager) (models.PoolEntry, error) {
+	fsmPool := fsm.Pool()
+	if fsmPool == nil {
+		return models.PoolEntry{}, errors.New("empty pool")
+	}
+
+	listClones, err := fsm.ListClonesNames()
+	if err != nil {
+		log.Err(fmt.Sprintf("failed to get clone list related to the pool %s", fsmPool.Name))
+	}
+
+	poolEntry := models.PoolEntry{
+		Name:        fsmPool.Name,
+		Mode:        fsmPool.Mode,
+		DataStateAt: fsmPool.DSA.String(),
+		CloneList:   listClones,
+	}
+
+	switch {
+	case fsm == active:
+		poolEntry.Status = models.ActivePool
+	case len(poolEntry.CloneList) > 0:
+		poolEntry.Status = models.BusyPool
+	default:
+		poolEntry.Status = models.FreePool
+	}
+
+	return poolEntry, nil
 }
 
 // Other methods.
