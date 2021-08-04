@@ -4,6 +4,10 @@
 
 package models
 
+import (
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
+)
+
 const (
 	// ActivePool defines an active pool status.
 	ActivePool PoolStatus = "active"
@@ -30,11 +34,12 @@ type InstanceStatus struct {
 
 // PoolEntry represents a pool entry.
 type PoolEntry struct {
-	Name        string     `json:"name"`
-	Mode        string     `json:"mode"`
-	DataStateAt string     `json:"dataStateAt"`
-	Status      PoolStatus `json:"status"`
-	CloneList   []string   `json:"cloneList"`
+	Name        string          `json:"name"`
+	Mode        string          `json:"mode"`
+	DataStateAt string          `json:"dataStateAt"`
+	Status      PoolStatus      `json:"status"`
+	CloneList   []string        `json:"cloneList"`
+	Disk        *resources.Disk `json:"disk"`
 }
 
 // Health represents a response for heath-check requests.

@@ -324,11 +324,17 @@ func buildPoolEntry(fsm pool.FSManager, active pool.FSManager) (models.PoolEntry
 		log.Err(fmt.Sprintf("failed to get clone list related to the pool %s", fsmPool.Name))
 	}
 
+	disk, err := fsm.GetDiskState()
+	if err != nil {
+		log.Err(fmt.Sprintf("failed to get disk stats for the pool %s", fsmPool.Name))
+	}
+
 	poolEntry := models.PoolEntry{
 		Name:        fsmPool.Name,
 		Mode:        fsmPool.Mode,
 		DataStateAt: fsmPool.DSA.String(),
 		CloneList:   listClones,
+		Disk:        disk,
 	}
 
 	switch {
