@@ -23,10 +23,11 @@ curl --location --fail --output ~/.dblab/dblab \
     && mv ~/.dblab/dblab /usr/local/bin/dblab 2> /dev/null \
     && echo 'Done!'
 } || {
-  echo 'Database Lab client CLI is installed to "~/.dblab/dblab".'
-  echo 'Add this path to $PATH or, alternatively, move the binary to the global space:'
+  echo 'Downloaded to:'
+  echo '    ~/.dblab/dblab'
+  echo 'Add it to $PATH or move the binary manually:'
   echo '    sudo mv ~/.dblab/dblab /usr/local/bin/dblab'
 }
 
-echo 'To start using Database Lab client CLI, run:'
+echo 'To start, run:'
 echo '    dblab init'
