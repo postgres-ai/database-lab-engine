@@ -15,7 +15,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/jackc/pgx/v4"
@@ -562,13 +561,6 @@ func (d *DumpJob) buildHostConfig(ctx context.Context) (*container.HostConfig, e
 	}
 
 	hostConfig.NetworkMode = d.getContainerNetworkMode()
-
-	// Mount the dump location directory.
-	hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
-		Type:   mount.TypeBind,
-		Source: d.DumpOptions.DumpLocation,
-		Target: d.DumpOptions.DumpLocation,
-	})
 
 	return hostConfig, nil
 }
