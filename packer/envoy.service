@@ -1,7 +1,7 @@
 [Unit]
 Description=Envoy
 [Service]
-ExecStart=/usr/bin/envoy -c /etc/envoy/envoy.yaml
+ExecStart=func-e run -c /etc/envoy/envoy.yaml
 Restart=always
 RestartSec=5
 KillMode=mixed

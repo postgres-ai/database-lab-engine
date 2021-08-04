@@ -28,7 +28,8 @@ sudo snap install certbot --classic
 sudo ln -s /snap/bin/certbot /usr/bin/certbot
 
 #install envoy
-curl -sL 'https://getenvoy.io/gpg' | sudo apt-key add -
-sudo add-apt-repository "deb [arch=amd64] https://dl.bintray.com/tetrate/getenvoy-deb $(lsb_release -cs) stable"
-sudo apt update && sudo apt-get install -y  getenvoy-envoy
+curl https://func-e.io/install.sh | sudo bash -s -- -b /usr/local/bin
 
+
+#install s3fs
+sudo apt install s3fs
