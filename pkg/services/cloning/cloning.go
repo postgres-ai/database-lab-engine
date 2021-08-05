@@ -60,6 +60,7 @@ type CloneWrapper struct {
 }
 
 // New returns a cloning interface depends on configuration mode.
+// TODO: get rid of the interface, return *baseCloning instead.
 func New(cfg *Config, provision *provision.Provisioner, observingCh chan string) Cloning {
 	return NewBaseCloning(cfg, provision, observingCh)
 }

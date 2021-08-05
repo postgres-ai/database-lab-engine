@@ -12,4 +12,5 @@ type Snapshot struct {
 	PhysicalSize string `json:"physicalSize"`
 	LogicalSize  string `json:"logicalSize"`
 	Pool         string `json:"pool"`
+	NumClones    int    `json:"numClones"`
 }
