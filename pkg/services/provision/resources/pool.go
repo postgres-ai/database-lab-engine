@@ -11,6 +11,18 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 )
 
+// PoolStatus represents a pool status.
+type PoolStatus string
+
+const (
+	// ActivePool defines an active pool status.
+	ActivePool PoolStatus = "active"
+	// InProgressPool defines the status of a pool when data retrieval in progress.
+	InProgressPool PoolStatus = "in_progress"
+	// ReadOnlyPool defines the status of an inactive pool.
+	ReadOnlyPool PoolStatus = "read_only"
+)
+
 // Pool describes a storage pool.
 type Pool struct {
 	Name           string
@@ -21,11 +33,12 @@ type Pool struct {
 	DataSubDir     string
 	SocketSubDir   string
 	ObserverSubDir string
+	Status         PoolStatus
 }
 
 // NewPool creates a new Pool.
 func NewPool(name string) *Pool {
-	return &Pool{Name: name}
+	return &Pool{Name: name, Status: ReadOnlyPool}
 }
 
 // IsEmpty checks if Pool is empty.

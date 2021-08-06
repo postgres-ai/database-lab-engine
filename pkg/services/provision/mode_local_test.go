@@ -101,25 +101,25 @@ func (m mockFSManager) GetDiskState() (*resources.Disk, error) {
 
 func (m mockFSManager) Pool() *resources.Pool {
 	return &resources.Pool{
-		Name: "TestPool",
-		Mode: "zfs",
-		DSA:  time.Date(2021, 8, 1, 0, 0, 0, 0, time.UTC),
+		Name:   "TestPool",
+		Mode:   "zfs",
+		DSA:    time.Date(2021, 8, 1, 0, 0, 0, 0, time.UTC),
+		Status: resources.ActivePool,
 	}
 }
 
 func TestBuildPoolEntry(t *testing.T) {
 	testFSManager := mockFSManager{}
-	active := testFSManager
 
 	expectedEntry := models.PoolEntry{
 		Name:        "TestPool",
 		Mode:        "zfs",
 		DataStateAt: "2021-08-01 00:00:00 +0000 UTC",
-		Status:      models.ActivePool,
+		Status:      resources.ActivePool,
 		CloneList:   []string{"test_clone_0001", "test_clone_0002"},
 	}
 
-	poolEntry, err := buildPoolEntry(testFSManager, active)
+	poolEntry, err := buildPoolEntry(testFSManager)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedEntry, poolEntry)
 }

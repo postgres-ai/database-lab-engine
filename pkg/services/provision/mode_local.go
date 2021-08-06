@@ -296,12 +296,11 @@ func (p *Provisioner) GetSessionState(s *resources.Session) (*resources.SessionS
 
 // GetPoolEntryList provides an ordered list of available pools.
 func (p *Provisioner) GetPoolEntryList() []models.PoolEntry {
-	activePool := p.pm.Active()
 	fsmList := p.pm.GetFSManagerOrderedList()
 	pools := make([]models.PoolEntry, 0, len(fsmList))
 
 	for _, fsManager := range fsmList {
-		poolEntry, err := buildPoolEntry(fsManager, activePool)
+		poolEntry, err := buildPoolEntry(fsManager)
 		if err != nil {
 			log.Err("skip pool entry: ", err.Error())
 			continue
@@ -313,7 +312,7 @@ func (p *Provisioner) GetPoolEntryList() []models.PoolEntry {
 	return pools
 }
 
-func buildPoolEntry(fsm pool.FSManager, active pool.FSManager) (models.PoolEntry, error) {
+func buildPoolEntry(fsm pool.FSManager) (models.PoolEntry, error) {
 	fsmPool := fsm.Pool()
 	if fsmPool == nil {
 		return models.PoolEntry{}, errors.New("empty pool")
@@ -335,15 +334,7 @@ func buildPoolEntry(fsm pool.FSManager, active pool.FSManager) (models.PoolEntry
 		DataStateAt: fsmPool.DSA.String(),
 		CloneList:   listClones,
 		Disk:        disk,
-	}
-
-	switch {
-	case fsm == active:
-		poolEntry.Status = models.ActivePool
-	case len(poolEntry.CloneList) > 0:
-		poolEntry.Status = models.BusyPool
-	default:
-		poolEntry.Status = models.FreePool
+		Status:      fsm.Pool().Status,
 	}
 
 	return poolEntry, nil

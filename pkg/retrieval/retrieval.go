@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
-
 	dblabCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
@@ -91,7 +90,7 @@ func (r *Retrieval) Run(ctx context.Context) error {
 	return nil
 }
 
-func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) error {
+func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 	r.retrieveMutex.Lock()
 	defer r.retrieveMutex.Unlock()
 
@@ -108,11 +107,21 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) error {
 		return errors.Wrap(errors.Unwrap(err), "filesystem manager is not ready")
 	}
 
+	fsm.Pool().Status = resources.InProgressPool
+
+	defer func() {
+		if err != nil {
+			fsm.Pool().Status = resources.ReadOnlyPool
+		}
+	}()
+
 	for _, j := range r.jobs {
 		if err := j.Run(ctx); err != nil {
 			return err
 		}
 	}
+
+	fsm.Pool().Status = resources.ActivePool
 
 	return nil
 }
