@@ -42,8 +42,7 @@ type baseCloning struct {
 	cloneMutex     sync.RWMutex
 	clones         map[string]*CloneWrapper
 	instanceStatus *models.InstanceStatus
-	snapshotMutex  sync.RWMutex
-	snapshots      []models.Snapshot
+	snapshotBox    SnapshotBox
 	provision      *provision.Provisioner
 	observingCh    chan string
 }
@@ -63,6 +62,9 @@ func NewBaseCloning(cfg *Config, provision *provision.Provisioner, observingCh c
 		},
 		provision:   provision,
 		observingCh: observingCh,
+		snapshotBox: SnapshotBox{
+			items: make(map[string]*models.Snapshot),
+		},
 	}
 }
 
@@ -104,7 +106,7 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 		return nil, errors.Wrap(err, "failed to fetch snapshots")
 	}
 
-	var snapshot models.Snapshot
+	var snapshot *models.Snapshot
 
 	if cloneRequest.Snapshot != nil {
 		snapshot, err = c.getSnapshotByID(cloneRequest.Snapshot.ID)
@@ -118,7 +120,7 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 
 	clone := &models.Clone{
 		ID:        cloneRequest.ID,
-		Snapshot:  &snapshot,
+		Snapshot:  snapshot,
 		Protected: cloneRequest.Protected,
 		CreatedAt: util.FormatTime(createdAt),
 		Status: models.Status{
@@ -137,7 +139,7 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 	w.username = clone.DB.Username
 	w.password = clone.DB.Password
 	w.timeCreatedAt = createdAt
-	w.snapshot = snapshot
+	w.snapshot = *snapshot
 
 	clone.DB.Password = ""
 	cloneID := clone.ID
@@ -408,13 +410,7 @@ func (c *baseCloning) GetSnapshots() ([]models.Snapshot, error) {
 		return nil, errors.Wrap(err, "failed to fetch snapshots")
 	}
 
-	snapshots := make([]models.Snapshot, len(c.snapshots))
-
-	c.snapshotMutex.RLock()
-	copy(snapshots, c.snapshots)
-	c.snapshotMutex.RUnlock()
-
-	return snapshots, nil
+	return c.getSnapshotList(), nil
 }
 
 // GetClones returns the list of clones descend ordered by creation time.
@@ -422,14 +418,13 @@ func (c *baseCloning) GetClones() []*models.Clone {
 	clones := make([]*models.Clone, 0, c.lenClones())
 
 	for _, cloneWrapper := range c.clones {
-		// TODO (akartasov): fix snapshot relation
 		if cloneWrapper.clone.Snapshot != nil {
 			snapshot, err := c.getSnapshotByID(cloneWrapper.clone.Snapshot.ID)
 			if err != nil {
 				log.Err("Snapshot not found: ", cloneWrapper.clone.Snapshot.ID)
 			}
 
-			cloneWrapper.clone.Snapshot = &snapshot
+			cloneWrapper.clone.Snapshot = snapshot
 		}
 
 		clones = append(clones, cloneWrapper.clone)
@@ -490,71 +485,6 @@ func (c *baseCloning) getExpectedCloningTime() float64 {
 	c.cloneMutex.RUnlock()
 
 	return sum / float64(lenClones)
-}
-
-func (c *baseCloning) fetchSnapshots() error {
-	entries, err := c.provision.GetSnapshots()
-	if err != nil {
-		return errors.Wrap(err, "failed to get snapshots")
-	}
-
-	snapshots := make([]models.Snapshot, len(entries))
-
-	for i, entry := range entries {
-		numClones := 0
-
-		for cloneName := range c.clones {
-			if c.clones[cloneName] != nil && c.clones[cloneName].snapshot.ID == entry.ID {
-				numClones++
-			}
-		}
-
-		snapshots[i] = models.Snapshot{
-			ID:           entry.ID,
-			CreatedAt:    util.FormatTime(entry.CreatedAt),
-			DataStateAt:  util.FormatTime(entry.DataStateAt),
-			PhysicalSize: humanize.BigIBytes(big.NewInt(int64(entry.Used))),
-			LogicalSize:  humanize.BigIBytes(big.NewInt(int64(entry.LogicalReferenced))),
-			Pool:         entry.Pool,
-			NumClones:    numClones,
-		}
-
-		log.Dbg("snapshot:", snapshots[i])
-	}
-
-	c.snapshotMutex.Lock()
-	c.snapshots = snapshots
-	c.snapshotMutex.Unlock()
-
-	return nil
-}
-
-// getLatestSnapshot returns the latest snapshot.
-func (c *baseCloning) getLatestSnapshot() (models.Snapshot, error) {
-	c.snapshotMutex.RLock()
-	defer c.snapshotMutex.RUnlock()
-
-	if len(c.snapshots) == 0 {
-		return models.Snapshot{}, errors.New("no snapshot found")
-	}
-
-	snapshot := c.snapshots[0]
-
-	return snapshot, nil
-}
-
-// getSnapshotByID returns the snapshot by ID.
-func (c *baseCloning) getSnapshotByID(snapshotID string) (models.Snapshot, error) {
-	c.snapshotMutex.RLock()
-	defer c.snapshotMutex.RUnlock()
-
-	for i := range c.snapshots {
-		if c.snapshots[i].ID == snapshotID {
-			return c.snapshots[i], nil
-		}
-	}
-
-	return models.Snapshot{}, errors.New("no snapshot found")
 }
 
 func (c *baseCloning) runIdleCheck(ctx context.Context) {
