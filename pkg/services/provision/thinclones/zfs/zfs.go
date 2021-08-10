@@ -659,3 +659,35 @@ func (z *ListEntry) setDataStateAt(field string) error {
 
 	return nil
 }
+
+// Pools provides a mapping of pool name and mount point directory.
+func Pools(runner runners.Runner, mountDir string) (map[string]string, error) {
+	pools := make(map[string]string)
+
+	listCmd := "zfs list -Ho name,mountpoint -t filesystem | grep -v _pre"
+
+	out, err := runner.Run(listCmd, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list details")
+	}
+
+	log.Dbg("Out: ", out)
+
+	lines := strings.Split(out, "\n")
+
+	for i := range lines {
+		fields := strings.Fields(lines[i])
+
+		const poolFieldsNum = 2
+
+		if len(fields) < poolFieldsNum {
+			log.Dbg(fmt.Sprintf("Fields not found: %s", fields))
+			continue
+		}
+
+		poolDir := strings.Trim(strings.TrimPrefix(fields[1], mountDir), "/")
+		pools[poolDir] = fields[0]
+	}
+
+	return pools, nil
+}

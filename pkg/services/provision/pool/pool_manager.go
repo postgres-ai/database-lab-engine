@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones/zfs"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/dbmarker"
@@ -204,6 +205,8 @@ func (pm *Manager) examineEntries(entries []os.FileInfo) (map[string]FSManager, 
 	fsManagers := make(map[string]FSManager)
 	poolList := &list.List{}
 
+	pools := make(map[string]string)
+
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -227,6 +230,7 @@ func (pm *Manager) examineEntries(entries []os.FileInfo) (map[string]FSManager, 
 		pool := &resources.Pool{
 			Mode:           fsType,
 			Name:           entry.Name(),
+			PoolDirName:    entry.Name(),
 			MountDir:       pm.cfg.MountDir,
 			CloneSubDir:    pm.cfg.CloneSubDir,
 			DataSubDir:     pm.cfg.DataSubDir,
@@ -247,6 +251,18 @@ func (pm *Manager) examineEntries(entries []os.FileInfo) (map[string]FSManager, 
 			log.Msg(pool.DSA.String())
 		}
 
+		if len(pools) == 0 {
+			pools, err = zfs.Pools(pm.runner, pm.cfg.MountDir)
+			if err != nil {
+				log.Msg("failed to get pools:", err.Error())
+				continue
+			}
+		}
+
+		if poolName, ok := pools[entry.Name()]; ok {
+			pool.Name = poolName
+		}
+
 		fsm, err := NewManager(pm.runner, ManagerConfig{
 			Pool:              pool,
 			PreSnapshotSuffix: pm.cfg.PreSnapshotSuffix,
@@ -257,7 +273,7 @@ func (pm *Manager) examineEntries(entries []os.FileInfo) (map[string]FSManager, 
 		}
 
 		// TODO(akartasov): extract pool name.
-		fsManagers[entry.Name()] = fsm
+		fsManagers[pool.Name] = fsm
 
 		front := poolList.Front()
 		if front == nil || front.Value == nil || fsManagers[front.Value.(string)].Pool().DSA.Before(pool.DSA) {

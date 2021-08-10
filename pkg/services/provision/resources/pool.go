@@ -28,6 +28,7 @@ type Pool struct {
 	Name           string
 	Mode           string
 	DSA            time.Time
+	PoolDirName    string
 	MountDir       string
 	CloneSubDir    string
 	DataSubDir     string
@@ -53,12 +54,12 @@ func (p Pool) SetDSA(dsa time.Time) {
 
 // DataDir returns a path to the data directory of the storage pool.
 func (p Pool) DataDir() string {
-	return path.Join(p.MountDir, p.Name, p.DataSubDir)
+	return path.Join(p.MountDir, p.PoolDirName, p.DataSubDir)
 }
 
 // SocketDir returns a path to the sockets directory of the storage pool.
 func (p Pool) SocketDir() string {
-	return path.Join(p.MountDir, p.Name, p.SocketSubDir)
+	return path.Join(p.MountDir, p.PoolDirName, p.SocketSubDir)
 }
 
 // ObserverDir returns a path to the observer directory of the storage pool.
@@ -68,12 +69,12 @@ func (p Pool) ObserverDir(port uint) string {
 
 // ClonesDir returns a path to the clones directory of the storage pool.
 func (p Pool) ClonesDir() string {
-	return path.Join(p.MountDir, p.Name, p.CloneSubDir)
+	return path.Join(p.MountDir, p.PoolDirName, p.CloneSubDir)
 }
 
 // ClonePath returns a path to the initialized clone directory.
 func (p Pool) ClonePath(port uint) string {
-	return path.Join(p.MountDir, p.Name, p.CloneSubDir, util.GetCloneName(port), p.DataSubDir)
+	return path.Join(p.MountDir, p.PoolDirName, p.CloneSubDir, util.GetCloneName(port), p.DataSubDir)
 }
 
 // SocketCloneDir returns a path to the socket clone directory.
