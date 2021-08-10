@@ -17,8 +17,8 @@ type PoolStatus string
 const (
 	// ActivePool defines an active pool status.
 	ActivePool PoolStatus = "active"
-	// InProgressPool defines the status of a pool when data retrieval in progress.
-	InProgressPool PoolStatus = "in_progress"
+	// RefreshingPool defines the status of a pool when data retrieval in progress.
+	RefreshingPool PoolStatus = "refreshing"
 	// ReadOnlyPool defines the status of an inactive pool.
 	ReadOnlyPool PoolStatus = "read_only"
 )

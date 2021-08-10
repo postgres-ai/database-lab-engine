@@ -107,7 +107,7 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 		return errors.Wrap(errors.Unwrap(err), "filesystem manager is not ready")
 	}
 
-	fsm.Pool().Status = resources.InProgressPool
+	fsm.Pool().Status = resources.RefreshingPool
 
 	defer func() {
 		if err != nil {

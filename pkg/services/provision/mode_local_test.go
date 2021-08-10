@@ -61,7 +61,10 @@ func TestPortAllocation(t *testing.T) {
 	assert.EqualError(t, err, "port 1 is out of bounds of the port pool")
 }
 
-type mockFSManager struct{}
+type mockFSManager struct {
+	pool      *resources.Pool
+	cloneList []string
+}
 
 func (m mockFSManager) CreateClone(name, snapshotID string) error {
 	return nil
@@ -72,7 +75,7 @@ func (m mockFSManager) DestroyClone(name string) error {
 }
 
 func (m mockFSManager) ListClonesNames() ([]string, error) {
-	return []string{"test_clone_0001", "test_clone_0002"}, nil
+	return m.cloneList, nil
 }
 
 func (m mockFSManager) CreateSnapshot(poolSuffix, dataStateAt string) (snapshotName string, err error) {
@@ -100,26 +103,56 @@ func (m mockFSManager) GetDiskState() (*resources.Disk, error) {
 }
 
 func (m mockFSManager) Pool() *resources.Pool {
-	return &resources.Pool{
-		Name:   "TestPool",
-		Mode:   "zfs",
-		DSA:    time.Date(2021, 8, 1, 0, 0, 0, 0, time.UTC),
-		Status: resources.ActivePool,
-	}
+	return m.pool
 }
 
 func TestBuildPoolEntry(t *testing.T) {
-	testFSManager := mockFSManager{}
-
-	expectedEntry := models.PoolEntry{
-		Name:        "TestPool",
-		Mode:        "zfs",
-		DataStateAt: "2021-08-01 00:00:00 +0000 UTC",
-		Status:      resources.ActivePool,
-		CloneList:   []string{"test_clone_0001", "test_clone_0002"},
+	testCases := []struct {
+		pool          *resources.Pool
+		cloneList     []string
+		expectedEntry models.PoolEntry
+	}{
+		{
+			pool: &resources.Pool{
+				Name:   "TestPool",
+				Mode:   "zfs",
+				DSA:    time.Date(2021, 8, 1, 0, 0, 0, 0, time.UTC),
+				Status: resources.ActivePool,
+			},
+			cloneList: []string{"test_clone_0001", "test_clone_0002"},
+			expectedEntry: models.PoolEntry{
+				Name:        "TestPool",
+				Mode:        "zfs",
+				DataStateAt: "2021-08-01 00:00:00 +0000 UTC",
+				Status:      resources.ActivePool,
+				CloneList:   []string{"test_clone_0001", "test_clone_0002"},
+			},
+		},
+		{
+			pool: &resources.Pool{
+				Name:   "TestPoolWithoutDSA",
+				Mode:   "zfs",
+				Status: resources.ReadOnlyPool,
+			},
+			cloneList: []string{},
+			expectedEntry: models.PoolEntry{
+				Name:        "TestPoolWithoutDSA",
+				Mode:        "zfs",
+				DataStateAt: "",
+				Status:      resources.ReadOnlyPool,
+				CloneList:   []string{},
+			},
+		},
 	}
 
-	poolEntry, err := buildPoolEntry(testFSManager)
-	assert.Nil(t, err)
-	assert.Equal(t, expectedEntry, poolEntry)
+	for _, tc := range testCases {
+		testFSManager := mockFSManager{
+			pool:      tc.pool,
+			cloneList: tc.cloneList,
+		}
+
+		poolEntry, err := buildPoolEntry(testFSManager)
+		assert.Nil(t, err)
+		assert.Equal(t, tc.expectedEntry, poolEntry)
+	}
 }
