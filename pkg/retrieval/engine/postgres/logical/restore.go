@@ -700,7 +700,7 @@ func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DumpDefin
 
 func (r *RestoreJob) getDumpLocation(dumpFormat, dbName string) string {
 	switch dumpFormat {
-	case customFormat:
+	case customFormat, plainFormat:
 		if r.isDumpLocationDir {
 			return path.Join(r.RestoreOptions.DumpLocation, dbName)
 		}

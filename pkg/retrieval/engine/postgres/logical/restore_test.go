@@ -28,11 +28,12 @@ func TestRestoreCommandBuilding(t *testing.T) {
 	}
 
 	testCases := []struct {
-		CopyOptions RestoreOptions
-		Command     []string
+		copyOptions       RestoreOptions
+		command           []string
+		isDumpLocationDir bool
 	}{
 		{
-			CopyOptions: RestoreOptions{
+			copyOptions: RestoreOptions{
 				ParallelJobs: 1,
 				ForceInit:    false,
 				Databases: map[string]DumpDefinition{
@@ -42,26 +43,26 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				},
 				DumpLocation: "/tmp/db.dump",
 			},
-			Command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--create", "--jobs", "1", "/tmp/db.dump"},
+			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--create", "--jobs", "1", "/tmp/db.dump"},
 		},
 		{
-			CopyOptions: RestoreOptions{
+			copyOptions: RestoreOptions{
 				ParallelJobs: 4,
 				ForceInit:    true,
 			},
-			Command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--create", "--clean", "--if-exists", "--jobs", "4", ""},
+			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--create", "--clean", "--if-exists", "--jobs", "4", ""},
 		},
 		{
-			CopyOptions: RestoreOptions{
+			copyOptions: RestoreOptions{
 				ParallelJobs: 2,
 				ForceInit:    false,
 				Databases:    map[string]DumpDefinition{"testDB": {}},
 				DumpLocation: "/tmp/db.dump",
 			},
-			Command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--create", "--jobs", "2", "/tmp/db.dump/testDB"},
+			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--create", "--jobs", "2", "/tmp/db.dump/testDB"},
 		},
 		{
-			CopyOptions: RestoreOptions{
+			copyOptions: RestoreOptions{
 				ParallelJobs: 1,
 				Databases: map[string]DumpDefinition{
 					"testDB": {
@@ -71,10 +72,10 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				},
 				DumpLocation: "/tmp/db.dump",
 			},
-			Command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--create", "--jobs", "1", "--table", "test", "--table", "users", "/tmp/db.dump/testDB"},
+			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--create", "--jobs", "1", "--table", "test", "--table", "users", "/tmp/db.dump/testDB"},
 		},
 		{
-			CopyOptions: RestoreOptions{
+			copyOptions: RestoreOptions{
 				Databases: map[string]DumpDefinition{
 					"testDB.dump": {
 						Format: plainFormat,
@@ -83,10 +84,11 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				},
 				DumpLocation: "/tmp/db.dump",
 			},
-			Command: []string{"sh", "-c", "cat /tmp/db.dump/testDB.dump | psql --username john --dbname postgres"},
+			isDumpLocationDir: true,
+			command:           []string{"sh", "-c", "cat /tmp/db.dump/testDB.dump | psql --username john --dbname postgres"},
 		},
 		{
-			CopyOptions: RestoreOptions{
+			copyOptions: RestoreOptions{
 				Databases: map[string]DumpDefinition{
 					"testDB.dump": {
 						Format: plainFormat,
@@ -94,15 +96,29 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				},
 				DumpLocation: "/tmp/db.dump",
 			},
-			Command: []string{"sh", "-c", "cat /tmp/db.dump/testDB.dump | psql --username john --dbname testDB"},
+			isDumpLocationDir: true,
+			command:           []string{"sh", "-c", "cat /tmp/db.dump/testDB.dump | psql --username john --dbname testDB"},
+		},
+		{
+			copyOptions: RestoreOptions{
+				Databases: map[string]DumpDefinition{
+					"testDB.dump": {
+						Format: plainFormat,
+					},
+				},
+				DumpLocation: "/tmp/db.dump",
+			},
+			isDumpLocationDir: false,
+			command:           []string{"sh", "-c", "cat /tmp/db.dump | psql --username john --dbname testDB"},
 		},
 	}
 
 	for _, tc := range testCases {
-		logicalJob.RestoreOptions = tc.CopyOptions
-		for dbName, definition := range tc.CopyOptions.Databases {
+		logicalJob.RestoreOptions = tc.copyOptions
+		logicalJob.isDumpLocationDir = tc.isDumpLocationDir
+		for dbName, definition := range tc.copyOptions.Databases {
 			restoreCommand := logicalJob.buildLogicalRestoreCommand(dbName, definition)
-			assert.Equal(t, restoreCommand, tc.Command)
+			assert.Equal(t, restoreCommand, tc.command)
 		}
 	}
 }
@@ -163,20 +179,23 @@ func TestDiscoverDumpDirectories(t *testing.T) {
 }
 
 func TestDumpLocation(t *testing.T) {
-	r := &RestoreJob{}
-	r.RestoreOptions.DumpLocation = "/tmp/dblab_test"
-
 	testCases := []struct {
-		format           string
-		dbname           string
-		expectedLocation string
+		format            string
+		isDumpLocationDir bool
+		dbname            string
+		expectedLocation  string
 	}{
-		{format: directoryFormat, dbname: "postgres", expectedLocation: "/tmp/dblab_test/postgres"},
-		{format: customFormat, dbname: "postgres", expectedLocation: "/tmp/dblab_test"},
-		{format: plainFormat, dbname: "postgres", expectedLocation: "/tmp/dblab_test/postgres"},
+		{format: directoryFormat, dbname: "postgresDir", expectedLocation: "/tmp/dblab_test/postgresDir"},
+		{format: customFormat, dbname: "postgresCustom", isDumpLocationDir: true, expectedLocation: "/tmp/dblab_test/postgresCustom"},
+		{format: customFormat, dbname: "postgresCustom", expectedLocation: "/tmp/dblab_test"},
+		{format: plainFormat, dbname: "postgresPlain", isDumpLocationDir: true, expectedLocation: "/tmp/dblab_test/postgresPlain"},
+		{format: plainFormat, dbname: "postgresPlain", expectedLocation: "/tmp/dblab_test"},
 	}
 
 	for _, tc := range testCases {
+		r := &RestoreJob{}
+		r.RestoreOptions.DumpLocation = "/tmp/dblab_test"
+		r.isDumpLocationDir = tc.isDumpLocationDir
 		dumpLocation := r.getDumpLocation(tc.format, tc.dbname)
 		assert.Equal(t, tc.expectedLocation, dumpLocation)
 	}
