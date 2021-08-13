@@ -106,7 +106,7 @@ func (c *mockCloning) GetClone(id string) (*models.Clone, error) {
 	return clone, nil
 }
 
-func (c *mockCloning) UpdateClone(id string, patch *types.CloneUpdateRequest) (*models.Clone, error) {
+func (c *mockCloning) UpdateClone(id string, _ types.CloneUpdateRequest) (*models.Clone, error) {
 	if _, ok := c.clones[id]; !ok {
 		return nil, errors.New("clone not found")
 	}
@@ -122,7 +122,7 @@ func (c *mockCloning) UpdateCloneStatus(id string, _ models.Status) error {
 	return nil
 }
 
-func (c *mockCloning) ResetClone(id string) error {
+func (c *mockCloning) ResetClone(id string, _ types.ResetCloneRequest) error {
 	if _, ok := c.clones[id]; !ok {
 		return errors.New("clone not found")
 	}

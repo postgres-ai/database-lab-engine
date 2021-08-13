@@ -23,8 +23,3 @@ type CloneMetadata struct {
 	CloningTime     float64 `json:"cloningTime"`
 	MaxIdleMinutes  uint    `json:"maxIdleMinutes"`
 }
-
-// PatchCloneRequest defines a struct for clone updating.
-type PatchCloneRequest struct {
-	Protected bool `json:"protected"`
-}

@@ -36,9 +36,9 @@ type Cloning interface {
 	CloneConnection(ctx context.Context, cloneID string) (pgxtype.Querier, error)
 	DestroyClone(string) error
 	GetClone(string) (*models.Clone, error)
-	UpdateClone(string, *types.CloneUpdateRequest) (*models.Clone, error)
+	UpdateClone(string, types.CloneUpdateRequest) (*models.Clone, error)
 	UpdateCloneStatus(string, models.Status) error
-	ResetClone(string) error
+	ResetClone(string, types.ResetCloneRequest) error
 
 	GetInstanceState() (*models.InstanceStatus, error)
 	GetSnapshots() ([]models.Snapshot, error)

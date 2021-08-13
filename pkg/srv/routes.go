@@ -101,7 +101,7 @@ func (s *Server) patchClone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var patchClone *types.CloneUpdateRequest
+	var patchClone types.CloneUpdateRequest
 	if err := api.ReadJSON(r, &patchClone); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 
@@ -148,7 +148,19 @@ func (s *Server) resetClone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.Cloning.ResetClone(cloneID); err != nil {
+	var resetOptions types.ResetCloneRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&resetOptions); err != nil {
+		api.SendError(w, r, errors.Wrap(err, "failed to parse request parameters"))
+		return
+	}
+
+	if resetOptions.Latest && resetOptions.SnapshotID != "" {
+		api.SendBadRequestError(w, r, "parameters `latest` and `snapshot ID` must not be specified together")
+		return
+	}
+
+	if err := s.Cloning.ResetClone(cloneID, resetOptions); err != nil {
 		api.SendError(w, r, errors.Wrap(err, "failed to reset clone"))
 		return
 	}

@@ -556,7 +556,7 @@ func TestClientResetClone(t *testing.T) {
 	c.pollingInterval = time.Millisecond
 
 	// Send a request.
-	err = c.ResetClone(context.Background(), "testCloneID")
+	err = c.ResetClone(context.Background(), "testCloneID", types.ResetCloneRequest{Latest: true})
 	require.NoError(t, err)
 }
 
@@ -580,7 +580,7 @@ func TestClientResetCloneAsync(t *testing.T) {
 	c.client = mockClient
 
 	// Send a request.
-	err = c.ResetCloneAsync(context.Background(), "testCloneID")
+	err = c.ResetCloneAsync(context.Background(), "testCloneID", types.ResetCloneRequest{Latest: true})
 	require.NoError(t, err)
 }
 
@@ -611,6 +611,6 @@ func TestClientResetCloneWithFailedRequest(t *testing.T) {
 	c.client = mockClient
 
 	// Send a request.
-	err = c.ResetClone(context.Background(), "testCloneID")
+	err = c.ResetClone(context.Background(), "testCloneID", types.ResetCloneRequest{Latest: true, SnapshotID: "test"})
 	assert.EqualError(t, err, `failed to get response: Check your verification token.`)
 }

@@ -31,3 +31,9 @@ type DatabaseRequest struct {
 type SnapshotCloneFieldRequest struct {
 	ID string `json:"id"`
 }
+
+// ResetCloneRequest represents snapshot params of a reset request.
+type ResetCloneRequest struct {
+	SnapshotID string `json:"snapshotID"`
+	Latest     bool   `json:"latest"`
+}

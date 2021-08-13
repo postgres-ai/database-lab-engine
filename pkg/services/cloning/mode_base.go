@@ -295,7 +295,7 @@ func (c *baseCloning) GetClone(id string) (*models.Clone, error) {
 	return w.clone, nil
 }
 
-func (c *baseCloning) UpdateClone(id string, patch *types.CloneUpdateRequest) (*models.Clone, error) {
+func (c *baseCloning) UpdateClone(id string, patch types.CloneUpdateRequest) (*models.Clone, error) {
 	w, ok := c.findWrapper(id)
 	if !ok {
 		return nil, models.New(models.ErrCodeNotFound, "clone not found")
@@ -328,7 +328,7 @@ func (c *baseCloning) UpdateCloneStatus(cloneID string, status models.Status) er
 	return nil
 }
 
-func (c *baseCloning) ResetClone(cloneID string) error {
+func (c *baseCloning) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) error {
 	w, ok := c.findWrapper(cloneID)
 	if !ok {
 		return models.New(models.ErrCodeNotFound, "the clone not found")
@@ -336,6 +336,22 @@ func (c *baseCloning) ResetClone(cloneID string) error {
 
 	if w.session == nil {
 		return models.New(models.ErrCodeNotFound, "clone is not started yet")
+	}
+
+	var snapshotID string
+
+	if resetOptions.SnapshotID != "" {
+		snapshot, err := c.getSnapshotByID(resetOptions.SnapshotID)
+		if err != nil {
+			return errors.Wrap(err, "failed to get snapshot ID")
+		}
+
+		snapshotID = snapshot.ID
+	}
+
+	// If the snapshotID variable is empty, the latest snapshot will be chosen.
+	if snapshotID == "" && !resetOptions.Latest {
+		snapshotID = w.snapshot.ID
 	}
 
 	if err := c.UpdateCloneStatus(cloneID, models.Status{
@@ -346,9 +362,9 @@ func (c *baseCloning) ResetClone(cloneID string) error {
 	}
 
 	go func() {
-		err := c.provision.ResetSession(w.session, w.snapshot.ID)
+		snapshot, err := c.provision.ResetSession(w.session, snapshotID)
 		if err != nil {
-			log.Errf("Failed to reset a clone: %+v.", err)
+			log.Errf("Failed to reset clone: %+v.", err)
 
 			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
@@ -359,6 +375,10 @@ func (c *baseCloning) ResetClone(cloneID string) error {
 
 			return
 		}
+
+		c.cloneMutex.Lock()
+		w.clone.Snapshot = snapshot
+		c.cloneMutex.Unlock()
 
 		if err := c.UpdateCloneStatus(cloneID, models.Status{
 			Code:    models.StatusOK,

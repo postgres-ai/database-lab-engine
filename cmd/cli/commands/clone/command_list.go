@@ -10,6 +10,11 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands"
 )
 
+const (
+	cloneResetLatestFlag     = "latest"
+	cloneResetSnapshotIDFlag = "snapshot-id"
+)
+
 // CommandList returns available commands for a clones management.
 func CommandList() []*cli.Command {
 	return []*cli.Command{{
@@ -100,6 +105,14 @@ func CommandList() []*cli.Command {
 						Name:    "async",
 						Usage:   "run the command asynchronously",
 						Aliases: []string{"a"},
+					},
+					&cli.BoolFlag{
+						Name:  cloneResetLatestFlag,
+						Usage: "reset clone to the latest available snapshot",
+					},
+					&cli.StringFlag{
+						Name:  cloneResetSnapshotIDFlag,
+						Usage: "snapshot ID used when resetting clone's state",
 					},
 				},
 			},
