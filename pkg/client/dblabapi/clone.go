@@ -197,10 +197,15 @@ func (c *Client) UpdateClone(ctx context.Context, cloneID string, updateRequest 
 }
 
 // ResetClone resets a Database Lab clone session.
-func (c *Client) ResetClone(ctx context.Context, cloneID string) error {
+func (c *Client) ResetClone(ctx context.Context, cloneID string, params types.ResetCloneRequest) error {
 	u := c.URL(fmt.Sprintf("/clone/%s/reset", cloneID))
 
-	request, err := http.NewRequest(http.MethodPost, u.String(), nil)
+	body := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(body).Encode(params); err != nil {
+		return errors.Wrap(err, "failed to encode ResetClone parameters to JSON")
+	}
+
+	request, err := http.NewRequest(http.MethodPost, u.String(), body)
 	if err != nil {
 		return errors.Wrap(err, "failed to make a request")
 	}
@@ -225,10 +230,15 @@ func (c *Client) ResetClone(ctx context.Context, cloneID string) error {
 }
 
 // ResetCloneAsync asynchronously resets a Database Lab clone session.
-func (c *Client) ResetCloneAsync(ctx context.Context, cloneID string) error {
+func (c *Client) ResetCloneAsync(ctx context.Context, cloneID string, params types.ResetCloneRequest) error {
 	u := c.URL(fmt.Sprintf("/clone/%s/reset", cloneID))
 
-	request, err := http.NewRequest(http.MethodPost, u.String(), nil)
+	body := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(body).Encode(params); err != nil {
+		return errors.Wrap(err, "failed to encode ResetClone parameters to JSON")
+	}
+
+	request, err := http.NewRequest(http.MethodPost, u.String(), body)
 	if err != nil {
 		return errors.Wrap(err, "failed to make a request")
 	}

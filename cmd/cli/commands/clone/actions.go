@@ -158,11 +158,15 @@ func reset() func(*cli.Context) error {
 		}
 
 		cloneID := cliCtx.Args().First()
+		resetOptions := types.ResetCloneRequest{
+			Latest:     cliCtx.Bool(cloneResetLatestFlag),
+			SnapshotID: cliCtx.String(cloneResetSnapshotIDFlag),
+		}
 
 		if cliCtx.Bool("async") {
-			err = dblabClient.ResetCloneAsync(cliCtx.Context, cloneID)
+			err = dblabClient.ResetCloneAsync(cliCtx.Context, cloneID, resetOptions)
 		} else {
-			err = dblabClient.ResetClone(cliCtx.Context, cloneID)
+			err = dblabClient.ResetClone(cliCtx.Context, cloneID, resetOptions)
 		}
 
 		if err != nil {

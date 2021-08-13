@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/databases/postgres"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/docker"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
@@ -148,7 +149,7 @@ func (p *Provisioner) Reload(cfg Config, dbCfg resources.DB) {
 // StartSession starts a new session.
 func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUser,
 	extraConfig map[string]string) (*resources.Session, error) {
-	snapshotID, err := p.getSnapshotID(snapshotID)
+	snapshot, err := p.getSnapshot(snapshotID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get snapshots")
 	}
@@ -173,8 +174,8 @@ func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUs
 		}
 	}()
 
-	if err := fsm.CreateClone(name, snapshotID); err != nil {
-		return nil, errors.Wrap(err, "failed to create a clone")
+	if err := fsm.CreateClone(name, snapshot.ID); err != nil {
+		return nil, errors.Wrap(err, "failed to create clone")
 	}
 
 	appConfig := p.getAppConfig(fsm.Pool(), name, port)
@@ -228,18 +229,20 @@ func (p *Provisioner) StopSession(session *resources.Session) error {
 }
 
 // ResetSession resets an existing session.
-func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string) error {
+func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string) (*models.Snapshot, error) {
 	fsm, err := p.pm.GetFSManager(session.Pool)
 	if err != nil {
-		return errors.Wrap(err, "failed to find a filesystem manager of this session")
+		return nil, errors.Wrap(err, "failed to find filesystem manager of this session")
 	}
 
 	name := util.GetCloneName(session.Port)
 
-	snapshotID, err = p.getSnapshotID(snapshotID)
+	snapshot, err := p.getSnapshot(snapshotID)
 	if err != nil {
-		return errors.Wrap(err, "failed to get snapshots")
+		return nil, errors.Wrap(err, "failed to get snapshots")
 	}
+
+	log.Dbg("Snapshot ID to reset session: ", snapshot.ID)
 
 	defer func() {
 		if err != nil {
@@ -251,26 +254,32 @@ func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string
 	appConfig.SetExtraConf(session.ExtraConfig)
 
 	if err := postgres.Stop(p.runner, fsm.Pool(), name); err != nil {
-		return errors.Wrap(err, "failed to stop a container")
+		return nil, errors.Wrap(err, "failed to stop container")
 	}
 
 	if err := fsm.DestroyClone(name); err != nil {
-		return errors.Wrap(err, "failed to destroy clone")
+		return nil, errors.Wrap(err, "failed to destroy clone")
 	}
 
-	if err := fsm.CreateClone(name, snapshotID); err != nil {
-		return errors.Wrap(err, "failed to create a clone")
+	if err := fsm.CreateClone(name, snapshot.ID); err != nil {
+		return nil, errors.Wrap(err, "failed to create clone")
 	}
 
 	if err := postgres.Start(p.runner, appConfig); err != nil {
-		return errors.Wrap(err, "failed to start a container")
+		return nil, errors.Wrap(err, "failed to start container")
 	}
 
 	if err := p.prepareDB(appConfig, session.EphemeralUser); err != nil {
-		return errors.Wrap(err, "failed to prepare a database")
+		return nil, errors.Wrap(err, "failed to prepare database")
 	}
 
-	return nil
+	snapshotModel := &models.Snapshot{
+		ID:          snapshot.ID,
+		CreatedAt:   util.FormatTime(snapshot.CreatedAt),
+		DataStateAt: util.FormatTime(snapshot.DataStateAt),
+	}
+
+	return snapshotModel, nil
 }
 
 // GetSnapshots provides a snapshot list.
@@ -306,21 +315,27 @@ func (p *Provisioner) revertSession(name string) {
 	}
 }
 
-func (p *Provisioner) getSnapshotID(snapshotID string) (string, error) {
-	if snapshotID != "" {
-		return snapshotID, nil
-	}
-
+func (p *Provisioner) getSnapshot(snapshotID string) (*resources.Snapshot, error) {
 	snapshots, err := p.GetSnapshots()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get snapshots")
+		return nil, errors.Wrap(err, "failed to get snapshots")
 	}
 
 	if len(snapshots) == 0 {
-		return "", errors.New("no snapshots available")
+		return nil, errors.New("no snapshots available")
 	}
 
-	return snapshots[0].ID, nil
+	if snapshotID != "" {
+		for _, snapshot := range snapshots {
+			if snapshot.ID == snapshotID {
+				return &snapshot, nil
+			}
+		}
+
+		return nil, errors.Errorf("snapshot %q not found", snapshotID)
+	}
+
+	return &snapshots[0], nil
 }
 
 func (p *Provisioner) initPortPool() error {
