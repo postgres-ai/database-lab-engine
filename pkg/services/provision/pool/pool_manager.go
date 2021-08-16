@@ -19,6 +19,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones/zfs"
 )
 
 const (
@@ -181,6 +182,8 @@ func (pm *Manager) examineEntries(entries []os.FileInfo) (map[string]FSManager, 
 	fsManagers := make(map[string]FSManager)
 	poolList := &list.List{}
 
+	poolMappings := make(map[string]string)
+
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -204,6 +207,7 @@ func (pm *Manager) examineEntries(entries []os.FileInfo) (map[string]FSManager, 
 		pool := &resources.Pool{
 			Mode:           fsType,
 			Name:           entry.Name(),
+			PoolDirName:    entry.Name(),
 			MountDir:       pm.cfg.MountDir,
 			CloneSubDir:    pm.cfg.CloneSubDir,
 			DataSubDir:     pm.cfg.DataSubDir,
@@ -223,6 +227,21 @@ func (pm *Manager) examineEntries(entries []os.FileInfo) (map[string]FSManager, 
 			log.Msg(pool.DSA.String())
 		}
 
+		// A custom pool name is not available for LVM.
+		if fsType == ZFS {
+			if len(poolMappings) == 0 {
+				poolMappings, err = zfs.PoolMappings(pm.runner, pm.cfg.MountDir, pm.cfg.PreSnapshotSuffix)
+				if err != nil {
+					log.Msg("failed to get pool mappings:", err.Error())
+					continue
+				}
+			}
+
+			if poolName, ok := poolMappings[entry.Name()]; ok {
+				pool.Name = poolName
+			}
+		}
+
 		fsm, err := NewManager(pm.runner, ManagerConfig{
 			Pool:              pool,
 			PreSnapshotSuffix: pm.cfg.PreSnapshotSuffix,
@@ -232,8 +251,7 @@ func (pm *Manager) examineEntries(entries []os.FileInfo) (map[string]FSManager, 
 			continue
 		}
 
-		// TODO(akartasov): extract pool name.
-		fsManagers[entry.Name()] = fsm
+		fsManagers[pool.Name] = fsm
 
 		front := poolList.Front()
 		if front == nil || front.Value == nil || fsManagers[front.Value.(string)].Pool().DSA.Before(pool.DSA) {

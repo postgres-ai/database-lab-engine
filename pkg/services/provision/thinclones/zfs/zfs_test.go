@@ -159,3 +159,28 @@ func TestExcludingBusySnapshots(t *testing.T) {
 		assert.Equal(t, tc.result, excludeBusySnapshots(tc.snapshotList))
 	}
 }
+
+func TestProcessingMappingOutput(t *testing.T) {
+	out := `pgclusters     	           			/var/lib/postgresql/pools
+pgclusters/dblab           			/var/lib/postgresql/pools/dblab
+pgclusters/pgcluster1      			/var/lib/postgresql/pools/pgcluster1
+pgclusters/pgcluster2      			/var/lib/postgresql/pools/pgcluster2
+pgclusters/pgcluster5      			/var/lib/postgresql/pools/pgcluster5/data
+datastore                           /var/lib/postgresql/pools/datastore
+datastore/clone_pre_20210729130000  /var/lib/postgresql/pools/datastore/clones/clone_pre_20210729130000
+datastore/dblab_clone_6000          /var/lib/postgresql/pools/datastore/clones/dblab_clone_6000
+datastore/dblab_clone_6001          /var/lib/postgresql/pools/datastore/clones/dblab_clone_6001
+poolnext 							/var/lib/postgresql/pools/pool5`
+	mountDir := "/var/lib/postgresql/pools"
+	expected := map[string]string{
+		"dblab":      "pgclusters/dblab",
+		"pgcluster1": "pgclusters/pgcluster1",
+		"pgcluster2": "pgclusters/pgcluster2",
+		"datastore":  "datastore",
+		"pool5":      "poolnext",
+	}
+
+	poolMappings := processMappingOutput(out, mountDir)
+	assert.Equal(t, len(expected), len(poolMappings))
+	assert.Equal(t, expected, poolMappings)
+}
