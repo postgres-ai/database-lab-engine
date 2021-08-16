@@ -7,6 +7,7 @@ package zfs
 
 import (
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -654,4 +655,46 @@ func (z *ListEntry) setDataStateAt(field string) error {
 	z.DataStateAt = stateAt
 
 	return nil
+}
+
+// PoolMappings provides a mapping of pool name and mount point directory.
+func PoolMappings(runner runners.Runner, mountDir, preSnapshotSuffix string) (map[string]string, error) {
+	listCmd := "zfs list -Ho name,mountpoint -t filesystem | grep -v " + preSnapshotSuffix
+
+	output, err := runner.Run(listCmd, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list pools")
+	}
+
+	return processMappingOutput(output, mountDir), nil
+}
+
+func processMappingOutput(commandOutput, mountDir string) map[string]string {
+	poolMappings := make(map[string]string)
+
+	lines := strings.Split(commandOutput, "\n")
+
+	for i := range lines {
+		fields := strings.Fields(lines[i])
+
+		const poolFieldsNum = 2
+
+		if len(fields) < poolFieldsNum {
+			log.Dbg("Mapping fields not found: ", fields)
+			continue
+		}
+
+		// Select pools from the first nested level.
+		trimPrefix := strings.TrimPrefix(fields[1], mountDir)
+		poolDir := strings.Trim(trimPrefix, "/")
+		baseDir := path.Base(fields[1])
+
+		if poolDir == "" || baseDir != poolDir {
+			continue
+		}
+
+		poolMappings[poolDir] = fields[0]
+	}
+
+	return poolMappings
 }
