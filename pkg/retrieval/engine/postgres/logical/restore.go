@@ -396,56 +396,80 @@ func (r *RestoreJob) parsePlainFile(dumpPath string) (string, error) {
 
 // discoverDumpLocation discovers dump location to find databases ready to restore.
 func (r *RestoreJob) discoverDumpLocation(ctx context.Context, contID string) (map[string]DumpDefinition, error) {
+	dbList := make(map[string]DumpDefinition)
+
+	// Check the dumpLocation directory.
+	if dumpDefinition, err := r.getDirectoryDumpDefinition(ctx, contID, r.RestoreOptions.DumpLocation); err == nil {
+		dbList[""] = dumpDefinition // empty string because of the root directory.
+
+		return dbList, nil
+	}
+
+	log.Msg(fmt.Sprintf("Directory dump not found in %q", r.RestoreOptions.DumpLocation))
+
 	fileInfos, err := ioutil.ReadDir(r.RestoreOptions.DumpLocation)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to discover dump location")
 	}
 
-	dbList := make(map[string]DumpDefinition)
-
 	for _, info := range fileInfos {
 		log.Dbg("Explore: ", info.Name())
 
 		if info.IsDir() {
-			dumpMetafilePath := path.Join(r.RestoreOptions.DumpLocation, info.Name(), dumpMetafile)
-			if _, err := os.Stat(dumpMetafilePath); err != nil {
-				log.Msg(fmt.Sprintf("TOC file not found: %v. Skip directory: %s", err, info.Name()))
-				continue
-			}
+			dumpDirectory := path.Join(r.RestoreOptions.DumpLocation, info.Name())
 
-			dbName, err := r.extractDBNameFromDump(ctx, contID, path.Join(r.RestoreOptions.DumpLocation, info.Name()))
+			dumpDefinition, err := r.getDirectoryDumpDefinition(ctx, contID, dumpDirectory)
 			if err != nil {
-				log.Msg(fmt.Sprintf("Invalid dump: %v. Skip directory: %s", err, info.Name()))
+				log.Msg(fmt.Sprintf("Dump not found: %v. Skip directory: %s", err, info.Name()))
 				continue
 			}
 
-			dbList[info.Name()] = DumpDefinition{
-				Format: directoryFormat,
-				dbName: dbName,
-			}
+			dbList[info.Name()] = dumpDefinition
 
 			log.Msg("Found the directory dump: ", info.Name())
 
 			continue
 		}
 
-		dbDefinition, err := r.exploreDumpFile(ctx, contID, path.Join(r.RestoreOptions.DumpLocation, info.Name()))
+		dumpDefinition, err := r.exploreDumpFile(ctx, contID, path.Join(r.RestoreOptions.DumpLocation, info.Name()))
 		if err != nil {
 			log.Dbg(fmt.Sprintf("Skip file %q due to failure to find a database to restore: %v", info.Name(), err))
 			continue
 		}
 
-		if dbDefinition == nil {
+		if dumpDefinition == nil {
 			log.Dbg(fmt.Sprintf("Skip file %q because the database definition is empty", info.Name()))
 			continue
 		}
 
-		dbList[info.Name()] = *dbDefinition
+		dbList[info.Name()] = *dumpDefinition
 
-		log.Msg(fmt.Sprintf("Found the %s dump file: %s", dbDefinition.Format, info.Name()))
+		log.Msg(fmt.Sprintf("Found the %s dump file: %s", dumpDefinition.Format, info.Name()))
 	}
 
 	return dbList, nil
+}
+
+func (r *RestoreJob) getDirectoryDumpDefinition(ctx context.Context, contID, dumpDir string) (DumpDefinition, error) {
+	dumpMetafilePath := path.Join(dumpDir, dumpMetafile)
+
+	if _, err := os.Stat(dumpMetafilePath); err != nil {
+		log.Msg(fmt.Sprintf("TOC file not found: %v. Skip directory: %s", err, dumpDir))
+		return DumpDefinition{}, err
+	}
+
+	log.Msg(fmt.Sprintf("TOC file has been found: %q", dumpMetafilePath))
+
+	dbName, err := r.extractDBNameFromDump(ctx, contID, dumpDir)
+	if err != nil {
+		log.Err("Invalid dump: ", err)
+		return DumpDefinition{}, errors.Wrap(err, "invalid database name")
+	}
+
+	return DumpDefinition{
+		Format: directoryFormat,
+		dbName: dbName,
+	}, nil
 }
 
 func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDefinition DumpDefinition) error {
