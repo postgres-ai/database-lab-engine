@@ -9,9 +9,20 @@ Database Lab Engine (DLE) is an open-source (AGPLv3) technology that allows blaz
 
 As an example, cloning a 10 TiB PostgreSQL database can take less than 2 seconds.
 
-Read more at [Postgres.ai](https://postgres.ai) and in [the Docs](https://postgres.ai/docs).
+## How it works and how it helps engineers do their work faster and have better quality
+- [How it works](https://postgres.ai/products/how-it-works)
+- [Database Migration Testing](https://postgres.ai/products/database-migration-testing)
+- [SQL Optimization with Joe Bot](https://postgres.ai/products/joe)
+- [Case Study: Qiwi](https://postgres.ai/resources/case-studies/qiwi) (How Qiwi Controls the Data to Accelerate Development)
+- [Case Study: GitLab](https://postgres.ai/resources/case-studies/gitlab) (How GitLab iterates on SQL performance optimization workflow to reduce downtime risks)
+
+> Please support the project giving a GitLab star! It's on [the main page](https://gitlab.com/postgres-ai/database-lab), at the upper right corner:
+>
+> ![Add a star](./assets/star.gif)
 
 ## Useful links
+- [Database Lab documentation](https://postgres.ai/docs)
+- [Questions & answers](https://postgres.ai/docs/questions-and-answers)
 ### Tutorials
 - [Database Lab tutorial for any PostgreSQL database](https://postgres.ai/docs/tutorials/database-lab-tutorial)
 - [Database Lab tutorial for Amazon RDS](https://postgres.ai/docs/tutorials/database-lab-tutorial-amazon-rds)
@@ -23,13 +34,13 @@ Read more at [Postgres.ai](https://postgres.ai) and in [the Docs](https://postgr
 ### How-to guides
 - [How to install Database Lab with Terraform on AWS](https://postgres.ai/docs/how-to-guides/administration/install-database-lab-with-terraform)
 - [How to install and initialize Database Lab CLI](https://postgres.ai/docs/guides/cli/cli-install-init)
+- [How to manage DLE](https://postgres.ai/docs/how-to-guides/administration)
+- [How to work with clones](https://postgres.ai/docs/how-to-guides/cloning) 
 ### Miscellaneous
 - [DLE Docker images](https://hub.docker.com/r/postgresai/dblab-server)
 - [Extended Docker images for PostgreSQL (with plenty of extensions)](https://hub.docker.com/r/postgresai/extended-postgres)
 - [SQL Optimization chatbot (Joe Bot)](https://postgres.ai/docs/joe-bot)
 - [DB Migration Checker](https://postgres.ai/docs/db-migration-checker)
-- [Case Study: How Qiwi Controls the Data to Accelerate Development](https://postgres.ai/resources/case-studies/qiwi)
-- [Case Study: How GitLab iterates on SQL performance optimization workflow to reduce downtime risks](https://postgres.ai/resources/case-studies/gitlab)
 
 ## Development
 Open [an Issue](https://gitlab.com/postgres-ai/database-lab/-/issues) to discuss ideas, open [a Merge Request](https://gitlab.com/postgres-ai/database-lab/-/merge_requests) to propose a change.
@@ -41,14 +52,6 @@ See our [GitLab Container Registry](https://gitlab.com/postgres-ai/database-lab/
 ### Development requirements
 1. Install `golangci-lint`: https://github.com/golangci/golangci-lint#install
 
-## Have a question?
-- Check our [Q&A](https://postgres.ai/docs/questions-and-answers)
-- or join our Community (links below)
-
 ## Community
-- [Community Slack (English)](https://slack.postgres.ai)
+- [Community Slack](https://slack.postgres.ai)
 - [Twitter](https://twitter.com/Database_Lab)
-
-> Please support the project giving a GitLab star! It's on [the main page](https://gitlab.com/postgres-ai/database-lab), at the upper right corner:
->
-> ![Add a star](./assets/star.gif)
