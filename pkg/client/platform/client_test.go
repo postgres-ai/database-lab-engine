@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -89,7 +89,7 @@ func TestClientChecksPlatformToken(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: http.StatusOK,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(body)),
+			Body:       io.NopCloser(bytes.NewBuffer(body)),
 		}
 	})
 
@@ -122,7 +122,7 @@ func TestClientChecksPlatformTokenFailed(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: http.StatusUnauthorized,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(body)),
+			Body:       io.NopCloser(bytes.NewBuffer(body)),
 		}
 	})
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"strings"
@@ -137,7 +136,7 @@ func loadConfiguration() (*runci.Config, error) {
 		return nil, errors.Wrap(err, "failed to get config path")
 	}
 
-	b, err := ioutil.ReadFile(configPath)
+	b, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, errors.Errorf("error loading %s config file", configPath)
 	}

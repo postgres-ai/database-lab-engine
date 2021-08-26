@@ -6,7 +6,7 @@
 package config
 
 import (
-	"io/ioutil"
+	"os"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -43,7 +43,7 @@ func LoadConfig(name string) (*Config, error) {
 		return nil, errors.Wrap(err, "failed to get config path")
 	}
 
-	b, err := ioutil.ReadFile(configPath)
+	b, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, errors.Errorf("error loading %s config file", name)
 	}

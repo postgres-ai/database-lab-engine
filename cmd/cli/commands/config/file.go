@@ -5,7 +5,7 @@
 package config
 
 import (
-	"io/ioutil"
+	"os"
 	"os/user"
 	"path"
 
@@ -46,7 +46,7 @@ func BuildFileName(dirname string) string {
 
 // Load loads a CLI config by a provided filename.
 func Load(filename string) (*CLIConfig, error) {
-	configData, err := ioutil.ReadFile(filename)
+	configData, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func SaveConfig(filename string, cfg *CLIConfig) error {
 		return err
 	}
 
-	if err := ioutil.WriteFile(filename, configData, 0600); err != nil {
+	if err := os.WriteFile(filename, configData, 0600); err != nil {
 		return err
 	}
 

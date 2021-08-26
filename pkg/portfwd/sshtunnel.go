@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 
@@ -166,7 +165,7 @@ func SSHAgent() ssh.AuthMethod {
 func ReadAuthFromIdentityFile(identityFilename string) (ssh.AuthMethod, error) {
 	log.Dbg(fmt.Sprintf("Read identity file %q", identityFilename))
 
-	privateKey, err := ioutil.ReadFile(identityFilename)
+	privateKey, err := os.ReadFile(identityFilename)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read an identity file")
 	}

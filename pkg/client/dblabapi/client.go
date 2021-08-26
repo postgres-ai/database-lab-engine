@@ -10,7 +10,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -127,7 +127,7 @@ func (c *Client) Do(ctx context.Context, request *http.Request) (response *http.
 
 	// Extract error if the status code is not successful.
 	if response.StatusCode >= http.StatusBadRequest {
-		b, err := ioutil.ReadAll(response.Body)
+		b, err := io.ReadAll(response.Body)
 		if err != nil {
 			return response, err
 		}

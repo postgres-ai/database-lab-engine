@@ -6,7 +6,6 @@ package logical
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -126,11 +125,11 @@ func TestRestoreCommandBuilding(t *testing.T) {
 func TestDiscoverDumpDirectories(t *testing.T) {
 	t.Skip("docker client is required")
 
-	tmpDirRoot, err := ioutil.TempDir("", "dblab_test_restore_")
+	tmpDirRoot, err := os.MkdirTemp("", "dblab_test_restore_")
 	require.Nil(t, err)
 	defer func() { _ = os.Remove(tmpDirRoot) }()
 
-	tmpDirDB1, err := ioutil.TempDir(tmpDirRoot, "db_")
+	tmpDirDB1, err := os.MkdirTemp(tmpDirRoot, "db_")
 	require.Nil(t, err)
 	defer func() { _ = os.Remove(tmpDirDB1) }()
 
@@ -140,7 +139,7 @@ func TestDiscoverDumpDirectories(t *testing.T) {
 	require.Nil(t, err)
 	defer func() { _ = os.Remove(tmpTOCFile1.Name()) }()
 
-	tmpDirDB2, err := ioutil.TempDir(tmpDirRoot, "db_")
+	tmpDirDB2, err := os.MkdirTemp(tmpDirRoot, "db_")
 	require.Nil(t, err)
 	defer func() { _ = os.Remove(tmpDirDB2) }()
 
@@ -150,7 +149,7 @@ func TestDiscoverDumpDirectories(t *testing.T) {
 	require.Nil(t, err)
 	defer func() { _ = os.Remove(tmpTOCFile2.Name()) }()
 
-	tmpDirDB3, err := ioutil.TempDir(tmpDirRoot, "db_")
+	tmpDirDB3, err := os.MkdirTemp(tmpDirRoot, "db_")
 	require.Nil(t, err)
 	defer func() { _ = os.Remove(tmpDirDB3) }()
 
@@ -292,7 +291,7 @@ func TestParsingPlainFile(t *testing.T) {
 	for _, tc := range testCases {
 		t.Log(tc.name)
 
-		f, err := ioutil.TempFile("", "plain_dump_*")
+		f, err := os.CreateTemp("", "plain_dump_*")
 		require.Nil(t, err)
 
 		// There no many test cases.
@@ -301,7 +300,7 @@ func TestParsingPlainFile(t *testing.T) {
 			_ = os.Remove(f.Name())
 		}()
 
-		err = ioutil.WriteFile(f.Name(), []byte(tc.content), 0666)
+		err = os.WriteFile(f.Name(), []byte(tc.content), 0666)
 		require.Nil(t, err)
 
 		r := &RestoreJob{}
@@ -328,7 +327,7 @@ func TestParsingInvalidPlainFile(t *testing.T) {
 	for _, tc := range testCases {
 		t.Log(tc.name)
 
-		f, err := ioutil.TempFile("", "plain_dump_*")
+		f, err := os.CreateTemp("", "plain_dump_*")
 		require.Nil(t, err)
 
 		// There no many test cases.
@@ -337,7 +336,7 @@ func TestParsingInvalidPlainFile(t *testing.T) {
 			_ = os.Remove(f.Name())
 		}()
 
-		err = ioutil.WriteFile(f.Name(), []byte(tc.content), 0666)
+		err = os.WriteFile(f.Name(), []byte(tc.content), 0666)
 		require.Nil(t, err)
 
 		r := &RestoreJob{}

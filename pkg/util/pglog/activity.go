@@ -7,7 +7,7 @@ package pglog
 
 import (
 	"errors"
-	"io/ioutil"
+	"os"
 	"path"
 	"sort"
 	"strings"
@@ -58,7 +58,7 @@ func (s *Selector) SetMinimumTime(minimumTime time.Time) {
 func (s *Selector) DiscoverLogDir() error {
 	logFilenames := []string{}
 
-	logDirFiles, err := ioutil.ReadDir(s.logDir)
+	logDirFiles, err := os.ReadDir(s.logDir)
 	if err != nil {
 		return errs.Wrap(err, "failed to read a log directory")
 	}

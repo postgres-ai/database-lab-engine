@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -191,7 +190,7 @@ func (m *Manager) rewritePostgresConfig() error {
 		}
 	}
 
-	if err := ioutil.WriteFile(pgConfDst, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(pgConfDst, buf.Bytes(), 0644); err != nil {
 		return errors.Wrapf(err, "cannot rewrite %s at PGDATA", pgConfDst)
 	}
 
@@ -210,12 +209,12 @@ func (m *Manager) adjustHBAConf() error {
 
 	pgHbaDst := path.Join(m.dataDir, pgHbaConfName)
 
-	input, err := ioutil.ReadFile(pgHbaSrc)
+	input, err := os.ReadFile(pgHbaSrc)
 	if err != nil {
 		return errors.Wrapf(err, "cannot read %s from configs", pgHbaConfName)
 	}
 
-	if err := ioutil.WriteFile(pgHbaDst, input, 0644); err != nil {
+	if err := os.WriteFile(pgHbaDst, input, 0644); err != nil {
 		return errors.Wrapf(err, "cannot copy %s to PGDATA", pgHbaConfName)
 	}
 
@@ -233,12 +232,12 @@ func (m Manager) adjustGeneralConfigs() error {
 
 	pgConfDst := m.getConfigPath(PgConfName)
 
-	pgConfSrcFile, err := ioutil.ReadFile(pgConfSrc)
+	pgConfSrcFile, err := os.ReadFile(pgConfSrc)
 	if err != nil {
 		return errors.Wrapf(err, "cannot read %s from configs", PgConfName)
 	}
 
-	pgConfDstFile, err := ioutil.ReadFile(pgConfDst)
+	pgConfDstFile, err := os.ReadFile(pgConfDst)
 	if err != nil {
 		return errors.Wrapf(err, "cannot read %s from PGDATA", PgConfName)
 	}
@@ -285,7 +284,7 @@ func (m Manager) adjustGeneralConfigs() error {
 
 	output := strings.Join(pgConfDstLines, "\n")
 
-	if err := ioutil.WriteFile(pgConfDst, []byte(output), 0644); err != nil {
+	if err := os.WriteFile(pgConfDst, []byte(output), 0644); err != nil {
 		return errors.Wrap(err, "cannot write postgresql.conf to PGDATA")
 	}
 
@@ -477,7 +476,7 @@ func (m *Manager) rewriteConfig(pgConf string, extraConfig map[string]string) er
 
 	output := strings.Join(pgConfLines, "\n")
 
-	if err := ioutil.WriteFile(pgConf, []byte(output), 0644); err != nil {
+	if err := os.WriteFile(pgConf, []byte(output), 0644); err != nil {
 		return errors.Wrapf(err, "cannot write extra configuration to %s", pgConf)
 	}
 
@@ -505,7 +504,7 @@ func appendExtraConf(configFile string, extraConfig map[string]string) error {
 
 // truncateConfig truncates a configuration file.
 func (m *Manager) truncateConfig(pgConf string) error {
-	return ioutil.WriteFile(pgConf, []byte{}, 0644)
+	return os.WriteFile(pgConf, []byte{}, 0644)
 }
 
 // readConfig reads a configuration file.

@@ -1,7 +1,6 @@
 package pgconfig
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -21,11 +20,11 @@ recovery_target_timeline = latest
 		"recovery_target_timeline": "latest",
 	}
 
-	f, err := ioutil.TempFile("", "readPGConfig*")
+	f, err := os.CreateTemp("", "readPGConfig*")
 	require.Nil(t, err)
 	defer func() { _ = os.Remove(f.Name()) }()
 
-	err = ioutil.WriteFile(f.Name(), []byte(controlData), 0644)
+	err = os.WriteFile(f.Name(), []byte(controlData), 0644)
 	require.Nil(t, err)
 
 	fileConfig, err := readConfig(f.Name())

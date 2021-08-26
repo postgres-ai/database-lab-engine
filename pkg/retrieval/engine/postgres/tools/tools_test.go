@@ -5,7 +5,6 @@
 package tools
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 )
 
 func TestIfDirectoryEmpty(t *testing.T) {
-	dirName, err := ioutil.TempDir("", "test")
+	dirName, err := os.MkdirTemp("", "test")
 	defer os.RemoveAll(dirName)
 
 	require.NoError(t, err)
@@ -27,7 +26,7 @@ func TestIfDirectoryEmpty(t *testing.T) {
 	assert.True(t, isEmpty)
 
 	// Create a new file.
-	_, err = ioutil.TempFile(dirName, "testFile*")
+	_, err = os.CreateTemp(dirName, "testFile*")
 	require.NoError(t, err)
 
 	// Check if the directory is not empty.

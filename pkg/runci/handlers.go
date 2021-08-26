@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -348,7 +347,7 @@ func (s *Server) healthCheck(w http.ResponseWriter, _ *http.Request) {
 
 // readJSON reads JSON from request.
 func readJSON(r *http.Request, v interface{}) error {
-	reqBody, err := ioutil.ReadAll(r.Body)
+	reqBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		return errors.Wrap(err, "failed to read a request body")
 	}

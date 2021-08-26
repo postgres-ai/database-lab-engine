@@ -7,14 +7,13 @@ package fs
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
 
 // CopyDirectoryContent copies all files from one directory to another.
 func CopyDirectoryContent(sourceDir, dataDir string) error {
-	entries, err := ioutil.ReadDir(sourceDir)
+	entries, err := os.ReadDir(sourceDir)
 	if err != nil {
 		return err
 	}

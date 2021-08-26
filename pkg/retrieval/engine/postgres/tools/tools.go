@@ -31,6 +31,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sethvargo/go-password/password"
 	"github.com/shirou/gopsutil/host"
+
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools/defaults"
 )

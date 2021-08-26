@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-
 type blockDeviceList struct {
 	BlockDevices []blockDevice `json:"blockdevices"`
 }
