@@ -6,7 +6,6 @@
 package dbmarker
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 
@@ -71,7 +70,7 @@ func (m *Marker) CreateConfig() error {
 
 // GetConfig provides a loaded DBMarker config.
 func (m *Marker) GetConfig() (*Config, error) {
-	configData, err := ioutil.ReadFile(m.buildFileName())
+	configData, err := os.ReadFile(m.buildFileName())
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +95,7 @@ func (m *Marker) SaveConfig(cfg *Config) error {
 		return err
 	}
 
-	if err := ioutil.WriteFile(m.buildFileName(), configData, 0600); err != nil {
+	if err := os.WriteFile(m.buildFileName(), configData, 0600); err != nil {
 		return err
 	}
 

@@ -6,7 +6,6 @@ package pool
 
 import (
 	"container/list"
-	"io/ioutil"
 	"os"
 	"path"
 	"sync"
@@ -152,7 +151,7 @@ func (pm *Manager) GetFSManagerList() []FSManager {
 
 // ReloadPools updates available pool managers.
 func (pm *Manager) ReloadPools() error {
-	entries, err := ioutil.ReadDir(pm.cfg.MountDir)
+	dirEntries, err := os.ReadDir(pm.cfg.MountDir)
 	if err != nil {
 		return err
 	}
@@ -161,7 +160,7 @@ func (pm *Manager) ReloadPools() error {
 		return err
 	}
 
-	fsPools, fsManagerList := pm.examineEntries(entries)
+	fsPools, fsManagerList := pm.examineEntries(dirEntries)
 
 	if len(fsPools) == 0 {
 		return errors.New("no available pools")
@@ -178,7 +177,7 @@ func (pm *Manager) ReloadPools() error {
 	return nil
 }
 
-func (pm *Manager) examineEntries(entries []os.FileInfo) (map[string]FSManager, *list.List) {
+func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, *list.List) {
 	fsManagers := make(map[string]FSManager)
 	poolList := &list.List{}
 

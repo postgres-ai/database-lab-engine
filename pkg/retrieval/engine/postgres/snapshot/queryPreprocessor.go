@@ -7,7 +7,7 @@ package snapshot
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path"
 	"sync"
 
@@ -37,7 +37,7 @@ func newQueryProcessor(docker *client.Client, dbName, username, scriptDir string
 }
 
 func (q *queryProcessor) applyPreprocessingQueries(ctx context.Context, containerID string) error {
-	infos, err := ioutil.ReadDir(q.dirname)
+	infos, err := os.ReadDir(q.dirname)
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (q *queryProcessor) applyPreprocessingQueries(ctx context.Context, containe
 
 // runParallel executes queries simultaneously. Use a straightforward algorithm because the worker pool will be overhead.
 func (q *queryProcessor) runParallel(ctx context.Context, containerID, parallelDir string) error {
-	infos, err := ioutil.ReadDir(parallelDir)
+	infos, err := os.ReadDir(parallelDir)
 	if err != nil {
 		return err
 	}

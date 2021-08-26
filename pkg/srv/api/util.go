@@ -6,7 +6,7 @@ package api
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -35,7 +35,7 @@ func WriteJSON(w http.ResponseWriter, httpStatusCode int, v interface{}) error {
 
 // ReadJSON reads JSON from request.
 func ReadJSON(r *http.Request, v interface{}) error {
-	reqBody, err := ioutil.ReadAll(r.Body)
+	reqBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		return errors.Wrap(err, "failed to read a request body")
 	}

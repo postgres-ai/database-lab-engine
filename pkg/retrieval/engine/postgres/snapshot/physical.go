@@ -11,7 +11,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 	"sync"
@@ -646,7 +646,7 @@ func (p *PhysicalInitial) getDSAFromWAL(ctx context.Context, pgVersion float64, 
 
 	walDirectory := walDir(cloneDir, pgVersion)
 
-	infos, err := ioutil.ReadDir(walDirectory)
+	infos, err := os.ReadDir(walDirectory)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to read the pg_wal dir")
 	}

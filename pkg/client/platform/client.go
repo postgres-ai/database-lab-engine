@@ -10,7 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -111,14 +111,14 @@ func (p *Client) doRequest(ctx context.Context, request *http.Request, parser re
 	defer func() { _ = response.Body.Close() }()
 
 	if response.StatusCode != http.StatusOK {
-		body, err := ioutil.ReadAll(response.Body)
+		body, err := io.ReadAll(response.Body)
 		if err != nil {
 			return errors.Wrap(err, "failed to read response")
 		}
 
 		log.Dbg(fmt.Sprintf("Response: %v", string(body)))
 
-		response.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+		response.Body = io.NopCloser(bytes.NewBuffer(body))
 		if err := parser(response); err != nil {
 			return errors.Wrap(err, "failed to parse response")
 		}

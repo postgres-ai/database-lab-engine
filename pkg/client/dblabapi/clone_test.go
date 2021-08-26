@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -46,7 +46,7 @@ func TestClientListClones(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(body)),
+			Body:       io.NopCloser(bytes.NewBuffer(body)),
 			Header:     make(http.Header),
 		}
 	})
@@ -70,7 +70,7 @@ func TestClientListClonesWithFailedRequest(t *testing.T) {
 	mockClient := NewTestClient(func(r *http.Request) *http.Response {
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewBuffer([]byte{})),
+			Body:       io.NopCloser(bytes.NewBuffer([]byte{})),
 			Header:     make(http.Header),
 		}
 	})
@@ -116,7 +116,7 @@ func TestClientCreateClone(t *testing.T) {
 		if r.Method == http.MethodPost {
 			assert.Equal(t, r.URL.String(), "https://example.com/clone")
 
-			requestBody, err := ioutil.ReadAll(r.Body)
+			requestBody, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
 			defer func() { _ = r.Body.Close() }()
 
@@ -135,7 +135,7 @@ func TestClientCreateClone(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(responseBody)),
+			Body:       io.NopCloser(bytes.NewBuffer(responseBody)),
 			Header:     make(http.Header),
 		}
 	})
@@ -191,7 +191,7 @@ func TestClientCreateCloneAsync(t *testing.T) {
 	mockClient := NewTestClient(func(r *http.Request) *http.Response {
 		assert.Equal(t, r.URL.String(), "https://example.com/clone")
 
-		requestBody, err := ioutil.ReadAll(r.Body)
+		requestBody, err := io.ReadAll(r.Body)
 		require.NoError(t, err)
 		defer func() { _ = r.Body.Close() }()
 
@@ -204,7 +204,7 @@ func TestClientCreateCloneAsync(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(responseBody)),
+			Body:       io.NopCloser(bytes.NewBuffer(responseBody)),
 			Header:     make(http.Header),
 		}
 	})
@@ -239,7 +239,7 @@ func TestClientCreateCloneWithFailedRequest(t *testing.T) {
 	mockClient := NewTestClient(func(req *http.Request) *http.Response {
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewBuffer([]byte{})),
+			Body:       io.NopCloser(bytes.NewBuffer([]byte{})),
 			Header:     make(http.Header),
 		}
 	})
@@ -287,7 +287,7 @@ func TestClientGetClone(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(responseBody)),
+			Body:       io.NopCloser(bytes.NewBuffer(responseBody)),
 			Header:     make(http.Header),
 		}
 	})
@@ -311,7 +311,7 @@ func TestClientGetCloneWithFailedRequest(t *testing.T) {
 	mockClient := NewTestClient(func(req *http.Request) *http.Response {
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewBuffer([]byte{})),
+			Body:       io.NopCloser(bytes.NewBuffer([]byte{})),
 			Header:     make(http.Header),
 		}
 	})
@@ -353,7 +353,7 @@ func TestClientUpdateClone(t *testing.T) {
 	mockClient := NewTestClient(func(r *http.Request) *http.Response {
 		assert.Equal(t, r.URL.String(), "https://example.com/clone/testCloneID")
 
-		requestBody, err := ioutil.ReadAll(r.Body)
+		requestBody, err := io.ReadAll(r.Body)
 		require.NoError(t, err)
 		defer func() { _ = r.Body.Close() }()
 
@@ -369,7 +369,7 @@ func TestClientUpdateClone(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(responseBody)),
+			Body:       io.NopCloser(bytes.NewBuffer(responseBody)),
 			Header:     make(http.Header),
 		}
 	})
@@ -403,7 +403,7 @@ func TestClientUpdateCloneWithFailedRequest(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 400,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(responseBody)),
+			Body:       io.NopCloser(bytes.NewBuffer(responseBody)),
 			Header:     make(http.Header),
 		}
 	})
@@ -443,7 +443,7 @@ func TestClientDestroyClone(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: statusCode,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(responseBody)),
+			Body:       io.NopCloser(bytes.NewBuffer(responseBody)),
 			Header:     make(http.Header),
 		}
 	})
@@ -468,7 +468,7 @@ func TestClientDestroyCloneAsync(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(nil)),
+			Body:       io.NopCloser(bytes.NewBuffer(nil)),
 			Header:     make(http.Header),
 		}
 	})
@@ -499,7 +499,7 @@ func TestClientDestroyCloneWithFailedRequest(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 404,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(responseBody)),
+			Body:       io.NopCloser(bytes.NewBuffer(responseBody)),
 			Header:     make(http.Header),
 		}
 	})
@@ -541,7 +541,7 @@ func TestClientResetClone(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(responseBody)),
+			Body:       io.NopCloser(bytes.NewBuffer(responseBody)),
 			Header:     make(http.Header),
 		}
 	})
@@ -566,7 +566,7 @@ func TestClientResetCloneAsync(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(nil)),
+			Body:       io.NopCloser(bytes.NewBuffer(nil)),
 			Header:     make(http.Header),
 		}
 	})
@@ -597,7 +597,7 @@ func TestClientResetCloneWithFailedRequest(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 401,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(responseBody)),
+			Body:       io.NopCloser(bytes.NewBuffer(responseBody)),
 			Header:     make(http.Header),
 		}
 	})

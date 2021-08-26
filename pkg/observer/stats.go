@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"path"
@@ -352,13 +351,13 @@ func (c *ObservingClone) storeFileStats(data []byte, filename string) error {
 
 	log.Dbg("Dump data into file", fullFilename)
 
-	return ioutil.WriteFile(fullFilename, data, 0644)
+	return os.WriteFile(fullFilename, data, 0644)
 }
 
 func (c *ObservingClone) readFileStats(sessionID uint64, filename string) ([]byte, error) {
 	fullFilename := path.Join(c.artifactsSessionPath(sessionID), filename)
 
-	return ioutil.ReadFile(fullFilename)
+	return os.ReadFile(fullFilename)
 }
 
 // initStatFile touches a new file and adjusts file permissions.

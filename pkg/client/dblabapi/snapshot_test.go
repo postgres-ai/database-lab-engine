@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -34,7 +34,7 @@ func TestClientListSnapshots(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(body)),
+			Body:       io.NopCloser(bytes.NewBuffer(body)),
 			Header:     make(http.Header),
 		}
 	})
@@ -58,7 +58,7 @@ func TestClientListSnapshotsWithFailedRequest(t *testing.T) {
 	mockClient := NewTestClient(func(r *http.Request) *http.Response {
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewBuffer([]byte{})),
+			Body:       io.NopCloser(bytes.NewBuffer([]byte{})),
 			Header:     make(http.Header),
 		}
 	})

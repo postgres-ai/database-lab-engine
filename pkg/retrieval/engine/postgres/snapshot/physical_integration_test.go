@@ -9,7 +9,6 @@ package snapshot
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -114,7 +113,7 @@ func testWALParsing(t *testing.T, dockerCLI *client.Client, pgVersion float64, i
 	pgVersionString := fmt.Sprintf("%g", pgVersion)
 
 	// Create a temporary directory to store PGDATA.
-	dir, err := ioutil.TempDir("", "pg_test_"+pgVersionString+"_")
+	dir, err := os.MkdirTemp("", "pg_test_"+pgVersionString+"_")
 	require.Nil(t, err)
 
 	defer os.Remove(dir)

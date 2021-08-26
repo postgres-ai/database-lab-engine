@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -407,7 +406,7 @@ func (r *RestoreJob) discoverDumpLocation(ctx context.Context, contID string) (m
 
 	log.Msg(fmt.Sprintf("Directory dump not found in %q", r.RestoreOptions.DumpLocation))
 
-	fileInfos, err := ioutil.ReadDir(r.RestoreOptions.DumpLocation)
+	fileInfos, err := os.ReadDir(r.RestoreOptions.DumpLocation)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to discover dump location")
 	}
@@ -518,7 +517,7 @@ func (r *RestoreJob) prepareDB(ctx context.Context, contID, dbName string) error
 		"@username", r.globalCfg.Database.User())
 	creationSQL := replacer.Replace(templateCreateDB)
 
-	tempFile, err := ioutil.TempFile("", "createdb_"+dbName+"_*.sql")
+	tempFile, err := os.CreateTemp("", "createdb_"+dbName+"_*.sql")
 	if err != nil {
 		return err
 	}
@@ -526,7 +525,7 @@ func (r *RestoreJob) prepareDB(ctx context.Context, contID, dbName string) error
 	defer func() { _ = os.Remove(tempFile.Name()) }()
 	defer func() { _ = tempFile.Close() }()
 
-	if err := ioutil.WriteFile(tempFile.Name(), []byte(creationSQL), 0666); err != nil {
+	if err := os.WriteFile(tempFile.Name(), []byte(creationSQL), 0666); err != nil {
 		return err
 	}
 

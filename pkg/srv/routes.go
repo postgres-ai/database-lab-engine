@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -441,7 +441,7 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 	for _, artifactType := range session.Artifacts {
 		artPath := observingClone.BuildArtifactPath(session.SessionID, artifactType)
 
-		data, err := ioutil.ReadFile(artPath)
+		data, err := os.ReadFile(artPath)
 		if err != nil {
 			log.Errf("failed to read artifact %s: %s", artPath, err)
 			continue

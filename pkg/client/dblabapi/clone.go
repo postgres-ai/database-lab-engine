@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"time"
@@ -372,7 +371,7 @@ func (c *Client) DownloadArtifact(ctx context.Context, cloneID, sessionID, artif
 	}
 
 	if response.StatusCode != http.StatusOK {
-		content, err := ioutil.ReadAll(response.Body)
+		content, err := io.ReadAll(response.Body)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to read response, status code: %d", response.StatusCode)
 		}
