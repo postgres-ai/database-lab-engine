@@ -124,7 +124,14 @@ func Stop(r runners.Runner, p *resources.Pool, name string) error {
 	log.Dbg("Stopping Postgres container...")
 
 	if _, err := docker.RemoveContainer(r, name); err != nil {
-		return errors.Wrap(err, "failed to remove container")
+		const errorPrefix = "Error: No such container:"
+
+		if e, ok := err.(runners.RunnerError); ok && !strings.HasPrefix(e.Stderr, errorPrefix) {
+			return errors.Wrap(err, "failed to remove container")
+		}
+
+		log.Msg("docker container was not found, ignore", err)
+
 	}
 
 	if _, err := r.Run("rm -rf " + p.SocketCloneDir(name) + "/*"); err != nil {
