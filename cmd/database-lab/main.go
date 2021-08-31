@@ -16,8 +16,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
@@ -76,57 +74,13 @@ func main() {
 		log.Err("hostname is empty")
 	}
 
-	networkID := "network_" + instanceID
-
-	internalNetwork, err := dockerCLI.NetworkCreate(ctx, networkID, types.NetworkCreate{
-		Labels: map[string]string{
-			"instance": instanceID,
-			"app":      networks.DLEApp,
-			"type":     networks.InternalType,
-		},
-		Attachable: true,
-		Internal:   true,
-	})
+	internalNetwork, err := networks.Setup(ctx, dockerCLI, instanceID, hostname)
 	if err != nil {
 		log.Errf(err.Error())
 		return
 	}
 
-	defer func() {
-		networkInspect, err := dockerCLI.NetworkInspect(context.Background(), internalNetwork.ID, types.NetworkInspectOptions{})
-		if err != nil {
-			log.Errf(err.Error())
-			return
-		}
-
-		for _, resource := range networkInspect.Containers {
-			log.Dbg("Disconnecting container: ", resource.Name)
-
-			if err := dockerCLI.NetworkDisconnect(context.Background(), internalNetwork.ID, resource.Name, true); err != nil {
-				log.Errf(err.Error())
-				return
-			}
-		}
-
-		if err := dockerCLI.NetworkRemove(context.Background(), internalNetwork.ID); err != nil {
-			log.Errf(err.Error())
-			return
-		}
-	}()
-
-	log.Dbg("New network: ", internalNetwork.ID)
-
-	if err := dockerCLI.NetworkConnect(ctx, internalNetwork.ID, hostname, &network.EndpointSettings{}); err != nil {
-		log.Errf(err.Error())
-		return
-	}
-
-	defer func() {
-		if err := dockerCLI.NetworkDisconnect(context.Background(), internalNetwork.ID, hostname, true); err != nil {
-			log.Errf(err.Error())
-			return
-		}
-	}()
+	defer networks.Stop(dockerCLI, internalNetwork.ID)
 
 	// Create a platform service to make requests to Platform.
 	platformSvc, err := platform.New(ctx, cfg.Platform)
@@ -181,22 +135,9 @@ func main() {
 	go removeObservingClones(obsCh, obs)
 
 	server := srv.NewServer(&cfg.Server, &cfg.Global, obs, cloningSvc, platformSvc, dockerCLI, est, pm)
-
-	reloadCh := setReloadListener()
-
-	go func() {
-		for range reloadCh {
-			log.Msg("Reloading configuration")
-
-			if err := reloadConfig(ctx, instanceID, provisionSvc, retrievalSvc, pm, cloningSvc, platformSvc, est, server); err != nil {
-				log.Err("Failed to reload configuration", err)
-			}
-
-			log.Msg("Configuration has been reloaded")
-		}
-	}()
-
 	shutdownCh := setShutdownListener()
+
+	go setReloadListener(ctx, instanceID, provisionSvc, retrievalSvc, pm, cloningSvc, platformSvc, est, server)
 
 	server.InitHandlers()
 
@@ -273,11 +214,20 @@ func reloadConfig(ctx context.Context, instanceID string, provisionSvc *provisio
 	return nil
 }
 
-func setReloadListener() chan os.Signal {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGHUP)
+func setReloadListener(ctx context.Context, instanceID string, provisionSvc *provision.Provisioner, retrievalSvc *retrieval.Retrieval,
+	pm *pool.Manager, cloningSvc cloning.Cloning, platformSvc *platform.Service, est *estimator.Estimator, server *srv.Server) {
+	reloadCh := make(chan os.Signal, 1)
+	signal.Notify(reloadCh, syscall.SIGHUP)
 
-	return c
+	for range reloadCh {
+		log.Msg("Reloading configuration")
+
+		if err := reloadConfig(ctx, instanceID, provisionSvc, retrievalSvc, pm, cloningSvc, platformSvc, est, server); err != nil {
+			log.Err("Failed to reload configuration", err)
+		}
+
+		log.Msg("Configuration has been reloaded")
+	}
 }
 
 func setShutdownListener() chan os.Signal {
