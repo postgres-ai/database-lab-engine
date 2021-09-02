@@ -122,7 +122,7 @@ func main() {
 
 	obsCh := make(chan string, 1)
 
-	cloningSvc := cloning.New(&cfg.Cloning, provisionSvc, obsCh)
+	cloningSvc := cloning.NewBase(&cfg.Cloning, provisionSvc, obsCh)
 	if err = cloningSvc.Run(ctx); err != nil {
 		log.Err(err)
 		emergencyShutdown()
@@ -162,7 +162,7 @@ func main() {
 }
 
 func reloadConfig(ctx context.Context, instanceID string, provisionSvc *provision.Provisioner, retrievalSvc *retrieval.Retrieval,
-	pm *pool.Manager, cloningSvc cloning.Cloning, platformSvc *platform.Service, est *estimator.Estimator, server *srv.Server) error {
+	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, server *srv.Server) error {
 	cfg, err := config.LoadConfiguration(instanceID)
 	if err != nil {
 		return err
@@ -201,7 +201,7 @@ func reloadConfig(ctx context.Context, instanceID string, provisionSvc *provisio
 }
 
 func setReloadListener(ctx context.Context, instanceID string, provisionSvc *provision.Provisioner, retrievalSvc *retrieval.Retrieval,
-	pm *pool.Manager, cloningSvc cloning.Cloning, platformSvc *platform.Service, est *estimator.Estimator, server *srv.Server) {
+	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, server *srv.Server) {
 	reloadCh := make(chan os.Signal, 1)
 	signal.Notify(reloadCh, syscall.SIGHUP)
 

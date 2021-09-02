@@ -37,7 +37,14 @@ const (
 	defaultDatabaseName = "postgres"
 )
 
-type baseCloning struct {
+// Config contains a cloning configuration.
+type Config struct {
+	MaxIdleMinutes uint   `yaml:"maxIdleMinutes"`
+	AccessHost     string `yaml:"accessHost"`
+}
+
+// Base provides cloning service.
+type Base struct {
 	config         *Config
 	cloneMutex     sync.RWMutex
 	clones         map[string]*CloneWrapper
@@ -48,9 +55,9 @@ type baseCloning struct {
 	observingCh    chan string
 }
 
-// NewBaseCloning instances a new base Cloning.
-func NewBaseCloning(cfg *Config, provision *provision.Provisioner, observingCh chan string) Cloning {
-	return &baseCloning{
+// NewBase instances a new Base service.
+func NewBase(cfg *Config, provision *provision.Provisioner, observingCh chan string) *Base {
+	return &Base{
 		config: cfg,
 		clones: make(map[string]*CloneWrapper),
 		instanceStatus: &models.InstanceStatus{
@@ -66,14 +73,15 @@ func NewBaseCloning(cfg *Config, provision *provision.Provisioner, observingCh c
 	}
 }
 
-func (c *baseCloning) Reload(cfg Config) {
+// Reload reloads base cloning configuration.
+func (c *Base) Reload(cfg Config) {
 	*c.config = cfg
 }
 
-// Initialize and run cloning component.
-func (c *baseCloning) Run(ctx context.Context) error {
+// Run initializes and runs cloning component.
+func (c *Base) Run(ctx context.Context) error {
 	if err := c.provision.Init(); err != nil {
-		return errors.Wrap(err, "failed to run cloning")
+		return errors.Wrap(err, "failed to run cloning service")
 	}
 
 	if _, err := c.GetSnapshots(); err != nil {
@@ -86,7 +94,7 @@ func (c *baseCloning) Run(ctx context.Context) error {
 }
 
 // CreateClone creates a new clone.
-func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clone, error) {
+func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clone, error) {
 	cloneRequest.ID = strings.TrimSpace(cloneRequest.ID)
 
 	if _, ok := c.findWrapper(cloneRequest.ID); ok {
@@ -204,7 +212,8 @@ func (c *baseCloning) CreateClone(cloneRequest *types.CloneCreateRequest) (*mode
 	return clone, nil
 }
 
-func (c *baseCloning) CloneConnection(ctx context.Context, cloneID string) (pgxtype.Querier, error) {
+// ConnectToClone connects to clone by cloneID.
+func (c *Base) ConnectToClone(ctx context.Context, cloneID string) (pgxtype.Querier, error) {
 	w, ok := c.findWrapper(cloneID)
 	if !ok {
 		return nil, errors.New("not found")
@@ -226,7 +235,8 @@ func connectionString(host, port, username, dbname string) string {
 		host, port, username, dbname)
 }
 
-func (c *baseCloning) DestroyClone(cloneID string) error {
+// DestroyClone destroys clone.
+func (c *Base) DestroyClone(cloneID string) error {
 	w, ok := c.findWrapper(cloneID)
 	if !ok {
 		return models.New(models.ErrCodeNotFound, "clone not found")
@@ -270,7 +280,8 @@ func (c *baseCloning) DestroyClone(cloneID string) error {
 	return nil
 }
 
-func (c *baseCloning) GetClone(id string) (*models.Clone, error) {
+// GetClone returns clone by ID.
+func (c *Base) GetClone(id string) (*models.Clone, error) {
 	w, ok := c.findWrapper(id)
 	if !ok {
 		return nil, errors.New("clone not found")
@@ -295,7 +306,8 @@ func (c *baseCloning) GetClone(id string) (*models.Clone, error) {
 	return w.clone, nil
 }
 
-func (c *baseCloning) UpdateClone(id string, patch types.CloneUpdateRequest) (*models.Clone, error) {
+// UpdateClone updates clone.
+func (c *Base) UpdateClone(id string, patch types.CloneUpdateRequest) (*models.Clone, error) {
 	w, ok := c.findWrapper(id)
 	if !ok {
 		return nil, models.New(models.ErrCodeNotFound, "clone not found")
@@ -314,7 +326,7 @@ func (c *baseCloning) UpdateClone(id string, patch types.CloneUpdateRequest) (*m
 }
 
 // UpdateCloneStatus updates the clone status.
-func (c *baseCloning) UpdateCloneStatus(cloneID string, status models.Status) error {
+func (c *Base) UpdateCloneStatus(cloneID string, status models.Status) error {
 	c.cloneMutex.Lock()
 	defer c.cloneMutex.Unlock()
 
@@ -328,7 +340,8 @@ func (c *baseCloning) UpdateCloneStatus(cloneID string, status models.Status) er
 	return nil
 }
 
-func (c *baseCloning) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) error {
+// ResetClone resets clone to chosen snapshot.
+func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) error {
 	w, ok := c.findWrapper(cloneID)
 	if !ok {
 		return models.New(models.ErrCodeNotFound, "the clone not found")
@@ -391,7 +404,8 @@ func (c *baseCloning) ResetClone(cloneID string, resetOptions types.ResetCloneRe
 	return nil
 }
 
-func (c *baseCloning) GetInstanceState() (*models.InstanceStatus, error) {
+// GetInstanceState returns the current state of instance.
+func (c *Base) GetInstanceState() (*models.InstanceStatus, error) {
 	disk, err := c.provision.GetDiskState()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get a disk state")
@@ -412,7 +426,8 @@ func (c *baseCloning) GetInstanceState() (*models.InstanceStatus, error) {
 	return c.instanceStatus, nil
 }
 
-func (c *baseCloning) GetSnapshots() ([]models.Snapshot, error) {
+// GetSnapshots returns all available snapshots.
+func (c *Base) GetSnapshots() ([]models.Snapshot, error) {
 	// TODO(anatoly): Update snapshots dynamically.
 	if err := c.fetchSnapshots(); err != nil {
 		return nil, errors.Wrap(err, "failed to fetch snapshots")
@@ -428,7 +443,7 @@ func (c *baseCloning) GetSnapshots() ([]models.Snapshot, error) {
 }
 
 // GetClones returns the list of clones descend ordered by creation time.
-func (c *baseCloning) GetClones() []*models.Clone {
+func (c *Base) GetClones() []*models.Clone {
 	clones := make([]*models.Clone, 0, c.lenClones())
 
 	c.cloneMutex.RLock()
@@ -445,7 +460,7 @@ func (c *baseCloning) GetClones() []*models.Clone {
 }
 
 // findWrapper retrieves a clone findWrapper by id.
-func (c *baseCloning) findWrapper(id string) (*CloneWrapper, bool) {
+func (c *Base) findWrapper(id string) (*CloneWrapper, bool) {
 	c.cloneMutex.RLock()
 	w, ok := c.clones[id]
 	c.cloneMutex.RUnlock()
@@ -454,21 +469,21 @@ func (c *baseCloning) findWrapper(id string) (*CloneWrapper, bool) {
 }
 
 // setWrapper adds a clone wrapper to the map of clones.
-func (c *baseCloning) setWrapper(id string, wrapper *CloneWrapper) {
+func (c *Base) setWrapper(id string, wrapper *CloneWrapper) {
 	c.cloneMutex.Lock()
 	c.clones[id] = wrapper
 	c.cloneMutex.Unlock()
 }
 
 // deleteClone removes the clone by ID.
-func (c *baseCloning) deleteClone(cloneID string) {
+func (c *Base) deleteClone(cloneID string) {
 	c.cloneMutex.Lock()
 	delete(c.clones, cloneID)
 	c.cloneMutex.Unlock()
 }
 
 // lenClones returns the number of clones.
-func (c *baseCloning) lenClones() int {
+func (c *Base) lenClones() int {
 	c.cloneMutex.RLock()
 	lenClones := len(c.clones)
 	c.cloneMutex.RUnlock()
@@ -476,7 +491,7 @@ func (c *baseCloning) lenClones() int {
 	return lenClones
 }
 
-func (c *baseCloning) getExpectedCloningTime() float64 {
+func (c *Base) getExpectedCloningTime() float64 {
 	lenClones := c.lenClones()
 
 	if lenClones == 0 {
@@ -494,7 +509,7 @@ func (c *baseCloning) getExpectedCloningTime() float64 {
 	return sum / float64(lenClones)
 }
 
-func (c *baseCloning) fetchSnapshots() error {
+func (c *Base) fetchSnapshots() error {
 	entries, err := c.provision.GetSnapshots()
 	if err != nil {
 		return errors.Wrap(err, "failed to get snapshots")
@@ -520,7 +535,7 @@ func (c *baseCloning) fetchSnapshots() error {
 }
 
 // getLatestSnapshot returns the latest snapshot.
-func (c *baseCloning) getLatestSnapshot() (models.Snapshot, error) {
+func (c *Base) getLatestSnapshot() (models.Snapshot, error) {
 	c.snapshotMutex.RLock()
 	defer c.snapshotMutex.RUnlock()
 
@@ -534,7 +549,7 @@ func (c *baseCloning) getLatestSnapshot() (models.Snapshot, error) {
 }
 
 // getSnapshotByID returns the snapshot by ID.
-func (c *baseCloning) getSnapshotByID(snapshotID string) (models.Snapshot, error) {
+func (c *Base) getSnapshotByID(snapshotID string) (models.Snapshot, error) {
 	c.snapshotMutex.RLock()
 	defer c.snapshotMutex.RUnlock()
 
@@ -547,7 +562,7 @@ func (c *baseCloning) getSnapshotByID(snapshotID string) (models.Snapshot, error
 	return models.Snapshot{}, errors.New("no snapshot found")
 }
 
-func (c *baseCloning) runIdleCheck(ctx context.Context) {
+func (c *Base) runIdleCheck(ctx context.Context) {
 	if c.config.MaxIdleMinutes == 0 {
 		return
 	}
@@ -567,7 +582,7 @@ func (c *baseCloning) runIdleCheck(ctx context.Context) {
 	}
 }
 
-func (c *baseCloning) destroyIdleClones(ctx context.Context) {
+func (c *Base) destroyIdleClones(ctx context.Context) {
 	for _, cloneWrapper := range c.clones {
 		select {
 		case <-ctx.Done():
@@ -592,7 +607,7 @@ func (c *baseCloning) destroyIdleClones(ctx context.Context) {
 }
 
 // isIdleClone checks if clone is idle.
-func (c *baseCloning) isIdleClone(wrapper *CloneWrapper) (bool, error) {
+func (c *Base) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 	currentTime := time.Now()
 
 	idleDuration := time.Duration(c.config.MaxIdleMinutes) * time.Minute

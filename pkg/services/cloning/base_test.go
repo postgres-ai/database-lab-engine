@@ -15,13 +15,13 @@ func TestBaseCloningSuite(t *testing.T) {
 }
 
 type BaseCloningSuite struct {
-	cloning *baseCloning
+	cloning *Base
 
 	suite.Suite
 }
 
 func (s *BaseCloningSuite) SetupSuite() {
-	cloning := &baseCloning{
+	cloning := &Base{
 		clones:    make(map[string]*CloneWrapper),
 		snapshots: make([]models.Snapshot, 0),
 	}

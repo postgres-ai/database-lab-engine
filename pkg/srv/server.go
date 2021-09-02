@@ -39,7 +39,7 @@ type Config struct {
 // Server defines an HTTP server of the Database Lab.
 type Server struct {
 	validator validator.Service
-	Cloning   cloning.Cloning
+	Cloning   *cloning.Base
 	Config    *Config
 	Global    *global.Config
 	Platform  *platform.Service
@@ -52,7 +52,7 @@ type Server struct {
 }
 
 // NewServer initializes a new Server instance with provided configuration.
-func NewServer(cfg *Config, globalCfg *global.Config, observer *observer.Observer, cloning cloning.Cloning,
+func NewServer(cfg *Config, globalCfg *global.Config, observer *observer.Observer, cloning *cloning.Base,
 	platform *platform.Service, dockerClient *client.Client, estimator *estimator.Estimator, pm *pool.Manager) *Server {
 	// TODO(anatoly): Stop using mock data.
 	server := &Server{
