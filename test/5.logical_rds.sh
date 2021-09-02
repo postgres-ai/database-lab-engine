@@ -22,20 +22,23 @@ source "${DIR}/_zfs.file.sh"
 
 ### Step 2. Configure and launch the Database Lab Engine
 
+configDir="$HOME/.dblab/engine/configs"
+metaDir="$HOME/.dblab/engine/meta"
+
 # Copy the contents of configuration example 
-mkdir -p ~/.dblab
+mkdir -p "${configDir}"
 
 curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.example.logical_rds_iam.yml \
- --output ~/.dblab/server.yml
+ --output "${configDir}/server.yml"
 
 # Edit the following options
-sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(dbname:.*$)/\1dbname: ${SOURCE_DBNAME}/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(username: test_user.*$)/\1username: \"${SOURCE_USERNAME}\"/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(awsRegion:.*$)/\1awsRegion: \"${AWS_REGION}\"/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(dbInstanceIdentifier:.*$)/\1dbInstanceIdentifier: \"${RDS_DB_IDENTIFIER}\"/" ~/.dblab/server.yml
+sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" "${configDir}/server.yml"
+sed -ri "s/^(\s*)(dbname:.*$)/\1dbname: ${SOURCE_DBNAME}/" "${configDir}/server.yml"
+sed -ri "s/^(\s*)(username: test_user.*$)/\1username: \"${SOURCE_USERNAME}\"/" "${configDir}/server.yml"
+sed -ri "s/^(\s*)(awsRegion:.*$)/\1awsRegion: \"${AWS_REGION}\"/" "${configDir}/server.yml"
+sed -ri "s/^(\s*)(dbInstanceIdentifier:.*$)/\1dbInstanceIdentifier: \"${RDS_DB_IDENTIFIER}\"/" "${configDir}/server.yml"
 # replace postgres version
-sed -ri "s/:13/:${POSTGRES_VERSION}/g"  ~/.dblab/server.yml
+sed -ri "s/:13/:${POSTGRES_VERSION}/g"  "${configDir}/server.yml"
 
 # Download AWS RDS certificate
 curl https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem \
@@ -47,10 +50,14 @@ sudo docker run \
   --label dblab_control \
   --privileged \
   --publish 2345:2345 \
-  --volume ~/.dblab/server.yml:/home/dblab/configs/config.yml \
+  --volume "${configDir}":/home/dblab/configs:ro \
+  --volume "${metaDir}":/home/dblab/meta \
   --volume /var/lib/dblab/dblab_pool/dump:/var/lib/dblab/dblab_pool/dump \
   --volume /var/run/docker.sock:/var/run/docker.sock \
   --volume /var/lib/dblab:/var/lib/dblab/:rshared \
+  --volume /sys/kernel/debug:/sys/kernel/debug:rw \
+  --volume /lib/modules:/lib/modules:ro \
+  --volume /proc:/host_proc:ro \
   --volume ~/.dblab/rds-combined-ca-bundle.pem:/cert/rds-combined-ca-bundle.pem \
   --env AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY}" \
   --env AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" \

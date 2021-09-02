@@ -8,5 +8,7 @@
 /deploy/
 
 /configs/config.yml
+/configs/server.yml
 /configs/run_ci.yaml
+/configs/ci_checker.yml
 /packer/example.com.key

@@ -1,33 +1,4 @@
-# Run with server.yml mount:
-# sudo docker run \
-#   --name dblab_server \
-#   --label dblab_control \
-#   --privileged \
-#   --publish 2345:2345 \
-#   --restart on-failure \
-#   --volume /var/run/docker.sock:/var/run/docker.sock \
-#   --volume /var/lib/dblab:/var/lib/dblab:rshared \
-#   --volume ~/.dblab/server.yml:/home/dblab/configs/config.yml \
-#   --env VERIFICATION_TOKEN=secret_token \
-#   --detach \
-#   postgresai/dblab-server:latest
-#
-# or run with envs options:
-# sudo docker run \
-#   --name dblab_server \
-#   --label dblab_control \
-#   --privileged \
-#   --publish 2345:2345 \
-#   --restart on-failure \
-#   --volume /var/run/docker.sock:/var/run/docker.sock \
-#   --volume /var/lib/dblab:/var/lib/dblab:rshared \
-#   --volume ~/.dblab/server.yml:/home/dblab/configs/config.yml \
-#   --env VERIFICATION_TOKEN=token \
-#   --env MOUNT_DIR=/var/lib/dblab/clones \
-#   --env UNIX_SOCKET_DIR=/var/lib/dblab/sockets \
-#   --env DOCKER_IMAGE=postgres:13-alpine \
-#   --detach \
-#   postgresai/dblab-server:latest
+# See Guides to learn how to start a container: https://postgres.ai/docs/how-to-guides/administration/engine-manage
 
 FROM docker:19.03.14
 
@@ -46,7 +17,7 @@ WORKDIR /home/dblab
 COPY ./bin/dblab-server ./bin/dblab-server
 COPY ./api ./api
 COPY ./web ./web
-COPY ./configs ./configs
+COPY ./configs/standard ./standard
 COPY ./scripts ./scripts
 
 CMD ./bin/dblab-server

@@ -53,20 +53,23 @@ source "${DIR}/_zfs.file.sh"
 
 ### Step 2. Configure and launch the Database Lab Engine
 
+configDir="$HOME/.dblab/engine/configs"
+metaDir="$HOME/.dblab/engine/meta"
+
 # Copy the contents of configuration example 
-mkdir -p ~/.dblab
+mkdir -p "${configDir}"
 
 curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.example.physical_generic.yml \
- --output ~/.dblab/server.yml
+ --output "${configDir}/server.yml"
 
 # Edit the following options
-sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(PGUSER:.*$)/\1PGUSER: ${SOURCE_USERNAME}/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(PGPASSWORD:.*$)/\1PGPASSWORD: ${SOURCE_PASSWORD}/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(PGHOST:.*$)/\1PGHOST: ${SOURCE_HOST}/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(PGPORT:.*$)/\1PGPORT: ${SOURCE_PORT}/" ~/.dblab/server.yml
+sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" "${configDir}/server.yml"
+sed -ri "s/^(\s*)(PGUSER:.*$)/\1PGUSER: ${SOURCE_USERNAME}/" "${configDir}/server.yml"
+sed -ri "s/^(\s*)(PGPASSWORD:.*$)/\1PGPASSWORD: ${SOURCE_PASSWORD}/" "${configDir}/server.yml"
+sed -ri "s/^(\s*)(PGHOST:.*$)/\1PGHOST: ${SOURCE_HOST}/" "${configDir}/server.yml"
+sed -ri "s/^(\s*)(PGPORT:.*$)/\1PGPORT: ${SOURCE_PORT}/" "${configDir}/server.yml"
 # replace postgres version
-sed -ri "s/:13/:${POSTGRES_VERSION}/g"  ~/.dblab/server.yml
+sed -ri "s/:13/:${POSTGRES_VERSION}/g"  "${configDir}/server.yml"
 
 ## Launch Database Lab server
 sudo docker run \
@@ -76,7 +79,11 @@ sudo docker run \
   --publish 2345:2345 \
   --volume /var/run/docker.sock:/var/run/docker.sock \
   --volume /var/lib/dblab:/var/lib/dblab/:rshared \
-  --volume ~/.dblab/server.yml:/home/dblab/configs/config.yml \
+  --volume "${configDir}":/home/dblab/configs:ro \
+  --volume "${metaDir}":/home/dblab/meta \
+  --volume /sys/kernel/debug:/sys/kernel/debug:rw \
+  --volume /lib/modules:/lib/modules:ro \
+  --volume /proc:/host_proc:ro \
   --env DOCKER_API_VERSION=1.39 \
   --detach \
   "${IMAGE2TEST}"

@@ -2,12 +2,22 @@
 2021 © Postgres.ai
 */
 
-// Package runci provides a tools to run and check migrations in CI.
+// Package runci provides tools to run and check migrations in CI.
 package runci
 
 import (
+	"io/ioutil"
+
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
+
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/runci/source"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/platform"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
+)
+
+const (
+	configFilename = "ci_checker.yml"
 )
 
 // Config contains a runner configuration.
@@ -38,4 +48,24 @@ type DLE struct {
 // Runner defines runner configuration.
 type Runner struct {
 	Image string `yaml:"image"`
+}
+
+// LoadConfiguration loads configuration of DB Migration Checker.
+func LoadConfiguration() (*Config, error) {
+	configPath, err := util.GetConfigPath(configFilename)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get config path")
+	}
+
+	b, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		return nil, errors.Errorf("error loading %s config file", configPath)
+	}
+
+	cfg := &Config{}
+	if err := yaml.Unmarshal(b, cfg); err != nil {
+		return nil, errors.WithMessagef(err, "error parsing %s config", configPath)
+	}
+
+	return cfg, nil
 }

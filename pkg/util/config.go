@@ -7,24 +7,33 @@ package util
 
 import (
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/pkg/errors"
 )
 
-// GetBinRootPath return path to root directory of сurrent binary module.
+const (
+	swaggerDir  = "web"
+	apiDir      = "api"
+	configDir   = "configs"
+	standardDir = "standard"
+	metaDir     = "meta"
+)
+
+// GetBinRootPath return path to root directory of the current binary module.
 func GetBinRootPath() (string, error) {
-	bindir, err := os.Getwd()
+	binDir, err := os.Getwd()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get path of the work directory")
+		return "", errors.Wrap(err, "failed to get path of work directory")
 	}
 
-	path, err := filepath.Abs(bindir)
+	binPath, err := filepath.Abs(binDir)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get abs filepath of a root directory")
+		return "", errors.Wrap(err, "failed to get abs filepath of root directory")
 	}
 
-	return path, nil
+	return binPath, nil
 }
 
 // GetSwaggerUIPath return swagger UI path.
@@ -34,7 +43,7 @@ func GetSwaggerUIPath() (string, error) {
 		return "", errors.Wrap(err, "cannot get binary root directory")
 	}
 
-	return dir + string(os.PathSeparator) + "web" + string(os.PathSeparator), nil
+	return path.Join(dir, swaggerDir), nil
 }
 
 // GetAPIPath return swagger UI path.
@@ -44,17 +53,35 @@ func GetAPIPath() (string, error) {
 		return "", errors.Wrap(err, "cannot get binary root directory")
 	}
 
-	return dir + string(os.PathSeparator) + "api" + string(os.PathSeparator), nil
+	return path.Join(dir, apiDir), nil
 }
 
-// GetConfigPath return path to configs directory.
+// GetStandardConfigPath return path to file in the directory of standard configs.
+func GetStandardConfigPath(name string) (string, error) {
+	dir, err := GetBinRootPath()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get abs filepath of root directory")
+	}
+
+	return path.Join(dir, standardDir, name), nil
+}
+
+// GetConfigPath return path to configuration file.
 func GetConfigPath(name string) (string, error) {
 	dir, err := GetBinRootPath()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get abs filepath of a root directory")
+		return "", errors.Wrap(err, "failed to get abs filepath of root directory")
 	}
 
-	path := dir + string(os.PathSeparator) + "configs" + string(os.PathSeparator) + name
+	return path.Join(dir, configDir, name), nil
+}
 
-	return path, nil
+// GetMetaPath return path to metadata directory.
+func GetMetaPath(name string) (string, error) {
+	dir, err := GetBinRootPath()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get abs filepath of root directory")
+	}
+
+	return path.Join(dir, metaDir, name), nil
 }

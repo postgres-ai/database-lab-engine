@@ -47,12 +47,12 @@ build {
 
   provisioner "file"{
     source = "joe.yml"
-    destination = "/home/ubuntu/joe.yml"
+    destination = "/home/ubuntu/.dblab/configs/joe.yml"
   }
 
   provisioner "file"{
-    source = "run_ci.yaml"
-    destination = "/home/ubuntu/run_ci.yaml"
+    source = "ci_checker.yml"
+    destination = "/home/ubuntu/.dblab/configs/ci_checker.yml"
   }
 
   provisioner "shell" {

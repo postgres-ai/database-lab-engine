@@ -6,6 +6,5 @@ RUN apk update && apk add --no-cache bash
 WORKDIR /home/dblab
 
 COPY ./bin/run-ci ./bin/run-ci
-COPY ./configs ./configs
 
 CMD ./bin/run-ci

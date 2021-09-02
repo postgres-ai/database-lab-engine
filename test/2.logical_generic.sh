@@ -49,21 +49,24 @@ source "${DIR}/_zfs.file.sh"
 
 ### Step 2. Configure and launch the Database Lab Engine
 
+configDir="$HOME/.dblab/engine/configs"
+metaDir="$HOME/.dblab/engine/meta"
+
 # Copy the contents of configuration example 
-mkdir -p ~/.dblab
+mkdir -p "${configDir}"
 
 curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.example.logical_generic.yml \
- --output ~/.dblab/server.yml
+ --output "${configDir}/server.yml"
 
 # Edit the following options
-sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(dbname:.*$)/\1dbname: ${SOURCE_DBNAME}/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(host: 34.56.78.90$)/\1host: ${SOURCE_HOST}/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(port: 5432$)/\1port: ${SOURCE_PORT}/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(username: postgres$)/\1username: ${SOURCE_USERNAME}/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(password:.*$)/\1password: ${SOURCE_PASSWORD}/" ~/.dblab/server.yml
+sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" "${configDir}/server.yml"
+sed -ri "s/^(\s*)(dbname:.*$)/\1dbname: ${SOURCE_DBNAME}/" "${configDir}/server.yml"
+sed -ri "s/^(\s*)(host: 34.56.78.90$)/\1host: ${SOURCE_HOST}/" "${configDir}/server.yml"
+sed -ri "s/^(\s*)(port: 5432$)/\1port: ${SOURCE_PORT}/" "${configDir}/server.yml"
+sed -ri "s/^(\s*)(username: postgres$)/\1username: ${SOURCE_USERNAME}/" "${configDir}/server.yml"
+sed -ri "s/^(\s*)(password:.*$)/\1password: ${SOURCE_PASSWORD}/" "${configDir}/server.yml"
 # replace postgres version
-sed -ri "s/:13/:${POSTGRES_VERSION}/g"  ~/.dblab/server.yml
+sed -ri "s/:13/:${POSTGRES_VERSION}/g"  "${configDir}/server.yml"
 
 ## Launch Database Lab server
 sudo docker run \
@@ -74,7 +77,11 @@ sudo docker run \
   --volume /var/run/docker.sock:/var/run/docker.sock \
   --volume /var/lib/dblab/dblab_pool/dump:/var/lib/dblab/dblab_pool/dump \
   --volume /var/lib/dblab:/var/lib/dblab/:rshared \
-  --volume ~/.dblab/server.yml:/home/dblab/configs/config.yml \
+  --volume "${configDir}":/home/dblab/configs:ro \
+  --volume "${metaDir}":/home/dblab/meta \
+  --volume /sys/kernel/debug:/sys/kernel/debug:rw \
+  --volume /lib/modules:/lib/modules:ro \
+  --volume /proc:/host_proc:ro \
   --env DOCKER_API_VERSION=1.39 \
   --detach \
   "${IMAGE2TEST}"
