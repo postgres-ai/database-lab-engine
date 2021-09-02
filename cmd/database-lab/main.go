@@ -49,7 +49,7 @@ func main() {
 
 	log.Msg("Database Lab Instance ID:", instanceID)
 
-	cfg, err := loadConfiguration(instanceID)
+	cfg, err := config.LoadConfiguration(instanceID)
 	if err != nil {
 		log.Fatal(errors.WithMessage(err, "failed to parse config"))
 	}
@@ -161,23 +161,9 @@ func main() {
 	shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global, pm.Active().Pool())
 }
 
-func loadConfiguration(instanceID string) (*config.Config, error) {
-	cfg, err := config.LoadConfig("config.yml")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse config")
-	}
-
-	log.SetDebug(cfg.Global.Debug)
-	log.Dbg("Config loaded", cfg)
-
-	cfg.Global.InstanceID = instanceID
-
-	return cfg, nil
-}
-
 func reloadConfig(ctx context.Context, instanceID string, provisionSvc *provision.Provisioner, retrievalSvc *retrieval.Retrieval,
 	pm *pool.Manager, cloningSvc cloning.Cloning, platformSvc *platform.Service, est *estimator.Estimator, server *srv.Server) error {
-	cfg, err := loadConfiguration(instanceID)
+	cfg, err := config.LoadConfiguration(instanceID)
 	if err != nil {
 		return err
 	}

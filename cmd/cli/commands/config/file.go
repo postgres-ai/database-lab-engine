@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	configPath     = ".dblab"
+	dblabDir       = ".dblab"
+	configPath     = "cli"
 	configFilename = "cli.yml"
 )
 
@@ -24,7 +25,7 @@ func GetDirname() (string, error) {
 		return "", err
 	}
 
-	dirname := path.Join(currentUser.HomeDir, configPath)
+	dirname := path.Join(currentUser.HomeDir, dblabDir, configPath)
 
 	return dirname, nil
 }

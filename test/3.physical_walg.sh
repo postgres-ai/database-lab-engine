@@ -27,31 +27,34 @@ source "${DIR}/_zfs.file.sh"
 
 ### Step 2. Configure and launch the Database Lab Engine
 
+configDir="$HOME/.dblab/engine/configs"
+metaDir="$HOME/.dblab/engine/meta"
+
 # Copy the contents of configuration example
-mkdir -p ~/.dblab
+mkdir -p "${configDir}"
 
 curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.example.physical_walg.yml \
- --output ~/.dblab/server.yml
+ --output "${configDir}/server.yml"
 
 # Edit the following options
-sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" ~/.dblab/server.yml
+sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" "${configDir}/server.yml"
 # set WAL-G envs
-sed -ri "s/^(\s*)(backupName:.*$)/\1backupName: ${WALG_BACKUP_NAME}/" ~/.dblab/server.yml
+sed -ri "s/^(\s*)(backupName:.*$)/\1backupName: ${WALG_BACKUP_NAME}/" "${configDir}/server.yml"
 set +euxo pipefail # ---- do not display secrets
 if [ -n "${WALG_S3_PREFIX}" ] ; then
-sed -ri "s/^(\s*)(WALG_GS_PREFIX:.*$)/\1AWS_ACCESS_KEY_ID: \"${AWS_ACCESS_KEY_ID}\" \n          AWS_SECRET_ACCESS_KEY: \"${AWS_SECRET_ACCESS_KEY}\"\n          WALG_S3_PREFIX: \"${WALG_S3_PREFIX}\"/" ~/.dblab/server.yml
-sed -i "/GOOGLE_APPLICATION_CREDENTIALS/d" ~/.dblab/server.yml
+sed -ri "s/^(\s*)(WALG_GS_PREFIX:.*$)/\1AWS_ACCESS_KEY_ID: \"${AWS_ACCESS_KEY_ID}\" \n          AWS_SECRET_ACCESS_KEY: \"${AWS_SECRET_ACCESS_KEY}\"\n          WALG_S3_PREFIX: \"${WALG_S3_PREFIX}\"/" "${configDir}/server.yml"
+sed -i "/GOOGLE_APPLICATION_CREDENTIALS/d" "${configDir}/server.yml"
 elif [ -n "${WALG_GS_PREFIX}" ] ; then
-sed -ri "s/^(\s*)(WALG_GS_PREFIX:.*$)/\1WALG_GS_PREFIX: \"${WALG_GS_PREFIX}\"/" ~/.dblab/server.yml
-sed -ri "s/^(\s*)(GOOGLE_APPLICATION_CREDENTIALS:.*$)/\1GOOGLE_APPLICATION_CREDENTIALS: \"${GOOGLE_APPLICATION_CREDENTIALS}\"/" ~/.dblab/server.yml
+sed -ri "s/^(\s*)(WALG_GS_PREFIX:.*$)/\1WALG_GS_PREFIX: \"${WALG_GS_PREFIX}\"/" "${configDir}/server.yml"
+sed -ri "s/^(\s*)(GOOGLE_APPLICATION_CREDENTIALS:.*$)/\1GOOGLE_APPLICATION_CREDENTIALS: \"${GOOGLE_APPLICATION_CREDENTIALS}\"/" "${configDir}/server.yml"
 fi
 set -euxo pipefail # ----
 # replace postgres version
-sed -ri "s/:13/:${POSTGRES_VERSION}/g"  ~/.dblab/server.yml
+sed -ri "s/:13/:${POSTGRES_VERSION}/g"  "${configDir}/server.yml"
 # reduce shared_buffers (optional)
-sed -ri "s/^(\s*)(shared_buffers:.*$)/\1shared_buffers: 512MB/" ~/.dblab/server.yml
+sed -ri "s/^(\s*)(shared_buffers:.*$)/\1shared_buffers: 512MB/" "${configDir}/server.yml"
 # skip snapshotting on start to replace some Postgres parameters after PGDATA receiving
-sed -ri "s/^(\s*)(skipStartSnapshot:.*$)/\1skipStartSnapshot: true/" ~/.dblab/server.yml
+sed -ri "s/^(\s*)(skipStartSnapshot:.*$)/\1skipStartSnapshot: true/" "${configDir}/server.yml"
 
 ## Launch Database Lab server
 sudo docker run \
@@ -61,8 +64,11 @@ sudo docker run \
   --publish 2345:2345 \
   --volume /var/run/docker.sock:/var/run/docker.sock \
   --volume /var/lib/dblab:/var/lib/dblab/:rshared \
-  --volume ~/.dblab/server.yml:/home/dblab/configs/config.yml \
-  --volume /tmp:/tmp \
+  --volume "${configDir}":/home/dblab/configs:ro \
+  --volume "${metaDir}":/home/dblab/meta \
+  --volume /sys/kernel/debug:/sys/kernel/debug:rw \
+  --volume /lib/modules:/lib/modules:ro \
+  --volume /proc:/host_proc:ro \
   --env DOCKER_API_VERSION=1.39 \
   --detach \
   "${IMAGE2TEST}"
@@ -85,7 +91,7 @@ sudo docker exec -it dblab_server bash -c 'echo "track_commit_timestamp = on" >>
 sudo docker exec -it dblab_server bash -c 'echo "max_wal_senders = 15" >> /var/lib/dblab/dblab_pool/data/postgresql.dblab.postgresql.conf'
 
 # Enable snapshotting on start to make a new snapshot
-sed -ri "s/^(\s*)(skipStartSnapshot:.*$)/\1skipStartSnapshot: false/" ~/.dblab/server.yml
+sed -ri "s/^(\s*)(skipStartSnapshot:.*$)/\1skipStartSnapshot: false/" "${configDir}/server.yml"
 
 sudo docker restart dblab_server
 

@@ -5,7 +5,7 @@ app:
   verificationToken: "secret_token"
 dle:
   url: "https://dblab_server"
-  verificationToken: "dle_cerification_token"
+  verificationToken: "dle_certification_token"
 platform:
   url: "https://postgres.ai/api/general"
   accessToken: "platform_access_token"

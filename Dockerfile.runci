@@ -1,9 +1,0 @@
-FROM sqitch/sqitch:1.0.0
-
-ENTRYPOINT ["/bin/bash"]
-
-RUN echo "#!/bin/bash" > /tmp/pg_start.sh && chmod a+x /tmp/pg_start.sh \
-    && echo "/bin/bash -c \"trap : TERM INT; sleep infinity & wait\"" \
-      >> /tmp/pg_start.sh
-
-CMD ["/tmp/pg_start.sh"]

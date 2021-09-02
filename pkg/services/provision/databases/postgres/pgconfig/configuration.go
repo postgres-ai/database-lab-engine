@@ -32,6 +32,8 @@ const (
 	// pgCfgDir defines directory with Postgres configs.
 	pgCfgDir = "postgres"
 
+	pgControlDir = "control"
+
 	// pgHbaConfName defines the name of HBA config.
 	pgHbaConfName = "pg_hba.conf"
 
@@ -120,7 +122,7 @@ func (m *Manager) init() error {
 	}
 
 	// Add default configs to the Postgres directory.
-	sourceConfigDir, err := util.GetConfigPath(path.Join(defaultPgCfgDir, fmt.Sprintf("%g", m.pgVersion)))
+	sourceConfigDir, err := util.GetStandardConfigPath(path.Join(pgCfgDir, defaultPgCfgDir, fmt.Sprintf("%g", m.pgVersion)))
 	if err != nil {
 		return errors.Wrap(err, "cannot get path to default configs")
 	}
@@ -202,7 +204,7 @@ func (m *Manager) adjustHBAConf() error {
 	log.Dbg("Configuring pg_hba.conf...")
 
 	// Copy pg_hba.conf.
-	pgHbaSrc, err := util.GetConfigPath(path.Join(pgCfgDir, pgHbaConfName))
+	pgHbaSrc, err := util.GetStandardConfigPath(path.Join(pgCfgDir, pgControlDir, pgHbaConfName))
 	if err != nil {
 		return errors.Wrap(err, "cannot get path to pg_hba.conf in configs")
 	}
@@ -225,7 +227,7 @@ func (m *Manager) adjustHBAConf() error {
 func (m Manager) adjustGeneralConfigs() error {
 	log.Dbg("Configuring Postgres...")
 
-	pgConfSrc, err := util.GetConfigPath(path.Join(pgCfgDir, PgConfName))
+	pgConfSrc, err := util.GetStandardConfigPath(path.Join(pgCfgDir, pgControlDir, PgConfName))
 	if err != nil {
 		return errors.Wrapf(err, "cannot get path to %s in configs", PgConfName)
 	}

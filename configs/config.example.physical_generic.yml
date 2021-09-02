@@ -1,4 +1,4 @@
-# Copy the following to: ~/.dblab/server.yml
+# Copy the following to: ~/.dblab/engine/configs/server.yml
 
 # Database Lab API server. This API is used to work with clones
 # (list them, create, delete, see how to connect to a clone).

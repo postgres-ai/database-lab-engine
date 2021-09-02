@@ -57,6 +57,7 @@ func TestVolumesBuilding(t *testing.T) {
 				{Source: "/sys/kernel/debug", Destination: "/sys/kernel/debug"},
 				{Source: "/var/lib/dblab", Destination: "/var/lib/dblab", Propagation: "rshared"},
 				{Source: "/home/user/.dblab/server.yml", Destination: "/home/dblab/configs/config.yml"},
+				{Source: "/home/user/.dblab/configs", Destination: "/home/dblab/configs"},
 			},
 			expectedVolumes: []string{
 				"--volume /var/lib/dblab/dblab_pool/sockets/dblab_clone_6000:/var/lib/dblab/dblab_pool/sockets/dblab_clone_6000:rshared",

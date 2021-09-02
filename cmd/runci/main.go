@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
@@ -18,7 +17,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/runci"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/runci/source"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/platform"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/networks"
 )
 
@@ -31,11 +29,14 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cfg, err := loadConfiguration()
+	cfg, err := runci.LoadConfiguration()
 	if err != nil {
 		log.Errf("Failed to load config: %v", err)
 		return
 	}
+
+	log.SetDebug(cfg.App.Debug)
+	log.Dbg("Config loaded: ", cfg)
 
 	networkID := discoverNetwork(ctx, cfg, dockerCLI)
 	if networkID != "" {
@@ -128,26 +129,4 @@ func discoverNetwork(ctx context.Context, cfg *runci.Config, dockerCLI *client.C
 	log.Dbg("Network ID: ", networkID)
 
 	return networkID
-}
-
-func loadConfiguration() (*runci.Config, error) {
-	configPath, err := util.GetConfigPath("run_ci.yaml")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get config path")
-	}
-
-	b, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, errors.Errorf("error loading %s config file", configPath)
-	}
-
-	cfg := &runci.Config{}
-	if err := yaml.Unmarshal(b, cfg); err != nil {
-		return nil, errors.WithMessagef(err, "error parsing %s config", configPath)
-	}
-
-	log.SetDebug(cfg.App.Debug)
-	log.Dbg("Config loaded: ", cfg)
-
-	return cfg, nil
 }
