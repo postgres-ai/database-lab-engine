@@ -192,9 +192,10 @@ build-image-latest-server:
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-server"
     DOCKER_NAME: "postgresai/dblab-server"
+    DOCKER_DEV_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-server"
   before_script:
     - export LATEST_TAG=$(echo ${CI_COMMIT_TAG%.*}-latest)
-    - export TAGS="${DOCKER_NAME}:${LATEST_TAG},${DOCKER_NAME}:${CI_COMMIT_TAG}"
+    - export TAGS="${DOCKER_NAME}:${LATEST_TAG},${DOCKER_NAME}:${CI_COMMIT_TAG},${DOCKER_DEV_NAME}:${CI_COMMIT_TAG}"
 
 build-image-latest-ci-checker:
   <<: *build_image_definition
@@ -205,9 +206,10 @@ build-image-latest-ci-checker:
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.ci-checker"
     DOCKER_NAME: "postgresai/dblab-ci-checker"
+    DOCKER_DEV_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-ci-checker"
   before_script:
     - export LATEST_TAG=$(echo ${CI_COMMIT_TAG%.*}-latest)
-    - export TAGS="${DOCKER_NAME}:${LATEST_TAG},${DOCKER_NAME}:${CI_COMMIT_TAG}"
+    - export TAGS="${DOCKER_NAME}:${LATEST_TAG},${DOCKER_NAME}:${CI_COMMIT_TAG},${DOCKER_DEV_NAME}:${CI_COMMIT_TAG}"
 
 build-image-latest-client:
   <<: *build_image_definition
@@ -231,7 +233,8 @@ build-image-rc-server:
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-server"
     DOCKER_NAME: "postgresai/dblab-server"
-    TAGS: "${DOCKER_NAME}:${CI_COMMIT_TAG}"
+    DOCKER_DEV_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-server"
+    TAGS: "${DOCKER_NAME}:${CI_COMMIT_TAG},${DOCKER_DEV_NAME}:${CI_COMMIT_TAG}"
 
 build-image-rc-ci-checker:
   <<: *build_image_definition
@@ -242,7 +245,8 @@ build-image-rc-ci-checker:
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.ci-checker"
     DOCKER_NAME: "postgresai/dblab-ci-checker"
-    TAGS: "${DOCKER_NAME}:${CI_COMMIT_TAG}"
+    DOCKER_DEV_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-ci-checker"
+    TAGS: "${DOCKER_NAME}:${CI_COMMIT_TAG},${DOCKER_DEV_NAME}:${CI_COMMIT_TAG}"
 
 build-image-rc-client:
   <<: *build_image_definition
