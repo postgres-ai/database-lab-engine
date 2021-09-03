@@ -3,6 +3,9 @@ image: golang:1.16
 include:
   - template: Security/SAST.gitlab-ci.yml
 
+variables:
+  SAST_EXCLUDED_ANALYZERS: "semgrep-sast"
+
 stages:
   - test
   - build-binary
