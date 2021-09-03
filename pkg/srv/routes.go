@@ -192,7 +192,7 @@ func (s *Server) startEstimator(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := s.Cloning.CloneConnection(ctx, cloneID)
+	db, err := s.Cloning.ConnectToClone(ctx, cloneID)
 	if err != nil {
 		api.SendError(w, r, err)
 		return
