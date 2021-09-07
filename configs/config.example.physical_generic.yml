@@ -72,7 +72,7 @@ poolManager:
   preSnapshotSuffix: "_pre"
 
 # Configure PostgreSQL containers
-postgresContainer: &pg_container
+databaseContainer: &db_container
   # Database Lab provisions thin clones using Docker containers and uses auxiliary containers.
   # We need to specify which Postgres Docker image is to be used for that.
   # The default is the extended Postgres image built on top of the official Postgres image
@@ -88,7 +88,7 @@ postgresContainer: &pg_container
     "shm-size": 1gb
 
 # Adjust PostgreSQL configuration
-postgresConfigs: &pg_configs
+databaseConfigs: &db_configs
   configs:
     # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
     shared_buffers: 1GB
@@ -110,7 +110,7 @@ postgresConfigs: &pg_configs
 # Details of provisioning – where data is located,
 # thin cloning method, etc.
 provision:
-  <<: *pg_container
+  <<: *db_container
   # Pool of ports for Postgres clones. Ports will be allocated sequentially,
   # starting from the lowest value. The "from" value must be less than "to".
   portPool:
@@ -163,7 +163,7 @@ retrieval:
     # Restores database data from a physical backup.
     physicalRestore:
       options:
-        <<: *pg_container
+        <<: *db_container
         # Defines the tool to restore data.
         tool: customTool
 
@@ -214,11 +214,11 @@ retrieval:
         skipStartSnapshot: false
 
         # Adjust PostgreSQL configuration of the snapshot.
-        <<: *pg_configs
+        <<: *db_configs
 
         # Promote PGDATA after data fetching.
         promotion:
-          <<: *pg_container
+          <<: *db_container
           # Enable PGDATA promotion.
           enabled: true
 

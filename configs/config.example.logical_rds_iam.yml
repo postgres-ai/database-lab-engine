@@ -224,7 +224,7 @@ retrieval:
         #   forceInit: false
         #   # Option to adjust PostgreSQL configuration for a logical dump job.
         #   # It's useful if a dumped database contains non-standard extensions.
-        #   <<: *pg_configs
+        #   <<: *db_configs
 
     # Restores PostgreSQL database from the provided dump. If you use this block, do not use
     # "restore" option in the "logicalDump" job.
@@ -243,7 +243,7 @@ retrieval:
 
         # Option to adjust PostgreSQL configuration for a logical restore job
         # It's useful if a restored database contains non-standard extensions.
-        #   <<: *pg_configs
+        #   <<: *db_configs
 
         # Option for specifying the database list that must be restored.
         # By default, DLE restores all available databases.
