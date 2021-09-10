@@ -303,6 +303,10 @@ func (c *ObservingClone) resetStat(ctx context.Context) error {
 		return errors.Wrap(err, "failed to reset statement statistics for the current database")
 	}
 
+	if _, err := c.superUserDB.Exec(ctx, `create extension if not exists pg_stat_kcache cascade`); err != nil {
+		return errors.Wrap(err, "failed to reset kcache statistics for the current database")
+	}
+
 	if _, err := c.superUserDB.Exec(ctx, `select pg_stat_kcache_reset()`); err != nil {
 		return errors.Wrap(err, "failed to reset kcache statistics for the current database")
 	}
