@@ -150,9 +150,11 @@ func (s *Server) resetClone(w http.ResponseWriter, r *http.Request) {
 
 	var resetOptions types.ResetCloneRequest
 
-	if err := json.NewDecoder(r.Body).Decode(&resetOptions); err != nil {
-		api.SendError(w, r, errors.Wrap(err, "failed to parse request parameters"))
-		return
+	if r.Body != http.NoBody {
+		if err := json.NewDecoder(r.Body).Decode(&resetOptions); err != nil {
+			api.SendError(w, r, errors.Wrap(err, "failed to parse request parameters"))
+			return
+		}
 	}
 
 	if resetOptions.Latest && resetOptions.SnapshotID != "" {
