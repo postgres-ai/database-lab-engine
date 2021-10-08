@@ -6,9 +6,12 @@
 package config
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
+	"github.com/rs/xid"
 	"gopkg.in/yaml.v2"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
@@ -25,7 +28,8 @@ import (
 )
 
 const (
-	configName = "server.yml"
+	configName     = "server.yml"
+	instanceIDFile = "instance_id"
 )
 
 // Config contains a common database-lab configuration.
@@ -42,7 +46,7 @@ type Config struct {
 }
 
 // LoadConfiguration instances a new application configuration.
-func LoadConfiguration(instanceID string) (*Config, error) {
+func LoadConfiguration() (*Config, error) {
 	cfg, err := readConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse config")
@@ -51,9 +55,28 @@ func LoadConfiguration(instanceID string) (*Config, error) {
 	log.SetDebug(cfg.Global.Debug)
 	log.Dbg("Config loaded", cfg)
 
-	cfg.Global.InstanceID = instanceID
+	return cfg, cfg.loadInstanceID()
+}
 
-	return cfg, nil
+// loadInstanceID tries to make instance ID persistent across runs and load its value after restart
+func (cfg *Config) loadInstanceID() error {
+	idFilepath := filepath.Join(cfg.PoolManager.MountDir, instanceIDFile)
+
+	data, err := os.ReadFile(idFilepath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			cfg.Global.InstanceID = xid.New().String()
+			log.Dbg("no instance_id file was found, generate new instance ID", cfg.Global.InstanceID)
+
+			return os.WriteFile(idFilepath, []byte(cfg.Global.InstanceID), 0544)
+		}
+
+		return fmt.Errorf("failed to load instanceid, %w", err)
+	}
+
+	cfg.Global.InstanceID = string(data)
+
+	return nil
 }
 
 // readConfig reads application configuration.
@@ -73,5 +96,5 @@ func readConfig() (*Config, error) {
 		return nil, errors.WithMessagef(err, "error parsing %s config", configPath)
 	}
 
-	return cfg, nil
+	return cfg, cfg.loadInstanceID()
 }

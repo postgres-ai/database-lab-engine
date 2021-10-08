@@ -89,11 +89,10 @@ func buildConnectionString(clone *models.Clone, socketDir string) string {
 		db.DBName = defaults.DBName
 	}
 
-	return fmt.Sprintf(`host=%s port=%s user=%s password='%s' database='%s' application_name='%s'`,
+	return fmt.Sprintf(`host=%s port=%s user=%s database='%s' application_name='%s'`,
 		socketDir,
 		db.Port,
 		db.Username,
-		db.Password,
 		db.DBName,
 		observerApplicationName)
 }

@@ -6,6 +6,7 @@
 package docker
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/host"
 
@@ -184,9 +186,9 @@ func RemoveContainer(r runners.Runner, cloneName string) (string, error) {
 	return r.Run(dockerRemoveCmd, false)
 }
 
-// ListContainers lists containers.
+// ListContainers lists container names.
 func ListContainers(r runners.Runner, clonePool string) ([]string, error) {
-	dockerListCmd := fmt.Sprintf(`docker container ls --filter "label=%s" --filter "label=%s" --all --quiet`,
+	dockerListCmd := fmt.Sprintf(`docker container ls --filter "label=%s" --filter "label=%s" --all --format '{{.Names}}'`,
 		labelClone, clonePool)
 
 	out, err := r.Run(dockerListCmd, false)
@@ -240,4 +242,14 @@ func PullImage(r runners.Runner, dockerImage string) error {
 	}
 
 	return err
+}
+
+// IsContainerExist checks the existence of Docker container.
+func IsContainerExist(ctx context.Context, docker *client.Client, containerName string) (bool, error) {
+	inspection, err := docker.ContainerInspect(ctx, containerName)
+	if err != nil {
+		return false, fmt.Errorf("failed to inpect container: %w", err)
+	}
+
+	return inspection.State.Running, nil
 }

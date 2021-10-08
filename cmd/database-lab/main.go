@@ -5,7 +5,6 @@
 // TODO(anatoly):
 // - Validate configs in all components.
 // - Tests.
-// - Don't kill clones on shutdown/start.
 
 package main
 
@@ -18,7 +17,6 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
-	"github.com/rs/xid"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
@@ -35,7 +33,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/srv"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/networks"
-	"gitlab.com/postgres-ai/database-lab/v2/version"
 )
 
 const (
@@ -43,16 +40,12 @@ const (
 )
 
 func main() {
-	log.Msg("Database Lab version: ", version.GetVersion())
-
-	instanceID := xid.New().String()
-
-	log.Msg("Database Lab Instance ID:", instanceID)
-
-	cfg, err := config.LoadConfiguration(instanceID)
+	cfg, err := config.LoadConfiguration()
 	if err != nil {
 		log.Fatal(errors.WithMessage(err, "failed to parse config"))
 	}
+
+	log.Msg("Database Lab Instance ID:", cfg.Global.InstanceID)
 
 	runner := runners.NewLocalRunner(cfg.Provision.UseSudo)
 
@@ -74,19 +67,24 @@ func main() {
 		log.Err("hostname is empty")
 	}
 
-	internalNetwork, err := networks.Setup(ctx, dockerCLI, instanceID, hostname)
+	internalNetworkID, err := networks.Setup(ctx, dockerCLI, cfg.Global.InstanceID, hostname)
 	if err != nil {
 		log.Errf(err.Error())
 		return
 	}
 
-	defer networks.Stop(dockerCLI, internalNetwork.ID)
+	defer networks.Stop(dockerCLI, internalNetworkID, hostname)
 
 	// Create a platform service to make requests to Platform.
 	platformSvc, err := platform.New(ctx, cfg.Platform)
 	if err != nil {
 		log.Errf(errors.WithMessage(err, "failed to create a new platform service").Error())
 		return
+	}
+
+	dbCfg := &resources.DB{
+		Username: cfg.Global.Database.User(),
+		DBName:   cfg.Global.Database.Name(),
 	}
 
 	emergencyShutdown := func() {
@@ -104,40 +102,37 @@ func main() {
 	if err := retrievalSvc.Run(ctx); err != nil {
 		log.Err("Failed to run the data retrieval service:", err)
 		emergencyShutdown()
+
 		return
 	}
 
 	defer retrievalSvc.Stop()
 
-	dbCfg := &resources.DB{
-		Username: cfg.Global.Database.User(),
-		DBName:   cfg.Global.Database.Name(),
-	}
-
 	// Create a cloning service to provision new clones.
-	provisionSvc, err := provision.New(ctx, &cfg.Provision, dbCfg, dockerCLI, pm, internalNetwork.ID)
+	provisionSvc, err := provision.New(ctx, &cfg.Provision, dbCfg, dockerCLI, pm, internalNetworkID)
 	if err != nil {
 		log.Errf(errors.WithMessage(err, `error in the "provision" section of the config`).Error())
 	}
 
-	obsCh := make(chan string, 1)
+	observingChan := make(chan string, 1)
 
-	cloningSvc := cloning.NewBase(&cfg.Cloning, provisionSvc, obsCh)
+	cloningSvc := cloning.NewBase(&cfg.Cloning, provisionSvc, observingChan)
 	if err = cloningSvc.Run(ctx); err != nil {
 		log.Err(err)
 		emergencyShutdown()
+
 		return
 	}
 
 	obs := observer.NewObserver(dockerCLI, &cfg.Observer, platformSvc.Client, pm)
 	est := estimator.NewEstimator(&cfg.Estimator)
 
-	go removeObservingClones(obsCh, obs)
+	go removeObservingClones(observingChan, obs)
 
 	server := srv.NewServer(&cfg.Server, &cfg.Global, obs, cloningSvc, platformSvc, dockerCLI, est, pm)
 	shutdownCh := setShutdownListener()
 
-	go setReloadListener(ctx, instanceID, provisionSvc, retrievalSvc, pm, cloningSvc, platformSvc, est, server)
+	go setReloadListener(ctx, provisionSvc, retrievalSvc, pm, cloningSvc, platformSvc, est, server)
 
 	server.InitHandlers()
 
@@ -159,11 +154,12 @@ func main() {
 	}
 
 	shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global, pm.Active().Pool())
+	cloningSvc.SaveClonesState()
 }
 
-func reloadConfig(ctx context.Context, instanceID string, provisionSvc *provision.Provisioner, retrievalSvc *retrieval.Retrieval,
+func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, retrievalSvc *retrieval.Retrieval,
 	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, server *srv.Server) error {
-	cfg, err := config.LoadConfiguration(instanceID)
+	cfg, err := config.LoadConfiguration()
 	if err != nil {
 		return err
 	}
@@ -200,7 +196,7 @@ func reloadConfig(ctx context.Context, instanceID string, provisionSvc *provisio
 	return nil
 }
 
-func setReloadListener(ctx context.Context, instanceID string, provisionSvc *provision.Provisioner, retrievalSvc *retrieval.Retrieval,
+func setReloadListener(ctx context.Context, provisionSvc *provision.Provisioner, retrievalSvc *retrieval.Retrieval,
 	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, server *srv.Server) {
 	reloadCh := make(chan os.Signal, 1)
 	signal.Notify(reloadCh, syscall.SIGHUP)
@@ -208,7 +204,7 @@ func setReloadListener(ctx context.Context, instanceID string, provisionSvc *pro
 	for range reloadCh {
 		log.Msg("Reloading configuration")
 
-		if err := reloadConfig(ctx, instanceID, provisionSvc, retrievalSvc, pm, cloningSvc, platformSvc, est, server); err != nil {
+		if err := reloadConfig(ctx, provisionSvc, retrievalSvc, pm, cloningSvc, platformSvc, est, server); err != nil {
 			log.Err("Failed to reload configuration", err)
 		}
 

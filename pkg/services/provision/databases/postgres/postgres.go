@@ -141,7 +141,7 @@ func Stop(r runners.Runner, p *resources.Pool, name string) error {
 	return nil
 }
 
-// List gets started Postgres instances filtered by label.
+// List gets running Postgres instances filtered by label.
 func List(r runners.Runner, label string) ([]string, error) {
 	return docker.ListContainers(r, label)
 }
