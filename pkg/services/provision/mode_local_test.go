@@ -47,13 +47,13 @@ func TestPortAllocation(t *testing.T) {
 	assert.EqualError(t, err, "session cannot be started because there is no room: no available ports")
 
 	// Free port and allocate a new one.
-	require.NoError(t, p.freePort(port))
+	require.NoError(t, p.FreePort(port))
 	port, err = p.allocatePort()
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, port, p.config.PortPool.From)
 	assert.LessOrEqual(t, port, p.config.PortPool.To)
 
 	// Try to free a non-existing port.
-	err = p.freePort(1)
+	err = p.FreePort(1)
 	assert.EqualError(t, err, "port 1 is out of bounds of the port pool")
 }

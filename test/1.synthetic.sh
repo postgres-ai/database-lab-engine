@@ -130,9 +130,35 @@ dblab clone status testclone
 PGPASSWORD=secret_password psql \
   "host=localhost port=6000 user=dblab_user_1 dbname=test" -c '\dt+'
 
-### Step 4. Destroy clone
+
+### Step 4. Check clone durability on DLE restart.
+
+## Restart DLE.
+sudo docker restart dblab_server
+
+### Waiting for the Database Lab Engine to start.
+for i in {1..300}; do
+  curl http://localhost:2345 > /dev/null 2>&1 && break || echo "dblab is not ready yet"
+  sleep 1
+done
+
+## Reset clone.
+dblab clone reset testclone
+
+# Check the status of the clone.
+dblab clone status testclone
+
+# Check the database objects (everything should be the same as when we started)
+PGPASSWORD=secret_password psql \
+  "host=localhost port=6000 user=dblab_user_1 dbname=test" -c '\dt+'
+
+
+### Step 5. Destroy clone
 dblab clone destroy testclone
 dblab clone list
+
+## Stop DLE.
+sudo docker stop dblab_server
 
 ### Finish. clean up
 source "${DIR}/_cleanup.sh"

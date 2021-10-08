@@ -113,13 +113,7 @@ func isValidConfigModeLocal(config Config) error {
 
 // Init inits provision.
 func (p *Provisioner) Init() error {
-	err := p.stopAllSessions()
-	if err != nil {
-		return errors.Wrap(err, "failed to stop all session")
-	}
-
-	err = p.initPortPool()
-	if err != nil {
+	if err := p.initPortPool(); err != nil {
 		return errors.Wrap(err, "failed to init port pool")
 	}
 
@@ -168,7 +162,7 @@ func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUs
 		if err != nil {
 			p.revertSession(name)
 
-			if portErr := p.freePort(port); portErr != nil {
+			if portErr := p.FreePort(port); portErr != nil {
 				log.Err(portErr)
 			}
 		}
@@ -221,7 +215,7 @@ func (p *Provisioner) StopSession(session *resources.Session) error {
 		return errors.Wrap(err, "failed to destroy a clone")
 	}
 
-	if err := p.freePort(session.Port); err != nil {
+	if err := p.FreePort(session.Port); err != nil {
 		return errors.Wrap(err, "failed to unbind a port")
 	}
 
@@ -350,13 +344,25 @@ func (p *Provisioner) initPortPool() error {
 		return err
 	}
 
+	availablePorts := 0
 	for port := portOpts.From; port < portOpts.To; port++ {
 		if err := p.portChecker.checkPortAvailability(host, port); err != nil {
-			return errors.Wrapf(err, "port %d is not available", port)
+			log.Msg(fmt.Sprintf("port %d is not available, marking as busy", port))
+
+			if err := p.setPortStatus(port, true); err != nil {
+				return errors.Wrapf(err, "port %d is not available", port)
+			}
+
+			continue
 		}
+		availablePorts++
 	}
 
-	log.Msg("all ports are available")
+	if availablePorts == 0 {
+		return NewNoRoomError("no available ports")
+	}
+
+	log.Msg(availablePorts, " ports are available")
 
 	return nil
 }
@@ -414,8 +420,8 @@ func externalIP() (string, error) {
 	return string(bytes.TrimSpace(res)), nil
 }
 
-// freePort marks the port as free.
-func (p *Provisioner) freePort(port uint) error {
+// FreePort marks the port as free.
+func (p *Provisioner) FreePort(port uint) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -423,7 +429,7 @@ func (p *Provisioner) freePort(port uint) error {
 }
 
 // setPortStatus updates the port status.
-// It's not safe to invoke without ports mutex locking. Use allocatePort and freePort methods.
+// It's not safe to invoke without ports mutex locking. Use allocatePort and FreePort methods.
 func (p *Provisioner) setPortStatus(port uint, bind bool) error {
 	portOpts := p.config.PortPool
 
@@ -437,9 +443,10 @@ func (p *Provisioner) setPortStatus(port uint, bind bool) error {
 	return nil
 }
 
-func (p *Provisioner) stopAllSessions() error {
+// StopAllSessions stops all running clone containers.
+func (p *Provisioner) StopAllSessions(exceptClones map[string]struct{}) error {
 	for _, fsm := range p.pm.GetFSManagerList() {
-		if err := p.stopPoolSessions(fsm); err != nil {
+		if err := p.stopPoolSessions(fsm, exceptClones); err != nil {
 			return err
 		}
 	}
@@ -447,7 +454,7 @@ func (p *Provisioner) stopAllSessions() error {
 	return nil
 }
 
-func (p *Provisioner) stopPoolSessions(fsm pool.FSManager) error {
+func (p *Provisioner) stopPoolSessions(fsm pool.FSManager, exceptClones map[string]struct{}) error {
 	fsPool := fsm.Pool()
 
 	instances, err := postgres.List(p.runner, fsPool.Name)
@@ -458,6 +465,10 @@ func (p *Provisioner) stopPoolSessions(fsm pool.FSManager) error {
 	log.Dbg("Containers running:", instances)
 
 	for _, instance := range instances {
+		if _, ok := exceptClones[instance]; ok {
+			continue
+		}
+
 		log.Dbg("Stopping container:", instance)
 
 		if err = postgres.Stop(p.runner, fsPool, instance); err != nil {
@@ -473,6 +484,10 @@ func (p *Provisioner) stopPoolSessions(fsm pool.FSManager) error {
 	log.Dbg("Clone list:", clones)
 
 	for _, clone := range clones {
+		if _, ok := exceptClones[clone]; ok {
+			continue
+		}
+
 		if err := fsm.DestroyClone(clone); err != nil {
 			return err
 		}
@@ -597,4 +612,14 @@ func (p *Provisioner) prepareDB(pgConf *resources.AppConfig, user resources.Ephe
 	}
 
 	return nil
+}
+
+// IsCloneRunning checks if clone is running.
+func (p *Provisioner) IsCloneRunning(ctx context.Context, cloneName string) bool {
+	isRunning, err := docker.IsContainerExist(ctx, p.dockerClient, cloneName)
+	if err != nil {
+		log.Err(err)
+	}
+
+	return isRunning
 }

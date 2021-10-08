@@ -1,3 +1,7 @@
+/*
+2021 © Postgres.ai
+*/
+
 package cloning
 
 import (
@@ -39,12 +43,12 @@ func (s *BaseCloningSuite) TestFindWrapper() {
 	assert.False(s.T(), ok)
 	assert.Nil(s.T(), wrapper)
 
-	s.cloning.setWrapper("testCloneID", &CloneWrapper{clone: &models.Clone{ID: "testCloneID"}})
+	s.cloning.setWrapper("testCloneID", &CloneWrapper{Clone: &models.Clone{ID: "testCloneID"}})
 
 	wrapper, ok = s.cloning.findWrapper("testCloneID")
 	assert.True(s.T(), ok)
 	assert.NotNil(s.T(), wrapper)
-	assert.Equal(s.T(), CloneWrapper{clone: &models.Clone{ID: "testCloneID"}}, *wrapper)
+	assert.Equal(s.T(), CloneWrapper{Clone: &models.Clone{ID: "testCloneID"}}, *wrapper)
 }
 
 func (s *BaseCloningSuite) TestCloneList() {
@@ -52,9 +56,9 @@ func (s *BaseCloningSuite) TestCloneList() {
 	clone2 := &models.Clone{CreatedAt: "2020-06-23 10:31:27 UTC"}
 	clone3 := &models.Clone{CreatedAt: "2020-05-20 00:43:21 UTC"}
 
-	s.cloning.setWrapper("testCloneID1", &CloneWrapper{clone: clone1})
-	s.cloning.setWrapper("testCloneID2", &CloneWrapper{clone: clone2})
-	s.cloning.setWrapper("testCloneID3", &CloneWrapper{clone: clone3})
+	s.cloning.setWrapper("testCloneID1", &CloneWrapper{Clone: clone1})
+	s.cloning.setWrapper("testCloneID2", &CloneWrapper{Clone: clone2})
+	s.cloning.setWrapper("testCloneID3", &CloneWrapper{Clone: clone3})
 
 	list := s.cloning.GetClones()
 
@@ -69,7 +73,7 @@ func (s *BaseCloningSuite) TestCloneList() {
 }
 
 func (s *BaseCloningSuite) TestUpdateStatus() {
-	s.cloning.setWrapper("testCloneID", &CloneWrapper{clone: &models.Clone{Status: models.Status{
+	s.cloning.setWrapper("testCloneID", &CloneWrapper{Clone: &models.Clone{Status: models.Status{
 		Code:    models.StatusCreating,
 		Message: models.CloneMessageCreating,
 	}}})
@@ -91,7 +95,7 @@ func (s *BaseCloningSuite) TestUpdateStatus() {
 	assert.Equal(s.T(), models.Status{
 		Code:    models.StatusOK,
 		Message: models.CloneMessageOK,
-	}, wrapper.clone.Status)
+	}, wrapper.Clone.Status)
 }
 
 func (s *BaseCloningSuite) TestDeleteClone() {
