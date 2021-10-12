@@ -10,6 +10,8 @@ import (
 	"os/exec"
 
 	"github.com/pkg/errors"
+
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones/lvm"
 )
 
 type blockDeviceList struct {
@@ -37,7 +39,7 @@ func getBlockDeviceTypes() (map[string]string, error) {
 	blockDeviceTypes := make(map[string]string)
 
 	for _, blk := range blockDevices.BlockDevices {
-		if blk.MountPoint == "" || blk.Type != LVM {
+		if blk.MountPoint == "" || blk.Type != lvm.PoolMode {
 			continue
 		}
 

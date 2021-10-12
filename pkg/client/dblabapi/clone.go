@@ -23,6 +23,24 @@ import (
 
 // ListClones provides a list of Database Lab clones.
 func (c *Client) ListClones(ctx context.Context) ([]*models.Clone, error) {
+	body, err := c.ListClonesRaw(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get response")
+	}
+
+	defer func() { _ = body.Close() }()
+
+	var instanceStatus models.CloneList
+
+	if err := json.NewDecoder(body).Decode(&instanceStatus); err != nil {
+		return nil, errors.Wrap(err, "failed to decode a response body")
+	}
+
+	return instanceStatus.Clones, nil
+}
+
+// ListClonesRaw provides a raw list of Database Lab clones.
+func (c *Client) ListClonesRaw(ctx context.Context) (io.ReadCloser, error) {
 	u := c.URL("/status")
 
 	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
@@ -35,19 +53,29 @@ func (c *Client) ListClones(ctx context.Context) ([]*models.Clone, error) {
 		return nil, errors.Wrap(err, "failed to get response")
 	}
 
-	defer func() { _ = response.Body.Close() }()
-
-	var instanceStatus models.InstanceStatus
-
-	if err := json.NewDecoder(response.Body).Decode(&instanceStatus); err != nil {
-		return nil, errors.Wrap(err, "failed to decode a response body")
-	}
-
-	return instanceStatus.Clones, nil
+	return response.Body, nil
 }
 
 // GetClone returns info about a Database Lab clone.
 func (c *Client) GetClone(ctx context.Context, cloneID string) (*models.Clone, error) {
+	body, err := c.GetCloneRaw(ctx, cloneID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get response")
+	}
+
+	defer func() { _ = body.Close() }()
+
+	var clone models.Clone
+
+	if err := json.NewDecoder(body).Decode(&clone); err != nil {
+		return nil, errors.Wrap(err, "failed to decode a response body")
+	}
+
+	return &clone, nil
+}
+
+// GetCloneRaw returns raw info about a Database Lab clone.
+func (c *Client) GetCloneRaw(ctx context.Context, cloneID string) (io.ReadCloser, error) {
 	u := c.URL(fmt.Sprintf("/clone/%s", cloneID))
 
 	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
@@ -60,15 +88,7 @@ func (c *Client) GetClone(ctx context.Context, cloneID string) (*models.Clone, e
 		return nil, errors.Wrap(err, "failed to get response")
 	}
 
-	defer func() { _ = response.Body.Close() }()
-
-	var clone models.Clone
-
-	if err := json.NewDecoder(response.Body).Decode(&clone); err != nil {
-		return nil, errors.Wrap(err, "failed to decode a response body")
-	}
-
-	return &clone, nil
+	return response.Body, nil
 }
 
 // CreateClone creates a new Database Lab clone.

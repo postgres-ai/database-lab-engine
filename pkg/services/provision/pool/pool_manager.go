@@ -18,14 +18,11 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones/lvm"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones/zfs"
 )
 
 const (
-	// ZFS defines the zfs filesystem name.
-	ZFS = "zfs"
-	// LVM defines the lvm filesystem name.
-	LVM = "lvm"
 	// ext4 defines the ext4 filesystem name.
 	ext4 = "ext4"
 )
@@ -69,13 +66,17 @@ func (pm *Manager) Reload(cfg Config) error {
 	return pm.ReloadPools()
 }
 
-// SetActive sets a new active pool manager element.
-func (pm *Manager) SetActive(element *list.Element) {
+// MakeActive marks element as active pool and moves it to the head of the pool list.
+func (pm *Manager) MakeActive(element *list.Element) {
 	pm.fsManagerList.MoveToFront(element)
+
+	if first := pm.First(); first != nil {
+		first.Pool().SetStatus(resources.ActivePool)
+	}
 }
 
-// Active returns the active storage pool manager.
-func (pm *Manager) Active() FSManager {
+// First returns the first active storage pool manager.
+func (pm *Manager) First() FSManager {
 	active := pm.fsManagerList.Front()
 
 	if active == nil || active.Value == nil {
@@ -93,15 +94,26 @@ func (pm *Manager) getFSManager(pool string) FSManager {
 	return fsm
 }
 
-// GetPoolToUpdate returns the element to update.
-func (pm *Manager) GetPoolToUpdate() *list.Element {
-	for element := pm.fsManagerList.Back(); element != nil; element = element.Prev() {
+// GetPoolByName returns element by pool name.
+func (pm *Manager) GetPoolByName(poolName string) *list.Element {
+	for element := pm.fsManagerList.Front(); element != nil; element = element.Next() {
 		if element.Value == nil {
 			return nil
 		}
 
 		// The active pool cannot be updated as it leads to downtime.
-		if element == pm.fsManagerList.Front() {
+		if element.Value.(string) == poolName {
+			return element
+		}
+	}
+
+	return nil
+}
+
+// GetPoolToUpdate returns element to update.
+func (pm *Manager) GetPoolToUpdate() *list.Element {
+	for element := pm.fsManagerList.Back(); element != nil; element = element.Prev() {
+		if element.Value == nil {
 			return nil
 		}
 
@@ -128,7 +140,7 @@ func (pm *Manager) GetFSManager(name string) (FSManager, error) {
 	pm.mu.Unlock()
 
 	if !ok {
-		return nil, errors.New("clone manager not found")
+		return nil, errors.New("pool manager not found")
 	}
 
 	return fsm, nil
@@ -145,6 +157,38 @@ func (pm *Manager) GetFSManagerList() []FSManager {
 	}
 
 	pm.mu.Unlock()
+
+	return fs
+}
+
+// GetActiveFSManagers returns a list of active filesystem managers.
+func (pm *Manager) GetActiveFSManagers() []FSManager {
+	fs := []FSManager{}
+
+	pm.mu.Lock()
+
+	for _, fsManager := range pm.fsManagerPool {
+		if pool := fsManager.Pool(); pool != nil && pool.Status() == resources.ActivePool {
+			fs = append(fs, fsManager)
+		}
+	}
+
+	pm.mu.Unlock()
+
+	return fs
+}
+
+// GetFSManagerOrderedList returns a filesystem manager list in the order of the queue.
+func (pm *Manager) GetFSManagerOrderedList() []FSManager {
+	fs := []FSManager{}
+
+	for element := pm.fsManagerList.Front(); element != nil; element = element.Next() {
+		if element.Value == nil {
+			continue
+		}
+
+		fs = append(fs, pm.getFSManager(element.Value.(string)))
+	}
 
 	return fs
 }
@@ -172,7 +216,7 @@ func (pm *Manager) ReloadPools() error {
 	pm.mu.Unlock()
 
 	log.Msg("Available storage pools: ", pm.describeAvailablePools())
-	log.Msg("Active pool: ", pm.Active().Pool().Name)
+	log.Msg("Active pool: ", pm.First().Pool().Name)
 
 	return nil
 }
@@ -198,7 +242,7 @@ func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, 
 			continue
 		}
 
-		if fsType != ZFS && fsType != LVM {
+		if fsType != zfs.PoolMode && fsType != lvm.PoolMode {
 			log.Msg("Unsupported filesystem: ", fsType, entry.Name())
 			continue
 		}
@@ -213,6 +257,7 @@ func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, 
 			SocketSubDir:   pm.cfg.SocketSubDir,
 			ObserverSubDir: pm.cfg.ObserverSubDir,
 		}
+		pool.SetStatus(resources.EmptyPool)
 
 		log.Dbg("Data ", pool)
 
@@ -223,11 +268,12 @@ func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, 
 
 		if dataStateAt != nil {
 			pool.DSA = *dataStateAt
+			pool.SetStatus(resources.ActivePool)
 			log.Msg(pool.DSA.String())
 		}
 
 		// A custom pool name is not available for LVM.
-		if fsType == ZFS {
+		if fsType == zfs.PoolMode {
 			if len(poolMappings) == 0 {
 				poolMappings, err = zfs.PoolMappings(pm.runner, pm.cfg.MountDir, pm.cfg.PreSnapshotSuffix)
 				if err != nil {
@@ -254,6 +300,7 @@ func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, 
 
 		front := poolList.Front()
 		if front == nil || front.Value == nil || fsManagers[front.Value.(string)].Pool().DSA.Before(pool.DSA) {
+			fsm.Pool().SetStatus(resources.ActivePool)
 			poolList.PushFront(fsm.Pool().Name)
 			continue
 		}

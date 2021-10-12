@@ -16,8 +16,10 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 )
 
@@ -25,6 +27,9 @@ const (
 	headerOffset        = 1
 	dataStateAtLabel    = "dblab:datastateat"
 	isRoughStateAtLabel = "dblab:isroughdsa"
+
+	// PoolMode defines the zfs filesystem name.
+	PoolMode = "zfs"
 )
 
 // ListEntry defines entry of ZFS list command.
@@ -95,6 +100,17 @@ type ListEntry struct {
 	// it does include space consumed by metadata.
 	LogicalUsed uint64
 
+	// The amount of space consumed by snapshots of this dataset.
+	// In particular, it is the amount of space that would be freed
+	// if all of this dataset's snapshots were destroyed.
+	// Note that this is not simply the sum of the snapshots' used properties
+	// because space can be shared by multiple snapshots.
+	UsedBySnapshots uint64
+
+	// The amount of space used by children of this dataset,
+	// which would be freed if all the dataset's children were destroyed.
+	UsedByChildren uint64
+
 	// DB Lab custom fields.
 
 	// Data state timestamp.
@@ -110,12 +126,12 @@ type setTuple struct {
 
 // EmptyPoolError defines an error when storage pool has no available elements.
 type EmptyPoolError struct {
-	dsType string
+	dsType dsType
 	pool   string
 }
 
 // NewEmptyPoolError creates a new EmptyPoolError.
-func NewEmptyPoolError(dsType string, pool string) *EmptyPoolError {
+func NewEmptyPoolError(dsType dsType, pool string) *EmptyPoolError {
 	return &EmptyPoolError{dsType: dsType, pool: pool}
 }
 
@@ -257,6 +273,21 @@ func (m *Manager) CreateSnapshot(poolSuffix, dataStateAt string) (string, error)
 	}
 
 	snapshotName := getSnapshotName(poolName, dataStateAt)
+
+	snapshotList, err := m.listSnapshots(poolName)
+	if err != nil {
+		var emptyErr *EmptyPoolError
+		if !errors.As(err, &emptyErr) {
+			return "", fmt.Errorf("failed to get a snapshot list: %w", err)
+		}
+	}
+
+	for _, entry := range snapshotList {
+		if entry.Name == snapshotName {
+			return "", thinclones.NewSnapshotExistsError(snapshotName)
+		}
+	}
+
 	cmd := fmt.Sprintf("zfs snapshot -r %s", snapshotName)
 
 	if _, err := m.runner.Run(cmd, true); err != nil {
@@ -402,24 +433,25 @@ func (m *Manager) GetSessionState(name string) (*resources.SessionState, error) 
 	}
 
 	state := &resources.SessionState{
-		CloneDiffSize: sEntry.Used,
+		CloneDiffSize:     sEntry.Used,
+		LogicalReferenced: sEntry.LogicalReferenced,
 	}
 
 	return state, nil
 }
 
-// GetDiskState returns a disk state.
-func (m *Manager) GetDiskState() (*resources.Disk, error) {
+// GetFilesystemState returns a disk state.
+func (m *Manager) GetFilesystemState() (models.FileSystem, error) {
 	parts := strings.SplitN(m.config.Pool.Name, "/", 2)
 	if len(parts) == 0 {
-		return nil, errors.New("failed to get a storage pool name")
+		return models.FileSystem{}, errors.New("failed to get a storage pool name")
 	}
 
 	parentPool := parts[0]
 
 	entries, err := m.listFilesystems(parentPool)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list filesystems")
+		return models.FileSystem{}, errors.Wrap(err, "failed to list filesystems")
 	}
 
 	var parentPoolEntry, poolEntry *ListEntry
@@ -439,24 +471,28 @@ func (m *Manager) GetDiskState() (*resources.Disk, error) {
 	}
 
 	if parentPoolEntry == nil || poolEntry == nil {
-		return nil, errors.New("cannot get disk state: pool entries not found")
+		return models.FileSystem{}, errors.New("cannot get disk state: pool entries not found")
 	}
 
-	disk := &resources.Disk{
-		Size:     parentPoolEntry.Available + parentPoolEntry.Used,
-		Free:     parentPoolEntry.Available,
-		Used:     parentPoolEntry.Used,
-		DataSize: poolEntry.LogicalReferenced,
+	fileSystem := models.FileSystem{
+		Mode:            PoolMode,
+		Size:            parentPoolEntry.Available + parentPoolEntry.Used,
+		Free:            parentPoolEntry.Available,
+		Used:            parentPoolEntry.Used,
+		UsedBySnapshots: parentPoolEntry.UsedBySnapshots,
+		UsedByClones:    parentPoolEntry.UsedByChildren,
+		DataSize:        poolEntry.LogicalReferenced,
+		CompressRatio:   parentPoolEntry.CompressRatio,
 	}
 
-	return disk, nil
+	return fileSystem, nil
 }
 
 // GetSnapshots returns a snapshot list.
 func (m *Manager) GetSnapshots() ([]resources.Snapshot, error) {
 	entries, err := m.listSnapshots(m.config.Pool.Name)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list snapshots")
+		return nil, fmt.Errorf("failed to list snapshots: %w", err)
 	}
 
 	snapshots := make([]resources.Snapshot, 0, len(entries))
@@ -468,9 +504,12 @@ func (m *Manager) GetSnapshots() ([]resources.Snapshot, error) {
 		}
 
 		snapshot := resources.Snapshot{
-			ID:          entry.Name,
-			CreatedAt:   entry.Creation,
-			DataStateAt: entry.DataStateAt,
+			ID:                entry.Name,
+			CreatedAt:         entry.Creation,
+			DataStateAt:       entry.DataStateAt,
+			Used:              entry.Used,
+			LogicalReferenced: entry.LogicalReferenced,
+			Pool:              m.config.Pool.Name,
 		}
 
 		snapshots = append(snapshots, snapshot)
@@ -481,26 +520,33 @@ func (m *Manager) GetSnapshots() ([]resources.Snapshot, error) {
 
 // ListFilesystems lists ZFS file systems (clones, pools).
 func (m *Manager) listFilesystems(pool string) ([]*ListEntry, error) {
-	return m.listDetails(pool, "filesystem")
+	filter := snapshotFilter{
+		fields:  defaultFields,
+		sorting: defaultSorting,
+		pool:    pool,
+		dsType:  fileSystemType,
+	}
+
+	return m.listDetails(filter)
 }
 
 // ListSnapshots lists ZFS snapshots.
 func (m *Manager) listSnapshots(pool string) ([]*ListEntry, error) {
-	return m.listDetails(pool, "snapshot")
+	filter := snapshotFilter{
+		fields:  defaultFields,
+		sorting: defaultSorting,
+		pool:    pool,
+		dsType:  snapshotType,
+	}
+
+	return m.listDetails(filter)
 }
 
 // listDetails lists all ZFS types.
-func (m *Manager) listDetails(pool, dsType string) ([]*ListEntry, error) {
+func (m *Manager) listDetails(filter snapshotFilter) ([]*ListEntry, error) {
 	// TODO(anatoly): Return map.
 	// TODO(anatoly): Generalize.
-	numberFields := 12
-	listCmd := "zfs list -po name,used,mountpoint,compressratio,available,type," +
-		"origin,creation,referenced,logicalreferenced,logicalused," + dataStateAtLabel + " " +
-		"-S " + dataStateAtLabel + " -S creation " + // Order DESC.
-		"-t " + dsType + " " +
-		"-r " + pool
-
-	out, err := m.runner.Run(listCmd, false)
+	out, err := m.runner.Run(buildListCommand(filter), false)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list details")
 	}
@@ -509,9 +555,10 @@ func (m *Manager) listDetails(pool, dsType string) ([]*ListEntry, error) {
 
 	// First line is header.
 	if len(lines) <= headerOffset {
-		return nil, NewEmptyPoolError(dsType, pool)
+		return nil, NewEmptyPoolError(filter.dsType, filter.pool)
 	}
 
+	numberFields := len([]string(filter.fields)) // 14
 	entries := make([]*ListEntry, len(lines)-headerOffset)
 
 	for i := headerOffset; i < len(lines); i++ {
@@ -547,7 +594,9 @@ func (m *Manager) listDetails(pool, dsType string) ([]*ListEntry, error) {
 			{field: fields[8], setFunc: zfsListEntry.setReferenced},
 			{field: fields[9], setFunc: zfsListEntry.setLogicalReferenced},
 			{field: fields[10], setFunc: zfsListEntry.setLogicalUsed},
-			{field: fields[11], setFunc: zfsListEntry.setDataStateAt},
+			{field: fields[11], setFunc: zfsListEntry.setUsedBySnapshots},
+			{field: fields[12], setFunc: zfsListEntry.setUsedByChildren},
+			{field: fields[13], setFunc: zfsListEntry.setDataStateAt},
 		}
 
 		for _, rule := range setRules {
@@ -557,7 +606,7 @@ func (m *Manager) listDetails(pool, dsType string) ([]*ListEntry, error) {
 
 			if err := rule.setFunc(rule.field); err != nil {
 				return nil, errors.Errorf("ZFS error: cannot parse output.\nCommand: %s.\nOutput: %s\nErr: %v",
-					listCmd, out, err)
+					buildListCommand(filter), out, err)
 			}
 		}
 
@@ -642,6 +691,28 @@ func (z *ListEntry) setLogicalUsed(field string) error {
 	}
 
 	z.LogicalUsed = logicalUsed
+
+	return nil
+}
+
+func (z *ListEntry) setUsedBySnapshots(field string) error {
+	usedBySnapshots, err := util.ParseBytes(field)
+	if err != nil {
+		return err
+	}
+
+	z.UsedBySnapshots = usedBySnapshots
+
+	return nil
+}
+
+func (z *ListEntry) setUsedByChildren(field string) error {
+	usedByChildren, err := util.ParseBytes(field)
+	if err != nil {
+		return err
+	}
+
+	z.UsedByChildren = usedByChildren
 
 	return nil
 }

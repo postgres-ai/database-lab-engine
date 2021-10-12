@@ -9,6 +9,8 @@ package pool
 
 import (
 	"syscall"
+
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones/lvm"
 )
 
 func (pm *Manager) getFSInfo(path string) (string, error) {
@@ -20,7 +22,7 @@ func (pm *Manager) getFSInfo(path string) (string, error) {
 	fsType := detectFSType(fs.Fstypename[:])
 	if fsType == ext4 {
 		// cannot detect LVM checking the blockDeviceTypes map.
-		return LVM, nil
+		return lvm.PoolMode, nil
 	}
 
 	return fsType, nil

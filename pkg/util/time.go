@@ -56,7 +56,7 @@ func MillisecondsToString(value float64) string {
 	}
 }
 
-// FormatTime returns string represeting time in UTC in defined format.
+// FormatTime returns string representing time in UTC in defined format.
 func FormatTime(t time.Time) string {
 	f := t.UTC()
 	return fmt.Sprintf("%d-%02d-%02d %02d:%02d:%02d UTC", f.Year(), f.Month(),

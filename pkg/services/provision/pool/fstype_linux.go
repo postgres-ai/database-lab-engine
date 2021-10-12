@@ -10,11 +10,14 @@ package pool
 import (
 	"strconv"
 	"syscall"
+
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones/lvm"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones/zfs"
 )
 
 var fsTypeToString = map[string]string{
 	"ef53":     ext4,
-	"2fc12fc1": ZFS,
+	"2fc12fc1": zfs.PoolMode,
 }
 
 func (pm *Manager) getFSInfo(path string) (string, error) {
@@ -26,7 +29,7 @@ func (pm *Manager) getFSInfo(path string) (string, error) {
 	fsType := detectFSType(fs.Type)
 	if fsType == ext4 {
 		// cannot detect LVM checking the blockDeviceTypes map.
-		return LVM, nil
+		return lvm.PoolMode, nil
 	}
 
 	return fsType, nil

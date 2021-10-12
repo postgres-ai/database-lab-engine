@@ -92,7 +92,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 
 				_, err = pgctlPromote(r, c)
 				if err != nil {
-					if runnerError := Stop(r, &c.Pool, c.CloneName); runnerError != nil {
+					if runnerError := Stop(r, c.Pool, c.CloneName); runnerError != nil {
 						log.Err(runnerError)
 					}
 
@@ -106,7 +106,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 		cnt++
 
 		if cnt > waitPostgresTimeout {
-			if runnerErr := Stop(r, &c.Pool, c.CloneName); runnerErr != nil {
+			if runnerErr := Stop(r, c.Pool, c.CloneName); runnerErr != nil {
 				log.Err(runnerErr)
 			}
 

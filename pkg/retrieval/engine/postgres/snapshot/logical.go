@@ -27,11 +27,12 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones"
 )
 
 const (
-	// LogicalInitialType declares a job type for preparing a logical initial snapshot.
-	LogicalInitialType = "logicalSnapshot"
+	// LogicalSnapshotType declares a job type for preparing a logical initial snapshot.
+	LogicalSnapshotType = "logicalSnapshot"
 
 	patchContainerPrefix = "dblab_patch_"
 )
@@ -136,6 +137,12 @@ func (s *LogicalInitial) Run(ctx context.Context) error {
 	dataStateAt := extractDataStateAt(s.dbMarker)
 
 	if _, err := s.cloneManager.CreateSnapshot("", dataStateAt); err != nil {
+		var existsError *thinclones.SnapshotExistsError
+		if errors.As(err, &existsError) {
+			log.Msg("Skip snapshotting: ", existsError.Error())
+			return nil
+		}
+
 		return errors.Wrap(err, "failed to create a snapshot")
 	}
 

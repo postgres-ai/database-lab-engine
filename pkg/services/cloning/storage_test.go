@@ -76,6 +76,15 @@ func prepareStateFile(data string) (string, error) {
 	return f.Name(), f.Close()
 }
 
+func newProvisioner() (*provision.Provisioner, error) {
+	return provision.New(context.Background(), &provision.Config{
+		PortPool: provision.PortPool{
+			From: 1,
+			To:   5,
+		},
+	}, nil, nil, nil, "nwID")
+}
+
 func TestLoadingSessionState(t *testing.T) {
 	t.Run("it shouldn't panic if a state file is absent", func(t *testing.T) {
 		s := &Base{}
@@ -109,7 +118,10 @@ func TestSavingSessionState(t *testing.T) {
 		assert.NoError(t, err)
 		defer func() { _ = os.Remove(f.Name()) }()
 
-		s := NewBase(nil, nil, nil)
+		prov, err := newProvisioner()
+		assert.NoError(t, err)
+
+		s := NewBase(nil, prov, nil)
 		err = s.saveClonesState(f.Name())
 		assert.NoError(t, err)
 
@@ -144,13 +156,16 @@ func TestFilter(t *testing.T) {
 }`},
 		}
 
+		prov, err := newProvisioner()
+		assert.NoError(t, err)
+
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				filepath, err := prepareStateFile(tc.stateData)
 				assert.NoError(t, err)
 				defer func() { _ = os.Remove(filepath) }()
 
-				s := NewBase(nil, &provision.Provisioner{}, nil)
+				s := NewBase(nil, prov, nil)
 
 				s.filterRunningClones(context.Background())
 				assert.Equal(t, 0, len(s.clones))

@@ -40,7 +40,7 @@ func TestVolumesBuilding(t *testing.T) {
 		{
 			appConfig: &resources.AppConfig{
 				CloneName: "dblab_clone_6000",
-				Pool: resources.Pool{
+				Pool: &resources.Pool{
 					Name:         "dblab_pool",
 					PoolDirName:  "dblab_pool",
 					MountDir:     "/var/lib/dblab/",

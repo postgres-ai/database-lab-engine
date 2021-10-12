@@ -27,6 +27,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones/zfs"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/pglog"
 )
@@ -140,6 +141,14 @@ func (p *Provisioner) Reload(cfg Config, dbCfg resources.DB) {
 	*p.dbCfg = dbCfg
 }
 
+// ContainerOptions returns provisioner configuration for running containers.
+func (p *Provisioner) ContainerOptions() models.ContainerOptions {
+	return models.ContainerOptions{
+		DockerImage:     p.config.DockerImage,
+		ContainerConfig: p.config.ContainerConfig,
+	}
+}
+
 // StartSession starts a new session.
 func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUser,
 	extraConfig map[string]string) (*resources.Session, error) {
@@ -154,7 +163,11 @@ func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUs
 	}
 
 	name := util.GetCloneName(port)
-	fsm := p.pm.Active()
+
+	fsm, err := p.pm.GetFSManager(snapshot.Pool)
+	if err != nil {
+		return nil, fmt.Errorf("cannot work with pool %s: %w", snapshot.Pool, err)
+	}
 
 	log.Dbg(fmt.Sprintf(`Starting session for port: %d.`, port))
 
@@ -276,14 +289,26 @@ func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string
 	return snapshotModel, nil
 }
 
-// GetSnapshots provides a snapshot list.
+// GetSnapshots provides a snapshot list from active pools.
 func (p *Provisioner) GetSnapshots() ([]resources.Snapshot, error) {
-	return p.pm.Active().GetSnapshots()
-}
+	snapshots := []resources.Snapshot{}
 
-// GetDiskState describes the state of the managed disk.
-func (p *Provisioner) GetDiskState() (*resources.Disk, error) {
-	return p.pm.Active().GetDiskState()
+	for _, activeFSManager := range p.pm.GetActiveFSManagers() {
+		poolSnapshots, err := activeFSManager.GetSnapshots()
+		if err != nil {
+			var emptyErr *zfs.EmptyPoolError
+			if errors.As(err, &emptyErr) {
+				log.Msg(emptyErr.Error())
+				continue
+			}
+
+			log.Err(fmt.Errorf("failed to get snapshots for pool %s: %w", activeFSManager.Pool().Name, err))
+		}
+
+		snapshots = append(snapshots, poolSnapshots...)
+	}
+
+	return snapshots, nil
 }
 
 // GetSessionState describes the state of the session.
@@ -296,15 +321,66 @@ func (p *Provisioner) GetSessionState(s *resources.Session) (*resources.SessionS
 	return fsm.GetSessionState(util.GetCloneName(s.Port))
 }
 
+// GetPoolEntryList provides an ordered list of available pools.
+func (p *Provisioner) GetPoolEntryList() []models.PoolEntry {
+	fsmList := p.pm.GetFSManagerOrderedList()
+	pools := make([]models.PoolEntry, 0, len(fsmList))
+
+	for _, fsManager := range fsmList {
+		poolEntry, err := buildPoolEntry(fsManager)
+		if err != nil {
+			log.Err("skip pool entry: ", err.Error())
+			continue
+		}
+
+		pools = append(pools, poolEntry)
+	}
+
+	return pools
+}
+
+func buildPoolEntry(fsm pool.FSManager) (models.PoolEntry, error) {
+	fsmPool := fsm.Pool()
+	if fsmPool == nil {
+		return models.PoolEntry{}, errors.New("empty pool")
+	}
+
+	listClones, err := fsm.ListClonesNames()
+	if err != nil {
+		log.Err(fmt.Sprintf("failed to get clone list related to the pool %s", fsmPool.Name))
+	}
+
+	fileSystem, err := fsm.GetFilesystemState()
+	if err != nil {
+		log.Err(fmt.Sprintf("failed to get disk stats for the pool %s", fsmPool.Name))
+	}
+
+	var dataStateAt string
+	if !fsmPool.DSA.IsZero() {
+		dataStateAt = fsmPool.DSA.String()
+	}
+
+	poolEntry := models.PoolEntry{
+		Name:        fsmPool.Name,
+		Mode:        fsmPool.Mode,
+		DataStateAt: dataStateAt,
+		CloneList:   listClones,
+		FileSystem:  fileSystem,
+		Status:      fsm.Pool().Status(),
+	}
+
+	return poolEntry, nil
+}
+
 // Other methods.
 func (p *Provisioner) revertSession(name string) {
 	log.Dbg(`Reverting start of a session...`)
 
-	if runnerErr := postgres.Stop(p.runner, p.pm.Active().Pool(), name); runnerErr != nil {
+	if runnerErr := postgres.Stop(p.runner, p.pm.First().Pool(), name); runnerErr != nil {
 		log.Err(`Revert:`, runnerErr)
 	}
 
-	if runnerErr := p.pm.Active().DestroyClone(name); runnerErr != nil {
+	if runnerErr := p.pm.First().DestroyClone(name); runnerErr != nil {
 		log.Err(`Revert:`, runnerErr)
 	}
 }
@@ -503,7 +579,7 @@ func (p *Provisioner) getAppConfig(pool *resources.Pool, name string, port uint)
 		Host:          pool.SocketCloneDir(name),
 		Port:          port,
 		DB:            p.dbCfg,
-		Pool:          *pool,
+		Pool:          pool, // TODO: check copying: it must be read-only struct.
 		ContainerConf: p.config.ContainerConfig,
 		NetworkID:     p.networkID,
 	}

@@ -111,7 +111,7 @@ build-binary-client-rc:
     paths:
       - bin
   services:
-    - docker:dind
+    - name: docker:dind
   script:
     - apk update && apk upgrade && apk add --no-cache bash # TODO(anatoly): Remove dependency.
     - bash ./scripts/ci_docker_build_push.sh

@@ -18,6 +18,9 @@ import (
 
 const (
 	sizePortion = 10
+
+	// PoolMode defines the lvm filesystem name.
+	PoolMode = "lvm"
 )
 
 // LvsOutput defines "lvs" command response.

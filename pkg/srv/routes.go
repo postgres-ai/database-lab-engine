@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/AlekSi/pointer"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgtype/pgxtype"
@@ -31,6 +32,19 @@ func (s *Server) getInstanceStatus(w http.ResponseWriter, r *http.Request) {
 		api.SendError(w, r, err)
 		return
 	}
+
+	refresh := models.Retrieving{
+		Mode:        s.Retrieval.State.Mode,
+		Status:      s.Retrieval.State.Status,
+		Alerts:      s.Retrieval.State.Alerts(),
+		LastRefresh: s.Retrieval.State.LastRefresh,
+	}
+
+	if s.Retrieval.Scheduler.Spec != nil {
+		refresh.NextRefresh = pointer.ToTimeOrNil(s.Retrieval.Scheduler.Spec.Next(time.Now()))
+	}
+
+	status.Retrieving = refresh
 
 	if err = api.WriteJSON(w, http.StatusOK, status); err != nil {
 		api.SendError(w, r, err)
@@ -310,7 +324,7 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 
 	clone.DB.Username = s.Global.Database.User()
 
-	db, err := observer.InitConnection(clone, s.pm.Active().Pool().SocketDir())
+	db, err := observer.InitConnection(clone, s.pm.First().Pool().SocketDir())
 	if err != nil {
 		api.SendError(w, r, errors.Wrap(err, "cannot connect to database"))
 		return
@@ -520,7 +534,7 @@ func (s *Server) downloadArtifact(w http.ResponseWriter, r *http.Request) {
 func (s *Server) healthCheck(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	healthResponse := models.Health{
+	healthResponse := models.Engine{
 		Version: version.GetVersion(),
 	}
 

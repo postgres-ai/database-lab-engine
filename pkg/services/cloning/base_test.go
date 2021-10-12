@@ -26,8 +26,8 @@ type BaseCloningSuite struct {
 
 func (s *BaseCloningSuite) SetupSuite() {
 	cloning := &Base{
-		clones:    make(map[string]*CloneWrapper),
-		snapshots: make([]models.Snapshot, 0),
+		clones:      make(map[string]*CloneWrapper),
+		snapshotBox: SnapshotBox{items: make(map[string]*models.Snapshot)},
 	}
 
 	s.cloning = cloning
@@ -35,7 +35,7 @@ func (s *BaseCloningSuite) SetupSuite() {
 
 func (s *BaseCloningSuite) TearDownTest() {
 	s.cloning.clones = make(map[string]*CloneWrapper)
-	s.cloning.snapshots = make([]models.Snapshot, 0)
+	s.cloning.snapshotBox = SnapshotBox{items: make(map[string]*models.Snapshot)}
 }
 
 func (s *BaseCloningSuite) TestFindWrapper() {
@@ -131,54 +131,4 @@ func (s *BaseCloningSuite) TestLenClones() {
 
 	lenClones = s.cloning.lenClones()
 	assert.Equal(s.T(), 1, lenClones)
-}
-
-func (s *BaseCloningSuite) TestLatestSnapshot() {
-	snapshot1 := models.Snapshot{
-		ID:          "TestSnapshotID1",
-		CreatedAt:   "2020-02-20 01:23:45",
-		DataStateAt: "2020-02-19 00:00:00",
-	}
-
-	snapshot2 := models.Snapshot{
-		ID:          "TestSnapshotID2",
-		CreatedAt:   "2020-02-20 05:43:21",
-		DataStateAt: "2020-02-20 00:00:00",
-	}
-
-	assert.Equal(s.T(), 0, len(s.cloning.snapshots))
-	latestSnapshot, err := s.cloning.getLatestSnapshot()
-	require.Equal(s.T(), latestSnapshot, models.Snapshot{})
-	assert.EqualError(s.T(), err, "no snapshot found")
-
-	s.cloning.snapshots = append(s.cloning.snapshots, snapshot1, snapshot2)
-
-	latestSnapshot, err = s.cloning.getLatestSnapshot()
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), latestSnapshot, snapshot1)
-}
-
-func (s *BaseCloningSuite) TestSnapshotByID() {
-	snapshot1 := models.Snapshot{
-		ID:          "TestSnapshotID1",
-		CreatedAt:   "2020-02-20 01:23:45",
-		DataStateAt: "2020-02-19 00:00:00",
-	}
-
-	snapshot2 := models.Snapshot{
-		ID:          "TestSnapshotID2",
-		CreatedAt:   "2020-02-20 05:43:21",
-		DataStateAt: "2020-02-20 00:00:00",
-	}
-
-	assert.Equal(s.T(), 0, len(s.cloning.snapshots))
-	latestSnapshot, err := s.cloning.getLatestSnapshot()
-	require.Equal(s.T(), latestSnapshot, models.Snapshot{})
-	assert.EqualError(s.T(), err, "no snapshot found")
-
-	s.cloning.snapshots = append(s.cloning.snapshots, snapshot1, snapshot2)
-
-	latestSnapshot, err = s.cloning.getSnapshotByID("TestSnapshotID2")
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), latestSnapshot, snapshot2)
 }

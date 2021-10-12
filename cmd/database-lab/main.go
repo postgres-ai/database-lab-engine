@@ -93,7 +93,7 @@ func main() {
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer shutdownCancel()
 
-		shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global, pm.Active().Pool())
+		shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global, pm.First().Pool())
 	}
 
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
@@ -124,12 +124,12 @@ func main() {
 		return
 	}
 
-	obs := observer.NewObserver(dockerCLI, &cfg.Observer, platformSvc.Client, pm)
+	obs := observer.NewObserver(dockerCLI, &cfg.Observer, pm)
 	est := estimator.NewEstimator(&cfg.Estimator)
 
 	go removeObservingClones(observingChan, obs)
 
-	server := srv.NewServer(&cfg.Server, &cfg.Global, obs, cloningSvc, platformSvc, dockerCLI, est, pm)
+	server := srv.NewServer(&cfg.Server, &cfg.Global, cloningSvc, retrievalSvc, platformSvc, dockerCLI, obs, est, pm)
 	shutdownCh := setShutdownListener()
 
 	go setReloadListener(ctx, provisionSvc, retrievalSvc, pm, cloningSvc, platformSvc, est, server)
@@ -153,7 +153,7 @@ func main() {
 		log.Msg(err)
 	}
 
-	shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global, pm.Active().Pool())
+	shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global, pm.First().Pool())
 	cloningSvc.SaveClonesState()
 }
 
