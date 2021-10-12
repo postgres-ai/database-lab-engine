@@ -22,15 +22,6 @@ type Session struct {
 	ExtraConfig   map[string]string `json:"extra_config"`
 }
 
-// Disk defines disk status.
-// TODO(anatoly): Merge with disk from models?
-type Disk struct {
-	Size     uint64
-	Free     uint64
-	Used     uint64
-	DataSize uint64
-}
-
 // EphemeralUser describes an ephemeral database user defined by Database Lab users.
 type EphemeralUser struct {
 	// TODO(anatoly): Were private fields. How to keep them private?
@@ -42,12 +33,16 @@ type EphemeralUser struct {
 
 // Snapshot defines snapshot of the data with related meta-information.
 type Snapshot struct {
-	ID          string
-	CreatedAt   time.Time
-	DataStateAt time.Time
+	ID                string
+	CreatedAt         time.Time
+	DataStateAt       time.Time
+	Used              uint64
+	LogicalReferenced uint64
+	Pool              string
 }
 
 // SessionState defines current state of a Session.
 type SessionState struct {
-	CloneDiffSize uint64
+	CloneDiffSize     uint64
+	LogicalReferenced uint64
 }

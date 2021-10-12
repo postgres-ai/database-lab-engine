@@ -494,14 +494,11 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 		return errors.Wrap(err, "failed to exec restore command")
 	}
 
-	dumpLocation := r.getDumpLocation(dbDefinition.Format, dbName)
-
-	if dbDefinition.Format == plainFormat {
-		// dataStateAt cannot be found.
-		return nil
+	if err := r.defineDSA(ctx, dbDefinition, contID, dbName); err != nil {
+		log.Err("Failed to define DataStateAt: ", err)
 	}
 
-	if err := r.markDatabase(ctx, contID, dumpLocation); err != nil {
+	if err := r.markDatabase(); err != nil {
 		return errors.Wrap(err, "failed to mark the database")
 	}
 
@@ -599,26 +596,24 @@ func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 	}
 }
 
-func (r *RestoreJob) markDatabase(ctx context.Context, contID, dumpLocation string) error {
+func (r *RestoreJob) defineDSA(ctx context.Context, dbDefinition DumpDefinition, contID, dbName string) error {
+	if dbDefinition.Format == plainFormat {
+		// dataStateAt cannot be found, but we have to mark data.
+		r.dbMark.DataStateAt = time.Now().Format(util.DataStateAtFormat)
+		return nil
+	}
+
+	dumpLocation := r.getDumpLocation(dbDefinition.Format, dbName)
+
 	dataStateAt, err := r.retrieveDataStateAt(ctx, contID, dumpLocation)
 	if err != nil {
-		log.Err("Failed to extract dataStateAt: ", err)
+		return fmt.Errorf("failed to extract dataStateAt: %w", err)
 	}
 
 	if dataStateAt != "" {
 		r.dbMark.DataStateAt = dataStateAt
 		log.Msg("Data state at: ", dataStateAt)
 	}
-
-	if err := r.dbMarker.CreateConfig(); err != nil {
-		return errors.Wrap(err, "failed to create a DBMarker config of the database")
-	}
-
-	if err := r.dbMarker.SaveConfig(r.dbMark); err != nil {
-		return errors.Wrap(err, "failed to mark the database")
-	}
-
-	r.updateDataStateAt()
 
 	return nil
 }
@@ -650,6 +645,20 @@ func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID, dumpLocati
 	}
 
 	return dataStateAt, nil
+}
+
+func (r *RestoreJob) markDatabase() error {
+	if err := r.dbMarker.CreateConfig(); err != nil {
+		return errors.Wrap(err, "failed to create a DBMarker config of the database")
+	}
+
+	if err := r.dbMarker.SaveConfig(r.dbMark); err != nil {
+		return errors.Wrap(err, "failed to mark the database")
+	}
+
+	r.updateDataStateAt()
+
+	return nil
 }
 
 // updateDataStateAt updates dataStateAt for in-memory representation of a storage pool.

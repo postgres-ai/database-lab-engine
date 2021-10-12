@@ -333,7 +333,7 @@ func (s *Server) destroyClone(w http.ResponseWriter, r *http.Request) {
 func (s *Server) healthCheck(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	healthResponse := models.Health{
+	healthResponse := models.Engine{
 		Version: version.GetVersion(),
 	}
 

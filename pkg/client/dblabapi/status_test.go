@@ -20,22 +20,13 @@ func TestClientStatus(t *testing.T) {
 			Code:    "OK",
 			Message: "Instance is ready",
 		},
-		FileSystem: &models.FileSystem{
-			Size:   15489651156451,
-			SizeHR: "14 TiB",
-			Free:   15429651156451,
-			FreeHR: "14 TiB",
-		},
-		DataSize:            2654568125,
-		DataSizeHR:          "2.5 GiB",
 		ExpectedCloningTime: 0,
 		NumClones:           1,
 		Clones: []*models.Clone{{
 			ID: "testCloneID",
 			Metadata: models.CloneMetadata{
-				CloneDiffSize:   450546851,
-				CloneDiffSizeHR: "430 MiB",
-				CloningTime:     1,
+				CloneDiffSize: 450546851,
+				CloningTime:   1,
 			},
 			Protected: true,
 			DeleteAt:  "2020-01-10 00:00:05.000 UTC",
@@ -49,6 +40,22 @@ func TestClientStatus(t *testing.T) {
 				Password: "doe",
 			},
 		}},
+		Pools: []models.PoolEntry{
+			{
+				Name:        "test_pool",
+				Mode:        "zfs",
+				DataStateAt: "2020-01-07 00:00:00.000 UTC",
+				Status:      "active",
+				CloneList:   []string{"testCloneID"},
+				FileSystem: models.FileSystem{
+					Size:            167724544000,
+					Free:            133059072000,
+					Used:            34665472000,
+					UsedBySnapshots: 199680000,
+					UsedByClones:    1013760000,
+					DataSize:        147773952000,
+				}},
+		},
 	}
 
 	mockClient := NewTestClient(func(req *http.Request) *http.Response {

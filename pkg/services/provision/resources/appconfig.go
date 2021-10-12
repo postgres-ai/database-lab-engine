@@ -12,7 +12,7 @@ import (
 type AppConfig struct {
 	CloneName   string
 	DockerImage string
-	Pool        Pool
+	Pool        *Pool
 	Host        string
 	Port        uint
 	DB          *DB

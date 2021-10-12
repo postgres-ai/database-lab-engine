@@ -8,14 +8,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math/big"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/dustin/go-humanize"
+	"github.com/AlekSi/pointer"
 	"github.com/jackc/pgtype/pgxtype"
 	"github.com/jackc/pgx/v4"
 	_ "github.com/lib/pq" // Register Postgres database driver.
@@ -29,6 +28,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/pglog"
+	"gitlab.com/postgres-ai/database-lab/v2/version"
 )
 
 const (
@@ -45,28 +45,44 @@ type Config struct {
 
 // Base provides cloning service.
 type Base struct {
-	config        *Config
-	cloneMutex    sync.RWMutex
-	clones        map[string]*CloneWrapper
-	snapshotMutex sync.RWMutex
-	snapshots     []models.Snapshot
-	provision     *provision.Provisioner
-	observingCh   chan string
+	config         *Config
+	cloneMutex     sync.RWMutex
+	clones         map[string]*CloneWrapper
+	instanceStatus *models.InstanceStatus
+	snapshotBox    SnapshotBox
+	provision      *provision.Provisioner
+	observingCh    chan string
 }
 
 // NewBase instances a new Base service.
 func NewBase(cfg *Config, provision *provision.Provisioner, observingCh chan string) *Base {
 	return &Base{
-		config:      cfg,
-		clones:      make(map[string]*CloneWrapper),
+		config: cfg,
+		clones: make(map[string]*CloneWrapper),
+		instanceStatus: &models.InstanceStatus{
+			Status: &models.Status{
+				Code:    models.StatusOK,
+				Message: models.InstanceMessageOK,
+			},
+			Engine: models.Engine{
+				Version:   version.GetVersion(),
+				StartedAt: pointer.ToTimeOrNil(time.Now().Truncate(time.Second)),
+			},
+			Clones:      make([]*models.Clone, 0),
+			Provisioner: provision.ContainerOptions(),
+		},
 		provision:   provision,
 		observingCh: observingCh,
+		snapshotBox: SnapshotBox{
+			items: make(map[string]*models.Snapshot),
+		},
 	}
 }
 
 // Reload reloads base cloning configuration.
 func (c *Base) Reload(cfg Config) {
 	*c.config = cfg
+	c.instanceStatus.Provisioner = c.provision.ContainerOptions()
 }
 
 // Run initializes and runs cloning component.
@@ -133,7 +149,7 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 		return nil, errors.Wrap(err, "failed to fetch snapshots")
 	}
 
-	var snapshot models.Snapshot
+	var snapshot *models.Snapshot
 
 	if cloneRequest.Snapshot != nil {
 		snapshot, err = c.getSnapshotByID(cloneRequest.Snapshot.ID)
@@ -147,7 +163,7 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 
 	clone := &models.Clone{
 		ID:        cloneRequest.ID,
-		Snapshot:  &snapshot,
+		Snapshot:  snapshot,
 		Protected: cloneRequest.Protected,
 		CreatedAt: util.FormatTime(createdAt),
 		Status: models.Status{
@@ -207,6 +223,7 @@ func (c *Base) fillCloneSession(cloneID string, session *resources.Session) {
 
 	w.Session = session
 	w.TimeStartedAt = time.Now()
+	c.incrementCloneNumber(w.Clone.Snapshot.ID)
 
 	clone := w.Clone
 	clone.Status = models.Status{
@@ -273,6 +290,7 @@ func (c *Base) DestroyClone(cloneID string) error {
 
 	if w.Session == nil {
 		c.deleteClone(cloneID)
+		c.decrementCloneNumber(w.Clone.Snapshot.ID)
 
 		return nil
 	}
@@ -292,6 +310,7 @@ func (c *Base) DestroyClone(cloneID string) error {
 		}
 
 		c.deleteClone(cloneID)
+		c.decrementCloneNumber(w.Clone.Snapshot.ID)
 		c.observingCh <- cloneID
 
 		c.SaveClonesState()
@@ -321,7 +340,7 @@ func (c *Base) GetClone(id string) (*models.Clone, error) {
 	}
 
 	w.Clone.Metadata.CloneDiffSize = sessionState.CloneDiffSize
-	w.Clone.Metadata.CloneDiffSizeHR = humanize.BigIBytes(big.NewInt(int64(sessionState.CloneDiffSize)))
+	w.Clone.Metadata.LogicalSize = sessionState.LogicalReferenced
 
 	return w.Clone, nil
 }
@@ -396,6 +415,7 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 	}
 
 	go func() {
+		// TODO(akartasov): adjust clone counter for the snapshot after clone resetting
 		snapshot, err := c.provision.ResetSession(w.Session, snapshotID)
 		if err != nil {
 			log.Errf("Failed to reset clone: %+v.", err)
@@ -429,32 +449,12 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 
 // GetInstanceState returns the current state of instance.
 func (c *Base) GetInstanceState() (*models.InstanceStatus, error) {
-	disk, err := c.provision.GetDiskState()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get a disk state")
-	}
+	c.instanceStatus.ExpectedCloningTime = c.getExpectedCloningTime()
+	c.instanceStatus.Clones = c.GetClones()
+	c.instanceStatus.NumClones = uint64(len(c.instanceStatus.Clones))
+	c.instanceStatus.Pools = c.provision.GetPoolEntryList()
 
-	instanceStatus := &models.InstanceStatus{
-		FileSystem: &models.FileSystem{},
-	}
-
-	instanceStatus.FileSystem.Size = disk.Size
-	instanceStatus.FileSystem.Free = disk.Free
-	instanceStatus.FileSystem.Used = disk.Used
-	instanceStatus.DataSize = disk.DataSize
-	instanceStatus.FileSystem.SizeHR = humanize.BigIBytes(big.NewInt(int64(disk.Size)))
-	instanceStatus.FileSystem.FreeHR = humanize.BigIBytes(big.NewInt(int64(disk.Free)))
-	instanceStatus.FileSystem.UsedHR = humanize.BigIBytes(big.NewInt(int64(disk.Used)))
-	instanceStatus.DataSizeHR = humanize.BigIBytes(big.NewInt(int64(disk.DataSize)))
-	instanceStatus.ExpectedCloningTime = c.getExpectedCloningTime()
-	instanceStatus.Clones = c.GetClones()
-	instanceStatus.NumClones = uint64(len(instanceStatus.Clones))
-	instanceStatus.Status = &models.Status{
-		Code:    models.StatusOK,
-		Message: models.InstanceMessageOK,
-	}
-
-	return instanceStatus, nil
+	return c.instanceStatus, nil
 }
 
 // GetSnapshots returns all available snapshots.
@@ -464,13 +464,7 @@ func (c *Base) GetSnapshots() ([]models.Snapshot, error) {
 		return nil, errors.Wrap(err, "failed to fetch snapshots")
 	}
 
-	snapshots := make([]models.Snapshot, len(c.snapshots))
-
-	c.snapshotMutex.RLock()
-	copy(snapshots, c.snapshots)
-	c.snapshotMutex.RUnlock()
-
-	return snapshots, nil
+	return c.getSnapshotList(), nil
 }
 
 // GetClones returns the list of clones descend ordered by creation time.
@@ -479,6 +473,15 @@ func (c *Base) GetClones() []*models.Clone {
 
 	c.cloneMutex.RLock()
 	for _, cloneWrapper := range c.clones {
+		if cloneWrapper.Clone.Snapshot != nil {
+			snapshot, err := c.getSnapshotByID(cloneWrapper.Clone.Snapshot.ID)
+			if err != nil {
+				log.Err("Snapshot not found: ", cloneWrapper.Clone.Snapshot.ID)
+			}
+
+			cloneWrapper.Clone.Snapshot = snapshot
+		}
+
 		clones = append(clones, cloneWrapper.Clone)
 	}
 	c.cloneMutex.RUnlock()
@@ -538,59 +541,6 @@ func (c *Base) getExpectedCloningTime() float64 {
 	c.cloneMutex.RUnlock()
 
 	return sum / float64(lenClones)
-}
-
-func (c *Base) fetchSnapshots() error {
-	entries, err := c.provision.GetSnapshots()
-	if err != nil {
-		return errors.Wrap(err, "failed to get snapshots")
-	}
-
-	snapshots := make([]models.Snapshot, len(entries))
-
-	for i, entry := range entries {
-		snapshots[i] = models.Snapshot{
-			ID:          entry.ID,
-			CreatedAt:   util.FormatTime(entry.CreatedAt),
-			DataStateAt: util.FormatTime(entry.DataStateAt),
-		}
-
-		log.Dbg("snapshot:", snapshots[i])
-	}
-
-	c.snapshotMutex.Lock()
-	c.snapshots = snapshots
-	c.snapshotMutex.Unlock()
-
-	return nil
-}
-
-// getLatestSnapshot returns the latest snapshot.
-func (c *Base) getLatestSnapshot() (models.Snapshot, error) {
-	c.snapshotMutex.RLock()
-	defer c.snapshotMutex.RUnlock()
-
-	if len(c.snapshots) == 0 {
-		return models.Snapshot{}, errors.New("no snapshot found")
-	}
-
-	snapshot := c.snapshots[0]
-
-	return snapshot, nil
-}
-
-// getSnapshotByID returns the snapshot by ID.
-func (c *Base) getSnapshotByID(snapshotID string) (models.Snapshot, error) {
-	c.snapshotMutex.RLock()
-	defer c.snapshotMutex.RUnlock()
-
-	for _, snapshot := range c.snapshots {
-		if snapshot.ID == snapshotID {
-			return snapshot, nil
-		}
-	}
-
-	return models.Snapshot{}, errors.New("no snapshot found")
 }
 
 func (c *Base) runIdleCheck(ctx context.Context) {

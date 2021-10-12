@@ -21,7 +21,6 @@ func TestClientListClones(t *testing.T) {
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
 			CloneDiffSize:   450,
-			CloneDiffSizeHR: "450 B",
 			CloningTime:     1,
 		},
 		Protected: true,
@@ -93,7 +92,6 @@ func TestClientCreateClone(t *testing.T) {
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
 			CloneDiffSize:   450,
-			CloneDiffSizeHR: "450 B",
 			CloningTime:     1,
 		},
 		Protected: true,
@@ -172,7 +170,6 @@ func TestClientCreateCloneAsync(t *testing.T) {
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
 			CloneDiffSize:   450,
-			CloneDiffSizeHR: "450 B",
 			CloningTime:     1,
 		},
 		Protected: true,
@@ -262,7 +259,6 @@ func TestClientGetClone(t *testing.T) {
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
 			CloneDiffSize:   450,
-			CloneDiffSizeHR: "450 B",
 			CloningTime:     1,
 		},
 		Protected: true,
@@ -334,7 +330,6 @@ func TestClientUpdateClone(t *testing.T) {
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
 			CloneDiffSize:   450,
-			CloneDiffSizeHR: "450 B",
 			CloningTime:     1,
 		},
 		Protected: true,

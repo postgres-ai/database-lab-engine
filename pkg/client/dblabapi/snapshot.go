@@ -7,6 +7,7 @@ package dblabapi
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -16,6 +17,24 @@ import (
 
 // ListSnapshots provides a snapshot list.
 func (c *Client) ListSnapshots(ctx context.Context) ([]*models.Snapshot, error) {
+	body, err := c.ListSnapshotsRaw(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get response")
+	}
+
+	defer func() { _ = body.Close() }()
+
+	var snapshots []*models.Snapshot
+
+	if err := json.NewDecoder(body).Decode(&snapshots); err != nil {
+		return nil, errors.Wrap(err, "failed to get response")
+	}
+
+	return snapshots, nil
+}
+
+// ListSnapshotsRaw provides a snapshot list in raw format.
+func (c *Client) ListSnapshotsRaw(ctx context.Context) (io.ReadCloser, error) {
 	u := c.URL("/snapshots")
 
 	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
@@ -28,13 +47,5 @@ func (c *Client) ListSnapshots(ctx context.Context) ([]*models.Snapshot, error) 
 		return nil, errors.Wrap(err, "failed to get response")
 	}
 
-	defer func() { _ = response.Body.Close() }()
-
-	var snapshots []*models.Snapshot
-
-	if err := json.NewDecoder(response.Body).Decode(&snapshots); err != nil {
-		return nil, errors.Wrap(err, "failed to get response")
-	}
-
-	return snapshots, nil
+	return response.Body, nil
 }

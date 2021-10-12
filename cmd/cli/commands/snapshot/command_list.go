@@ -18,7 +18,7 @@ func CommandList() []*cli.Command {
 				{
 					Name:   "list",
 					Usage:  "list all existing snapshots",
-					Action: list(),
+					Action: list,
 				},
 			},
 		},

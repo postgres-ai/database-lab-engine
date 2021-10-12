@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/platform"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/pglog"
@@ -39,7 +38,6 @@ const (
 // Observer manages observation sessions.
 type Observer struct {
 	dockerClient     *client.Client
-	Platform         *platform.Client
 	sessionMu        *sync.Mutex
 	storage          map[string]*ObservingClone
 	cfg              *Config
@@ -59,10 +57,9 @@ type ReplacementRule struct {
 }
 
 // NewObserver creates an Observer instance.
-func NewObserver(dockerClient *client.Client, cfg *Config, platform *platform.Client, pm *pool.Manager) *Observer {
+func NewObserver(dockerClient *client.Client, cfg *Config, pm *pool.Manager) *Observer {
 	observer := &Observer{
 		dockerClient:     dockerClient,
-		Platform:         platform,
 		sessionMu:        &sync.Mutex{},
 		storage:          make(map[string]*ObservingClone),
 		cfg:              cfg,
@@ -203,7 +200,7 @@ func (o *Observer) maskLogs(entry []string, maskedFieldIndexes []int) {
 func (o *Observer) AddObservingClone(cloneID string, port uint, session *ObservingClone) {
 	o.sessionMu.Lock()
 	defer o.sessionMu.Unlock()
-	session.pool = o.pm.Active().Pool()
+	session.pool = o.pm.First().Pool()
 	session.cloneID = cloneID
 	session.port = port
 

@@ -24,14 +24,14 @@ func CommandList() []*cli.Command {
 			{
 				Name:   "list",
 				Usage:  "list all existing clones",
-				Action: list(),
+				Action: list,
 			},
 			{
 				Name:      "status",
 				Usage:     "display clone's information",
 				ArgsUsage: "CLONE_ID",
 				Before:    checkCloneIDBefore,
-				Action:    status(),
+				Action:    status,
 			},
 			{
 				Name:   "create",
@@ -85,7 +85,7 @@ func CommandList() []*cli.Command {
 				Usage:     "update existing clone",
 				ArgsUsage: "CLONE_ID",
 				Before:    checkCloneIDBefore,
-				Action:    update(),
+				Action:    update,
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:    "protected",
@@ -99,7 +99,7 @@ func CommandList() []*cli.Command {
 				Usage:     "reset clone's state",
 				ArgsUsage: "CLONE_ID",
 				Before:    checkCloneIDBefore,
-				Action:    reset(),
+				Action:    reset,
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:    "async",
@@ -121,7 +121,7 @@ func CommandList() []*cli.Command {
 				Usage:     "destroy clone",
 				ArgsUsage: "CLONE_ID",
 				Before:    checkCloneIDBefore,
-				Action:    destroy(),
+				Action:    destroy,
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:    "async",

@@ -26,27 +26,63 @@ import (
 )
 
 // list runs a request to list clones of an instance.
-func list() func(*cli.Context) error {
-	return func(cliCtx *cli.Context) error {
-		dblabClient, err := commands.ClientByCLIContext(cliCtx)
-		if err != nil {
-			return err
-		}
-
-		list, err := dblabClient.ListClones(cliCtx.Context)
-		if err != nil {
-			return err
-		}
-
-		commandResponse, err := json.MarshalIndent(list, "", "    ")
-		if err != nil {
-			return err
-		}
-
-		_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
-
+func list(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
 		return err
 	}
+
+	body, err := dblabClient.ListClonesRaw(cliCtx.Context)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = body.Close() }()
+
+	var viewCloneList *models.CloneListView
+
+	if err := json.NewDecoder(body).Decode(&viewCloneList); err != nil {
+		return err
+	}
+
+	commandResponse, err := json.MarshalIndent(viewCloneList.Clones, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
+
+	return err
+}
+
+// status runs a request to get clone info.
+func status(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
+		return err
+	}
+
+	body, err := dblabClient.GetCloneRaw(cliCtx.Context, cliCtx.Args().First())
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = body.Close() }()
+
+	var cloneView *models.CloneView
+
+	if err := json.NewDecoder(body).Decode(&cloneView); err != nil {
+		return err
+	}
+
+	commandResponse, err := json.MarshalIndent(cloneView, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
+
+	return err
 }
 
 // create runs a request to create a new clone.
@@ -85,7 +121,12 @@ func create(cliCtx *cli.Context) error {
 		return err
 	}
 
-	commandResponse, err := json.MarshalIndent(clone, "", "    ")
+	viewClone, err := convertCloneView(clone)
+	if err != nil {
+		return err
+	}
+
+	commandResponse, err := json.MarshalIndent(viewClone, "", "    ")
 	if err != nil {
 		return err
 	}
@@ -95,114 +136,103 @@ func create(cliCtx *cli.Context) error {
 	return err
 }
 
-// status runs a request to get clone info.
-func status() func(*cli.Context) error {
-	return func(cliCtx *cli.Context) error {
-		dblabClient, err := commands.ClientByCLIContext(cliCtx)
-		if err != nil {
-			return err
-		}
-
-		clone, err := dblabClient.GetClone(cliCtx.Context, cliCtx.Args().First())
-		if err != nil {
-			return err
-		}
-
-		commandResponse, err := json.MarshalIndent(clone, "", "    ")
-		if err != nil {
-			return err
-		}
-
-		_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
-
+// update runs a request to update an existing clone.
+func update(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
 		return err
 	}
+
+	updateRequest := types.CloneUpdateRequest{
+		Protected: cliCtx.Bool("protected"),
+	}
+
+	cloneID := cliCtx.Args().First()
+
+	clone, err := dblabClient.UpdateClone(cliCtx.Context, cloneID, updateRequest)
+	if err != nil {
+		return err
+	}
+
+	viewClone, err := convertCloneView(clone)
+	if err != nil {
+		return err
+	}
+
+	commandResponse, err := json.MarshalIndent(viewClone, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
+
+	return err
 }
 
-// update runs a request to update an existing clone.
-func update() func(*cli.Context) error {
-	return func(cliCtx *cli.Context) error {
-		dblabClient, err := commands.ClientByCLIContext(cliCtx)
-		if err != nil {
-			return err
-		}
-
-		updateRequest := types.CloneUpdateRequest{
-			Protected: cliCtx.Bool("protected"),
-		}
-
-		cloneID := cliCtx.Args().First()
-
-		clone, err := dblabClient.UpdateClone(cliCtx.Context, cloneID, updateRequest)
-		if err != nil {
-			return err
-		}
-
-		commandResponse, err := json.MarshalIndent(clone, "", "    ")
-		if err != nil {
-			return err
-		}
-
-		_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
-
-		return err
+func convertCloneView(clone *models.Clone) (*models.CloneView, error) {
+	data, err := json.Marshal(clone)
+	if err != nil {
+		return nil, err
 	}
+
+	var viewClone *models.CloneView
+	if err = json.Unmarshal(data, &viewClone); err != nil {
+		return nil, err
+	}
+
+	return viewClone, nil
 }
 
 // reset runs a request to reset clone.
-func reset() func(*cli.Context) error {
-	return func(cliCtx *cli.Context) error {
-		dblabClient, err := commands.ClientByCLIContext(cliCtx)
-		if err != nil {
-			return err
-		}
-
-		cloneID := cliCtx.Args().First()
-		resetOptions := types.ResetCloneRequest{
-			Latest:     cliCtx.Bool(cloneResetLatestFlag),
-			SnapshotID: cliCtx.String(cloneResetSnapshotIDFlag),
-		}
-
-		if cliCtx.Bool("async") {
-			err = dblabClient.ResetCloneAsync(cliCtx.Context, cloneID, resetOptions)
-		} else {
-			err = dblabClient.ResetClone(cliCtx.Context, cloneID, resetOptions)
-		}
-
-		if err != nil {
-			return err
-		}
-
-		_, err = fmt.Fprintf(cliCtx.App.Writer, "The clone has been successfully reset: %s\n", cloneID)
-
+func reset(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
 		return err
 	}
+
+	cloneID := cliCtx.Args().First()
+	resetOptions := types.ResetCloneRequest{
+		Latest:     cliCtx.Bool(cloneResetLatestFlag),
+		SnapshotID: cliCtx.String(cloneResetSnapshotIDFlag),
+	}
+
+	if cliCtx.Bool("async") {
+		err = dblabClient.ResetCloneAsync(cliCtx.Context, cloneID, resetOptions)
+	} else {
+		err = dblabClient.ResetClone(cliCtx.Context, cloneID, resetOptions)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(cliCtx.App.Writer, "The clone has been successfully reset: %s\n", cloneID)
+
+	return err
 }
 
 // destroy runs a request to destroy clone.
-func destroy() func(*cli.Context) error {
-	return func(cliCtx *cli.Context) error {
-		dblabClient, err := commands.ClientByCLIContext(cliCtx)
-		if err != nil {
-			return err
-		}
-
-		cloneID := cliCtx.Args().First()
-
-		if cliCtx.Bool("async") {
-			err = dblabClient.DestroyCloneAsync(cliCtx.Context, cloneID)
-		} else {
-			err = dblabClient.DestroyClone(cliCtx.Context, cloneID)
-		}
-
-		if err != nil {
-			return err
-		}
-
-		_, err = fmt.Fprintf(cliCtx.App.Writer, "The clone has been successfully destroyed: %s\n", cloneID)
-
+func destroy(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
 		return err
 	}
+
+	cloneID := cliCtx.Args().First()
+
+	if cliCtx.Bool("async") {
+		err = dblabClient.DestroyCloneAsync(cliCtx.Context, cloneID)
+	} else {
+		err = dblabClient.DestroyClone(cliCtx.Context, cloneID)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(cliCtx.App.Writer, "The clone has been successfully destroyed: %s\n", cloneID)
+
+	return err
 }
 
 // startObservation runs a request to startObservation clone.

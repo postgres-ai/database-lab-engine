@@ -48,10 +48,10 @@ func (s *JobBuilder) BuildJob(jobCfg config.JobConfig) (components.JobRunner, er
 	case physical.RestoreJobType:
 		return physical.NewJob(jobCfg, s.globalCfg)
 
-	case snapshot.LogicalInitialType:
+	case snapshot.LogicalSnapshotType:
 		return snapshot.NewLogicalInitialJob(jobCfg, s.globalCfg, s.cloneManager)
 
-	case snapshot.PhysicalInitialType:
+	case snapshot.PhysicalSnapshotType:
 		return snapshot.NewPhysicalInitialJob(jobCfg, s.globalCfg, s.cloneManager)
 	}
 

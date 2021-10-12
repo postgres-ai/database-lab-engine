@@ -18,8 +18,22 @@ type Clone struct {
 
 // CloneMetadata contains fields describing a clone model.
 type CloneMetadata struct {
-	CloneDiffSize   uint64  `json:"cloneDiffSize"`
-	CloneDiffSizeHR string  `json:"cloneDiffSizeHR"`
-	CloningTime     float64 `json:"cloningTime"`
-	MaxIdleMinutes  uint    `json:"maxIdleMinutes"`
+	CloneDiffSize  uint64  `json:"cloneDiffSize"`
+	LogicalSize    uint64  `json:"logicalSize"`
+	CloningTime    float64 `json:"cloningTime"`
+	MaxIdleMinutes uint    `json:"maxIdleMinutes"`
+}
+
+// CloneView represents a view of clone model.
+type CloneView struct {
+	*Clone
+	Snapshot *SnapshotView     `json:"snapshot"`
+	Metadata CloneMetadataView `json:"metadata"`
+}
+
+// CloneMetadataView represents a view of clone metadata.
+type CloneMetadataView struct {
+	*CloneMetadata
+	CloneDiffSize Size `json:"cloneDiffSize"`
+	LogicalSize   Size `json:"logicalSize"`
 }
