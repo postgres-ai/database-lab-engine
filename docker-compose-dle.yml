@@ -21,12 +21,3 @@ services:
       - DOCKER_API_VERSION=1.39
     restart: 'on-failure:3'
     image: 'postgresai/dblab-server:2.5.0'
-
-  local-gui:
-    container_name: dblab_gui
-    ports:
-      - '3000:3000'
-    volumes:
-      - '/var/run/docker.sock:/tmp/docker.sock:ro'
-    restart: always
-    image: nginx
