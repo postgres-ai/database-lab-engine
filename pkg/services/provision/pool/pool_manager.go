@@ -300,7 +300,6 @@ func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, 
 
 		front := poolList.Front()
 		if front == nil || front.Value == nil || fsManagers[front.Value.(string)].Pool().DSA.Before(pool.DSA) {
-			fsm.Pool().SetStatus(resources.ActivePool)
 			poolList.PushFront(fsm.Pool().Name)
 			continue
 		}
