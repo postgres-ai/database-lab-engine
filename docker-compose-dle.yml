@@ -1,0 +1,32 @@
+version: '3.3'
+
+services:
+  dblab-server:
+    container_name: dblab_server
+    labels:
+      - dblab_control
+    privileged: true
+    ports:
+      - '2345:2345'
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock'
+      - '/var/lib/dblab:/var/lib/dblab/:rshared'
+      - '/var/lib/dblab/dblab_pool/dump:/var/lib/dblab/dblab_pool/dump'
+      - '~/.dblab/engine/configs:/home/dblab/configs:ro'
+      - '~/.dblab/engine/meta:/home/dblab/meta'
+      - '/sys/kernel/debug:/sys/kernel/debug:rw'
+      - '/lib/modules:/lib/modules:ro'
+      - '/proc:/host_proc:ro'
+    environment:
+      - DOCKER_API_VERSION=1.39
+    restart: 'on-failure:3'
+    image: 'postgresai/dblab-server:2.5.0'
+
+  local-gui:
+    container_name: dblab_gui
+    ports:
+      - '3000:3000'
+    volumes:
+      - '/var/run/docker.sock:/tmp/docker.sock:ro'
+    restart: always
+    image: nginx
