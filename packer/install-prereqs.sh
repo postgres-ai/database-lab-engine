@@ -38,6 +38,7 @@ sudo ln -s /snap/bin/certbot /usr/bin/certbot
 
 #install envoy
 curl https://func-e.io/install.sh | sudo bash -s -- -b /usr/local/bin
+sudo /usr/local/bin/func-e use 1.19.1 # https://www.envoyproxy.io/docs/envoy/latest/version_history/v1.20.0#incompatible-behavior-changes
 
 
 #install s3fs
