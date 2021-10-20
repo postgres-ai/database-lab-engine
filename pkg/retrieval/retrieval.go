@@ -69,7 +69,6 @@ func New(cfg *dblabCfg.Config, docker *client.Client, pm *pool.Manager, runner r
 		jobSpecs:    make(map[string]config.JobSpec, len(cfg.Retrieval.Jobs)),
 		State: State{
 			Status: models.Inactive,
-			alerts: make(map[models.AlertType]models.Alert),
 		},
 	}
 }
@@ -100,7 +99,7 @@ func (r *Retrieval) Run(ctx context.Context) error {
 
 	fsManager, err := r.getPoolToDataRefresh()
 	if err != nil {
-		r.State.addAlert(models.RefreshFailed, "pool to perform data refresh not found")
+		r.State.sendAlert(models.RefreshFailed, "pool to perform data refresh not found")
 
 		return fmt.Errorf("failed to choose pool to refresh: %w", err)
 	}
@@ -108,7 +107,7 @@ func (r *Retrieval) Run(ctx context.Context) error {
 	log.Msg("Pool to perform a full refresh: ", fsManager.Pool().Name)
 
 	if err := r.run(runCtx, fsManager); err != nil {
-		r.State.addAlert(models.RefreshFailed, err.Error())
+		r.State.sendAlert(models.RefreshFailed, err.Error())
 		return err
 	}
 
@@ -184,7 +183,6 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 	}
 
 	r.poolManager.MakeActive(poolByName)
-	r.State.cleanAlerts()
 
 	return nil
 }
@@ -345,7 +343,7 @@ func (r *Retrieval) setupScheduler(ctx context.Context) {
 func (r *Retrieval) refreshFunc(ctx context.Context) func() {
 	return func() {
 		if err := r.fullRefresh(ctx); err != nil {
-			r.State.addAlert(models.RefreshFailed, err.Error())
+			r.State.sendAlert(models.RefreshFailed, err.Error())
 			log.Err("Failed to run full-refresh: ", err)
 		}
 	}
@@ -363,7 +361,7 @@ func (r *Retrieval) fullRefresh(ctx context.Context) error {
 	elementToUpdate := r.poolManager.GetPoolToUpdate()
 
 	if elementToUpdate == nil || elementToUpdate.Value == nil {
-		r.State.addAlert(models.RefreshSkipped, "Pool to perform full refresh not found. Skip refreshing")
+		r.State.sendAlert(models.RefreshSkipped, "Pool to perform full refresh not found. Skip refreshing")
 		log.Msg("Pool to perform full refresh not found. Skip refreshing")
 		return nil
 	}
@@ -391,7 +389,6 @@ func (r *Retrieval) fullRefresh(ctx context.Context) error {
 	}
 
 	r.poolManager.MakeActive(elementToUpdate)
-	r.State.cleanAlerts()
 
 	return nil
 }

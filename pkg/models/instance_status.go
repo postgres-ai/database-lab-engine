@@ -12,14 +12,12 @@ import (
 
 // InstanceStatus represents status of a Database Lab Engine instance.
 type InstanceStatus struct {
-	Status              *Status          `json:"status"`
-	Engine              Engine           `json:"engine"`
-	ExpectedCloningTime float64          `json:"expectedCloningTime"`
-	NumClones           uint64           `json:"numClones"`
-	Clones              []*Clone         `json:"clones"`
-	Pools               []PoolEntry      `json:"pools"`
-	Retrieving          Retrieving       `json:"retrieving"`
-	Provisioner         ContainerOptions `json:"provisioner"`
+	Status      *Status          `json:"status"`
+	Engine      Engine           `json:"engine"`
+	Pools       []PoolEntry      `json:"pools"`
+	Cloning     Cloning          `json:"cloning"`
+	Retrieving  Retrieving       `json:"retrieving"`
+	Provisioner ContainerOptions `json:"provisioner"`
 }
 
 // PoolEntry represents a pool entry.
@@ -38,6 +36,13 @@ type ContainerOptions struct {
 	ContainerConfig map[string]string `json:"containerConfig"`
 }
 
+// Cloning represents info about the cloning process.
+type Cloning struct {
+	ExpectedCloningTime float64  `json:"expectedCloningTime"`
+	NumClones           uint64   `json:"numClones"`
+	Clones              []*Clone `json:"clones"`
+}
+
 // Engine represents info about Database Lab Engine instance.
 type Engine struct {
 	Version   string     `json:"version"`
@@ -46,7 +51,7 @@ type Engine struct {
 
 // CloneList represents a list of clones.
 type CloneList struct {
-	Clones []*Clone `json:"clones"`
+	Cloning Cloning `json:"cloning"`
 }
 
 // CloneListView represents a list of clone views.

@@ -24,9 +24,3 @@ type StopObservationRequest struct {
 	CloneID      string `json:"clone_id"`
 	OverallError bool   `json:"overall_error"`
 }
-
-// SummaryObservationRequest represents a request for the summary observation endpoint.
-type SummaryObservationRequest struct {
-	CloneID   string `json:"clone_id"`
-	SessionID string `json:"session_id"`
-}

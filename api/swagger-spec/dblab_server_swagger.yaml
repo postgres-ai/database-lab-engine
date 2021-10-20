@@ -1,7 +1,7 @@
 swagger: "2.0"
 info:
-  description: "This is a Database Lab sample server."
-  version: "2.0.0"
+  description: "This is a Database Lab Engine sample server."
+  version: "2.5.0"
   title: "Database Lab"
   contact:
     email: "team@postgres.ai"
@@ -246,27 +246,260 @@ paths:
           schema:
             $ref: "#/definitions/Error"
 
+  /observation/start:
+    post:
+      tags:
+        - "observation"
+      summary: "Start an observation session"
+      description: ""
+      operationId: "startObservation"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - in: body
+          name: body
+          description: "Start observation object"
+          required: true
+          schema:
+            $ref: '#/definitions/StartObservationRequest'
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/ObservationSession"
+        400:
+          description: "Bad request"
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /observation/stop:
+    post:
+      tags:
+        - "observation"
+      summary: "Stop the observation session"
+      description: ""
+      operationId: "stopObservation"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - in: body
+          name: body
+          description: "Stop observation object"
+          required: true
+          schema:
+            $ref: '#/definitions/StopObservationRequest'
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/ObservationSession"
+        400:
+          description: "Bad request"
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /observation/summary/{clone_id}/{session_id}:
+    get:
+      tags:
+        - "observation"
+      summary: "Get the observation summary info"
+      description: ""
+      operationId: "summaryObservation"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - in: path
+          required: true
+          name: "clone_id"
+          type: "string"
+          description: "Clone ID"
+        - in: path
+          required: true
+          name: "session_id"
+          type: "string"
+          description: "Session ID"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/ObservationSummaryArtifact"
+        400:
+          description: "Bad request"
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /observation/download:
+    get:
+      tags:
+        - "observation"
+      summary: "Download the observation artifact"
+      description: ""
+      operationId: "downloadObservationArtifact"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - in: path
+          required: true
+          name: "artifact_type"
+          type: "string"
+          description: "Type of the requested artifact"
+        - in: path
+          required: true
+          name: "clone_id"
+          type: "string"
+          description: "Clone ID"
+        - in: path
+          required: true
+          name: "session_id"
+          type: "string"
+          description: "Session ID"
+      responses:
+        200:
+          description: "Successful operation"
+          content:
+            text/json:
+        400:
+          description: "Bad request"
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /estimate:
+    get:
+      tags:
+        - "observation"
+      summary: "Run clone estimator"
+      description: ""
+      operationId: "runEstimator"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - in: path
+          required: true
+          name: "clone_id"
+          type: "string"
+          description: "Clone ID"
+        - in: path
+          required: true
+          name: "pid"
+          type: "string"
+          description: "Process ID"
+      responses:
+        200:
+          description: "The estimation session has been finished successfully."
+        400:
+          description: "Bad request"
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /healthz:
+    get:
+      tags:
+        - "instance"
+      summary: "Get the state of the instance we are working with"
+      description: ""
+      operationId: "healthCheck"
+      produces:
+        - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/Engine"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+
 definitions:
   Instance:
     type: "object"
     properties:
       status:
         $ref: "#/definitions/Status"
-      fileSystem:
-        $ref: "#/definitions/FileSystem"
-      dataSize:
-        type: "integer"
-        format: "int64"
-      expectedCloningTime:
-        type: "integer"
-        format: "float64"
-      numClones:
-        type: "integer"
-        format: "int64"
-      clones:
+      engine:
+        $ref: "#/definitions/Engine"
+      pools:
         type: "array"
         items:
-          $ref: "#/definitions/Clone"
+          $ref: "#/definitions/PoolEntry"
+      cloning:
+        $ref: "#/definitions/Cloning"
+      retrieving:
+        $ref: "#/definitions/Retrieving"
+      provisioner:
+        $ref: "#/definitions/Provisioner"
 
   Status:
     type: "object"
@@ -281,6 +514,99 @@ definitions:
         type: "string"
         description: "Status description"
 
+  Engine:
+    type: "object"
+    properties:
+      version:
+        type: "string"
+      startedAt:
+        type: "string"
+        format: "date-time"
+
+  PoolEntry:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+      mode:
+        type: "string"
+      dataStateAt:
+        type: "string"
+        format: "date-time"
+      status:
+        type: "string"
+      cloneList:
+        type: "array"
+        items:
+          type: "string"
+      fileSystem:
+        $ref: "#/definitions/FileSystem"
+
+  FileSystem:
+    type: "object"
+    properties:
+      mode:
+        type: "string"
+      free:
+        type: "integer"
+        format: "int64"
+      size:
+        type: "integer"
+        format: "int64"
+      used:
+        type: "integer"
+        format: "int64"
+      dataSize:
+        type: "integer"
+        format: "int64"
+      usedBySnapshots:
+        type: "integer"
+        format: "int64"
+      usedByClones:
+        type: "integer"
+        format: "int64"
+      compressRatio:
+        type: "integer"
+        format: "float64"
+
+  Cloning:
+    type: "object"
+    properties:
+      expectedCloningTime:
+        type: "integer"
+        format: "float64"
+      numClones:
+        type: "integer"
+        format: "int64"
+      clones:
+        type: "array"
+        items:
+          $ref: "#/definitions/Clone"
+
+  Retrieving:
+    type: "object"
+    properties:
+      mode:
+        type: "string"
+      status:
+        type: "string"
+      lastRefresh:
+        type: "string"
+        format: "date-time"
+        nullable: true
+      nextRefresh:
+        type: "string"
+        format: "date-time"
+        nullable: true
+
+  Provisioner:
+    type: "object"
+    properties:
+      dockerImage:
+        type: "string"
+      containerConfig:
+        type: "object"
+
   Snapshot:
     type: "object"
     properties:
@@ -292,25 +618,17 @@ definitions:
       dataStateAt:
         type: "string"
         format: "date-time"
-
-  FileSystem:
-    type: "object"
-    properties:
-      free:
+      physicalSize:
         type: "integer"
         format: "int64"
-      size:
+      logicalSize:
         type: "integer"
         format: "int64"
-      used:
+      pool:
+        type: "string"
+      numClones:
         type: "integer"
-        format: "int64"
-      freeHR:
-        type: "string"
-      sizeHR:
-        type: "string"
-      usedHR:
-        type: "string"
+        format: "int"
 
   Database:
     type: "object"
@@ -354,11 +672,12 @@ definitions:
   CloneMetadata:
     type: "object"
     properties:
-      cloneSize:
+      cloneDiffSize:
         type: "integer"
         format: "int64"
-      cloneSizeHR:
-        type: "string"
+      logicalSize:
+        type: "integer"
+        format: "int64"
       cloningTime:
         type: "integer"
         format: "float64"
@@ -398,6 +717,140 @@ definitions:
       protected:
         type: "boolean"
         default: false
+
+  StartObservationRequest:
+    type: "object"
+    properties:
+      clone_id:
+        type: "string"
+      config:
+        $ref: "#/definitions/ObservationConfig"
+      tags:
+        type: "object"
+      db_name:
+        type: "string"
+
+  ObservationConfig:
+    type: "object"
+    properties:
+      observation_interval:
+        type: "integer"
+        format: "int64"
+      max_lock_duration:
+        type: "integer"
+        format: "int64"
+      max_duration:
+        type: "integer"
+        format: "int64"
+
+  ObservationSession:
+    type: "object"
+    properties:
+      session_id:
+        type: "integer"
+        format: "int64"
+      started_at:
+        type: "string"
+        format: "date-time"
+      finished_at:
+        type: "string"
+        format: "date-time"
+      config:
+        $ref: "#/definitions/ObservationConfig"
+      tags:
+        type: "object"
+      artifacts:
+        type: array
+        items:
+          type: string
+      result:
+        $ref: "#/definitions/ObservationResult"
+
+  ObservationResult:
+    type: "object"
+    properties:
+      status:
+        type: "string"
+      intervals:
+        type: array
+        items:
+          $ref: "#/definitions/ObservationInterval"
+      summary:
+        $ref: "#/definitions/ObservationSummary"
+
+  ObservationInterval:
+    type: "object"
+    properties:
+      started_at:
+        type: "string"
+        format: "date-time"
+      duration:
+        type: "integer"
+        format: "int64"
+      warning:
+        type: string
+
+  ObservationSummary:
+    type: "object"
+    properties:
+      total_duration:
+        type: "integer"
+        format: "float64"
+      total_intervals:
+        type: "integer"
+        format: "int"
+      warning_intervals:
+        type: "integer"
+        format: "int"
+      checklist:
+        $ref: "#/definitions/ObservationChecklist"
+
+  ObservationChecklist:
+    type: "object"
+    properties:
+      overall_success:
+        type: boolean
+      session_duration_acceptable:
+        type: boolean
+      no_long_dangerous_locks:
+        type: boolean
+
+  StopObservationRequest:
+    type: "object"
+    properties:
+      clone_id:
+        type: "string"
+      overall_error:
+        type: "boolean"
+
+  SummaryObservationRequest:
+    type: "object"
+    properties:
+      clone_id:
+        type: "string"
+      session_id:
+        type: "string"
+
+  ObservationSummaryArtifact:
+    type: "object"
+    properties:
+      session_id:
+        type: "integer"
+        format: "int64"
+      clone_id:
+        type: "string"
+      duration:
+        type: "object"
+      db_size:
+        type: "object"
+      locks:
+        type: "object"
+      log_errors:
+        type: "object"
+      artifact_types:
+        type: "array"
+        items:
+          type: "string"
 
   Error:
     type: "object"

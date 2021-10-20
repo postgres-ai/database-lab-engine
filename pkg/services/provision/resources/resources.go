@@ -17,9 +17,9 @@ type Session struct {
 	// Database.
 	Port          uint              `json:"port"`
 	User          string            `json:"user"`
-	SocketHost    string            `json:"socket_host"`
-	EphemeralUser EphemeralUser     `json:"ephemeral_user"`
-	ExtraConfig   map[string]string `json:"extra_config"`
+	SocketHost    string            `json:"socketHost"`
+	EphemeralUser EphemeralUser     `json:"ephemeralUser"`
+	ExtraConfig   map[string]string `json:"extraConfig"`
 }
 
 // EphemeralUser describes an ephemeral database user defined by Database Lab users.
@@ -28,7 +28,7 @@ type EphemeralUser struct {
 	Name        string `json:"name"`
 	Password    string `json:"password"`
 	Restricted  bool   `json:"restricted"`
-	AvailableDB string `json:"available_db"`
+	AvailableDB string `json:"availableDB"`
 }
 
 // Snapshot defines snapshot of the data with related meta-information.
