@@ -1,38 +1,30 @@
 package provision
 
 import (
-	"sync"
+	"context"
 	"testing"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 )
 
-type mockPortChecker struct{}
-
-func (m mockPortChecker) checkPortAvailability(_ string, _ uint) error {
-	return nil
-}
-
 func TestPortAllocation(t *testing.T) {
-	p := &Provisioner{
-		mu: &sync.Mutex{},
-		config: &Config{
-			PortPool: PortPool{
-				From: 6000,
-				To:   6002,
-			},
+	cfg := &Config{
+		PortPool: PortPool{
+			From: 6000,
+			To:   6002,
 		},
-		portChecker: &mockPortChecker{},
 	}
 
-	// Initialize port pool.
-	require.NoError(t, p.initPortPool())
+	p, err := New(context.Background(), cfg, &resources.DB{}, &client.Client{}, &pool.Manager{}, "networkID")
+	require.NoError(t, err)
 
 	// Allocate a new port.
 	port, err := p.allocatePort()
@@ -150,11 +142,11 @@ func TestBuildPoolEntry(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		pool := tc.pool
-		pool.SetStatus(tc.poolStatus)
+		p := tc.pool
+		p.SetStatus(tc.poolStatus)
 
 		testFSManager := mockFSManager{
-			pool:      pool,
+			pool:      p,
 			cloneList: tc.cloneList,
 		}
 

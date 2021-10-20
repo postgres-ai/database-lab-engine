@@ -77,6 +77,8 @@ func (c *Base) filterRunningClones(ctx context.Context) {
 		if !c.provision.IsCloneRunning(ctx, util.GetCloneName(wrapper.Session.Port)) {
 			delete(c.clones, cloneID)
 		}
+
+		c.incrementCloneNumber(wrapper.Clone.Snapshot.ID)
 	}
 }
 

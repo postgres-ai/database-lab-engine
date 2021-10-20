@@ -136,7 +136,7 @@ func (c *Client) CreateClone(ctx context.Context, cloneRequest types.CloneCreate
 	}
 
 	if clone.Status.Code != models.StatusOK {
-		return nil, errors.Errorf("failed to create clone, unexpected status given: %v", clone.Status.Code)
+		return nil, errors.Errorf("failed to create clone, unexpected status given. %v: %s", clone.Status.Code, clone.Status.Message)
 	}
 
 	return clone, nil
