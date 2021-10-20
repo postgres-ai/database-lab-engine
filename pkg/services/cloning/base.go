@@ -96,13 +96,17 @@ func (c *Base) Run(ctx context.Context) error {
 	}
 
 	if err := c.RestoreClonesState(); err != nil {
-		return fmt.Errorf("failed to load sessions: %w", err)
+		log.Err("Failed to load stored sessions:", err)
 	}
 
 	c.filterRunningClones(ctx)
 
 	if err := c.cleanupInvalidClones(); err != nil {
 		return fmt.Errorf("failed to cleanup invalid clones: %w", err)
+	}
+
+	if err := c.provision.RevisePortPool(); err != nil {
+		return fmt.Errorf("failed to revise port pool: %w", err)
 	}
 
 	go c.runIdleCheck(ctx)

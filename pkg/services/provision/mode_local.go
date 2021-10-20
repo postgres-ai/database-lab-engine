@@ -84,6 +84,7 @@ func New(ctx context.Context, cfg *Config, dbCfg *resources.DB, docker *client.C
 		portChecker:  &localPortChecker{},
 		pm:           pm,
 		networkID:    networkID,
+		ports:        make([]bool, cfg.PortPool.To-cfg.PortPool.From),
 	}
 
 	return p, nil
@@ -114,8 +115,8 @@ func isValidConfigModeLocal(config Config) error {
 
 // Init inits provision.
 func (p *Provisioner) Init() error {
-	if err := p.initPortPool(); err != nil {
-		return errors.Wrap(err, "failed to init port pool")
+	if err := p.RevisePortPool(); err != nil {
+		return errors.Wrap(err, "failed to revise port pool")
 	}
 
 	imageExists, err := docker.ImageExists(p.runner, p.config.DockerImage)
@@ -408,20 +409,21 @@ func (p *Provisioner) getSnapshot(snapshotID string) (*resources.Snapshot, error
 	return &snapshots[0], nil
 }
 
-func (p *Provisioner) initPortPool() error {
-	portOpts := p.config.PortPool
-	size := portOpts.To - portOpts.From
-	p.ports = make([]bool, size)
-
-	log.Msg(fmt.Sprintf("checking availability of the port range [%d - %d]", portOpts.From, portOpts.To))
+// RevisePortPool checks and aligns availability of the port range.
+func (p *Provisioner) RevisePortPool() error {
+	log.Msg(fmt.Sprintf("Revising availability of the port range [%d - %d]", p.config.PortPool.From, p.config.PortPool.To))
 
 	host, err := externalIP()
 	if err != nil {
 		return err
 	}
 
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	availablePorts := 0
-	for port := portOpts.From; port < portOpts.To; port++ {
+
+	for port := p.config.PortPool.From; port < p.config.PortPool.To; port++ {
 		if err := p.portChecker.checkPortAvailability(host, port); err != nil {
 			log.Msg(fmt.Sprintf("port %d is not available, marking as busy", port))
 
@@ -431,11 +433,12 @@ func (p *Provisioner) initPortPool() error {
 
 			continue
 		}
-		availablePorts++
-	}
 
-	if availablePorts == 0 {
-		return NewNoRoomError("no available ports")
+		if err := p.setPortStatus(port, false); err != nil {
+			log.Err(fmt.Sprintf("cannot free port %d: %s", port, err))
+		}
+
+		availablePorts++
 	}
 
 	log.Msg(availablePorts, " ports are available")
