@@ -36,7 +36,7 @@ func (c *Client) ListClones(ctx context.Context) ([]*models.Clone, error) {
 		return nil, errors.Wrap(err, "failed to decode a response body")
 	}
 
-	return instanceStatus.Clones, nil
+	return instanceStatus.Cloning.Clones, nil
 }
 
 // ListClonesRaw provides a raw list of Database Lab clones.

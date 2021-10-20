@@ -20,26 +20,28 @@ func TestClientStatus(t *testing.T) {
 			Code:    "OK",
 			Message: "Instance is ready",
 		},
-		ExpectedCloningTime: 0,
-		NumClones:           1,
-		Clones: []*models.Clone{{
-			ID: "testCloneID",
-			Metadata: models.CloneMetadata{
-				CloneDiffSize: 450546851,
-				CloningTime:   1,
-			},
-			Protected: true,
-			DeleteAt:  "2020-01-10 00:00:05.000 UTC",
-			CreatedAt: "2020-01-10 00:00:00.000 UTC",
-			Status: models.Status{
-				Code:    "OK",
-				Message: "Instance is ready",
-			},
-			DB: models.Database{
-				Username: "john",
-				Password: "doe",
-			},
-		}},
+		Cloning: models.Cloning{
+			ExpectedCloningTime: 0,
+			NumClones:           1,
+			Clones: []*models.Clone{{
+				ID: "testCloneID",
+				Metadata: models.CloneMetadata{
+					CloneDiffSize: 450546851,
+					CloningTime:   1,
+				},
+				Protected: true,
+				DeleteAt:  "2020-01-10 00:00:05.000 UTC",
+				CreatedAt: "2020-01-10 00:00:00.000 UTC",
+				Status: models.Status{
+					Code:    "OK",
+					Message: "Instance is ready",
+				},
+				DB: models.Database{
+					Username: "john",
+					Password: "doe",
+				},
+			}},
+		},
 		Pools: []models.PoolEntry{
 			{
 				Name:        "test_pool",

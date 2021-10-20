@@ -68,7 +68,9 @@ func NewBase(cfg *Config, provision *provision.Provisioner, observingCh chan str
 				Version:   version.GetVersion(),
 				StartedAt: pointer.ToTimeOrNil(time.Now().Truncate(time.Second)),
 			},
-			Clones:      make([]*models.Clone, 0),
+			Cloning: models.Cloning{
+				Clones: make([]*models.Clone, 0),
+			},
 			Provisioner: provision.ContainerOptions(),
 		},
 		provision:   provision,
@@ -449,9 +451,12 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 
 // GetInstanceState returns the current state of instance.
 func (c *Base) GetInstanceState() (*models.InstanceStatus, error) {
-	c.instanceStatus.ExpectedCloningTime = c.getExpectedCloningTime()
-	c.instanceStatus.Clones = c.GetClones()
-	c.instanceStatus.NumClones = uint64(len(c.instanceStatus.Clones))
+	clones := c.GetClones()
+	c.instanceStatus.Cloning = models.Cloning{
+		ExpectedCloningTime: c.getExpectedCloningTime(),
+		Clones:              clones,
+		NumClones:           uint64(len(clones)),
+	}
 	c.instanceStatus.Pools = c.provision.GetPoolEntryList()
 
 	return c.instanceStatus, nil

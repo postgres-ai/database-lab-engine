@@ -36,7 +36,6 @@ func (s *Server) getInstanceStatus(w http.ResponseWriter, r *http.Request) {
 	refresh := models.Retrieving{
 		Mode:        s.Retrieval.State.Mode,
 		Status:      s.Retrieval.State.Status,
-		Alerts:      s.Retrieval.State.Alerts(),
 		LastRefresh: s.Retrieval.State.LastRefresh,
 	}
 
@@ -343,7 +342,7 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 
 	// Start session on the Platform.
 	platformRequest := platform.StartObservationRequest{
-		InstanceID: "", // TODO(akartasov): get InstanceID.
+		InstanceID: s.Global.InstanceID,
 		CloneID:    clone.ID,
 		StartedAt:  startedAt.Format("2006-01-02 15:04:05 UTC"),
 		Config:     observingClone.Config(),
