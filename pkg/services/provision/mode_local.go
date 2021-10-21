@@ -251,14 +251,23 @@ func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string
 
 	log.Dbg("Snapshot ID to reset session: ", snapshot.ID)
 
+	newFSManager := fsm
+
+	if snapshot.Pool != session.Pool {
+		newFSManager, err = p.pm.GetFSManager(snapshot.Pool)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find filesystem manager for a new session")
+		}
+
+		session.Pool = snapshot.Pool
+		session.SocketHost = newFSManager.Pool().SocketCloneDir(name)
+	}
+
 	defer func() {
 		if err != nil {
 			p.revertSession(name)
 		}
 	}()
-
-	appConfig := p.getAppConfig(fsm.Pool(), name, session.Port)
-	appConfig.SetExtraConf(session.ExtraConfig)
 
 	if err := postgres.Stop(p.runner, fsm.Pool(), name); err != nil {
 		return nil, errors.Wrap(err, "failed to stop container")
@@ -268,9 +277,12 @@ func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string
 		return nil, errors.Wrap(err, "failed to destroy clone")
 	}
 
-	if err := fsm.CreateClone(name, snapshot.ID); err != nil {
+	if err := newFSManager.CreateClone(name, snapshot.ID); err != nil {
 		return nil, errors.Wrap(err, "failed to create clone")
 	}
+
+	appConfig := p.getAppConfig(newFSManager.Pool(), name, session.Port)
+	appConfig.SetExtraConf(session.ExtraConfig)
 
 	if err := postgres.Start(p.runner, appConfig); err != nil {
 		return nil, errors.Wrap(err, "failed to start container")
@@ -579,7 +591,7 @@ func (p *Provisioner) getAppConfig(pool *resources.Pool, name string, port uint)
 		Host:          pool.SocketCloneDir(name),
 		Port:          port,
 		DB:            p.dbCfg,
-		Pool:          pool, // TODO: check copying: it must be read-only struct.
+		Pool:          pool,
 		ContainerConf: p.config.ContainerConfig,
 		NetworkID:     p.networkID,
 	}

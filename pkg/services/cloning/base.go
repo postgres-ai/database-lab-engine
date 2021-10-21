@@ -415,10 +415,15 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 	}
 
 	go func() {
-		// TODO(akartasov): adjust clone counter for the snapshot after clone resetting
+		var originalSnapshotID string
+
+		if w.Clone.Snapshot != nil {
+			originalSnapshotID = w.Clone.Snapshot.ID
+		}
+
 		snapshot, err := c.provision.ResetSession(w.Session, snapshotID)
 		if err != nil {
-			log.Errf("Failed to reset clone: %+v.", err)
+			log.Errf("Failed to reset clone: %v", err)
 
 			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
@@ -433,6 +438,8 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 		c.cloneMutex.Lock()
 		w.Clone.Snapshot = snapshot
 		c.cloneMutex.Unlock()
+		c.decrementCloneNumber(originalSnapshotID)
+		c.incrementCloneNumber(snapshot.ID)
 
 		if err := c.UpdateCloneStatus(cloneID, models.Status{
 			Code:    models.StatusOK,
