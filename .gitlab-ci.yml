@@ -326,7 +326,8 @@ bash-test:
   variables:
     IMAGE_TAG: "${CI_COMMIT_REF_SLUG}"
   script:
-    - zfs list
+    - zfs list && lsblk
+    - truncate --size 30MB disk && zpool create -f -O compression=on -O atime=off -O recordsize=128k -O logbias=throughput -m /var/lib/dblab/data dblab_pool "$(pwd)/disk" && zfs list && lsblk
     - bash test/1.synthetic.sh
   after_script:
     - bash test/_cleanup.sh
