@@ -328,7 +328,7 @@ bash-test:
   script:
     - echo 'deb http://deb.debian.org/debian bullseye main contrib non-free' >> /etc/apt/sources.list.d/contrib.list
     - apt update && apt install -y linux-headers-amd64 # https://wiki.debian.org/ZFS
-    - apt install -y -t buster-backports zfsutils-linux
+    - apt install -y -t zfsutils-linux
     - zfs list && lsblk
     - truncate --size 30MB disk && zpool create -f -O compression=on -O atime=off -O recordsize=128k -O logbias=throughput -m /var/lib/dblab/data dblab_pool "$(pwd)/disk" && zfs list && lsblk
     - bash test/1.synthetic.sh
