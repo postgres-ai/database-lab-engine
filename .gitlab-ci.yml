@@ -328,7 +328,8 @@ bash-test:
   script:
     - echo 'deb http://deb.debian.org/debian buster-backports main contrib non-free' >> /etc/apt/sources.list
     - apt update
-    - apt install -t buster-backports -y zfs-dkms zfsutils-linux zfs-initramfs
+    - apt install -y linux-headers-amd64
+    - apt install -t buster-backports -y zfsutils-linux
     - modprobe zfs
     - zfs list && lsblk
     - truncate --size 30MB disk && zpool create -f -O compression=on -O atime=off -O recordsize=128k -O logbias=throughput -m /var/lib/dblab/data dblab_pool "$(pwd)/disk" && zfs list && lsblk
