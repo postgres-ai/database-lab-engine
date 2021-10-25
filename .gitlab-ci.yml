@@ -328,7 +328,7 @@ bash-test:
   script:
     - echo 'deb http://deb.debian.org/debian bullseye main contrib' >> /etc/apt/sources.list
     - apt update
-    - apt install -y debootstrap gdisk dkms dpkg-dev linux-headers-$(uname -r) # https://noulin.net/blog/linux/2021/06/26/setting-up-root-on-zfs-in-debian-bullseye.html
+    - apt install -y debootstrap gdisk dkms dpkg-dev linux-headers-amd64 # https://noulin.net/blog/linux/2021/06/26/setting-up-root-on-zfs-in-debian-bullseye.html
     - apt install -y --no-install-recommends zfs-dkms
     - modprobe zfs
     - apt install -y zfsutils-linux
