@@ -326,11 +326,9 @@ bash-test:
   variables:
     IMAGE_TAG: "${CI_COMMIT_REF_SLUG}"
   script:
-    - echo 'deb http://deb.debian.org/debian bullseye main contrib' >> /etc/apt/sources.list
+    - echo 'deb http://deb.debian.org/debian buster-backports main contrib non-free' >> /etc/apt/sources.list
     - apt update
-    - apt install -y debootstrap gdisk dkms dpkg-dev linux-headers-amd64 # https://noulin.net/blog/linux/2021/06/26/setting-up-root-on-zfs-in-debian-bullseye.html
-    - apt install -y --no-install-recommends zfs-dkms
-    - apt install -y zfsutils-linux
+    - apt install -t buster-backports -y zfs-dkms zfsutils-linux zfs-initramfs
     - modprobe zfs
     - zfs list && lsblk
     - truncate --size 30MB disk && zpool create -f -O compression=on -O atime=off -O recordsize=128k -O logbias=throughput -m /var/lib/dblab/data dblab_pool "$(pwd)/disk" && zfs list && lsblk
