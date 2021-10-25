@@ -330,8 +330,8 @@ bash-test:
     - apt update
     - apt install -y debootstrap gdisk dkms dpkg-dev linux-headers-amd64 # https://noulin.net/blog/linux/2021/06/26/setting-up-root-on-zfs-in-debian-bullseye.html
     - apt install -y --no-install-recommends zfs-dkms
-    - modprobe zfs
     - apt install -y zfsutils-linux
+    - modprobe zfs
     - zfs list && lsblk
     - truncate --size 30MB disk && zpool create -f -O compression=on -O atime=off -O recordsize=128k -O logbias=throughput -m /var/lib/dblab/data dblab_pool "$(pwd)/disk" && zfs list && lsblk
     - bash test/1.synthetic.sh
