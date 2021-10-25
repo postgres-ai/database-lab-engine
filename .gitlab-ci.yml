@@ -326,7 +326,8 @@ bash-test:
   variables:
     IMAGE_TAG: "${CI_COMMIT_REF_SLUG}"
   script:
-    - apt-get update && apt-get install -y zfsutils-linux
+    - apt-get update && apt-get install -y linux-headers-amd64 # https://wiki.debian.org/ZFS
+    - apt-get install -y -t buster-backports zfsutils-linux
     - zfs list && lsblk
     - truncate --size 30MB disk && zpool create -f -O compression=on -O atime=off -O recordsize=128k -O logbias=throughput -m /var/lib/dblab/data dblab_pool "$(pwd)/disk" && zfs list && lsblk
     - bash test/1.synthetic.sh
