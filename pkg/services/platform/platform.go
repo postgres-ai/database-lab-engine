@@ -44,7 +44,7 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	})
 	if err != nil {
 		if _, ok := err.(platform.ConfigValidationError); ok {
-			log.Msg("Warning: ", err)
+			log.Warn(err)
 			return s, nil
 		}
 

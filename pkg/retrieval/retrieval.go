@@ -35,6 +35,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones/zfs"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/telemetry"
 )
 
 // Retrieval describes a data retrieval.
@@ -45,6 +46,7 @@ type Retrieval struct {
 	global        *global.Config
 	docker        *client.Client
 	poolManager   *pool.Manager
+	tm            *telemetry.Agent
 	runner        runners.Runner
 	jobs          []components.JobRunner
 	retrieveMutex sync.Mutex
@@ -59,12 +61,13 @@ type Scheduler struct {
 }
 
 // New creates a new data retrieval.
-func New(cfg *dblabCfg.Config, docker *client.Client, pm *pool.Manager, runner runners.Runner) *Retrieval {
+func New(cfg *dblabCfg.Config, docker *client.Client, pm *pool.Manager, tm *telemetry.Agent, runner runners.Runner) *Retrieval {
 	return &Retrieval{
 		cfg:         &cfg.Retrieval,
 		global:      &cfg.Global,
 		docker:      docker,
 		poolManager: pm,
+		tm:          tm,
 		runner:      runner,
 		jobSpecs:    make(map[string]config.JobSpec, len(cfg.Retrieval.Jobs)),
 		State: State{
@@ -99,7 +102,18 @@ func (r *Retrieval) Run(ctx context.Context) error {
 
 	fsManager, err := r.getPoolToDataRefresh()
 	if err != nil {
-		r.State.sendAlert(models.RefreshFailed, "pool to perform data refresh not found")
+		var skipError *SkipRefreshingError
+		if errors.As(err, &skipError) {
+			log.Msg("Continue without performing a full refresh:", skipError.Error())
+			r.setupScheduler(ctx)
+
+			return nil
+		}
+
+		r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{
+			Level:   models.RefreshFailed,
+			Message: "Pool to perform data refresh not found",
+		})
 
 		return fmt.Errorf("failed to choose pool to refresh: %w", err)
 	}
@@ -107,7 +121,7 @@ func (r *Retrieval) Run(ctx context.Context) error {
 	log.Msg("Pool to perform a full refresh: ", fsManager.Pool().Name)
 
 	if err := r.run(runCtx, fsManager); err != nil {
-		r.State.sendAlert(models.RefreshFailed, err.Error())
+		r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{Level: models.RefreshFailed, Message: err.Error()})
 		return err
 	}
 
@@ -129,6 +143,10 @@ func (r *Retrieval) getPoolToDataRefresh() (pool.FSManager, error) {
 	elementToRefresh := r.poolManager.GetPoolToUpdate()
 
 	if elementToRefresh == nil || elementToRefresh.Value == nil {
+		if firstPool.Pool().Status() == resources.ActivePool {
+			return nil, NewSkipRefreshingError("pool to refresh not found, but the current pool is active")
+		}
+
 		return nil, errors.New("pool to perform data refresh not found")
 	}
 
@@ -180,6 +198,7 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 		if err := j.Run(ctx); err != nil {
 			return err
 		}
+
 	}
 
 	r.poolManager.MakeActive(poolByName)
@@ -208,7 +227,7 @@ func (r *Retrieval) configure(fsm pool.FSManager) error {
 
 // parseJobs processes configuration to define data retrieval jobs.
 func (r *Retrieval) parseJobs(fsm pool.FSManager) error {
-	retrievalRunner, err := engine.JobBuilder(r.global, fsm)
+	retrievalRunner, err := engine.JobBuilder(r.global, fsm, r.tm)
 	if err != nil {
 		return errors.Wrap(err, "failed to get a job builder")
 	}
@@ -343,7 +362,7 @@ func (r *Retrieval) setupScheduler(ctx context.Context) {
 func (r *Retrieval) refreshFunc(ctx context.Context) func() {
 	return func() {
 		if err := r.fullRefresh(ctx); err != nil {
-			r.State.sendAlert(models.RefreshFailed, err.Error())
+			r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{Level: models.RefreshFailed, Message: err.Error()})
 			log.Err("Failed to run full-refresh: ", err)
 		}
 	}
@@ -361,7 +380,10 @@ func (r *Retrieval) fullRefresh(ctx context.Context) error {
 	elementToUpdate := r.poolManager.GetPoolToUpdate()
 
 	if elementToUpdate == nil || elementToUpdate.Value == nil {
-		r.State.sendAlert(models.RefreshSkipped, "Pool to perform full refresh not found. Skip refreshing")
+		r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{
+			Level:   models.RefreshSkipped,
+			Message: "Pool to perform full refresh not found. Skip refreshing",
+		})
 		log.Msg("Pool to perform full refresh not found. Skip refreshing")
 		return nil
 	}
@@ -407,7 +429,7 @@ func (r *Retrieval) stopScheduler() {
 
 // IsValidConfig checks if the retrieval configuration is valid.
 func IsValidConfig(cfg *dblabCfg.Config) error {
-	rs := New(cfg, nil, nil, nil)
+	rs := New(cfg, nil, nil, nil, nil)
 
 	cm, err := pool.NewManager(nil, pool.ManagerConfig{
 		Pool: &resources.Pool{
@@ -458,4 +480,13 @@ func preparePoolToRefresh(poolToUpdate pool.FSManager) error {
 	}
 
 	return nil
+}
+
+// CollectRestoreTelemetry collect restore data.
+func (r *Retrieval) CollectRestoreTelemetry() telemetry.Restore {
+	return telemetry.Restore{
+		Mode:       r.State.Mode,
+		Refreshing: r.cfg.Refresh.Timetable,
+		Jobs:       r.cfg.Jobs,
+	}
 }

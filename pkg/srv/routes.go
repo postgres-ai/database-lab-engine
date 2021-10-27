@@ -22,6 +22,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/srv/api"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v2/version"
 )
@@ -87,6 +88,12 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.tm.SendEvent(context.Background(), telemetry.CloneCreatedEvent, telemetry.CloneCreated{
+		ID:          util.HashID(newClone.ID),
+		CloningTime: newClone.Metadata.CloningTime,
+		DSADiff:     util.GetDataFreshness(newClone.Snapshot.DataStateAt),
+	})
+
 	log.Dbg(fmt.Sprintf("Clone ID=%s is being created", newClone.ID))
 }
 
@@ -102,6 +109,10 @@ func (s *Server) destroyClone(w http.ResponseWriter, r *http.Request) {
 		api.SendError(w, r, errors.Wrap(err, "failed to destroy clone"))
 		return
 	}
+
+	s.tm.SendEvent(context.Background(), telemetry.CloneDestroyedEvent, telemetry.CloneDestroyed{
+		ID: util.HashID(cloneID),
+	})
 
 	log.Dbg(fmt.Sprintf("Clone ID=%s is being deleted", cloneID))
 }

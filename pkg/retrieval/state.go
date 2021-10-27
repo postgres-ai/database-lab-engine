@@ -16,5 +16,3 @@ type State struct {
 	Status      models.RefreshStatus
 	LastRefresh *time.Time
 }
-
-func (s *State) sendAlert(_ models.AlertType, _ string) {}

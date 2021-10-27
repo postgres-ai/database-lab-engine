@@ -38,6 +38,11 @@ func main() {
 	log.SetDebug(cfg.App.Debug)
 	log.Dbg("Config loaded: ", cfg)
 
+	if cfg.App.VerificationToken == "" {
+		log.Err("DB Migration Checker is insecure since the Verification Token is empty")
+		return
+	}
+
 	networkID := discoverNetwork(ctx, cfg, dockerCLI)
 	if networkID != "" {
 		hostname := os.Getenv("HOSTNAME")

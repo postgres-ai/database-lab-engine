@@ -97,6 +97,11 @@ func Msg(v ...interface{}) {
 	println("[INFO]  " + prepareMessage(v...))
 }
 
+// Warn outputs a warning message.
+func Warn(v ...interface{}) {
+	println("[WARNING]  " + prepareMessage(v...))
+}
+
 // Output debug message.
 func Dbg(v ...interface{}) {
 	if debugMode {

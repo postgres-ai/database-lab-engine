@@ -404,8 +404,6 @@ paths:
       responses:
         200:
           description: "Successful operation"
-          content:
-            text/json:
         400:
           description: "Bad request"
           schema:
@@ -522,6 +520,8 @@ definitions:
       startedAt:
         type: "string"
         format: "date-time"
+      telemetry:
+        type: boolean
 
   PoolEntry:
     type: "object"
@@ -593,11 +593,9 @@ definitions:
       lastRefresh:
         type: "string"
         format: "date-time"
-        nullable: true
       nextRefresh:
         type: "string"
         format: "date-time"
-        nullable: true
 
   Provisioner:
     type: "object"

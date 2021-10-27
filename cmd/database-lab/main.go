@@ -32,7 +32,9 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/srv"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/networks"
+	"gitlab.com/postgres-ai/database-lab/v2/version"
 )
 
 const (
@@ -46,6 +48,10 @@ func main() {
 	}
 
 	log.Msg("Database Lab Instance ID:", cfg.Global.InstanceID)
+
+	if cfg.Server.VerificationToken == "" {
+		log.Warn("Verification Token is empty. Database Lab Engine is insecure")
+	}
 
 	runner := runners.NewLocalRunner(cfg.Provision.UseSudo)
 
@@ -96,8 +102,14 @@ func main() {
 		shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global, pm.First().Pool())
 	}
 
+	tm, err := telemetry.New(cfg.Global)
+	if err != nil {
+		log.Errf(errors.WithMessage(err, "failed to initialize a telemetry service").Error())
+		return
+	}
+
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
-	retrievalSvc := retrieval.New(cfg, dockerCLI, pm, runner)
+	retrievalSvc := retrieval.New(cfg, dockerCLI, pm, tm, runner)
 
 	if err := retrievalSvc.Run(ctx); err != nil {
 		log.Err("Failed to run the data retrieval service:", err)
@@ -116,7 +128,7 @@ func main() {
 
 	observingChan := make(chan string, 1)
 
-	cloningSvc := cloning.NewBase(&cfg.Cloning, provisionSvc, observingChan)
+	cloningSvc := cloning.NewBase(&cfg.Cloning, provisionSvc, tm, observingChan)
 	if err = cloningSvc.Run(ctx); err != nil {
 		log.Err(err)
 		emergencyShutdown()
@@ -129,10 +141,17 @@ func main() {
 
 	go removeObservingClones(observingChan, obs)
 
-	server := srv.NewServer(&cfg.Server, &cfg.Global, cloningSvc, retrievalSvc, platformSvc, dockerCLI, obs, est, pm)
+	tm.SendEvent(ctx, telemetry.EngineStartedEvent, telemetry.EngineStarted{
+		EngineVersion: version.GetVersion(),
+		DBVersion:     provisionSvc.DetectDBVersion(),
+		Pools:         pm.CollectPoolStat(),
+		Restore:       retrievalSvc.CollectRestoreTelemetry(),
+	})
+
+	server := srv.NewServer(&cfg.Server, &cfg.Global, cloningSvc, retrievalSvc, platformSvc, dockerCLI, obs, est, pm, tm)
 	shutdownCh := setShutdownListener()
 
-	go setReloadListener(ctx, provisionSvc, retrievalSvc, pm, cloningSvc, platformSvc, est, server)
+	go setReloadListener(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, server)
 
 	server.InitHandlers()
 
@@ -155,9 +174,10 @@ func main() {
 
 	shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global, pm.First().Pool())
 	cloningSvc.SaveClonesState()
+	tm.SendEvent(ctx, telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
 }
 
-func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, retrievalSvc *retrieval.Retrieval,
+func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent, retrievalSvc *retrieval.Retrieval,
 	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, server *srv.Server) error {
 	cfg, err := config.LoadConfiguration()
 	if err != nil {
@@ -187,6 +207,7 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, retr
 	}
 
 	provisionSvc.Reload(cfg.Provision, dbCfg)
+	tm.Reload(cfg.Global)
 	retrievalSvc.Reload(ctx, cfg)
 	cloningSvc.Reload(cfg.Cloning)
 	platformSvc.Reload(newPlatformSvc)
@@ -196,7 +217,7 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, retr
 	return nil
 }
 
-func setReloadListener(ctx context.Context, provisionSvc *provision.Provisioner, retrievalSvc *retrieval.Retrieval,
+func setReloadListener(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent, retrievalSvc *retrieval.Retrieval,
 	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, server *srv.Server) {
 	reloadCh := make(chan os.Signal, 1)
 	signal.Notify(reloadCh, syscall.SIGHUP)
@@ -204,7 +225,7 @@ func setReloadListener(ctx context.Context, provisionSvc *provision.Provisioner,
 	for range reloadCh {
 		log.Msg("Reloading configuration")
 
-		if err := reloadConfig(ctx, provisionSvc, retrievalSvc, pm, cloningSvc, platformSvc, est, server); err != nil {
+		if err := reloadConfig(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, server); err != nil {
 			log.Err("Failed to reload configuration", err)
 		}
 

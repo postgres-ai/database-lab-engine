@@ -47,6 +47,7 @@ type Cloning struct {
 type Engine struct {
 	Version   string     `json:"version"`
 	StartedAt *time.Time `json:"startedAt,omitempty"`
+	Telemetry *bool      `json:"telemetry,omitempty"`
 }
 
 // CloneList represents a list of clones.
@@ -62,8 +63,7 @@ type CloneListView struct {
 // InstanceStatusView represents view of a Database Lab Engine instance status.
 type InstanceStatusView struct {
 	*InstanceStatus
-	Pools  []PoolEntryView `json:"pools"`
-	Clones []*CloneView    `json:"clones"`
+	Pools []PoolEntryView `json:"pools"`
 }
 
 // PoolEntryView represents a pool entry view.
