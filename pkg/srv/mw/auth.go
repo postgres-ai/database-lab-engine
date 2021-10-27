@@ -42,8 +42,8 @@ func (a *Auth) Authorized(h http.HandlerFunc) http.HandlerFunc {
 }
 
 func (a *Auth) isAccessAllowed(ctx context.Context, token string) bool {
-	if token == "" {
-		return false
+	if a.verificationToken == "" {
+		return true
 	}
 
 	if subtle.ConstantTimeCompare([]byte(a.verificationToken), []byte(token)) == 1 {

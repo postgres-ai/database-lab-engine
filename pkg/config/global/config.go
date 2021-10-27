@@ -12,9 +12,10 @@ import (
 // Config contains global Database Lab configurations.
 type Config struct {
 	InstanceID string
-	Engine     string   `yaml:"engine"`
-	Debug      bool     `yaml:"debug"`
-	Database   Database `yaml:"database"`
+	Database   Database  `yaml:"database"`
+	Engine     string    `yaml:"engine"`
+	Debug      bool      `yaml:"debug"`
+	Telemetry  Telemetry `yaml:"telemetry"`
 }
 
 // Database contains default configurations of the managed database.
@@ -39,4 +40,10 @@ func (d *Database) Name() string {
 	}
 
 	return defaults.DBName
+}
+
+// Telemetry contains configuration of Database Lab Engine telemetry.
+type Telemetry struct {
+	Enabled bool   `yaml:"enabled"`
+	URL     string `yaml:"url"`
 }

@@ -26,6 +26,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/pglog"
 	"gitlab.com/postgres-ai/database-lab/v2/version"
@@ -51,11 +52,12 @@ type Base struct {
 	instanceStatus *models.InstanceStatus
 	snapshotBox    SnapshotBox
 	provision      *provision.Provisioner
+	tm             *telemetry.Agent
 	observingCh    chan string
 }
 
 // NewBase instances a new Base service.
-func NewBase(cfg *Config, provision *provision.Provisioner, observingCh chan string) *Base {
+func NewBase(cfg *Config, provision *provision.Provisioner, tm *telemetry.Agent, observingCh chan string) *Base {
 	return &Base{
 		config: cfg,
 		clones: make(map[string]*CloneWrapper),
@@ -67,6 +69,7 @@ func NewBase(cfg *Config, provision *provision.Provisioner, observingCh chan str
 			Engine: models.Engine{
 				Version:   version.GetVersion(),
 				StartedAt: pointer.ToTimeOrNil(time.Now().Truncate(time.Second)),
+				Telemetry: pointer.ToBool(tm.IsEnabled()),
 			},
 			Cloning: models.Cloning{
 				Clones: make([]*models.Clone, 0),
@@ -74,6 +77,7 @@ func NewBase(cfg *Config, provision *provision.Provisioner, observingCh chan str
 			Provisioner: provision.ContainerOptions(),
 		},
 		provision:   provision,
+		tm:          tm,
 		observingCh: observingCh,
 		snapshotBox: SnapshotBox{
 			items: make(map[string]*models.Snapshot),
@@ -455,6 +459,12 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 		}
 
 		c.SaveClonesState()
+
+		c.tm.SendEvent(context.Background(), telemetry.CloneResetEvent, telemetry.CloneCreated{
+			ID:          util.HashID(w.Clone.ID),
+			CloningTime: w.Clone.Metadata.CloningTime,
+			DSADiff:     util.GetDataFreshness(snapshot.DataStateAt),
+		})
 	}()
 
 	return nil
@@ -469,6 +479,7 @@ func (c *Base) GetInstanceState() (*models.InstanceStatus, error) {
 		NumClones:           uint64(len(clones)),
 	}
 	c.instanceStatus.Pools = c.provision.GetPoolEntryList()
+	c.instanceStatus.Engine.Telemetry = pointer.ToBool(c.tm.IsEnabled())
 
 	return c.instanceStatus, nil
 }

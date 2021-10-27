@@ -39,7 +39,9 @@ func list(cliCtx *cli.Context) error {
 
 	defer func() { _ = body.Close() }()
 
-	var viewCloneList *models.CloneListView
+	viewCloneList := &models.CloneListView{
+		Clones: make([]*models.CloneView, 0),
+	}
 
 	if err := json.NewDecoder(body).Decode(&viewCloneList); err != nil {
 		return err

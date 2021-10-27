@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/telemetry"
 )
 
 const (
@@ -121,7 +122,7 @@ func TestSavingSessionState(t *testing.T) {
 		prov, err := newProvisioner()
 		assert.NoError(t, err)
 
-		s := NewBase(nil, prov, nil)
+		s := NewBase(nil, prov, &telemetry.Agent{}, nil)
 		err = s.saveClonesState(f.Name())
 		assert.NoError(t, err)
 
@@ -165,7 +166,7 @@ func TestFilter(t *testing.T) {
 				assert.NoError(t, err)
 				defer func() { _ = os.Remove(filepath) }()
 
-				s := NewBase(nil, prov, nil)
+				s := NewBase(nil, prov, &telemetry.Agent{}, nil)
 
 				s.filterRunningClones(context.Background())
 				assert.Equal(t, 0, len(s.clones))

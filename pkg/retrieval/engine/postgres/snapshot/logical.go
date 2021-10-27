@@ -28,6 +28,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/telemetry"
 )
 
 const (
@@ -41,6 +42,7 @@ const (
 type LogicalInitial struct {
 	name           string
 	cloneManager   pool.FSManager
+	tm             *telemetry.Agent
 	fsPool         *resources.Pool
 	dockerClient   *client.Client
 	options        LogicalOptions
@@ -65,7 +67,8 @@ type DataPatching struct {
 }
 
 // NewLogicalInitialJob creates a new logical initial job.
-func NewLogicalInitialJob(cfg config.JobConfig, global *global.Config, cloneManager pool.FSManager) (*LogicalInitial, error) {
+func NewLogicalInitialJob(cfg config.JobConfig, global *global.Config, cloneManager pool.FSManager,
+	tm *telemetry.Agent) (*LogicalInitial, error) {
 	li := &LogicalInitial{
 		name:         cfg.Spec.Name,
 		cloneManager: cloneManager,
@@ -73,6 +76,7 @@ func NewLogicalInitialJob(cfg config.JobConfig, global *global.Config, cloneMana
 		dockerClient: cfg.Docker,
 		globalCfg:    global,
 		dbMarker:     cfg.Marker,
+		tm:           tm,
 	}
 
 	if err := li.Reload(cfg.Spec.Options); err != nil {
@@ -145,6 +149,8 @@ func (s *LogicalInitial) Run(ctx context.Context) error {
 
 		return errors.Wrap(err, "failed to create a snapshot")
 	}
+
+	s.tm.SendEvent(ctx, telemetry.SnapshotCreatedEvent, telemetry.SnapshotCreated{})
 
 	return nil
 }

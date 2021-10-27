@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -22,6 +23,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/databases/postgres"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/docker"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
@@ -713,4 +715,29 @@ func (p *Provisioner) IsCloneRunning(ctx context.Context, cloneName string) bool
 	}
 
 	return isRunning
+}
+
+// DetectDBVersion detects version of the database.
+func (p *Provisioner) DetectDBVersion() string {
+	pgVersion, err := tools.DetectPGVersion(p.pm.First().Pool().DataDir())
+	if err != nil {
+		return parseImageVersion(p.config.DockerImage)
+	}
+
+	return strconv.FormatFloat(pgVersion, 'g', -1, 64)
+}
+
+var regDockerImage = regexp.MustCompile(":([.0-9]+)")
+
+func parseImageVersion(image string) string {
+	allStringSubmatch := regDockerImage.FindAllStringSubmatch(image, -1)
+	if len(allStringSubmatch) == 0 {
+		return ""
+	}
+
+	if lastMatch := allStringSubmatch[len(allStringSubmatch)-1]; len(lastMatch) > 1 {
+		return lastMatch[1]
+	}
+
+	return ""
 }

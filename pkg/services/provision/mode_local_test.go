@@ -155,3 +155,34 @@ func TestBuildPoolEntry(t *testing.T) {
 		assert.Equal(t, tc.expectedEntry, poolEntry)
 	}
 }
+
+func TestParsingDockerImage(t *testing.T) {
+	t.Run("Parse PostgreSQL version from tags of a Docker image", func(t *testing.T) {
+		testCases := []struct {
+			image           string
+			expectedVersion string
+		}{
+			{
+				image:           "postgresai/extended-postgres:11",
+				expectedVersion: "11",
+			},
+			{
+				image:           "postgresai/extended-postgres:11-alpine",
+				expectedVersion: "11",
+			},
+			{
+				image:           "postgresai/extended-postgres:alpine",
+				expectedVersion: "",
+			},
+			{
+				image:           "internal.example.com:5000/pg:9.6-ext",
+				expectedVersion: "9.6",
+			},
+		}
+
+		for _, tc := range testCases {
+			version := parseImageVersion(tc.image)
+			assert.Equal(t, tc.expectedVersion, version)
+		}
+	})
+}

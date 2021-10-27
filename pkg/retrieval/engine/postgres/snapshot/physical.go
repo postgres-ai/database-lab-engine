@@ -38,6 +38,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 )
 
@@ -92,6 +93,7 @@ type PhysicalInitial struct {
 	schedulerCtx   context.Context
 	promotionMutex sync.Mutex
 	queryProcessor *queryProcessor
+	tm             *telemetry.Agent
 }
 
 // PhysicalOptions describes options for a physical initialization job.
@@ -147,7 +149,8 @@ type syncState struct {
 }
 
 // NewPhysicalInitialJob creates a new physical initial job.
-func NewPhysicalInitialJob(cfg config.JobConfig, global *global.Config, cloneManager pool.FSManager) (*PhysicalInitial, error) {
+func NewPhysicalInitialJob(cfg config.JobConfig, global *global.Config, cloneManager pool.FSManager,
+	tm *telemetry.Agent) (*PhysicalInitial, error) {
 	p := &PhysicalInitial{
 		name:         cfg.Spec.Name,
 		cloneManager: cloneManager,
@@ -156,6 +159,7 @@ func NewPhysicalInitialJob(cfg config.JobConfig, global *global.Config, cloneMan
 		dbMarker:     cfg.Marker,
 		dbMark:       &dbmarker.Config{DataType: dbmarker.PhysicalDataType},
 		dockerClient: cfg.Docker,
+		tm:           tm,
 	}
 
 	if err := p.loadConfig(cfg.Spec.Options); err != nil {
@@ -372,6 +376,8 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	}
 
 	p.updateDataStateAt()
+
+	p.tm.SendEvent(ctx, telemetry.SnapshotCreatedEvent, telemetry.SnapshotCreated{})
 
 	return nil
 }

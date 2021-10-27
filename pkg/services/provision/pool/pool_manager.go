@@ -20,6 +20,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones/lvm"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/thinclones/zfs"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/telemetry"
 )
 
 const (
@@ -159,6 +160,35 @@ func (pm *Manager) GetFSManagerList() []FSManager {
 	pm.mu.Unlock()
 
 	return fs
+}
+
+// CollectPoolStat collects pool stats.
+func (pm *Manager) CollectPoolStat() telemetry.PoolStat {
+	fsManagerList := pm.GetFSManagerList()
+	ps := telemetry.PoolStat{
+		Number: len(fsManagerList),
+	}
+
+	for _, fsManager := range fsManagerList {
+		if fsManager.Pool() == nil {
+			continue
+		}
+
+		fileSystem, err := fsManager.GetFilesystemState()
+		if err != nil {
+			log.Err("failed to get disk stats for the pool", fsManager.Pool().Name)
+			continue
+		}
+
+		if ps.FSType == "" {
+			ps.FSType = fileSystem.Mode
+		}
+
+		ps.TotalSize += fileSystem.Size
+		ps.TotalUsed += fileSystem.Used
+	}
+
+	return ps
 }
 
 // GetActiveFSManagers returns a list of active filesystem managers.

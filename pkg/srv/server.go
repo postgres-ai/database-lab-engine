@@ -28,6 +28,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/srv/api"
 	srvCfg "gitlab.com/postgres-ai/database-lab/v2/pkg/srv/config"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/srv/mw"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
 )
 
@@ -45,13 +46,14 @@ type Server struct {
 	httpSrv   *http.Server
 	docker    *client.Client
 	pm        *pool.Manager
+	tm        *telemetry.Agent
 	startedAt time.Time
 }
 
 // NewServer initializes a new Server instance with provided configuration.
 func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, cloning *cloning.Base, retrievalSvc *retrieval.Retrieval,
 	platform *platform.Service, dockerClient *client.Client, observer *observer.Observer, estimator *estimator.Estimator,
-	pm *pool.Manager) *Server {
+	pm *pool.Manager, tm *telemetry.Agent) *Server {
 	server := &Server{
 		Config:    cfg,
 		Global:    globalCfg,
@@ -63,6 +65,7 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, cloning *cloning.Ba
 		upgrader:  websocket.Upgrader{},
 		docker:    dockerClient,
 		pm:        pm,
+		tm:        tm,
 		startedAt: time.Now().Truncate(time.Second),
 	}
 
@@ -147,4 +150,9 @@ func (s *Server) Run() error {
 func (s *Server) Shutdown(ctx context.Context) error {
 	log.Msg("Server shutting down...")
 	return s.httpSrv.Shutdown(ctx)
+}
+
+// Uptime returns the server uptime.
+func (s *Server) Uptime() float64 {
+	return time.Since(s.startedAt).Truncate(time.Second).Seconds()
 }
