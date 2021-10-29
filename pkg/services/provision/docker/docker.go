@@ -68,13 +68,13 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 		"--detach",
 		"--publish", fmt.Sprintf("%[1]s:%[1]s", instancePort),
 		"--env", "PGDATA=" + c.DataDir(),
+		"--env", "PG_PORT=" + instancePort,
+		"--env", "PG_UNIX_SOCKET_DIRECTORIES=" + unixSocketCloneDir,
 		strings.Join(volumes, " "),
 		"--label", labelClone,
 		"--label", c.Pool.Name,
 		strings.Join(containerFlags, " "),
 		c.DockerImage,
-		"-p", instancePort,
-		"-k", unixSocketCloneDir,
 	}, " ")
 
 	if _, err := r.Run(dockerRunCmd, true); err != nil {
