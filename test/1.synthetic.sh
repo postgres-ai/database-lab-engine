@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euxo pipefail
 
-TAG="${TAG:-"master"}"
+TAG=${TAG:-${CI_COMMIT_REF_SLUG}}
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
 POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
 
@@ -25,16 +25,24 @@ sudo docker run \
   postgres:"${POSTGRES_VERSION}"-alpine
 
 for i in {1..300}; do
-  sudo docker exec -it dblab_pg_initdb psql -U postgres -c 'select' > /dev/null 2>&1  && break || echo "test database is not ready yet"
+  sudo docker exec dblab_pg_initdb psql -U postgres -c 'select' > /dev/null 2>&1  && break || echo "test database is not ready yet"
+  sleep 1
+done
+
+# Restart container explicitly after initdb to make sure that the server will not receive a shutdown request and queries will not be interrupted.
+sudo docker restart dblab_pg_initdb
+
+for i in {1..300}; do
+  sudo docker exec dblab_pg_initdb psql -U postgres -c 'select' > /dev/null 2>&1  && break || echo "test database is not ready yet"
   sleep 1
 done
 
 # Create the test database
-sudo docker exec -it dblab_pg_initdb psql -U postgres -c 'create database test'
+sudo docker exec dblab_pg_initdb psql -U postgres -c 'create database test'
 
 # Generate data in the test database using pgbench
 # 1,000,000 accounts, ~0.14 GiB of data.
-sudo docker exec -it dblab_pg_initdb pgbench -U postgres -i -s 10 test
+sudo docker exec dblab_pg_initdb pgbench -U postgres -i -s 10 test
 
 # Stop and remove the container
 sudo docker stop dblab_pg_initdb
@@ -51,10 +59,17 @@ curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.e
 
 # Edit the following options
 sed -ri 's/^(\s*)(debug:.*$)/\1debug: true/' "${configDir}/server.yml"
+sed -ri '/^ *telemetry:/,/^ *[^:]*:/s/enabled: true/enabled: false/' "${configDir}/server.yml"
 sed -ri 's/^(\s*)(- logicalDump$)/\1/' "${configDir}/server.yml"
 sed -ri 's/^(\s*)(- logicalRestore$)/\1/' "${configDir}/server.yml"
 # replace postgres version
 sed -ri "s/:13/:${POSTGRES_VERSION}/g"  "${configDir}/server.yml"
+
+
+# logerrors is not supported in PostgreSQL 9.6
+if [ "${POSTGRES_VERSION}" = "9.6" ]; then
+  sed -ri 's/^(\s*)(shared_preload_libraries:.*$)/\1shared_preload_libraries: "pg_stat_statements, auto_explain"/' "${configDir}/server.yml"
+fi
 
 ## Launch Database Lab server
 sudo docker run \

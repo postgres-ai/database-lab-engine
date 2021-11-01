@@ -64,6 +64,7 @@ curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.e
 
 # Edit the following options
 sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" "${configDir}/server.yml"
+sed -ri '/^ *telemetry:/,/^ *[^:]*:/s/enabled: true/enabled: false/' "${configDir}/server.yml"
 sed -ri "s/^(\s*)(PGUSER:.*$)/\1PGUSER: ${SOURCE_USERNAME}/" "${configDir}/server.yml"
 sed -ri "s/^(\s*)(PGPASSWORD:.*$)/\1PGPASSWORD: ${SOURCE_PASSWORD}/" "${configDir}/server.yml"
 sed -ri "s/^(\s*)(PGHOST:.*$)/\1PGHOST: ${SOURCE_HOST}/" "${configDir}/server.yml"
