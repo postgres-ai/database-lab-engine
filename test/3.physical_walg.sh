@@ -38,6 +38,7 @@ curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.e
 
 # Edit the following options
 sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" "${configDir}/server.yml"
+sed -ri '/^ *telemetry:/,/^ *[^:]*:/s/enabled: true/enabled: false/' "${configDir}/server.yml"
 # set WAL-G envs
 sed -ri "s/^(\s*)(backupName:.*$)/\1backupName: ${WALG_BACKUP_NAME}/" "${configDir}/server.yml"
 set +euxo pipefail # ---- do not display secrets

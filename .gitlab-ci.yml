@@ -22,7 +22,6 @@ lint:
   script:
     - make lint
 
-
 .only_var_template: &only_tag_release
   only:
     variables:
@@ -320,7 +319,8 @@ build-image-swagger-latest:
     - export LATEST_TAG=$(echo ${CLEAN_TAG%.*}-latest)
     - export TAGS="${DOCKER_NAME}:${LATEST_TAG}"
 
-bash-test:
+
+.bash-test: &bash_test
   <<: *only_feature
   stage: integration-test
   variables:
@@ -333,9 +333,40 @@ bash-test:
   tags:
     - dle-test
 
+bash-test-9-6:
+  <<: *bash_test
+  variables:
+    POSTGRES_VERSION: "9.6"
+
+bash-test-10:
+  <<: *bash_test
+  variables:
+    POSTGRES_VERSION: 10
+
+bash-test-11:
+  <<: *bash_test
+  variables:
+    POSTGRES_VERSION: 11
+
+bash-test-12:
+  <<: *bash_test
+  variables:
+    POSTGRES_VERSION: 12
+
+bash-test-13:
+  <<: *bash_test
+  variables:
+    POSTGRES_VERSION: 13
+
+bash-test-14:
+  <<: *bash_test
+  variables:
+    POSTGRES_VERSION: 14
+
 integration-test:
   services:
-    - docker:dind
+    - name: docker:dind
+      command: ["--tls=false"]
   <<: *only_feature
   stage: integration-test
   variables:

@@ -16,6 +16,9 @@ sudo rm -rf /var/lib/dblab/dblab_pool/data/*
 sudo umount /var/lib/dblab/dblab_pool/dump || true
 sudo rm -rf /var/lib/dblab/dblab_pool/dump || true
 
+# Clean up the pool directory
+sudo rm -rf /var/lib/dblab/dblab_pool/*
+
 # To start from the very beginning: destroy ZFS storage pool
 sudo zpool destroy dblab_pool || true
 
