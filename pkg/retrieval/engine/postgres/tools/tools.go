@@ -215,9 +215,9 @@ func MakeDir(ctx context.Context, dockerClient *client.Client, dumpContID, dataD
 	return nil
 }
 
-// IsEmptyContainerDirectory checks whether a directory is empty.
-func IsEmptyContainerDirectory(ctx context.Context, dockerClient *client.Client, containerID, dir string) (bool, error) {
-	lsCommand := []string{"ls", "-A", dir}
+// LsContainerDirectory lists content of the directory in a container.
+func LsContainerDirectory(ctx context.Context, dockerClient *client.Client, containerID, dir string) ([]string, error) {
+	lsCommand := []string{"ls", "-A", dir, "--color=never"}
 
 	log.Dbg("Check directory: ", lsCommand)
 
@@ -228,10 +228,10 @@ func IsEmptyContainerDirectory(ctx context.Context, dockerClient *client.Client,
 
 	if err != nil {
 		log.Dbg(out)
-		return false, errors.Wrap(err, "failed to init Postgres")
+		return nil, errors.Wrap(err, "failed to init Postgres")
 	}
 
-	return out == "", nil
+	return strings.Fields(out), nil
 }
 
 // StartPostgres stops Postgres inside container.
