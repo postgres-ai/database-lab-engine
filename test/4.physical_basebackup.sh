@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euxo pipefail
 
-TAG="${TAG:-"master"}"
+CI_COMMIT_REF_SLUG="${CI_COMMIT_REF_SLUG:-master}" # use master branch if the CI_COMMIT_REF_SLUG is not defined
+
+TAG=${TAG:-${CI_COMMIT_REF_SLUG}}
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
 SOURCE_HOST="${SOURCE_HOST:-172.17.0.1}"
 SOURCE_PORT="${SOURCE_PORT:-7432}"
@@ -13,7 +15,6 @@ DIR=${0%/*}
 
 if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
 ### Step 0. Create source database
-  sudo rm -rf "$(pwd)"/postgresql/"${POSTGRES_VERSION}"/test || true
   sudo docker run \
     --name postgres"${POSTGRES_VERSION}" \
     --label pgdb \
@@ -26,24 +27,35 @@ if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
     --env POSTGRES_HOST_AUTH_METHOD=md5 \
     --volume "$(pwd)"/postgresql/"${POSTGRES_VERSION}"/test:/var/lib/postgresql/pgdata \
     --detach \
-    postgres:"${POSTGRES_VERSION}-alpine"
+    postgres:"${POSTGRES_VERSION}"
 
   for i in {1..300}; do
-    sudo docker exec -it postgres"${POSTGRES_VERSION}" psql -d test -U postgres -c 'select' > /dev/null 2>&1  && break || echo "test database is not ready yet"
+    sudo docker exec postgres"${POSTGRES_VERSION}" psql -d test -U postgres -c 'select' > /dev/null 2>&1  && break || echo "test database is not ready yet"
     sleep 1
   done
 
   # add "host replication" to pg_hba.conf
-  sudo docker exec -it postgres"${POSTGRES_VERSION}" bash -c 'echo "host replication all 0.0.0.0/0 md5" >> $PGDATA/pg_hba.conf'
+  sudo docker exec postgres"${POSTGRES_VERSION}" bash -c 'echo "host replication all 0.0.0.0/0 md5" >> $PGDATA/pg_hba.conf'
   # reload conf
-  sudo docker exec -it postgres"${POSTGRES_VERSION}" psql -U postgres -c 'select pg_reload_conf()'
+  sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c 'select pg_reload_conf()'
+
+  # Change wal_level and max_wal_senders parameters for PostgreSQL 9.6
+  if [ "${POSTGRES_VERSION}" = "9.6" ]; then
+    sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c 'ALTER SYSTEM SET wal_level = replica'
+    sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c 'ALTER SYSTEM SET max_wal_senders = 10'
+    sudo docker restart postgres"${POSTGRES_VERSION}"
+    for i in {1..300}; do
+      sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c 'select' > /dev/null 2>&1  && break || echo "test database is not ready yet"
+      sleep 1
+    done
+  fi
 
   # Generate data in the test database using pgbench
   # 1,000,000 accounts, ~0.14 GiB of data.
-  sudo docker exec -it postgres"${POSTGRES_VERSION}" pgbench -U postgres -i -s 10 test
+  sudo docker exec postgres"${POSTGRES_VERSION}" pgbench -U postgres -i -s 10 test
 
   # Database info
-  sudo docker exec -it postgres"${POSTGRES_VERSION}" psql -U postgres -c "\l+ test"
+  sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c "\l+ test"
 fi
 
 ### Step 1. Prepare a machine with disk, Docker, and ZFS
@@ -71,6 +83,11 @@ sed -ri "s/^(\s*)(PGHOST:.*$)/\1PGHOST: ${SOURCE_HOST}/" "${configDir}/server.ym
 sed -ri "s/^(\s*)(PGPORT:.*$)/\1PGPORT: ${SOURCE_PORT}/" "${configDir}/server.yml"
 # replace postgres version
 sed -ri "s/:13/:${POSTGRES_VERSION}/g"  "${configDir}/server.yml"
+
+# logerrors is not supported in PostgreSQL 9.6
+if [ "${POSTGRES_VERSION}" = "9.6" ]; then
+  sed -ri 's/^(\s*)(shared_preload_libraries:.*$)/\1shared_preload_libraries: "pg_stat_statements, auto_explain"/' "${configDir}/server.yml"
+fi
 
 ## Launch Database Lab server
 sudo docker run \
@@ -145,9 +162,52 @@ dblab clone status testclone
 PGPASSWORD=secret_password psql \
   "host=localhost port=6000 user=dblab_user_1 dbname=test" -c '\dt+'
 
-### Step 4. Destroy clone
+
+### Step 4. Check clone and sync instance durability on DLE restart.
+
+## Restart DLE.
+sudo docker restart dblab_server
+
+### Waiting for the Database Lab Engine to start.
+for i in {1..300}; do
+  curl http://localhost:2345 > /dev/null 2>&1 && break || echo "dblab is not ready yet"
+  sleep 1
+done
+
+## Reset clone.
+dblab clone reset testclone
+
+# Check the status of the clone.
+dblab clone status testclone
+
+# Check the database objects (everything should be the same as when we started)
+PGPASSWORD=secret_password psql \
+  "host=localhost port=6000 user=dblab_user_1 dbname=test" -c '\dt+'
+
+# Check the sync instance.
+if [[ $(sudo docker ps --format "{{.Names}}" --filter name=^/dblab_sync) ]]; then
+  for i in {1..30}; do
+    # check the postgres of the sync instance
+    sudo docker exec "$(sudo docker ps --format "{{.Names}}" --filter name=^/dblab_sync)" psql -U postgres -c 'select' > /dev/null 2>&1  && break || echo "postgres of the sync instance is not ready yet"
+    sleep 2
+  done
+    # list containers
+    sudo docker ps
+else
+  # clean up and exit with error
+  source "${DIR}/_cleanup.sh"
+    if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then sudo rm -rf "$(pwd)"/postgresql/"${POSTGRES_VERSION}"/test || true; fi
+  echo "sync instance is not running" && exit 1
+fi
+
+
+### Step 5. Destroy clone
 dblab clone destroy testclone
 dblab clone list
 
 ### Finish. clean up
 source "${DIR}/_cleanup.sh"
+# clean up postgres test directory
+if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
+  sudo rm -rf "$(pwd)"/postgresql/"${POSTGRES_VERSION}"/test || true
+fi
