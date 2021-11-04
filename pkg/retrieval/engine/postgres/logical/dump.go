@@ -404,17 +404,33 @@ func (d *DumpJob) getPassword() string {
 }
 
 func (d *DumpJob) cleanupDumpLocation(ctx context.Context, dumpContID string) error {
-	if d.DumpOptions.DumpLocation != "" && d.DumpOptions.Restore.Enabled {
-		cleanupCmd := []string{"rm", "-rf", path.Join(d.DumpOptions.DumpLocation, "*")}
+	if d.DumpOptions.DumpLocation == "" || d.DumpOptions.Restore.Enabled {
+		return nil
+	}
 
-		log.Msg("Running cleanup command: ", cleanupCmd)
+	ls, err := tools.LsContainerDirectory(ctx, d.dockerClient, dumpContID, d.DumpOptions.DumpLocation)
+	if err != nil {
+		return errors.Wrap(err, "failed to clean up dump location")
+	}
 
-		if out, err := tools.ExecCommandWithOutput(ctx, d.dockerClient, dumpContID, types.ExecConfig{
-			Cmd: cleanupCmd,
-		}); err != nil {
-			log.Dbg(out)
-			return errors.Wrap(err, "failed to clean up dump location")
-		}
+	if len(ls) == 0 {
+		return nil
+	}
+
+	cleanupCmd := []string{"rm", "-rf"}
+
+	for _, dbName := range ls {
+		cleanupCmd = append(cleanupCmd, path.Join(d.DumpOptions.DumpLocation, dbName))
+	}
+
+	log.Msg("Running cleanup command: ", cleanupCmd)
+
+	if out, err := tools.ExecCommandWithOutput(ctx, d.dockerClient, dumpContID, types.ExecConfig{
+		Tty: true,
+		Cmd: cleanupCmd,
+	}); err != nil {
+		log.Dbg(out)
+		return errors.Wrap(err, "failed to clean up dump location")
 	}
 
 	return nil
@@ -443,12 +459,13 @@ func (d *DumpJob) dumpDatabase(ctx context.Context, dumpContID, dbName string, d
 }
 
 func setupPGData(ctx context.Context, dockerClient *client.Client, dataDir string, dumpContID string) error {
-	isEmpty, err := tools.IsEmptyContainerDirectory(ctx, dockerClient, dumpContID, dataDir)
+	entryList, err := tools.LsContainerDirectory(ctx, dockerClient, dumpContID, dataDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to explore the data directory")
 	}
 
-	if !isEmpty {
+	// Already initialized.
+	if len(entryList) != 0 {
 		return nil
 	}
 
