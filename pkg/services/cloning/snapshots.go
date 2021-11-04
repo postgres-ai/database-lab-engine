@@ -71,7 +71,7 @@ func (c *Base) addSnapshot(snapshot *models.Snapshot) {
 	c.snapshotBox.items[snapshot.ID] = snapshot
 
 	if c.snapshotBox.latestSnapshot == nil ||
-		c.snapshotBox.latestSnapshot.DataStateAt == "" || c.snapshotBox.latestSnapshot.DataStateAt > snapshot.DataStateAt {
+		c.snapshotBox.latestSnapshot.DataStateAt == "" || c.snapshotBox.latestSnapshot.DataStateAt < snapshot.DataStateAt {
 		c.snapshotBox.latestSnapshot = snapshot
 	}
 
