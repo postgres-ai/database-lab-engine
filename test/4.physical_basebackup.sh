@@ -15,7 +15,7 @@ DIR=${0%/*}
 
 if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
 ### Step 0. Create source database
-  sudo rm -rf "$HOME"/postgresql/"${POSTGRES_VERSION}"/test || true
+  sudo rm -rf "$HOME"/postgresql/"${POSTGRES_VERSION}"/test-"${TAG}" || true
   sudo docker run \
     --name postgres"${POSTGRES_VERSION}" \
     --label pgdb \
@@ -26,7 +26,7 @@ if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
     --env POSTGRES_PASSWORD="${SOURCE_PASSWORD}" \
     --env POSTGRES_DB=test \
     --env POSTGRES_HOST_AUTH_METHOD=md5 \
-    --volume "$HOME"/postgresql/"${POSTGRES_VERSION}"/test:/var/lib/postgresql/pgdata \
+    --volume "$HOME"/postgresql/"${POSTGRES_VERSION}"/test-"${TAG}":/var/lib/postgresql/pgdata \
     --detach \
     postgres:"${POSTGRES_VERSION}"
 
@@ -197,7 +197,7 @@ if [[ $(sudo docker ps --format "{{.Names}}" --filter name=^/dblab_sync) ]]; the
 else
   # clean up and exit with error
   source "${DIR}/_cleanup.sh"
-    if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then sudo rm -rf "$HOME"/postgresql/"${POSTGRES_VERSION}"/test || true; fi
+    if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then sudo rm -rf "$HOME"/postgresql/"${POSTGRES_VERSION}"/test-"${TAG}" || true; fi
   echo "sync instance is not running" && exit 1
 fi
 
@@ -210,5 +210,5 @@ dblab clone list
 source "${DIR}/_cleanup.sh"
 # clean up postgres test directory
 if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
-  sudo rm -rf "$HOME"/postgresql/"${POSTGRES_VERSION}"/test || true
+  sudo rm -rf "$HOME"/postgresql/"${POSTGRES_VERSION}"/test-"${TAG}" || true
 fi
