@@ -26,7 +26,7 @@ if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
     --env POSTGRES_PASSWORD="${SOURCE_PASSWORD}" \
     --env POSTGRES_DB=test \
     --env POSTGRES_HOST_AUTH_METHOD=md5 \
-    --volume "$HOME"/postgresql/"${POSTGRES_VERSION}"/test-"${TAG}":/var/lib/postgresql/pgdata \
+    --volume "${HOME}"/postgresql/"${POSTGRES_VERSION}"/test-"${TAG}":/var/lib/postgresql/pgdata \
     --detach \
     postgres:"${POSTGRES_VERSION}"
 
