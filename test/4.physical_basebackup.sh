@@ -197,7 +197,9 @@ if [[ $(sudo docker ps --format "{{.Names}}" --filter name=^/dblab_sync) ]]; the
 else
   # clean up and exit with error
   source "${DIR}/_cleanup.sh"
-    if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then sudo rm -rf "$HOME"/postgresql/"${POSTGRES_VERSION}"/test-"${TAG}" || true; fi
+    if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
+      sudo rm -rf "$HOME"/postgresql/"${POSTGRES_VERSION}"/test-"${TAG}" || true
+    fi
   echo "sync instance is not running" && exit 1
 fi
 
