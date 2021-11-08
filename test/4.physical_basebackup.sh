@@ -15,7 +15,7 @@ DIR=${0%/*}
 
 if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
 ### Step 0. Create source database
-  sudo rm -rf "$HOME"/postgresql/"${POSTGRES_VERSION}"/test-"${TAG}" || true
+  sudo rm -rf "${HOME}"/postgresql/"${POSTGRES_VERSION}"/test-"${TAG}" || true
   sudo docker run \
     --name postgres"${POSTGRES_VERSION}" \
     --label pgdb \
