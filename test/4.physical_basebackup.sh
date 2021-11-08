@@ -86,7 +86,7 @@ sed -ri "s/^(\s*)(PGPORT:.*$)/\1PGPORT: ${SOURCE_PORT}/" "${configDir}/server.ym
 sed -ri "s/:13/:${POSTGRES_VERSION}/g"  "${configDir}/server.yml"
 
 # logerrors is not supported in PostgreSQL 9.6
-if [ "${POSTGRES_VERSION}" = "9.6" ]; then
+if [[ "${POSTGRES_VERSION}" = "9.6" ]]; then
   sed -ri 's/^(\s*)(shared_preload_libraries:.*$)/\1shared_preload_libraries: "pg_stat_statements, auto_explain"/' "${configDir}/server.yml"
 fi
 
