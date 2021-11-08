@@ -16,6 +16,8 @@ const (
 	Physical RetrievalMode = "physical"
 	// Logical defines logical retrieval mode.
 	Logical RetrievalMode = "logical"
+	// Unknown defines the case when retrieval mode is unknown or is not set.
+	Unknown RetrievalMode = "unknown"
 )
 
 // RefreshStatus defines status of refreshing data.

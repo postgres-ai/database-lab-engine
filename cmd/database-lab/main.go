@@ -48,6 +48,7 @@ func main() {
 	}
 
 	log.Msg("Database Lab Instance ID:", cfg.Global.InstanceID)
+	log.Msg("Database Lab Engine version:", version.GetVersion())
 
 	if cfg.Server.VerificationToken == "" {
 		log.Warn("Verification Token is empty. Database Lab Engine is insecure")
