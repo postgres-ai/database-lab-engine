@@ -41,7 +41,7 @@ if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
   sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c 'select pg_reload_conf()'
 
   # Change wal_level and max_wal_senders parameters for PostgreSQL 9.6
-  if [ "${POSTGRES_VERSION}" = "9.6" ]; then
+  if [[ "${POSTGRES_VERSION}" = "9.6" ]]; then
     sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c 'ALTER SYSTEM SET wal_level = replica'
     sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c 'ALTER SYSTEM SET max_wal_senders = 10'
     sudo docker restart postgres"${POSTGRES_VERSION}"
