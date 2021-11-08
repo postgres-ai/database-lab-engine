@@ -66,8 +66,8 @@ source "${DIR}/_zfs.file.sh"
 
 ### Step 2. Configure and launch the Database Lab Engine
 
-configDir="$HOME/.dblab/engine/configs"
-metaDir="$HOME/.dblab/engine/meta"
+configDir="${HOME}"/.dblab/engine/configs
+metaDir="${HOME}"/.dblab/engine/meta
 
 # Copy the contents of configuration example 
 mkdir -p "${configDir}"
@@ -198,7 +198,7 @@ else
   # clean up and exit with error
   source "${DIR}/_cleanup.sh"
     if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
-      sudo rm -rf "$HOME"/postgresql/"${POSTGRES_VERSION}"/test-"${TAG}" || true
+      sudo rm -rf "${HOME}"/postgresql/"${POSTGRES_VERSION}"/test-"${TAG}" || true
     fi
   echo "sync instance is not running" && exit 1
 fi
@@ -212,5 +212,5 @@ dblab clone list
 source "${DIR}/_cleanup.sh"
 # clean up postgres test directory
 if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
-  sudo rm -rf "$HOME"/postgresql/"${POSTGRES_VERSION}"/test-"${TAG}" || true
+  sudo rm -rf "${HOME}"/postgresql/"${POSTGRES_VERSION}"/test-"${TAG}" || true
 fi
