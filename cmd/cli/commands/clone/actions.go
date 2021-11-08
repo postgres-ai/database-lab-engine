@@ -40,14 +40,16 @@ func list(cliCtx *cli.Context) error {
 	defer func() { _ = body.Close() }()
 
 	viewCloneList := &models.CloneListView{
-		Clones: make([]*models.CloneView, 0),
+		Cloning: models.CloningView{
+			Clones: make([]*models.CloneView, 0),
+		},
 	}
 
 	if err := json.NewDecoder(body).Decode(&viewCloneList); err != nil {
 		return err
 	}
 
-	commandResponse, err := json.MarshalIndent(viewCloneList.Clones, "", "    ")
+	commandResponse, err := json.MarshalIndent(viewCloneList.Cloning.Clones, "", "    ")
 	if err != nil {
 		return err
 	}

@@ -55,8 +55,13 @@ type CloneList struct {
 	Cloning Cloning `json:"cloning"`
 }
 
-// CloneListView represents a list of clone views.
+// CloneListView represents cloning process views.
 type CloneListView struct {
+	Cloning CloningView `json:"cloning"`
+}
+
+// CloningView represents a list of clone views.
+type CloningView struct {
 	Clones []*CloneView `json:"clones"`
 }
 
