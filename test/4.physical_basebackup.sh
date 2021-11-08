@@ -112,7 +112,7 @@ sudo docker logs dblab_server -f 2>&1 | awk '{print "[CONTAINER dblab_server]: "
 
 ### Waiting for the Database Lab Engine initialization.
 for i in {1..30}; do
-  curl http://localhost:2345 > /dev/null 2>&1 && break || echo "dblab is not ready yet"
+  curl http://localhost:2345 > /dev/null 2>&1 && break || echo "DLE is not ready yet"
   sleep 10
 done
 
@@ -171,7 +171,7 @@ sudo docker restart dblab_server
 
 ### Waiting for the Database Lab Engine to start.
 for i in {1..300}; do
-  curl http://localhost:2345 > /dev/null 2>&1 && break || echo "dblab is not ready yet"
+  curl http://localhost:2345 > /dev/null 2>&1 && break || echo "DLE is not ready yet"
   sleep 1
 done
 
