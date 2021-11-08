@@ -189,7 +189,8 @@ PGPASSWORD=secret_password psql \
 if [[ $(sudo docker ps --format "{{.Names}}" --filter name=^/dblab_sync) ]]; then
   for i in {1..30}; do
     # check the postgres of the sync instance
-    sudo docker exec "$(sudo docker ps --format "{{.Names}}" --filter name=^/dblab_sync)" psql -U postgres -c 'select' > /dev/null 2>&1  && break || echo "postgres of the sync instance is not ready yet"
+    sudo docker exec "$(sudo docker ps --format "{{.Names}}" --filter label="dblab_control=dblab_sync")" \
+      psql -U postgres -c 'select' > /dev/null 2>&1  && break || echo "postgres of the sync instance is not ready yet"
     sleep 2
   done
     # list containers
