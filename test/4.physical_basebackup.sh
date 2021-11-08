@@ -164,7 +164,7 @@ PGPASSWORD=secret_password psql \
   "host=localhost port=6000 user=dblab_user_1 dbname=test" -c '\dt+'
 
 
-### Step 4. Check clone and sync instance durability on DLE restart.
+### Step 4. Check that clone and sync instance are available after restart DLE.
 
 ## Restart DLE.
 sudo docker restart dblab_server
