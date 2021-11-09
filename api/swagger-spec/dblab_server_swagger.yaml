@@ -236,6 +236,12 @@ paths:
           name: "id"
           type: "string"
           description: "Clone ID"
+        - in: body
+          name: body
+          description: "Reset object"
+          required: false
+          schema:
+            $ref: '#/definitions/ResetClone'
       responses:
         404:
           description: "Not found"
@@ -708,6 +714,16 @@ definitions:
             default: false
           db_name:
             type: "string"
+
+  ResetClone:
+    type: "object"
+    description: "Object defining specific snapshot used when resetting clone. Optional parameters `latest` and `snapshotID` must not be specified together"
+    properties:
+      snapshotID:
+        type: "string"
+      latest:
+        type: "boolean"
+        default: false
 
   UpdateClone:
     type: "object"
