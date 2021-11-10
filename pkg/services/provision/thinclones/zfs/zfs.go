@@ -539,7 +539,62 @@ func (m *Manager) listSnapshots(pool string) ([]*ListEntry, error) {
 		dsType:  snapshotType,
 	}
 
-	return m.listDetails(filter)
+	listEntries, err := m.listDetails(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	m.calculateEntrySize(listEntries)
+
+	return listEntries, err
+}
+func (m *Manager) calculateEntrySize(listEntries []*ListEntry) {
+	// TODO: The `go-libzfs` library might be useful to avoid a lot of command actions: https://github.com/bicomsystems/go-libzfs
+	const preCloneParts = 2
+
+	for _, entry := range listEntries {
+		// Extract the pre-clone name.
+		splitEntry := strings.SplitN(entry.Name, "@", preCloneParts)
+		if len(splitEntry) < preCloneParts {
+			continue
+		}
+
+		preClone := splitEntry[0]
+
+		if !strings.Contains(preClone, "_pre") {
+			continue
+		}
+
+		// Get the pre-clone origin.
+		preSnapshot, err := m.runner.Run(buildOriginCommand(preClone), false)
+		if err != nil {
+			log.Err("failed to get pre-clone origin", err.Error())
+			continue
+		}
+
+		// Get the pre-snapshot size.
+		sizeStr, err := m.runner.Run(buildSizeCommand(preSnapshot), false)
+		if err != nil {
+			log.Err("failed to get pre-snapshot size:", err.Error())
+			continue
+		}
+
+		usedByPreSnapshot, err := util.ParseBytes(sizeStr)
+		if err != nil {
+			log.Err("cannot parse the extracted size of a pre-snapshot:", err)
+			continue
+		}
+
+		entry.Used += usedByPreSnapshot
+	}
+}
+
+func buildOriginCommand(clone string) string {
+	return "zfs get -H -o value origin " + clone
+}
+
+func buildSizeCommand(snapshot string) string {
+	return "zfs get -H -p -o value used " + snapshot
 }
 
 // listDetails lists all ZFS types.

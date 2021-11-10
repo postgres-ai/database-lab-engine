@@ -184,3 +184,15 @@ poolnext 							/var/lib/postgresql/pools/pool5`
 	assert.Equal(t, len(expected), len(poolMappings))
 	assert.Equal(t, expected, poolMappings)
 }
+
+func TestBuildingCommands(t *testing.T) {
+	t.Run("Origin Command", func(t *testing.T) {
+		command := buildOriginCommand("testClone")
+		require.Equal(t, "zfs get -H -o value origin testClone", command)
+	})
+
+	t.Run("Snapshot Size Command", func(t *testing.T) {
+		command := buildSizeCommand("testSnapshot")
+		require.Equal(t, "zfs get -H -p -o value used testSnapshot", command)
+	})
+}
