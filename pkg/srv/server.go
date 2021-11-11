@@ -38,6 +38,7 @@ type Server struct {
 	Cloning   *cloning.Base
 	Config    *srvCfg.Config
 	Global    *global.Config
+	engProps  global.EngineProps
 	Retrieval *retrieval.Retrieval
 	Platform  *platform.Service
 	Observer  *observer.Observer
@@ -51,12 +52,13 @@ type Server struct {
 }
 
 // NewServer initializes a new Server instance with provided configuration.
-func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, cloning *cloning.Base, retrievalSvc *retrieval.Retrieval,
-	platform *platform.Service, dockerClient *client.Client, observer *observer.Observer, estimator *estimator.Estimator,
-	pm *pool.Manager, tm *telemetry.Agent) *Server {
+func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps global.EngineProps, cloning *cloning.Base,
+	retrievalSvc *retrieval.Retrieval, platform *platform.Service, dockerClient *client.Client, observer *observer.Observer,
+	estimator *estimator.Estimator, pm *pool.Manager, tm *telemetry.Agent) *Server {
 	server := &Server{
 		Config:    cfg,
 		Global:    globalCfg,
+		engProps:  engineProps,
 		Cloning:   cloning,
 		Retrieval: retrievalSvc,
 		Platform:  platform,

@@ -68,6 +68,7 @@ type DumpJob struct {
 	dockerClient *client.Client
 	fsPool       *resources.Pool
 	globalCfg    *global.Config
+	engineProps  global.EngineProps
 	config       dumpJobConfig
 	dumper       dumper
 	dbMarker     *dbmarker.Marker
@@ -135,12 +136,13 @@ type ImmediateRestore struct {
 }
 
 // NewDumpJob creates a new DumpJob.
-func NewDumpJob(jobCfg config.JobConfig, global *global.Config) (*DumpJob, error) {
+func NewDumpJob(jobCfg config.JobConfig, global *global.Config, engineProps global.EngineProps) (*DumpJob, error) {
 	dumpJob := &DumpJob{
 		name:         jobCfg.Spec.Name,
 		dockerClient: jobCfg.Docker,
 		fsPool:       jobCfg.FSPool,
 		globalCfg:    global,
+		engineProps:  engineProps,
 		dbMarker:     jobCfg.Marker,
 		dbMark: &dbmarker.Config{
 			DataType: dbmarker.LogicalDataType,
@@ -208,7 +210,7 @@ func (d *DumpJob) setupDumper() error {
 }
 
 func (d *DumpJob) dumpContainerName() string {
-	return dumpContainerPrefix + d.globalCfg.InstanceID
+	return dumpContainerPrefix + d.engineProps.InstanceID
 }
 
 // Name returns a name of the job.
@@ -563,7 +565,8 @@ func (d *DumpJob) buildContainerConfig(password string) *container.Config {
 	return &container.Config{
 		Labels: map[string]string{
 			cont.DBLabControlLabel:    cont.DBLabDumpLabel,
-			cont.DBLabInstanceIDLabel: d.globalCfg.InstanceID,
+			cont.DBLabInstanceIDLabel: d.engineProps.InstanceID,
+			cont.DBLabEngineNameLabel: d.engineProps.ContainerName,
 		},
 		Env:         d.getEnvironmentVariables(password),
 		Image:       d.DockerImage,

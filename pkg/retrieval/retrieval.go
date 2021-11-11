@@ -44,6 +44,7 @@ type Retrieval struct {
 	State         State
 	cfg           *config.Config
 	global        *global.Config
+	engineProps   global.EngineProps
 	docker        *client.Client
 	poolManager   *pool.Manager
 	tm            *telemetry.Agent
@@ -61,10 +62,12 @@ type Scheduler struct {
 }
 
 // New creates a new data retrieval.
-func New(cfg *dblabCfg.Config, docker *client.Client, pm *pool.Manager, tm *telemetry.Agent, runner runners.Runner) *Retrieval {
+func New(cfg *dblabCfg.Config, engineProps global.EngineProps, docker *client.Client, pm *pool.Manager, tm *telemetry.Agent,
+	runner runners.Runner) *Retrieval {
 	r := &Retrieval{
 		cfg:         &cfg.Retrieval,
 		global:      &cfg.Global,
+		engineProps: engineProps,
 		docker:      docker,
 		poolManager: pm,
 		tm:          tm,
@@ -247,7 +250,7 @@ func (r *Retrieval) configure(fsm pool.FSManager) error {
 
 // parseJobs processes configuration to define data retrieval jobs.
 func (r *Retrieval) parseJobs(fsm pool.FSManager) error {
-	retrievalRunner, err := engine.JobBuilder(r.global, fsm, r.tm)
+	retrievalRunner, err := engine.JobBuilder(r.global, r.engineProps, fsm, r.tm)
 	if err != nil {
 		return errors.Wrap(err, "failed to get a job builder")
 	}
@@ -421,7 +424,7 @@ func (r *Retrieval) fullRefresh(ctx context.Context) error {
 	}
 
 	// Stop service containers: sync-instance, etc.
-	if cleanUpErr := cont.CleanUpControlContainers(runCtx, r.docker, r.global.InstanceID); cleanUpErr != nil {
+	if cleanUpErr := cont.CleanUpControlContainers(runCtx, r.docker, r.engineProps.InstanceID); cleanUpErr != nil {
 		log.Err("Failed to clean up service containers:", cleanUpErr)
 
 		return cleanUpErr
@@ -450,7 +453,7 @@ func (r *Retrieval) stopScheduler() {
 
 // IsValidConfig checks if the retrieval configuration is valid.
 func IsValidConfig(cfg *dblabCfg.Config) error {
-	rs := New(cfg, nil, nil, nil, nil)
+	rs := New(cfg, global.EngineProps{}, nil, nil, nil, nil)
 
 	cm, err := pool.NewManager(nil, pool.ManagerConfig{
 		Pool: &resources.Pool{

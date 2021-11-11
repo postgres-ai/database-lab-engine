@@ -84,6 +84,7 @@ type RestoreJob struct {
 	dockerClient      *client.Client
 	fsPool            *resources.Pool
 	globalCfg         *global.Config
+	engineProps       global.EngineProps
 	dbMarker          *dbmarker.Marker
 	dbMark            *dbmarker.Config
 	isDumpLocationDir bool
@@ -107,12 +108,13 @@ type Partial struct {
 }
 
 // NewJob create a new logical restore job.
-func NewJob(cfg config.JobConfig, global *global.Config) (*RestoreJob, error) {
+func NewJob(cfg config.JobConfig, global *global.Config, engineProps global.EngineProps) (*RestoreJob, error) {
 	restoreJob := &RestoreJob{
 		name:         cfg.Spec.Name,
 		dockerClient: cfg.Docker,
 		fsPool:       cfg.FSPool,
 		globalCfg:    global,
+		engineProps:  engineProps,
 		dbMarker:     cfg.Marker,
 		dbMark:       &dbmarker.Config{DataType: dbmarker.LogicalDataType},
 	}
@@ -134,7 +136,7 @@ func (r *RestoreJob) setDefaults() {
 }
 
 func (r *RestoreJob) restoreContainerName() string {
-	return restoreContainerPrefix + r.globalCfg.InstanceID
+	return restoreContainerPrefix + r.engineProps.InstanceID
 }
 
 // Name returns a name of the job.
@@ -585,7 +587,8 @@ func (r *RestoreJob) buildContainerConfig(password string) *container.Config {
 	return &container.Config{
 		Labels: map[string]string{
 			cont.DBLabControlLabel:    cont.DBLabRestoreLabel,
-			cont.DBLabInstanceIDLabel: r.globalCfg.InstanceID,
+			cont.DBLabInstanceIDLabel: r.engineProps.InstanceID,
+			cont.DBLabEngineNameLabel: r.engineProps.ContainerName,
 		},
 		Env: append(os.Environ(), []string{
 			"PGDATA=" + r.fsPool.DataDir(),

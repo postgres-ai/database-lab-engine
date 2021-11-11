@@ -10,8 +10,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -69,18 +71,19 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	hostname := os.Getenv("HOSTNAME")
-	if hostname == "" {
-		log.Err("hostname is empty")
+	engProps, err := getEngineProperties(ctx, dockerCLI, cfg.Global.InstanceID)
+	if err != nil {
+		log.Err("failed to get Database Lab Engine properties:", err.Error())
+		return
 	}
 
-	internalNetworkID, err := networks.Setup(ctx, dockerCLI, cfg.Global.InstanceID, hostname)
+	internalNetworkID, err := networks.Setup(ctx, dockerCLI, cfg.Global.InstanceID, engProps.ContainerName)
 	if err != nil {
 		log.Errf(err.Error())
 		return
 	}
 
-	defer networks.Stop(dockerCLI, internalNetworkID, hostname)
+	defer networks.Stop(dockerCLI, internalNetworkID, engProps.ContainerName)
 
 	// Create a platform service to make requests to Platform.
 	platformSvc, err := platform.New(ctx, cfg.Platform)
@@ -100,17 +103,17 @@ func main() {
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer shutdownCancel()
 
-		shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global, pm.First().Pool())
+		shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, engProps, pm.First().Pool())
 	}
 
-	tm, err := telemetry.New(cfg.Global)
+	tm, err := telemetry.New(cfg.Global, engProps)
 	if err != nil {
 		log.Errf(errors.WithMessage(err, "failed to initialize a telemetry service").Error())
 		return
 	}
 
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
-	retrievalSvc := retrieval.New(cfg, dockerCLI, pm, tm, runner)
+	retrievalSvc := retrieval.New(cfg, engProps, dockerCLI, pm, tm, runner)
 
 	if err := retrievalSvc.Run(ctx); err != nil {
 		log.Err("Failed to run the data retrieval service:", err)
@@ -149,7 +152,7 @@ func main() {
 		Restore:       retrievalSvc.CollectRestoreTelemetry(),
 	})
 
-	server := srv.NewServer(&cfg.Server, &cfg.Global, cloningSvc, retrievalSvc, platformSvc, dockerCLI, obs, est, pm, tm)
+	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, cloningSvc, retrievalSvc, platformSvc, dockerCLI, obs, est, pm, tm)
 	shutdownCh := setShutdownListener()
 
 	go setReloadListener(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, server)
@@ -173,9 +176,28 @@ func main() {
 		log.Msg(err)
 	}
 
-	shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, cfg.Global, pm.First().Pool())
+	shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, engProps, pm.First().Pool())
 	cloningSvc.SaveClonesState()
 	tm.SendEvent(ctx, telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
+}
+
+func getEngineProperties(ctx context.Context, dockerCLI *client.Client, instanceID string) (global.EngineProps, error) {
+	hostname := os.Getenv("HOSTNAME")
+	if hostname == "" {
+		return global.EngineProps{}, errors.New("hostname is empty")
+	}
+
+	dleContainer, err := dockerCLI.ContainerInspect(ctx, hostname)
+	if err != nil {
+		return global.EngineProps{}, fmt.Errorf("failed to inspect DLE container: %w", err)
+	}
+
+	engProps := global.EngineProps{
+		InstanceID:    instanceID,
+		ContainerName: strings.Trim(dleContainer.Name, "/"),
+	}
+
+	return engProps, nil
 }
 
 func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent, retrievalSvc *retrieval.Retrieval,
@@ -241,10 +263,10 @@ func setShutdownListener() chan os.Signal {
 	return c
 }
 
-func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, global global.Config, fsp *resources.Pool) {
+func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, engProps global.EngineProps, fsp *resources.Pool) {
 	log.Msg("Stopping control containers")
 
-	if err := cont.StopControlContainers(ctx, dockerCLI, global.InstanceID, fsp.DataDir()); err != nil {
+	if err := cont.StopControlContainers(ctx, dockerCLI, engProps.InstanceID, fsp.DataDir()); err != nil {
 		log.Err("Failed to stop control containers", err)
 	}
 

@@ -58,6 +58,7 @@ type RestoreJob struct {
 	dockerClient *client.Client
 	fsPool       *resources.Pool
 	globalCfg    *global.Config
+	engineProps  global.EngineProps
 	dbMarker     *dbmarker.Marker
 	restorer     restorer
 	CopyOptions
@@ -98,11 +99,12 @@ type restorer interface {
 }
 
 // NewJob creates a new physical restore job.
-func NewJob(cfg config.JobConfig, global *global.Config) (*RestoreJob, error) {
+func NewJob(cfg config.JobConfig, global *global.Config, engineProps global.EngineProps) (*RestoreJob, error) {
 	physicalJob := &RestoreJob{
 		name:         cfg.Spec.Name,
 		dockerClient: cfg.Docker,
 		globalCfg:    global,
+		engineProps:  engineProps,
 		dbMarker:     cfg.Marker,
 		fsPool:       cfg.FSPool,
 	}
@@ -135,7 +137,7 @@ func (r *RestoreJob) getRestorer(tool string) (restorer, error) {
 }
 
 func (r *RestoreJob) restoreContainerName() string {
-	return restoreContainerPrefix + r.globalCfg.InstanceID
+	return restoreContainerPrefix + r.engineProps.InstanceID
 }
 
 // Name returns a name of the job.
@@ -290,7 +292,7 @@ func (r *RestoreJob) startContainer(ctx context.Context, containerName string, c
 }
 
 func (r *RestoreJob) syncInstanceName() string {
-	return cont.SyncInstanceContainerPrefix + r.globalCfg.InstanceID
+	return cont.SyncInstanceContainerPrefix + r.engineProps.InstanceID
 }
 
 func (r *RestoreJob) runSyncInstance(ctx context.Context) (err error) {
@@ -373,7 +375,8 @@ func (r *RestoreJob) buildContainerConfig(label, password string) *container.Con
 	return &container.Config{
 		Labels: map[string]string{
 			cont.DBLabControlLabel:    label,
-			cont.DBLabInstanceIDLabel: r.globalCfg.InstanceID,
+			cont.DBLabInstanceIDLabel: r.engineProps.InstanceID,
+			cont.DBLabEngineNameLabel: r.engineProps.ContainerName,
 		},
 		Env:   r.getEnvironmentVariables(password),
 		Image: r.CopyOptions.DockerImage,
