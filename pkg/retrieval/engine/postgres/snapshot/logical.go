@@ -47,6 +47,7 @@ type LogicalInitial struct {
 	dockerClient   *client.Client
 	options        LogicalOptions
 	globalCfg      *global.Config
+	engineProps    global.EngineProps
 	dbMarker       *dbmarker.Marker
 	queryProcessor *queryProcessor
 }
@@ -67,7 +68,7 @@ type DataPatching struct {
 }
 
 // NewLogicalInitialJob creates a new logical initial job.
-func NewLogicalInitialJob(cfg config.JobConfig, global *global.Config, cloneManager pool.FSManager,
+func NewLogicalInitialJob(cfg config.JobConfig, global *global.Config, engineProps global.EngineProps, cloneManager pool.FSManager,
 	tm *telemetry.Agent) (*LogicalInitial, error) {
 	li := &LogicalInitial{
 		name:         cfg.Spec.Name,
@@ -75,6 +76,7 @@ func NewLogicalInitialJob(cfg config.JobConfig, global *global.Config, cloneMana
 		fsPool:       cfg.FSPool,
 		dockerClient: cfg.Docker,
 		globalCfg:    global,
+		engineProps:  engineProps,
 		dbMarker:     cfg.Marker,
 		tm:           tm,
 	}
@@ -99,7 +101,7 @@ func (s *LogicalInitial) Name() string {
 
 // patchContainerName returns container name.
 func (s *LogicalInitial) patchContainerName() string {
-	return patchContainerPrefix + s.globalCfg.InstanceID
+	return patchContainerPrefix + s.engineProps.InstanceID
 }
 
 // Reload reloads job configuration.
@@ -237,7 +239,8 @@ func (s *LogicalInitial) buildContainerConfig(clonePath, patchImage, password st
 	return &container.Config{
 		Labels: map[string]string{
 			cont.DBLabControlLabel:    cont.DBLabPatchLabel,
-			cont.DBLabInstanceIDLabel: s.globalCfg.InstanceID,
+			cont.DBLabInstanceIDLabel: s.engineProps.InstanceID,
+			cont.DBLabEngineNameLabel: s.engineProps.ContainerName,
 		},
 		Env: []string{
 			"PGDATA=" + clonePath,

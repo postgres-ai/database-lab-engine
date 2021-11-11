@@ -85,6 +85,7 @@ type PhysicalInitial struct {
 	fsPool         *resources.Pool
 	options        PhysicalOptions
 	globalCfg      *global.Config
+	engineProps    global.EngineProps
 	dbMarker       *dbmarker.Marker
 	dbMark         *dbmarker.Config
 	dockerClient   *client.Client
@@ -148,13 +149,14 @@ type syncState struct {
 }
 
 // NewPhysicalInitialJob creates a new physical initial job.
-func NewPhysicalInitialJob(cfg config.JobConfig, global *global.Config, cloneManager pool.FSManager,
+func NewPhysicalInitialJob(cfg config.JobConfig, global *global.Config, engineProps global.EngineProps, cloneManager pool.FSManager,
 	tm *telemetry.Agent) (*PhysicalInitial, error) {
 	p := &PhysicalInitial{
 		name:         cfg.Spec.Name,
 		cloneManager: cloneManager,
 		fsPool:       cfg.FSPool,
 		globalCfg:    global,
+		engineProps:  engineProps,
 		dbMarker:     cfg.Marker,
 		dbMark:       &dbmarker.Config{DataType: dbmarker.PhysicalDataType},
 		dockerClient: cfg.Docker,
@@ -410,7 +412,7 @@ func (p *PhysicalInitial) checkSyncInstance(ctx context.Context) (string, error)
 }
 
 func (p *PhysicalInitial) syncInstanceName() string {
-	return cont.SyncInstanceContainerPrefix + p.globalCfg.InstanceID
+	return cont.SyncInstanceContainerPrefix + p.engineProps.InstanceID
 }
 
 func (p *PhysicalInitial) startScheduler(ctx context.Context) {
@@ -466,7 +468,7 @@ func (p *PhysicalInitial) runAutoCleanup(retentionLimit int) func() {
 }
 
 func (p *PhysicalInitial) promoteContainerName() string {
-	return promoteContainerPrefix + p.globalCfg.InstanceID
+	return promoteContainerPrefix + p.engineProps.InstanceID
 }
 
 func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string, syState syncState) (err error) {
@@ -822,7 +824,8 @@ func (p *PhysicalInitial) buildContainerConfig(clonePath, promoteImage, password
 	return &container.Config{
 		Labels: map[string]string{
 			cont.DBLabControlLabel:    cont.DBLabPromoteLabel,
-			cont.DBLabInstanceIDLabel: p.globalCfg.InstanceID,
+			cont.DBLabInstanceIDLabel: p.engineProps.InstanceID,
+			cont.DBLabEngineNameLabel: p.engineProps.ContainerName,
 		},
 		Env:   p.getEnvironmentVariables(clonePath, password),
 		Image: promoteImage,

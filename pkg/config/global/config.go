@@ -47,3 +47,9 @@ type Telemetry struct {
 	Enabled bool   `yaml:"enabled"`
 	URL     string `yaml:"url"`
 }
+
+// EngineProps contains internal Database Lab Engine properties.
+type EngineProps struct {
+	InstanceID    string
+	ContainerName string
+}

@@ -27,13 +27,15 @@ const (
 type JobBuilder struct {
 	cloneManager pool.FSManager
 	globalCfg    *global.Config
+	engineProps  global.EngineProps
 	tm           *telemetry.Agent
 }
 
 // NewJobBuilder create a new job builder.
-func NewJobBuilder(global *global.Config, cm pool.FSManager, tm *telemetry.Agent) *JobBuilder {
+func NewJobBuilder(global *global.Config, engineProps global.EngineProps, cm pool.FSManager, tm *telemetry.Agent) *JobBuilder {
 	return &JobBuilder{
 		globalCfg:    global,
+		engineProps:  engineProps,
 		cloneManager: cm,
 		tm:           tm,
 	}
@@ -43,19 +45,19 @@ func NewJobBuilder(global *global.Config, cm pool.FSManager, tm *telemetry.Agent
 func (s *JobBuilder) BuildJob(jobCfg config.JobConfig) (components.JobRunner, error) {
 	switch jobCfg.Spec.Name {
 	case logical.DumpJobType:
-		return logical.NewDumpJob(jobCfg, s.globalCfg)
+		return logical.NewDumpJob(jobCfg, s.globalCfg, s.engineProps)
 
 	case logical.RestoreJobType:
-		return logical.NewJob(jobCfg, s.globalCfg)
+		return logical.NewJob(jobCfg, s.globalCfg, s.engineProps)
 
 	case physical.RestoreJobType:
-		return physical.NewJob(jobCfg, s.globalCfg)
+		return physical.NewJob(jobCfg, s.globalCfg, s.engineProps)
 
 	case snapshot.LogicalSnapshotType:
-		return snapshot.NewLogicalInitialJob(jobCfg, s.globalCfg, s.cloneManager, s.tm)
+		return snapshot.NewLogicalInitialJob(jobCfg, s.globalCfg, s.engineProps, s.cloneManager, s.tm)
 
 	case snapshot.PhysicalSnapshotType:
-		return snapshot.NewPhysicalInitialJob(jobCfg, s.globalCfg, s.cloneManager, s.tm)
+		return snapshot.NewPhysicalInitialJob(jobCfg, s.globalCfg, s.engineProps, s.cloneManager, s.tm)
 	}
 
 	return nil, errors.Errorf("unknown job type: %q", jobCfg.Spec.Name)

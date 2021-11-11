@@ -45,17 +45,17 @@ type Agent struct {
 }
 
 // New creates a new agent.
-func New(cfg global.Config) (*Agent, error) {
+func New(cfg global.Config, engineProps global.EngineProps) (*Agent, error) {
 	platformClient, err := platform.NewClient(platform.ClientConfig{
 		URL:         cfg.Telemetry.URL,
-		AccessToken: cfg.InstanceID, // Use the instance ID as a token to keep events anonymous and protect API from random bots.
+		AccessToken: engineProps.InstanceID, // Use the instance ID as a token to keep events anonymous and protect API from random bots.
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a new telemetry client: %w", err)
 	}
 
 	return &Agent{
-		instanceID: cfg.InstanceID,
+		instanceID: engineProps.InstanceID,
 		cfg:        cfg.Telemetry,
 		platform:   platformClient,
 	}, nil
