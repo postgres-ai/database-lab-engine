@@ -118,21 +118,11 @@ func isValidConfigModeLocal(config Config) error {
 // Init inits provision.
 func (p *Provisioner) Init() error {
 	if err := p.RevisePortPool(); err != nil {
-		return errors.Wrap(err, "failed to revise port pool")
+		return fmt.Errorf("failed to revise port pool: %w", err)
 	}
 
-	imageExists, err := docker.ImageExists(p.runner, p.config.DockerImage)
-	if err != nil {
-		return errors.Wrap(err, "cannot check docker image existence")
-	}
-
-	if imageExists {
-		return nil
-	}
-
-	err = docker.PullImage(p.runner, p.config.DockerImage)
-	if err != nil {
-		return errors.Wrap(err, "cannot pull docker image")
+	if err := docker.PrepareImage(p.runner, p.config.DockerImage); err != nil {
+		return fmt.Errorf("cannot prepare docker image %s: %w", p.config.DockerImage, err)
 	}
 
 	return nil

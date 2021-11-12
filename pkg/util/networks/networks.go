@@ -7,6 +7,7 @@ package networks
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
@@ -28,7 +29,7 @@ const (
 
 // Setup creates a new internal Docker network and connects container to it.
 func Setup(ctx context.Context, dockerCLI *client.Client, instanceID, containerID string) (string, error) {
-	networkName := networkPrefix + instanceID
+	networkName := getNetworkName(instanceID)
 
 	log.Dbg("Discovering internal network:", networkName)
 
@@ -94,4 +95,28 @@ func Stop(dockerCLI *client.Client, internalNetworkID, containerName string) {
 
 		log.Dbg("The internal network has been removed:", internalNetworkID)
 	}
+}
+
+// Connect connects a container to an internal Docker network.
+func Connect(ctx context.Context, dockerCLI *client.Client, instanceID, containerID string) error {
+	networkName := getNetworkName(instanceID)
+
+	log.Dbg("Discovering internal network:", networkName)
+
+	networkResource, err := dockerCLI.NetworkInspect(ctx, networkName, types.NetworkInspectOptions{})
+	if err != nil {
+		return fmt.Errorf("internal network not found: %w", err)
+	}
+
+	if err := dockerCLI.NetworkConnect(ctx, networkResource.ID, containerID, &network.EndpointSettings{}); err != nil {
+		return err
+	}
+
+	log.Dbg(fmt.Sprintf("Container %s has been connected to %s", instanceID, networkName))
+
+	return nil
+}
+
+func getNetworkName(instanceID string) string {
+	return networkPrefix + instanceID
 }

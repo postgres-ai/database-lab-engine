@@ -220,13 +220,31 @@ func Exec(r runners.Runner, c *resources.AppConfig, cmd string) (string, error) 
 	return r.Run(dockerExecCmd, true)
 }
 
+// PrepareImage prepares a Docker image to use.
+func PrepareImage(runner runners.Runner, dockerImage string) error {
+	imageExists, err := ImageExists(runner, dockerImage)
+	if err != nil {
+		return fmt.Errorf("cannot check docker image existence: %w", err)
+	}
+
+	if imageExists {
+		return nil
+	}
+
+	if err := PullImage(runner, dockerImage); err != nil {
+		return fmt.Errorf("cannot pull docker image: %w", err)
+	}
+
+	return nil
+}
+
 // ImageExists checks existence of Docker image.
 func ImageExists(r runners.Runner, dockerImage string) (bool, error) {
 	dockerListImagesCmd := "docker images " + dockerImage + " --quiet"
 
 	out, err := r.Run(dockerListImagesCmd, true)
 	if err != nil {
-		return false, errors.Wrap(err, "failed to list images")
+		return false, fmt.Errorf("failed to list images: %w", err)
 	}
 
 	return len(strings.TrimSpace(out)) > 0, nil
@@ -236,12 +254,11 @@ func ImageExists(r runners.Runner, dockerImage string) (bool, error) {
 func PullImage(r runners.Runner, dockerImage string) error {
 	dockerPullImageCmd := "docker pull " + dockerImage
 
-	_, err := r.Run(dockerPullImageCmd, true)
-	if err != nil {
-		return errors.Wrap(err, "failed to pull images")
+	if _, err := r.Run(dockerPullImageCmd, true); err != nil {
+		return fmt.Errorf("failed to pull images: %w", err)
 	}
 
-	return err
+	return nil
 }
 
 // IsContainerExist checks the existence of Docker container.
