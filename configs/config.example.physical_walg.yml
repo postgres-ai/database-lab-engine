@@ -25,6 +25,16 @@ server:
   # HTTP server port. Default: 2345.
   port: 2345
 
+# Local UI. Controls the application to provide a user interface to DLE API.
+localUI:
+  enabled: true
+
+  # Docker image of the UI application.
+  dockerImage: "postgresai/basic-ui:latest"
+
+  # HTTP port of the UI application. Default: 2346.
+  port: 2346
+
 global:
   # Database engine. Currently, the only supported option: "postgres".
   engine: postgres

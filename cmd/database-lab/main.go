@@ -23,6 +23,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/estimator"
+	"gitlab.com/postgres-ai/database-lab/v2/pkg/localui"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/observer"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/retrieval"
@@ -49,7 +50,21 @@ func main() {
 		log.Fatal(errors.WithMessage(err, "failed to parse config"))
 	}
 
-	log.Msg("Database Lab Instance ID:", cfg.Global.InstanceID)
+	dockerCLI, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		log.Fatal("Failed to create a Docker client:", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	engProps, err := getEngineProperties(ctx, dockerCLI, cfg)
+	if err != nil {
+		log.Err("failed to get Database Lab Engine properties:", err.Error())
+		return
+	}
+
+	log.Msg("Database Lab Instance ID:", engProps.InstanceID)
 	log.Msg("Database Lab Engine version:", version.GetVersion())
 
 	if cfg.Server.VerificationToken == "" {
@@ -63,21 +78,7 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	dockerCLI, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		log.Fatal("Failed to create a Docker client:", err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	engProps, err := getEngineProperties(ctx, dockerCLI, cfg.Global.InstanceID)
-	if err != nil {
-		log.Err("failed to get Database Lab Engine properties:", err.Error())
-		return
-	}
-
-	internalNetworkID, err := networks.Setup(ctx, dockerCLI, cfg.Global.InstanceID, engProps.ContainerName)
+	internalNetworkID, err := networks.Setup(ctx, dockerCLI, engProps.InstanceID, engProps.ContainerName)
 	if err != nil {
 		log.Errf(err.Error())
 		return
@@ -152,10 +153,11 @@ func main() {
 		Restore:       retrievalSvc.CollectRestoreTelemetry(),
 	})
 
+	localUI := localui.New(cfg.LocalUI, engProps, runner, dockerCLI)
 	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, cloningSvc, retrievalSvc, platformSvc, dockerCLI, obs, est, pm, tm)
 	shutdownCh := setShutdownListener()
 
-	go setReloadListener(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, server)
+	go setReloadListener(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, localUI, server)
 
 	server.InitHandlers()
 
@@ -165,6 +167,17 @@ func main() {
 			log.Msg(err)
 		}
 	}()
+
+	if cfg.LocalUI.Enabled {
+		go func() {
+			if err := localUI.Run(ctx); err != nil {
+				log.Err("Failed to start local UI container:", err.Error())
+				return
+			}
+
+			log.Msg("Local UI has started successfully")
+		}()
+	}
 
 	<-shutdownCh
 	cancel()
@@ -181,7 +194,7 @@ func main() {
 	tm.SendEvent(ctx, telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
 }
 
-func getEngineProperties(ctx context.Context, dockerCLI *client.Client, instanceID string) (global.EngineProps, error) {
+func getEngineProperties(ctx context.Context, dockerCLI *client.Client, cfg *config.Config) (global.EngineProps, error) {
 	hostname := os.Getenv("HOSTNAME")
 	if hostname == "" {
 		return global.EngineProps{}, errors.New("hostname is empty")
@@ -192,16 +205,23 @@ func getEngineProperties(ctx context.Context, dockerCLI *client.Client, instance
 		return global.EngineProps{}, fmt.Errorf("failed to inspect DLE container: %w", err)
 	}
 
+	instanceID, err := config.LoadInstanceID(cfg.PoolManager.MountDir)
+	if err != nil {
+		return global.EngineProps{}, fmt.Errorf("failed to load instance ID: %w", err)
+	}
+
 	engProps := global.EngineProps{
 		InstanceID:    instanceID,
 		ContainerName: strings.Trim(dleContainer.Name, "/"),
+		EnginePort:    cfg.Server.Port,
 	}
 
 	return engProps, nil
 }
 
 func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent, retrievalSvc *retrieval.Retrieval,
-	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, server *srv.Server) error {
+	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, localUI *localui.UIManager,
+	server *srv.Server) error {
 	cfg, err := config.LoadConfiguration()
 	if err != nil {
 		return err
@@ -224,6 +244,10 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 		return err
 	}
 
+	if err := localUI.Reload(ctx, cfg.LocalUI); err != nil {
+		return err
+	}
+
 	dbCfg := resources.DB{
 		Username: cfg.Global.Database.User(),
 		DBName:   cfg.Global.Database.Name(),
@@ -241,14 +265,15 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 }
 
 func setReloadListener(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent, retrievalSvc *retrieval.Retrieval,
-	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, server *srv.Server) {
+	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, localUI *localui.UIManager,
+	server *srv.Server) {
 	reloadCh := make(chan os.Signal, 1)
 	signal.Notify(reloadCh, syscall.SIGHUP)
 
 	for range reloadCh {
 		log.Msg("Reloading configuration")
 
-		if err := reloadConfig(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, server); err != nil {
+		if err := reloadConfig(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, localUI, server); err != nil {
 			log.Err("Failed to reload configuration", err)
 		}
 
@@ -264,13 +289,17 @@ func setShutdownListener() chan os.Signal {
 }
 
 func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, engProps global.EngineProps, fsp *resources.Pool) {
-	log.Msg("Stopping control containers")
+	log.Msg("Stopping auxiliary containers")
 
 	if err := cont.StopControlContainers(ctx, dockerCLI, engProps.InstanceID, fsp.DataDir()); err != nil {
 		log.Err("Failed to stop control containers", err)
 	}
 
-	log.Msg("Control containers have been stopped")
+	if err := cont.CleanUpSatelliteContainers(ctx, dockerCLI, engProps.InstanceID); err != nil {
+		log.Err("Failed to stop satellite containers", err)
+	}
+
+	log.Msg("Auxiliary containers have been stopped")
 }
 
 func removeObservingClones(obsCh chan string, obs *observer.Observer) {

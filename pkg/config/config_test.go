@@ -59,13 +59,13 @@ func (s *ConfigSuite) TearDownTest() {
 }
 
 func (s *ConfigSuite) TestGenerateNewID() {
-	cfg, err := readConfig()
+	instanceID, err := LoadInstanceID(s.mountDir)
 	s.Require().NoError(err)
-	s.NotEmpty(cfg.Global.InstanceID)
+	s.NotEmpty(instanceID)
 
 	data, err := os.ReadFile(filepath.Join(s.mountDir, "instance_id"))
 	s.NoError(err)
-	s.Equal(cfg.Global.InstanceID, string(data))
+	s.Equal(instanceID, string(data))
 }
 
 func (s *ConfigSuite) TestLoadInstanceID() {
@@ -74,7 +74,7 @@ func (s *ConfigSuite) TestLoadInstanceID() {
 	err := os.WriteFile(filepath.Join(s.mountDir, "instance_id"), []byte(instanceID), 0600)
 	s.Require().NoError(err)
 
-	cfg, err := readConfig()
+	instanceID, err = LoadInstanceID(s.mountDir)
 	s.NoError(err)
-	s.Equal(cfg.Global.InstanceID, instanceID)
+	s.Equal(instanceID, instanceID)
 }
