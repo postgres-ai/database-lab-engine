@@ -7,7 +7,7 @@ package models
 import (
 	"time"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/services/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/resources"
 )
 
 // InstanceStatus represents status of a Database Lab Engine instance.

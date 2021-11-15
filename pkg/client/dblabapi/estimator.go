@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/estimator"
+	"gitlab.com/postgres-ai/database-lab/v2/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 )
 
