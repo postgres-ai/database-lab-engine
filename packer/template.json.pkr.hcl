@@ -48,11 +48,6 @@ build {
     destination = "/home/ubuntu/envoy.yaml"
   }
 
-  provisioner "file"{
-    source = "joe.yml"
-    destination = "/home/ubuntu/joe.yml"
-  }
-
   provisioner "shell" {
     environment_vars = ["dle_version=${var.dle_version}"]
     scripts = ["${path.root}/install-prereqs.sh", "${path.root}/install-envoy.sh"] 
