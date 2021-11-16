@@ -270,7 +270,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 	}
 
 	dumpCont, err := d.dockerClient.ContainerCreate(ctx, d.buildContainerConfig(pwd), hostConfig, &network.NetworkingConfig{},
-		d.dumpContainerName(),
+		nil, d.dumpContainerName(),
 	)
 	if err != nil {
 		log.Err(err)

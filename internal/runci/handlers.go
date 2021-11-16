@@ -191,7 +191,7 @@ func (s *Server) runCommands(ctx context.Context, clone *models.Clone, runID str
 		networkConfig.EndpointsConfig = map[string]*network.EndpointSettings{"clone_network": {NetworkID: s.networkID}}
 	}
 
-	contRunner, err := s.docker.ContainerCreate(ctx, containerCfg, hostConfig, networkConfig, containerName)
+	contRunner, err := s.docker.ContainerCreate(ctx, containerCfg, hostConfig, networkConfig, nil, containerName)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create container")
