@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
 )

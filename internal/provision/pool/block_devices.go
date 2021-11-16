@@ -1,0 +1,50 @@
+/*
+2020 © Postgres.ai
+*/
+
+// Package pool provides components to work with storage pools.
+package pool
+
+import (
+	"encoding/json"
+	"os/exec"
+
+	"github.com/pkg/errors"
+
+	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/thinclones/lvm"
+)
+
+type blockDeviceList struct {
+	BlockDevices []blockDevice `json:"blockdevices"`
+}
+
+type blockDevice struct {
+	Type       string `json:"type"`
+	MountPoint string `json:"mountpoint"`
+}
+
+// getBlockDeviceTypes returns a filesystem type list of mounted block devices.
+func getBlockDeviceTypes() (map[string]string, error) {
+	output, err := exec.Command("lsblk", "--json", "--output", "type,mountpoint").Output()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to run command")
+	}
+
+	var blockDevices blockDeviceList
+
+	if err := json.Unmarshal(output, &blockDevices); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal response")
+	}
+
+	blockDeviceTypes := make(map[string]string)
+
+	for _, blk := range blockDevices.BlockDevices {
+		if blk.MountPoint == "" || blk.Type != lvm.PoolMode {
+			continue
+		}
+
+		blockDeviceTypes[blk.MountPoint] = blk.Type
+	}
+
+	return blockDeviceTypes, nil
+}

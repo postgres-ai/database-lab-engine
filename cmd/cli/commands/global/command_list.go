@@ -30,8 +30,8 @@ func List() []*cli.Command {
 					Required: true,
 				},
 				&cli.StringFlag{
-					Name:     "token",
-					Usage:    "verification token of Database Lab instance",
+					Name:  "token",
+					Usage: "verification token of Database Lab instance",
 				},
 				&cli.BoolFlag{
 					Name:  "insecure",
