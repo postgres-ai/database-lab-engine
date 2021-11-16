@@ -43,3 +43,8 @@ sudo /usr/local/bin/func-e use 1.19.1 # https://www.envoyproxy.io/docs/envoy/lat
 
 #install s3fs
 sudo apt install s3fs
+
+#install yq
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CC86BB64
+sudo add-apt-repository ppa:rmescandon/yq
+sudo apt update && sudo apt install yq -y
