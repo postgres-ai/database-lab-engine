@@ -543,6 +543,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 		p.buildContainerConfig(clonePath, promoteImage, pwd, recoveryConfig[targetActionOption]),
 		hostConfig,
 		&network.NetworkingConfig{},
+		nil,
 		p.promoteContainerName(),
 	)
 

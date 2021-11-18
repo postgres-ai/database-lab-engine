@@ -199,6 +199,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		r.buildContainerConfig(pwd),
 		hostConfig,
 		&network.NetworkingConfig{},
+		nil,
 		r.restoreContainerName(),
 	)
 	if err != nil {

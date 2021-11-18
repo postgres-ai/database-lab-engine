@@ -120,6 +120,7 @@ func (ui *UIManager) Run(ctx context.Context) error {
 			},
 		},
 		&network.NetworkingConfig{},
+		nil,
 		getLocalUIName(ui.engProps.InstanceID),
 	)
 

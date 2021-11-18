@@ -279,7 +279,7 @@ func (r *RestoreJob) startContainer(ctx context.Context, containerName string, c
 		return "", err
 	}
 
-	newContainer, err := r.dockerClient.ContainerCreate(ctx, containerConfig, hostConfig, &network.NetworkingConfig{},
+	newContainer, err := r.dockerClient.ContainerCreate(ctx, containerConfig, hostConfig, &network.NetworkingConfig{}, nil,
 		containerName)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to create container %s", containerName)

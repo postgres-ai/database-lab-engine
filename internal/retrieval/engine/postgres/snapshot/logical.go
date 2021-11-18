@@ -198,6 +198,7 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 		s.buildContainerConfig(dataDir, patchImage, pwd),
 		hostConfig,
 		&network.NetworkingConfig{},
+		nil,
 		s.patchContainerName(),
 	)
 	if err != nil {
