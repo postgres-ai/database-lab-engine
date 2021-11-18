@@ -11,7 +11,7 @@ import (
 	"os"
 )
 
-var debugMode bool = true
+var debugMode = true
 
 var std = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
 
