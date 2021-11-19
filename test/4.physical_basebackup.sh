@@ -3,11 +3,13 @@ set -euxo pipefail
 
 TAG="${TAG:-"master"}"
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
-SOURCE_HOST="${SOURCE_HOST:-172.17.0.1}"
-SOURCE_PORT="${SOURCE_PORT:-7432}"
-SOURCE_USERNAME="${SOURCE_USERNAME:-postgres}"
-SOURCE_PASSWORD="${SOURCE_PASSWORD:-secretpassword}"
-POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
+
+# Environment variables for replacement rules
+export SOURCE_HOST="${SOURCE_HOST:-172.17.0.1}"
+export SOURCE_PORT="${SOURCE_PORT:-7432}"
+export SOURCE_USERNAME="${SOURCE_USERNAME:-postgres}"
+export SOURCE_PASSWORD="${SOURCE_PASSWORD:-secretpassword}"
+export POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
 
 DIR=${0%/*}
 
@@ -59,18 +61,24 @@ metaDir="$HOME/.dblab/engine/meta"
 # Copy the contents of configuration example 
 mkdir -p "${configDir}"
 
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.example.physical_generic.yml \
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-master}"/configs/config.example.physical_generic.yml \
  --output "${configDir}/server.yml"
 
 # Edit the following options
-sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" "${configDir}/server.yml"
-sed -ri '/^ *telemetry:/,/^ *[^:]*:/s/enabled: true/enabled: false/' "${configDir}/server.yml"
-sed -ri "s/^(\s*)(PGUSER:.*$)/\1PGUSER: ${SOURCE_USERNAME}/" "${configDir}/server.yml"
-sed -ri "s/^(\s*)(PGPASSWORD:.*$)/\1PGPASSWORD: ${SOURCE_PASSWORD}/" "${configDir}/server.yml"
-sed -ri "s/^(\s*)(PGHOST:.*$)/\1PGHOST: ${SOURCE_HOST}/" "${configDir}/server.yml"
-sed -ri "s/^(\s*)(PGPORT:.*$)/\1PGPORT: ${SOURCE_PORT}/" "${configDir}/server.yml"
-# replace postgres version
-sed -ri "s/:13/:${POSTGRES_VERSION}/g"  "${configDir}/server.yml"
+yq eval -i '
+  .global.debug = true |
+  .global.telemetry.enabled = false |
+  .localUI.enabled = false |
+  .databaseContainer.dockerImage = "postgresai/extended-postgres:" + strenv(POSTGRES_VERSION) |
+  .retrieval.spec.physicalRestore.options.envs.PGUSER = strenv(SOURCE_USERNAME) |
+  .retrieval.spec.physicalRestore.options.envs.PGPASSWORD = strenv(SOURCE_PASSWORD) |
+  .retrieval.spec.physicalRestore.options.envs.PGHOST = strenv(SOURCE_HOST) |
+  .retrieval.spec.physicalRestore.options.envs.PGPORT = env(SOURCE_PORT) |
+  .retrieval.spec.physicalSnapshot.options.envs.PGUSER = strenv(SOURCE_USERNAME) |
+  .retrieval.spec.physicalSnapshot.options.envs.PGPASSWORD = strenv(SOURCE_PASSWORD) |
+  .retrieval.spec.physicalSnapshot.options.envs.PGHOST = strenv(SOURCE_HOST) |
+  .retrieval.spec.physicalSnapshot.options.envs.PGPORT = env(SOURCE_PORT)
+' "${configDir}/server.yml"
 
 ## Launch Database Lab server
 sudo docker run \

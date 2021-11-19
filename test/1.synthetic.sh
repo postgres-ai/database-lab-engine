@@ -3,7 +3,9 @@ set -euxo pipefail
 
 TAG=${TAG:-${CI_COMMIT_REF_SLUG}}
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
-POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
+
+# Environment variables for replacement rules
+export POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
 
 DIR=${0%/*}
 
@@ -58,17 +60,18 @@ curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-mast
  --output "${configDir}/server.yml"
 
 # Edit the following options
-sed -ri 's/^(\s*)(debug:.*$)/\1debug: true/' "${configDir}/server.yml"
-sed -ri '/^ *telemetry:/,/^ *[^:]*:/s/enabled: true/enabled: false/' "${configDir}/server.yml"
-sed -ri 's/^(\s*)(- logicalDump$)/\1/' "${configDir}/server.yml"
-sed -ri 's/^(\s*)(- logicalRestore$)/\1/' "${configDir}/server.yml"
-# replace postgres version
-sed -ri "s/:13/:${POSTGRES_VERSION}/g"  "${configDir}/server.yml"
-
+yq eval -i '
+  .global.debug = true |
+  .global.telemetry.enabled = false |
+  .localUI.enabled = false |
+  del(.retrieval.jobs[] | select(. == "logicalDump")) |
+  del(.retrieval.jobs[] | select(. == "logicalRestore")) |
+  .databaseContainer.dockerImage = "postgresai/extended-postgres:" + strenv(POSTGRES_VERSION)
+' "${configDir}/server.yml"
 
 # logerrors is not supported in PostgreSQL 9.6
 if [ "${POSTGRES_VERSION}" = "9.6" ]; then
-  sed -ri 's/^(\s*)(shared_preload_libraries:.*$)/\1shared_preload_libraries: "pg_stat_statements, auto_explain"/' "${configDir}/server.yml"
+  yq eval -i '.databaseConfigs.configs.shared_preload_libraries = "pg_stat_statements, auto_explain"' "${configDir}/server.yml"
 fi
 
 ## Launch Database Lab server

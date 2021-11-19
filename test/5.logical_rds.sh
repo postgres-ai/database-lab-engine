@@ -3,14 +3,16 @@ set -euxo pipefail
 
 TAG="${TAG:-"master"}"
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
-POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
-SOURCE_DBNAME="${SOURCE_DBNAME:-"test"}"
-SOURCE_USERNAME="${SOURCE_USERNAME:-"test_user"}"
-AWS_REGION="${AWS_REGION:-"us-east-2"}"
-RDS_DB_IDENTIFIER="${RDS_DB_IDENTIFIER:-"logical-rds-test1"}"
+
+# Environment variables for replacement rules
+export POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
+export SOURCE_DBNAME="${SOURCE_DBNAME:-"test"}"
+export SOURCE_USERNAME="${SOURCE_USERNAME:-"test_user"}"
+export AWS_REGION="${AWS_REGION:-"us-east-2"}"
+export RDS_DB_IDENTIFIER="${RDS_DB_IDENTIFIER:-"logical-rds-test1"}"
 set +euxo pipefail # ---- do not display secrets
-AWS_ACCESS_KEY="${AWS_ACCESS_KEY:-""}"
-AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-""}"
+export AWS_ACCESS_KEY="${AWS_ACCESS_KEY:-""}"
+export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-""}"
 set -euxo pipefail # ----
 
 DIR=${0%/*}
@@ -28,18 +30,20 @@ metaDir="$HOME/.dblab/engine/meta"
 # Copy the contents of configuration example 
 mkdir -p "${configDir}"
 
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.example.logical_rds_iam.yml \
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-master}"/configs/config.example.logical_rds_iam.yml \
  --output "${configDir}/server.yml"
 
 # Edit the following options
-sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" "${configDir}/server.yml"
-sed -ri '/^ *telemetry:/,/^ *[^:]*:/s/enabled: true/enabled: false/' "${configDir}/server.yml"
-sed -ri "s/^(\s*)(dbname:.*$)/\1dbname: ${SOURCE_DBNAME}/" "${configDir}/server.yml"
-sed -ri "s/^(\s*)(username: test_user.*$)/\1username: \"${SOURCE_USERNAME}\"/" "${configDir}/server.yml"
-sed -ri "s/^(\s*)(awsRegion:.*$)/\1awsRegion: \"${AWS_REGION}\"/" "${configDir}/server.yml"
-sed -ri "s/^(\s*)(dbInstanceIdentifier:.*$)/\1dbInstanceIdentifier: \"${RDS_DB_IDENTIFIER}\"/" "${configDir}/server.yml"
-# replace postgres version
-sed -ri "s/:13/:${POSTGRES_VERSION}/g"  "${configDir}/server.yml"
+yq eval -i '
+  .global.debug = true |
+  .global.telemetry.enabled = false |
+  .localUI.enabled = false |
+  .databaseContainer.dockerImage = "postgresai/extended-postgres:" + strenv(POSTGRES_VERSION) |
+  .retrieval.spec.logicalDump.options.source.connection.dbname = strenv(SOURCE_DBNAME) |
+  .retrieval.spec.logicalDump.options.source.connection.username = strenv(SOURCE_USERNAME) |
+  .retrieval.spec.logicalDump.options.source.rdsIam.awsRegion = strenv(AWS_REGION) |
+  .retrieval.spec.logicalDump.options.source.rdsIam.dbInstanceIdentifier = strenv(RDS_DB_IDENTIFIER)
+' "${configDir}/server.yml"
 
 # Download AWS RDS certificate
 curl https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem \

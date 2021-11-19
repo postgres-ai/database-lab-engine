@@ -3,12 +3,14 @@ set -euxo pipefail
 
 TAG="${TAG:-"master"}"
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
-SOURCE_DBNAME="${SOURCE_DBNAME:-test}"
-SOURCE_HOST="${SOURCE_HOST:-172.17.0.1}"
-SOURCE_PORT="${SOURCE_PORT:-7432}"
-SOURCE_USERNAME="${SOURCE_USERNAME:-postgres}"
-SOURCE_PASSWORD="${SOURCE_PASSWORD:-secretpassword}"
-POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
+
+# Environment variables for replacement rules
+export SOURCE_DBNAME="${SOURCE_DBNAME:-test}"
+export SOURCE_HOST="${SOURCE_HOST:-172.17.0.1}"
+export SOURCE_PORT="${SOURCE_PORT:-7432}"
+export SOURCE_USERNAME="${SOURCE_USERNAME:-postgres}"
+export SOURCE_PASSWORD="${SOURCE_PASSWORD:-secretpassword}"
+export POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
 
 DIR=${0%/*}
 
@@ -55,19 +57,21 @@ metaDir="$HOME/.dblab/engine/meta"
 # Copy the contents of configuration example 
 mkdir -p "${configDir}"
 
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.example.logical_generic.yml \
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-master}"/configs/config.example.logical_generic.yml \
  --output "${configDir}/server.yml"
 
 # Edit the following options
-sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" "${configDir}/server.yml"
-sed -ri '/^ *telemetry:/,/^ *[^:]*:/s/enabled: true/enabled: false/' "${configDir}/server.yml"
-sed -ri "s/^(\s*)(dbname:.*$)/\1dbname: ${SOURCE_DBNAME}/" "${configDir}/server.yml"
-sed -ri "s/^(\s*)(host: 34.56.78.90$)/\1host: ${SOURCE_HOST}/" "${configDir}/server.yml"
-sed -ri "s/^(\s*)(port: 5432$)/\1port: ${SOURCE_PORT}/" "${configDir}/server.yml"
-sed -ri "s/^(\s*)(username: postgres$)/\1username: ${SOURCE_USERNAME}/" "${configDir}/server.yml"
-sed -ri "s/^(\s*)(password:.*$)/\1password: ${SOURCE_PASSWORD}/" "${configDir}/server.yml"
-# replace postgres version
-sed -ri "s/:13/:${POSTGRES_VERSION}/g"  "${configDir}/server.yml"
+yq eval -i '
+  .global.debug = true |
+  .global.telemetry.enabled = false |
+  .localUI.enabled = false |
+  .retrieval.spec.logicalDump.options.source.connection.dbname = strenv(SOURCE_DBNAME) |
+  .retrieval.spec.logicalDump.options.source.connection.host = strenv(SOURCE_HOST) |
+  .retrieval.spec.logicalDump.options.source.connection.port = env(SOURCE_PORT) |
+  .retrieval.spec.logicalDump.options.source.connection.username = strenv(SOURCE_USERNAME) |
+  .retrieval.spec.logicalDump.options.source.connection.password = strenv(SOURCE_PASSWORD) |
+  .databaseContainer.dockerImage = "postgresai/extended-postgres:" + strenv(POSTGRES_VERSION)
+' "${configDir}/server.yml"
 
 ## Launch Database Lab server
 sudo docker run \
