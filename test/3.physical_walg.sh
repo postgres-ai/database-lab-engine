@@ -3,17 +3,18 @@ set -euxo pipefail
 
 TAG="${TAG:-"master"}"
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
-POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
 
-WALG_BACKUP_NAME="${WALG_BACKUP_NAME:-"LATEST"}"
-# AWS
+# Environment variables for replacement rules
+export POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
+export WALG_BACKUP_NAME="${WALG_BACKUP_NAME:-"LATEST"}"
+## AWS
 set +euxo pipefail # ---- do not display secrets
-AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-""}"
-AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-""}"
-WALG_S3_PREFIX="${WALG_S3_PREFIX:-""}"
-# GS
-WALG_GS_PREFIX="${WALG_GS_PREFIX:-""}"
-GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-""}"
+export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-""}"
+export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-""}"
+export WALG_S3_PREFIX="${WALG_S3_PREFIX:-""}"
+## GS
+export WALG_GS_PREFIX="${WALG_GS_PREFIX:-""}"
+export GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-""}"
 # check variables
 [ -z "${WALG_S3_PREFIX}" ] && [ -z "${WALG_GS_PREFIX}" ] && echo "Variables not specified" && exit 1
 set -euxo pipefail # ----
@@ -33,29 +34,37 @@ metaDir="$HOME/.dblab/engine/meta"
 # Copy the contents of configuration example
 mkdir -p "${configDir}"
 
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG}"/configs/config.example.physical_walg.yml \
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-master}"/configs/config.example.physical_walg.yml \
  --output "${configDir}/server.yml"
 
 # Edit the following options
-sed -ri "s/^(\s*)(debug:.*$)/\1debug: true/" "${configDir}/server.yml"
-sed -ri '/^ *telemetry:/,/^ *[^:]*:/s/enabled: true/enabled: false/' "${configDir}/server.yml"
-# set WAL-G envs
-sed -ri "s/^(\s*)(backupName:.*$)/\1backupName: ${WALG_BACKUP_NAME}/" "${configDir}/server.yml"
+yq eval -i '
+  .global.debug = true |
+  .global.telemetry.enabled = false |
+  .localUI.enabled = false |
+  .databaseContainer.dockerImage = "postgresai/extended-postgres:" + strenv(POSTGRES_VERSION) |
+  .retrieval.spec.physicalRestore.options.walg.backupName = strenv(WALG_BACKUP_NAME) |
+  .retrieval.spec.physicalRestore.options.sync.configs.shared_buffers = "512MB" |
+  .retrieval.spec.physicalSnapshot.options.skipStartSnapshot = true
+' "${configDir}/server.yml"
+
 set +euxo pipefail # ---- do not display secrets
 if [ -n "${WALG_S3_PREFIX}" ] ; then
-sed -ri "s/^(\s*)(WALG_GS_PREFIX:.*$)/\1AWS_ACCESS_KEY_ID: \"${AWS_ACCESS_KEY_ID}\" \n          AWS_SECRET_ACCESS_KEY: \"${AWS_SECRET_ACCESS_KEY}\"\n          WALG_S3_PREFIX: \"${WALG_S3_PREFIX}\"/" "${configDir}/server.yml"
-sed -i "/GOOGLE_APPLICATION_CREDENTIALS/d" "${configDir}/server.yml"
+  yq eval -i '
+  del(.retrieval.spec.physicalRestore.options.envs.WALG_GS_PREFIX) |
+  del(.retrieval.spec.physicalRestore.options.envs.GOOGLE_APPLICATION_CREDENTIALS) |
+  .retrieval.spec.physicalRestore.options.envs.AWS_ACCESS_KEY_ID = strenv(AWS_ACCESS_KEY_ID) |
+  .retrieval.spec.physicalRestore.options.envs.AWS_SECRET_ACCESS_KEY = strenv(AWS_SECRET_ACCESS_KEY) |
+  .retrieval.spec.physicalRestore.options.envs.WALG_S3_PREFIX = strenv(WALG_S3_PREFIX)
+' "${configDir}/server.yml"
+
 elif [ -n "${WALG_GS_PREFIX}" ] ; then
-sed -ri "s/^(\s*)(WALG_GS_PREFIX:.*$)/\1WALG_GS_PREFIX: \"${WALG_GS_PREFIX}\"/" "${configDir}/server.yml"
-sed -ri "s/^(\s*)(GOOGLE_APPLICATION_CREDENTIALS:.*$)/\1GOOGLE_APPLICATION_CREDENTIALS: \"${GOOGLE_APPLICATION_CREDENTIALS}\"/" "${configDir}/server.yml"
+  yq eval -i '
+  .retrieval.spec.physicalRestore.options.envs.WALG_GS_PREFIX = strenv(WALG_GS_PREFIX) |
+  .retrieval.spec.physicalRestore.options.envs.GOOGLE_APPLICATION_CREDENTIALS = strenv(GOOGLE_APPLICATION_CREDENTIALS)
+' "${configDir}/server.yml"
 fi
 set -euxo pipefail # ----
-# replace postgres version
-sed -ri "s/:13/:${POSTGRES_VERSION}/g"  "${configDir}/server.yml"
-# reduce shared_buffers (optional)
-sed -ri "s/^(\s*)(shared_buffers:.*$)/\1shared_buffers: 512MB/" "${configDir}/server.yml"
-# skip snapshotting on start to replace some Postgres parameters after PGDATA receiving
-sed -ri "s/^(\s*)(skipStartSnapshot:.*$)/\1skipStartSnapshot: true/" "${configDir}/server.yml"
 
 ## Launch Database Lab server
 sudo docker run \
