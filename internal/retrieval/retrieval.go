@@ -141,7 +141,8 @@ func (r *Retrieval) Run(ctx context.Context) error {
 	log.Msg("Pool to perform data retrieving: ", fsManager.Pool().Name)
 
 	if err := r.run(runCtx, fsManager); err != nil {
-		r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{Level: models.RefreshFailed, Message: err.Error()})
+		r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{Level: models.RefreshFailed,
+			Message: fmt.Sprintf("Failed to perform initial data retrieving: %s", r.State.Mode)})
 		return err
 	}
 
@@ -386,7 +387,8 @@ func (r *Retrieval) setupScheduler(ctx context.Context) {
 func (r *Retrieval) refreshFunc(ctx context.Context) func() {
 	return func() {
 		if err := r.fullRefresh(ctx); err != nil {
-			r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{Level: models.RefreshFailed, Message: err.Error()})
+			r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{Level: models.RefreshFailed,
+				Message: "Failed to run full-refresh"})
 			log.Err("Failed to run full-refresh: ", err)
 		}
 	}

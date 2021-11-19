@@ -376,18 +376,18 @@ func (d *DumpJob) getDBList(ctx context.Context) (map[string]DumpDefinition, err
 
 	querier, err := pgx.Connect(ctx, connStr)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to connect to DB: %s", connStr)
+		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}
 
 	rows, err := querier.Query(ctx, d.dumper.GetDatabaseListQuery())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to perform query listing databases")
+		return nil, fmt.Errorf("failed to perform query listing databases: %w", err)
 	}
 
 	for rows.Next() {
 		var dbName string
 		if err := rows.Scan(&dbName); err != nil {
-			return nil, errors.Wrap(err, "failed to scan next row in database list result set")
+			return nil, fmt.Errorf("failed to scan next row in database list result set: %w", err)
 		}
 
 		dbList[dbName] = DumpDefinition{}
