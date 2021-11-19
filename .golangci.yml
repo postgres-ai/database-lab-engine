@@ -14,14 +14,10 @@ linters-settings:
     check-type-assertions: false
     check-blank: false
     exclude: ./errcheck_excludes.txt
-  golint:
-    min-confidence: 0.8
   gofmt:
     simplify: true
   goimports:
     local-prefixes: gitlab.com/postgres-ai/database-lab
-  maligned:
-    suggest-new: true
   dupl:
     threshold: 120
   goconst:
@@ -30,6 +26,12 @@ linters-settings:
   lll:
     line-length: 140
     tab-width: 1
+  gomnd:
+    settings:
+      mnd:
+        ignored-functions: strconv.Format*,os.*
+  revive:
+    min-confidence: 0.8
   unused:
     check-exported: false
   unparam:
@@ -59,16 +61,15 @@ linters:
     - goconst
     - gocritic
     - goimports
-    - golint
     - gomnd
     - gosimple
     - govet
     - ineffassign
     - lll
-    - maligned
     - megacheck
     - misspell
     - prealloc
+    - revive
     - structcheck
     - stylecheck
     - unconvert
