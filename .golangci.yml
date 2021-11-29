@@ -13,9 +13,20 @@ linters-settings:
   errcheck:
     check-type-assertions: false
     check-blank: false
-    exclude: ./errcheck_excludes.txt
+    exclude-functions:
+      - (*os.File).Close
+  errorlint:
+    errorf: true
+    asserts: true
+    comparison: true
   gofmt:
     simplify: true
+  gofumpt:
+    lang-version: "1.17"
+    extra-rules: false
+  gosimple:
+    go: "1.17"
+    checks: [ "all" ]
   goimports:
     local-prefixes: gitlab.com/postgres-ai/database-lab
   dupl:
@@ -29,7 +40,7 @@ linters-settings:
   gomnd:
     settings:
       mnd:
-        ignored-functions: strconv.Format*,os.*
+        ignored-functions: strconv.Format*,os.*,strconv.Parse*,strings.SplitN,bytes.SplitN
   revive:
     min-confidence: 0.8
   unused:
@@ -50,6 +61,8 @@ linters-settings:
       - hugeParam
     enabled-tags:
       - performance
+    disabled-tags:
+      - experimental
 
 linters:
   enable:
@@ -99,5 +112,3 @@ issues:
   exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
-
-  new-from-rev: 9e951ebe

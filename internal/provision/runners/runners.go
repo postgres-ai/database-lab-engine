@@ -30,10 +30,12 @@ const (
 	sudoParams = "--non-interactive"
 )
 
+// Runner runs commands.
 type Runner interface {
 	Run(string, ...bool) (string, error)
 }
 
+// RunnerError represents a runner error.
 type RunnerError struct {
 	Msg        string
 	ExitStatus int
@@ -51,12 +53,10 @@ func NewRunnerError(command string, stderr string, e error) error {
 	case (*exec.ExitError):
 		// SO: https://stackoverflow.com/questions/10385551/get-exit-code-go.
 		// The program has exited with an exit code != 0
-
 		// This works on both Unix and Windows. Although package
 		// syscall is generally platform dependent, WaitStatus is
 		// defined for both Unix and Windows and in both cases has
 		// an ExitStatus() method with the same signature.
-
 		if status, ok := err.Sys().(syscall.WaitStatus); ok {
 			exitStatus = status.ExitStatus()
 		}
@@ -72,11 +72,12 @@ func NewRunnerError(command string, stderr string, e error) error {
 	}
 }
 
+// Error returns runner error.
 func (e RunnerError) Error() string {
 	return e.Msg
 }
 
-// Local.
+// LocalRunner represents implementation of a local runner.
 type LocalRunner struct {
 	UseSudo bool
 }
@@ -90,6 +91,7 @@ func NewLocalRunner(useSudo bool) *LocalRunner {
 	return r
 }
 
+// Run executes command.
 func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 	command = strings.Trim(command, " \n")
 	if len(command) == 0 {
@@ -104,9 +106,6 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 		log.Dbg(fmt.Sprintf(`Run(Local): "%s"`, logCommand))
 	}
 
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-
 	if runtime.GOOS == "windows" {
 		return "", errors.New("Windows is not supported")
 	}
@@ -116,6 +115,11 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 	}
 
 	cmd := exec.Command("/bin/bash", "-c", command)
+
+	var (
+		out    bytes.Buffer
+		stderr bytes.Buffer
+	)
 
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr

@@ -293,6 +293,11 @@ func (p *Profiler) RenderStat() string {
 	return p.out.String()
 }
 
+const (
+	percentColumnSize = 6
+	timingColumnSize  = 12
+)
+
 // printHeader prints stats header.
 func (p *Profiler) printHeader() {
 	p.out.WriteString(fmt.Sprintf("%% time      seconds wait_event\n"))
@@ -320,14 +325,16 @@ func (p *Profiler) printStat() {
 
 	// Print stats and calculating totals.
 	for _, e := range eventsList {
-		p.out.WriteString(fmt.Sprintf("%-*.2f %*.6f %s\n", 6, p.waitEventPercents[e.waitEventName], 12, e.waitEventValue, e.waitEventName))
+		p.out.WriteString(fmt.Sprintf("%-*.2f %*.6f %s\n", percentColumnSize, p.waitEventPercents[e.waitEventName],
+			timingColumnSize, e.waitEventValue, e.waitEventName))
+
 		totalPct += p.waitEventPercents[e.waitEventName]
 		totalTime += e.waitEventValue
 	}
 
 	// Print totals.
 	p.out.WriteString("------ ------------ -----------------------------\n")
-	p.out.WriteString(fmt.Sprintf("%-*.2f %*.6f\n", 6, totalPct, 12, totalTime))
+	p.out.WriteString(fmt.Sprintf("%-*.2f %*.6f\n", percentColumnSize, totalPct, timingColumnSize, totalTime))
 }
 
 // EstimateTime estimates time.

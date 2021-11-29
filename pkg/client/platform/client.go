@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
