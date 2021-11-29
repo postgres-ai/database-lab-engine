@@ -32,9 +32,7 @@ sudo apt-get install -y \
 
 # Install yq
 if ! command -v yq &> /dev/null; then
-  sudo curl -L https://github.com/mikefarah/yq/releases/download/v4.14.2/yq_linux_amd64 -o /usr/bin/yq && sudo chmod +x /usr/bin/yq
+  sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CC86BB64 && \
+  sudo add-apt-repository ppa:rmescandon/yq && \
+  sudo apt-get update && sudo apt-get install yq -y
 fi
-# TODO: Uncomment after upgrade the runner machine
-# sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CC86BB64
-# sudo add-apt-repository ppa:rmescandon/yq
-# sudo apt-get update && sudo apt-get install yq -y

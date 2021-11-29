@@ -3,8 +3,14 @@ set -euxo pipefail
 
 TAG="${TAG:-"master"}"
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
+DLE_SERVER_NAME="dblab_server_test"
 
 # Environment variables for replacement rules
+export DLE_TEST_MOUNT_DIR="/var/lib/test/dblab"
+export DLE_TEST_POOL_NAME="test_dblab_pool"
+export DLE_SERVER_PORT=${DLE_SERVER_PORT:-12345}
+export DLE_PORT_POOL_FROM=${DLE_PORT_POOL_FROM:-9000}
+export DLE_PORT_POOL_TO=${DLE_PORT_POOL_TO:-9100}
 export POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
 export SOURCE_DBNAME="${SOURCE_DBNAME:-"test"}"
 export SOURCE_USERNAME="${SOURCE_USERNAME:-"test_user"}"
@@ -38,12 +44,23 @@ yq eval -i '
   .global.debug = true |
   .global.telemetry.enabled = false |
   .localUI.enabled = false |
+  .server.port = env(DLE_SERVER_PORT) |
+  .poolManager.mountDir = env(DLE_TEST_MOUNT_DIR) |
+  .provision.portPool.from = env(DLE_PORT_POOL_FROM) |
+  .provision.portPool.to = env(DLE_PORT_POOL_TO) |
   .databaseContainer.dockerImage = "postgresai/extended-postgres:" + strenv(POSTGRES_VERSION) |
+  .retrieval.spec.logicalDump.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump" |
   .retrieval.spec.logicalDump.options.source.connection.dbname = strenv(SOURCE_DBNAME) |
   .retrieval.spec.logicalDump.options.source.connection.username = strenv(SOURCE_USERNAME) |
   .retrieval.spec.logicalDump.options.source.rdsIam.awsRegion = strenv(AWS_REGION) |
-  .retrieval.spec.logicalDump.options.source.rdsIam.dbInstanceIdentifier = strenv(RDS_DB_IDENTIFIER)
+  .retrieval.spec.logicalDump.options.source.rdsIam.dbInstanceIdentifier = strenv(RDS_DB_IDENTIFIER) |
+  .retrieval.spec.logicalRestore.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump"
 ' "${configDir}/server.yml"
+
+# logerrors is not supported in PostgreSQL 9.6
+if [ "${POSTGRES_VERSION}" = "9.6" ]; then
+  yq eval -i '.databaseConfigs.configs.shared_preload_libraries = "pg_stat_statements, auto_explain"' "${configDir}/server.yml"
+fi
 
 # Download AWS RDS certificate
 curl https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem \
@@ -51,15 +68,16 @@ curl https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem \
 
 ## Run Database Lab Engine
 sudo docker run \
-  --name dblab_server \
+  --name ${DLE_SERVER_NAME} \
   --label dblab_control \
+  --label dblab_test \
   --privileged \
-  --publish 2345:2345 \
+  --publish ${DLE_SERVER_PORT}:${DLE_SERVER_PORT} \
   --volume "${configDir}":/home/dblab/configs:ro \
   --volume "${metaDir}":/home/dblab/meta \
-  --volume /var/lib/dblab/dblab_pool/dump:/var/lib/dblab/dblab_pool/dump \
+  --volume ${DLE_TEST_MOUNT_DIR}/${DLE_TEST_POOL_NAME}/dump:${DLE_TEST_MOUNT_DIR}/${DLE_TEST_POOL_NAME}/dump \
+  --volume ${DLE_TEST_MOUNT_DIR}:${DLE_TEST_MOUNT_DIR}/:rshared \
   --volume /var/run/docker.sock:/var/run/docker.sock \
-  --volume /var/lib/dblab:/var/lib/dblab/:rshared \
   --volume /sys/kernel/debug:/sys/kernel/debug:rw \
   --volume /lib/modules:/lib/modules:ro \
   --volume /proc:/host_proc:ro \
@@ -71,11 +89,11 @@ sudo docker run \
   "${IMAGE2TEST}"
 
 # Check the Database Lab Engine logs
-sudo docker logs dblab_server -f 2>&1 | awk '{print "[CONTAINER dblab_server]: "$0}' &
+sudo docker logs ${DLE_SERVER_NAME} -f 2>&1 | awk '{print "[CONTAINER dblab_server]: "$0}' &
 
 ### Waiting for the Database Lab Engine initialization.
 for i in {1..30}; do
-  curl http://localhost:2345 > /dev/null 2>&1 && break || echo "dblab is not ready yet"
+  curl http://localhost:${DLE_SERVER_PORT} > /dev/null 2>&1 && break || echo "dblab is not ready yet"
   sleep 10
 done
 
@@ -91,7 +109,7 @@ dblab --version
 # Initialize CLI configuration
 dblab init \
   --environment-id=test \
-  --url=http://localhost:2345 \
+  --url=http://localhost:${DLE_SERVER_PORT} \
   --token=secret_token \
   --insecure
 
@@ -107,14 +125,14 @@ dblab clone create \
 
 # Connect to a clone and check the available table
 PGPASSWORD=secret_password psql \
-  "host=localhost port=6000 user=dblab_user_1 dbname=${SOURCE_DBNAME}" -c '\dt+'
+  "host=localhost port=${DLE_PORT_POOL_FROM} user=dblab_user_1 dbname=${SOURCE_DBNAME}" -c '\dt+'
 
 # Drop table
 PGPASSWORD=secret_password psql \
-  "host=localhost port=6000 user=dblab_user_1 dbname=${SOURCE_DBNAME}" -c 'drop table pgbench_accounts'
+  "host=localhost port=${DLE_PORT_POOL_FROM} user=dblab_user_1 dbname=${SOURCE_DBNAME}" -c 'drop table pgbench_accounts'
 
 PGPASSWORD=secret_password psql \
-  "host=localhost port=6000 user=dblab_user_1 dbname=${SOURCE_DBNAME}" -c '\dt+'
+  "host=localhost port=${DLE_PORT_POOL_FROM} user=dblab_user_1 dbname=${SOURCE_DBNAME}" -c '\dt+'
 
 ## Reset clone
 dblab clone reset testclone
@@ -124,11 +142,14 @@ dblab clone status testclone
 
 # Check the database objects (everything should be the same as when we started)
 PGPASSWORD=secret_password psql \
-  "host=localhost port=6000 user=dblab_user_1 dbname=${SOURCE_DBNAME}" -c '\dt+'
+  "host=localhost port=${DLE_PORT_POOL_FROM} user=dblab_user_1 dbname=${SOURCE_DBNAME}" -c '\dt+'
 
 ### Step 4. Destroy clone
 dblab clone destroy testclone
 dblab clone list
+
+## Stop DLE.
+sudo docker stop ${DLE_SERVER_NAME}
 
 ### Finish. clean up
 source "${DIR}/_cleanup.sh"
