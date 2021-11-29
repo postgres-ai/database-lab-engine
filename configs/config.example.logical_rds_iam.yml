@@ -90,6 +90,10 @@ poolManager:
   # Snapshots with this suffix are considered preliminary. They are not supposed to be accessible to end-users.
   preSnapshotSuffix: "_pre"
 
+  # Force selection of a working pool inside the `mountDir`.
+  # It is an empty string by default which means that the standard selection and rotation mechanism will be applied.
+  selectedPool: ""
+
 # Configure database containers
 databaseContainer: &db_container
   # Database Lab provisions thin clones using Docker containers and uses auxiliary containers.

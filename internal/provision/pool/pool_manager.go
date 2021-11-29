@@ -6,6 +6,7 @@ package pool
 
 import (
 	"container/list"
+	"fmt"
 	"os"
 	"path"
 	"sync"
@@ -46,6 +47,7 @@ type Config struct {
 	SocketSubDir      string `yaml:"socketSubDir"`
 	ObserverSubDir    string `yaml:"observerSubDir"`
 	PreSnapshotSuffix string `yaml:"preSnapshotSuffix"`
+	SelectedPool      string `yaml:"selectedPool"`
 }
 
 // NewPoolManager creates a new pool manager.
@@ -265,6 +267,11 @@ func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, 
 		dataPath := path.Join(pm.cfg.MountDir, entry.Name())
 
 		log.Msg("Discovering: ", dataPath)
+
+		if pm.cfg.SelectedPool != "" && pm.cfg.SelectedPool != entry.Name() {
+			log.Msg(fmt.Sprintf("Skip the entry %q as it doesn't match with the selected pool %s", entry.Name(), pm.cfg.SelectedPool))
+			continue
+		}
 
 		fsType, err := pm.getFSInfo(dataPath)
 		if err != nil {
