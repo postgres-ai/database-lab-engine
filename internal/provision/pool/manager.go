@@ -85,7 +85,7 @@ func NewManager(runner runners.Runner, config ManagerConfig) (FSManager, error) 
 		}
 
 	default:
-		return nil, errors.New(fmt.Sprintf(`unsupported thin-clone manager specified: "%s"`, config.Pool.Mode))
+		return nil, fmt.Errorf(`unsupported thin-clone manager specified: "%s"`, config.Pool.Mode)
 	}
 
 	log.Dbg(fmt.Sprintf(`Using "%s" thin-clone manager.`, config.Pool.Mode))

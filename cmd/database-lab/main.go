@@ -75,7 +75,8 @@ func main() {
 
 	pm := pool.NewPoolManager(&cfg.PoolManager, runner)
 	if err := pm.ReloadPools(); err != nil {
-		log.Fatal(err.Error())
+		log.Err(err.Error())
+		return
 	}
 
 	internalNetworkID, err := networks.Setup(ctx, dockerCLI, engProps.InstanceID, engProps.ContainerName)

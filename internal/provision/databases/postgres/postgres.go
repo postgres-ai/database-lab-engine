@@ -131,7 +131,6 @@ func Stop(r runners.Runner, p *resources.Pool, name string) error {
 		}
 
 		log.Msg("docker container was not found, ignore", err)
-
 	}
 
 	if _, err := r.Run("rm -rf " + p.SocketCloneDir(name) + "/*"); err != nil {
