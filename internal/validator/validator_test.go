@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 )
 
 func TestValidationCloneRequest(t *testing.T) {

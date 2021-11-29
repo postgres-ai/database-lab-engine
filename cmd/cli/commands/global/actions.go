@@ -13,9 +13,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 
-	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands"
-	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands/config"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/config"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 func initCLI(c *cli.Context) error {

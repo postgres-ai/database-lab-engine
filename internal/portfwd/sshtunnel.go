@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 // SSHTunnel describes a tunnel structure.

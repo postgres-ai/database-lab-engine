@@ -13,7 +13,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands"
 )
 
 // headers of a config list.

@@ -13,13 +13,13 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/runci/source"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/runci/source"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/platform"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/srv/mw"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/mw"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 // Server defines an HTTP server of the CI Migration Checker.

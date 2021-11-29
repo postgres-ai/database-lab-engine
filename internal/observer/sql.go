@@ -14,10 +14,10 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools/defaults"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
 // InitConnection creates a new connection to the clone database.

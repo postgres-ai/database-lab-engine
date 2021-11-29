@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/rds/rdsutils"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 const (

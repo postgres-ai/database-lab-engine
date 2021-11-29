@@ -14,7 +14,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/portfwd"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/portfwd"
 )
 
 // BuildTunnel creates a new instance of SSH tunnel.

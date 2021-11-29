@@ -12,8 +12,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/estimator"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 // EstimatorClient defines a client to perform timing estimation.

@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/stretchr/testify/assert"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 )
 
 func TestSystemVolumes(t *testing.T) {

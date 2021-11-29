@@ -16,8 +16,8 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 const (

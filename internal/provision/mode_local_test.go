@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/pool"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
 func TestPortAllocation(t *testing.T) {

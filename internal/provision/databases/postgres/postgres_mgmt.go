@@ -11,8 +11,8 @@ import (
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 // ResetPasswordsQuery provides a template for a reset password query.

@@ -8,9 +8,9 @@ package snapshot
 import (
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/runners"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/dbmarker"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 func extractDataStateAt(dbMarker *dbmarker.Marker) string {

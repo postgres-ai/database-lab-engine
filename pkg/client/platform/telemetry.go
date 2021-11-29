@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 // TelemetryEvent defines telemetry events.

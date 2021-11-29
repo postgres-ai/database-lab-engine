@@ -8,9 +8,9 @@ package cloning
 import (
 	"time"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
 // CloneWrapper represents a cloning service wrapper.

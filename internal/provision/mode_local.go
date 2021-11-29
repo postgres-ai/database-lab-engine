@@ -21,17 +21,17 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/databases/postgres"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/docker"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/pool"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/runners"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/thinclones/zfs"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/pglog"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/databases/postgres"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/docker"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/zfs"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/pglog"
 )
 
 const (

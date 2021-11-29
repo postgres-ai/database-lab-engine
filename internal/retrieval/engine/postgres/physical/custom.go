@@ -5,7 +5,7 @@
 package physical
 
 import (
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
 )
 
 const (

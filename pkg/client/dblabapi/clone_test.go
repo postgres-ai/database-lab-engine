@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
 func TestClientListClones(t *testing.T) {

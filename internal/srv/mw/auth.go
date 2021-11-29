@@ -10,8 +10,8 @@ import (
 	"crypto/subtle"
 	"net/http"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/platform"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/srv/api"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 )
 
 // VerificationTokenHeader defines a verification token name that should be passed in request headers.

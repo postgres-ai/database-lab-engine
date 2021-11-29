@@ -16,11 +16,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools/defaults"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools/fs"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/fs"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
 const (

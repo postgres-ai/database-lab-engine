@@ -19,9 +19,9 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/pool"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/pglog"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/pglog"
 )
 
 const (

@@ -15,12 +15,12 @@ import (
 
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/runners"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/thinclones"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
 const (

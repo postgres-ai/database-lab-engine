@@ -8,7 +8,7 @@ package validator
 import (
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 )
 
 // Service provides a validation service.

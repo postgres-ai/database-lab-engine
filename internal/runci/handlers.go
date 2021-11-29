@@ -20,18 +20,18 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/runci/source"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/runci/source"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/observer"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools/cont"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/srv/api"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 
-	dblab_types "gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
-	"gitlab.com/postgres-ai/database-lab/v2/version"
+	dblab_types "gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
 const (

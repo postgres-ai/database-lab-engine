@@ -15,11 +15,11 @@ import (
 	_ "github.com/lib/pq" // Register Postgres database driver.
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/databases/postgres/pgconfig"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/docker"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/runners"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/databases/postgres/pgconfig"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/docker"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 const (

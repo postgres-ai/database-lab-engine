@@ -15,17 +15,17 @@ import (
 	"github.com/jackc/pgtype/pgxtype"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/estimator"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/observer"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/srv/api"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/telemetry"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/platform"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
-	"gitlab.com/postgres-ai/database-lab/v2/version"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/platform"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
 func (s *Server) getInstanceStatus(w http.ResponseWriter, r *http.Request) {

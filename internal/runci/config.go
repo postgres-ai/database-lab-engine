@@ -11,11 +11,11 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/runci/source"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/runci/source"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/platform"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
 const (

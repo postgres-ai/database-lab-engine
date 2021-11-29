@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
 // PoolStatus represents a pool status.

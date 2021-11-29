@@ -32,8 +32,8 @@ import (
 	"github.com/sethvargo/go-password/password"
 	"github.com/shirou/gopsutil/host"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools/defaults"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 const (

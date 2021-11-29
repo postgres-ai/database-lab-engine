@@ -14,7 +14,7 @@ import (
 	"strings"
 	"syscall"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 
 	"github.com/pkg/errors"
 )

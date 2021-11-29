@@ -8,8 +8,8 @@ package config
 import (
 	"github.com/docker/docker/client"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/dbmarker"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
 )
 
 // Config describes of data retrieval jobs.

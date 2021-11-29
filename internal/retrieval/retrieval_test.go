@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 )
 
 func TestParallelJobSpecs(t *testing.T) {
