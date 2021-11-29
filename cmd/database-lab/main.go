@@ -191,7 +191,7 @@ func main() {
 
 	shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, engProps, pm.First().Pool())
 	cloningSvc.SaveClonesState()
-	tm.SendEvent(ctx, telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
+	tm.SendEvent(context.Background(), telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
 }
 
 func getEngineProperties(ctx context.Context, dockerCLI *client.Client, cfg *config.Config) (global.EngineProps, error) {

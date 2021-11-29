@@ -16,7 +16,7 @@ import (
 type TelemetryEvent struct {
 	InstanceID string      `json:"instance_id"`
 	EventType  string      `json:"event_type"`
-	Payload    interface{} `json:"payload"`
+	Payload    interface{} `json:"event_data"`
 }
 
 // SendTelemetryEvent makes an HTTP request to send a telemetry event to the Platform.
