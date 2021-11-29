@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/telemetry"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 )
 
 const (

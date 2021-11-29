@@ -20,18 +20,18 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/databases/postgres/pgconfig"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/config"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/dbmarker"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools/cont"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools/health"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools/pgtool"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/options"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/databases/postgres/pgconfig"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/pgtool"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 const (

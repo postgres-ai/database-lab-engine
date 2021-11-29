@@ -10,7 +10,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi"
 )
 
 // CLI configuration keys.

@@ -21,15 +21,15 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/telemetry"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/util"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/util/pglog"
-	"gitlab.com/postgres-ai/database-lab/v2/version"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/pglog"
+	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
 const (

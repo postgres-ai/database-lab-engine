@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 
-	"gitlab.com/postgres-ai/database-lab/v2/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands"
 )
 
 // CLIConfig defines a format of CLI configuration.

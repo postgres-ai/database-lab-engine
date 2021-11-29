@@ -8,15 +8,15 @@ package postgres
 import (
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/pool"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/components"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/config"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/logical"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/physical"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/snapshot"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/telemetry"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/components"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/logical"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/physical"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/snapshot"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 )
 
 const (

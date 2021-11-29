@@ -1,4 +1,4 @@
-module gitlab.com/postgres-ai/database-lab/v2
+module gitlab.com/postgres-ai/database-lab/v3
 
 go 1.17
 

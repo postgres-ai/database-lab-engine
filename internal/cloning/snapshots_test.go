@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
 func (s *BaseCloningSuite) TestLatestSnapshot() {

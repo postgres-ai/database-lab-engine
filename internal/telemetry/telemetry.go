@@ -9,9 +9,9 @@ import (
 	"context"
 	"fmt"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/platform"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/config/global"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/platform"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 const (

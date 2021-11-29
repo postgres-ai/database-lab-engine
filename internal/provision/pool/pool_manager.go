@@ -13,14 +13,14 @@ import (
 
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/runners"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/thinclones/lvm"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/thinclones/zfs"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/dbmarker"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/engine/postgres/tools"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/telemetry"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/lvm"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/zfs"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 const (

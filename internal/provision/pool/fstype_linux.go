@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"syscall"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/thinclones/lvm"
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/thinclones/zfs"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/lvm"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/zfs"
 )
 
 var fsTypeToString = map[string]string{

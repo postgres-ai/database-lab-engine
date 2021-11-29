@@ -8,8 +8,8 @@ package observer
 import (
 	"time"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/client/dblabapi/types"
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
 // Session describes a session of service monitoring.

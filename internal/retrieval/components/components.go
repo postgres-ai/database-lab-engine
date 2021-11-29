@@ -8,7 +8,7 @@ package components
 import (
 	"context"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 )
 
 // JobBuilder builds jobs.

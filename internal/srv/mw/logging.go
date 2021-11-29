@@ -7,7 +7,7 @@ package mw
 import (
 	"net/http"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 // Logging logs the incoming request.

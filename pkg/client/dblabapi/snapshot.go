@@ -12,7 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v2/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
 // ListSnapshots provides a snapshot list.

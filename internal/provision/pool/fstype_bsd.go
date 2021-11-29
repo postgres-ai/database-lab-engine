@@ -11,7 +11,7 @@ package pool
 import (
 	"syscall"
 
-	"gitlab.com/postgres-ai/database-lab/v2/internal/provision/thinclones/lvm"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/lvm"
 )
 
 func (pm *Manager) getFSInfo(path string) (string, error) {
