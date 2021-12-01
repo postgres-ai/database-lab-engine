@@ -25,12 +25,12 @@ lint:
 .only_var_template: &only_tag_release
   only:
     variables:
-      - $CI_COMMIT_TAG =~ /^[0-9.]+$/
+      - $CI_COMMIT_TAG =~ /^v[0-9.]+$/
 
 .only_var_template: &only_tag_rc
   only:
     variables:
-      - $CI_COMMIT_TAG =~ /^[0-9.]+[\-_]*[a-zA-Z]+[a-zA-Z0-9.\-_]*[a-zA-Z0-9]+$/
+      - $CI_COMMIT_TAG =~ /^v[0-9.]+[\-_]*[a-zA-Z]+[a-zA-Z0-9.\-_]*[a-zA-Z0-9]+$/
 
 .only_var_template: &only_master
   only:
