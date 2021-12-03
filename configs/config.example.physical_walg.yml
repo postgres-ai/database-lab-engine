@@ -108,7 +108,7 @@ databaseContainer: &db_container
   # Any custom or official Docker image that runs Postgres. Our Dockerfile
   # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
   # is recommended in case if customization is needed.
-  dockerImage: "postgresai/extended-postgres:13"
+  dockerImage: "postgresai/extended-postgres:14"
 
   # Custom parameters for containers with PostgreSQL, see
   # https://docs.docker.com/engine/reference/run/#runtime-constraints-on-resources
