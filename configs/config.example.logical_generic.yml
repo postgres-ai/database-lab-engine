@@ -30,7 +30,7 @@ localUI:
   enabled: true
 
   # Docker image of the UI application.
-  dockerImage: "postgresai/basic-ui:latest"
+  dockerImage: "postgresai/local-ui:latest"
 
   # Host or IP address, from which the Local UI container accepts HTTP connections.
   # By default, use a loop-back to accept only local connections.
