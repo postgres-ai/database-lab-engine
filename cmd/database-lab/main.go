@@ -176,7 +176,13 @@ func main() {
 				return
 			}
 
-			log.Msg("Local UI has started successfully")
+			defaultHost := "0.0.0.0"
+
+			if cfg.LocalUI.Host != "" {
+				defaultHost = cfg.LocalUI.Host
+			}
+
+			log.Msg(fmt.Sprintf("Local UI has started successfully on %s:%d.", defaultHost, cfg.LocalUI.Port))
 		}()
 	}
 
