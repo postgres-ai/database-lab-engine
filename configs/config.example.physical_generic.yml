@@ -15,12 +15,10 @@ server:
   # their personal tokens generated on the Platform. In this case,
   # it is recommended to keep "verificationToken" secret, known
   # only to the administrator of the Database Lab instance.
+  #
+  # Database Lab Engine can be running with an empty verification token, which is not recommended.
+  # In this case, the DLE API and the UI application will not require any credentials.
   verificationToken: "secret_token"
-
-  # The host to which the Database Lab server accepts HTTP connections.
-  # By default uses an empty string to accept connections to all network interfaces.
-  # Keep it default when running inside a Docker container.
-  host: ""
 
   # HTTP server port. Default: 2345.
   port: 2345
