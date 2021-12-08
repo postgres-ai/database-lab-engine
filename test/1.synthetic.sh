@@ -35,18 +35,27 @@ sudo docker run \
   --detach \
   postgres:"${POSTGRES_VERSION}"-alpine
 
+check_database_readiness(){
+  sudo docker exec dblab_pg_initdb psql -U postgres -c 'select' > /dev/null 2>&1
+  return $?
+}
+
 for i in {1..300}; do
-  sudo docker exec dblab_pg_initdb psql -U postgres -c 'select' > /dev/null 2>&1  && break || echo "test database is not ready yet"
+  check_database_readiness && break || echo "test database is not ready yet"
   sleep 1
 done
+
+check_database_readiness || (echo "test database is not ready" && exit 1)
 
 # Restart container explicitly after initdb to make sure that the server will not receive a shutdown request and queries will not be interrupted.
 sudo docker restart dblab_pg_initdb
 
 for i in {1..300}; do
-  sudo docker exec dblab_pg_initdb psql -U postgres -c 'select' > /dev/null 2>&1  && break || echo "test database is not ready yet"
+  check_database_readiness && break || echo "test database is not ready yet"
   sleep 1
 done
+
+check_database_readiness || (echo "test database is not ready" && exit 1)
 
 # Create the test database
 sudo docker exec dblab_pg_initdb psql -U postgres -c 'create database test'
@@ -109,12 +118,18 @@ sudo docker run \
 # Check the Database Lab Engine logs
 sudo docker logs ${DLE_SERVER_NAME} -f 2>&1 | awk '{print "[CONTAINER ${DLE_SERVER_PORT}]: "$0}' &
 
+check_dle_readiness(){
+  curl http://localhost:${DLE_SERVER_PORT} > /dev/null 2>&1
+  return $?
+}
+
 ### Waiting for the Database Lab Engine initialization.
 for i in {1..300}; do
-  curl http://localhost:${DLE_SERVER_PORT} > /dev/null 2>&1 && break || echo "dblab is not ready yet"
+  check_dle_readiness && break || echo "Database Lab Engine is not ready yet"
   sleep 1
 done
 
+check_dle_readiness || (echo "Database Lab Engine is not ready" && exit 1)
 
 ### Step 3. Start cloning
 
@@ -168,11 +183,13 @@ PGPASSWORD=secret_password psql \
 ## Restart DLE.
 sudo docker restart ${DLE_SERVER_NAME}
 
-### Waiting for the Database Lab Engine to start.
+### Waiting for the Database Lab Engine initialization.
 for i in {1..300}; do
-  curl http://localhost:${DLE_SERVER_PORT} > /dev/null 2>&1 && break || echo "dblab is not ready yet"
+  check_dle_readiness && break || echo "Database Lab Engine is not ready yet"
   sleep 1
 done
+
+check_dle_readiness || (echo "Database Lab Engine is not ready" && exit 1)
 
 ## Reset clone.
 dblab clone reset testclone
