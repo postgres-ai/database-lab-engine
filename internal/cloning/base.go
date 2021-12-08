@@ -105,6 +105,8 @@ func (c *Base) Run(ctx context.Context) error {
 		log.Err("Failed to load stored sessions:", err)
 	}
 
+	c.restartCloneContainers(ctx)
+
 	c.filterRunningClones(ctx)
 
 	if err := c.cleanupInvalidClones(); err != nil {

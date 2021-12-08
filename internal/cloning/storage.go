@@ -46,6 +46,31 @@ func (c *Base) loadSessionState(sessionsPath string) error {
 
 	return json.Unmarshal(data, &c.clones)
 }
+func (c *Base) restartCloneContainers(ctx context.Context) {
+	c.cloneMutex.Lock()
+	defer c.cloneMutex.Unlock()
+
+	for _, wrapper := range c.clones {
+		if wrapper.Clone == nil || wrapper.Session == nil {
+			continue
+		}
+
+		cloneName := util.GetCloneName(wrapper.Session.Port)
+		if c.provision.IsCloneRunning(ctx, cloneName) {
+			continue
+		}
+
+		if err := c.provision.ReconnectClone(ctx, cloneName); err != nil {
+			log.Err(fmt.Sprintf("Clone container %s cannot be reconnected to the internal network: %s", cloneName, err))
+		}
+
+		if err := c.provision.StartCloneContainer(ctx, cloneName); err != nil {
+			log.Err(fmt.Sprintf("Clone container %s cannot start: %s", cloneName, err))
+		}
+
+		log.Dbg(fmt.Sprintf("Clone container %s is running", cloneName))
+	}
+}
 
 func (c *Base) filterRunningClones(ctx context.Context) {
 	c.cloneMutex.Lock()

@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
@@ -31,6 +32,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/networks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/pglog"
 )
 
@@ -67,11 +69,12 @@ type Provisioner struct {
 	portChecker    portChecker
 	pm             *pool.Manager
 	networkID      string
+	instanceID     string
 }
 
 // New creates a new Provisioner instance.
 func New(ctx context.Context, cfg *Config, dbCfg *resources.DB, docker *client.Client, pm *pool.Manager,
-	networkID string) (*Provisioner, error) {
+	instanceID, networkID string) (*Provisioner, error) {
 	if err := IsValidConfig(*cfg); err != nil {
 		return nil, errors.Wrap(err, "configuration is not valid")
 	}
@@ -86,6 +89,7 @@ func New(ctx context.Context, cfg *Config, dbCfg *resources.DB, docker *client.C
 		portChecker:  &localPortChecker{},
 		pm:           pm,
 		networkID:    networkID,
+		instanceID:   instanceID,
 		ports:        make([]bool, cfg.PortPool.To-cfg.PortPool.From),
 	}
 
@@ -699,12 +703,22 @@ func (p *Provisioner) prepareDB(pgConf *resources.AppConfig, user resources.Ephe
 
 // IsCloneRunning checks if clone is running.
 func (p *Provisioner) IsCloneRunning(ctx context.Context, cloneName string) bool {
-	isRunning, err := docker.IsContainerExist(ctx, p.dockerClient, cloneName)
+	isRunning, err := docker.IsContainerRunning(ctx, p.dockerClient, cloneName)
 	if err != nil {
 		log.Err(err)
 	}
 
 	return isRunning
+}
+
+// ReconnectClone disconnects clone from the old instance network and connect to the actual one.
+func (p *Provisioner) ReconnectClone(ctx context.Context, cloneName string) error {
+	return networks.Reconnect(ctx, p.dockerClient, p.instanceID, cloneName)
+}
+
+// StartCloneContainer starts clone container.
+func (p *Provisioner) StartCloneContainer(ctx context.Context, containerName string) error {
+	return p.dockerClient.ContainerStart(ctx, containerName, types.ContainerStartOptions{})
 }
 
 // DetectDBVersion detects version of the database.

@@ -117,6 +117,36 @@ func Connect(ctx context.Context, dockerCLI *client.Client, instanceID, containe
 	return nil
 }
 
+// Reconnect connects a container to internal Docker network.
+func Reconnect(ctx context.Context, dockerCLI *client.Client, instanceID, containerID string) error {
+	log.Dbg(fmt.Sprintf("Reconnect container %s to internal network", containerID))
+
+	networkName := getNetworkName(instanceID)
+
+	log.Dbg("Discovering internal network:", networkName)
+
+	networkResource, err := dockerCLI.NetworkInspect(ctx, networkName, types.NetworkInspectOptions{})
+	if err != nil {
+		return fmt.Errorf("internal network not found: %w", err)
+	}
+
+	log.Dbg(fmt.Sprintf("Disconnecting container %s from internal network", containerID))
+
+	if err := dockerCLI.NetworkDisconnect(context.Background(), networkName, containerID, true); err != nil {
+		return err
+	}
+
+	log.Dbg(fmt.Sprintf("Container %s has been disconnected from internal network", containerID))
+
+	if err := dockerCLI.NetworkConnect(ctx, networkResource.ID, containerID, &network.EndpointSettings{}); err != nil {
+		return err
+	}
+
+	log.Dbg(fmt.Sprintf("Container %s has been connected to %s", instanceID, networkName))
+
+	return nil
+}
+
 func getNetworkName(instanceID string) string {
 	return networkPrefix + instanceID
 }

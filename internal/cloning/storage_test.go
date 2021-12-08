@@ -83,7 +83,7 @@ func newProvisioner() (*provision.Provisioner, error) {
 			From: 1,
 			To:   5,
 		},
-	}, nil, nil, nil, "nwID")
+	}, nil, nil, nil, "instID", "nwID")
 }
 
 func TestLoadingSessionState(t *testing.T) {
