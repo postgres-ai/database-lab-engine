@@ -261,8 +261,8 @@ func PullImage(r runners.Runner, dockerImage string) error {
 	return nil
 }
 
-// IsContainerExist checks the existence of Docker container.
-func IsContainerExist(ctx context.Context, docker *client.Client, containerName string) (bool, error) {
+// IsContainerRunning checks if specified container is running.
+func IsContainerRunning(ctx context.Context, docker *client.Client, containerName string) (bool, error) {
 	inspection, err := docker.ContainerInspect(ctx, containerName)
 	if err != nil {
 		return false, fmt.Errorf("failed to inpect container: %w", err)
