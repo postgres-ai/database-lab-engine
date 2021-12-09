@@ -16,9 +16,11 @@ import (
 const (
 	swaggerDir  = "web"
 	apiDir      = "api"
-	configDir   = "configs"
 	standardDir = "standard"
-	metaDir     = "meta"
+	// ConfigDir defines config directory name.
+	ConfigDir = "configs"
+	// MetaDir defines meta directory name.
+	MetaDir = "meta"
 )
 
 // GetBinRootPath return path to root directory of the current binary module.
@@ -73,7 +75,7 @@ func GetConfigPath(name string) (string, error) {
 		return "", errors.Wrap(err, "failed to get abs filepath of root directory")
 	}
 
-	return path.Join(dir, configDir, name), nil
+	return path.Join(dir, ConfigDir, name), nil
 }
 
 // GetMetaPath return path to metadata directory.
@@ -83,5 +85,5 @@ func GetMetaPath(name string) (string, error) {
 		return "", errors.Wrap(err, "failed to get abs filepath of root directory")
 	}
 
-	return path.Join(dir, metaDir, name), nil
+	return path.Join(dir, MetaDir, name), nil
 }

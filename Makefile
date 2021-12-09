@@ -2,6 +2,7 @@
 
 SERVER_BINARY = dblab-server
 RUN_CI_BINARY = run-ci
+BOOTSTRAP_BINARY = bootstrap
 CLI_BINARY = dblab
 GOARCH = amd64
 
@@ -18,7 +19,7 @@ LDFLAGS = -ldflags "-s -w \
 	-X gitlab.com/postgres-ai/database-lab/v3/version.buildTime=${BUILD_TIME}"
 
 # Go tooling command aliases
-GOBUILD = GO111MODULE=on GOARCH=${GOARCH} go build ${LDFLAGS}
+GOBUILD = GO111MODULE=on CGO_ENABLED=0 GOARCH=${GOARCH} go build ${LDFLAGS}
 GOTEST = GO111MODULE=on go test -race 
 GORUN = GO111MODULE=on go run ${LDFLAGS}
 
@@ -41,6 +42,10 @@ build:
 	${GOBUILD} -o bin/${SERVER_BINARY} ./cmd/database-lab/main.go
 	${GOBUILD} -o bin/${RUN_CI_BINARY} ./cmd/runci/main.go
 	${GOBUILD} -o bin/${CLI_BINARY} ./cmd/cli/main.go
+	${GOBUILD} -o bin/${BOOTSTRAP_BINARY} ./cmd/bootstrap/main.go
+
+build-bootstrap:
+	${GOBUILD} -o bin/${BOOTSTRAP_BINARY} ./cmd/bootstrap/main.go
 
 build-ci-checker:
 	${GOBUILD} -o bin/${RUN_CI_BINARY} ./cmd/runci/main.go

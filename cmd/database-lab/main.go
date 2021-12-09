@@ -67,7 +67,7 @@ func main() {
 	log.Msg("Database Lab Instance ID:", engProps.InstanceID)
 	log.Msg("Database Lab Engine version:", version.GetVersion())
 
-	if cfg.Server.VerificationToken == "" {
+	if cfg.Engine.VerificationToken == "" {
 		log.Warn("Verification Token is empty. Database Lab Engine is insecure")
 	}
 
@@ -155,7 +155,7 @@ func main() {
 	})
 
 	localUI := localui.New(cfg.LocalUI, engProps, runner, dockerCLI)
-	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, cloningSvc, retrievalSvc, platformSvc, dockerCLI, obs, est, pm, tm)
+	server := srv.NewServer(&cfg.Engine, &cfg.Global, engProps, cloningSvc, retrievalSvc, platformSvc, dockerCLI, obs, est, pm, tm)
 	shutdownCh := setShutdownListener()
 
 	go setReloadListener(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, localUI, server)
@@ -212,7 +212,7 @@ func getEngineProperties(ctx context.Context, dockerCLI *client.Client, cfg *con
 	engProps := global.EngineProps{
 		InstanceID:    instanceID,
 		ContainerName: strings.Trim(dleContainer.Name, "/"),
-		EnginePort:    cfg.Server.Port,
+		EnginePort:    cfg.Engine.Port,
 	}
 
 	return engProps, nil
@@ -258,7 +258,7 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 	cloningSvc.Reload(cfg.Cloning)
 	platformSvc.Reload(newPlatformSvc)
 	est.Reload(cfg.Estimator)
-	server.Reload(cfg.Server)
+	server.Reload(cfg.Engine)
 
 	return nil
 }

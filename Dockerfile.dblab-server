@@ -10,6 +10,8 @@ RUN echo 'http://dl-cdn.alpinelinux.org/alpine/v3.13/main' >> /etc/apk/repositor
   # TODO: remove after release the PR: https://github.com/iovisor/bcc/pull/3286 (issue: https://github.com/iovisor/bcc/issues/3099)
   && wget https://raw.githubusercontent.com/iovisor/bcc/master/tools/biosnoop.py -O /usr/share/bcc/tools/biosnoop
 
+ARG DLE_API_PORT
+ENV DLE_API_PORT=${DLE_API_PORT:-2345}
 ENV PATH="${PATH}:/usr/share/bcc/tools"
 
 WORKDIR /home/dblab
@@ -19,5 +21,7 @@ COPY ./api ./api
 COPY ./web ./web
 COPY ./configs/standard ./standard
 COPY ./scripts ./scripts
+
+EXPOSE $DLE_API_PORT
 
 CMD ./bin/dblab-server

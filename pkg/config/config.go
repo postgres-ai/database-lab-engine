@@ -35,7 +35,7 @@ const (
 
 // Config contains a common database-lab configuration.
 type Config struct {
-	Server      srvCfg.Config    `yaml:"server"`
+	Engine      srvCfg.Engine    `yaml:"engine"`
 	Provision   provision.Config `yaml:"provision"`
 	Cloning     cloning.Config   `yaml:"cloning"`
 	Platform    platform.Config  `yaml:"platform"`

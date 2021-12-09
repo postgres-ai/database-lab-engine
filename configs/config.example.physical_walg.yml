@@ -1,13 +1,26 @@
 # Copy the following to: ~/.dblab/engine/configs/server.yml
 
-# Database Lab API server. This API is used to work with clones
+# Database Lab Engine API server. This API is used to work with clones
 # (list them, create, delete, see how to connect to a clone).
 # Normally, it is supposed to listen 127.0.0.1:2345 (default),
 # and to be running inside a Docker container,
 # with port mapping, to allow users to connect from outside
 # to 2345 port using private or public IP address of the machine
 # where the container is running. See https://postgres.ai/docs/database-lab/how-to-manage-database-lab
-server:
+engine:
+  # Directory to store the state of Database Lab Engine: configs and metadata. Relative path is not valid.
+  stateDir: "/home/user/.dblab/engine"
+
+  # Database Lab Engine container.
+  dockerImage: "postgresai/dblab-server:3.0.0-rc.1"
+
+  # Additional volumes to mount to Database Lab Engine.
+  volumes:
+
+  # Environment variables passing to Database Lab Engine container.
+  envs:
+    - DOCKER_API_VERSION=1.39
+
   # The main token that is used to work with Database Lab API.
   # Note, that only one token is supported.
   # However, if the integration with Postgres.ai Platform is configured
@@ -19,6 +32,11 @@ server:
   # Database Lab Engine can be running with an empty verification token, which is not recommended.
   # In this case, the DLE API and the UI application will not require any credentials.
   verificationToken: "secret_token"
+
+  # The host to which the Database Lab server accepts HTTP connections.
+  # By default uses an empty string to accept connections to all network interfaces.
+  # Keep it default when running inside a Docker container.
+  host: "127.0.0.1"
 
   # HTTP server port. Default: 2345.
   port: 2345

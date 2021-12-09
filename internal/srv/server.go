@@ -36,7 +36,7 @@ import (
 type Server struct {
 	validator validator.Service
 	Cloning   *cloning.Base
-	Config    *srvCfg.Config
+	Config    *srvCfg.Engine
 	Global    *global.Config
 	engProps  global.EngineProps
 	Retrieval *retrieval.Retrieval
@@ -52,7 +52,7 @@ type Server struct {
 }
 
 // NewServer initializes a new Server instance with provided configuration.
-func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps global.EngineProps, cloning *cloning.Base,
+func NewServer(cfg *srvCfg.Engine, globalCfg *global.Config, engineProps global.EngineProps, cloning *cloning.Base,
 	retrievalSvc *retrieval.Retrieval, platform *platform.Service, dockerClient *client.Client, observer *observer.Observer,
 	estimator *estimator.Estimator, pm *pool.Manager, tm *telemetry.Agent) *Server {
 	server := &Server{
@@ -99,7 +99,7 @@ func attachAPI(r *mux.Router) error {
 }
 
 // Reload reloads server configuration.
-func (s *Server) Reload(cfg srvCfg.Config) {
+func (s *Server) Reload(cfg srvCfg.Engine) {
 	*s.Config = cfg
 }
 
@@ -160,6 +160,6 @@ func (s *Server) Uptime() float64 {
 }
 
 // reportLaunching reports the launch of the HTTP server.
-func reportLaunching(cfg *srvCfg.Config) {
+func reportLaunching(cfg *srvCfg.Engine) {
 	log.Msg(fmt.Sprintf("API server started listening on %s:%d.", cfg.Host, cfg.Port))
 }

@@ -34,6 +34,11 @@ const (
 	// SyncInstanceContainerPrefix defines a sync container name.
 	SyncInstanceContainerPrefix = "dblab_sync_"
 
+	// DBLabServerName defines name of DLE container.
+	DBLabServerName = "dblab_server"
+
+	// DBLabServerLabel defines a label to mark DLE container.
+	DBLabServerLabel = "dblab_server"
 	// DBLabControlLabel defines a label to mark service containers.
 	DBLabControlLabel = "dblab_control"
 	// DBLabSatelliteLabel defines a label to mark satellite containers.

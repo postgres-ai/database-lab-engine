@@ -105,7 +105,7 @@ func (ui *UIManager) Run(ctx context.Context) error {
 			Image: ui.cfg.DockerImage,
 			Env: []string{
 				EnvEngineName + "=" + ui.engProps.ContainerName,
-				EnvEnginePort + "=" + strconv.FormatUint(uint64(ui.engProps.EnginePort), 10),
+				EnvEnginePort + "=" + strconv.FormatInt(int64(ui.engProps.EnginePort), 10),
 			},
 			Healthcheck: &container.HealthConfig{
 				Interval: healthCheckInterval,
