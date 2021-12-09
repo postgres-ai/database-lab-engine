@@ -80,7 +80,14 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 
 	newClone, err := s.Cloning.CreateClone(cloneRequest)
 	if err != nil {
+		var reqErr *models.Error
+		if errors.As(err, &reqErr) {
+			api.SendBadRequestError(w, r, reqErr.Error())
+			return
+		}
+
 		api.SendError(w, r, errors.Wrap(err, "failed to create clone"))
+
 		return
 	}
 

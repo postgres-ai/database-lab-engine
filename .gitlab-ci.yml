@@ -42,7 +42,6 @@ lint:
       - branches
     variables:
       - $CI_COMMIT_REF_SLUG != "master"
-  when: manual
 
 build-binary-alpine:
   image: golang:1.17-alpine
@@ -58,14 +57,14 @@ build-binary-alpine:
     - apk add --update --no-cache make git
     - make build
 
-build-binary-client-linux:
+build-binary-client-dev:
   <<: *only_feature
   stage: build-binary
   artifacts:
     paths:
       - bin
   script:
-    - go build -o bin/dblab-linux-amd64 ./cmd/cli/main.go
+    - make build-client
 
 build-binary-client:
   <<: *only_tag_release
@@ -88,7 +87,6 @@ build-binary-client:
 build-binary-client-rc:
   <<: *only_tag_rc
   stage: build-binary
-  when: manual
   script:
     - make build-client
 
@@ -159,7 +157,7 @@ build-image-feature-client-extended:
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-extended"
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
   before_script:
-    - cp ./bin/dblab-linux-amd64 ./bin/dblab
+    - cp ./bin/cli/dblab-linux-amd64 ./bin/dblab
 
 build-image-master-server:
   <<: *build_image_definition

@@ -22,6 +22,8 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/engine"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/networks"
 )
 
@@ -138,6 +140,8 @@ func (ui *UIManager) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to start container %q: %w", localUI.ID, err)
 	}
 
+	reportLaunching(ui.cfg)
+
 	return nil
 }
 
@@ -159,4 +163,15 @@ func (ui *UIManager) Stop(ctx context.Context) {
 
 func getLocalUIName(instanceID string) string {
 	return cont.DBLabLocalUILabel + "_" + instanceID
+}
+
+// reportLaunching reports the launch of the LocalUI container.
+func reportLaunching(cfg Config) {
+	host := engine.DefaultListenerHost
+
+	if cfg.Host != "" {
+		host = cfg.Host
+	}
+
+	log.Msg(fmt.Sprintf("Local UI has started successfully on %s:%d.", host, cfg.Port))
 }
