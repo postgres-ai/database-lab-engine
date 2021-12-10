@@ -92,8 +92,10 @@ sudo docker run \
 sudo docker logs ${DLE_SERVER_NAME} -f 2>&1 | awk '{print "[CONTAINER dblab_server]: "$0}' &
 
 check_dle_readiness(){
-  curl http://localhost:${DLE_SERVER_PORT} > /dev/null 2>&1
-  return $?
+  if [[ $(curl --silent --header 'Verification-Token: secret_token' --header 'Content-Type: application/json' http://localhost:${DLE_SERVER_PORT}/status | jq -r .retrieving.status) ==  "finished" ]] ; then
+      return 0
+  fi
+  return 1
 }
 
 ### Waiting for the Database Lab Engine initialization.

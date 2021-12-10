@@ -20,16 +20,18 @@ const (
 	Unknown RetrievalMode = "unknown"
 )
 
-// RefreshStatus defines status of refreshing data.
-type RefreshStatus string
+// RetrievalStatus defines status of refreshing data.
+type RetrievalStatus string
 
 const (
-	// Inactive defines status when data refreshing is disabled.
-	Inactive RefreshStatus = "inactive"
-	// Refreshing defines status when data refreshing is in progress.
-	Refreshing RefreshStatus = "refreshing"
-	// Finished defines status when data refreshing is finished.
-	Finished RefreshStatus = "finished"
+	// Inactive defines status when data retrieving is disabled.
+	Inactive RetrievalStatus = "inactive"
+	// Failed defines status when data retrieving is failed.
+	Failed RetrievalStatus = "failed"
+	// Refreshing defines status when data retrieving is in progress.
+	Refreshing RetrievalStatus = "refreshing"
+	// Finished defines status when data retrieving is finished.
+	Finished RetrievalStatus = "finished"
 )
 
 // AlertLevel defines levels of retrieval alert.
@@ -57,10 +59,11 @@ const (
 
 // Retrieving represents state of retrieval subsystem.
 type Retrieving struct {
-	Mode        RetrievalMode `json:"mode"`
-	Status      RefreshStatus `json:"status"`
-	LastRefresh *time.Time    `json:"lastRefresh"`
-	NextRefresh *time.Time    `json:"nextRefresh"`
+	Mode        RetrievalMode       `json:"mode"`
+	Status      RetrievalStatus     `json:"status"`
+	LastRefresh *time.Time          `json:"lastRefresh"`
+	NextRefresh *time.Time          `json:"nextRefresh"`
+	Alerts      map[AlertType]Alert `json:"alerts"`
 }
 
 // Alert describes retrieval subsystem alert.

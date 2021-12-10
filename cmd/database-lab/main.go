@@ -42,6 +42,8 @@ import (
 
 const (
 	shutdownTimeout = 30 * time.Second
+	contactSupport  = "If you have problems or questions, " +
+		"please contact Postgres.ai: https://postgres.ai/support"
 )
 
 func main() {
@@ -50,7 +52,7 @@ func main() {
 		log.Fatal(errors.WithMessage(err, "failed to parse config"))
 	}
 
-	dockerCLI, err := client.NewClientWithOpts(client.FromEnv)
+	docker, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		log.Fatal("Failed to create a Docker client:", err)
 	}
@@ -58,7 +60,13 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	engProps, err := getEngineProperties(ctx, dockerCLI, cfg)
+	defer func() {
+		if err != nil {
+			log.Msg(contactSupport)
+		}
+	}()
+
+	engProps, err := getEngineProperties(ctx, docker, cfg)
 	if err != nil {
 		log.Err("failed to get Database Lab Engine properties:", err.Error())
 		return
@@ -74,18 +82,18 @@ func main() {
 	runner := runners.NewLocalRunner(cfg.Provision.UseSudo)
 
 	pm := pool.NewPoolManager(&cfg.PoolManager, runner)
-	if err := pm.ReloadPools(); err != nil {
+	if err = pm.ReloadPools(); err != nil {
 		log.Err(err.Error())
 		return
 	}
 
-	internalNetworkID, err := networks.Setup(ctx, dockerCLI, engProps.InstanceID, engProps.ContainerName)
+	internalNetworkID, err := networks.Setup(ctx, docker, engProps.InstanceID, engProps.ContainerName)
 	if err != nil {
 		log.Errf(err.Error())
 		return
 	}
 
-	defer networks.Stop(dockerCLI, internalNetworkID, engProps.ContainerName)
+	defer networks.Stop(docker, internalNetworkID, engProps.ContainerName)
 
 	// Create a platform service to make requests to Platform.
 	platformSvc, err := platform.New(ctx, cfg.Platform)
@@ -105,7 +113,7 @@ func main() {
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer shutdownCancel()
 
-		shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, engProps, pm.First().Pool())
+		shutdownDatabaseLabEngine(shutdownCtx, docker, engProps, pm.First().Pool())
 	}
 
 	tm, err := telemetry.New(cfg.Global, engProps)
@@ -115,26 +123,17 @@ func main() {
 	}
 
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
-	retrievalSvc := retrieval.New(cfg, engProps, dockerCLI, pm, tm, runner)
-
-	if err := retrievalSvc.Run(ctx); err != nil {
-		log.Err("Failed to run the data retrieval service:", err)
-		emergencyShutdown()
-
-		return
-	}
-
-	defer retrievalSvc.Stop()
+	retrievalSvc := retrieval.New(cfg, engProps, docker, pm, tm, runner)
 
 	// Create a cloning service to provision new clones.
-	provisionSvc, err := provision.New(ctx, &cfg.Provision, dbCfg, dockerCLI, pm, engProps.InstanceID, internalNetworkID)
+	provisioner, err := provision.New(ctx, &cfg.Provision, dbCfg, docker, pm, engProps.InstanceID, internalNetworkID)
 	if err != nil {
 		log.Errf(errors.WithMessage(err, `error in the "provision" section of the config`).Error())
 	}
 
 	observingChan := make(chan string, 1)
 
-	cloningSvc := cloning.NewBase(&cfg.Cloning, provisionSvc, tm, observingChan)
+	cloningSvc := cloning.NewBase(&cfg.Cloning, provisioner, tm, observingChan)
 	if err = cloningSvc.Run(ctx); err != nil {
 		log.Err(err)
 		emergencyShutdown()
@@ -142,29 +141,28 @@ func main() {
 		return
 	}
 
-	obs := observer.NewObserver(dockerCLI, &cfg.Observer, pm)
+	obs := observer.NewObserver(docker, &cfg.Observer, pm)
 	est := estimator.NewEstimator(&cfg.Estimator)
 
 	go removeObservingClones(observingChan, obs)
 
 	tm.SendEvent(ctx, telemetry.EngineStartedEvent, telemetry.EngineStarted{
 		EngineVersion: version.GetVersion(),
-		DBVersion:     provisionSvc.DetectDBVersion(),
+		DBVersion:     provisioner.DetectDBVersion(),
 		Pools:         pm.CollectPoolStat(),
 		Restore:       retrievalSvc.CollectRestoreTelemetry(),
 	})
 
-	localUI := localui.New(cfg.LocalUI, engProps, runner, dockerCLI)
-	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, cloningSvc, retrievalSvc, platformSvc, dockerCLI, obs, est, pm, tm)
+	localUI := localui.New(cfg.LocalUI, engProps, runner, docker)
+	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc, obs, est, pm, tm)
 	shutdownCh := setShutdownListener()
 
-	go setReloadListener(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, localUI, server)
+	go setReloadListener(ctx, provisioner, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, localUI, server)
 
 	server.InitHandlers()
 
 	go func() {
-		// Start the Database Lab.
-		if err = server.Run(); err != nil {
+		if err := server.Run(); err != nil {
 			log.Msg(err)
 		}
 	}()
@@ -178,6 +176,13 @@ func main() {
 		}()
 	}
 
+	if err := retrievalSvc.Run(ctx); err != nil {
+		log.Err("Failed to run the data retrieval service:", err)
+		log.Msg(contactSupport)
+	}
+
+	defer retrievalSvc.Stop()
+
 	<-shutdownCh
 	cancel()
 
@@ -188,7 +193,7 @@ func main() {
 		log.Msg(err)
 	}
 
-	shutdownDatabaseLabEngine(shutdownCtx, dockerCLI, engProps, pm.First().Pool())
+	shutdownDatabaseLabEngine(shutdownCtx, docker, engProps, pm.First().Pool())
 	cloningSvc.SaveClonesState()
 	tm.SendEvent(context.Background(), telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
 }

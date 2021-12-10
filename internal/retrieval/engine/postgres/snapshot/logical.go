@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -27,9 +28,9 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
-
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
 const (
@@ -153,9 +154,28 @@ func (s *LogicalInitial) Run(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create a snapshot")
 	}
 
+	if err := s.markDatabaseData(dataStateAt); err != nil {
+		return errors.Wrap(err, "failed to mark logical data")
+	}
+
 	s.tm.SendEvent(ctx, telemetry.SnapshotCreatedEvent, telemetry.SnapshotCreated{})
 
 	return nil
+}
+
+func (s *LogicalInitial) markDatabaseData(dataStateAt string) error {
+	if dataStateAt != "" {
+		return nil
+	}
+
+	if err := s.dbMarker.CreateConfig(); err != nil {
+		return errors.Wrap(err, "failed to create a DBMarker config of the database")
+	}
+
+	return s.dbMarker.SaveConfig(&dbmarker.Config{
+		DataType:    dbmarker.LogicalDataType,
+		DataStateAt: time.Now().Format(util.DataStateAtFormat),
+	})
 }
 
 func (s *LogicalInitial) touchConfigFiles() error {
