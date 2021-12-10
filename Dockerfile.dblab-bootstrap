@@ -1,0 +1,9 @@
+# See Guides to learn how to start a container: https://postgres.ai/docs/how-to-guides/administration/engine-bootstrap
+
+FROM docker:20.10.11
+
+WORKDIR /home/dblab
+
+COPY ./bin/bootstrap ./bin/bootstrap
+
+CMD ./bin/bootstrap
