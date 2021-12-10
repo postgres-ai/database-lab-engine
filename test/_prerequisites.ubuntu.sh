@@ -7,7 +7,8 @@ sudo apt-get update && sudo apt-get install -y \
   ca-certificates \
   curl \
   gnupg-agent \
-  software-properties-common
+  software-properties-common \
+  jq
 
 # Install Docker
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
