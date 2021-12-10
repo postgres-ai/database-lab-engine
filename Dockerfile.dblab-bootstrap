@@ -1,4 +1,4 @@
-# See Guides to learn how to start a container: https://postgres.ai/docs/how-to-guides/administration/engine-bootstrap
+# See Guides to learn how to start a container: https://postgres.ai/docs/how-to-guides/administration/engine-manage
 
 FROM docker:20.10.11
 
