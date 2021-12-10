@@ -21,6 +21,7 @@ const (
 	StatusDeleting  StatusCode = "DELETING"
 	StatusExporting StatusCode = "EXPORTING"
 	StatusFatal     StatusCode = "FATAL"
+	StatusWarning   StatusCode = "WARNING"
 
 	CloneMessageOK        = "Clone is ready to accept Postgres connections."
 	CloneMessageCreating  = "Clone is being created."
@@ -28,5 +29,6 @@ const (
 	CloneMessageDeleting  = "Clone is being deleted."
 	CloneMessageFatal     = "Cloning failure."
 
-	InstanceMessageOK = "Instance is ready"
+	InstanceMessageOK      = "Instance is ready"
+	InstanceMessageWarning = "Subsystems that need attention"
 )

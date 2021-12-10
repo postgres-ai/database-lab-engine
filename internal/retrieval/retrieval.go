@@ -76,6 +76,7 @@ func New(cfg *dblabCfg.Config, engineProps global.EngineProps, docker *client.Cl
 		jobSpecs:    make(map[string]config.JobSpec, len(cfg.Retrieval.Jobs)),
 		State: State{
 			Status: models.Inactive,
+			alerts: make(map[models.AlertType]models.Alert),
 		},
 	}
 
@@ -124,16 +125,20 @@ func (r *Retrieval) Run(ctx context.Context) error {
 	if err != nil {
 		var skipError *SkipRefreshingError
 		if errors.As(err, &skipError) {
+			r.State.Status = models.Finished
+
 			log.Msg("Continue without performing a full refresh:", skipError.Error())
 			r.setupScheduler(ctx)
 
 			return nil
 		}
 
-		r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{
+		alert := telemetry.Alert{
 			Level:   models.RefreshFailed,
 			Message: "Pool to perform data refresh not found",
-		})
+		}
+		r.State.addAlert(alert)
+		r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
 
 		return fmt.Errorf("failed to choose pool to refresh: %w", err)
 	}
@@ -141,8 +146,11 @@ func (r *Retrieval) Run(ctx context.Context) error {
 	log.Msg("Pool to perform data retrieving: ", fsManager.Pool().Name)
 
 	if err := r.run(runCtx, fsManager); err != nil {
-		r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{Level: models.RefreshFailed,
-			Message: fmt.Sprintf("Failed to perform initial data retrieving: %s", r.State.Mode)})
+		alert := telemetry.Alert{Level: models.RefreshFailed,
+			Message: fmt.Sprintf("Failed to perform initial data retrieving: %s", r.State.Mode)}
+		r.State.addAlert(alert)
+		r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
+
 		return err
 	}
 
@@ -186,15 +194,6 @@ func (r *Retrieval) getPoolToDataRetrieving() (pool.FSManager, error) {
 }
 
 func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
-	r.retrieveMutex.Lock()
-	r.State.Status = models.Refreshing
-	r.State.LastRefresh = pointer.ToTimeOrNil(time.Now().Truncate(time.Second))
-
-	defer func() {
-		r.State.Status = models.Finished
-		r.retrieveMutex.Unlock()
-	}()
-
 	if err := r.configure(fsm); err != nil {
 		return errors.Wrap(err, "failed to configure")
 	}
@@ -213,21 +212,34 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 		return errors.Errorf("pool %s not found", fsm.Pool().Name)
 	}
 
-	fsm.Pool().SetStatus(resources.RefreshingPool)
+	if len(r.jobs) > 0 {
+		fsm.Pool().SetStatus(resources.RefreshingPool)
 
-	defer func() {
-		if err != nil {
-			fsm.Pool().SetStatus(resources.EmptyPool)
-		}
-	}()
+		r.retrieveMutex.Lock()
+		r.State.Status = models.Refreshing
+		r.State.LastRefresh = pointer.ToTimeOrNil(time.Now().Truncate(time.Second))
 
-	for _, j := range r.jobs {
-		if err := j.Run(ctx); err != nil {
-			return err
+		defer func() {
+			r.State.Status = models.Finished
+
+			if err != nil {
+				r.State.Status = models.Failed
+
+				fsm.Pool().SetStatus(resources.EmptyPool)
+			}
+
+			r.retrieveMutex.Unlock()
+		}()
+
+		for _, j := range r.jobs {
+			if err := j.Run(ctx); err != nil {
+				return err
+			}
 		}
 	}
 
 	r.poolManager.MakeActive(poolByName)
+	r.State.cleanAlerts()
 
 	return nil
 }
@@ -387,9 +399,10 @@ func (r *Retrieval) setupScheduler(ctx context.Context) {
 func (r *Retrieval) refreshFunc(ctx context.Context) func() {
 	return func() {
 		if err := r.fullRefresh(ctx); err != nil {
-			r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{Level: models.RefreshFailed,
-				Message: "Failed to run full-refresh"})
-			log.Err("Failed to run full-refresh: ", err)
+			alert := telemetry.Alert{Level: models.RefreshFailed, Message: "Failed to run full-refresh"}
+			r.State.addAlert(alert)
+			r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
+			log.Err(alert.Message, err)
 		}
 	}
 }
@@ -406,11 +419,13 @@ func (r *Retrieval) fullRefresh(ctx context.Context) error {
 	elementToUpdate := r.poolManager.GetPoolToUpdate()
 
 	if elementToUpdate == nil || elementToUpdate.Value == nil {
-		r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{
+		alert := telemetry.Alert{
 			Level:   models.RefreshSkipped,
 			Message: "Pool to perform full refresh not found. Skip refreshing",
-		})
-		log.Msg("Pool to perform full refresh not found. Skip refreshing")
+		}
+		r.State.addAlert(alert)
+		r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
+		log.Msg(alert.Message)
 
 		return nil
 	}
@@ -438,6 +453,7 @@ func (r *Retrieval) fullRefresh(ctx context.Context) error {
 	}
 
 	r.poolManager.MakeActive(elementToUpdate)
+	r.State.cleanAlerts()
 
 	return nil
 }

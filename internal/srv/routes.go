@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/AlekSi/pointer"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgtype/pgxtype"
@@ -29,25 +28,7 @@ import (
 )
 
 func (s *Server) getInstanceStatus(w http.ResponseWriter, r *http.Request) {
-	status, err := s.Cloning.GetInstanceState()
-	if err != nil {
-		api.SendError(w, r, err)
-		return
-	}
-
-	refresh := models.Retrieving{
-		Mode:        s.Retrieval.State.Mode,
-		Status:      s.Retrieval.State.Status,
-		LastRefresh: s.Retrieval.State.LastRefresh,
-	}
-
-	if s.Retrieval.Scheduler.Spec != nil {
-		refresh.NextRefresh = pointer.ToTimeOrNil(s.Retrieval.Scheduler.Spec.Next(time.Now()))
-	}
-
-	status.Retrieving = refresh
-
-	if err = api.WriteJSON(w, http.StatusOK, status); err != nil {
+	if err := api.WriteJSON(w, http.StatusOK, s.instanceStatus()); err != nil {
 		api.SendError(w, r, err)
 		return
 	}

@@ -302,7 +302,10 @@ func (c *Base) DestroyClone(cloneID string) error {
 
 	if w.Session == nil {
 		c.deleteClone(cloneID)
-		c.decrementCloneNumber(w.Clone.Snapshot.ID)
+
+		if w.Clone.Snapshot != nil {
+			c.decrementCloneNumber(w.Clone.Snapshot.ID)
+		}
 
 		return nil
 	}
@@ -472,18 +475,16 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 	return nil
 }
 
-// GetInstanceState returns the current state of instance.
-func (c *Base) GetInstanceState() (*models.InstanceStatus, error) {
+// GetCloningState returns the current state of instance.
+func (c *Base) GetCloningState() models.Cloning {
 	clones := c.GetClones()
-	c.instanceStatus.Cloning = models.Cloning{
+	cloning := models.Cloning{
 		ExpectedCloningTime: c.getExpectedCloningTime(),
 		Clones:              clones,
 		NumClones:           uint64(len(clones)),
 	}
-	c.instanceStatus.Pools = c.provision.GetPoolEntryList()
-	c.instanceStatus.Engine.Telemetry = pointer.ToBool(c.tm.IsEnabled())
 
-	return c.instanceStatus, nil
+	return cloning
 }
 
 // GetSnapshots returns all available snapshots.
