@@ -66,6 +66,23 @@ build-binary-client-dev:
   script:
     - make build-client
 
+build-binary-client-master:
+  <<: *only_master
+  stage: build-binary
+  script:
+    - make build-client
+
+    # Install google-cloud-sdk.
+    - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+    - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+    - apt-get update && apt-get install -y google-cloud-sdk
+
+    # Authenticate.
+    - echo $GCP_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
+
+    # Upload artifacts.
+    - gsutil -m cp -r bin/cli/* gs://database-lab-cli/master/
+
 build-binary-client:
   <<: *only_tag_release
   stage: build-binary
@@ -153,22 +170,9 @@ build-image-feature-client:
     REGISTRY_USER: "${CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
-    DOCKER_FILE: "Dockerfile.dblab"
-    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab"
+    DOCKER_FILE: "Dockerfile.dblab-cli"
+    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-cli"
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
-
-build-image-feature-client-extended:
-  <<: *build_image_definition
-  <<: *only_feature
-  variables:
-    REGISTRY_USER: "${CI_REGISTRY_USER}"
-    REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
-    REGISTRY: "${CI_REGISTRY}"
-    DOCKER_FILE: "Dockerfile.dblab-extended"
-    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-extended"
-    TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
-  before_script:
-    - cp ./bin/cli/dblab-linux-amd64 ./bin/dblab
 
 build-image-master-server:
   <<: *build_image_definition
@@ -198,8 +202,8 @@ build-image-master-client:
   <<: *build_image_definition
   <<: *only_master
   variables:
-    DOCKER_FILE: "Dockerfile.dblab"
-    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab"
+    DOCKER_FILE: "Dockerfile.dblab-cli"
+    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-cli"
     TAGS: "${DOCKER_NAME}:master,${DOCKER_NAME}:master-${CI_COMMIT_SHORT_SHA}"
 
 build-image-latest-server:
@@ -277,7 +281,7 @@ build-image-latest-client:
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
     REGISTRY: "${DH_CI_REGISTRY}"
-    DOCKER_FILE: "Dockerfile.dblab"
+    DOCKER_FILE: "Dockerfile.dblab-cli"
     DOCKER_NAME: "postgresai/dblab"
   before_script:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
@@ -346,7 +350,7 @@ build-image-rc-client:
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
     REGISTRY: "${DH_CI_REGISTRY}"
-    DOCKER_FILE: "Dockerfile.dblab"
+    DOCKER_FILE: "Dockerfile.dblab-cli"
     DOCKER_NAME: "postgresai/dblab"
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_TAG}"
 
