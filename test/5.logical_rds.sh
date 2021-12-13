@@ -44,7 +44,8 @@ yq eval -i '
   .global.debug = true |
   .global.telemetry.enabled = false |
   .localUI.enabled = false |
-  .server.port = env(DLE_SERVER_PORT) |
+  .engine.host = "" |
+  .engine.port = env(DLE_SERVER_PORT) |
   .poolManager.mountDir = env(DLE_TEST_MOUNT_DIR) |
   .provision.portPool.from = env(DLE_PORT_POOL_FROM) |
   .provision.portPool.to = env(DLE_PORT_POOL_TO) |
