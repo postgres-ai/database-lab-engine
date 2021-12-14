@@ -39,6 +39,7 @@ import (
 const (
 	maxNumberOfPortsToCheck = 5
 	portCheckingTimeout     = 3 * time.Second
+	unknownVersion          = "unknown"
 )
 
 // PortPool describes an available port range for clones.
@@ -723,7 +724,12 @@ func (p *Provisioner) StartCloneContainer(ctx context.Context, containerName str
 
 // DetectDBVersion detects version of the database.
 func (p *Provisioner) DetectDBVersion() string {
-	pgVersion, err := tools.DetectPGVersion(p.pm.First().Pool().DataDir())
+	fsManager := p.pm.First()
+	if fsManager == nil {
+		return unknownVersion
+	}
+
+	pgVersion, err := tools.DetectPGVersion(fsManager.Pool().DataDir())
 	if err != nil {
 		return parseImageVersion(p.config.DockerImage)
 	}

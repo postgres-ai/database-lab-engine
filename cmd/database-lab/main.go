@@ -81,12 +81,6 @@ func main() {
 
 	runner := runners.NewLocalRunner(cfg.Provision.UseSudo)
 
-	pm := pool.NewPoolManager(&cfg.PoolManager, runner)
-	if err = pm.ReloadPools(); err != nil {
-		log.Err(err.Error())
-		return
-	}
-
 	internalNetworkID, err := networks.Setup(ctx, docker, engProps.InstanceID, engProps.ContainerName)
 	if err != nil {
 		log.Errf(err.Error())
@@ -107,19 +101,15 @@ func main() {
 		DBName:   cfg.Global.Database.Name(),
 	}
 
-	emergencyShutdown := func() {
-		cancel()
-
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer shutdownCancel()
-
-		shutdownDatabaseLabEngine(shutdownCtx, docker, engProps, pm.First().Pool())
-	}
-
 	tm, err := telemetry.New(cfg.Global, engProps)
 	if err != nil {
 		log.Errf(errors.WithMessage(err, "failed to initialize a telemetry service").Error())
 		return
+	}
+
+	pm := pool.NewPoolManager(&cfg.PoolManager, runner)
+	if err = pm.ReloadPools(); err != nil {
+		log.Err(err.Error())
 	}
 
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
@@ -132,6 +122,15 @@ func main() {
 	}
 
 	observingChan := make(chan string, 1)
+
+	emergencyShutdown := func() {
+		cancel()
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer shutdownCancel()
+
+		shutdownDatabaseLabEngine(shutdownCtx, docker, engProps, pm.First())
+	}
 
 	cloningSvc := cloning.NewBase(&cfg.Cloning, provisioner, tm, observingChan)
 	if err = cloningSvc.Run(ctx); err != nil {
@@ -193,7 +192,7 @@ func main() {
 		log.Msg(err)
 	}
 
-	shutdownDatabaseLabEngine(shutdownCtx, docker, engProps, pm.First().Pool())
+	shutdownDatabaseLabEngine(shutdownCtx, docker, engProps, pm.First())
 	cloningSvc.SaveClonesState()
 	tm.SendEvent(context.Background(), telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
 }
@@ -292,11 +291,13 @@ func setShutdownListener() chan os.Signal {
 	return c
 }
 
-func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, engProps global.EngineProps, fsp *resources.Pool) {
+func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, engProps global.EngineProps, fsm pool.FSManager) {
 	log.Msg("Stopping auxiliary containers")
 
-	if err := cont.StopControlContainers(ctx, dockerCLI, engProps.InstanceID, fsp.DataDir()); err != nil {
-		log.Err("Failed to stop control containers", err)
+	if fsm != nil {
+		if err := cont.StopControlContainers(ctx, dockerCLI, engProps.InstanceID, fsm.Pool().DataDir()); err != nil {
+			log.Err("Failed to stop control containers", err)
+		}
 	}
 
 	if err := cont.CleanUpSatelliteContainers(ctx, dockerCLI, engProps.InstanceID); err != nil {

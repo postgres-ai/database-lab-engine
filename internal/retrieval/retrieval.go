@@ -137,6 +137,7 @@ func (r *Retrieval) Run(ctx context.Context) error {
 			Level:   models.RefreshFailed,
 			Message: "Pool to perform data refresh not found",
 		}
+		r.State.Status = models.Failed
 		r.State.addAlert(alert)
 		r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
 
