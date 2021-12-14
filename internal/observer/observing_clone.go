@@ -292,6 +292,10 @@ func (c *ObservingClone) resetStat(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create the logerrors extension")
 	}
 
+	if _, err := c.superUserDB.Exec(ctx, `create extension if not exists pg_stat_kcache`); err != nil {
+		return errors.Wrap(err, "failed to create the pg_stat_kcache extension")
+	}
+
 	if _, err := c.superUserDB.Exec(ctx,
 		`select
 		pg_stat_reset(),
