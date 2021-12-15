@@ -208,7 +208,7 @@ func getEngineProperties(ctx context.Context, dockerCLI *client.Client, cfg *con
 		return global.EngineProps{}, fmt.Errorf("failed to inspect DLE container: %w", err)
 	}
 
-	instanceID, err := config.LoadInstanceID(cfg.PoolManager.MountDir)
+	instanceID, err := config.LoadInstanceID()
 	if err != nil {
 		return global.EngineProps{}, fmt.Errorf("failed to load instance ID: %w", err)
 	}
