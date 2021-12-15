@@ -54,6 +54,7 @@ type Server struct {
 	docker      *client.Client
 	pm          *pool.Manager
 	tm          *telemetry.Agent
+	startedAt   *time.Time
 }
 
 // NewServer initializes a new Server instance with provided configuration.
@@ -82,6 +83,7 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config,
 		docker:      dockerClient,
 		pm:          pm,
 		tm:          tm,
+		startedAt:   pointer.ToTimeOrNil(time.Now().Truncate(time.Second)),
 	}
 
 	return server
@@ -95,7 +97,7 @@ func (s *Server) instanceStatus() *models.InstanceStatus {
 		},
 		Engine: models.Engine{
 			Version:   version.GetVersion(),
-			StartedAt: pointer.ToTimeOrNil(time.Now().Truncate(time.Second)),
+			StartedAt: s.startedAt,
 			Telemetry: pointer.ToBool(s.tm.IsEnabled()),
 		},
 		Pools:       s.provisioner.GetPoolEntryList(),
