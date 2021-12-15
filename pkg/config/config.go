@@ -8,7 +8,7 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
+	"path"
 
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
@@ -61,15 +61,23 @@ func LoadConfiguration() (*Config, error) {
 }
 
 // LoadInstanceID tries to make instance ID persistent across runs and load its value after restart
-func LoadInstanceID(mountDir string) (string, error) {
+func LoadInstanceID() (string, error) {
 	instanceID := ""
-	idFilepath := filepath.Join(mountDir, instanceIDFile)
+
+	idFilepath, err := util.GetMetaPath(instanceIDFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to get path of the instanceID file: %w", err)
+	}
 
 	data, err := os.ReadFile(idFilepath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			instanceID = xid.New().String()
 			log.Dbg("no instance_id file was found, generate new instance ID", instanceID)
+
+			if err := os.MkdirAll(path.Dir(idFilepath), 0755); err != nil {
+				return "", fmt.Errorf("failed to make directory meta: %w", err)
+			}
 
 			return instanceID, os.WriteFile(idFilepath, []byte(instanceID), 0544)
 		}
