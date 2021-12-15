@@ -42,14 +42,14 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				},
 				DumpLocation: "/tmp/db.dump",
 			},
-			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--create", "--jobs", "1", "/tmp/db.dump"},
+			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--exit-on-error", "--create", "--jobs", "1", "/tmp/db.dump"},
 		},
 		{
 			copyOptions: RestoreOptions{
 				ParallelJobs: 4,
 				ForceInit:    true,
 			},
-			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--create", "--clean", "--if-exists", "--jobs", "4", ""},
+			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--exit-on-error", "--create", "--clean", "--if-exists", "--jobs", "4", ""},
 		},
 		{
 			copyOptions: RestoreOptions{
@@ -58,7 +58,7 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				Databases:    map[string]DumpDefinition{"testDB": {}},
 				DumpLocation: "/tmp/db.dump",
 			},
-			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--create", "--jobs", "2", "/tmp/db.dump/testDB"},
+			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--exit-on-error", "--create", "--jobs", "2", "/tmp/db.dump/testDB"},
 		},
 		{
 			copyOptions: RestoreOptions{
@@ -71,7 +71,7 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				},
 				DumpLocation: "/tmp/db.dump",
 			},
-			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--create", "--jobs", "1", "--table", "test", "--table", "users", "/tmp/db.dump/testDB"},
+			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--exit-on-error", "--create", "--jobs", "1", "--table", "test", "--table", "users", "/tmp/db.dump/testDB"},
 		},
 		{
 			copyOptions: RestoreOptions{
