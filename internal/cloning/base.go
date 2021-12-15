@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AlekSi/pointer"
 	"github.com/jackc/pgtype/pgxtype"
 	"github.com/jackc/pgx/v4"
 	_ "github.com/lib/pq" // Register Postgres database driver.
@@ -29,7 +28,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/pglog"
-	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
 const (
@@ -46,36 +44,20 @@ type Config struct {
 
 // Base provides cloning service.
 type Base struct {
-	config         *Config
-	cloneMutex     sync.RWMutex
-	clones         map[string]*CloneWrapper
-	instanceStatus *models.InstanceStatus
-	snapshotBox    SnapshotBox
-	provision      *provision.Provisioner
-	tm             *telemetry.Agent
-	observingCh    chan string
+	config      *Config
+	cloneMutex  sync.RWMutex
+	clones      map[string]*CloneWrapper
+	snapshotBox SnapshotBox
+	provision   *provision.Provisioner
+	tm          *telemetry.Agent
+	observingCh chan string
 }
 
 // NewBase instances a new Base service.
 func NewBase(cfg *Config, provision *provision.Provisioner, tm *telemetry.Agent, observingCh chan string) *Base {
 	return &Base{
-		config: cfg,
-		clones: make(map[string]*CloneWrapper),
-		instanceStatus: &models.InstanceStatus{
-			Status: &models.Status{
-				Code:    models.StatusOK,
-				Message: models.InstanceMessageOK,
-			},
-			Engine: models.Engine{
-				Version:   version.GetVersion(),
-				StartedAt: pointer.ToTimeOrNil(time.Now().Truncate(time.Second)),
-				Telemetry: pointer.ToBool(tm.IsEnabled()),
-			},
-			Cloning: models.Cloning{
-				Clones: make([]*models.Clone, 0),
-			},
-			Provisioner: provision.ContainerOptions(),
-		},
+		config:      cfg,
+		clones:      make(map[string]*CloneWrapper),
 		provision:   provision,
 		tm:          tm,
 		observingCh: observingCh,
@@ -88,7 +70,6 @@ func NewBase(cfg *Config, provision *provision.Provisioner, tm *telemetry.Agent,
 // Reload reloads base cloning configuration.
 func (c *Base) Reload(cfg Config) {
 	*c.config = cfg
-	c.instanceStatus.Provisioner = c.provision.ContainerOptions()
 }
 
 // Run initializes and runs cloning component.
