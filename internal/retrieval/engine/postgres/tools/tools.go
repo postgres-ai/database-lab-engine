@@ -473,42 +473,50 @@ func ExecCommandWithOutput(ctx context.Context, dockerClient *client.Client, con
 
 	defer attachResponse.Close()
 
-	wb := new(bytes.Buffer)
-
-	if err := processAttachResponse(ctx, attachResponse.Reader, wb); err != nil {
-		return "", errors.Wrap(err, "failed to read response of exec command")
+	output, err := processAttachResponse(ctx, attachResponse.Reader)
+	if err != nil {
+		return string(output), errors.Wrap(err, "failed to read response of exec command")
 	}
 
-	return string(bytes.TrimSpace(wb.Bytes())), nil
+	inspection, err := dockerClient.ContainerExecInspect(ctx, execCommand.ID)
+	if err != nil {
+		return "", fmt.Errorf("failed to inspect an exec process: %w", err)
+	}
+
+	if inspection.ExitCode != 0 {
+		err = fmt.Errorf("exit code: %d", inspection.ExitCode)
+	}
+
+	return string(output), err
 }
 
 // processAttachResponse reads and processes the cmd output.
-func processAttachResponse(ctx context.Context, reader io.Reader, output io.Writer) error {
-	var errBuf bytes.Buffer
+func processAttachResponse(ctx context.Context, reader io.Reader) ([]byte, error) {
+	var outBuf, errBuf bytes.Buffer
 
 	outputDone := make(chan error)
 
 	go func() {
 		// StdCopy de-multiplexes the stream into two writers.
-		_, err := stdcopy.StdCopy(output, &errBuf, reader)
+		_, err := stdcopy.StdCopy(&outBuf, &errBuf, reader)
 		outputDone <- err
 	}()
 
 	select {
 	case err := <-outputDone:
 		if err != nil {
-			return errors.Wrap(err, "failed to copy output")
+			return nil, errors.Wrap(err, "failed to copy output")
 		}
 
 		break
 
 	case <-ctx.Done():
-		return ctx.Err()
+		return nil, ctx.Err()
 	}
 
 	if errBuf.Len() > 0 {
-		return errors.New(errBuf.String())
+		return nil, errors.New(errBuf.String())
 	}
 
-	return nil
+	return bytes.TrimSpace(outBuf.Bytes()), nil
 }
