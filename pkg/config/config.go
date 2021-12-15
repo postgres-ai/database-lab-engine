@@ -15,8 +15,8 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/embedui"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/localui"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
@@ -44,7 +44,7 @@ type Config struct {
 	Observer    observer.Config  `yaml:"observer"`
 	Estimator   estimator.Config `yaml:"estimator"`
 	PoolManager pool.Config      `yaml:"poolManager"`
-	LocalUI     localui.Config   `yaml:"localUI"`
+	EmbedUI     embedui.Config   `yaml:"embedUI"`
 }
 
 // LoadConfiguration instances a new application configuration.

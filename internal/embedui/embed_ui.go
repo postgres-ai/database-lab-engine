@@ -2,8 +2,8 @@
 2021 © Postgres.ai
 */
 
-// Package localui manages local UI container.
-package localui
+// Package embedui manages Embed UI container.
+package embedui
 
 import (
 	"context"
@@ -40,7 +40,7 @@ const (
 	healthCheckRetries  = 5
 )
 
-// Config defines configs for a local UI container.
+// Config defines configs for a Embed UI container.
 type Config struct {
 	Enabled     bool   `yaml:"enabled"`
 	DockerImage string `yaml:"dockerImage"`
@@ -48,7 +48,7 @@ type Config struct {
 	Port        int    `yaml:"port"`
 }
 
-// UIManager manages local UI container.
+// UIManager manages Embed UI container.
 type UIManager struct {
 	runner   runners.Runner
 	docker   *client.Client
@@ -89,16 +89,16 @@ func (ui *UIManager) isConfigChanged(cfg Config) bool {
 		ui.cfg.Port != cfg.Port
 }
 
-// Run creates a new local UI container.
+// Run creates a new Embed UI container.
 func (ui *UIManager) Run(ctx context.Context) error {
 	if err := docker.PrepareImage(ui.runner, ui.cfg.DockerImage); err != nil {
 		return fmt.Errorf("failed to prepare Docker image: %w", err)
 	}
 
-	localUI, err := ui.docker.ContainerCreate(ctx,
+	embedUI, err := ui.docker.ContainerCreate(ctx,
 		&container.Config{
 			Labels: map[string]string{
-				cont.DBLabSatelliteLabel:  cont.DBLabLocalUILabel,
+				cont.DBLabSatelliteLabel:  cont.DBLabEmbedUILabel,
 				cont.DBLabInstanceIDLabel: ui.engProps.InstanceID,
 				cont.DBLabEngineNameLabel: ui.engProps.ContainerName,
 			},
@@ -125,19 +125,19 @@ func (ui *UIManager) Run(ctx context.Context) error {
 		},
 		&network.NetworkingConfig{},
 		nil,
-		getLocalUIName(ui.engProps.InstanceID),
+		getEmbedUIName(ui.engProps.InstanceID),
 	)
 
 	if err != nil {
-		return fmt.Errorf("failed to prepare Docker image for LocalUI: %w", err)
+		return fmt.Errorf("failed to prepare Docker image for Embed UI: %w", err)
 	}
 
-	if err := networks.Connect(ctx, ui.docker, ui.engProps.InstanceID, localUI.ID); err != nil {
+	if err := networks.Connect(ctx, ui.docker, ui.engProps.InstanceID, embedUI.ID); err != nil {
 		return fmt.Errorf("failed to connect UI container to the internal Docker network: %w", err)
 	}
 
-	if err := ui.docker.ContainerStart(ctx, localUI.ID, types.ContainerStartOptions{}); err != nil {
-		return fmt.Errorf("failed to start container %q: %w", localUI.ID, err)
+	if err := ui.docker.ContainerStart(ctx, embedUI.ID, types.ContainerStartOptions{}); err != nil {
+		return fmt.Errorf("failed to start container %q: %w", embedUI.ID, err)
 	}
 
 	reportLaunching(ui.cfg)
@@ -145,7 +145,7 @@ func (ui *UIManager) Run(ctx context.Context) error {
 	return nil
 }
 
-// Restart destroys and creates a new local UI container.
+// Restart destroys and creates a new Embed UI container.
 func (ui *UIManager) Restart(ctx context.Context) error {
 	ui.Stop(ctx)
 
@@ -156,16 +156,16 @@ func (ui *UIManager) Restart(ctx context.Context) error {
 	return nil
 }
 
-// Stop removes a local UI container.
+// Stop removes a Embed UI container.
 func (ui *UIManager) Stop(ctx context.Context) {
-	tools.RemoveContainer(ctx, ui.docker, getLocalUIName(ui.engProps.InstanceID), cont.StopTimeout)
+	tools.RemoveContainer(ctx, ui.docker, getEmbedUIName(ui.engProps.InstanceID), cont.StopTimeout)
 }
 
-func getLocalUIName(instanceID string) string {
-	return cont.DBLabLocalUILabel + "_" + instanceID
+func getEmbedUIName(instanceID string) string {
+	return cont.DBLabEmbedUILabel + "_" + instanceID
 }
 
-// reportLaunching reports the launch of the LocalUI container.
+// reportLaunching reports the launch of the Embed UI container.
 func reportLaunching(cfg Config) {
 	host := engine.DefaultListenerHost
 
@@ -173,5 +173,5 @@ func reportLaunching(cfg Config) {
 		host = cfg.Host
 	}
 
-	log.Msg(fmt.Sprintf("Local UI has started successfully on %s:%d.", host, cfg.Port))
+	log.Msg(fmt.Sprintf("Embed UI has started successfully on %s:%d.", host, cfg.Port))
 }
