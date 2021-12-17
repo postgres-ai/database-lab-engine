@@ -62,10 +62,12 @@ func (c *Base) restartCloneContainers(ctx context.Context) {
 
 		if err := c.provision.ReconnectClone(ctx, cloneName); err != nil {
 			log.Err(fmt.Sprintf("Clone container %s cannot be reconnected to the internal network: %s", cloneName, err))
+			continue
 		}
 
 		if err := c.provision.StartCloneContainer(ctx, cloneName); err != nil {
 			log.Err(fmt.Sprintf("Clone container %s cannot start: %s", cloneName, err))
+			continue
 		}
 
 		log.Dbg(fmt.Sprintf("Clone container %s is running", cloneName))
@@ -79,7 +81,8 @@ func (c *Base) filterRunningClones(ctx context.Context) {
 	snapshotCache := make(map[string]struct{})
 
 	for cloneID, wrapper := range c.clones {
-		if wrapper.Clone == nil || wrapper.Session == nil || wrapper.Clone.Status.Code == models.StatusFatal {
+		if wrapper.Clone == nil || wrapper.Clone.Snapshot == nil || wrapper.Session == nil ||
+			wrapper.Clone.Status.Code == models.StatusFatal {
 			delete(c.clones, cloneID)
 			continue
 		}
