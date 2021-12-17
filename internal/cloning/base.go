@@ -306,7 +306,10 @@ func (c *Base) DestroyClone(cloneID string) error {
 		}
 
 		c.deleteClone(cloneID)
-		c.decrementCloneNumber(w.Clone.Snapshot.ID)
+
+		if w.Clone.Snapshot != nil {
+			c.decrementCloneNumber(w.Clone.Snapshot.ID)
+		}
 		c.observingCh <- cloneID
 
 		c.SaveClonesState()
