@@ -322,23 +322,27 @@ func (c *Base) GetClone(id string) (*models.Clone, error) {
 		return nil, errors.New("clone not found")
 	}
 
-	if w.Session == nil {
+	c.refreshCloneMetadata(w)
+
+	return w.Clone, nil
+}
+
+func (c *Base) refreshCloneMetadata(w *CloneWrapper) {
+	if w == nil || w.Session == nil || w.Clone == nil {
 		// Not started yet.
-		return w.Clone, nil
+		return
 	}
 
 	sessionState, err := c.provision.GetSessionState(w.Session)
 	if err != nil {
 		// Session not ready yet.
-		log.Err(errors.Wrap(err, "failed to get a session state"))
+		log.Err(fmt.Errorf("failed to get a session state: %w", err))
 
-		return w.Clone, nil
+		return
 	}
 
 	w.Clone.Metadata.CloneDiffSize = sessionState.CloneDiffSize
 	w.Clone.Metadata.LogicalSize = sessionState.LogicalReferenced
-
-	return w.Clone, nil
 }
 
 // UpdateClone updates clone.
@@ -492,6 +496,8 @@ func (c *Base) GetClones() []*models.Clone {
 
 			cloneWrapper.Clone.Snapshot = snapshot
 		}
+
+		c.refreshCloneMetadata(cloneWrapper)
 
 		clones = append(clones, cloneWrapper.Clone)
 	}
