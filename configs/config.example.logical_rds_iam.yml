@@ -23,14 +23,14 @@ server:
   # HTTP server port. Default: 2345.
   port: 2345
 
-# Embed UI. Controls the application to provide a user interface to DLE API.
-embedUI:
+# Embedded UI. Controls the application to provide a user interface to DLE API.
+embeddedUI:
   enabled: true
 
   # Docker image of the UI application.
   dockerImage: "postgresai/ce-ui:latest"
 
-  # Host or IP address, from which the Embed UI container accepts HTTP connections.
+  # Host or IP address, from which the embedded UI container accepts HTTP connections.
   # By default, use a loop-back to accept only local connections.
   # The empty string means "all available addresses".
   host: "127.0.0.1"

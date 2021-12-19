@@ -15,7 +15,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/embedui"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/embeddedui"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
@@ -35,16 +35,16 @@ const (
 
 // Config contains a common database-lab configuration.
 type Config struct {
-	Server      srvCfg.Config    `yaml:"server"`
-	Provision   provision.Config `yaml:"provision"`
-	Cloning     cloning.Config   `yaml:"cloning"`
-	Platform    platform.Config  `yaml:"platform"`
-	Global      global.Config    `yaml:"global"`
-	Retrieval   retConfig.Config `yaml:"retrieval"`
-	Observer    observer.Config  `yaml:"observer"`
-	Estimator   estimator.Config `yaml:"estimator"`
-	PoolManager pool.Config      `yaml:"poolManager"`
-	EmbedUI     embedui.Config   `yaml:"embedUI"`
+	Server      srvCfg.Config     `yaml:"server"`
+	Provision   provision.Config  `yaml:"provision"`
+	Cloning     cloning.Config    `yaml:"cloning"`
+	Platform    platform.Config   `yaml:"platform"`
+	Global      global.Config     `yaml:"global"`
+	Retrieval   retConfig.Config  `yaml:"retrieval"`
+	Observer    observer.Config   `yaml:"observer"`
+	Estimator   estimator.Config  `yaml:"estimator"`
+	PoolManager pool.Config       `yaml:"poolManager"`
+	EmbeddedUI  embeddedui.Config `yaml:"embeddedUI"`
 }
 
 // LoadConfiguration instances a new application configuration.
