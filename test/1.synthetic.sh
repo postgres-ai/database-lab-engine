@@ -81,7 +81,7 @@ curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-mast
 yq eval -i '
   .global.debug = true |
   .global.telemetry.enabled = false |
-  .embedUI.enabled = false |
+  .embeddedUI.enabled = false |
   .server.port = env(DLE_SERVER_PORT) |
   .provision.portPool.from = env(DLE_PORT_POOL_FROM) |
   .provision.portPool.to = env(DLE_PORT_POOL_TO) |
