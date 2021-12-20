@@ -80,16 +80,7 @@ func New(cfg *dblabCfg.Config, engineProps global.EngineProps, docker *client.Cl
 		},
 	}
 
-	for _, jobName := range r.cfg.Jobs {
-		jobSpec, ok := r.cfg.JobsSpec[jobName]
-		if !ok {
-			continue
-		}
-
-		jobSpec.Name = jobName
-		r.jobSpecs[jobName] = jobSpec
-	}
-
+	r.formatJobsSpec()
 	r.defineRetrievalMode()
 
 	return r
@@ -98,6 +89,8 @@ func New(cfg *dblabCfg.Config, engineProps global.EngineProps, docker *client.Cl
 // Reload reloads retrieval configuration.
 func (r *Retrieval) Reload(ctx context.Context, cfg *dblabCfg.Config) {
 	*r.cfg = cfg.Retrieval
+
+	r.formatJobsSpec()
 
 	for _, job := range r.jobs {
 		cfg, ok := r.cfg.JobsSpec[job.Name()]
@@ -111,7 +104,20 @@ func (r *Retrieval) Reload(ctx context.Context, cfg *dblabCfg.Config) {
 		}
 	}
 
+	r.stopScheduler()
 	r.setupScheduler(ctx)
+}
+
+func (r *Retrieval) formatJobsSpec() {
+	for _, jobName := range r.cfg.Jobs {
+		jobSpec, ok := r.cfg.JobsSpec[jobName]
+		if !ok {
+			continue
+		}
+
+		jobSpec.Name = jobName
+		r.jobSpecs[jobName] = jobSpec
+	}
 }
 
 // Run start retrieving process.
