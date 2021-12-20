@@ -416,6 +416,18 @@ func (r *Retrieval) refreshFunc(ctx context.Context) func() {
 
 // fullRefresh performs full refresh for an unused storage pool and makes it active.
 func (r *Retrieval) fullRefresh(ctx context.Context) error {
+	if r.State.Status == models.Refreshing {
+		alert := telemetry.Alert{
+			Level:   models.RefreshSkipped,
+			Message: "The data refresh is currently in progress. Skip a new data refresh iteration",
+		}
+		r.State.addAlert(alert)
+		r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
+		log.Msg(alert.Message)
+
+		return nil
+	}
+
 	// Stop previous runs and snapshot schedulers.
 	if r.ctxCancel != nil {
 		r.ctxCancel()
