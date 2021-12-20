@@ -86,6 +86,8 @@ build-binary-client-master:
 build-binary-client:
   <<: *only_tag_release
   stage: build-binary
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
   script:
     - make build-client
 
@@ -98,12 +100,14 @@ build-binary-client:
     - echo $GCP_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
 
     # Upload artifacts.
-    - gsutil -m cp -r bin/cli/* gs://database-lab-cli/${CI_COMMIT_TAG}/
+    - gsutil -m cp -r bin/cli/* gs://database-lab-cli/${CLEAN_TAG}/
     - gsutil -m cp -r bin/cli/* gs://database-lab-cli/latest/
 
 build-binary-client-rc:
   <<: *only_tag_rc
   stage: build-binary
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
   script:
     - make build-client
 
@@ -116,7 +120,7 @@ build-binary-client-rc:
     - echo $GCP_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
 
     # Upload artifacts.
-    - gsutil -m cp -r bin/cli/* gs://database-lab-cli/${CI_COMMIT_TAG}/
+    - gsutil -m cp -r bin/cli/* gs://database-lab-cli/${CLEAN_TAG}/
 
 .job_template: &build_image_definition
   image: docker:19
@@ -258,57 +262,67 @@ build-image-latest-client:
 build-image-rc-server:
   <<: *build_image_definition
   <<: *only_tag_rc
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
   variables:
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-server"
     DOCKER_NAME: "postgresai/dblab-server"
-    TAGS: "${DOCKER_NAME}:${CI_COMMIT_TAG}"
+    TAGS: "${DOCKER_NAME}:${CLEAN_TAG}"
 
 build-image-rc-server-dev:
   <<: *build_image_definition
   <<: *only_tag_rc
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
   variables:
     REGISTRY_USER: "${CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-server"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-server"
-    TAGS: "${DOCKER_NAME}:${CI_COMMIT_TAG}"
+    TAGS: "${DOCKER_NAME}:${CLEAN_TAG}"
 
 build-image-rc-ci-checker:
   <<: *build_image_definition
   <<: *only_tag_rc
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
   variables:
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.ci-checker"
     DOCKER_NAME: "postgresai/dblab-ci-checker"
-    TAGS: "${DOCKER_NAME}:${CI_COMMIT_TAG}"
+    TAGS: "${DOCKER_NAME}:${CLEAN_TAG}"
 
 build-image-rc-ci-checker-dev:
   <<: *build_image_definition
   <<: *only_tag_rc
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
   variables:
     REGISTRY_USER: "${CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.ci-checker"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-ci-checker"
-    TAGS: "${DOCKER_NAME}:${CI_COMMIT_TAG}"
+    TAGS: "${DOCKER_NAME}:${CLEAN_TAG}"
 
 build-image-rc-client:
   <<: *build_image_definition
   <<: *only_tag_rc
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
   variables:
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-cli"
     DOCKER_NAME: "postgresai/dblab"
-    TAGS: "${DOCKER_NAME}:${CI_COMMIT_TAG}"
+    TAGS: "${DOCKER_NAME}:${CLEAN_TAG}"
 
 build-image-swagger-latest:
   <<: *build_image_definition
