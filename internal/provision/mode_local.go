@@ -171,7 +171,7 @@ func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUs
 
 	defer func() {
 		if err != nil {
-			p.revertSession(name)
+			p.revertSession(fsm, name)
 
 			if portErr := p.FreePort(port); portErr != nil {
 				log.Err(portErr)
@@ -179,18 +179,18 @@ func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUs
 		}
 	}()
 
-	if err := fsm.CreateClone(name, snapshot.ID); err != nil {
+	if err = fsm.CreateClone(name, snapshot.ID); err != nil {
 		return nil, errors.Wrap(err, "failed to create clone")
 	}
 
 	appConfig := p.getAppConfig(fsm.Pool(), name, port)
 	appConfig.SetExtraConf(extraConfig)
 
-	if err := postgres.Start(p.runner, appConfig); err != nil {
+	if err = postgres.Start(p.runner, appConfig); err != nil {
 		return nil, errors.Wrap(err, "failed to start a container")
 	}
 
-	if err := p.prepareDB(appConfig, user); err != nil {
+	if err = p.prepareDB(appConfig, user); err != nil {
 		return nil, errors.Wrap(err, "failed to prepare a database")
 	}
 
@@ -263,30 +263,30 @@ func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string
 
 	defer func() {
 		if err != nil {
-			p.revertSession(name)
+			p.revertSession(newFSManager, name)
 		}
 	}()
 
-	if err := postgres.Stop(p.runner, fsm.Pool(), name); err != nil {
+	if err = postgres.Stop(p.runner, fsm.Pool(), name); err != nil {
 		return nil, errors.Wrap(err, "failed to stop container")
 	}
 
-	if err := fsm.DestroyClone(name); err != nil {
+	if err = fsm.DestroyClone(name); err != nil {
 		return nil, errors.Wrap(err, "failed to destroy clone")
 	}
 
-	if err := newFSManager.CreateClone(name, snapshot.ID); err != nil {
+	if err = newFSManager.CreateClone(name, snapshot.ID); err != nil {
 		return nil, errors.Wrap(err, "failed to create clone")
 	}
 
 	appConfig := p.getAppConfig(newFSManager.Pool(), name, session.Port)
 	appConfig.SetExtraConf(session.ExtraConfig)
 
-	if err := postgres.Start(p.runner, appConfig); err != nil {
+	if err = postgres.Start(p.runner, appConfig); err != nil {
 		return nil, errors.Wrap(err, "failed to start container")
 	}
 
-	if err := p.prepareDB(appConfig, session.EphemeralUser); err != nil {
+	if err = p.prepareDB(appConfig, session.EphemeralUser); err != nil {
 		return nil, errors.Wrap(err, "failed to prepare database")
 	}
 
@@ -383,15 +383,15 @@ func buildPoolEntry(fsm pool.FSManager) (models.PoolEntry, error) {
 }
 
 // Other methods.
-func (p *Provisioner) revertSession(name string) {
+func (p *Provisioner) revertSession(fsm pool.FSManager, name string) {
 	log.Dbg(`Reverting start of a session...`)
 
-	if runnerErr := postgres.Stop(p.runner, p.pm.First().Pool(), name); runnerErr != nil {
-		log.Err(`Revert:`, runnerErr)
+	if runnerErr := postgres.Stop(p.runner, fsm.Pool(), name); runnerErr != nil {
+		log.Err("Stop Postgres:", runnerErr)
 	}
 
-	if runnerErr := p.pm.First().DestroyClone(name); runnerErr != nil {
-		log.Err(`Revert:`, runnerErr)
+	if runnerErr := fsm.DestroyClone(name); runnerErr != nil {
+		log.Err("Destroy clone:", runnerErr)
 	}
 }
 
