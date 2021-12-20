@@ -112,8 +112,6 @@ func (c *Base) filterRunningClones(ctx context.Context) {
 
 // SaveClonesState writes clones state to disk.
 func (c *Base) SaveClonesState() {
-	log.Msg("Saving state of running clones")
-
 	sessionsPath, err := util.GetMetaPath(sessionsFilename)
 	if err != nil {
 		log.Err("failed to get path of a sessions file", err)
@@ -122,8 +120,6 @@ func (c *Base) SaveClonesState() {
 	if err := c.saveClonesState(sessionsPath); err != nil {
 		log.Err("Failed to save the state of running clones", err)
 	}
-
-	log.Msg("The state of running clones has been saved")
 }
 
 // saveClonesState tries to write clones state to disk and returns an error on failure.
