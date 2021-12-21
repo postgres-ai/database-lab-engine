@@ -58,8 +58,8 @@ const (
 	DBLabDumpLabel = "dblab_dump"
 	// DBLabRestoreLabel defines a label value for restore containers.
 	DBLabRestoreLabel = "dblab_restore"
-	// DBLabLocalUILabel defines a label value for local UI containers.
-	DBLabLocalUILabel = "dblab_local_ui"
+	// DBLabEmbeddedUILabel defines a label value for embedded UI containers.
+	DBLabEmbeddedUILabel = "dblab_embedded_ui"
 
 	// DBLabRunner defines a label to mark runner containers.
 	DBLabRunner = "dblab_runner"

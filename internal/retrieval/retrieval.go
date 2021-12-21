@@ -80,16 +80,7 @@ func New(cfg *dblabCfg.Config, engineProps global.EngineProps, docker *client.Cl
 		},
 	}
 
-	for _, jobName := range r.cfg.Jobs {
-		jobSpec, ok := r.cfg.JobsSpec[jobName]
-		if !ok {
-			continue
-		}
-
-		jobSpec.Name = jobName
-		r.jobSpecs[jobName] = jobSpec
-	}
-
+	r.formatJobsSpec()
 	r.defineRetrievalMode()
 
 	return r
@@ -98,6 +89,8 @@ func New(cfg *dblabCfg.Config, engineProps global.EngineProps, docker *client.Cl
 // Reload reloads retrieval configuration.
 func (r *Retrieval) Reload(ctx context.Context, cfg *dblabCfg.Config) {
 	*r.cfg = cfg.Retrieval
+
+	r.formatJobsSpec()
 
 	for _, job := range r.jobs {
 		cfg, ok := r.cfg.JobsSpec[job.Name()]
@@ -111,7 +104,20 @@ func (r *Retrieval) Reload(ctx context.Context, cfg *dblabCfg.Config) {
 		}
 	}
 
+	r.stopScheduler()
 	r.setupScheduler(ctx)
+}
+
+func (r *Retrieval) formatJobsSpec() {
+	for _, jobName := range r.cfg.Jobs {
+		jobSpec, ok := r.cfg.JobsSpec[jobName]
+		if !ok {
+			continue
+		}
+
+		jobSpec.Name = jobName
+		r.jobSpecs[jobName] = jobSpec
+	}
 }
 
 // Run start retrieving process.
@@ -137,6 +143,7 @@ func (r *Retrieval) Run(ctx context.Context) error {
 			Level:   models.RefreshFailed,
 			Message: "Pool to perform data refresh not found",
 		}
+		r.State.Status = models.Failed
 		r.State.addAlert(alert)
 		r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
 
@@ -409,6 +416,18 @@ func (r *Retrieval) refreshFunc(ctx context.Context) func() {
 
 // fullRefresh performs full refresh for an unused storage pool and makes it active.
 func (r *Retrieval) fullRefresh(ctx context.Context) error {
+	if r.State.Status == models.Refreshing {
+		alert := telemetry.Alert{
+			Level:   models.RefreshSkipped,
+			Message: "The data refresh is currently in progress. Skip a new data refresh iteration",
+		}
+		r.State.addAlert(alert)
+		r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
+		log.Msg(alert.Message)
+
+		return nil
+	}
+
 	// Stop previous runs and snapshot schedulers.
 	if r.ctxCancel != nil {
 		r.ctxCancel()

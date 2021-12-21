@@ -21,8 +21,8 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/embeddedui"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/localui"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
@@ -81,12 +81,6 @@ func main() {
 
 	runner := runners.NewLocalRunner(cfg.Provision.UseSudo)
 
-	pm := pool.NewPoolManager(&cfg.PoolManager, runner)
-	if err = pm.ReloadPools(); err != nil {
-		log.Err(err.Error())
-		return
-	}
-
 	internalNetworkID, err := networks.Setup(ctx, docker, engProps.InstanceID, engProps.ContainerName)
 	if err != nil {
 		log.Errf(err.Error())
@@ -107,19 +101,15 @@ func main() {
 		DBName:   cfg.Global.Database.Name(),
 	}
 
-	emergencyShutdown := func() {
-		cancel()
-
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer shutdownCancel()
-
-		shutdownDatabaseLabEngine(shutdownCtx, docker, engProps, pm.First().Pool())
-	}
-
 	tm, err := telemetry.New(cfg.Global, engProps)
 	if err != nil {
 		log.Errf(errors.WithMessage(err, "failed to initialize a telemetry service").Error())
 		return
+	}
+
+	pm := pool.NewPoolManager(&cfg.PoolManager, runner)
+	if err = pm.ReloadPools(); err != nil {
+		log.Err(err.Error())
 	}
 
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
@@ -132,6 +122,15 @@ func main() {
 	}
 
 	observingChan := make(chan string, 1)
+
+	emergencyShutdown := func() {
+		cancel()
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer shutdownCancel()
+
+		shutdownDatabaseLabEngine(shutdownCtx, docker, engProps, pm.First())
+	}
 
 	cloningSvc := cloning.NewBase(&cfg.Cloning, provisioner, tm, observingChan)
 	if err = cloningSvc.Run(ctx); err != nil {
@@ -153,11 +152,11 @@ func main() {
 		Restore:       retrievalSvc.CollectRestoreTelemetry(),
 	})
 
-	localUI := localui.New(cfg.LocalUI, engProps, runner, docker)
+	embeddedUI := embeddedui.New(cfg.EmbeddedUI, engProps, runner, docker)
 	server := srv.NewServer(&cfg.Engine, &cfg.Global, engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc, obs, est, pm, tm)
 	shutdownCh := setShutdownListener()
 
-	go setReloadListener(ctx, provisioner, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, localUI, server)
+	go setReloadListener(ctx, provisioner, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server)
 
 	server.InitHandlers()
 
@@ -167,10 +166,10 @@ func main() {
 		}
 	}()
 
-	if cfg.LocalUI.Enabled {
+	if cfg.EmbeddedUI.Enabled {
 		go func() {
-			if err := localUI.Run(ctx); err != nil {
-				log.Err("Failed to start local UI container:", err.Error())
+			if err := embeddedUI.Run(ctx); err != nil {
+				log.Err("Failed to start embedded UI container:", err.Error())
 				return
 			}
 		}()
@@ -193,7 +192,7 @@ func main() {
 		log.Msg(err)
 	}
 
-	shutdownDatabaseLabEngine(shutdownCtx, docker, engProps, pm.First().Pool())
+	shutdownDatabaseLabEngine(shutdownCtx, docker, engProps, pm.First())
 	cloningSvc.SaveClonesState()
 	tm.SendEvent(context.Background(), telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
 }
@@ -209,7 +208,7 @@ func getEngineProperties(ctx context.Context, dockerCLI *client.Client, cfg *con
 		return global.EngineProps{}, fmt.Errorf("failed to inspect DLE container: %w", err)
 	}
 
-	instanceID, err := config.LoadInstanceID(cfg.PoolManager.MountDir)
+	instanceID, err := config.LoadInstanceID()
 	if err != nil {
 		return global.EngineProps{}, fmt.Errorf("failed to load instance ID: %w", err)
 	}
@@ -224,7 +223,7 @@ func getEngineProperties(ctx context.Context, dockerCLI *client.Client, cfg *con
 }
 
 func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent, retrievalSvc *retrieval.Retrieval,
-	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, localUI *localui.UIManager,
+	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, embeddedUI *embeddedui.UIManager,
 	server *srv.Server) error {
 	cfg, err := config.LoadConfiguration()
 	if err != nil {
@@ -248,7 +247,7 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 		return err
 	}
 
-	if err := localUI.Reload(ctx, cfg.LocalUI); err != nil {
+	if err := embeddedUI.Reload(ctx, cfg.EmbeddedUI); err != nil {
 		return err
 	}
 
@@ -269,7 +268,7 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 }
 
 func setReloadListener(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent, retrievalSvc *retrieval.Retrieval,
-	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, localUI *localui.UIManager,
+	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, embeddedUI *embeddedui.UIManager,
 	server *srv.Server) {
 	reloadCh := make(chan os.Signal, 1)
 	signal.Notify(reloadCh, syscall.SIGHUP)
@@ -277,7 +276,7 @@ func setReloadListener(ctx context.Context, provisionSvc *provision.Provisioner,
 	for range reloadCh {
 		log.Msg("Reloading configuration")
 
-		if err := reloadConfig(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, localUI, server); err != nil {
+		if err := reloadConfig(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server); err != nil {
 			log.Err("Failed to reload configuration", err)
 		}
 
@@ -292,11 +291,13 @@ func setShutdownListener() chan os.Signal {
 	return c
 }
 
-func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, engProps global.EngineProps, fsp *resources.Pool) {
+func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, engProps global.EngineProps, fsm pool.FSManager) {
 	log.Msg("Stopping auxiliary containers")
 
-	if err := cont.StopControlContainers(ctx, dockerCLI, engProps.InstanceID, fsp.DataDir()); err != nil {
-		log.Err("Failed to stop control containers", err)
+	if fsm != nil {
+		if err := cont.StopControlContainers(ctx, dockerCLI, engProps.InstanceID, fsm.Pool().DataDir()); err != nil {
+			log.Err("Failed to stop control containers", err)
+		}
 	}
 
 	if err := cont.CleanUpSatelliteContainers(ctx, dockerCLI, engProps.InstanceID); err != nil {

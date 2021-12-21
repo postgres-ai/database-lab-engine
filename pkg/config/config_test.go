@@ -3,12 +3,15 @@ package config
 import (
 	"bytes"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -59,22 +62,28 @@ func (s *ConfigSuite) TearDownTest() {
 }
 
 func (s *ConfigSuite) TestGenerateNewID() {
-	instanceID, err := LoadInstanceID(s.mountDir)
+	instanceID, err := LoadInstanceID()
 	s.Require().NoError(err)
 	s.NotEmpty(instanceID)
 
-	data, err := os.ReadFile(filepath.Join(s.mountDir, "instance_id"))
-	s.NoError(err)
+	instanceIDPath, err := util.GetMetaPath("instance_id")
+	s.Require().NoError(err)
+	data, err := os.ReadFile(instanceIDPath)
+	s.Require().NoError(err)
 	s.Equal(instanceID, string(data))
 }
 
 func (s *ConfigSuite) TestLoadInstanceID() {
 	instanceID := xid.New().String()
 
-	err := os.WriteFile(filepath.Join(s.mountDir, "instance_id"), []byte(instanceID), 0600)
+	instanceIDPath, err := util.GetMetaPath("instance_id")
+	s.Require().NoError(err)
+	err = os.MkdirAll(path.Dir(instanceIDPath), 0755)
+	s.Require().NoError(err)
+	err = os.WriteFile(instanceIDPath, []byte(instanceID), 0600)
 	s.Require().NoError(err)
 
-	instanceID, err = LoadInstanceID(s.mountDir)
-	s.NoError(err)
+	instanceID, err = LoadInstanceID()
+	s.Require().NoError(err)
 	s.Equal(instanceID, instanceID)
 }

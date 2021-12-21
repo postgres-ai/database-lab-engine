@@ -709,7 +709,7 @@ func (r *RestoreJob) buildPlainTextCommand(dumpName string, definition DumpDefin
 
 func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DumpDefinition) []string {
 	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName,
-		"--no-privileges", "--no-owner"}
+		"--no-privileges", "--no-owner", "--exit-on-error"}
 
 	if definition.dbName != defaults.DBName {
 		// To avoid recreating of the default database.

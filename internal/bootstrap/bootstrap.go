@@ -33,7 +33,7 @@ const (
 
 // StartDLE starts Database Lab Engine container.
 func StartDLE(ctx context.Context, docker *client.Client, cfg *config.Config) error {
-	instanceID, err := config.LoadInstanceID(cfg.PoolManager.MountDir)
+	instanceID, err := config.LoadInstanceID()
 	if err != nil {
 		return fmt.Errorf("failed to load instance ID: %w", err)
 	}
@@ -123,8 +123,8 @@ func buildEngineHostConfig(cfg *config.Config) *container.HostConfig {
 func ReportLaunching(cfg *config.Config) {
 	log.Msg(fmt.Sprintf("DLE has started successfully on %s:%d.", getHost(cfg.Engine.Host), cfg.Engine.Port))
 
-	if cfg.LocalUI.Enabled {
-		log.Msg(fmt.Sprintf("Local UI has started successfully on %s:%d.", getHost(cfg.LocalUI.Host), cfg.LocalUI.Port))
+	if cfg.EmbeddedUI.Enabled {
+		log.Msg(fmt.Sprintf("Local UI has started successfully on %s:%d.", getHost(cfg.EmbeddedUI.Host), cfg.EmbeddedUI.Port))
 	}
 }
 

@@ -8,15 +8,15 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
+	"path"
 
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 	"gopkg.in/yaml.v2"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/embeddedui"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/localui"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
@@ -35,16 +35,16 @@ const (
 
 // Config contains a common database-lab configuration.
 type Config struct {
-	Engine      srvCfg.Engine    `yaml:"engine"`
-	Provision   provision.Config `yaml:"provision"`
-	Cloning     cloning.Config   `yaml:"cloning"`
-	Platform    platform.Config  `yaml:"platform"`
-	Global      global.Config    `yaml:"global"`
-	Retrieval   retConfig.Config `yaml:"retrieval"`
-	Observer    observer.Config  `yaml:"observer"`
-	Estimator   estimator.Config `yaml:"estimator"`
-	PoolManager pool.Config      `yaml:"poolManager"`
-	LocalUI     localui.Config   `yaml:"localUI"`
+	Engine      srvCfg.Engine     `yaml:"engine"`
+	Provision   provision.Config  `yaml:"provision"`
+	Cloning     cloning.Config    `yaml:"cloning"`
+	Platform    platform.Config   `yaml:"platform"`
+	Global      global.Config     `yaml:"global"`
+	Retrieval   retConfig.Config  `yaml:"retrieval"`
+	Observer    observer.Config   `yaml:"observer"`
+	Estimator   estimator.Config  `yaml:"estimator"`
+	PoolManager pool.Config       `yaml:"poolManager"`
+	EmbeddedUI  embeddedui.Config `yaml:"embeddedUI"`
 }
 
 // LoadConfiguration instances a new application configuration.
@@ -61,15 +61,23 @@ func LoadConfiguration() (*Config, error) {
 }
 
 // LoadInstanceID tries to make instance ID persistent across runs and load its value after restart
-func LoadInstanceID(mountDir string) (string, error) {
+func LoadInstanceID() (string, error) {
 	instanceID := ""
-	idFilepath := filepath.Join(mountDir, instanceIDFile)
+
+	idFilepath, err := util.GetMetaPath(instanceIDFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to get path of the instanceID file: %w", err)
+	}
 
 	data, err := os.ReadFile(idFilepath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			instanceID = xid.New().String()
 			log.Dbg("no instance_id file was found, generate new instance ID", instanceID)
+
+			if err := os.MkdirAll(path.Dir(idFilepath), 0755); err != nil {
+				return "", fmt.Errorf("failed to make directory meta: %w", err)
+			}
 
 			return instanceID, os.WriteFile(idFilepath, []byte(instanceID), 0544)
 		}

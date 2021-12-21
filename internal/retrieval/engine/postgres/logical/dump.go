@@ -643,7 +643,7 @@ func (d *DumpJob) buildLogicalDumpCommand(dbName string, tables []string) []stri
 
 func (d *DumpJob) buildLogicalRestoreCommand(dbName string) []string {
 	restoreCmd := []string{"|", "pg_restore", "--username", d.globalCfg.Database.User(), "--dbname", defaults.DBName,
-		"--no-privileges", "--no-owner"}
+		"--no-privileges", "--no-owner", "--exit-on-error"}
 
 	if dbName != defaults.DBName {
 		// To avoid recreating of the default database.

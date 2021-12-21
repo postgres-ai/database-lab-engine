@@ -102,7 +102,7 @@ curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-mast
 yq eval -i '
   .global.debug = true |
   .global.telemetry.enabled = false |
-  .localUI.enabled = false |
+  .embeddedUI.enabled = false |
   .engine.host = "" |
   .engine.port = env(DLE_SERVER_PORT) |
   .poolManager.mountDir = env(DLE_TEST_MOUNT_DIR) |
