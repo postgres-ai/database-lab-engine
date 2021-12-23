@@ -181,6 +181,8 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 		AvailableDB: cloneRequest.DB.DBName,
 	}
 
+	c.incrementCloneNumber(clone.Snapshot.ID)
+
 	go func() {
 		session, err := c.provision.StartSession(clone.Snapshot.ID, ephemeralUser, cloneRequest.ExtraConf)
 		if err != nil {
@@ -216,7 +218,6 @@ func (c *Base) fillCloneSession(cloneID string, session *resources.Session) {
 
 	w.Session = session
 	w.TimeStartedAt = time.Now()
-	c.incrementCloneNumber(w.Clone.Snapshot.ID)
 
 	clone := w.Clone
 	clone.Status = models.Status{
@@ -621,8 +622,11 @@ func (c *Base) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 
 	session := wrapper.Session
 
-	// TODO(akartasov): Remove wrappers without session.
 	if session == nil {
+		if wrapper.Clone.Status.Code == models.StatusFatal {
+			return true, nil
+		}
+
 		return false, errors.New("failed to get clone session")
 	}
 
