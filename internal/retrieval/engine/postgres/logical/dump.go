@@ -335,7 +335,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		}
 	}
 
-	if err := d.cleanupDumpLocation(ctx, dumpCont.ID); err != nil {
+	if err := d.cleanupDumpLocation(ctx, dumpCont.ID, dbList); err != nil {
 		return err
 	}
 
@@ -406,23 +406,18 @@ func (d *DumpJob) getPassword() string {
 	return pwd
 }
 
-func (d *DumpJob) cleanupDumpLocation(ctx context.Context, dumpContID string) error {
+func (d *DumpJob) cleanupDumpLocation(ctx context.Context, dumpContID string, dbList map[string]DumpDefinition) error {
 	if d.DumpOptions.DumpLocation == "" || d.DumpOptions.Restore.Enabled {
 		return nil
 	}
 
-	ls, err := tools.LsContainerDirectory(ctx, d.dockerClient, dumpContID, d.DumpOptions.DumpLocation)
-	if err != nil {
-		return errors.Wrap(err, "failed to clean up dump location")
-	}
-
-	if len(ls) == 0 {
+	if len(dbList) == 0 {
 		return nil
 	}
 
 	cleanupCmd := []string{"rm", "-rf"}
 
-	for _, dbName := range ls {
+	for dbName := range dbList {
 		cleanupCmd = append(cleanupCmd, path.Join(d.DumpOptions.DumpLocation, dbName))
 	}
 
