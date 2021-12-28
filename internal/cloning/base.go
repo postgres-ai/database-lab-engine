@@ -142,16 +142,16 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 		return nil, errors.Wrap(err, "failed to fetch snapshots")
 	}
 
-	var snapshot *models.Snapshot
+	snapshot, err := c.getLatestSnapshot()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find the latest snapshot")
+	}
 
 	if cloneRequest.Snapshot != nil {
 		snapshot, err = c.getSnapshotByID(cloneRequest.Snapshot.ID)
-	} else {
-		snapshot, err = c.getLatestSnapshot()
-	}
-
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get snapshot")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find the requested snapshot")
+		}
 	}
 
 	clone := &models.Clone{
@@ -498,7 +498,9 @@ func (c *Base) GetClones() []*models.Clone {
 				log.Err("Snapshot not found: ", cloneWrapper.Clone.Snapshot.ID)
 			}
 
-			cloneWrapper.Clone.Snapshot = snapshot
+			if snapshot != nil {
+				cloneWrapper.Clone.Snapshot = snapshot
+			}
 		}
 
 		c.refreshCloneMetadata(cloneWrapper)

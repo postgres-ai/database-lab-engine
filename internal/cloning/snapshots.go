@@ -28,7 +28,9 @@ func (c *Base) fetchSnapshots() error {
 		return errors.Wrap(err, "failed to get snapshots")
 	}
 
-	c.resetSnapshots(make(map[string]*models.Snapshot, len(entries)))
+	var latestSnapshot *models.Snapshot
+
+	snapshots := make(map[string]*models.Snapshot, len(entries))
 
 	for _, entry := range entries {
 		numClones := 0
@@ -50,17 +52,20 @@ func (c *Base) fetchSnapshots() error {
 			NumClones:    numClones,
 		}
 
-		c.addSnapshot(currentSnapshot)
+		snapshots[entry.ID] = currentSnapshot
+		latestSnapshot = defineLatestSnapshot(latestSnapshot, currentSnapshot)
 
 		log.Dbg("snapshot:", *currentSnapshot)
 	}
 
+	c.resetSnapshots(snapshots, latestSnapshot)
+
 	return nil
 }
-func (c *Base) resetSnapshots(snapshotMap map[string]*models.Snapshot) {
+func (c *Base) resetSnapshots(snapshotMap map[string]*models.Snapshot, latestSnapshot *models.Snapshot) {
 	c.snapshotBox.snapshotMutex.Lock()
 
-	c.snapshotBox.latestSnapshot = nil
+	c.snapshotBox.latestSnapshot = latestSnapshot
 	c.snapshotBox.items = snapshotMap
 
 	c.snapshotBox.snapshotMutex.Unlock()
@@ -70,13 +75,18 @@ func (c *Base) addSnapshot(snapshot *models.Snapshot) {
 	c.snapshotBox.snapshotMutex.Lock()
 
 	c.snapshotBox.items[snapshot.ID] = snapshot
-
-	if c.snapshotBox.latestSnapshot == nil ||
-		c.snapshotBox.latestSnapshot.DataStateAt == "" || c.snapshotBox.latestSnapshot.DataStateAt < snapshot.DataStateAt {
-		c.snapshotBox.latestSnapshot = snapshot
-	}
+	c.snapshotBox.latestSnapshot = defineLatestSnapshot(c.snapshotBox.latestSnapshot, snapshot)
 
 	c.snapshotBox.snapshotMutex.Unlock()
+}
+
+// defineLatestSnapshot compares two snapshots and defines the latest one.
+func defineLatestSnapshot(latest, challenger *models.Snapshot) *models.Snapshot {
+	if latest == nil || latest.DataStateAt == "" || latest.DataStateAt < challenger.DataStateAt {
+		return challenger
+	}
+
+	return latest
 }
 
 // getLatestSnapshot returns the latest snapshot.
