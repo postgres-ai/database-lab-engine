@@ -13,7 +13,7 @@ import (
 )
 
 func (s *BaseCloningSuite) TestLatestSnapshot() {
-	s.cloning.resetSnapshots(make(map[string]*models.Snapshot))
+	s.cloning.resetSnapshots(make(map[string]*models.Snapshot), nil)
 
 	snapshot1 := &models.Snapshot{
 		ID:          "TestSnapshotID1",
@@ -38,10 +38,27 @@ func (s *BaseCloningSuite) TestLatestSnapshot() {
 	latestSnapshot, err = s.cloning.getLatestSnapshot()
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), latestSnapshot, snapshot2)
+
+	snapshot3 := &models.Snapshot{
+		ID:          "TestSnapshotID3",
+		CreatedAt:   "2020-02-21 05:43:21",
+		DataStateAt: "2020-02-21 00:00:00",
+	}
+
+	snapshotMap := make(map[string]*models.Snapshot)
+	snapshotMap[snapshot1.ID] = snapshot1
+	snapshotMap[snapshot2.ID] = snapshot2
+	snapshotMap[snapshot3.ID] = snapshot3
+	s.cloning.resetSnapshots(snapshotMap, snapshot3)
+
+	require.Equal(s.T(), 3, len(s.cloning.snapshotBox.items))
+	latestSnapshot, err = s.cloning.getLatestSnapshot()
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), latestSnapshot, snapshot3)
 }
 
 func (s *BaseCloningSuite) TestSnapshotByID() {
-	s.cloning.resetSnapshots(make(map[string]*models.Snapshot))
+	s.cloning.resetSnapshots(make(map[string]*models.Snapshot), nil)
 
 	snapshot1 := &models.Snapshot{
 		ID:          "TestSnapshotID1",
@@ -72,7 +89,7 @@ func (s *BaseCloningSuite) TestSnapshotByID() {
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), latestSnapshot, snapshot2)
 
-	s.cloning.resetSnapshots(make(map[string]*models.Snapshot))
+	s.cloning.resetSnapshots(make(map[string]*models.Snapshot), nil)
 	require.Equal(s.T(), 0, len(s.cloning.snapshotBox.items))
 	latestSnapshot, err = s.cloning.getLatestSnapshot()
 	require.Nil(s.T(), latestSnapshot)
@@ -101,4 +118,45 @@ func TestCloneCounter(t *testing.T) {
 	snapshot, err = c.getSnapshotByID("testSnapshotID")
 	require.Nil(t, err)
 	require.Equal(t, 0, snapshot.NumClones)
+}
+
+func TestLatestSnapshots(t *testing.T) {
+	baseSnapshot := &models.Snapshot{
+		DataStateAt: "2020-02-19 00:00:00",
+	}
+	newSnapshot := &models.Snapshot{
+		DataStateAt: "2020-02-21 00:00:00",
+	}
+	oldSnapshot := &models.Snapshot{
+		DataStateAt: "2020-02-01 00:00:00",
+	}
+
+	testCases := []struct {
+		latest, challenger, result *models.Snapshot
+	}{
+		{
+			latest:     baseSnapshot,
+			challenger: newSnapshot,
+			result:     newSnapshot,
+		},
+		{
+			latest:     baseSnapshot,
+			challenger: oldSnapshot,
+			result:     baseSnapshot,
+		},
+		{
+			latest:     nil,
+			challenger: oldSnapshot,
+			result:     oldSnapshot,
+		},
+		{
+			latest:     &models.Snapshot{},
+			challenger: oldSnapshot,
+			result:     oldSnapshot,
+		},
+	}
+
+	for _, tc := range testCases {
+		require.Equal(t, tc.result, defineLatestSnapshot(tc.latest, tc.challenger))
+	}
 }
