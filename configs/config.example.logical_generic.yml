@@ -16,6 +16,7 @@ engine:
 
   # Additional volumes to mount to Database Lab Engine.
   volumes:
+    - /var/lib/dblab/dblab_pool/dump:/var/lib/dblab/dblab_pool/dump
 
   # Environment variables passing to Database Lab Engine container.
   envs:
