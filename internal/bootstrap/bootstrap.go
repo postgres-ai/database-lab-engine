@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"path"
 	"strconv"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -18,6 +19,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/docker"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
@@ -32,13 +35,17 @@ const (
 )
 
 // StartDLE starts Database Lab Engine container.
-func StartDLE(ctx context.Context, docker *client.Client, cfg *config.Config) error {
+func StartDLE(ctx context.Context, dockCli *client.Client, cfg *config.Config) error {
 	instanceID, err := config.LoadInstanceID()
 	if err != nil {
 		return fmt.Errorf("failed to load instance ID: %w", err)
 	}
 
-	dleContainer, err := docker.ContainerCreate(ctx,
+	if err := tools.PullImage(ctx, dockCli, cfg.Engine.DockerImage); err != nil {
+		return fmt.Errorf("failed to scan image pulling response: %w", err)
+	}
+
+	dleContainer, err := dockCli.ContainerCreate(ctx,
 		buildEngineContainerConfig(instanceID, cfg),
 		buildEngineHostConfig(cfg),
 		&network.NetworkingConfig{},
@@ -48,8 +55,12 @@ func StartDLE(ctx context.Context, docker *client.Client, cfg *config.Config) er
 		return fmt.Errorf("failed to create DLE container: %w", err)
 	}
 
-	if err = docker.ContainerStart(ctx, dleContainer.ID, types.ContainerStartOptions{}); err != nil {
+	if err = dockCli.ContainerStart(ctx, dleContainer.ID, types.ContainerStartOptions{}); err != nil {
 		return fmt.Errorf("failed to start DLE container: %w", err)
+	}
+
+	if err := waitForContainerRunning(ctx, dockCli, dleContainer.ID); err != nil {
+		return err
 	}
 
 	return nil
@@ -119,12 +130,31 @@ func buildEngineHostConfig(cfg *config.Config) *container.HostConfig {
 	return hostConfig
 }
 
+func waitForContainerRunning(ctx context.Context, dockCli *client.Client, containerName string) error {
+	for range time.NewTicker(time.Second).C {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		isRunning, err := docker.IsContainerRunning(ctx, dockCli, containerName)
+		if err != nil {
+			return fmt.Errorf("container is not running: %w", err)
+		}
+
+		if isRunning {
+			break
+		}
+	}
+
+	return nil
+}
+
 // ReportLaunching reports the launch of DLE container.
 func ReportLaunching(cfg *config.Config) {
 	log.Msg(fmt.Sprintf("DLE has started successfully on %s:%d.", getHost(cfg.Engine.Host), cfg.Engine.Port))
 
 	if cfg.EmbeddedUI.Enabled {
-		log.Msg(fmt.Sprintf("Local UI has started successfully on %s:%d.", getHost(cfg.EmbeddedUI.Host), cfg.EmbeddedUI.Port))
+		log.Msg(fmt.Sprintf("Embedded UI has started successfully on %s:%d.", getHost(cfg.EmbeddedUI.Host), cfg.EmbeddedUI.Port))
 	}
 }
 
