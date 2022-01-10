@@ -34,8 +34,8 @@ engine:
   verificationToken: "secret_token"
 
   # The host to which the Database Lab server accepts HTTP connections.
-  # By default uses an empty string to accept connections to all network interfaces.
-  # Keep it default when running inside a Docker container.
+  # By default, use a loop-back to accept only local connections.
+  # The empty string means "all available addresses".
   host: "127.0.0.1"
 
   # HTTP server port. Default: 2345.
