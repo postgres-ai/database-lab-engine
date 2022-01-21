@@ -19,6 +19,7 @@ As an example, cloning a 10 TiB PostgreSQL database can take less than 2 seconds
 > Please support the project giving a GitLab star! It's on [the main page](https://gitlab.com/postgres-ai/database-lab), at the upper right corner:
 >
 > ![Add a star](./assets/star.gif)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine?ref=badge_shield)
 
 ## Useful links
 - [Database Lab documentation](https://postgres.ai/docs)
@@ -55,3 +56,7 @@ See our [GitLab Container Registry](https://gitlab.com/postgres-ai/database-lab/
 ## Community
 - [Community Slack](https://slack.postgres.ai)
 - [Twitter](https://twitter.com/Database_Lab)
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine?ref=badge_large)
