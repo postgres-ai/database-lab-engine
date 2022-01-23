@@ -68,7 +68,7 @@ Enhancement suggestions are tracked on [GitLab](https://gitlab.com/postgres-ai/d
 - Provide a step-by-step description of the proposed enhancement in as many details as possible.
 - Provide specific examples to demonstrate the steps. Include copy/pasteable snippets which you use in those examples
 - Use Markdown to format code snippets and improve the overall look of your issues (Markdown docs: [GitLab](https://docs.gitlab.com/ee/user/markdown.html), [GitHub](https://github.github.com/gfm/)).
-- Describe the current behavior and explain which behavior you expected to see instead and why.
+- Describe the current behavior and explain which behavior you expected to see instead and why (on GitLab, you can use the issue template, which is selected by default).
 - If your proposal is related to UI, include screenshots and animated GIFs which help you demonstrate the steps or point out the part of DLE to which the suggestion is related. Please, do NOT use screenshots for console output, logs, configs.
 - Explain why this proposal would be helpful to most DLE users.
 - Specify which version of DLE you're using. If it makes sense, specify Postgres versions too.
@@ -126,10 +126,13 @@ We're building documentation following the principles described at https://docum
 
 Learn more: https://documentation.divio.com/.
 
-<!--
 ### Repo overview
-TBD
--->
+The [postgres-ai/database-lab](https://gitlab.com/postgres-ai/database-lab) repo contains 3 components:
+- [Database Lab Engine](https://gitlab.com/postgres-ai/database-lab/-/tree/master/cmd/database-lab)
+- [Database Lab CI Checker](https://gitlab.com/postgres-ai/database-lab/-/tree/master/cmd/runci)
+- [Database Lab CLI](https://gitlab.com/postgres-ai/database-lab/-/tree/master/cmd/cli)
+
+All three components have a single version, denoted by either the git tag or a combination of the branch name and git commit SHA.
 
 ### Development setup
 - Install Docker. Example for Linux:
@@ -173,10 +176,12 @@ TBD
 
 <!-- TODO: Linux specific requirements? MacOS specific? -->
 
-<!--
+
 ### Building from source
-TBD – separately for Linux and MacOS
+Use `Makefile` to build Database Lab components from source.
 
+Run `make help` to see all available targets.
 
+<!--
 mention dev images: See our [GitLab Container Registry](https://gitlab.com/postgres-ai/database-lab/container_registry) to find the images built for development branches.
 -->
