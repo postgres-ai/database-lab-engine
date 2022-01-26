@@ -118,7 +118,7 @@ HTML snippet for lighter backgrounds:
 </a>
 ```
 
-Fro darker backgrounds:
+For darker backgrounds:
 <p style="background-color: #bbb">
   <img width="400" src="https://postgres.ai/assets/powered-by-dle-for-dark-background.svg" />
 </p>
