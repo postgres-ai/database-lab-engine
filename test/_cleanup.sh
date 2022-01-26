@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euxo pipefail
 
-DLE_TEST_MOUNT_DIR="/var/lib/test/dblab"
+DLE_TEST_MOUNT_DIR="/var/lib/test/dblab_mount"
 DLE_TEST_POOL_NAME="test_dblab_pool"
 ZFS_FILE="$(pwd)/zfs_file"
 
@@ -10,7 +10,7 @@ sudo docker ps -aq --filter label="test_dblab_pool" | xargs --no-run-if-empty su
 sudo docker ps -aq --filter label="dblab_test" | xargs --no-run-if-empty sudo docker rm -f
 
 # Remove unused Docker images
-sudo docker images -q | xargs --no-run-if-empty sudo docker rmi || true
+sudo docker images --filter=reference='registry.gitlab.com/postgres-ai/database-lab/dblab-server:*' -q | xargs --no-run-if-empty sudo docker rmi || true
 
 # Clean up the data directory
 sudo rm -rf ${DLE_TEST_MOUNT_DIR}/${DLE_TEST_POOL_NAME}/data/*

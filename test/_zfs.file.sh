@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euxo pipefail
 
-DLE_TEST_MOUNT_DIR="/var/lib/test/dblab"
+DLE_TEST_MOUNT_DIR="/var/lib/test/dblab_mount"
 DLE_TEST_POOL_NAME="test_dblab_pool"
 ZFS_FILE="$(pwd)/zfs_file"
 
