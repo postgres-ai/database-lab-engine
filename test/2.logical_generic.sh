@@ -12,7 +12,7 @@ export SOURCE_PORT="${SOURCE_PORT:-7432}"
 export SOURCE_USERNAME="${SOURCE_USERNAME:-postgres}"
 export SOURCE_PASSWORD="${SOURCE_PASSWORD:-secretpassword}"
 export POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
-export DLE_TEST_MOUNT_DIR="/var/lib/test/dblab"
+export DLE_TEST_MOUNT_DIR="/var/lib/test/dblab_mount"
 export DLE_TEST_POOL_NAME="test_dblab_pool"
 export DLE_SERVER_PORT=${DLE_SERVER_PORT:-12345}
 export DLE_PORT_POOL_FROM=${DLE_PORT_POOL_FROM:-9000}
@@ -23,13 +23,7 @@ DIR=${0%/*}
 if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
 ### Step 0. Create source database
   TMP_DATA_DIR="/tmp/dle_test/logical_generic"
-  cleanup_testdata_dir() {
-    sudo rm -rf "${TMP_DATA_DIR}"/postgresql/"${POSTGRES_VERSION}"/test || true
-  }
 
-  trap cleanup_testdata_dir EXIT
-
-  cleanup_testdata_dir
   sudo docker rm postgres"${POSTGRES_VERSION}" || true
 
   sudo docker run \
@@ -59,12 +53,21 @@ if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
 
   check_database_readiness || (echo "test database is not ready" && exit 1)
 
-  # Generate data in the test database using pgbench
-  # 1,000,000 accounts, ~0.14 GiB of data.
-  sudo docker exec postgres"${POSTGRES_VERSION}" pgbench -U postgres -i -s 10 "${SOURCE_DBNAME}"
+  check_data_existence(){
+    sudo docker exec postgres"${POSTGRES_VERSION}" psql -d "${SOURCE_DBNAME}" -U postgres --command 'select from pgbench_accounts' > /dev/null 2>&1
+    return $?
+  }
 
-  # Database info
-  sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c "\l+ ${SOURCE_DBNAME}"
+  generate_data(){
+    # Generate data in the test database using pgbench
+    # 1,000,000 accounts, ~0.14 GiB of data.
+    sudo docker exec postgres"${POSTGRES_VERSION}" pgbench -U postgres -i -s 10 "${SOURCE_DBNAME}"
+
+    # Database info
+    sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c "\l+ ${SOURCE_DBNAME}"
+  }
+
+  check_data_existence || generate_data
 fi
 
 ### Step 1. Prepare a machine with disk, Docker, and ZFS

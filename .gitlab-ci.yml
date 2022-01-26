@@ -338,10 +338,23 @@ build-image-swagger-latest:
 
 
 .bash-test: &bash_test
-  <<: *only_feature
   stage: integration-test
   variables:
     IMAGE_TAG: "${CI_COMMIT_REF_SLUG}"
+  only:
+    refs:
+      - branches
+    variables:
+      - $CI_COMMIT_REF_SLUG != "master"
+    changes:
+      - cmd/**/*
+      - configs/**/*
+      - internal/**/*
+      - pkg/**/*
+      - test/**/*
+      - Dockerfile.*
+      - go.*
+      - .gitlab-ci.yml
   script:
     - bash test/1.synthetic.sh
     - bash test/2.logical_generic.sh
