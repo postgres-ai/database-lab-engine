@@ -1,6 +1,6 @@
 # See Guides to learn how to start a container: https://postgres.ai/docs/how-to-guides/administration/engine-manage
 
-FROM docker:19.03.14
+FROM docker:19.03.15
 
 # Install dependencies.
 RUN apk update && apk add --no-cache zfs lvm2 bash util-linux
