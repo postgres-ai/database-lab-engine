@@ -176,5 +176,6 @@ Reach out to the Postgres.ai team if you want a trial or commercial license that
 
 <!-- 
 ## Translations
+
 -- TBD
 -->
