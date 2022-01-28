@@ -1,0 +1,30 @@
+// Screen width.
+@mixin screen-max-width ($width) {
+  @media screen and (max-width: $width) {
+    @content;
+  }
+}
+
+@mixin sm {
+  @include screen-max-width(600px) {
+    @content;
+  }
+}
+
+// Transitions.
+@mixin transition($properties, $duration, $function)  {
+  $transition: ();
+  @for $i from 1 through length($properties) {
+    $transition: append($transition, $duration nth($properties, $i) $function, $separator: comma);
+  }
+
+  transition: $transition;
+}
+
+@mixin touch-transition ($properties) {
+  @include transition(($properties), .2s, ease-out);
+}
+
+@mixin animation-transition ($properties) {
+  @include transition(($properties), .4s, ease-out);
+}

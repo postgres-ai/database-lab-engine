@@ -1,0 +1,33 @@
+@import '@postgres.ai/shared/styles/vars';
+
+.root {
+  padding: 8px 10px;
+  background: #fff2e5;
+  border: 1px solid $color-gray-100;
+  margin-top: 12px;
+  border-radius: $border-radius--small;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.title {
+  font-weight: 700;
+  font-size: 12px;
+  margin-right: 24px;
+  margin: 0;
+}
+
+.icon {
+  width: 10px;
+  color: $color-status-warning;
+  flex: 0 0 auto;
+}
+
+.propertyName {
+  flex: 0 0 123px;
+}

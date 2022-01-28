@@ -1,0 +1,40 @@
+@import '@postgres.ai/shared/styles/vars';
+@import '@postgres.ai/shared/styles/mixins';
+
+.root {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  margin: 8px 0 48px 0;
+  min-height: 0;
+}
+
+.links {
+  flex: 0 1 auto;
+  overflow: auto;
+}
+
+.link,
+.addInstanceBtn {
+  border: 1px solid transparent;
+  text-decoration: none;
+
+  &.selected {
+    border-color: $color-white;
+  }
+}
+
+.link {
+  justify-content: center;
+  white-space: normal;
+}
+
+.addInstanceBtn {
+  color: $color-gray;
+  margin-top: 8px;
+  flex: 0 0 auto;
+
+  &:hover {
+    color: $color-white;
+  }
+}

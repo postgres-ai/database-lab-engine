@@ -1,0 +1,82 @@
+@import '@postgres.ai/shared/styles/vars';
+@import '@postgres.ai/shared/styles/mixins';
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: $border-radius--small;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+
+  @include touch-transition(background-color color box-shadow opacity);
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: .5;
+  }
+
+  // Sizes.
+  &.sm {
+    height: 20px;
+    font-size: 12px;
+  }
+
+  &.md {
+    height: 26px;
+    font-size: 14px;
+  }
+
+  &.lg {
+    height: 32px;
+  }
+
+  // Themes.
+  &.primary {
+    background: $color-blue-main;
+    color: $color-white;
+
+    &:hover {
+      background: darken($color-blue-main, 5);
+    }
+
+    &:active {
+      background: darken($color-blue-main, 10);
+    }
+  }
+
+  &.secondary {
+    background: $color-white;
+    border: 1px solid $color-blue-main;
+    color: $color-blue-main;
+
+    &:hover {
+      background: #f4f6f7;
+    }
+
+    &:active {
+      background: #bdd5dc;
+    }
+  }
+
+  &.accent {
+    background: $color-orange;
+    color: $color-white;
+
+    &:hover {
+      background: darken($color-orange, 5);
+    }
+
+    &:active {
+      background: darken($color-orange, 10);
+    }
+  }
+}
+
+.spinner {
+  margin-left: 8px;
+  color: inherit;
+}

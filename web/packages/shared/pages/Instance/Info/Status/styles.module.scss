@@ -1,0 +1,12 @@
+.controls {
+  display: flex;
+  margin-top: 24px;
+}
+
+.button {
+  text-decoration: none;
+
+  & + .button {
+    margin-left: 8px;
+  }
+}

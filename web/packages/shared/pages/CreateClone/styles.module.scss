@@ -1,0 +1,67 @@
+.title {
+  margin-top: 16px;
+}
+
+.form {
+  max-width: 425px;
+  margin-top: 8px;
+}
+
+.section {
+  & + .section {
+    margin-top: 32px;
+  }
+}
+
+.title {
+  font-size: inherit;
+  font-weight: 700;
+}
+
+.text {
+  margin-top: 8px;
+}
+
+.remark {
+  font-size: 12px;
+}
+
+.snapshotTag {
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  background-color: rgba(#808080, 0.15) !important;
+  padding: 12px;
+}
+
+.summaryIcon {
+  width: 30px;
+  color: silver;
+  margin-right: 12px;
+}
+
+.params {
+  flex: 1 1 100%;
+}
+
+.param {
+  display: flex;
+  justify-content: space-between;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+}
+
+.spinner {
+  margin-left: 8px;
+}
+
+.elapsedTime {
+  margin-left: 24px;
+}
