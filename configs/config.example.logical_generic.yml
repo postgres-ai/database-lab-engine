@@ -285,12 +285,12 @@ retrieval:
         # Adjust PostgreSQL configuration
         <<: *db_configs
 
-        # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
+        # It is possible to define a pre-processing script. For example, "/tmp/scripts/custom.sh".
         # Default: empty string (no pre-processing defined).
         # This can be used for scrubbing eliminating PII data, to define data masking, etc.
         preprocessingScript: ""
 
-        # Define pre-precessing SQL queries for data patching. For example, "/tmp/scripts/sql".
+        # Define pre-processing SQL queries for data patching. For example, "/tmp/scripts/sql".
         dataPatching:
           <<: *db_container
           queryPreprocessing:
