@@ -257,7 +257,7 @@ retrieval:
             # Maximum number of health check retries.
             maxRetries: 200
 
-          # It is possible to define pre-precessing SQL queries. For example, "/tmp/scripts/sql".
+          # It is possible to define pre-processing SQL queries. For example, "/tmp/scripts/sql".
           # Default: empty string (no pre-processing defined).
           queryPreprocessing:
             # Path to SQL pre-processing queries.
@@ -275,7 +275,7 @@ retrieval:
           # Uncomment this only if you are on Postgres version 11 or older.
           # standby_mode: on
 
-        # It is possible to define a pre-precessing script. For example, "/tmp/scripts/custom.sh".
+        # It is possible to define a pre-processing script. For example, "/tmp/scripts/custom.sh".
         # Default: empty string (no pre-processing defined).
         # This can be used for scrubbing eliminating PII data, to define data masking, etc.
         preprocessingScript: ""
