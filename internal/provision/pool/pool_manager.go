@@ -193,14 +193,14 @@ func (pm *Manager) CollectPoolStat() telemetry.PoolStat {
 	return ps
 }
 
-// GetActiveFSManagers returns a list of active filesystem managers.
-func (pm *Manager) GetActiveFSManagers() []FSManager {
+// GetAvailableFSManagers returns a list of non-empty (active or refreshing) filesystem managers.
+func (pm *Manager) GetAvailableFSManagers() []FSManager {
 	fs := []FSManager{}
 
 	pm.mu.Lock()
 
 	for _, fsManager := range pm.fsManagerPool {
-		if pool := fsManager.Pool(); pool != nil && pool.Status() == resources.ActivePool {
+		if pool := fsManager.Pool(); pool != nil && pool.Status() != resources.EmptyPool {
 			fs = append(fs, fsManager)
 		}
 	}

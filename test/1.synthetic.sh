@@ -151,6 +151,10 @@ dblab init \
 # Check the configuration by fetching the status of the instance:
 dblab instance status
 
+# Check the snapshot list
+ if [[ $(dblab snapshot list | jq length) -eq 0 ]] ; then
+   echo "No snapshot found" && exit 1
+ fi
 
 ## Create a clone
 dblab clone create \

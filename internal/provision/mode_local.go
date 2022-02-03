@@ -300,7 +300,7 @@ func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string
 
 // DiscoverSnapshots discovers snapshots from active pools.
 func (p *Provisioner) DiscoverSnapshots() {
-	for _, fsManager := range p.pm.GetActiveFSManagers() {
+	for _, fsManager := range p.pm.GetAvailableFSManagers() {
 		fsManager.RefreshSnapshotList()
 	}
 }
@@ -309,7 +309,7 @@ func (p *Provisioner) DiscoverSnapshots() {
 func (p *Provisioner) GetSnapshots() ([]resources.Snapshot, error) {
 	snapshots := []resources.Snapshot{}
 
-	for _, activeFSManager := range p.pm.GetActiveFSManagers() {
+	for _, activeFSManager := range p.pm.GetAvailableFSManagers() {
 		poolSnapshots := activeFSManager.SnapshotList()
 		if len(poolSnapshots) == 0 {
 			log.Msg(fmt.Sprintf("no snapshots for pool %s", activeFSManager.Pool().Name))

@@ -196,3 +196,31 @@ func TestBuildingCommands(t *testing.T) {
 		require.Equal(t, "zfs get -H -p -o value used testSnapshot", command)
 	})
 }
+
+func TestSnapshotList(t *testing.T) {
+	t.Run("Snapshot list", func(t *testing.T) {
+		fsManager := NewFSManager(runnerMock{}, Config{})
+
+		require.Equal(t, 0, len(fsManager.SnapshotList()))
+
+		snapshot := resources.Snapshot{ID: "test1"}
+		fsManager.addSnapshotToList(snapshot)
+
+		require.Equal(t, 1, len(fsManager.SnapshotList()))
+		require.Equal(t, []resources.Snapshot{{ID: "test1"}}, fsManager.SnapshotList())
+
+		snapshot2 := resources.Snapshot{ID: "test2"}
+		fsManager.addSnapshotToList(snapshot2)
+
+		snapshot3 := resources.Snapshot{ID: "test3"}
+		fsManager.addSnapshotToList(snapshot3)
+
+		require.Equal(t, 3, len(fsManager.SnapshotList()))
+		require.Equal(t, []resources.Snapshot{{ID: "test1"}, {ID: "test2"}, {ID: "test3"}}, fsManager.SnapshotList())
+
+		fsManager.removeSnapshotFromList("test2")
+
+		require.Equal(t, 2, len(fsManager.SnapshotList()))
+		require.Equal(t, []resources.Snapshot{{ID: "test1"}, {ID: "test3"}}, fsManager.SnapshotList())
+	})
+}
