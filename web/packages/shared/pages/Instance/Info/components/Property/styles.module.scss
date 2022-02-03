@@ -1,0 +1,16 @@
+.root {
+  display: flex;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.name {
+  flex: 0 0 134px;
+  margin-right: 14px;
+}
+
+.content {
+  flex: 1 1 100%;
+  font-weight: 700;
+  width: 0;
+}

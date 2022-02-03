@@ -1,0 +1,12 @@
+@import '@postgres.ai/shared/styles/vars';
+@import '@postgres.ai/shared/styles/mixins';
+
+.root {
+  color: $color-blue-main;
+
+  @include touch-transition(color);
+
+  &:hover {
+    color: $color-blue-dark;
+  }
+}

@@ -1,0 +1,34 @@
+@import '@postgres.ai/shared/styles/vars';
+@import '@postgres.ai/shared/styles/mixins';
+
+.root {
+  position: relative;
+  background: $color-white--100;
+  border: 1px solid $color-gray-100;
+  border-radius: $border-radius--small;
+  overflow: hidden;
+
+  &:hover .copyButtonContainer {
+    opacity: 1;
+  }
+}
+
+.content {
+  padding: 10px 80px 10px 10px;
+  line-height: 1.5;
+  overflow: auto;
+  max-height: inherit;
+  margin: 0;
+}
+
+.copyButtonContainer {
+  opacity: 0;
+
+  @include touch-transition(opacity);
+}
+
+.copyButton {
+  position: absolute;
+  top: 8.5px;
+  right: 8.5px;
+}

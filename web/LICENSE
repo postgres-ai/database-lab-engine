@@ -1,0 +1,8 @@
+Copyright (c) 2019-present, Postgres.ai, Nikolay Samokhvalov nik@postgres.ai
+
+Portions of this software are licensed as follows:
+* All contents residing under the "packages/platform" directory of this repository, if that directory exists, is licensed under the license defined in "packages/platform/LICENSE".
+* All contents residing under the "packages/ce" directory of this repository, if that directory exists, is licensed under the license defined in "packages/ce/LICENSE".
+* All contents residing under the "packages/shared" directory of this repository, if that directory exists, is licensed under the license defined in "packages/shared/LICENSE".
+* All third party components incorporated into the Postgres.ai Software are licensed under the original license provided by the owner of the applicable component.
+* Content outside of the above mentioned directories or restrictions above is available under the "AGPLv3" license.

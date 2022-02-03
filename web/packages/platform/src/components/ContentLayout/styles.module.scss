@@ -1,0 +1,40 @@
+/*--------------------------------------------------------------------------
+ * Copyright (c) 2019-2021, Postgres.ai, Nikolay Samokhvalov nik@postgres.ai
+ * All Rights Reserved. Proprietary and confidential.
+ * Unauthorized copying of this file, via any medium is strictly prohibited
+ *--------------------------------------------------------------------------
+ */
+
+@import '@postgres.ai/shared/styles/mixins';
+
+.root {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 100%;
+  padding-top: 40px;
+  width: 100%;
+  // Flexbox bug fix - https://bugzilla.mozilla.org/show_bug.cgi?id=1086218#c4.
+  min-width: 0;
+}
+
+.wrapper {
+  flex: 1 1 100%;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+
+  &.fullScreen {
+    flex-shrink: 0;
+  }
+
+  @include sm {
+    padding: 20px 12px;
+  }
+}

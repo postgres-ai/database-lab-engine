@@ -1,0 +1,29 @@
+/*--------------------------------------------------------------------------
+ * Copyright (c) 2019-2021, Postgres.ai, Nikolay Samokhvalov nik@postgres.ai
+ * All Rights Reserved. Proprietary and confidential.
+ * Unauthorized copying of this file, via any medium is strictly prohibited
+ *--------------------------------------------------------------------------
+ */
+
+import { ResetClone } from '@postgres.ai/shared/types/api/endpoints/resetClone'
+
+import { request } from 'helpers/request'
+
+export const resetClone: ResetClone = async (req) => {
+  const response = await request('/rpc/dblab_clone_reset', {
+    method: 'post',
+    body: JSON.stringify({
+      instance_id: req.instanceId,
+      clone_id: req.cloneId,
+      reset_options: {
+        snapshotID: req.snapshotId,
+        latest: false,
+      },
+    }),
+  })
+
+  return {
+    response: response.ok ? true : null,
+    error: response.ok ? null : response,
+  }
+}
