@@ -312,7 +312,7 @@ func (m *Manager) CreateSnapshot(poolSuffix, dataStateAt string) (string, error)
 		}
 	}
 
-	dataStateTime, err := util.ParseCustomTime(dataStateAt)
+	dataStateTime, err := util.ParseCustomTime(strings.TrimSuffix(dataStateAt, m.config.PreSnapshotSuffix))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse dataStateAt: %w", err)
 	}
