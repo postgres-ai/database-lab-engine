@@ -24,7 +24,7 @@ for tag in "${ADDR[@]}"; do
 done
 
 set -x
-docker build --build-arg API_URL_PREFIX=/api $tags_build --file ./packages/ce/Dockerfile .
+docker build --build-arg API_URL_PREFIX=/api $tags_build --file ./web/packages/ce/Dockerfile .
 set +x
 
 echo -e "$tags_push" | while read -r tag; do

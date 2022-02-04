@@ -23,7 +23,7 @@ done
 
 # Set envs before building the container image, because env vars
 # will not be available in user's browser.
-source "./packages/platform/deploy/configs/${NAMESPACE}.sh"
+source "./web/packages/platform/deploy/configs/${NAMESPACE}.sh"
 
 set -x
 docker build \
@@ -37,7 +37,7 @@ docker build \
       --build-arg ARG_REACT_APP_AUTH_URL="${REACT_APP_AUTH_URL}" \
       --build-arg ARG_REACT_APP_ROOT_URL="${REACT_APP_ROOT_URL}" \
       --build-arg ARG_REACT_APP_SENTRY_DSN="${REACT_APP_SENTRY_DSN}" \
-      $tags_build --file ./packages/platform/Dockerfile .
+      $tags_build --file ./web/packages/platform/Dockerfile .
 set +x
 
 echo -e "$tags_push" | while read -r tag; do

@@ -10,7 +10,7 @@ FROM node:16.13.0-alpine as build
 
 WORKDIR /app
 
-COPY . .
+COPY ./web/ .
 
 ARG ARG_REACT_APP_API_SERVER
 ENV REACT_APP_API_SERVER=$ARG_REACT_APP_API_SERVER
@@ -49,7 +49,7 @@ RUN npm run build -w @postgres.ai/platform
 FROM nginx:1.20.1-alpine as run
 
 COPY --from=build /app/packages/platform/build /srv/platform
-COPY ./packages/platform/nginx.conf /etc/nginx/conf.d/platform.conf
+COPY ./web/packages/platform/nginx.conf /etc/nginx/conf.d/platform.conf
 RUN rm -rf /etc/nginx/conf.d/default.conf
 
 CMD ["nginx", "-g", "daemon off;"]
