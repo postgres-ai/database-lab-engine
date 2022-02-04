@@ -1,4 +1,4 @@
-# Database Lab Platform (Web)
+# Database Lab Engine and Database Lab Engine UI
 
 ## Database Lab - thin database clones for faster development
 _Proceed to [Database Lab Engine repository](https://gitlab.com/postgres-ai/database-lab) for more information about technology itself._
@@ -10,7 +10,6 @@ Database Lab Engine (DLE) is an open-source (AGPLv3) technology that allows blaz
 As an example, cloning a 10 TiB PostgreSQL database can take less than 2 seconds.
 
 ## Development
-
 ### List packages:
 - `@postgres.ai/platform` - platform version of UI
 - `@postgres.ai/ce` - community edition version of UI
@@ -36,3 +35,5 @@ _Important note: don't use commands for `@postgres.ai/shared` - it's dependent p
 ### How to build
 - `npm ci -ws`
 - `npm build -ws`
+
+<!-- TODO: move this ^ to the main README.md and CONTRIBUTING.md -->

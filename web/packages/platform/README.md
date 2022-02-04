@@ -1,11 +1,3 @@
-```
--------------------------------------------------------------------------
-Copyright (c) 2019-2021, Postgres.ai, Nikolay Samokhvalov nik@postgres.ai
-All Rights Reserved. Proprietary and confidential.
-Unauthorized copying of this file, via any medium is strictly prohibited
--------------------------------------------------------------------------
-```
-
 # platform-console
 
 To start:
@@ -21,3 +13,5 @@ npm run start
 
 ## `meta.json` is missing, what to do?
 Run `npm run build`.
+
+<!-- TODO: move this to the main README.md and CONTRIBUTING.md -->
