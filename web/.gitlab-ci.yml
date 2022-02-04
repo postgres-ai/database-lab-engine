@@ -1,16 +1,17 @@
-stages:
-  - test
-  - build
-  - deploy
+.only_web: &only_web
+  rules:
+    - changes:
+        - web/**/*
 
 check_code_style:
+  <<: *only_web
   stage: test
   image: node:16.13.0
   script:
-    - npm ci -ws
-    - npm run lint -w packages/ce
-    - npm run lint -w packages/platform
+    - npm --prefix web/ ci -ws
+    - npm --prefix web/ run lint -w packages/ce
+    - npm --prefix web/ run lint -w packages/platform
 
 include:
-  - local: '/packages/ce/.gitlab-ci.yml'
-  - local: '/packages/platform/.gitlab-ci.yml'
+  - local: 'web/packages/ce/.gitlab-ci.yml'
+  - local: 'web/packages/platform/.gitlab-ci.yml'

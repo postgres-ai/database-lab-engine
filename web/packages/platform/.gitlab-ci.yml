@@ -5,14 +5,14 @@
 # Proprietary and confidential
 #--------------------------------------------------------------------------
 
-image: docker:18.09.7
-
-stages:
-  - build
-  - deploy
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - when: always
 
 # Environments.
-.environment_template: &env_production
+.environment_production: &env_production
   environment: 
     name: production
     url: https://postgres.ai
@@ -22,7 +22,7 @@ stages:
     DOCKER_NAME: "gcr.io/postgres-ai/platform-web/cloud"
     TAG: "${DOCKER_NAME}:${CI_COMMIT_TAG}-${CI_PIPELINE_IID}"
 
-.environment_template: &env_staging
+.environment_staging: &env_staging
   environment: 
     name: staging
     url: https://console-v2.postgres.ai
@@ -32,7 +32,7 @@ stages:
     DOCKER_NAME: "gcr.io/postgres-ai/platform-web/cloud"
     TAG: "${DOCKER_NAME}:${NAMESPACE}-${CI_PIPELINE_IID}"
 
-.environment_template: &env_dev
+.environment_dev: &env_dev
   environment:
     name: dev
     url: https://console-dev.postgres.ai
@@ -43,77 +43,76 @@ stages:
     TAG: "${DOCKER_NAME}:${NAMESPACE}-${CI_PIPELINE_IID}"
 
 # Jobs templates.
-.job_template: &build_definition
+.build_definition: &build_definition
   stage: build
+  image: docker:20.10.12
   services:
     - docker:dind
   script:
     - apk add --no-cache bash
-    - bash ./packages/platform/ci_docker_build_push.sh
+    - bash ./web/packages/platform/ci_docker_build_push.sh
 
-.job_template: &deploy_definition
+.deploy_definition: &deploy_definition
   stage: deploy
   image: dtzar/helm-kubectl:2.14.1
   script:
     # Substitute env variables in deploy config.
-    - bash ./packages/platform/do.sh subs_envs ./packages/platform/deploy/platform-console.yaml /tmp/platform-console.yaml
+    - bash ./web/packages/platform/do.sh subs_envs ./web/packages/platform/deploy/platform-console.yaml /tmp/platform-console.yaml
     # Deploy to k8s cluster.
     - kubectl apply --filename /tmp/platform-console.yaml -n $NAMESPACE
 
 # Conditions.
-.only_var_template: &only_tag_release
-  only:
-    variables:
-      - $CI_COMMIT_TAG =~ /^[0-9.]+$/
+.only_web_tag_release: &only_web_tag_release
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^web\/[0-9.]+$/
 
-.only_var_template: &only_staging
-  only:
-    refs:
-      - branches
-    variables:
-      - $CI_COMMIT_REF_SLUG == "master"
+.only_web_staging: &only_web_staging
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - web/**/*
 
-.only_var_template: &only_feature
-  only:
-    refs:
-      - branches
-    variables:
-      - $CI_COMMIT_REF_SLUG != "master"
-  when: manual
+.only_web_feature: &only_web_feature
+  rules:
+    - if: '$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+      changes:
+        - web/**/*
+      when: manual
 
 # Jobs.
 # Production.
 build_cloud_image_tag_release:
   <<: *env_production
-  <<: *only_tag_release
+  <<: *only_web_tag_release
   <<: *build_definition
 
 deploy_cloud_image_tag_release:
   <<: *env_production
-  <<: *only_tag_release
+  <<: *only_web_tag_release
   <<: *deploy_definition
 
 # Staging.
 build_cloud_image_staging:
   <<: *env_staging
-  <<: *only_staging
+  <<: *only_web_staging
   <<: *build_definition
 
 deploy_cloud_image_staging:
   <<: *env_staging
-  <<: *only_staging
+  <<: *only_web_staging
   <<: *deploy_definition
 
 # Dev.
 build_cloud_image_dev:
   <<: *env_dev
-  <<: *only_feature
+  <<: *only_web_feature
   <<: *build_definition
-  when: manual
-  allow_failure: false
+  allow_failure: true # Workaround: https://gitlab.com/gitlab-org/gitlab/-/issues/20237
 
 deploy_cloud_image_dev:
   <<: *env_dev
-  <<: *only_feature
+  <<: *only_web_feature
   <<: *deploy_definition
-  when: manual
+  allow_failure: true
+  needs:
+    - build_cloud_image_dev

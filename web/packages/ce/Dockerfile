@@ -3,7 +3,7 @@ FROM node:16.13.0-alpine as build
 
 WORKDIR /app
 
-COPY . .
+COPY ./web/ .
 
 RUN npm ci -ws
 
@@ -16,8 +16,8 @@ RUN npm run build -w @postgres.ai/ce
 FROM nginx:1.20.1-alpine as run
 
 COPY --from=build /app/packages/ce/build /srv/ce
-COPY ./packages/ce/nginx.conf /etc/nginx/conf.d/ce.conf.template
-COPY ./packages/ce/docker-entrypoint.sh /
+COPY ./web/packages/ce/nginx.conf /etc/nginx/conf.d/ce.conf.template
+COPY ./web/packages/ce/docker-entrypoint.sh /
 
 RUN rm -f /etc/nginx/conf.d/default.conf && chmod +x /docker-entrypoint.sh
 
