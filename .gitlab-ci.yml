@@ -157,7 +157,7 @@ build-image-feature-server:
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-server"
-    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-server"
+    DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/dblab-server"
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
 
 build-image-feature-ci-checker:
@@ -168,7 +168,7 @@ build-image-feature-ci-checker:
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.ci-checker"
-    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-ci-checker"
+    DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/dblab-ci-checker"
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
 
 build-image-feature-client:
@@ -179,7 +179,7 @@ build-image-feature-client:
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-cli"
-    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-cli"
+    DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/dblab-cli"
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
 
 build-image-master-server:
@@ -359,7 +359,9 @@ build-image-swagger-latest:
     - changes:
         - web/**/*
       when: never
-    - if: '$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+    - if: '$CI_PROJECT_NAMESPACE != "postgres-ai"'
+      when: never
+    - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
       changes:
         - cmd/**/*
         - configs/**/*
