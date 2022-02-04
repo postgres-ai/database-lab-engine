@@ -151,7 +151,7 @@ Check out our [contributing guide](./CONTRIBUTING.md) for more details.
 - [How to manage DLE](https://postgres.ai/docs/how-to-guides/administration)
 - [How to work with clones](https://postgres.ai/docs/how-to-guides/cloning)
 
-More you can found in [the "How-to guides" section](https://postgres.ai/docs/how-to-guides) of the docs. 
+More you can find in [the "How-to guides" section](https://postgres.ai/docs/how-to-guides) of the docs. 
 
 ### Miscellaneous
 - [DLE Docker images](https://hub.docker.com/r/postgresai/dblab-server)
