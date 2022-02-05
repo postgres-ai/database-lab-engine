@@ -880,6 +880,24 @@ func (p *PhysicalInitial) checkRecovery(ctx context.Context, containerID string)
 	return output, err
 }
 
+/* "Data state at" (DSA) is a timestamp that represents the database's state. This function tries to
+determine its value based on various sources. If it fails, an error is reported. Using the current
+time as a last resort would be misleading, especially in the case when the "sync" container
+is running, and users deal with multiple snapshots.
+
+Current steps to determine DSA:
+
+Step 1. Using pg_last_xact_replay_timestamp() (either in the "promote" or the "sync" Postgres).
+It may be empty if there are no transactions recently committed on the source.
+
+Step 2. Parsing available WALs using pg_waldump. We check WALs in reverse order and try to find
+the latest available Transaction record.
+Again, this may be not working - for example,  WALs may be empty if archive_timeout is non-zero
+and the source doesn't have enough activity.
+
+Step 3. Use the timestamp of the latest checkpoint. This is extracted from PGDATA using the
+pg_controldata utility. Note that this is not an exact value of the latest activity in the source
+before we took a copy of PGDATA, but we suppose it is not far from it. */
 func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID, dataDir string, pgVersion float64,
 	defaultDSA string) (string, error) {
 	output, err := p.getLastXActReplayTimestamp(ctx, containerID)
