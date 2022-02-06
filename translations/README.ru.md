@@ -11,7 +11,7 @@
 <div align="center">
   <strong>:zap: Молниеносное клонирование баз данных PostgreSQL :elephant:</strong><br>
   Тонкие клоны для создания dev / test / QA / staging сред.<br>
-  <sub>Доступно для любых PostgreSQL, включая AWS RDS, GCP CloudSQL, Heroku, Digital Ocean и серверов, администрируемых пользователем</sub>
+  <sub>Доступно для любых PostgreSQL, включая AWS RDS, GCP CloudSQL, Heroku, Digital Ocean и серверы, администрируемых пользователем</sub>
 </div>
 
 <br />
@@ -21,7 +21,7 @@
 
   <a href="https://gitlab.com/postgres-ai/database-lab/-/pipelines" target="blank"><img src="https://gitlab.com/postgres-ai/database-lab//badges/master/pipeline.svg" alt="CI pipeline status" /></a> <a href="https://goreportcard.com/report/gitlab.com/postgres-ai/database-lab" target="blank"><img src="https://goreportcard.com/badge/gitlab.com/postgres-ai/database-lab" alt="Go report" /></a>
 
-  <a href="./CODE_OF_CONDUCT.md"><img src="https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?logoColor=black&labelColor=white&color=blue" alt="Contributor Covenant" /></a> <a href="https://slack.postgres.ai" target="blank"><img src="https://img.shields.io/badge/Chat-Slack-blue.svg?logo=slack&style=flat&logoColor=black&labelColor=white&color=blue" alt="Community Slack" /></a> <a href="https://twitter.com/intent/follow?screen_name=Database_Lab" target="blank"><img src="https://img.shields.io/twitter/follow/Database_Lab.svg?style=social&maxAge=3600" alt="Twitter Follow" /></a>
+  <a href="../CODE_OF_CONDUCT.md"><img src="https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?logoColor=black&labelColor=white&color=blue" alt="Contributor Covenant" /></a> <a href="https://slack.postgres.ai" target="blank"><img src="https://img.shields.io/badge/Chat-Slack-blue.svg?logo=slack&style=flat&logoColor=black&labelColor=white&color=blue" alt="Community Slack" /></a> <a href="https://twitter.com/intent/follow?screen_name=Database_Lab" target="blank"><img src="https://img.shields.io/twitter/follow/Database_Lab.svg?style=social&maxAge=3600" alt="Twitter Follow" /></a>
 </div>
 
 <div align="center">
@@ -32,25 +32,30 @@
     <span> | </span>
     <a href="https://postgres.ai/blog/tags/database-lab-engine">Блог</a>
     <span> | </span>
-    <a href="#community-support">Сообщество и поддержка</a>
+    <a href="#сообщество-и-поддержка">Сообщество и поддержка</a>
     <span> | </span>
-    <a href="./CONTRIBUTING.md">Contributing</a>
+    <a href="../CONTRIBUTING.md">Участие</a>
   </h3>
 </div>
 
 ## Зачем это нужно?
-- Создавайте dev-, QA-, staging-среды, основанные на полноразмерных баз данных, идентичных или приближенных к «боевым».
-- Получите доступ к временным полноразмерным клонам «боевой» БД для анализа запросов SQL и оптимизации (смотрите также: [чат-бот для оптимизации SQL Joe](https://gitlab.com/postgres-ai/joe)).
+- Создавайте dev-, QA-, staging-среды, основанные на полноразмерных базах данных, идентичных или приближенных к «боевым».
+- Получите доступ к временным полноразмерным клонам «боевых» БД для анализа запросов SQL и оптимизации (смотрите также: [чат-бот для оптимизации SQL Joe](https://gitlab.com/postgres-ai/joe)).
 - Автоматически тестируйте изменения БД в CI/CD-пайплайнах, чтобы не допускать инцидентов в продуктиве.
 
 Например, клонирование 1-терабайтной базы данных PostgreSQL занимает около 10 секунд. При этом десятки независимых клонов могут работать на одной машине, обеспечивая разработку и тестирование без увеличения затрат на железо.
 
 <p><img src="../assets/dle-demo-animated.gif" border="0" /></p>
 
+Поспобуйте сами прямо сейчас:
+
+- зайдите на [Database Lab Platform](https://console.postgres.ai/), присоединитесь к организации "Demo" и тестируйте клонировани ~1-терабайтной демо базы данных или
+- смотрите другое демо, DLE CE: https://nik-tf-test.aws.postgres.ai:446/instance, используйте демо-токен, чтобы зайти (это демо имеет самозаверенные сертификаты, так что игнорируйте жалобы браузера)
+
 ## Как это работает
 Тонкое клонирование работает сверхбыстро, так как оно базируется на технологии [Copy-on-Write (CoW)](https://en.wikipedia.org/wiki/Copy-on-write#In_computer_storage). DLE поддерживает два варианта CoW: [ZFS](https://en.wikipedia.org/wiki/ZFS) (используется по умолчанию) и [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).
 
-При работе с ZFS, DLE периодически создаёт новые снимки директории данных и поддерживает набор таких снимков, периодически зачищая старые неиспользуемые. При создании новых клонов пользователи могут выбрать, на основе какого именно снимка создавать клон.
+При работе с ZFS, DLE периодически создаёт новые снимки директории данных и поддерживает набор таких снимков, резулярно зачищая старые неиспользуемые. При создании новых клонов пользователи могут выбирать, на основе какого именно снимка создавать клон.
 
 Узнать больше можно по следующим ссылкам:
 - [Как это работает](https://postgres.ai/products/how-it-works)
@@ -72,18 +77,18 @@
 - Максимальное теоритическое количество снимков: 2<sup>64</sup>. ([ZFS](https://en.wikipedia.org/wiki/ZFS), вариант по умолчанию).
 - Максимальный теоритический размер директории данных PostgreSQL: 256 квадриллионов зебибайт или 2<sup>128</sup> байт ([ZFS](https://en.wikipedia.org/wiki/ZFS), вариант по умолчанию).
 - Поддерживаются все основные версии PostgreSQL: 9.6-14.
-- Для реализации тонкого клонирования поддерживается две технологии ([CoW](https://en.wikipedia.org/wiki/Copy-on-write)): [ZFS](https://en.wikipedia.org/wiki/ZFS) и [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).
+- Для реализации тонкого клонирования поддерживаются две технологии ([CoW](https://en.wikipedia.org/wiki/Copy-on-write)): [ZFS](https://en.wikipedia.org/wiki/ZFS) и [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).
 - Все компоненты работают в Docker-контейнерах.
 - UI для удобства ручных действий пользователя.
 - API и CLI для удобства автоматизации работы со снимками и клонами DLE.
-- По умолчанию контейнеры PostgreSQL включают огромное количество популярных расширений ([docs](https://postgres.ai/docs/database-lab/supported-databases#extensions-included-by-default)).
-- Контейнеры PostgreSQL могут быть кастомизированы ([docs](https://postgres.ai/docs/database-lab/supported-databases#how-to-add-more-extensions)).
+- Контейнеры с PostgreSQL по умолчанию поставляются с большим количеством популярных расширений ([docs](https://postgres.ai/docs/database-lab/supported-databases#extensions-included-by-default)).
+- Поддерживается расширение контейнеров PostgreSQL ([docs](https://postgres.ai/docs/database-lab/supported-databases#how-to-add-more-extensions)).
 - БД-источник может находиться где угодно (Postgres под управлением пользователя, Яндекс.Облако, AWS RDS, GCP CloudSQL, Azure, Timescale Cloud и т.д.) и не требует никаких изменений. Нет никакий требований для установки ZFS или Docker в БД-источники (продуктивная БД).
-- Первоначальное получение данных может быть выполнено как на физическом (pg_basebackup или инструменты для бэкапов — такие как WAL-G, pgBackRest), так и на логичесом (dump/restore напрямую из источника или восстановление из файлов, хранящихся в AWS S3) уровнях.
+- Первоначальное получение данных может быть выполнено как на физическом (pg_basebackup или инструменты для бэкапов — такие как WAL-G, pgBackRest), так и на логическом (dump/restore напрямую из источника или восстановление из файлов, хранящихся в AWS S3) уровнях.
 - Для логического режима поддерживается частичное восстановление данных (конкретные БД, таблицы).
-- Для физического режима поддерживвется постоянно обновляемое состояние ("sync container"), что делает DLE специализированной репликой.
+- Для физического режима поддерживвется постоянно обновляемое состояние ("sync container"), что, по сути, делает DLE репликой специального назначения.
 - Для логического режима поддерживается периодическое полное обновление данных, полностью автоматизированное и контролируемое DLE. Есть возможность использовать несколько дисков, содержащих различные версии БД, так что процесс обновления не приводит к простою в работе c DLE и клонами.
-- Сверхбыстрое восстановление на конкретную временную (Point in Time Recovery, PITR).
+- Сверхбыстрое восстановление на конкретную временную точку (Point in Time Recovery, PITR).
 - Неиспользованные клоны автоматически удаляются.
 - Опциональный флаг «защита от удаления» защищает клон от автоматического или ручного удаления.
 - В конфигурации DLE можно настроить политику зачистки снимков.
@@ -100,12 +105,12 @@
 ### Поставьте проекту звёздочку
 Самый простой способ поддержки - поставить проекту звезду на GitHub/GitLab:
 
-![Поставьте звезду](./assets/star.gif)
+![Поставьте звезду](../assets/star.gif)
 
 ### Укажите явно, что вы используете DLE
 Пожалуйста, опубликуйте твит с упоминанием [@Database_Lab](https://twitter.com/Database_Lab) или поделитесь ссылкой на этот репозиторий в вашей любимой социальной сети.
 
-Если вы используете DLE в работе, подумайте, где вы могли бы об этом упомянуть. Один из лучших способов упомянания - использование графики с ссылкой. Некоторые материалы можно найти в директории `./assets`. Пожалуйста, используйте их в своих документая, презентациях, интерфейсах приложений и вебсайтов, чтобы показать, что вы используете DLE.
+Если вы используете DLE в работе, подумайте, где вы могли бы об этом упомянуть. Один из лучших способов упоминания - использование графики с ссылкой. Некоторые материалы можно найти в директории `./assets`. Пожалуйста, используйте их в своих документах, презентациях, интерфейсах приложений и вебсайтов, чтобы показать, что вы используете DLE.
 
 HTML-код для светлых фонов:
 <p>
@@ -130,10 +135,10 @@ HTML-код для светлых фонов:
 ```
 
 ### Предложите идею или сообщите об ошибке
-Подробнее: [./CONTRIBUTING.md](./CONTRIBUTING.md).
+Подробнее: [./CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ### Участвуйте в разработке
-Подробнее: [./CONTRIBUTING.md](./CONTRIBUTING.md).
+Подробнее: [./CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ### Справочники
 - [Компоненты DLE](https://postgres.ai/docs/reference-guides/database-lab-engine-components)
@@ -163,13 +168,13 @@ HTML-код для светлых фонов:
 [![Статус FOSSA](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine?ref=badge_large)
 
 ## Сообщество и Поддержка
-- ["Кодекс поведения сообщества Database Lab Engine"](./CODE_OF_CONDUCT.md)
+- ["Кодекс поведения сообщества Database Lab Engine"](../CODE_OF_CONDUCT.md)
 - Где получить помощь: [Контактная страница](https://postgres.ai/contact)
 - [Сообщество в Телеграм (русский язык)](https://t.me/databaselabru)
 - [Сообщество в Slack](https://slack.postgres.ai)
-- Если вам надо сообщить о проблеме безопасности, следуйте инструкциям в документе ["./SECURITY.md"](./SECURITY.md).
+- Если вам надо сообщить о проблеме безопасности, следуйте инструкциям в документе ["./SECURITY.md"](../SECURITY.md).
 
-[![Кодекс поведения](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?color=blue)](./CODE_OF_CONDUCT.md)
+[![Кодекс поведения](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?color=blue)](../CODE_OF_CONDUCT.md)
 
 
 <!--

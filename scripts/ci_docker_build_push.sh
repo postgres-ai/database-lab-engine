@@ -19,8 +19,8 @@ $tags
 EOF
 
 for tag in "${ADDR[@]}"; do
-  tags_build="${tags_build} --tag ${tag}"
-  tags_push="${tags_push}${tag}\n"
+  tags_build="${tags_build} --tag $(echo $tag | tr '[:upper:]' '[:lower:]')"
+  tags_push="${tags_push}$(echo $tag | tr '[:upper:]' '[:lower:]')\n"
 done
 
 set -x
