@@ -28,15 +28,19 @@ const (
 )
 
 // Setup creates a new internal Docker network and connects container to it.
-func Setup(ctx context.Context, dockerCLI *client.Client, instanceID, containerID string) (string, error) {
+func Setup(ctx context.Context, dockerCLI *client.Client, instanceID, containerName string) (string, error) {
 	networkName := getNetworkName(instanceID)
 
 	log.Dbg("Discovering internal network:", networkName)
 
 	networkResource, err := dockerCLI.NetworkInspect(ctx, networkName, types.NetworkInspectOptions{})
 	if err == nil {
-		if err := dockerCLI.NetworkConnect(ctx, networkResource.ID, containerID, &network.EndpointSettings{}); err != nil {
-			return "", err
+		if !hasContainerConnected(networkResource, containerName) {
+			if err := dockerCLI.NetworkConnect(ctx, networkResource.ID, containerName, &network.EndpointSettings{}); err != nil {
+				return "", err
+			}
+
+			log.Dbg(fmt.Sprintf("Container %s has been connected to %s", containerName, networkName))
 		}
 
 		return networkResource.ID, nil
@@ -61,7 +65,7 @@ func Setup(ctx context.Context, dockerCLI *client.Client, instanceID, containerI
 
 	log.Dbg("A new internal network has been created:", internalNetwork.ID)
 
-	if err := dockerCLI.NetworkConnect(ctx, internalNetwork.ID, containerID, &network.EndpointSettings{}); err != nil {
+	if err := dockerCLI.NetworkConnect(ctx, internalNetwork.ID, containerName, &network.EndpointSettings{}); err != nil {
 		return "", err
 	}
 
@@ -108,11 +112,13 @@ func Connect(ctx context.Context, dockerCLI *client.Client, instanceID, containe
 		return fmt.Errorf("internal network not found: %w", err)
 	}
 
-	if err := dockerCLI.NetworkConnect(ctx, networkResource.ID, containerID, &network.EndpointSettings{}); err != nil {
-		return err
-	}
+	if !hasContainerConnected(networkResource, containerID) {
+		if err := dockerCLI.NetworkConnect(ctx, networkResource.ID, containerID, &network.EndpointSettings{}); err != nil {
+			return err
+		}
 
-	log.Dbg(fmt.Sprintf("Container %s has been connected to %s", instanceID, networkName))
+		log.Dbg(fmt.Sprintf("Container %s has been connected to %s", instanceID, networkName))
+	}
 
 	return nil
 }
@@ -145,6 +151,16 @@ func Reconnect(ctx context.Context, dockerCLI *client.Client, instanceID, contai
 	log.Dbg(fmt.Sprintf("Container %s has been connected to %s", instanceID, networkName))
 
 	return nil
+}
+
+func hasContainerConnected(networkResource types.NetworkResource, containerID string) bool {
+	for _, container := range networkResource.Containers {
+		if container.Name == containerID {
+			return true
+		}
+	}
+
+	return false
 }
 
 func getNetworkName(instanceID string) string {
