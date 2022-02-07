@@ -10,7 +10,7 @@
 
 <div align="center">
   <strong>:zap: Blazing-fast cloning of PostgreSQL databases :elephant:</strong><br>
-  Thin clones of PostgreSQL to build powerful development, test, QA, staging environments.<br>
+  Thin clones of PostgreSQL to build powerful development, test, QA, and staging environments.<br>
   <sub>Available for any PostgreSQL, including AWS RDS, GCP CloudSQL, Heroku, Digital Ocean, and self-managed instances.</sub>
 </div>
 
@@ -43,18 +43,18 @@
 - Provide temporary full-size database clones for SQL query analysis and optimization (see also: [SQL optimization chatbot Joe](https://gitlab.com/postgres-ai/joe)).
 - Automatically test database changes in CI/CD pipelines to avoid incidents in production.
 
-For example, cloning a 1 TiB PostgreSQL database takes ~10 seconds. Dozens of independent clones are up and running on a single machine, supporting lots of development and testing activities, not increasing costs for hardware.
+For example, cloning a 1 TiB PostgreSQL database takes ~10 seconds. Dozens of independent clones are up and running on a single machine, supporting lots of development and testing activities, without increasing costs for hardware.
 
 <p><img src="./assets/dle-demo-animated.gif" border="0" /></p>
 
-Try yourself right now:
+Try it yourself right now:
 - enter [the Database Lab Platform](https://console.postgres.ai/), join the "Demo" organization, and test cloning of ~1 TiB demo database, or
 - check out another demo setup, DLE CE: https://nik-tf-test.aws.postgres.ai:446/instance, use the token `demo` to enter (this setup has self-signed certificates, so ignore browser's complaints)
 
 ## How it works
 Thin cloning is fast because it uses [Copy-on-Write (CoW)](https://en.wikipedia.org/wiki/Copy-on-write#In_computer_storage). DLE supports two technologies to enable CoW and thin cloning: [ZFS](https://en.wikipedia.org/wiki/ZFS) (default) and [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).
 
-With ZFS, Database Lab Engine periodically creates a new snapshot of the data directory and maintains a set of snapshots, cleaning up the old and unused ones. When requesting a new clone, users can choose which snapshot to use.
+With ZFS, Database Lab Engine periodically creates a new snapshot of the data directory and maintains a set of snapshots, cleaning up old and unused ones. When requesting a new clone, users can choose which snapshot to use.
 
 Read more:
 - [How it works](https://postgres.ai/products/how-it-works)
@@ -72,7 +72,7 @@ Read more:
 - GitLab: [How GitLab iterates on SQL performance optimization workflow to reduce downtime risks](https://postgres.ai/resources/case-studies/gitlab)
 
 ## Features
-- Blazing-fast cloning of Postgres databases – a few seconds to create a new clone ready to accept connections and queries, regardless of the database size.
+- Blazing-fast cloning of Postgres databases – a few seconds to create a new clone ready to accept connections and queries, regardless of database size.
 - The theoretical maximum number of snapshots and clones is 2<sup>64</sup> ([ZFS](https://en.wikipedia.org/wiki/ZFS), default).
 - The theoretical maximum size of PostgreSQL data directory: 256 quadrillion zebibytes, or 2<sup>128</sup> bytes ([ZFS](https://en.wikipedia.org/wiki/ZFS), default).
 - PostgreSQL major versions supported: 9.6–14.
@@ -83,10 +83,10 @@ Read more:
 - By default, PostgreSQL containers include many popular extensions ([docs](https://postgres.ai/docs/database-lab/supported-databases#extensions-included-by-default)).
 - PostgreSQL containers can be customized ([docs](https://postgres.ai/docs/database-lab/supported-databases#how-to-add-more-extensions)).
 - Source database can be located anywhere (self-managed Postgres, AWS RDS, GCP CloudSQL, Azure, Timescale Cloud, and so on) and does NOT require any adjustments. There are NO requirements to install ZFS or Docker to the source (production) databases.
-- Initial data provisioning can be at both physical (pg_basebackup, backup / archiving tools such as WAL-G or pgBackRest), or logical (dump/restore directly from the source or from files stored at AWS S3) levels.
-- For the logical mode, partial data retrieval is supported (specific databases, specific tables).
-- For the physical mode, a continuously updated state is supported ("sync container"), making DLE a specialized version of standby Postgres.
-- For the logical mode, periodical full refresh is supported, automated, and controlled by DLE. It is possible to use multiple disks containing different versions of the database, so full refresh won't require downtime.
+- Initial data provisioning can be done at either the physical (pg_basebackup, backup / archiving tools such as WAL-G or pgBackRest) or logical (dump/restore directly from the source or from files stored at AWS S3) level.
+- For logical mode, partial data retrieval is supported (specific databases, specific tables).
+- For physical mode, a continuously updated state is supported ("sync container"), making DLE a specialized version of standby Postgres.
+- For logical mode, periodic full refresh is supported, automated, and controlled by DLE. It is possible to use multiple disks containing different versions of the database, so full refresh won't require downtime.
 - Fast Point in Time Recovery (PITR) to the points available in DLE snapshots.
 - Unused clones are automatically deleted.
 - "Deletion protection" flag can be used to block automatic or manual deletion of clones.
@@ -106,10 +106,10 @@ The easiest way to contribute is to give the project a GitHub/GitLab star:
 
 ![Add a star](./assets/star.gif)
 
-### Mention that you use DLE
-Please post a tweet mentioning [@Database_Lab](https://twitter.com/Database_Lab) or share the link to this repo in your favorite social network.
+### Spread the word
+Post a tweet mentioning [@Database_Lab](https://twitter.com/Database_Lab) or share the link to this repo in your favorite social network.
 
-If you are actively using DLE at work, think about where you could mention it. The best way of mentioning it is using graphics with a link. Brand assets can be found in the `./assets` folder. Feel free to put them in your documents, slide decks, application, and website interfaces to show that you use DLE.
+If you are actively using DLE, tell others about your experience. You can use the logo referenced below and stored in the `./assets` folder. Feel free to put them in your documents, slide decks, application, and website interfaces to show that you use DLE.
 
 HTML snippet for lighter backgrounds:
 <p>
