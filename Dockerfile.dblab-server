@@ -16,7 +16,7 @@ WORKDIR /home/dblab
 
 COPY ./bin/dblab-server ./bin/dblab-server
 COPY ./api ./api
-COPY ./web ./web
+COPY ./swagger ./swagger
 COPY ./configs/standard ./standard
 COPY ./scripts ./scripts
 

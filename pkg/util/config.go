@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	swaggerDir  = "web"
+	swaggerDir  = "swagger"
 	apiDir      = "api"
 	configDir   = "configs"
 	standardDir = "standard"
