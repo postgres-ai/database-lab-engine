@@ -15,9 +15,8 @@ ENV PATH="${PATH}:/usr/share/bcc/tools"
 WORKDIR /home/dblab
 
 COPY ./bin/dblab-server ./bin/dblab-server
-COPY ./api ./api
-COPY ./web ./web
 COPY ./configs/standard ./standard
+COPY ./api ./api
 COPY ./scripts ./scripts
 
 CMD ./bin/dblab-server

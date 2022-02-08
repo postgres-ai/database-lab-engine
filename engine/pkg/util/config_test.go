@@ -24,7 +24,7 @@ func TestBinRootPath(t *testing.T) {
 
 func TestSwaggerUIPath(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
-	expected := path.Dir(filename) + "/web"
+	expected := path.Dir(filename) + "/swagger-ui"
 
 	swaggerUIPath, err := GetSwaggerUIPath()
 	require.Nil(t, err)
