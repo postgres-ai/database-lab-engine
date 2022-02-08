@@ -40,7 +40,7 @@ metaDir="$HOME/.dblab/engine/meta"
 # Copy the contents of configuration example
 mkdir -p "${configDir}"
 
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-master}"/configs/config.example.physical_walg.yml \
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-master}"/engine/configs/config.example.physical_walg.yml \
  --output "${configDir}/server.yml"
 
 # Edit the following options
@@ -156,7 +156,7 @@ check_dle_readiness || (echo "Database Lab Engine is not ready" && exit 1)
 ### Step 3. Start cloning
 
 # Install Database Lab client CLI
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/master/scripts/cli_install.sh | bash
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-master}"/engine/scripts/cli_install.sh | bash
 sudo mv ~/.dblab/dblab /usr/local/bin/dblab
 
 dblab --version

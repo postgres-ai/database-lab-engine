@@ -1,14 +1,14 @@
 .DS_Store
 .idea/
 
-/bin/
+engine/bin/
 /db-lab-run/
 
 # Deploy contains Kubernetes configs with secrets, remove from .gitignore when generalized.
 /deploy/
 
-/configs/config.yml
-/configs/server.yml
-/configs/run_ci.yaml
-/configs/ci_checker.yml
+/engine/configs/config.yml
+/engine/configs/server.yml
+/engine/configs/run_ci.yaml
+/engine/configs/ci_checker.yml
 /packer/example.com.key
