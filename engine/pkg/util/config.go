@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	swaggerDir  = "swagger-ui"
-	apiDir      = "api"
-	configDir   = "configs"
-	standardDir = "standard"
-	metaDir     = "meta"
+	swaggerUIDir = "swagger-ui"
+	apiDir       = "api"
+	configDir    = "configs"
+	standardDir  = "standard"
+	metaDir      = "meta"
 )
 
 // GetBinRootPath return path to root directory of the current binary module.
@@ -43,7 +43,7 @@ func GetSwaggerUIPath() (string, error) {
 		return "", errors.Wrap(err, "cannot get binary root directory")
 	}
 
-	return path.Join(dir, swaggerDir), nil
+	return path.Join(dir, apiDir, swaggerUIDir), nil
 }
 
 // GetAPIPath return swagger UI path.

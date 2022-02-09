@@ -35,7 +35,7 @@ subs_envs() {
 
   # Import additional envs from file specified in second arg.
   if [ ! -z ${ENV+x} ]; then
-    source "./packages/platform/deploy/configs/${ENV}.sh"
+    source "./ui/packages/platform/deploy/configs/${ENV}.sh"
   fi
 
   cat $1 | envsubst > $2

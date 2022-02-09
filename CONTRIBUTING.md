@@ -23,8 +23,8 @@ These are mostly guidelines, not rules. Use your best judgment, and feel free to
     - [Go styleguide](#go-styleguide)
     - [Documentation styleguide](#documentation-styleguide)
     - [Development setup](#development-setup)
-<!--
     - [Repo overview](#repo-overview)
+<!--
     - [Building from source](#building-from-source)
 -->
 
@@ -127,12 +127,19 @@ We're building documentation following the principles described at https://docum
 Learn more: https://documentation.divio.com/.
 
 ### Repo overview
-The [postgres-ai/database-lab](https://gitlab.com/postgres-ai/database-lab) repo contains 3 components:
-- [Database Lab Engine](https://gitlab.com/postgres-ai/database-lab/-/tree/master/cmd/database-lab)
-- [Database Lab CI Checker](https://gitlab.com/postgres-ai/database-lab/-/tree/master/cmd/runci)
-- [Database Lab CLI](https://gitlab.com/postgres-ai/database-lab/-/tree/master/cmd/cli)
+The [postgres-ai/database-lab](https://gitlab.com/postgres-ai/database-lab) repo contains 2 components:
+- [Database Lab Engine](https://gitlab.com/postgres-ai/database-lab/-/tree/master/engine)
+  - [Database Lab Server](https://gitlab.com/postgres-ai/database-lab/-/tree/master/engine/cmd/database-lab)
+  - [Database Lab CI Checker](https://gitlab.com/postgres-ai/database-lab/-/tree/master/engine/cmd/runci)
+  - [Database Lab CLI](https://gitlab.com/postgres-ai/database-lab/-/tree/master/engine/cmd/cli)
+- [Database Lab UI](https://gitlab.com/postgres-ai/database-lab/-/tree/master/ui)
+  - [Community Edition](https://gitlab.com/postgres-ai/database-lab/-/tree/master/ui/packages/ce)
+  - [Platform](https://gitlab.com/postgres-ai/database-lab/-/tree/master/ui/packages/platform)
+  - [Shared components](https://gitlab.com/postgres-ai/database-lab/-/tree/master/ui/packages/shared)
 
-All three components have a single version, denoted by either the git tag or a combination of the branch name and git commit SHA.
+Components have a separate version, denoted by either:
+- a certain type of the git tag (for example, `v0.0.0` for Database Lab Engine, and `ui0.0.0` for Database Lab UI) or
+- a combination of the branch name and git commit SHA.
 
 ### Development setup
 - Install Docker. Example for Linux:

@@ -2,11 +2,11 @@ Copyright © 2018-present, Postgres.ai (https://postgres.ai), Nikolay Samokhvalo
 
 Portions of this software are licensed as follows:
 - UI components:
-    -  All content that resides in the "./web/packages/platform" directory of this repository is licensed under the 
-    license defined in "./web/packages/platform/LICENSE"
-    -  All content that resides in the "./packages/ce" directory of this repository is licensed under the "AGPLv3"
+    -  All content that resides in the "./ui/packages/platform" directory of this repository is licensed under the
+    license defined in "./ui/packages/platform/LICENSE"
+    -  All content that resides in the "./ui/packages/ce" directory of this repository is licensed under the "AGPLv3"
     license defined in "./LICENSE"
-    -  All content that resides in the "./packages/shared" directory of this repository is licensed under the "AGPLv3"
+    -  All content that resides in the "./ui/packages/shared" directory of this repository is licensed under the "AGPLv3"
     license defined in "./LICENSE"
 - All third party components incorporated into the Database Lab Engine software are licensed under the original license
 provided by the owner of the applicable component.
@@ -14,6 +14,6 @@ provided by the owner of the applicable component.
 in "./LICENSE"
 
 In plain language: this repository contains open-source software licensed under an OSI-approved license AGPLv3 (see
-https://opensource.org/) except "./web/packages/platform" that defines user interfaces and business logic for the
+https://opensource.org/) except "./ui/packages/platform" that defines user interfaces and business logic for the
 "Platform" version of Database Lab, which is not open source and can be used only with commercial license obtained
 from Postgres.ai (see https://postgres.ai/pricing).

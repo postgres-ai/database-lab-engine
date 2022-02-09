@@ -3,5 +3,6 @@ variables:
   DOCKER_DRIVER: overlay2
 
 include:
+  - template: Security/SAST.gitlab-ci.yml
   - local: 'engine/.gitlab-ci.yml'
-  - local: 'web/.gitlab-ci.yml'
+  - local: 'ui/.gitlab-ci.yml'
