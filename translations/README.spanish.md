@@ -102,7 +102,7 @@ Lee mas:
 
 ## Como contribuir
 ### Ponle una estrella al proyecto
-Si te gusta Database Labs, ¡ayúdanos con una estrella en GitHub/GitLab:
+Si te gusta Database Lab Engine, ¡ayúdanos con una estrella en GitHub/GitLab:
 
 ![Darle una estrella de GitHub/GitLab](../assets/star.gif)
 
