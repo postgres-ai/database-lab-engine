@@ -102,7 +102,7 @@ Lee mas:
 
 ## Como contribuir
 ### Ponle una estrella al proyecto
-La forma más fácil de contribuir es darle al proyecto una estrella de GitHub/GitLab:
+Si te gusta Database Labs, ¡ayúdanos con una estrella en GitHub/GitLab:
 
 ![Add a star](../assets/star.gif)
 
