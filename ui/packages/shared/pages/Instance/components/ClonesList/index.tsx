@@ -88,6 +88,7 @@ export const ClonesList = (props: Props) => {
                   <ArrowDropDownIcon className={styles.sortIcon} />
                 </div>
               </TableHeaderCell>
+              <TableHeaderCell>Port</TableHeaderCell>
               <TableHeaderCell>DB user</TableHeaderCell>
               <TableHeaderCell>
                 <Tooltip content="Clone's own size – how much data was added or modified.">
@@ -147,6 +148,7 @@ export const ClonesList = (props: Props) => {
                     })}
                     )
                   </TableBodyCell>
+                  <TableBodyCell>{clone.db.port}</TableBodyCell>
                   <TableBodyCell>{clone.db.username}</TableBodyCell>
                   <TableBodyCell>
                     {formatBytesIEC(clone.metadata.cloneDiffSize)}
