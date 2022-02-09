@@ -104,7 +104,7 @@ Lee mas:
 ### Ponle una estrella al proyecto
 Si te gusta Database Labs, ¡ayúdanos con una estrella en GitHub/GitLab:
 
-![Add a star](../assets/star.gif)
+![Darle una estrella de GitHub/GitLab](../assets/star.gif)
 
 ### Menciona que usas DLE
 Publique un tweet mencionando [@Database_Lab](https://twitter.com/Database_Lab) o comparta el enlace a este repositorio en su red social favorita.
