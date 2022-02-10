@@ -11,7 +11,9 @@ stages:
 ## Conditions
 .only_engine: &only_engine
   rules:
-    - changes:
+    - if: $CI_COMMIT_TAG =~ /^v[a-zA-Z0-9_.-]*/
+    - if: $CI_COMMIT_BRANCH
+      changes:
         - engine/**/*
 
 .only_dle_tag_release: &only_tag_release
