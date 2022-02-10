@@ -6,6 +6,7 @@ import { ROUTES } from 'config/routes'
 import { getInstance } from 'api/instances/getInstance'
 import { getSnapshots } from 'api/snapshots/getSnapshots'
 import { createClone } from 'api/clones/createClone'
+import { getClone } from 'api/clones/getClone'
 import ConsoleBreadcrumbs from 'components/ConsoleBreadcrumbs'
 
 type Params = {
@@ -36,6 +37,7 @@ export const CreateClone = () => {
     getSnapshots,
     getInstance,
     createClone,
+    getClone,
   }
 
   const elements = {
