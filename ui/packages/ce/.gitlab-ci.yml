@@ -1,9 +1,9 @@
 # Conditions.
 .only_ui_feature: &only_ui_feature
   rules:
-    - changes:
+    - if: $CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
+      changes:
         - ui/**/*
-      if: '$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
 
 .only_ui_tag_release: &only_ui_tag_release
   rules:
