@@ -139,6 +139,9 @@ Check out our [contributing guide](./CONTRIBUTING.md) for more details.
 ### Participate in development
 Check out our [contributing guide](./CONTRIBUTING.md) for more details.
 
+### Translate the README
+Making Database Lab Engine more accessible to engineers around the Globe is a great help for the project. Check details in the [translation section of contributing guide](./CONTRIBUTING.md#Translation).
+
 ### Reference guides
 - [DLE components](https://postgres.ai/docs/reference-guides/database-lab-engine-components)
 - [DLE configuration reference](https://postgres.ai/docs/database-lab/config-reference)
@@ -174,9 +177,11 @@ Reach out to the Postgres.ai team if you want a trial or commercial license that
 
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?color=blue)](./CODE_OF_CONDUCT.md)
 
-
-
-<!-- 
+<!--
 ## Translations
-- ...
+
+This README is available in the following translations:
+
+- [Russian 🇷🇺](translations/README.ru.md) (🙏 [@Tanya301](https://github.com/Tanya301))
+- More are comming soon (We would very appreciate your help with translations, check [contributing guide](./CONTRIBUTING.md#Translation) for the details)
 -->
