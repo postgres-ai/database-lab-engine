@@ -72,6 +72,7 @@ type CopyOptions struct {
 	ContainerConfig map[string]interface{} `yaml:"containerConfig"`
 	Envs            map[string]string      `yaml:"envs"`
 	WALG            walgOptions            `yaml:"walg"`
+	PgBackRest      pgbackrestOptions      `yaml:"pgbackrest"`
 	CustomTool      customOptions          `yaml:"customTool"`
 	Sync            Sync                   `yaml:"sync"`
 }
@@ -129,6 +130,9 @@ func (r *RestoreJob) getRestorer(tool string) (restorer, error) {
 	switch tool {
 	case walgTool:
 		return newWALG(r.fsPool.DataDir(), r.WALG), nil
+
+	case pgbackrestTool:
+		return newPgBackRest(r.fsPool.DataDir(), r.PgBackRest), nil
 
 	case customTool:
 		return newCustomTool(r.CustomTool), nil
