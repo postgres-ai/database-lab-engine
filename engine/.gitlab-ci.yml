@@ -32,7 +32,7 @@ stages:
 
 .only_dle_feature: &only_feature
   rules:
-    - if: '$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+    - if: $CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
       changes:
         - engine/**/*
 
@@ -357,7 +357,7 @@ build-image-swagger-latest:
       when: never
     - if: '$CI_PROJECT_NAMESPACE != "postgres-ai"'
       when: never
-    - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
       changes:
         - engine/**/*
   script:
