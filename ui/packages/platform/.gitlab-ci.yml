@@ -84,38 +84,38 @@ workflow:
 
 # Jobs.
 # Production.
-build_cloud_image_tag_release:
+ui_build_platform_image_tag_release:
   <<: *env_production
   <<: *only_ui_tag_release
   <<: *build_definition
 
-deploy_cloud_image_tag_release:
+ui_deploy_platform_image_tag_release:
   <<: *env_production
   <<: *only_ui_tag_release
   <<: *deploy_definition
 
 # Staging.
-build_cloud_image_staging:
+ui_build_platform_image_staging:
   <<: *env_staging
   <<: *only_ui_staging
   <<: *build_definition
 
-deploy_cloud_image_staging:
+ui_deploy_platform_image_staging:
   <<: *env_staging
   <<: *only_ui_staging
   <<: *deploy_definition
 
 # Dev.
-build_cloud_image_dev:
+ui_build_platform_image_dev:
   <<: *env_dev
   <<: *only_ui_feature
   <<: *build_definition
   allow_failure: true # Workaround: https://gitlab.com/gitlab-org/gitlab/-/issues/20237
 
-deploy_cloud_image_dev:
+ui_deploy_platform_image_dev:
   <<: *env_dev
   <<: *only_ui_feature
   <<: *deploy_definition
   allow_failure: true
   needs:
-    - build_cloud_image_dev
+    - ui_build_platform_image_dev

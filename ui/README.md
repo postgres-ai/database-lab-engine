@@ -36,4 +36,11 @@ _Important note: don't use commands for `@postgres.ai/shared` - it's dependent p
 - `npm ci -ws`
 - `npm build -ws`
 
+### CI pipelines for UI code
+To deploy UI changes, tag the commit with `ui/` prefix and push it. For example:
+```shell
+git tag ui/1.0.12
+git push origin ui/1.0.12
+```
+
 <!-- TODO: move this ^ to the main README.md and CONTRIBUTING.md -->
