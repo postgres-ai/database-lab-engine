@@ -5,10 +5,11 @@
  *--------------------------------------------------------------------------
  */
 
-import { makeStyles } from '@material-ui/core'
-
-import { colors } from '@postgres.ai/shared/styles/colors'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
+
+import { Item } from './Item'
+
+import styles from './styles.module.scss'
 
 type Props = {
   expectedCloningTimeS: number
@@ -17,28 +18,6 @@ type Props = {
   clonesCountLastMonth?: number
 }
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: '20px',
-
-    [theme.breakpoints.down('xs')]: {
-      padding: '20px 0',
-    },
-  },
-  item: {
-    fontSize: '12px',
-    textAlign: 'center',
-    color: colors.pgaiDarkGray,
-  },
-  accent: {
-    fontWeight: 'bold',
-    fontSize: '14px',
-    color: colors.black,
-  },
-}))
-
 export const Header = (props: Props) => {
   const {
     expectedCloningTimeS,
@@ -46,43 +25,49 @@ export const Header = (props: Props) => {
     clonesCount,
     clonesCountLastMonth,
   } = props
-  const classes = useStyles()
 
   return (
-    <div className={classes.root}>
-      <div className={classes.item}>
-        <span className={classes.accent}>
-          {expectedCloningTimeS ? `${expectedCloningTimeS} s` : '-'}
-        </span>
-        <br />
+    <div className={styles.root}>
+      <Item value={expectedCloningTimeS ? `${expectedCloningTimeS} s` : '-'}>
         average
         <br />
         cloning time
-      </div>
-      <div className={classes.item}>
-        <span className={classes.accent}>
-          {logicalSize ? formatBytesIEC(logicalSize) : '-'}
-        </span>
-        <br />
+      </Item>
+
+      <Item
+        value={
+          logicalSize ? formatBytesIEC(logicalSize, { precision: 2 }) : '-'
+        }
+      >
         logical
         <br />
         data size
-      </div>
-      <div className={classes.item}>
-        <span className={classes.accent}>{clonesCount}</span>
-        <br />
+      </Item>
+
+      <Item value={clonesCount}>
         clones
         <br />
         now
-      </div>
+      </Item>
+
+      <Item
+        value={
+          logicalSize
+            ? formatBytesIEC(logicalSize * clonesCount, { precision: 2 })
+            : '-'
+        }
+      >
+        Total
+        <br />
+        size of clones
+      </Item>
+
       {clonesCountLastMonth && (
-        <div className={classes.item}>
-          <span className={classes.accent}>{clonesCountLastMonth}</span>
-          <br />
+        <Item value={clonesCountLastMonth}>
           clones
           <br />
           in last month
-        </div>
+        </Item>
       )}
     </div>
   )
