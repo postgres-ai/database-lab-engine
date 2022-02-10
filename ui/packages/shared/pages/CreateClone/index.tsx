@@ -58,12 +58,13 @@ export const CreateClone = observer((props: Props) => {
     stores.main.load(props.instanceId)
   }, [])
 
-  // Redirect when clone is created.
+  // Redirect when clone is created and stable.
   useEffect(() => {
     if (!stores.main.clone) return
+    if (!stores.main.isCloneStable) return
 
     history.push(props.routes.clone(stores.main.clone.id))
-  }, [stores.main.clone])
+  }, [stores.main.clone, stores.main.isCloneStable])
 
   // Snapshots.
   const sortedSnapshots = stores.main.snapshots.data
@@ -79,7 +80,7 @@ export const CreateClone = observer((props: Props) => {
 
   const headRendered = (
     <>
-      {/* //TODO(Anton): make global reset styles. */}
+      {/* //TODO: make global reset styles. */}
       <style>{'p { margin: 0; }'}</style>
 
       {props.elements.breadcrumbs}
@@ -116,7 +117,10 @@ export const CreateClone = observer((props: Props) => {
   if (stores.main.snapshots.error)
     return <ErrorStub {...stores.main.snapshots.error} />
 
-  const isDisabledForm = formik.isSubmitting
+  const isCloneUnstable = Boolean(
+    stores.main.clone && !stores.main.isCloneStable,
+  )
+  const isCreatingClone = formik.isSubmitting || isCloneUnstable
 
   return (
     <>
@@ -136,14 +140,14 @@ export const CreateClone = observer((props: Props) => {
             value={formik.values.cloneId}
             onChange={(e) => formik.setFieldValue('cloneId', e.target.value)}
             error={Boolean(formik.errors.cloneId)}
-            disabled={isDisabledForm}
+            disabled={isCreatingClone}
           />
 
           <Select
             fullWidth
             label="Data state time *"
             value={formik.values.snapshotId}
-            disabled={!sortedSnapshots || isDisabledForm}
+            disabled={!sortedSnapshots || isCreatingClone}
             onChange={(e) => formik.setFieldValue('snapshotId', e.target.value)}
             error={Boolean(formik.errors.snapshotId)}
             items={
@@ -184,7 +188,7 @@ export const CreateClone = observer((props: Props) => {
             value={formik.values.dbUser}
             onChange={(e) => formik.setFieldValue('dbUser', e.target.value)}
             error={Boolean(formik.errors.dbUser)}
-            disabled={isDisabledForm}
+            disabled={isCreatingClone}
           />
 
           <TextField
@@ -194,7 +198,7 @@ export const CreateClone = observer((props: Props) => {
             value={formik.values.dbPassword}
             onChange={(e) => formik.setFieldValue('dbPassword', e.target.value)}
             error={Boolean(formik.errors.dbPassword)}
-            disabled={isDisabledForm}
+            disabled={isCreatingClone}
           />
         </div>
 
@@ -236,7 +240,7 @@ export const CreateClone = observer((props: Props) => {
                   formik.setFieldValue('isProtected', e.target.checked)
                 }
                 name="protected"
-                disabled={isDisabledForm}
+                disabled={isCreatingClone}
               />
             }
           />
@@ -257,15 +261,15 @@ export const CreateClone = observer((props: Props) => {
               onClick={formik.submitForm}
               variant="primary"
               size="medium"
-              isDisabled={isDisabledForm}
+              isDisabled={isCreatingClone}
             >
               Create clone
-              {formik.isSubmitting && (
+              {isCreatingClone && (
                 <Spinner size="sm" className={styles.spinner} />
               )}
             </Button>
 
-            {formik.isSubmitting && (
+            {isCreatingClone && (
               <p className={styles.elapsedTime}>Elapsed time: {timer.time} s</p>
             )}
           </div>

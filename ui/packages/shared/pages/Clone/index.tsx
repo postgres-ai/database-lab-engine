@@ -180,9 +180,7 @@ export const Clone = observer((props: Props) => {
   const headRendered = (
     <>
       {/* //TODO(Anton): make global reset styles. */}
-      <style>
-        {'p { margin: 0;}'}
-      </style>
+      <style>{'p { margin: 0;}'}</style>
 
       {props.elements.breadcrumbs}
 
@@ -259,6 +257,9 @@ export const Clone = observer((props: Props) => {
   const jdbcConnectionStr = getJdbcConnectionStr(clone)
   const psqlConnectionStr = getPsqlConnectionStr(clone)
 
+  const hasConnectionInfo =
+    sshPortForwardingUrl || jdbcConnectionStr || psqlConnectionStr
+
   // Controls.
   const isDisabledControls =
     isResettingClone ||
@@ -307,9 +308,7 @@ export const Clone = observer((props: Props) => {
             className={classes.actionButton}
           >
             Reload info
-            {isReloading && (
-              <Spinner size="sm" className={classes.spinner} />
-            )}
+            {isReloading && <Spinner size="sm" className={classes.spinner} />}
           </Button>
         </div>
 
@@ -405,138 +404,154 @@ export const Clone = observer((props: Props) => {
               <span className={classes.paramTitle}>
                 Physical data diff size:
               </span>
-              {formatBytesIEC(clone.metadata.cloneDiffSize)}
+              {clone.metadata.cloneDiffSize
+                ? formatBytesIEC(clone.metadata.cloneDiffSize)
+                : '-'}
             </p>
 
             <p className={classes.text}>
               <span className={classes.paramTitle}>Clone creation time:</span>
-              {round(clone.metadata.cloningTime, 2)} s
+              {clone.metadata.cloningTime
+                ? `${round(clone.metadata.cloningTime, 2)} s`
+                : '-'}
             </p>
           </div>
 
           <br />
 
-          <p>
-            <strong>Connection info</strong>
-          </p>
+          {hasConnectionInfo && (
+            <>
+              <p>
+                <strong>Connection info</strong>
+              </p>
 
-          {sshPortForwardingUrl && (
-            <div className={classes.fieldBlock}>
-              In a separate console, set up SSH port forwarding (and keep it
-              running):
-              <div className={classes.copyFieldContainer}>
-                <TextField
-                  variant="outlined"
-                  label="SSH port forwarding"
-                  value={sshPortForwardingUrl}
-                  className={classes.textField}
-                  margin="normal"
-                  fullWidth
-                  // @ts-ignore
-                  readOnly
-                  InputLabelProps={{
-                    shrink: true,
-                    style: styles.inputFieldLabel,
-                  }}
-                  FormHelperTextProps={{
-                    style: styles.inputFieldHelper,
-                  }}
-                />
-                <IconButton
-                  className={classes.copyButton}
-                  aria-label="Copy"
-                  onClick={() => copyToClipboard(sshPortForwardingUrl)}
-                >
-                  {icons.copyIcon}
-                </IconButton>
-              </div>
-            </div>
+              {sshPortForwardingUrl && (
+                <div className={classes.fieldBlock}>
+                  In a separate console, set up SSH port forwarding (and keep it
+                  running):
+                  <div className={classes.copyFieldContainer}>
+                    <TextField
+                      variant="outlined"
+                      label="SSH port forwarding"
+                      value={sshPortForwardingUrl}
+                      className={classes.textField}
+                      margin="normal"
+                      fullWidth
+                      // @ts-ignore
+                      readOnly
+                      InputLabelProps={{
+                        shrink: true,
+                        style: styles.inputFieldLabel,
+                      }}
+                      FormHelperTextProps={{
+                        style: styles.inputFieldHelper,
+                      }}
+                    />
+                    <IconButton
+                      className={classes.copyButton}
+                      aria-label="Copy"
+                      onClick={() => copyToClipboard(sshPortForwardingUrl)}
+                    >
+                      {icons.copyIcon}
+                    </IconButton>
+                  </div>
+                </div>
+              )}
+
+              {psqlConnectionStr && (
+                <div className={classes.fieldBlock}>
+                  <div className={classes.copyFieldContainer}>
+                    <TextField
+                      variant="outlined"
+                      id="psqlConnStr"
+                      label="psql connection string"
+                      value={psqlConnectionStr}
+                      className={classes.textField}
+                      margin="normal"
+                      fullWidth
+                      // @ts-ignore
+                      readOnly
+                      InputLabelProps={{
+                        shrink: true,
+                        style: styles.inputFieldLabel,
+                      }}
+                      FormHelperTextProps={{
+                        style: styles.inputFieldHelper,
+                      }}
+                    />
+                    <IconButton
+                      className={classes.copyButton}
+                      aria-label="Copy"
+                      onClick={() => copyToClipboard(psqlConnectionStr)}
+                    >
+                      {icons.copyIcon}
+                    </IconButton>
+                  </div>
+                  &nbsp;
+                  <Tooltip
+                    content={
+                      <>
+                        Used to connect to Postgres using psql. Change DBNAME
+                        to&nbsp; name of the database you want to connect. Use
+                        PGPASSWORD&nbsp; environment variable to set database
+                        password or type&nbsp; it when prompted.
+                      </>
+                    }
+                  >
+                    <span className={classes.textFieldInfo}>
+                      {icons.infoIcon}
+                    </span>
+                  </Tooltip>
+                </div>
+              )}
+
+              {jdbcConnectionStr && (
+                <div className={classes.fieldBlock}>
+                  <div className={classes.copyFieldContainer}>
+                    <TextField
+                      variant="outlined"
+                      label="JDBC connection string"
+                      value={jdbcConnectionStr}
+                      className={classes.textField}
+                      margin="normal"
+                      fullWidth
+                      // @ts-ignore
+                      readOnly
+                      InputLabelProps={{
+                        shrink: true,
+                        style: styles.inputFieldLabel,
+                      }}
+                      FormHelperTextProps={{
+                        style: styles.inputFieldHelper,
+                      }}
+                    />
+                    <IconButton
+                      className={classes.copyButton}
+                      aria-label="Copy"
+                      onClick={() => copyToClipboard(jdbcConnectionStr)}
+                    >
+                      {icons.copyIcon}
+                    </IconButton>
+                  </div>
+                  &nbsp;
+                  <Tooltip
+                    content={
+                      <>
+                        Used to connect to Postgres using JDBC. Change DBNAME
+                        to&nbsp; name of the database you want to connect,
+                        change DBPASSWORD&nbsp; to the password you’ve used on
+                        clone creation.
+                      </>
+                    }
+                  >
+                    <span className={classes.textFieldInfo}>
+                      {icons.infoIcon}
+                    </span>
+                  </Tooltip>
+                </div>
+              )}
+            </>
           )}
-
-          <div className={classes.fieldBlock}>
-            <div className={classes.copyFieldContainer}>
-              <TextField
-                variant="outlined"
-                id="psqlConnStr"
-                label="psql connection string"
-                value={psqlConnectionStr}
-                className={classes.textField}
-                margin="normal"
-                fullWidth
-                // @ts-ignore
-                readOnly
-                InputLabelProps={{
-                  shrink: true,
-                  style: styles.inputFieldLabel,
-                }}
-                FormHelperTextProps={{
-                  style: styles.inputFieldHelper,
-                }}
-              />
-              <IconButton
-                className={classes.copyButton}
-                aria-label="Copy"
-                onClick={() => copyToClipboard(psqlConnectionStr)}
-              >
-                {icons.copyIcon}
-              </IconButton>
-            </div>
-            &nbsp;
-            <Tooltip
-              content={
-                <>
-                  Used to connect to Postgres using psql. Change DBNAME to&nbsp;
-                  name of the database you want to connect. Use PGPASSWORD&nbsp;
-                  environment variable to set database password or type&nbsp; it
-                  when prompted.
-                </>
-              }
-            >
-              <span className={classes.textFieldInfo}>{icons.infoIcon}</span>
-            </Tooltip>
-          </div>
-
-          <div className={classes.fieldBlock}>
-            <div className={classes.copyFieldContainer}>
-              <TextField
-                variant="outlined"
-                label="JDBC connection string"
-                value={jdbcConnectionStr}
-                className={classes.textField}
-                margin="normal"
-                fullWidth
-                // @ts-ignore
-                readOnly
-                InputLabelProps={{
-                  shrink: true,
-                  style: styles.inputFieldLabel,
-                }}
-                FormHelperTextProps={{
-                  style: styles.inputFieldHelper,
-                }}
-              />
-              <IconButton
-                className={classes.copyButton}
-                aria-label="Copy"
-                onClick={() => copyToClipboard(jdbcConnectionStr)}
-              >
-                {icons.copyIcon}
-              </IconButton>
-            </div>
-            &nbsp;
-            <Tooltip
-              content={
-                <>
-                  Used to connect to Postgres using JDBC. Change DBNAME to&nbsp;
-                  name of the database you want to connect, change
-                  DBPASSWORD&nbsp; to the password you’ve used on clone
-                  creation.
-                </>
-              }
-            >
-              <span className={classes.textFieldInfo}>{icons.infoIcon}</span>
-            </Tooltip>
-          </div>
 
           <br />
 

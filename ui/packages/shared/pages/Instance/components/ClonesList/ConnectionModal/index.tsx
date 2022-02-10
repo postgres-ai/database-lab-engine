@@ -73,7 +73,9 @@ export const ConnectionModal = observer((props: Props) => {
   const { instance } = stores.main
   if (!instance) return null
 
-  const clone = instance.state.cloning.clones.find((clone) => clone.id === cloneId)
+  const clone = instance.state.cloning.clones.find(
+    (clone) => clone.id === cloneId,
+  )
   if (!clone) return null
 
   const sshPortForwardingCommand = getSshPortForwardingCommand(instance, clone)
@@ -108,73 +110,77 @@ export const ConnectionModal = observer((props: Props) => {
           </div>
         )}
 
-        <div className={classes.item}>
-          <p className={classes.fieldText}>Connect to Postgres using psql:</p>
-          <div className={classes.fieldWrapper}>
-            <TextField
-              label="psql connection string"
-              value={psqlConnectionStr}
-              className={classes.field}
-              InputProps={{
-                endAdornment: (
-                  <IconButton
-                    className={classes.copyButton}
-                    onClick={() => copy(psqlConnectionStr)}
-                  >
-                    {icons.copyIcon}
-                  </IconButton>
-                ),
-              }}
-            />
+        {psqlConnectionStr && (
+          <div className={classes.item}>
+            <p className={classes.fieldText}>Connect to Postgres using psql:</p>
+            <div className={classes.fieldWrapper}>
+              <TextField
+                label="psql connection string"
+                value={psqlConnectionStr}
+                className={classes.field}
+                InputProps={{
+                  endAdornment: (
+                    <IconButton
+                      className={classes.copyButton}
+                      onClick={() => copy(psqlConnectionStr)}
+                    >
+                      {icons.copyIcon}
+                    </IconButton>
+                  ),
+                }}
+              />
 
-            <Tooltip
-              content={
-                <>
-                  Used to connect to Postgres using psql. Change DBNAME to&nbsp;
-                  name of the database you want to connect. Use PGPASSWORD&nbsp;
-                  environment variable to set database password or type&nbsp; it
-                  when prompted.
-                </>
-              }
-            >
-              <span className={classes.fieldInfo}>{icons.infoIcon}</span>
-            </Tooltip>
+              <Tooltip
+                content={
+                  <>
+                    Used to connect to Postgres using psql. Change DBNAME
+                    to&nbsp; name of the database you want to connect. Use
+                    PGPASSWORD&nbsp; environment variable to set database
+                    password or type&nbsp; it when prompted.
+                  </>
+                }
+              >
+                <span className={classes.fieldInfo}>{icons.infoIcon}</span>
+              </Tooltip>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className={classes.item}>
-          <p className={classes.fieldText}>Connect to Postgres using JDBC:</p>
-          <div className={classes.fieldWrapper}>
-            <TextField
-              label="JDBC connection string"
-              value={jdbcConnectionStr}
-              className={classes.field}
-              InputProps={{
-                endAdornment: (
-                  <IconButton
-                    className={classes.copyButton}
-                    onClick={() => copy(jdbcConnectionStr)}
-                  >
-                    {icons.copyIcon}
-                  </IconButton>
-                ),
-              }}
-            />
+        {jdbcConnectionStr && (
+          <div className={classes.item}>
+            <p className={classes.fieldText}>Connect to Postgres using JDBC:</p>
+            <div className={classes.fieldWrapper}>
+              <TextField
+                label="JDBC connection string"
+                value={jdbcConnectionStr}
+                className={classes.field}
+                InputProps={{
+                  endAdornment: (
+                    <IconButton
+                      className={classes.copyButton}
+                      onClick={() => copy(jdbcConnectionStr)}
+                    >
+                      {icons.copyIcon}
+                    </IconButton>
+                  ),
+                }}
+              />
 
-            <Tooltip
-              content={
-                <>
-                  Used to connect to Postgres using JDBC. Change DBNAME to&nbsp;
-                  name of the database you want to connect, change
-                  DBPASSWORD&nbsp; to the password you’ve used on clone
-                  creation.
-                </>
-              }
-            >
-              <span className={classes.fieldInfo}>{icons.infoIcon}</span>
-            </Tooltip>
+              <Tooltip
+                content={
+                  <>
+                    Used to connect to Postgres using JDBC. Change DBNAME
+                    to&nbsp; name of the database you want to connect, change
+                    DBPASSWORD&nbsp; to the password you’ve used on clone
+                    creation.
+                  </>
+                }
+              >
+                <span className={classes.fieldInfo}>{icons.infoIcon}</span>
+              </Tooltip>
+            </div>
           </div>
-        </div>
+        )}
 
         <p className={classes.note}>
           Password was set during clone creation. It’s not being stored.

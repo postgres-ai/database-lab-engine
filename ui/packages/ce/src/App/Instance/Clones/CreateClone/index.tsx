@@ -6,6 +6,7 @@ import { ROUTES } from 'config/routes'
 import { getInstance } from 'api/instances/getInstance'
 import { getSnapshots } from 'api/snapshots/getSnapshots'
 import { createClone } from 'api/clones/createClone'
+import { getClone } from 'api/clones/getClone'
 
 export const CreateClone = () => {
   const routes = {
@@ -17,6 +18,7 @@ export const CreateClone = () => {
     getSnapshots,
     getInstance,
     createClone,
+    getClone,
   }
 
   const elements = {
