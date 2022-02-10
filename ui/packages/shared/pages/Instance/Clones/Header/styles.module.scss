@@ -1,0 +1,11 @@
+@import '@postgres.ai/shared/styles/mixins';
+
+.root {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+
+  @include sm {
+    padding: 20px 0;
+  }
+}

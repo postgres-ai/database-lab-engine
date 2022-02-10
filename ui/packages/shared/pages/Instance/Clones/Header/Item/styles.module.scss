@@ -1,0 +1,17 @@
+@import '@postgres.ai/shared/styles/vars';
+
+.root {
+  font-size: 12px;
+  text-align: center;
+  color: $color-gray-semi-dark;
+}
+
+.value {
+  font-weight: bold;
+  font-size: 14px;
+  color: $color-black;
+}
+
+.description {
+  margin-top: 4px;
+}
