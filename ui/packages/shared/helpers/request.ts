@@ -19,25 +19,29 @@ const serializeParams = (params: RequestParams | null) => {
   return searchParams.toString()
 }
 
-const createUrl = (
-  path: string,
-  params: RequestParams | null,
-) => {
+const createUrl = (path: string, params: RequestParams | null) => {
   const serializedParams = serializeParams(params)
   const queryString = serializedParams ? `?${serializedParams}` : ''
   return `${path}${queryString}`
 }
 
-export const request = (path: string, options?: RequestOptions) => {
+export const request = async (path: string, options?: RequestOptions) => {
   const { params = null, ...requestInit } = options ?? {}
 
   const url = createUrl(path, params)
 
-  return window.fetch(url, {
-    ...requestInit,
-    headers: {
-      'Content-Type': 'application/json',
-      ...requestInit?.headers,
-    },
-  })
+  try {
+    return await window.fetch(url, {
+      ...requestInit,
+      headers: {
+        'Content-Type': 'application/json',
+        ...requestInit?.headers,
+      },
+    })
+  } catch (e) {
+    return new Response(null, {
+      status: 500,
+      statusText: `Unknown error`,
+    })
+  }
 }
