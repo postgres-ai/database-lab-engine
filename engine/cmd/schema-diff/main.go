@@ -15,6 +15,9 @@ DROP INDEX title_idx;
 ALTER TABLE distributors 
 	ADD CONSTRAINT zipchk CHECK (char_length(zipcode) = 5);
 
+ALTER TABLE distributors 
+	ADD CONSTRAINT distfk FOREIGN KEY (address) REFERENCES addresses (address);
+
 ALTER TABLE pgbench_accounts
     ADD COLUMN test integer NOT NULL DEFAULT 0;
 `
@@ -27,7 +30,10 @@ CREATE UNIQUE INDEX CONCURRENTLY title_idx ON films USING btree (title);
 DROP INDEX CONCURRENTLY title_idx;
 
 ALTER TABLE distributors ADD CONSTRAINT zipchk CHECK (char_length(zipcode) = 5) NOT VALID;
-ALTER TABLE distributors VALIDATE CONSTRAINT zipchk;
+BEGIN; ALTER TABLE distributors VALIDATE CONSTRAINT zipchk; COMMIT;
+
+ALTER TABLE distributors ADD CONSTRAINT distfk FOREIGN KEY (address) REFERENCES addresses (address) NOT VALID;
+BEGIN; ALTER TABLE distributors VALIDATE CONSTRAINT distfk; COMMIT;
 
 ALTER TABLE pgbench_accounts ADD COLUMN test int;
 ALTER TABLE pgbench_accounts ALTER COLUMN test SET DEFAULT 0;
@@ -146,11 +152,11 @@ func AlterStmt(node *pg_query.Node) []*pg_query.Node {
 
 					alterStmts = append(alterStmts, node)
 
-					defaultDefinitionTemp := fmt.Sprintf(`ALTER TABLE %s ALTER COLUMN %s SET DEFAULT %v;`,
+					defaultDefinitionTemp := fmt.Sprintf(`alter table %s alter column %s set default %v;`,
 						alterTableStmt.GetRelation().GetRelname(), def.Colname,
 						constraints[index].GetConstraint().GetRawExpr().GetAConst().GetVal().GetInteger().GetIval())
 
-					alterStmts = append(alterStmts, generateNode(defaultDefinitionTemp))
+					alterStmts = append(alterStmts, generateNodes(defaultDefinitionTemp)...)
 
 					// TODO: Update rows
 
@@ -165,10 +171,10 @@ func AlterStmt(node *pg_query.Node) []*pg_query.Node {
 
 				alterStmts = append(alterStmts, node)
 
-				validationTemp := fmt.Sprintf(`ALTER TABLE %s VALIDATE CONSTRAINT %s;`,
+				validationTemp := fmt.Sprintf(`begin; alter table %s validate constraint %s; commit;`,
 					alterTableStmt.GetRelation().GetRelname(), constraint.GetConname())
 
-				alterStmts = append(alterStmts, generateNode(validationTemp))
+				alterStmts = append(alterStmts, generateNodes(validationTemp)...)
 
 			default:
 				alterStmts = append(alterStmts, node)
@@ -184,11 +190,16 @@ func AlterStmt(node *pg_query.Node) []*pg_query.Node {
 	return alterStmts
 }
 
-func generateNode(nodeTemplate string) *pg_query.Node {
+func generateNodes(nodeTemplate string) []*pg_query.Node {
 	defDefinition, err := pg_query.Parse(nodeTemplate)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return defDefinition.Stmts[0].Stmt
+	nodes := []*pg_query.Node{}
+	for _, rawStmt := range defDefinition.Stmts {
+		nodes = append(nodes, rawStmt.Stmt)
+	}
+
+	return nodes
 }
