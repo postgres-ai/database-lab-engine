@@ -31,6 +31,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/schema"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config"
@@ -153,7 +154,9 @@ func main() {
 	})
 
 	embeddedUI := embeddedui.New(cfg.EmbeddedUI, engProps, runner, docker)
-	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc, obs, est, pm, tm)
+	schemaDiff := schema.NewDiff(docker)
+	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc,
+		obs, est, schemaDiff, pm, tm)
 	shutdownCh := setShutdownListener()
 
 	go setReloadListener(ctx, provisioner, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server)

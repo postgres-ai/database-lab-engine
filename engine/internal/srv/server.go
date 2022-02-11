@@ -25,6 +25,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/schema"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	srvCfg "gitlab.com/postgres-ai/database-lab/v3/internal/srv/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/mw"
@@ -49,6 +50,7 @@ type Server struct {
 	Platform    *platform.Service
 	Observer    *observer.Observer
 	Estimator   *estimator.Estimator
+	SchemaDiff  *schema.Diff
 	upgrader    websocket.Upgrader
 	httpSrv     *http.Server
 	docker      *client.Client
@@ -67,6 +69,7 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config,
 	platform *platform.Service,
 	observer *observer.Observer,
 	estimator *estimator.Estimator,
+	schemaDiff *schema.Diff,
 	pm *pool.Manager,
 	tm *telemetry.Agent) *Server {
 	server := &Server{
@@ -79,6 +82,7 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config,
 		Platform:    platform,
 		Observer:    observer,
 		Estimator:   estimator,
+		SchemaDiff:  schemaDiff,
 		upgrader:    websocket.Upgrader{},
 		docker:      dockerClient,
 		pm:          pm,
@@ -177,6 +181,7 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/clone/{id}", authMW.Authorized(s.getClone)).Methods(http.MethodGet)
 	r.HandleFunc("/clone/{id}/reset", authMW.Authorized(s.resetClone)).Methods(http.MethodPost)
 	r.HandleFunc("/clone/{id}", authMW.Authorized(s.getClone)).Methods(http.MethodGet)
+	r.HandleFunc("/clone/diff/{clone_id}", authMW.Authorized(s.schemaDiff)).Methods(http.MethodGet)
 	r.HandleFunc("/observation/start", authMW.Authorized(s.startObservation)).Methods(http.MethodPost)
 	r.HandleFunc("/observation/stop", authMW.Authorized(s.stopObservation)).Methods(http.MethodPost)
 	r.HandleFunc("/observation/summary/{clone_id}/{session_id}", authMW.Authorized(s.sessionSummaryObservation)).Methods(http.MethodGet)

@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgtype/pgxtype"
 	"github.com/pkg/errors"
+	"github.com/sethvargo/go-password/password"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
@@ -527,6 +528,67 @@ func (s *Server) downloadArtifact(w http.ResponseWriter, r *http.Request) {
 
 	filePath := observingClone.BuildArtifactPath(sessionID, artifactType)
 	http.ServeFile(w, r, filePath)
+}
+
+func (s *Server) schemaDiff(w http.ResponseWriter, r *http.Request) {
+	cloneID := mux.Vars(r)["clone_id"]
+
+	if cloneID == "" {
+		api.SendBadRequestError(w, r, "Clone ID must not be empty")
+		return
+	}
+
+	clone, err := s.Cloning.GetClone(cloneID)
+	if err != nil {
+		api.SendNotFoundError(w, r)
+		return
+	}
+
+	const (
+		PasswordLength     = 16
+		PasswordMinDigits  = 4
+		PasswordMinSymbols = 0
+	)
+
+	pwd, err := password.Generate(PasswordLength, PasswordMinDigits, PasswordMinSymbols, false, true)
+	if err != nil {
+		api.SendError(w, r, fmt.Errorf("failed to generate a password to a reference clone: %w", err))
+		return
+	}
+
+	originClone, err := s.Cloning.CreateClone(&types.CloneCreateRequest{
+		ID: "diff-" + cloneID,
+		DB: &types.DatabaseRequest{
+			Username: clone.DB.Username,
+			DBName:   clone.DB.DBName,
+			Password: pwd,
+		},
+		Snapshot: &types.SnapshotCloneFieldRequest{ID: clone.Snapshot.ID},
+	})
+	if err != nil {
+		api.SendError(w, r, fmt.Errorf("cannot create a clone based on snapshot %s: %w", clone.Snapshot.ID, err))
+		return
+	}
+
+	defer func() {
+		if err := s.Cloning.DestroyClone(originClone.ID); err != nil {
+			log.Err("Failed to destroy origin clone:", err)
+		}
+	}()
+
+	diff, err := s.SchemaDiff.GenerateDiff(clone, originClone)
+	if err != nil {
+		api.SendError(w, r, fmt.Errorf("cannot generate schema diff: %w", err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "plain/text; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+
+	if _, err := w.Write([]byte(diff)); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
 }
 
 // healthCheck provides a health check handler.
