@@ -6,10 +6,14 @@
     "npm": ">=7"
   },
   "scripts": {
+    "preinstall": "npx npm-force-resolutions",
     "start:platform": "source ./packages/platform/deploy/configs/production.sh && npm run start -w @postgres.ai/platform",
     "start:ce": "npm run start -w @postgres.ai/ce"
   },
   "workspaces": [
     "./packages/*"
-  ]
+  ],
+  "resolutions": {
+    "ansi-html": "https://registry.npmjs.org/ansi-html-community/-/ansi-html-community-0.0.8.tgz"
+  }
 }
