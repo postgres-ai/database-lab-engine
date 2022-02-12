@@ -43,7 +43,7 @@ import (
 const (
 	shutdownTimeout = 30 * time.Second
 	contactSupport  = "If you have problems or questions, " +
-		"please contact Postgres.ai: https://postgres.ai/support"
+		"please contact Postgres.ai: https://postgres.ai/contact"
 )
 
 func main() {
