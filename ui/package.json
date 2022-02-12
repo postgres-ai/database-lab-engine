@@ -15,5 +15,8 @@
   ],
   "resolutions": {
     "ansi-html": "https://registry.npmjs.org/ansi-html-community/-/ansi-html-community-0.0.8.tgz"
+  },
+  "devDependencies": {
+    "stylelint-order": "^5.0.0"
   }
 }
