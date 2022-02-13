@@ -17,7 +17,8 @@
     "ansi-html": "https://registry.npmjs.org/ansi-html-community/-/ansi-html-community-0.0.8.tgz",
     "glob-parent": "https://registry.npmjs.org/glob-parent/-/glob-parent-6.0.2.tgz",
     "normalize-url": "https://registry.npmjs.org/normalize-url/-/normalize-url-6.1.0.tgz",
-    "ejs": "https://registry.npmjs.org/ejs/-/ejs-3.1.6.tgz"
+    "ejs": "https://registry.npmjs.org/ejs/-/ejs-3.1.6.tgz",
+    "trim": "https://registry.npmjs.org/trim/-/trim-1.0.1.tgz"
   },
   "devDependencies": {
     "stylelint-order": "^5.0.0"
