@@ -59,7 +59,8 @@
     "glob-parent": "https://registry.npmjs.org/glob-parent/-/glob-parent-6.0.2.tgz",
     "normalize-url": "https://registry.npmjs.org/normalize-url/-/normalize-url-6.1.0.tgz",
     "ejs": "https://registry.npmjs.org/ejs/-/ejs-3.1.6.tgz",
-    "trim": "https://registry.npmjs.org/trim/-/trim-1.0.1.tgz"
+    "trim": "https://registry.npmjs.org/trim/-/trim-1.0.1.tgz",
+    "immer": "https://registry.npmjs.org/immer/-/immer-9.0.12.tgz"
   },
   "browserslist": {
     "production": [
