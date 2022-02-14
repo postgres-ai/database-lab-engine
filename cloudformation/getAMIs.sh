@@ -1,10 +1,8 @@
 #!/bin/bash
 # This script takes a a parameter which needs to be a name of an AWS AMI
 # The string will have to identify the AMI uniquely in all regions.
-# The script will then identify the AMI identifier in all common regions (but China)
 # The script will generate an output which can be copied into json files of AWS CloudFormation
 #
-# The script has been tested on Mac OS only
 # The script uses the AWS command line tools.
 # The AWS command line tools have to have a default profile with the permission to
 # describe a region and to describe an image

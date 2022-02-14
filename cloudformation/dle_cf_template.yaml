@@ -150,10 +150,6 @@ Mappings:
       Arch: HVM64
     c4.8xlarge:
       Arch: HVM64
-    g2.2xlarge:
-      Arch: HVMG2
-    g2.8xlarge:
-      Arch: HVMG2
     r3.large:
       Arch: HVM64
     r3.xlarge:
@@ -190,39 +186,39 @@ Mappings:
       Arch: HVM64
   AWSRegionArch2AMI:
     eu-north-1:
-      HVM64: ami-00d2c4ae82c4e15d3
+      HVM64: ami-0b6b4a8fa268075d5
     ap-south-1:
-      HVM64: ami-0e8e8f7dd9908c0a4
+      HVM64: ami-093d6e6fadcb89bea
     eu-west-3:
-      HVM64: ami-0e14ab54cb2782e2f
+      HVM64: ami-0d5cdc04ea5458065
     eu-west-2:
-      HVM64: ami-073f848a357fe11e1
+      HVM64: ami-0096f88db6509a74f
     eu-west-1:
-      HVM64: ami-01b3c3bec05bc48fe
+      HVM64: ami-07196acf331110db4
     ap-northeast-3:
-      HVM64: ami-0c3943125f1190382
+      HVM64: ami-0f548acad96034cdb
     ap-northeast-2:
-      HVM64: ami-09a8f79a7f1182820
+      HVM64: ami-0bffd2ffc16123e0d
     ap-northeast-1:
-      HVM64: ami-0c1a15cfca4b819bf
+      HVM64: ami-0e5fd41373eeabbae
     sa-east-1:
-      HVM64: ami-0a8d3c4b22d6e81c3
+      HVM64: ami-025f5d1b2990f5f22
     ca-central-1:
-      HVM64: ami-08c9e6a6b27eb225e
+      HVM64: ami-0e1fdba7fdf3a2819
     ap-southeast-1:
-      HVM64: ami-04e7e55f5aa7bab92
+      HVM64: ami-03a295c4e33105452
     ap-southeast-2:
-      HVM64: ami-0e1039eed8750a628
+      HVM64: ami-0c343f4c82c6418c7
     eu-central-1:
-      HVM64: ami-07f232ba695d9c558
+      HVM64: ami-004b118e766fb19c9
     us-east-1:
-      HVM64: ami-03ccd63059a5bd276
+      HVM64: ami-0996ac28b07041da1
     us-east-2:
-      HVM64: ami-0b801a14efe0114c9
+      HVM64: ami-080b2144e01297af8
     us-west-1:
-      HVM64: ami-044900d65b2def056
+      HVM64: ami-0ce40ef81136d9d78
     us-west-2:
-      HVM64: ami-04f29f2370c30be27
+      HVM64: ami-034e91111610d83dc
 Resources:
   ZFSVolume:
     Type: AWS::EC2::Volume
@@ -254,6 +250,10 @@ Resources:
         -
           Key: Name
           Value: "DLE Instance"
+      UserData:
+        Fn::Base64: !Sub |     # No more Fn::Join needed
+          #!/bin/bash
+          echo "Testing Userdata" > /tmp/1
   MountPoint:
     Type: AWS::EC2::VolumeAttachment
     Properties:
