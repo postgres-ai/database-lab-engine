@@ -79,3 +79,16 @@ require (
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
+
+// Include the single version of the dependency to clean up go.sum from old revisions.
+// Since old and indirect dependencies are listed in the sum file and the vulnerability scanner flags the project as containing vulnerabilities.
+replace (
+	github.com/containerd/containerd => github.com/containerd/containerd v1.5.9 // mitigate CVE-2021-32760 and CVE-2020-15257
+	github.com/coreos/etcd => github.com/coreos/etcd v3.3.27+incompatible // mitigate CVE-2020-15113 and CVE-2020-15112
+	github.com/docker/docker => github.com/docker/docker v20.10.12+incompatible // mitigate CVE-2018-20699
+	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2 // mitigate CVE-2021-3121
+	github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2 // mitigate CVE-2021-41190
+	github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.3 // mitigate CVE-2021-30465
+	golang.org/x/crypto => golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2 // mitigate CVE-2018-16875 and CVE-2020-29652
+	k8s.io/kubernetes v1.13.0 => k8s.io/kubernetes v1.23.3 // mitigate CVE-2020-8559 and CVE-2020-8565
+)
