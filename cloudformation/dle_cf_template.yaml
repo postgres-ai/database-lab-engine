@@ -254,12 +254,21 @@ Resources:
         Fn::Base64: !Sub |     # No more Fn::Join needed
           #!/bin/bash
           echo "Testing Userdata" > /tmp/1
+          sudo zpool create -f \
+            -O compression=on \
+            -O atime=off \
+            -O recordsize=128k \
+            -O logbias=throughput \
+            -m /var/lib/dblab/dblab_pool \
+             dblab_pool \
+            /dev/xvdh
+
   MountPoint:
     Type: AWS::EC2::VolumeAttachment
     Properties:
       InstanceId: !Ref DLEInstance
       VolumeId: !Ref ZFSVolume
-      Device: /dev/sdh
+      Device: /dev/xvdh
   DLESecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
