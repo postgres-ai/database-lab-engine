@@ -57,7 +57,7 @@ export const Header = (props: Props) => {
             : '-'
         }
       >
-        Total
+        total
         <br />
         size of clones
       </Item>
