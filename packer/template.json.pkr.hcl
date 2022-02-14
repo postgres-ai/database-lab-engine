@@ -21,7 +21,7 @@ data "amazon-ami" "base" {
 }
 
 source "amazon-ebs" "base" {
-  ami_description = "Installed AMI with Ubuntu 20.04, ZFS, Docker, Envoy proxy and Database Lab Engine 2.0 with client CLI."
+  ami_description = "Ubuntu 20.04 with  ZFS, Docker, Envoy proxy and Database Lab Engine 3.0 with client CLI."
   ami_name        = "${var.ami_name_prefix}-${var.dle_version}-${formatdate("YYYY-MM-DD", timestamp())}-${uuidv4()}"
   instance_type   = "t2.large"
   source_ami      = "${data.amazon-ami.base.id}"
