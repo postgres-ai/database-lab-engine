@@ -87,6 +87,7 @@ replace (
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2 // mitigate CVE-2021-3121
 	github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2 // mitigate CVE-2021-41190
 	github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.3 // mitigate CVE-2021-30465
+	github.com/satori/go.uuid => github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	golang.org/x/crypto => golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2 // mitigate CVE-2018-16875 and CVE-2020-29652
 	k8s.io/kubernetes v1.13.0 => k8s.io/kubernetes v1.23.3 // mitigate CVE-2020-8559 and CVE-2020-8565
 )
