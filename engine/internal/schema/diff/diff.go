@@ -50,7 +50,6 @@ func detectNodeType(node *pg_query.Node) []*pg_query.Node {
 		DropStmt(stmt)
 
 	case *pg_query.Node_AlterTableStmt:
-		fmt.Println("Alter Type")
 		return AlterStmt(node)
 
 	case *pg_query.Node_SelectStmt:
@@ -88,10 +87,6 @@ func AlterStmt(node *pg_query.Node) []*pg_query.Node {
 	for _, cmd := range initialCommands {
 		switch v := cmd.Node.(type) {
 		case *pg_query.Node_AlterTableCmd:
-			fmt.Printf("%#v\n", v)
-			fmt.Printf("%#v\n", v.AlterTableCmd.Def.Node)
-			fmt.Println(v.AlterTableCmd.Subtype.Enum())
-
 			switch v.AlterTableCmd.Subtype {
 			case pg_query.AlterTableType_AT_AddColumn:
 				def := v.AlterTableCmd.Def.GetColumnDef()
@@ -106,13 +101,13 @@ func AlterStmt(node *pg_query.Node) []*pg_query.Node {
 				if index, ok := constraintsMap[pg_query.ConstrType_CONSTR_DEFAULT]; ok {
 					def.Constraints = make([]*pg_query.Node, 0)
 
-					alterStmts = append(alterStmts, node)
+					alterStmts = append(alterStmts, wrapTransaction([]*pg_query.Node{node})...)
 
 					defaultDefinitionTemp := fmt.Sprintf(`alter table %s alter column %s set default %v;`,
 						alterTableStmt.GetRelation().GetRelname(), def.Colname,
 						constraints[index].GetConstraint().GetRawExpr().GetAConst().GetVal().GetInteger().GetIval())
 
-					alterStmts = append(alterStmts, generateNodes(defaultDefinitionTemp)...)
+					alterStmts = append(alterStmts, wrapTransaction(generateNodes(defaultDefinitionTemp))...)
 
 					// TODO: Update rows
 
@@ -125,12 +120,12 @@ func AlterStmt(node *pg_query.Node) []*pg_query.Node {
 				constraint := v.AlterTableCmd.Def.GetConstraint()
 				constraint.SkipValidation = true
 
-				alterStmts = append(alterStmts, node)
+				alterStmts = append(alterStmts, wrapTransaction([]*pg_query.Node{node})...)
 
-				validationTemp := fmt.Sprintf(`begin; alter table %s validate constraint %s; commit;`,
+				validationTemp := fmt.Sprintf(`alter table %s validate constraint %s;`,
 					alterTableStmt.GetRelation().GetRelname(), constraint.GetConname())
 
-				alterStmts = append(alterStmts, generateNodes(validationTemp)...)
+				alterStmts = append(alterStmts, wrapTransaction(generateNodes(validationTemp))...)
 
 			default:
 				alterStmts = append(alterStmts, node)
@@ -157,6 +152,17 @@ func generateNodes(nodeTemplate string) []*pg_query.Node {
 	for _, rawStmt := range defDefinition.Stmts {
 		nodes = append(nodes, rawStmt.Stmt)
 	}
+
+	return nodes
+}
+
+// wrapTransaction wraps nodes into transaction statements.
+func wrapTransaction(nodes []*pg_query.Node) []*pg_query.Node {
+	begin := makeBeginTransactionStmt()
+	commit := makeCommitTransactionStmt()
+
+	nodes = append([]*pg_query.Node{begin}, nodes...)
+	nodes = append(nodes, commit)
 
 	return nodes
 }

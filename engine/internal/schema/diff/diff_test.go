@@ -26,14 +26,14 @@ const expectedTpl = `CREATE UNIQUE INDEX CONCURRENTLY title_idx ON films USING b
 
 DROP INDEX CONCURRENTLY title_idx;
 
-ALTER TABLE distributors ADD CONSTRAINT zipchk CHECK (char_length(zipcode) = 5) NOT VALID;
+BEGIN; ALTER TABLE distributors ADD CONSTRAINT zipchk CHECK (char_length(zipcode) = 5) NOT VALID; COMMIT;
 BEGIN; ALTER TABLE distributors VALIDATE CONSTRAINT zipchk; COMMIT;
 
-ALTER TABLE distributors ADD CONSTRAINT distfk FOREIGN KEY (address) REFERENCES addresses (address) NOT VALID;
+BEGIN; ALTER TABLE distributors ADD CONSTRAINT distfk FOREIGN KEY (address) REFERENCES addresses (address) NOT VALID; COMMIT;
 BEGIN; ALTER TABLE distributors VALIDATE CONSTRAINT distfk; COMMIT;
 
-ALTER TABLE pgbench_accounts ADD COLUMN test int;
-ALTER TABLE pgbench_accounts ALTER COLUMN test SET DEFAULT 0`
+BEGIN; ALTER TABLE pgbench_accounts ADD COLUMN test int; COMMIT;
+BEGIN; ALTER TABLE pgbench_accounts ALTER COLUMN test SET DEFAULT 0; COMMIT`
 
 var space = regexp.MustCompile(`\s+`)
 
