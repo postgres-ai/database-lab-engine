@@ -50,7 +50,7 @@ build {
 
   provisioner "shell" {
     environment_vars = ["dle_version=${var.dle_version}"]
-    scripts = ["${path.root}/install-prereqs.sh", "${path.root}/install-envoy.sh"] 
+    scripts = ["${path.root}/install-prereqs.sh", "${path.root}/install-envoy.sh","${path.root}/install-dblabcli.sh"] 
   }
 
 }
