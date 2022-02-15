@@ -412,6 +412,8 @@ integration-test:
     DOCKER_TLS_CERTDIR: ""
     # Improve performance with overlayfs.
     DOCKER_DRIVER: overlay2
+    # Maximum supported API version is 1.41 for the current image
+    DOCKER_API_VERSION: "1.41"
   script:
     - cd engine
     - make test-ci-integration
