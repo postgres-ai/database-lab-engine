@@ -83,7 +83,7 @@ replace (
 	github.com/containerd/containerd => github.com/containerd/containerd v1.5.9 // mitigate CVE-2021-32760 and CVE-2020-15257
 	github.com/coreos/etcd => github.com/coreos/etcd v3.3.27+incompatible // mitigate CVE-2020-15113 and CVE-2020-15112
 	github.com/docker/cli => github.com/docker/cli v20.10.3-0.20220214172424-cf8c4bab6477+incompatible // mitigate CVE-2018-20699
-	github.com/docker/docker => github.com/docker/docker v20.10.3-0.20220208084023-a5c757555091+incompatible // mitigate CVE-2018-20699
+	github.com/docker/docker => github.com/docker/docker v20.10.3-0.20220207145910-4b3471ddc064+incompatible // mitigate CVE-2018-20699
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2 // mitigate CVE-2021-3121
 	github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2 // mitigate CVE-2021-41190
 	github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.3 // mitigate CVE-2021-30465

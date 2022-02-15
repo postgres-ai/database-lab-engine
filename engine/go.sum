@@ -149,8 +149,8 @@ github.com/docker/cli v20.10.3-0.20220214172424-cf8c4bab6477+incompatible h1:+cb
 github.com/docker/cli v20.10.3-0.20220214172424-cf8c4bab6477+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
 github.com/docker/distribution v2.8.0+incompatible h1:l9EaZDICImO1ngI+uTifW+ZYvvz7fKISBAKpg+MbWbY=
 github.com/docker/distribution v2.8.0+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
-github.com/docker/docker v20.10.3-0.20220208084023-a5c757555091+incompatible h1:DPMrerxYRbdZnOnlPPwt9QGf207ETn7FebEmxUQI3bE=
-github.com/docker/docker v20.10.3-0.20220208084023-a5c757555091+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
+github.com/docker/docker v20.10.3-0.20220207145910-4b3471ddc064+incompatible h1:89rHZUw3PJdHYpoiPYiCtTFvyvUwNfV7YSjmf8X4a1A=
+github.com/docker/docker v20.10.3-0.20220207145910-4b3471ddc064+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/docker/go-connections v0.4.0 h1:El9xVISelRB7BuFusrZozjnkIM5YnzCViNKohAFqRJQ=
 github.com/docker/go-connections v0.4.0/go.mod h1:Gbd7IOopHjR8Iph03tsViu4nIes5XhDvyHbTtUxmeec=
 github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c/go.mod h1:Uw6UezgYA44ePAFQYUehOuCzmy5zmg/+nl2ZfMWGkpA=
