@@ -17,12 +17,12 @@ import {
   TableRow
 } from '@material-ui/core';
 import Typography from '@material-ui/core/Typography';
-import * as timeago from 'timeago.js';
 import ExpansionPanel from '@material-ui/core/ExpansionPanel';
 import ExpansionPanelSummary from '@material-ui/core/ExpansionPanelSummary';
 import ExpansionPanelDetails from '@material-ui/core/ExpansionPanelDetails';
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 import TextField from '@material-ui/core/TextField';
+import { formatDistanceToNowStrict } from 'date-fns';
 
 import {
   HorizontalScrollContainer
@@ -572,7 +572,10 @@ class DbLabSession extends Component {
 
           <Typography component='p'>
             <span className={classes.paramTitle}>Created:</span>
-            {session && timeago.format(session.started_at + ' UTC')}
+            {
+              session &&
+              formatDistanceToNowStrict(new Date(session.started_at), { addSuffix: true })
+            }
           </Typography>
 
           <div className={classes.summaryDivider} />

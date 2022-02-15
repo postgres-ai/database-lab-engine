@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
-import { DestroyClone } from '@postgres.ai/shared/types/api/endpoints/destoryClone'
+import { DestroyClone } from '@postgres.ai/shared/types/api/endpoints/destroyClone'
 
 import { request } from 'helpers/request'
 

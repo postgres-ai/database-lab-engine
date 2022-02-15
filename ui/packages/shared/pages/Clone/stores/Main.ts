@@ -10,7 +10,7 @@ import { makeAutoObservable } from 'mobx'
 import { GetInstance } from '@postgres.ai/shared/types/api/endpoints/getInstance'
 import { GetClone } from '@postgres.ai/shared/types/api/endpoints/getClone'
 import { ResetClone } from '@postgres.ai/shared/types/api/endpoints/resetClone'
-import { DestroyClone } from '@postgres.ai/shared/types/api/endpoints/destoryClone'
+import { DestroyClone } from '@postgres.ai/shared/types/api/endpoints/destroyClone'
 import { UpdateClone } from '@postgres.ai/shared/types/api/endpoints/updateClone'
 import {
   SnapshotsStore,

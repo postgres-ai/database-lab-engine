@@ -136,6 +136,7 @@
     "sidemenu",
     "craco",
     "Formik",
-    "healthz"
+    "healthz",
+    "rehype"
   ]
 }
