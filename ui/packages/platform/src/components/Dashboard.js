@@ -14,6 +14,7 @@ import {
   TableHead, TableRow, Button, Grid
 } from '@material-ui/core';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 
 import {
   HorizontalScrollContainer
@@ -403,10 +404,10 @@ class Dashboard extends Component {
                 <h1>Getting started</h1>
                 <ReactMarkdown
                   className={classes.onboarding}
-                  source={this.state.data.userProfile.data.orgs[org].onboarding_text}
-                  escapeHtml={false}
-                  renderers={{
-                    link: (props) => {
+                  children={this.state.data.userProfile.data.orgs[org].onboarding_text}
+                  rehypePlugins={[rehypeRaw]}
+                  components={{
+                    a: (props) => {
                       const { href, target, children } = props;
                       return (
                         <Link
@@ -426,10 +427,10 @@ class Dashboard extends Component {
                 <h1>Useful links</h1>
                 <ReactMarkdown
                   className={classes.onboarding}
-                  source={this.state.data.userProfile.data.platform_onboarding_text}
-                  escapeHtml={false}
-                  renderers={{
-                    link: (props) => {
+                  children={this.state.data.userProfile.data.platform_onboarding_text}
+                  rehypePlugins={[rehypeRaw]}
+                  components={{
+                    a: (props) => {
                       const { href, target, children } = props;
                       return (
                         <Link

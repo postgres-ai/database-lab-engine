@@ -13,8 +13,8 @@ import {
   TableHead, TableRow, Button, Checkbox, InputAdornment,
   IconButton, OutlinedInput, Tooltip, Box
 } from '@material-ui/core';
-import * as timeago from 'timeago.js';
 import dompurify from 'dompurify';
+import { formatDistanceToNowStrict } from 'date-fns';
 
 import {
   HorizontalScrollContainer
@@ -822,7 +822,12 @@ class JoeHistory extends Component {
                                   classes={{ tooltip: classes.toolTip }}
                                 >
                                   <span className={classes.timeLabel}>
-                                    {timeago.format(c['created_at'])}
+                                    {
+                                      formatDistanceToNowStrict(
+                                        new Date(c.created_at),
+                                        { addSuffix: true }
+                                      )
+                                    }
                                   </span>
                                 </Tooltip>
                               </div>

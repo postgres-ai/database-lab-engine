@@ -6,7 +6,7 @@
  */
 
 import Reflux from 'reflux';
-import jsonwebtoken from 'jsonwebtoken';
+import jwtDecode from 'jwt-decode';
 import md5 from 'md5';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -336,7 +336,14 @@ const Store = Reflux.createStore({
     this.data.auth.error = !!this.data.auth.errorMessage;
 
     if (typeof data.token !== 'undefined') {
-      let tokenData = jsonwebtoken.decode(data.token);
+      let tokenData = null;
+
+      try {
+        tokenData = jwtDecode(data.token);
+      } catch (e) {
+        console.log(e);
+      }
+
       if (tokenData && typeof tokenData.id !== 'undefined') {
         this.data = this.getInitialState();
         this.data.auth.token = data.token;

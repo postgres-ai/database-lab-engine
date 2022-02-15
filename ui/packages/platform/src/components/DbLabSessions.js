@@ -12,7 +12,7 @@ import {
   Table, TableBody, TableCell,
   TableHead, TableRow, Button
 } from '@material-ui/core';
-import * as timeago from 'timeago.js';
+import { formatDistanceToNowStrict } from 'date-fns';
 
 import {
   HorizontalScrollContainer
@@ -301,7 +301,12 @@ class DbLabSessions extends Component {
                             </div>
                             <div>
                               {icons.calendar}&nbsp;created&nbsp;
-                              {timeago.format(s.started_at + ' UTC')}
+                              {
+                                formatDistanceToNowStrict(
+                                  new Date(s.started_at),
+                                  { addSuffix: true }
+                                )
+                              }
                               {s.tags && s.tags.launched_by ? (
                                 <span> by {s.tags.launched_by}</span>
                               ) : ''}
