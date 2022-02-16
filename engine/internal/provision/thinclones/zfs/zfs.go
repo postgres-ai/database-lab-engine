@@ -172,12 +172,11 @@ func (m *Manager) Pool() *resources.Pool {
 func (m *Manager) CreateClone(cloneName, snapshotID string) error {
 	exists, err := m.cloneExists(cloneName)
 	if err != nil {
-		return errors.Wrap(err, "clone does not exist")
+		return fmt.Errorf("cannot check the clone existence: %w", err)
 	}
 
 	if exists {
-		log.Msg(fmt.Sprintf("clone %q is already exists. Skip creation", cloneName))
-		return nil
+		return fmt.Errorf("clone %q is already exists. Skip creation", cloneName)
 	}
 
 	clonesMountDir := m.config.Pool.ClonesDir()
@@ -225,7 +224,7 @@ func (m *Manager) DestroyClone(cloneName string) error {
 
 // cloneExists checks whether a ZFS clone exists.
 func (m *Manager) cloneExists(name string) (bool, error) {
-	listZfsClonesCmd := "zfs list"
+	listZfsClonesCmd := "zfs list -r " + m.config.Pool.Name
 
 	out, err := m.runner.Run(listZfsClonesCmd, false)
 	if err != nil {
