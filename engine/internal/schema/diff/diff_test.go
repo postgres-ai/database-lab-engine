@@ -22,9 +22,9 @@ ALTER TABLE pgbench_accounts
     ADD COLUMN test integer NOT NULL DEFAULT 0;
 `
 
-const expectedTpl = `CREATE UNIQUE INDEX CONCURRENTLY title_idx ON films USING btree (title);
+const expectedTpl = `BEGIN; CREATE UNIQUE INDEX CONCURRENTLY title_idx ON films USING btree (title); COMMIT;
 
-DROP INDEX CONCURRENTLY title_idx;
+BEGIN; DROP INDEX CONCURRENTLY title_idx; COMMIT;
 
 BEGIN; ALTER TABLE distributors ADD CONSTRAINT zipchk CHECK (char_length(zipcode) = 5) NOT VALID; COMMIT;
 BEGIN; ALTER TABLE distributors VALIDATE CONSTRAINT zipchk; COMMIT;

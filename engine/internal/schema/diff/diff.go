@@ -56,7 +56,7 @@ func detectNodeType(node *pg_query.Node) []*pg_query.Node {
 		fmt.Println("Select Type")
 	}
 
-	return []*pg_query.Node{node}
+	return wrapTransaction([]*pg_query.Node{node})
 }
 
 // IndexStmt processes index statement.
