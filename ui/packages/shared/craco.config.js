@@ -58,8 +58,21 @@ module.exports = (context) => ({
       )
 
       // Passing build timestamp.
-      const { match: definePlugin } = getPlugin(webpackConfig, pluginByName('DefinePlugin'))
-      if (definePlugin) definePlugin.definitions['process.env'].BUILD_TIMESTAMP = `${buildTimestamp}`
+      const { match: definePlugin } = getPlugin(
+        webpackConfig,
+        pluginByName('DefinePlugin'),
+      )
+      if (definePlugin)
+        definePlugin.definitions[
+          'process.env'
+        ].BUILD_TIMESTAMP = `${buildTimestamp}`
+
+      // Resolve polyfills.
+      webpackConfig.resolve.fallback = {
+        ...webpackConfig.resolve.fallback,
+        crypto: require.resolve('crypto-browserify'),
+        stream: require.resolve('stream-browserify'),
+      }
 
       return webpackConfig
     },

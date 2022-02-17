@@ -18,7 +18,7 @@ import CloseIcon from '@material-ui/icons/Close';
 import Slide from '@material-ui/core/Slide';
 import Tabs from '@material-ui/core/Tabs';
 import Tab from '@material-ui/core/Tab';
-import * as timeago from 'timeago.js';
+import { formatDistanceToNowStrict } from 'date-fns';
 
 import { FormattedText } from '@postgres.ai/shared/components/FormattedText';
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner';
@@ -444,7 +444,9 @@ class JoeSessionCommand extends Component {
 
             <h4>Details:</h4>
             <Typography component='p'>
-              <span>Uploaded</span>:&nbsp;{ timeago.format(data.createdAt) }&nbsp;
+              <span>Uploaded</span>:&nbsp;{
+                formatDistanceToNowStrict(new Date(data.createdAt), { addSuffix: true })
+              }&nbsp;
               ({ format.formatTimestampUtc(data.createdAt) })
             </Typography>
           </div>

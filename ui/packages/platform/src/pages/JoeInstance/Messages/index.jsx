@@ -16,6 +16,7 @@ import {
 } from '@material-ui/core';
 import { ExpandMore as ExpandMoreIcon } from '@material-ui/icons';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { ResizeObserver } from '@juggle/resize-observer';
 
 import { icons } from '@postgres.ai/shared/styles/icons';
@@ -132,14 +133,14 @@ export const Messages = (props) => {
                       {
                         <ReactMarkdown
                           className='markdown'
-                          source={messages[m].formattedMessage}
-                          escapeHtml={false}
+                          children={messages[m].formattedMessage}
+                          rehypePlugins={[rehypeRaw]}
                           linkTarget='_blank'
-                          renderers={{
-                            link: (properties) => {
+                          components={{
+                            a: (properties) => {
                               return markdownLink(properties, m);
                             },
-                            paragraph: 'div'
+                            p: 'div'
                           }}
                         />
                       }

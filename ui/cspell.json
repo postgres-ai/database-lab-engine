@@ -137,6 +137,7 @@
     "craco",
     "Formik",
     "healthz",
-    "SAST"
+    "SAST",
+    "rehype"
   ]
 }
