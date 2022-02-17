@@ -43,4 +43,19 @@ git tag ui/1.0.12
 git push origin ui/1.0.12
 ```
 
+## Vulnerability issues
+
+### Packages issues
+Ways to resolve (ordered by preference):
+1. Update a package - try to looking for a newer package in npm, probably this vulnerability are already fixed.
+2. If vulnerability placed in a sub-package - try to replace it  with [npm-force-resolutions](https://www.npmjs.com/package/npm-force-resolutions). Be careful using this way - it may break a project as in a build phase as at runtime. Recommended full e2e testing after replacing.
+3. Fork the package and put it locally in this repo.
+4. If you are sure this is a falsy vulnerability - try to ignore it using special commands for your SAST tool. **NOT RECOMMENDED**.
+
+### Code issues
+Ways to resolve (ordered by preference):
+1. If the part of source code is written on `.js` try to rewrite it on `.ts` or `.tsx` - it will fix a lot of potential security issues.
+2. Follow the recommendations of your SAST tool - fix it manually or automatically.
+3. If you are sure this is a falsy vulnerability - try to ignore it using special commands for your SAST tool. **NOT RECOMMENDED**.
+
 <!-- TODO: move this ^ to the main README.md and CONTRIBUTING.md -->
