@@ -16,12 +16,15 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/networks"
 )
+
+const schemaDiffImage = "supabase/pgadmin-schema-diff"
 
 // Diff defines a schema generator.
 type Diff struct {
@@ -34,6 +37,7 @@ func NewDiff(cli *client.Client) *Diff {
 }
 
 func connStr(clone *models.Clone) string {
+	// TODO: fix params
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
 		clone.DB.Username,
 		"test", // clone.DB.Password,
@@ -50,18 +54,13 @@ func (d *Diff) GenerateDiff(actual, origin *models.Clone, instanceID string) (st
 
 	ctx := context.Background()
 
-	if _, err := d.watchCloneStatus(ctx, origin, origin.Status.Code); err != nil {
-		return "", fmt.Errorf("failed to watch the clone status: %w", err)
+	if origin.Status.Code != models.StatusOK {
+		if _, err := d.watchCloneStatus(ctx, origin, origin.Status.Code); err != nil {
+			return "", fmt.Errorf("failed to watch the clone status: %w", err)
+		}
 	}
 
-	reader, err := d.cli.ImagePull(ctx, "supabase/pgadmin-schema-diff", types.ImagePullOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to pull image: %w", err)
-	}
-
-	defer func() { _ = reader.Close() }()
-
-	if _, err := io.Copy(os.Stdout, reader); err != nil && err != io.EOF {
+	if err := tools.PullImage(ctx, d.cli, schemaDiffImage); err != nil {
 		return "", fmt.Errorf("failed to pull image: %w", err)
 	}
 
@@ -70,9 +69,8 @@ func (d *Diff) GenerateDiff(actual, origin *models.Clone, instanceID string) (st
 			Labels: map[string]string{
 				cont.DBLabControlLabel:    cont.DBLabSchemaDiff,
 				cont.DBLabInstanceIDLabel: instanceID,
-				// cont.DBLabEngineNameLabel: d.engineProps.ContainerName,
 			},
-			Image: "supabase/pgadmin-schema-diff",
+			Image: schemaDiffImage,
 			Cmd: []string{
 				connStr(actual),
 				connStr(origin),
@@ -96,6 +94,15 @@ func (d *Diff) GenerateDiff(actual, origin *models.Clone, instanceID string) (st
 		return "", fmt.Errorf("failed to create diff container: %w", err)
 	}
 
+	defer func() {
+		if err := d.cli.ContainerRemove(ctx, diffCont.ID, types.ContainerRemoveOptions{
+			RemoveVolumes: true,
+			Force:         true,
+		}); err != nil {
+			log.Err("failed to remove the diff container:", diffCont.ID, err)
+		}
+	}()
+
 	statusCh, errCh := d.cli.ContainerWait(ctx, diffCont.ID, container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:
@@ -117,12 +124,12 @@ func (d *Diff) GenerateDiff(actual, origin *models.Clone, instanceID string) (st
 		return "", fmt.Errorf("failed to copy container output: %w", err)
 	}
 
-	stringsB, err := filterOutput(buf)
+	filteredOutput, err := filterOutput(buf)
 	if err != nil {
 		return "", fmt.Errorf("failed to filter output: %w", err)
 	}
 
-	return stringsB.String(), nil
+	return filteredOutput.String(), nil
 }
 
 // watchCloneStatus checks the clone status for changing.
@@ -157,13 +164,13 @@ func (d *Diff) watchCloneStatus(ctx context.Context, clone *models.Clone, initia
 }
 
 func filterOutput(b *bytes.Buffer) (*strings.Builder, error) {
-	strB := &strings.Builder{}
+	filteredBuilder := &strings.Builder{}
 
 	for {
 		line, err := b.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF {
-				return strB, nil
+				return filteredBuilder, nil
 			}
 
 			return nil, err
@@ -173,6 +180,6 @@ func filterOutput(b *bytes.Buffer) (*strings.Builder, error) {
 			continue
 		}
 
-		strB.Write(line)
+		filteredBuilder.Write(line)
 	}
 }

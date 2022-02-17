@@ -1,4 +1,11 @@
 # See Guides to learn how to start a container: https://postgres.ai/docs/how-to-guides/administration/engine-manage
+FROM golang:1.17-alpine as builder
+RUN apk update && apk add --no-cache make gcc g++
+
+WORKDIR /app
+ADD . /app
+
+RUN make build-engine
 
 FROM docker:19.03.15
 
@@ -14,7 +21,7 @@ ENV PATH="${PATH}:/usr/share/bcc/tools"
 
 WORKDIR /home/dblab
 
-COPY ./bin/dblab-server ./bin/dblab-server
+COPY --from=builder /app/bin/dblab-server ./bin/dblab-server
 COPY ./configs/standard ./standard
 COPY ./api ./api
 COPY ./scripts ./scripts

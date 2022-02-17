@@ -563,7 +563,7 @@ func (s *Server) schemaDiff(w http.ResponseWriter, r *http.Request) {
 			Username: clone.DB.Username,
 			DBName:   clone.DB.DBName,
 			//Password: pwd,
-			Password: "test",
+			Password: "test", // TODO: update
 		},
 		Snapshot: &types.SnapshotCloneFieldRequest{ID: clone.Snapshot.ID},
 	})
@@ -597,7 +597,7 @@ func (s *Server) schemaDiff(w http.ResponseWriter, r *http.Request) {
 
 	log.Dbg("Optimized Diff:", optimizedDiff)
 
-	if _, err := w.Write([]byte(generateDiff)); err != nil {
+	if _, err := w.Write([]byte(optimizedDiff)); err != nil {
 		api.SendError(w, r, err)
 		return
 	}

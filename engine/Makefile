@@ -18,7 +18,7 @@ LDFLAGS = -ldflags "-s -w \
 	-X gitlab.com/postgres-ai/database-lab/v3/version.buildTime=${BUILD_TIME}"
 
 # Go tooling command aliases
-GOBUILD = GO111MODULE=on CGO_ENABLED=0 GOARCH=${GOARCH} go build ${LDFLAGS}
+GOBUILD = GO111MODULE=on CGO_ENABLED=1 GOARCH=${GOARCH} go build ${LDFLAGS}
 GOTEST = GO111MODULE=on go test -race
 
 CLIENT_PLATFORMS=darwin linux freebsd windows
@@ -43,6 +43,9 @@ build: ## Build binary files of all Database Lab components (Engine, CI Checker,
 	${GOBUILD} -o bin/${SERVER_BINARY} ./cmd/database-lab/main.go
 	${GOBUILD} -o bin/${RUN_CI_BINARY} ./cmd/runci/main.go
 	${GOBUILD} -o bin/${CLI_BINARY} ./cmd/cli/main.go
+
+build-engine: ## Build binary files of all Database Lab components (Engine, CI Checker, CLI)
+	${GOBUILD} -o bin/${SERVER_BINARY} ./cmd/database-lab/main.go
 
 build-ci-checker: ## Build the Database Lab CI Checker binary
 	${GOBUILD} -o bin/${RUN_CI_BINARY} ./cmd/runci/main.go
@@ -72,4 +75,4 @@ fmt: ## Format code
 clean: ## Remove compiled binaries from the local bin/ directory
 	rm -f bin/*
 
-.PHONY: help all build test run-lint install-lint lint fmt clean build-image build-dle build-ci-checker build-client build-ci-checker
+.PHONY: help all build test run-lint install-lint lint fmt clean build-image build-dle build-engine build-client build-ci-checker
