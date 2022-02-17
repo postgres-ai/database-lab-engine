@@ -80,6 +80,73 @@ Parameters:
     Description: The size of the EBS volumes used for DLE ZFS pool
     Type: String
     Default: 40
+  DLEDebugMode:
+    Description: Enables DLE debug mode
+    Type: String
+    Default: True
+    AllowedValues:
+      - True
+      - False
+  DLEVerificationToken:
+    Description: DLE verification token
+    Type: String
+    Default: 'asdasDSadasDSDA'
+    MinLength: '9'
+    MaxLength: '18'
+  DLERetrievalRefreshTimetable:
+    Description: DLE refresh schedule on cron format
+    Type: String
+    Default: '0 0 * * *'
+  SourcePostgresDBName:
+    Description: Ssource database name 
+    Type: String
+    Default: 'postgres'
+  SourcePostgresVersion:
+    Description: Source databadse Postgres version
+    Type: String
+    Default: 12
+    AllowedValues:
+      - 9.6
+      - 10
+      - 11
+      - 12
+      - 13
+      - 14
+  SourceType:
+    Description: Postgres dump source
+    Type: String
+    Default: S3 bucket
+    AllowedValues:
+      - S3 bucket
+      - Postgres database connection
+  SourcePostgresHost:
+    Description: Source Postgres cluster host name or IP
+    Type: String
+    Default: ''
+  SourcePostgresPort:
+    Description: Source Postgres cluster port
+    Type: String
+    Default: 5432
+  SourcePostgresUsername:
+    Description: Source Postgres cluster username
+    Type: String
+    Default: postgres
+  SourcePostgresPassword:
+    Description: Source Postgres cluster password
+    Type: String
+    Default: ''
+  PostgresConfigSharedPreloadLibraries:
+    Description: Source Postgres shared_preload_libraries value
+    Type: String
+    Default: ''
+  SourceDumpS3Bucket:
+    Description: S3 bucket with pg_dump to restore
+    Type: String
+    Default: ''
+  PostgresDumpParallelJobs:
+    Description: Number of jobs to run pg_dump against the source database 
+    Type: String
+    Default: '1'
 Mappings:
   AWSInstanceType2Arch:
     t1.micro:
