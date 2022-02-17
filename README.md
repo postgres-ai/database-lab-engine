@@ -43,7 +43,7 @@
 - Provide temporary full-size database clones for SQL query analysis and optimization (see also: [SQL optimization chatbot Joe](https://gitlab.com/postgres-ai/joe)).
 - Automatically test database changes in CI/CD pipelines to avoid incidents in production.
 
-For example, cloning a 1 TiB PostgreSQL database takes ~10 seconds. Dozens of independent clones are up and running on a single machine, supporting lots of development and testing activities, without increasing costs for hardware.
+For example, cloning a 1 TiB PostgreSQL database takes ~10 seconds. Dozens of independent clones are up and running on a single machine, supporting lots of development and testing activities without increasing costs for hardware.
 
 <p><img src="./assets/dle-demo-animated.gif" border="0" /></p>
 
@@ -86,7 +86,7 @@ Read more:
 - Initial data provisioning can be done at either the physical (pg_basebackup, backup / archiving tools such as WAL-G or pgBackRest) or logical (dump/restore directly from the source or from files stored at AWS S3) level.
 - For logical mode, partial data retrieval is supported (specific databases, specific tables).
 - For physical mode, a continuously updated state is supported ("sync container"), making DLE a specialized version of standby Postgres.
-- For logical mode, periodic full refresh is supported, automated, and controlled by DLE. It is possible to use multiple disks containing different versions of the database, so full refresh won't require downtime.
+- For logical mode, a periodic full refresh is supported, automated, and controlled by DLE. It is possible to use multiple disks containing different versions of the database, so full refresh won't require downtime.
 - Fast Point in Time Recovery (PITR) to the points available in DLE snapshots.
 - Unused clones are automatically deleted.
 - "Deletion protection" flag can be used to block automatic or manual deletion of clones.
