@@ -58,6 +58,9 @@ const (
 
 	// DBLabRunner defines a label to mark runner containers.
 	DBLabRunner = "dblab_runner"
+
+	// DBLabSchemaDiff defines a label for schema diff containers.
+	DBLabSchemaDiff = "dblab_schema_diff"
 )
 
 // TODO(akartasov): Control container manager.

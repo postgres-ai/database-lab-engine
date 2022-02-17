@@ -17,6 +17,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/schema/diff"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 
@@ -550,7 +551,7 @@ func (s *Server) schemaDiff(w http.ResponseWriter, r *http.Request) {
 		PasswordMinSymbols = 0
 	)
 
-	pwd, err := password.Generate(PasswordLength, PasswordMinDigits, PasswordMinSymbols, false, true)
+	_, err = password.Generate(PasswordLength, PasswordMinDigits, PasswordMinSymbols, false, true)
 	if err != nil {
 		api.SendError(w, r, fmt.Errorf("failed to generate a password to a reference clone: %w", err))
 		return
@@ -561,7 +562,8 @@ func (s *Server) schemaDiff(w http.ResponseWriter, r *http.Request) {
 		DB: &types.DatabaseRequest{
 			Username: clone.DB.Username,
 			DBName:   clone.DB.DBName,
-			Password: pwd,
+			//Password: pwd,
+			Password: "test",
 		},
 		Snapshot: &types.SnapshotCloneFieldRequest{ID: clone.Snapshot.ID},
 	})
@@ -576,7 +578,7 @@ func (s *Server) schemaDiff(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	diff, err := s.SchemaDiff.GenerateDiff(clone, originClone)
+	generateDiff, err := s.SchemaDiff.GenerateDiff(clone, originClone, s.engProps.InstanceID)
 	if err != nil {
 		api.SendError(w, r, fmt.Errorf("cannot generate schema diff: %w", err))
 		return
@@ -585,7 +587,17 @@ func (s *Server) schemaDiff(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "plain/text; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	if _, err := w.Write([]byte(diff)); err != nil {
+	log.Dbg("Original Diff:", generateDiff)
+
+	optimizedDiff, err := diff.OptimizeQueries(generateDiff)
+	if err != nil {
+		api.SendError(w, r, fmt.Errorf("cannot generate schema diff: %w", err))
+		return
+	}
+
+	log.Dbg("Optimized Diff:", optimizedDiff)
+
+	if _, err := w.Write([]byte(generateDiff)); err != nil {
 		api.SendError(w, r, err)
 		return
 	}
