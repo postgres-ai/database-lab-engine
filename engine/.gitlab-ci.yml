@@ -59,9 +59,9 @@ build-binary-alpine:
     paths:
       - engine/bin
   script:
-    - apk add --update --no-cache make git
+    - apk add --update --no-cache make git gcc g++
     - cd engine
-    - make build
+    - make build # TODO: build-engine
 
 build-binary-client-dev:
   <<: *only_feature
