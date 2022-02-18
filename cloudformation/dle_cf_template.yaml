@@ -18,21 +18,21 @@ Metadata:
         Label:
           default: "DLE configuration"
         Parameters:
-          - DLEDebugMode
-          - DLEVerificationToken
-          - DLERetrievalRefreshTimetable
           - SourceType
+          - DLERetrievalRefreshTimetable
           - PostgresDumpParallelJobs
+          - DLEVerificationToken
+          - DLEDebugMode
       - 
         Label:
           default: "Source Postges Parameters"
         Parameters:
-          - SourcePostgresDBName
-          - SourcePostgresVersion
           - SourcePostgresHost
           - SourcePostgresPort
           - SourcePostgresUsername
           - SourcePostgresPassword
+          - SourcePostgresDBName
+          - SourcePostgresVersion
           - PostgresConfigSharedPreloadLibraries
       -
         Label:
@@ -71,7 +71,7 @@ Metadata:
       SourcePostgresPassword:
         default: "Password"
       PostgresConfigSharedPreloadLibraries:
-        defaut: "shared_preload_libraries parameter"
+        default: "shared_preload_libraries parameter"
 
 Parameters:
   KeyName:
@@ -160,7 +160,7 @@ Parameters:
   DLEVerificationToken:
     Description: DLE verification token
     Type: String
-    Default: 'asdasDSadasDSDA'
+    Default: !Select [2, !Split ['/', !Ref AWS::StackId]]
     MinLength: '9'
     MaxLength: '18'
   DLERetrievalRefreshTimetable:
