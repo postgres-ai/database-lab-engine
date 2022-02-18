@@ -1,8 +1,51 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >-
-  AWS CloudFormation template DLE_Instance_Host: Creates a single EC2 instance from DLE AMI,
-  performs initial DLE componets configuration, starts data retrival nd makes this ready for clonning.
+  AWS CloudFormation template DLE_Instance_Host: Creates a single EC2 instance based on DLE AMI,
+  performs initial DLE componets configuration, starts data retrival and makes this ready for clonning.
   You will be billed for the AWS resources used if you create a stack from this template.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - 
+        Label:
+          default: "EC2 Configuration"
+        Parameters:
+          - InstanceType
+          - ZFSVolumeSize
+          - SSHLocation
+          - KeyName  
+      - 
+        Label:
+          default: "DLE configuration"
+        Parameters:
+          - DLEDebugMode
+          - DLEVerificationToken
+          - DLERetrievalRefreshTimetable
+          - SourceType
+          - PostgresDumpParallelJobs
+       - 
+         Label:
+           default: "Source Postges Parameters"
+         Parameters:
+           - SourcePostgresDBName
+           - SourcePostgresVersion
+           - SourcePostgresHost
+           - SourcePostgresPort
+           - SourcePostgresUsername
+           - SourcePostgresPassword
+           - PostgresConfigSharedPreloadLibraries
+         Label:
+           default: "S3 backet with dump"
+         Parameters:
+           - SourceDumpS3Bucket   
+    ParameterLabels:
+      KeyName:
+        default: "Key pair"
+      InstanceType:
+        default: "Instance type" 
+      SSHLocation:
+        default: "Connection source IP range"
+            
 Parameters:
   KeyName:
     Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
