@@ -88,3 +88,9 @@ Ways to resolve (ordered by preference):
 3. If you are sure this is a falsy vulnerability - try to ignore it using special commands for your SAST tool. **This is considered as the least preferable option – try to apply any of the ways described above first.**
 
 <!-- TODO: move this ^ to the main README.md and CONTRIBUTING.md -->
+
+## Moving to Typescript
+- `@postgres.ai/shared` is written on Typescript
+- `@postgres.ai/ce` is written on Typescript
+- `@postgres.ai/platform` is written on JavaScript and patially on Typescript. The target - is moving `@postgres.ai/platform` to Typescript fully. It should takes approximately 120-160 hours.
+- There are potential problems with typing - old versions of packages may don't have their typings. Recommended to update them or replace. If it's impossible you can write your own typing in file named like `<package-name>.d.ts` inside `src` directory of the selected package.
