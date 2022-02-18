@@ -46,7 +46,33 @@ Metadata:
         default: "Instance type" 
       SSHLocation:
         default: "Connection source IP range"
-            
+      ZFSVolumeSize:
+        defualt: "EBS volume size used for ZFS"
+      DLEDebugMode:
+        default: "DLE debug mode"
+      DLEVerificationToken:
+        default: "DLE verification token"
+      DLERetrievalRefreshTimetable:
+        default: "DLE retrieval refresh timetable"       
+      SourceType:
+        default: "Data source type"
+      PostgresDumpParallelJobs:
+        default: "Number of pg_dump jobs"
+      SourcePostgresDBName:
+        default: "Database name"
+      SourcePostgresVersion:
+        default: "Postgres version"
+      SourcePostgresHost:
+        default: "Host name or IP"
+      SourcePostgresPort:
+        default: "Port"
+      SourcePostgresUsername:
+        default: "User name"
+      SourcePostgresPassword:
+        default: "Password"
+      PostgresConfigSharedPreloadLibraries:
+        defaut: "shared_preload_libraries parameter"
+
 Parameters:
   KeyName:
     Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
@@ -179,6 +205,7 @@ Parameters:
     Description: Source Postgres cluster password
     Type: String
     Default: ''
+    NoEcho: true
   PostgresConfigSharedPreloadLibraries:
     Description: Source Postgres shared_preload_libraries value
     Type: String
