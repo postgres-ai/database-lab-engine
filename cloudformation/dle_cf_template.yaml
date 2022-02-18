@@ -162,7 +162,7 @@ Parameters:
     Type: String
     Default: "example-verification-token" 
     MinLength: '9'
-    MaxLength: '18'
+    MaxLength: '32'
   DLERetrievalRefreshTimetable:
     Description: DLE refresh schedule on cron format
     Type: String
