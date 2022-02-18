@@ -121,7 +121,7 @@ func (m *LVManager) SnapshotList() []resources.Snapshot {
 
 // RefreshSnapshotList is not supported in LVM mode.
 func (m *LVManager) RefreshSnapshotList() {
-	log.Msg("RefreshSnapshotList is not supported for LVM. Skip.")
+	log.Msg("RefreshSnapshotList is not supported for LVM. Skip the operation")
 }
 
 // GetSessionState is not implemented.
