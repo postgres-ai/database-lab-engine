@@ -1,0 +1,3 @@
+FROM nginx:1.17-alpine
+COPY ./api/swagger-spec/ /usr/share/nginx/html/api/swagger-spec/
+COPY ./api/swagger-ui /usr/share/nginx/html

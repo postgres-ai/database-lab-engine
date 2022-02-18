@@ -1,0 +1,11 @@
+{
+  "name": "@postgres.ai/shared",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "classnames": "^2.3.1",
+    "formik": "^2.2.9",
+    "use-timer": "^2.0.1",
+    "yup": "^0.32.11"
+  }
+}

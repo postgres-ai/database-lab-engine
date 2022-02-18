@@ -1,0 +1,19 @@
+.only_ui: &only_ui
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^ui\/[0-9.]+$/
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - ui/**/*
+
+check_code_style:
+  <<: *only_ui
+  stage: test
+  image: node:16.13.0
+  script:
+    - npm --prefix ui/ ci -ws
+    - npm --prefix ui/ run lint -w packages/ce
+    - npm --prefix ui/ run lint -w packages/platform
+
+include:
+  - local: 'ui/packages/ce/.gitlab-ci.yml'
+  - local: 'ui/packages/platform/.gitlab-ci.yml'

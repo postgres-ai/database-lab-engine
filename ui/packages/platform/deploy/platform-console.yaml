@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: platform-console
+  labels:
+    app: platform-console
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: $PORT
+  selector:
+    app: platform-console
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: platform-console
+  name: platform-console
+spec:
+  replicas: $REPLICAS
+  selector:
+    matchLabels:
+      app: platform-console
+  template:
+    metadata:
+      labels:
+        app: platform-console
+    spec:
+      containers:
+      - name: platform-console
+        image: $TAG
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        env:
+          - name: PORT
+            value: "$PORT"
+          - name: REACT_APP_API_SERVER
+            value: "$REACT_APP_API_SERVER"
+          - name: REACT_APP_WS_SERVER
+            value: "$REACT_APP_WS_SERVER"
+          - name: REACT_APP_EXPLAIN_DEPESZ_SERVER
+            value: "$REACT_APP_EXPLAIN_DEPESZ_SERVER"
+          - name: REACT_APP_STRIPE_API_KEY
+            value: "$REACT_APP_STRIPE_API_KEY"

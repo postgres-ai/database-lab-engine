@@ -1,0 +1,43 @@
+// Colors.
+$color-white: #fff;
+
+$color-white--100: #FBFBFB;
+
+$color-black: #000;
+
+$color-gray-100: #CCD7DA;
+$color-gray: #b4b4b4;
+
+$color-gray-semi-dark: #808080;
+
+$color-gray-dark: #444;
+
+$color-gray-darkest: #333;
+$color-gray-darkest--hover: darken($color-gray-darkest, 5);
+
+$color-orange: #ff6212;
+$color-orange--hover: darken($color-orange, 10);
+
+$color-status-ok: #0db94d;
+$color-status-warning: #fd8411;
+$color-status-error: #ff2020;
+$color-status-waiting: #ffad5f;
+$color-status-unknown: #c0c0c0; // prev color-gray
+
+
+$color-blue-main: #0F879D;
+$color-blue-dark: #026173;
+
+// Fonts.
+$font-family-text: 'Roboto', sans-serif;
+$font-family-code: 'Roboto Mono', monospace;
+
+// Typography.
+$font-size-small: 12px;
+$font-size-main: 14px;
+
+// Shadows.
+$box-shadow-layer: 0 2px 6px rgba(0, 0, 0, 0.1);
+
+// Sizes.
+$border-radius--small: 4px;

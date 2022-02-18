@@ -1,0 +1,49 @@
+@import '@postgres.ai/shared/styles/vars';
+@import '@postgres.ai/shared/styles/mixins';
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding: 24px 8px 8px 8px;
+  justify-content: space-between;
+  background: $color-gray-dark;
+  height: 100%;
+  width: 192px;
+  color: $color-white;
+  min-height: 0;
+
+  @include touch-transition(width);
+
+  &.collapsed {
+    width: 64px;
+  }
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+}
+
+.supportBtn {
+  background-color: $color-orange;
+
+  &:hover {
+    background-color: $color-orange--hover;
+  }
+}
+
+.collapseBtn {
+  background: transparent;
+  font-weight: 400;
+
+  &:hover {
+    background: $color-gray-darkest;
+  }
+}

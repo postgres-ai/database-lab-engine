@@ -16,6 +16,7 @@ These are mostly guidelines, not rules. Use your best judgment, and feel free to
     - [Reporting bugs](#reporting-bugs)
     - [Proposing enhancements](#proposing-enhancements)
     - [Your first code contribution](#your-first-code-contribution)
+    - [Translation](#translation)
     - [Roadmap](#roadmap)
     - [Merge Requests / Pull Requests](#merge-requests-pull-requests)
 - [Development guides](#repo-overview)
@@ -23,8 +24,8 @@ These are mostly guidelines, not rules. Use your best judgment, and feel free to
     - [Go styleguide](#go-styleguide)
     - [Documentation styleguide](#documentation-styleguide)
     - [Development setup](#development-setup)
-<!--
     - [Repo overview](#repo-overview)
+<!--
     - [Building from source](#building-from-source)
 -->
 
@@ -79,6 +80,9 @@ We appreciate first-time contributors, and we are happy to assist you in getting
 
 You find some issues that are considered as good for first-time contributors looking at [the issues with the `good-first-issue` label](https://gitlab.com/postgres-ai/database-lab/-/issues?label_name%5B%5D=good+first+issue). Assign yourself to an issue and start discussing a possible solution. It is always a good idea to discuss and collaborate before you propose an MR/PR.
 
+### Translation
+We are translating `README.md`, `CONTRIBUTING.md` (this document), and other documents in the repository to various languages to make Database Lab Engine more accessible around the globe. Help in this area is always appreciated. You can start from translating the [project's README](/README.md) to your native language and save it in `./translations/README.{language}.md`. You can find examples in the [./translations](./translations) directory
+
 ### Roadmap
 There is [the Roadmap section](https://postgres.ai/docs/roadmap) in the docs. It contains some major items defining big goals for the development team and the DLE community. However, these items cannot be considered a strict plan, so there are no guarantees that everything from the list will be necessarily implemented.
 
@@ -91,6 +95,8 @@ Please follow these steps to have your contribution considered by the maintainer
 3. To get your MR/PR merged, you will need to sign Postgres.ai Database Lab Engine Contributor Agreement and ensure that the Postgres.ai team has received it. The template can be found here: [DLE-CA](https://bit.ly/dle-ca). Download it, fill out the fields, sign, and send to contribute@postgres.ai.
 
 While the prerequisites above must be satisfied before having your MR/PR reviewed, the reviewer(s) may ask you to complete additional design work, tests, or other changes before your MR/PR can be ultimately accepted.
+
+Note: You would need to have a verified GitLab account to run CI/CD pipelines required to merge the MR/PR. Please, keep your fork repository public for the same reasons.
 
 Additional materials that are worth checking out:
 - [Git-related guidelines in the PostgreSQL project](https://wiki.postgresql.org/wiki/Working_with_Git)
@@ -127,12 +133,19 @@ We're building documentation following the principles described at https://docum
 Learn more: https://documentation.divio.com/.
 
 ### Repo overview
-The [postgres-ai/database-lab](https://gitlab.com/postgres-ai/database-lab) repo contains 3 components:
-- [Database Lab Engine](https://gitlab.com/postgres-ai/database-lab/-/tree/master/cmd/database-lab)
-- [Database Lab CI Checker](https://gitlab.com/postgres-ai/database-lab/-/tree/master/cmd/runci)
-- [Database Lab CLI](https://gitlab.com/postgres-ai/database-lab/-/tree/master/cmd/cli)
+The [postgres-ai/database-lab](https://gitlab.com/postgres-ai/database-lab) repo contains 2 components:
+- [Database Lab Engine](https://gitlab.com/postgres-ai/database-lab/-/tree/master/engine)
+  - [Database Lab Server](https://gitlab.com/postgres-ai/database-lab/-/tree/master/engine/cmd/database-lab)
+  - [Database Lab CI Checker](https://gitlab.com/postgres-ai/database-lab/-/tree/master/engine/cmd/runci)
+  - [Database Lab CLI](https://gitlab.com/postgres-ai/database-lab/-/tree/master/engine/cmd/cli)
+- [Database Lab UI](https://gitlab.com/postgres-ai/database-lab/-/tree/master/ui)
+  - [Community Edition](https://gitlab.com/postgres-ai/database-lab/-/tree/master/ui/packages/ce)
+  - [Platform](https://gitlab.com/postgres-ai/database-lab/-/tree/master/ui/packages/platform)
+  - [Shared components](https://gitlab.com/postgres-ai/database-lab/-/tree/master/ui/packages/shared)
 
-All three components have a single version, denoted by either the git tag or a combination of the branch name and git commit SHA.
+Components have a separate version, denoted by either:
+- a certain type of the git tag (for example, `v0.0.0` for Database Lab Engine, and `ui0.0.0` for Database Lab UI) or
+- a combination of the branch name and git commit SHA.
 
 ### Development setup
 - Install Docker. Example for Linux:

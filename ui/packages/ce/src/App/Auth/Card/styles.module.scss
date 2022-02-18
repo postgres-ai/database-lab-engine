@@ -1,0 +1,20 @@
+@import '@postgres.ai/shared/styles/vars';
+
+@keyframes fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.root {
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: $box-shadow-layer;
+  animation: fade 0.5s both ease-out;
+}

@@ -1,0 +1,31 @@
+# Logs
+*.log
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, build with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Artifacts directories and reports
+node_modules/
+build/
+src/npm-debug.log
+
+# Temporary files and dirs (vim, etc.)
+*.swp
+*.tmp
+tmp_*
+
+# IDEs
+.idea/
+.vscode/
+
+.DS_Store

@@ -1,0 +1,28 @@
+@import '@postgres.ai/shared/styles/vars';
+@import '@postgres.ai/shared/styles/mixins';
+
+.root {
+  display: flex;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ccd7da;
+  color: $color-gray-semi-dark;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.link {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    color: $color-blue-dark;
+  }
+
+  &.active {
+    color: $color-black;
+  }
+}
+
+.divider {
+  margin: 0 4px;
+}

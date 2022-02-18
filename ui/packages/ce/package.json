@@ -1,0 +1,58 @@
+{
+  "name": "@postgres.ai/ce",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@craco/craco": "^6.4.3",
+    "@material-ui/core": "^4.12.3",
+    "@types/node": "^12.20.33",
+    "@types/react": "^17.0.30",
+    "@types/react-dom": "^17.0.10",
+    "@types/react-router": "^5.1.17",
+    "@types/react-router-dom": "^5.3.1",
+    "byte-size": "^8.1.0",
+    "create-file-webpack": "^1.0.2",
+    "mobx": "^6.3.5",
+    "mobx-react-lite": "^3.2.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-router": "^5.2.1",
+    "react-router-dom": "^5.3.0",
+    "react-scripts": "^5.0.0",
+    "typescript": "^4.4.4",
+    "whatwg-fetch": "^3.6.2"
+  },
+  "scripts": {
+    "start": "craco start",
+    "build": "craco build",
+    "test": "craco test",
+    "eject": "craco eject",
+    "lint": "npm run lint:code && npm run lint:styles && npm run lint:spelling",
+    "lint:code": "eslint './src'",
+    "lint:styles": "stylelint './src/**/*.scss'",
+    "lint:spelling": "cspell './src/**/*' --no-progress --no-summary"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@types/byte-size": "^8.1.0",
+    "cspell": "^5.12.6",
+    "eslint": "^8.2.0",
+    "prettier": "^2.4.1",
+    "sass": "^1.43.2",
+    "stylelint": "^14.0.1",
+    "stylelint-config-standard-scss": "^2.0.1",
+    "stylelint-prettier": "^2.0.0"
+  },
+  "proxy": "https://nik-tf-test.aws.postgres.ai:446/api"
+}

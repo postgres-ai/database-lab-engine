@@ -1,0 +1,33 @@
+@import '@postgres.ai/shared/styles/vars';
+
+@keyframes rotation {
+  from {
+    transform: rotate(0);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.root {
+  color: $color-orange;
+
+  animation: rotation ease-in-out .5s infinite;
+
+  // Sizes.
+  &.sm {
+    height: 16px;
+    width: 16px;
+  }
+
+  &.md {
+    height: 24px;
+    width: 24px;
+  }
+
+  &.lg {
+    height: 32px;
+    width: 32px;
+  }
+}

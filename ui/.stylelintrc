@@ -1,0 +1,12 @@
+{
+  "extends": [
+    "stylelint-config-standard-scss",
+    "stylelint-prettier"
+  ],
+  "rules": {
+    "selector-class-pattern": "^[a-z][a-zA-Z0-9]+$",
+    "shorthand-property-no-redundant-values": null,
+    "string-quotes": "single",
+    "alpha-value-notation": "number"
+  }
+}
