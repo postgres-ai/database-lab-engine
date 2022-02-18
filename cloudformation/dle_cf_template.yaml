@@ -160,7 +160,7 @@ Parameters:
   DLEVerificationToken:
     Description: DLE verification token
     Type: String
-    Default: !Select [2, !Split ['/', !Ref AWS::StackId]]
+    Default: !Join ['-', ['my-auto-scaling-group', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]] 
     MinLength: '9'
     MaxLength: '18'
   DLERetrievalRefreshTimetable:
