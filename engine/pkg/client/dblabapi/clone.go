@@ -323,6 +323,30 @@ func (c *Client) DestroyCloneAsync(ctx context.Context, cloneID string) error {
 	return nil
 }
 
+// SchemaDiff generates diff between Database Lab clone and its snapshot.
+func (c *Client) SchemaDiff(ctx context.Context, cloneID string) ([]byte, error) {
+	u := c.URL(fmt.Sprintf("/clone/diff/%s", cloneID))
+
+	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to make a request")
+	}
+
+	response, err := c.Do(ctx, request)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get response")
+	}
+
+	defer func() { _ = response.Body.Close() }()
+
+	data, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read response")
+	}
+
+	return data, nil
+}
+
 // StartObservation starts a new clone observation.
 func (c *Client) StartObservation(ctx context.Context, startRequest types.StartObservationRequest) (*observer.Session, error) {
 	u := c.URL("/observation/start")

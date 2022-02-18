@@ -131,6 +131,13 @@ func CommandList() []*cli.Command {
 				},
 			},
 			{
+				Name:      "schema-diff",
+				Usage:     "generate schema difference between clone and its snapshot",
+				ArgsUsage: "CLONE_ID",
+				Before:    checkCloneIDBefore,
+				Action:    schemaDiff,
+			},
+			{
 				Name:      "start-observation",
 				Usage:     "[EXPERIMENTAL] start clone state monitoring",
 				ArgsUsage: "CLONE_ID",

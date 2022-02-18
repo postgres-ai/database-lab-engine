@@ -239,6 +239,25 @@ func destroy(cliCtx *cli.Context) error {
 	return err
 }
 
+// schemaDiff runs a request to generate schema difference between clone and its snapshot.
+func schemaDiff(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
+		return err
+	}
+
+	cloneID := cliCtx.Args().First()
+
+	response, err := dblabClient.SchemaDiff(cliCtx.Context, cloneID)
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprint(cliCtx.App.Writer, string(response))
+
+	return err
+}
+
 // startObservation runs a request to startObservation clone.
 func startObservation(cliCtx *cli.Context) error {
 	dblabClient, err := commands.ClientByCLIContext(cliCtx)
