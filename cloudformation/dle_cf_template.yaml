@@ -160,7 +160,7 @@ Parameters:
   DLEVerificationToken:
     Description: DLE verification token
     Type: String
-    Default: !Ref "AWS::StackId" 
+    Default: "example-verification-token" 
     MinLength: '9'
     MaxLength: '18'
   DLERetrievalRefreshTimetable:
