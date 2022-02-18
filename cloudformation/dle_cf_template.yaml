@@ -23,21 +23,22 @@ Metadata:
           - DLERetrievalRefreshTimetable
           - SourceType
           - PostgresDumpParallelJobs
-       - 
-         Label:
-           default: "Source Postges Parameters"
-         Parameters:
-           - SourcePostgresDBName
-           - SourcePostgresVersion
-           - SourcePostgresHost
-           - SourcePostgresPort
-           - SourcePostgresUsername
-           - SourcePostgresPassword
-           - PostgresConfigSharedPreloadLibraries
-         Label:
-           default: "S3 backet with dump"
-         Parameters:
-           - SourceDumpS3Bucket   
+      - 
+        Label:
+          default: "Source Postges Parameters"
+        Parameters:
+          - SourcePostgresDBName
+          - SourcePostgresVersion
+          - SourcePostgresHost
+          - SourcePostgresPort
+          - SourcePostgresUsername
+          - SourcePostgresPassword
+          - PostgresConfigSharedPreloadLibraries
+      -
+        Label:
+          default: "S3 backet with dump"
+        Parameters:
+          - SourceDumpS3Bucket   
     ParameterLabels:
       KeyName:
         default: "Key pair"
