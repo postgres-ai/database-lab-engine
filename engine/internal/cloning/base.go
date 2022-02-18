@@ -24,6 +24,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
@@ -45,6 +46,7 @@ type Config struct {
 // Base provides cloning service.
 type Base struct {
 	config      *Config
+	global      *global.Config
 	cloneMutex  sync.RWMutex
 	clones      map[string]*CloneWrapper
 	snapshotBox SnapshotBox
@@ -54,9 +56,10 @@ type Base struct {
 }
 
 // NewBase instances a new Base service.
-func NewBase(cfg *Config, provision *provision.Provisioner, tm *telemetry.Agent, observingCh chan string) *Base {
+func NewBase(cfg *Config, global *global.Config, provision *provision.Provisioner, tm *telemetry.Agent, observingCh chan string) *Base {
 	return &Base{
 		config:      cfg,
+		global:      global,
 		clones:      make(map[string]*CloneWrapper),
 		provision:   provision,
 		tm:          tm,
@@ -152,6 +155,10 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to find the requested snapshot")
 		}
+	}
+
+	if cloneRequest.DB.DBName == "" {
+		cloneRequest.DB.DBName = c.global.Database.Name()
 	}
 
 	clone := &models.Clone{

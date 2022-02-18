@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgtype/pgxtype"
 	"github.com/pkg/errors"
-	"github.com/sethvargo/go-password/password"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
@@ -545,40 +544,7 @@ func (s *Server) schemaDiff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	const (
-		PasswordLength     = 16
-		PasswordMinDigits  = 4
-		PasswordMinSymbols = 0
-	)
-
-	_, err = password.Generate(PasswordLength, PasswordMinDigits, PasswordMinSymbols, false, true)
-	if err != nil {
-		api.SendError(w, r, fmt.Errorf("failed to generate a password to a reference clone: %w", err))
-		return
-	}
-
-	originClone, err := s.Cloning.CreateClone(&types.CloneCreateRequest{
-		ID: "diff-" + cloneID,
-		DB: &types.DatabaseRequest{
-			Username: clone.DB.Username,
-			DBName:   clone.DB.DBName,
-			//Password: pwd,
-			Password: "test", // TODO: update
-		},
-		Snapshot: &types.SnapshotCloneFieldRequest{ID: clone.Snapshot.ID},
-	})
-	if err != nil {
-		api.SendError(w, r, fmt.Errorf("cannot create a clone based on snapshot %s: %w", clone.Snapshot.ID, err))
-		return
-	}
-
-	defer func() {
-		if err := s.Cloning.DestroyClone(originClone.ID); err != nil {
-			log.Err("Failed to destroy origin clone:", err)
-		}
-	}()
-
-	generateDiff, err := s.SchemaDiff.GenerateDiff(clone, originClone, s.engProps.InstanceID)
+	generateDiff, err := s.SchemaDiff.GenerateDiff(r.Context(), clone, s.engProps.InstanceID)
 	if err != nil {
 		api.SendError(w, r, fmt.Errorf("cannot generate schema diff: %w", err))
 		return

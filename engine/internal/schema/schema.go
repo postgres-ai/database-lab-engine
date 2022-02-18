@@ -12,12 +12,16 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
+	dle_types "gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
@@ -29,81 +33,43 @@ const schemaDiffImage = "supabase/pgadmin-schema-diff"
 // Diff defines a schema generator.
 type Diff struct {
 	cli *client.Client
+	cl  *cloning.Base
+	pm  *pool.Manager
 }
 
 // NewDiff creates a new Diff service.
-func NewDiff(cli *client.Client) *Diff {
-	return &Diff{cli: cli}
-}
-
-func connStr(clone *models.Clone) string {
-	// TODO: fix params
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
-		clone.DB.Username,
-		"test", // clone.DB.Password,
-		util.GetCloneNameStr(clone.DB.Port),
-		clone.DB.Port,
-		"test", // clone.DB.DBName,
-	)
+func NewDiff(cli *client.Client, cl *cloning.Base, pm *pool.Manager) *Diff {
+	return &Diff{cli: cli, cl: cl, pm: pm}
 }
 
 // GenerateDiff generate difference between database schemas.
-func (d *Diff) GenerateDiff(actual, origin *models.Clone, instanceID string) (string, error) {
-	log.Dbg("Origin clone:", origin)
-	log.Dbg("Actual clone:", actual.DB.ConnStr+" password=test")
-
-	ctx := context.Background()
-
-	if origin.Status.Code != models.StatusOK {
-		if _, err := d.watchCloneStatus(ctx, origin, origin.Status.Code); err != nil {
-			return "", fmt.Errorf("failed to watch the clone status: %w", err)
-		}
-	}
-
-	if err := tools.PullImage(ctx, d.cli, schemaDiffImage); err != nil {
-		return "", fmt.Errorf("failed to pull image: %w", err)
-	}
-
-	diffCont, err := d.cli.ContainerCreate(ctx,
-		&container.Config{
-			Labels: map[string]string{
-				cont.DBLabControlLabel:    cont.DBLabSchemaDiff,
-				cont.DBLabInstanceIDLabel: instanceID,
-			},
-			Image: schemaDiffImage,
-			Cmd: []string{
-				connStr(actual),
-				connStr(origin),
-			},
-		},
-		&container.HostConfig{},
-		&network.NetworkingConfig{},
-		nil,
-		"clone-diff-"+actual.ID,
-	)
+func (d *Diff) GenerateDiff(ctx context.Context, actual *models.Clone, instanceID string) (string, error) {
+	origin, err := d.createOriginClone(ctx, actual)
 	if err != nil {
-		return "", fmt.Errorf("failed to create diff container: %w", err)
-	}
-
-	if err := networks.Connect(ctx, d.cli, instanceID, diffCont.ID); err != nil {
-		return "", fmt.Errorf("failed to connect UI container to the internal Docker network: %w", err)
-	}
-
-	err = d.cli.ContainerStart(ctx, diffCont.ID, types.ContainerStartOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to create diff container: %w", err)
+		return "", fmt.Errorf("cannot create a clone based on snapshot %s: %w", actual.Snapshot.ID, err)
 	}
 
 	defer func() {
-		if err := d.cli.ContainerRemove(ctx, diffCont.ID, types.ContainerRemoveOptions{
-			RemoveVolumes: true,
-			Force:         true,
-		}); err != nil {
-			log.Err("failed to remove the diff container:", diffCont.ID, err)
+		if err := d.cl.DestroyClone(origin.ID); err != nil {
+			log.Err("Failed to destroy origin clone:", err)
 		}
 	}()
 
-	statusCh, errCh := d.cli.ContainerWait(ctx, diffCont.ID, container.WaitConditionNotRunning)
+	diffContID, err := d.startDiffContainer(ctx, actual, origin, instanceID)
+	if err != nil {
+		return "", fmt.Errorf("failed to start diff container: %w", err)
+	}
+
+	defer func() {
+		if err := d.cli.ContainerRemove(ctx, diffContID, types.ContainerRemoveOptions{
+			RemoveVolumes: true,
+			Force:         true,
+		}); err != nil {
+			log.Err("failed to remove the diff container:", diffContID, err)
+		}
+	}()
+
+	statusCh, errCh := d.cli.ContainerWait(ctx, diffContID, container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:
 		if err != nil {
@@ -112,15 +78,14 @@ func (d *Diff) GenerateDiff(actual, origin *models.Clone, instanceID string) (st
 	case <-statusCh:
 	}
 
-	out, err := d.cli.ContainerLogs(ctx, diffCont.ID, types.ContainerLogsOptions{ShowStdout: true})
+	out, err := d.cli.ContainerLogs(ctx, diffContID, types.ContainerLogsOptions{ShowStdout: true})
 	if err != nil {
 		return "", fmt.Errorf("failed to get container logs: %w", err)
 	}
 
 	buf := bytes.NewBuffer([]byte{})
 
-	_, err = stdcopy.StdCopy(buf, os.Stderr, out)
-	if err != nil {
+	if _, err = stdcopy.StdCopy(buf, os.Stderr, out); err != nil {
 		return "", fmt.Errorf("failed to copy container output: %w", err)
 	}
 
@@ -130,6 +95,100 @@ func (d *Diff) GenerateDiff(actual, origin *models.Clone, instanceID string) (st
 	}
 
 	return filteredOutput.String(), nil
+}
+
+// startDiffContainer starts a new diff container.
+func (d *Diff) startDiffContainer(ctx context.Context, actual, origin *models.Clone, instanceID string) (string, error) {
+	if err := tools.PullImage(ctx, d.cli, schemaDiffImage); err != nil {
+		return "", fmt.Errorf("failed to pull image: %w", err)
+	}
+
+	fsm, err := d.pm.GetFSManager(actual.Snapshot.Pool)
+	if err != nil {
+		return "", fmt.Errorf("failed to get pool filesystem manager %s: %w", actual.Snapshot.ID, err)
+	}
+
+	originSocketDir := fsm.Pool().SocketCloneDir(util.GetCloneNameStr(origin.DB.Port))
+	actualSocketDir := fsm.Pool().SocketCloneDir(util.GetCloneNameStr(actual.DB.Port))
+
+	diffCont, err := d.cli.ContainerCreate(ctx,
+		&container.Config{
+			Labels: map[string]string{
+				cont.DBLabControlLabel:    cont.DBLabSchemaDiff,
+				cont.DBLabInstanceIDLabel: instanceID,
+			},
+			Image: schemaDiffImage,
+			Cmd: []string{
+				connString(actual, actualSocketDir),
+				connString(origin, originSocketDir),
+			},
+		},
+		&container.HostConfig{
+			Mounts: d.getDiffMounts(actualSocketDir, originSocketDir),
+		},
+		&network.NetworkingConfig{},
+		nil,
+		d.cloneDiffName(actual),
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to create diff container: %w", err)
+	}
+
+	if err := networks.Connect(ctx, d.cli, instanceID, diffCont.ID); err != nil {
+		return "", fmt.Errorf("failed to connect UI container to the internal Docker network: %w", err)
+	}
+
+	if err = d.cli.ContainerStart(ctx, diffCont.ID, types.ContainerStartOptions{}); err != nil {
+		return "", fmt.Errorf("failed to create diff container: %w", err)
+	}
+
+	return diffCont.ID, nil
+}
+
+func (d *Diff) createOriginClone(ctx context.Context, clone *models.Clone) (*models.Clone, error) {
+	originClone, err := d.cl.CreateClone(&dle_types.CloneCreateRequest{
+		ID: d.cloneDiffName(clone),
+		DB: &dle_types.DatabaseRequest{
+			Username: clone.DB.Username,
+			DBName:   clone.DB.DBName,
+		},
+		Snapshot: &dle_types.SnapshotCloneFieldRequest{ID: clone.Snapshot.ID},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot create a clone based on snapshot %s: %w", clone.Snapshot.ID, err)
+	}
+
+	if originClone.Status.Code != models.StatusOK {
+		if _, err := d.watchCloneStatus(ctx, originClone, originClone.Status.Code); err != nil {
+			return nil, fmt.Errorf("failed to watch the clone status: %w", err)
+		}
+	}
+
+	return originClone, nil
+}
+
+func (d *Diff) getDiffMounts(actualHost, originHost string) []mount.Mount {
+	return []mount.Mount{
+		{
+			Type:   mount.TypeBind,
+			Source: actualHost,
+			Target: actualHost,
+		},
+		{
+			Type:   mount.TypeBind,
+			Source: originHost,
+			Target: originHost,
+		},
+	}
+}
+
+func (d *Diff) cloneDiffName(actual *models.Clone) string {
+	return "clone-diff-" + actual.ID
+}
+
+func connString(clone *models.Clone, socketDir string) string {
+	return fmt.Sprintf("host=%s port=%s user=%s dbname=%s",
+		socketDir, clone.DB.Port, clone.DB.Username, clone.DB.DBName)
 }
 
 // watchCloneStatus checks the clone status for changing.
@@ -176,6 +235,7 @@ func filterOutput(b *bytes.Buffer) (*strings.Builder, error) {
 			return nil, err
 		}
 
+		// Filter empty lines, comments and warnings.
 		if len(line) == 0 || bytes.HasPrefix(line, []byte("--")) || bytes.HasPrefix(line, []byte("NOTE:")) {
 			continue
 		}

@@ -15,9 +15,6 @@ func OptimizeQueries(queries string) (string, error) {
 		return "", fmt.Errorf("failed to parse queries %w", err)
 	}
 
-	log.Printf("Original query:\n%v\n\n", queries)
-	log.Printf("Parse Tree:\n%#v\n\n", idxTree)
-
 	stmts := idxTree.GetStmts()
 	nodes := processStmts(stmts)
 	idxTree.Stmts = nodes

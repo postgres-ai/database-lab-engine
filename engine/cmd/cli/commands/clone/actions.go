@@ -253,7 +253,7 @@ func schemaDiff(cliCtx *cli.Context) error {
 		return err
 	}
 
-	_, err = fmt.Fprint(cliCtx.App.Writer, string(response))
+	_, err = fmt.Fprintln(cliCtx.App.Writer, string(response))
 
 	return err
 }

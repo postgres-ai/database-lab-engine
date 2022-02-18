@@ -133,7 +133,7 @@ func main() {
 		shutdownDatabaseLabEngine(shutdownCtx, docker, engProps, pm.First())
 	}
 
-	cloningSvc := cloning.NewBase(&cfg.Cloning, provisioner, tm, observingChan)
+	cloningSvc := cloning.NewBase(&cfg.Cloning, &cfg.Global, provisioner, tm, observingChan)
 	if err = cloningSvc.Run(ctx); err != nil {
 		log.Err(err)
 		emergencyShutdown()
@@ -154,7 +154,7 @@ func main() {
 	})
 
 	embeddedUI := embeddedui.New(cfg.EmbeddedUI, engProps, runner, docker)
-	schemaDiff := schema.NewDiff(docker)
+	schemaDiff := schema.NewDiff(docker, cloningSvc, pm)
 	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc,
 		obs, est, schemaDiff, pm, tm)
 	shutdownCh := setShutdownListener()
