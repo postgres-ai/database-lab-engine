@@ -1100,44 +1100,46 @@ class IndexPage extends Component {
     if (Urls.isSharedUrl()) {
       return (
         <ThemeProvider theme={theme}>
-          <AppBar position='absolute' className={classes.appBar}>
-            <Toolbar className={classes.topToolbar}>
-              {appBarLogo}
-              {auth && auth.token && <Typography
-                color='inherit'
-                noWrap
-                className={classes.userName}
-              >
-                {userName}
-              </Typography>}
-              {auth && auth.token ? (<NavLink
-                to={ROUTES.PROFILE.path}
-                className={classes.navIconArea}
-              >
-                <IconButton
+          <div className={classes.root}>
+            <AppBar position='absolute' className={classes.appBar}>
+              <Toolbar className={classes.topToolbar}>
+                {appBarLogo}
+                {auth && auth.token && <Typography
                   color='inherit'
-                  aria-label='Profile'
-                  className={classes.navIconProfile}
+                  noWrap
+                  className={classes.userName}
                 >
-                  {icons.userIcon}
-                </IconButton>
-              </NavLink>) : null}
-              {auth && auth.token && appBarSignOut}
-            </Toolbar>
-          </AppBar>
-          <ContentLayout>
-            <Switch>
-              <Route
-                path='/shared/:url_uuid'
-                render={(props) => (
-                  <SharedUrl
-                    {...props}
-                  />
-                )}
-              />
-              <Redirect from='*' to={ROUTES.ROOT.path} />
-            </Switch>
-          </ContentLayout>
+                  {userName}
+                </Typography>}
+                {auth && auth.token ? (<NavLink
+                  to={ROUTES.PROFILE.path}
+                  className={classes.navIconArea}
+                >
+                  <IconButton
+                    color='inherit'
+                    aria-label='Profile'
+                    className={classes.navIconProfile}
+                  >
+                    {icons.userIcon}
+                  </IconButton>
+                </NavLink>) : null}
+                {auth && auth.token && appBarSignOut}
+              </Toolbar>
+            </AppBar>
+            <ContentLayout>
+              <Switch>
+                <Route
+                  path='/shared/:url_uuid'
+                  render={(props) => (
+                    <SharedUrl
+                      {...props}
+                    />
+                  )}
+                />
+                <Redirect from='*' to={ROUTES.ROOT.path} />
+              </Switch>
+            </ContentLayout>
+          </div>
         </ThemeProvider>
       );
     }
