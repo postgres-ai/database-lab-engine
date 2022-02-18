@@ -218,6 +218,7 @@ Parameters:
     Description: Number of jobs to run pg_dump against the source database 
     Type: String
     Default: '1'
+Mappings:
   SourceType2SourceCode:
     "S3 bucket":
       code: "S3"
