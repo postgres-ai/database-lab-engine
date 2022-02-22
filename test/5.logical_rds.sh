@@ -36,7 +36,7 @@ metaDir="$HOME/.dblab/engine/meta"
 # Copy the contents of configuration example 
 mkdir -p "${configDir}"
 
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-master}"/engine/configs/config.example.logical_rds_iam.yml \
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-master}"/configs/config.example.logical_rds_iam.yml \
  --output "${configDir}/server.yml"
 
 # Edit the following options
