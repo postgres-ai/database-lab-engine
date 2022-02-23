@@ -50,15 +50,15 @@ Por ejemplo, la clonación de una base de datos PostgreSQL de 1 TiB tarda unos 1
 <p><img src="../assets/dle-demo-animated.gif" border="0" /></p>
 
 Pruébelo usted mismo ahora mismo:
-- ingrese a [la plataforma de laboratorio de base de datos] (https://console.postgres.ai/), únase a la organización "Demo" y pruebe la clonación de la base de datos de demostración de ~1 TiB, o
-- vea otra configuración de demostración, DLE CE: https://nik-tf-test.aws.postgres.ai:446/instance, use el token `demo` para ingresar (esta configuración tiene certificados autofirmados, así que ignore los certificados del navegador) quejas)
+- Ingrese a [la plataforma de laboratorio de base de datos](https://console.postgres.ai/), únase a la organización "Demo" y pruebe la clonación de la base de datos de demostración de ~1 TiB.
+- Vea otra configuración de demostración, DLE CE: https://nik-tf-test.aws.postgres.ai:446/instance, use el token `demo` para ingresar (esta configuración tiene certificados autofirmados, así que ignore los certificados del navegador) quejas)
 
 ## Cómo funciona
 La clonación ligera es rápida porque usa [Copy-on-Write (CoW)](https://en.wikipedia.org/wiki/Copy-on-write#In_computer_storage). DLE admite dos tecnologías para habilitar CoW y clonación ligera: [ZFS](https://en.wikipedia.org/wiki/ZFS) (predeterminado) y [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_ (Linux)).
 
 Con ZFS, Database Lab Engine crea periódicamente una nueva instantánea del directorio de datos y mantiene un conjunto de instantáneas, limpiando las antiguas y no utilizadas. Al solicitar un nuevo clon, los usuarios pueden elegir qué instantánea usar.
 
-Lee mas:
+Lee más:
 - [Cómo funciona](https://postgres.ai/products/how-it-works)
 - [Pruebas de migración de bases de datos](https://postgres.ai/products/database-migration-testing)
 - [Optimización SQL con Joe Bot](https://postgres.ai/products/joe)
@@ -71,14 +71,14 @@ Lee mas:
 
 ## Estudios de caso
 - Qiwi: [Cómo controla Qiwi los datos para acelerar el desarrollo](https://postgres.ai/resources/case-studies/qiwi)
-- GitLab: [Cómo itera GitLab en el flujo de trabajo de optimización del rendimiento de SQL para reducir los riesgos de tiempo de inactividad] (https://postgres.ai/resources/case-studies/gitlab)
+- GitLab: [Cómo itera GitLab en el flujo de trabajo de optimización del rendimiento de SQL para reducir los riesgos de tiempo de inactividad](https://postgres.ai/resources/case-studies/gitlab)
 
 ## Características
 - Clonación ultrarrápida de bases de datos de Postgres: unos segundos para crear un nuevo clon listo para aceptar conexiones y consultas, independientemente del tamaño de la base de datos.
 - El número máximo teórico de instantáneas y clones es 2<sup>64</sup> ([ZFS](https://en.wikipedia.org/wiki/ZFS), predeterminado).
 - El tamaño máximo teórico del directorio de datos de PostgreSQL: 256 cuatrillones de zebibytes, o 2<sup>128</sup> bytes ([ZFS](https://en.wikipedia.org/wiki/ZFS), predeterminado).
 - Versiones principales de PostgreSQL admitidas: 9.6–14.
-- Se admiten dos tecnologías para permitir la clonación ligera ([CoW](https://en.wikipedia.org/wiki/Copy-on-write)): [ZFS](https://en.wikipedia.org/wiki/ ZFS) y [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).
+- Se admiten dos tecnologías para permitir la clonación ligera ([CoW](https://en.wikipedia.org/wiki/Copy-on-write)): [ZFS](https://en.wikipedia.org/wiki/ZFS) y [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).
 - Todos los componentes están empaquetados en contenedores Docker.
 - Interfaz de usuario para que el trabajo manual sea más conveniente.
 - API y CLI para automatizar el trabajo con instantáneas y clones de DLE.
