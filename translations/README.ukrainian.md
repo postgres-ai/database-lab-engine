@@ -49,6 +49,11 @@
 
 <p><img src="../assets/dle-demo-animated.gif" border="0" /></p>
 
+Спробуйте самі:
+
+- зайдіть на [Database Lab Platform](https://console.postgres.ai/), приєднайтесь до організації "Demo" і тестуйте клонування ~1-терабайтної демо бази даних або
+- дивіться інше демо, DLE CE: https://nik-tf-test.aws.postgres.ai:446/instance, використовуйте демо-токен, щоб зайти (це демо має самозавірені сертифікати, так що ігноруйте скарги браузера)
+
 ## Як це працює
 Тонке клонування працює надшвидко, оскільки воно базується на технології [Copy-on-Write (CoW)] (https://en.wikipedia.org/wiki/Copy-on-write#In_computer_storage). DLE підтримує два варіанти CoW: [ZFS](https://en.wikipedia.org/wiki/ZFS) (використовується за замовчуванням) та [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).
 

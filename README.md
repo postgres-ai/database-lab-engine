@@ -1,4 +1,9 @@
-<div align="center"><img width="500" src="./assets/dle.svg" border="0" /></div>
+<div align="center">
+  <img width="500" src="./assets/dle.svg" border="0" />
+  <sub><br /><a href="./translations/README.german.md">Deutsch</a> | <a href="./translations/README.russian.md">Русский</a> | <a href="./translations/README.spanish.md">Español</a> | <a href="./translations/README.ukrainian.md">Українська</a></sub>
+</div>
+
+<br />
 
 <div align="center"><h1 align="center">Database Lab Engine (DLE)</h1></div>
 
@@ -177,11 +182,13 @@ Reach out to the Postgres.ai team if you want a trial or commercial license that
 
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?color=blue)](./CODE_OF_CONDUCT.md)
 
-<!--
 ## Translations
 
 This README is available in the following translations:
 
-- [Russian 🇷🇺](translations/README.ru.md) (🙏 [@Tanya301](https://github.com/Tanya301))
-- More are comming soon (We would very appreciate your help with translations, check [contributing guide](./CONTRIBUTING.md#Translation) for the details)
--->
+- [German / Deutsch](translations/README.german.md) (🙏 [@ane4ka](https://github.com/ane4ka))
+- [Russian / Pусский](translations/README.russian.md) (🙏 [@Tanya301](https://github.com/Tanya301))
+- [Spanish / Español](translations/README.spanish.md) (🙏 [@asotolongo](https://gitlab.com/asotolongo))
+- [Ukrainian / Українська](translations/README.ukrainian.md) (🙏 [@denis-boost](https://github.com/denis-boost))
+
+👉 [How to make a translation contribution](./CONTRIBUTING.md#translation)
