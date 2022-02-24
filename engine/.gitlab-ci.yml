@@ -133,7 +133,7 @@ build-binary-client-rc:
     - gsutil -m cp -r bin/cli/* gs://database-lab-cli/${CLEAN_TAG}/
 
 .job_template: &build_image_definition
-  image: docker:19
+  image: docker:20
   stage: build
   artifacts:
     paths:
