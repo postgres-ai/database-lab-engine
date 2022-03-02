@@ -22,7 +22,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/zfs"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/components"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
@@ -525,14 +524,12 @@ func preparePoolToRefresh(poolToUpdate pool.FSManager) error {
 			strings.Join(cloneList, " "))
 	}
 
-	snapshots, err := poolToUpdate.GetSnapshots()
-	if err != nil {
-		var emptyErr *zfs.EmptyPoolError
-		if !errors.As(err, &emptyErr) {
-			return errors.Wrap(err, "failed to check existing snapshots")
-		}
+	poolToUpdate.RefreshSnapshotList()
 
-		log.Msg(emptyErr.Error())
+	snapshots := poolToUpdate.SnapshotList()
+	if len(snapshots) == 0 {
+		log.Msg(fmt.Sprintf("no snapshots for pool %s", poolToUpdate.Pool().Name))
+		return nil
 	}
 
 	for _, snapshotEntry := range snapshots {

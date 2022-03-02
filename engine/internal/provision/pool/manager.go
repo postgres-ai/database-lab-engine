@@ -45,7 +45,8 @@ type Snapshotter interface {
 	CreateSnapshot(poolSuffix, dataStateAt string) (snapshotName string, err error)
 	DestroySnapshot(snapshotName string) (err error)
 	CleanupSnapshots(retentionLimit int) ([]string, error)
-	GetSnapshots() ([]resources.Snapshot, error)
+	SnapshotList() []resources.Snapshot
+	RefreshSnapshotList()
 }
 
 // Pooler describes methods for Pool providing.

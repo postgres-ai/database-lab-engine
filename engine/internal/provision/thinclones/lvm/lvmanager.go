@@ -106,8 +106,8 @@ func (m *LVManager) CleanupSnapshots(_ int) ([]string, error) {
 	return nil, nil
 }
 
-// GetSnapshots is not implemented.
-func (m *LVManager) GetSnapshots() ([]resources.Snapshot, error) {
+// SnapshotList is not implemented.
+func (m *LVManager) SnapshotList() []resources.Snapshot {
 	// TODO(anatoly): Not supported in LVM mode warning.
 	return []resources.Snapshot{
 		{
@@ -116,7 +116,12 @@ func (m *LVManager) GetSnapshots() ([]resources.Snapshot, error) {
 			DataStateAt: time.Now(),
 			Pool:        m.pool.Name,
 		},
-	}, nil
+	}
+}
+
+// RefreshSnapshotList is not supported in LVM mode.
+func (m *LVManager) RefreshSnapshotList() {
+	log.Msg("RefreshSnapshotList is not supported for LVM. Skip the operation")
 }
 
 // GetSessionState is not implemented.

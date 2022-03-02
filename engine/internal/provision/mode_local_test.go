@@ -84,8 +84,11 @@ func (m mockFSManager) CleanupSnapshots(retentionLimit int) ([]string, error) {
 	return nil, nil
 }
 
-func (m mockFSManager) GetSnapshots() ([]resources.Snapshot, error) {
-	return nil, nil
+func (m mockFSManager) SnapshotList() []resources.Snapshot {
+	return nil
+}
+
+func (m mockFSManager) RefreshSnapshotList() {
 }
 
 func (m mockFSManager) GetSessionState(name string) (*resources.SessionState, error) {

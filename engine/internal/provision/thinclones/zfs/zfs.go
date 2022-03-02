@@ -10,6 +10,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -142,8 +143,10 @@ func (e *EmptyPoolError) Error() string {
 
 // Manager describes a filesystem manager for ZFS.
 type Manager struct {
-	runner runners.Runner
-	config Config
+	runner    runners.Runner
+	config    Config
+	mu        *sync.Mutex
+	snapshots []resources.Snapshot
 }
 
 // Config defines configuration for ZFS filesystem manager.
@@ -158,6 +161,7 @@ func NewFSManager(runner runners.Runner, config Config) *Manager {
 	m := Manager{
 		runner: runner,
 		config: config,
+		mu:     &sync.Mutex{},
 	}
 
 	return &m
@@ -307,6 +311,20 @@ func (m *Manager) CreateSnapshot(poolSuffix, dataStateAt string) (string, error)
 		}
 	}
 
+	dataStateTime, err := util.ParseCustomTime(strings.TrimSuffix(dataStateAt, m.config.PreSnapshotSuffix))
+	if err != nil {
+		return "", fmt.Errorf("failed to parse dataStateAt: %w", err)
+	}
+
+	m.addSnapshotToList(resources.Snapshot{
+		ID:          snapshotName,
+		CreatedAt:   time.Now(),
+		DataStateAt: dataStateTime,
+		Pool:        m.config.Pool.Name,
+	})
+
+	go m.RefreshSnapshotList()
+
 	return snapshotName, nil
 }
 
@@ -334,6 +352,8 @@ func (m *Manager) DestroySnapshot(snapshotName string) error {
 		return errors.Wrap(err, "failed to run command")
 	}
 
+	m.removeSnapshotFromList(snapshotName)
+
 	return nil
 }
 
@@ -359,6 +379,8 @@ func (m *Manager) CleanupSnapshots(retentionLimit int) ([]string, error) {
 	}
 
 	lines := strings.Split(out, "\n")
+
+	m.RefreshSnapshotList()
 
 	return lines, nil
 }
@@ -487,8 +509,26 @@ func (m *Manager) GetFilesystemState() (models.FileSystem, error) {
 	return fileSystem, nil
 }
 
-// GetSnapshots returns a snapshot list.
-func (m *Manager) GetSnapshots() ([]resources.Snapshot, error) {
+// SnapshotList returns a list of snapshots.
+func (m *Manager) SnapshotList() []resources.Snapshot {
+	snapshotList := m.snapshots
+	return snapshotList
+}
+
+// RefreshSnapshotList updates the list of snapshots.
+func (m *Manager) RefreshSnapshotList() {
+	snapshots, err := m.getSnapshots()
+	if err != nil {
+		log.Err("Failed to refresh snapshot list: ", err)
+		return
+	}
+
+	m.mu.Lock()
+	m.snapshots = snapshots
+	m.mu.Unlock()
+}
+
+func (m *Manager) getSnapshots() ([]resources.Snapshot, error) {
 	entries, err := m.listSnapshots(m.config.Pool.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list snapshots: %w", err)
@@ -515,6 +555,24 @@ func (m *Manager) GetSnapshots() ([]resources.Snapshot, error) {
 	}
 
 	return snapshots, nil
+}
+
+func (m *Manager) addSnapshotToList(snapshot resources.Snapshot) {
+	m.mu.Lock()
+	m.snapshots = append(m.snapshots, snapshot)
+	m.mu.Unlock()
+}
+
+func (m *Manager) removeSnapshotFromList(snapshotName string) {
+	for i, snapshot := range m.snapshots {
+		if snapshot.ID == snapshotName {
+			m.mu.Lock()
+			m.snapshots = append(m.snapshots[:i], m.snapshots[i+1:]...)
+			m.mu.Unlock()
+
+			break
+		}
+	}
 }
 
 // ListFilesystems lists ZFS file systems (clones, pools).
