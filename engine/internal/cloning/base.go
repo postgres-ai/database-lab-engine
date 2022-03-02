@@ -78,6 +78,8 @@ func (c *Base) Run(ctx context.Context) error {
 		return errors.Wrap(err, "failed to run cloning service")
 	}
 
+	c.provision.DiscoverSnapshots()
+
 	if _, err := c.GetSnapshots(); err != nil {
 		log.Err("No available snapshots: ", err)
 	}

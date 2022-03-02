@@ -27,7 +27,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/zfs"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
@@ -299,20 +298,22 @@ func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string
 	return snapshotModel, nil
 }
 
+// DiscoverSnapshots discovers snapshots from active pools.
+func (p *Provisioner) DiscoverSnapshots() {
+	for _, fsManager := range p.pm.GetAvailableFSManagers() {
+		fsManager.RefreshSnapshotList()
+	}
+}
+
 // GetSnapshots provides a snapshot list from active pools.
 func (p *Provisioner) GetSnapshots() ([]resources.Snapshot, error) {
 	snapshots := []resources.Snapshot{}
 
-	for _, activeFSManager := range p.pm.GetActiveFSManagers() {
-		poolSnapshots, err := activeFSManager.GetSnapshots()
-		if err != nil {
-			var emptyErr *zfs.EmptyPoolError
-			if errors.As(err, &emptyErr) {
-				log.Msg(emptyErr.Error())
-				continue
-			}
-
-			log.Err(fmt.Errorf("failed to get snapshots for pool %s: %w", activeFSManager.Pool().Name, err))
+	for _, activeFSManager := range p.pm.GetAvailableFSManagers() {
+		poolSnapshots := activeFSManager.SnapshotList()
+		if len(poolSnapshots) == 0 {
+			log.Msg(fmt.Sprintf("no snapshots for pool %s", activeFSManager.Pool().Name))
+			continue
 		}
 
 		snapshots = append(snapshots, poolSnapshots...)
