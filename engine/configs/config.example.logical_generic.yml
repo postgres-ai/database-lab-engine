@@ -238,7 +238,7 @@ retrieval:
         #   # Enable immediate restore.
         #   enabled: true
         #   # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
-        #   # Note the existing data might be overwritten.
+        #   # Note the existing data will be overwritten.
         #   forceInit: false
         #   # Option to adjust PostgreSQL configuration for a logical dump job.
         #   # It's useful if a dumped database contains non-standard extensions.
@@ -257,7 +257,7 @@ retrieval:
 
 
         # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
-        # Note the existing data might be overwritten.
+        # Note the existing data will be overwritten.
         forceInit: false
 
         # Option to adjust PostgreSQL configuration for a logical restore job
