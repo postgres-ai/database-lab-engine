@@ -1,7 +1,12 @@
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - local: 'ui/packages/ce/.gitlab-ci.yml'
+  - local: 'ui/packages/platform/.gitlab-ci.yml'
+
 .only_ui: &only_ui
   rules:
     - if: $CI_COMMIT_TAG =~ /^ui\/[0-9.]+$/
-    - if: $CI_COMMIT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - ui/**/*
 
@@ -14,6 +19,20 @@ check_code_style:
     - npm --prefix ui/ run lint -w packages/ce
     - npm --prefix ui/ run lint -w packages/platform
 
-include:
-  - local: 'ui/packages/ce/.gitlab-ci.yml'
-  - local: 'ui/packages/platform/.gitlab-ci.yml'
+eslint-sast:
+  <<: *only_ui
+  extends: .sast-analyzer
+  image:
+    name: "$SAST_ANALYZER_IMAGE"
+  variables:
+    SAST_ANALYZER_IMAGE_TAG: 2
+    SAST_ANALYZER_IMAGE: "$SECURE_ANALYZERS_PREFIX/eslint:$SAST_ANALYZER_IMAGE_TAG"
+
+nodejs-scan-sast:
+  <<: *only_ui
+  extends: .sast-analyzer
+  image:
+    name: "$SAST_ANALYZER_IMAGE"
+  variables:
+    SAST_ANALYZER_IMAGE_TAG: 2
+    SAST_ANALYZER_IMAGE: "$SECURE_ANALYZERS_PREFIX/nodejs-scan:$SAST_ANALYZER_IMAGE_TAG"
