@@ -91,6 +91,8 @@ func main() {
 	}
 }
 
+const tzConst = "TZ"
+
 // loadEnvironmentParams loads environment params from a Database Lab's config file.
 func loadEnvironmentParams(c *cli.Context) error {
 	dblabLog.SetDebug(c.IsSet("debug"))
@@ -104,6 +106,12 @@ func loadEnvironmentParams(c *cli.Context) error {
 	if err != nil {
 		// Failed to load config, skip auto-loading environment keys.
 		return nil
+	}
+
+	if _, ok := os.LookupEnv(tzConst); !ok {
+		if err := os.Setenv(tzConst, cfg.Settings.TZ); err != nil {
+			return err
+		}
 	}
 
 	currentEnv := cfg.CurrentEnvironment

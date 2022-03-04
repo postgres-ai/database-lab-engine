@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,12 +18,12 @@ import (
 func TestClientListSnapshots(t *testing.T) {
 	expectedSnapshots := []*models.Snapshot{{
 		ID:          "testSnapshot1",
-		CreatedAt:   "2020-01-10 00:00:05.000 UTC",
-		DataStateAt: "2020-01-10 00:00:00.000 UTC",
+		CreatedAt:   &models.LocalTime{Time: time.Date(2020, 01, 10, 0, 0, 5, 0, time.UTC)},
+		DataStateAt: &models.LocalTime{Time: time.Date(2020, 01, 10, 0, 0, 0, 0, time.UTC)},
 	}, {
 		ID:          "testSnapshot2",
-		CreatedAt:   "2020-01-11 08:02:11.000 UTC",
-		DataStateAt: "2020-01-11 08:02:00.000 UTC",
+		CreatedAt:   &models.LocalTime{Time: time.Date(2020, 1, 11, 8, 02, 11, 0, time.UTC)},
+		DataStateAt: &models.LocalTime{Time: time.Date(2020, 1, 11, 8, 02, 0, 0, time.UTC)},
 	}}
 
 	mockClient := NewTestClient(func(req *http.Request) *http.Response {

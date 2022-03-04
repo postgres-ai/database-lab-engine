@@ -15,6 +15,7 @@ import (
 type CLIConfig struct {
 	CurrentEnvironment string                 `yaml:"current_environment" json:"current_environment"`
 	Environments       map[string]Environment `yaml:"environments" json:"environments"`
+	Settings           Settings               `yaml:"settings" json:"settings"`
 }
 
 // Environment defines a format of environment configuration.
@@ -32,6 +33,11 @@ type Forwarding struct {
 	ServerURL    string `yaml:"server_url" json:"server_url"`
 	LocalPort    string `yaml:"local_port" json:"local_port"`
 	IdentityFile string `yaml:"identity_file" json:"identity_file"`
+}
+
+// Settings defines global CLI settings.
+type Settings struct {
+	TZ string `yaml:"tz" json:"tz"`
 }
 
 // AddEnvironmentToConfig adds a new environment to CLIConfig.
@@ -158,6 +164,19 @@ func removeByID(cfg *CLIConfig, environmentID string) error {
 			cfg.CurrentEnvironment = envName
 			break
 		}
+	}
+
+	return nil
+}
+
+// updateSettings updates CLI settings.
+func updateSettingsInConfig(c *cli.Context, cfg *CLIConfig) error {
+	if c.NumFlags() == 0 {
+		return errors.New("config unchanged. Set options to update")
+	}
+
+	if c.IsSet(commands.TZKey) {
+		cfg.Settings.TZ = c.String(commands.TZKey)
 	}
 
 	return nil

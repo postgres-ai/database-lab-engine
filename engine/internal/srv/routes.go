@@ -80,7 +80,7 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 	s.tm.SendEvent(context.Background(), telemetry.CloneCreatedEvent, telemetry.CloneCreated{
 		ID:          util.HashID(newClone.ID),
 		CloningTime: newClone.Metadata.CloningTime,
-		DSADiff:     util.GetDataFreshness(newClone.Snapshot.DataStateAt),
+		DSADiff:     util.GetDataFreshness(newClone.Snapshot.DataStateAt.Time),
 	})
 
 	log.Dbg(fmt.Sprintf("Clone ID=%s is being created", newClone.ID))

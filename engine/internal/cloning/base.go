@@ -160,7 +160,7 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 		ID:        cloneRequest.ID,
 		Snapshot:  snapshot,
 		Protected: cloneRequest.Protected,
-		CreatedAt: util.FormatTime(createdAt),
+		CreatedAt: models.NewLocalTime(createdAt),
 		Status: models.Status{
 			Code:    models.StatusCreating,
 			Message: models.CloneMessageCreating,
@@ -459,7 +459,7 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 		c.tm.SendEvent(context.Background(), telemetry.CloneResetEvent, telemetry.CloneCreated{
 			ID:          util.HashID(w.Clone.ID),
 			CloningTime: w.Clone.Metadata.CloningTime,
-			DSADiff:     util.GetDataFreshness(snapshot.DataStateAt),
+			DSADiff:     util.GetDataFreshness(snapshot.DataStateAt.Time),
 		})
 	}()
 
@@ -512,7 +512,7 @@ func (c *Base) GetClones() []*models.Clone {
 	c.cloneMutex.RUnlock()
 
 	sort.Slice(clones, func(i, j int) bool {
-		return clones[i].CreatedAt > clones[j].CreatedAt
+		return clones[i].CreatedAt.After(clones[j].CreatedAt.Time)
 	})
 
 	return clones

@@ -6,6 +6,7 @@ package cloning
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -17,14 +18,14 @@ func (s *BaseCloningSuite) TestLatestSnapshot() {
 
 	snapshot1 := &models.Snapshot{
 		ID:          "TestSnapshotID1",
-		CreatedAt:   "2020-02-20 01:23:45",
-		DataStateAt: "2020-02-19 00:00:00",
+		CreatedAt:   &models.LocalTime{Time: time.Date(2020, 02, 20, 01, 23, 45, 0, time.UTC)},
+		DataStateAt: &models.LocalTime{Time: time.Date(2020, 02, 19, 0, 0, 0, 0, time.UTC)},
 	}
 
 	snapshot2 := &models.Snapshot{
 		ID:          "TestSnapshotID2",
-		CreatedAt:   "2020-02-20 05:43:21",
-		DataStateAt: "2020-02-20 00:00:00",
+		CreatedAt:   &models.LocalTime{Time: time.Date(2020, 02, 20, 05, 43, 21, 0, time.UTC)},
+		DataStateAt: &models.LocalTime{Time: time.Date(2020, 02, 20, 0, 0, 0, 0, time.UTC)},
 	}
 
 	require.Equal(s.T(), 0, len(s.cloning.snapshotBox.items))
@@ -41,8 +42,8 @@ func (s *BaseCloningSuite) TestLatestSnapshot() {
 
 	snapshot3 := &models.Snapshot{
 		ID:          "TestSnapshotID3",
-		CreatedAt:   "2020-02-21 05:43:21",
-		DataStateAt: "2020-02-21 00:00:00",
+		CreatedAt:   &models.LocalTime{Time: time.Date(2020, 02, 21, 05, 43, 21, 0, time.UTC)},
+		DataStateAt: &models.LocalTime{Time: time.Date(2020, 02, 21, 0, 0, 0, 0, time.UTC)},
 	}
 
 	snapshotMap := make(map[string]*models.Snapshot)
@@ -62,14 +63,14 @@ func (s *BaseCloningSuite) TestSnapshotByID() {
 
 	snapshot1 := &models.Snapshot{
 		ID:          "TestSnapshotID1",
-		CreatedAt:   "2020-02-20 01:23:45",
-		DataStateAt: "2020-02-19 00:00:00",
+		CreatedAt:   &models.LocalTime{Time: time.Date(2020, 02, 20, 01, 23, 45, 0, time.UTC)},
+		DataStateAt: &models.LocalTime{Time: time.Date(2020, 02, 19, 0, 0, 0, 0, time.UTC)},
 	}
 
 	snapshot2 := &models.Snapshot{
 		ID:          "TestSnapshotID2",
-		CreatedAt:   "2020-02-20 05:43:21",
-		DataStateAt: "2020-02-20 00:00:00",
+		CreatedAt:   &models.LocalTime{Time: time.Date(2020, 02, 20, 05, 43, 21, 0, time.UTC)},
+		DataStateAt: &models.LocalTime{Time: time.Date(2020, 02, 20, 0, 0, 0, 0, time.UTC)},
 	}
 
 	require.Equal(s.T(), 0, len(s.cloning.snapshotBox.items))
@@ -122,13 +123,13 @@ func TestCloneCounter(t *testing.T) {
 
 func TestLatestSnapshots(t *testing.T) {
 	baseSnapshot := &models.Snapshot{
-		DataStateAt: "2020-02-19 00:00:00",
+		DataStateAt: &models.LocalTime{Time: time.Date(2020, 02, 19, 0, 0, 0, 0, time.UTC)},
 	}
 	newSnapshot := &models.Snapshot{
-		DataStateAt: "2020-02-21 00:00:00",
+		DataStateAt: &models.LocalTime{Time: time.Date(2020, 02, 21, 0, 0, 0, 0, time.UTC)},
 	}
 	oldSnapshot := &models.Snapshot{
-		DataStateAt: "2020-02-01 00:00:00",
+		DataStateAt: &models.LocalTime{Time: time.Date(2020, 02, 01, 0, 0, 0, 0, time.UTC)},
 	}
 
 	testCases := []struct {

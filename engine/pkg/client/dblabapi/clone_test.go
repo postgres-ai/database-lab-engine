@@ -17,6 +17,8 @@ import (
 )
 
 func TestClientListClones(t *testing.T) {
+	time.Local = time.UTC
+
 	expectedClones := []*models.Clone{{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
@@ -24,8 +26,8 @@ func TestClientListClones(t *testing.T) {
 			CloningTime:   1,
 		},
 		Protected: true,
-		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
-		CreatedAt: "2020-01-10 00:00:00.000 UTC",
+		DeleteAt:  &models.LocalTime{Time: time.Date(2020, 01, 10, 0, 0, 5, 0, time.UTC)},
+		CreatedAt: &models.LocalTime{Time: time.Date(2020, 01, 10, 0, 0, 0, 0, time.UTC)},
 		Status: models.Status{
 			Code:    "OK",
 			Message: "Instance is ready",
@@ -61,8 +63,8 @@ func TestClientListClones(t *testing.T) {
 	// Send a request.
 	cloneList, err := c.ListClones(context.Background())
 	require.NoError(t, err)
-
-	assert.EqualValues(t, expectedClones, cloneList)
+	require.Equal(t, 1, len(cloneList))
+	require.EqualValues(t, expectedClones, cloneList)
 }
 
 func TestClientListClonesWithFailedRequest(t *testing.T) {
@@ -88,6 +90,8 @@ func TestClientListClonesWithFailedRequest(t *testing.T) {
 }
 
 func TestClientCreateClone(t *testing.T) {
+	time.Local = time.UTC
+
 	expectedClone := models.Clone{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
@@ -95,8 +99,8 @@ func TestClientCreateClone(t *testing.T) {
 			CloningTime:   1,
 		},
 		Protected: true,
-		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
-		CreatedAt: "2020-01-10 00:00:00.000 UTC",
+		DeleteAt:  &models.LocalTime{Time: time.Date(2020, 01, 10, 0, 0, 5, 0, time.UTC)},
+		CreatedAt: &models.LocalTime{Time: time.Date(2020, 01, 10, 0, 0, 0, 0, time.UTC)},
 		Status: models.Status{
 			Code:    "OK",
 			Message: "Clone is ready",
@@ -166,6 +170,8 @@ func TestClientCreateClone(t *testing.T) {
 }
 
 func TestClientCreateCloneAsync(t *testing.T) {
+	time.Local = time.UTC
+
 	expectedClone := models.Clone{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
@@ -173,8 +179,8 @@ func TestClientCreateCloneAsync(t *testing.T) {
 			CloningTime:   1,
 		},
 		Protected: true,
-		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
-		CreatedAt: "2020-01-10 00:00:00.000 UTC",
+		DeleteAt:  &models.LocalTime{Time: time.Date(2020, 01, 10, 0, 0, 5, 0, time.UTC)},
+		CreatedAt: &models.LocalTime{Time: time.Date(2020, 01, 10, 0, 0, 0, 0, time.UTC)},
 		Status: models.Status{
 			Code:    "OK",
 			Message: "Clone is ready",
@@ -255,6 +261,8 @@ func TestClientCreateCloneWithFailedRequest(t *testing.T) {
 }
 
 func TestClientGetClone(t *testing.T) {
+	time.Local = time.UTC
+
 	expectedClone := &models.Clone{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
@@ -262,8 +270,8 @@ func TestClientGetClone(t *testing.T) {
 			CloningTime:   1,
 		},
 		Protected: true,
-		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
-		CreatedAt: "2020-01-10 00:00:00.000 UTC",
+		DeleteAt:  &models.LocalTime{Time: time.Date(2020, 01, 10, 0, 0, 5, 0, time.UTC)},
+		CreatedAt: &models.LocalTime{Time: time.Date(2020, 01, 10, 0, 0, 0, 0, time.UTC)},
 		Status: models.Status{
 			Code:    "OK",
 			Message: "Instance is ready",
@@ -326,6 +334,8 @@ func TestClientGetCloneWithFailedRequest(t *testing.T) {
 }
 
 func TestClientUpdateClone(t *testing.T) {
+	time.Local = time.UTC
+
 	cloneModel := &models.Clone{
 		ID: "testCloneID",
 		Metadata: models.CloneMetadata{
@@ -333,8 +343,8 @@ func TestClientUpdateClone(t *testing.T) {
 			CloningTime:   1,
 		},
 		Protected: true,
-		DeleteAt:  "2020-01-10 00:00:05.000 UTC",
-		CreatedAt: "2020-01-10 00:00:00.000 UTC",
+		DeleteAt:  &models.LocalTime{Time: time.Date(2020, 01, 10, 0, 0, 5, 0, time.UTC)},
+		CreatedAt: &models.LocalTime{Time: time.Date(2020, 01, 10, 0, 0, 0, 0, time.UTC)},
 		Status: models.Status{
 			Code:    "OK",
 			Message: "Instance is ready",

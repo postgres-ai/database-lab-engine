@@ -130,7 +130,7 @@ func (s *Server) runMigration(w http.ResponseWriter, r *http.Request) {
 		"branch":        request.Source.Branch,
 		"branch_link":   request.Source.BranchLink,
 		"diff_link":     request.Source.DiffLink,
-		"data_state_at": clone.Snapshot.DataStateAt,
+		"data_state_at": clone.Snapshot.DataStateAt.String(),
 		"dle_version":   dleHealth.Version,
 	}
 

@@ -291,8 +291,8 @@ func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string
 
 	snapshotModel := &models.Snapshot{
 		ID:          snapshot.ID,
-		CreatedAt:   util.FormatTime(snapshot.CreatedAt),
-		DataStateAt: util.FormatTime(snapshot.DataStateAt),
+		CreatedAt:   models.NewLocalTime(snapshot.CreatedAt),
+		DataStateAt: models.NewLocalTime(snapshot.DataStateAt),
 	}
 
 	return snapshotModel, nil
@@ -366,15 +366,15 @@ func buildPoolEntry(fsm pool.FSManager) (models.PoolEntry, error) {
 		log.Err(fmt.Sprintf("failed to get disk stats for the pool %s", fsmPool.Name))
 	}
 
-	var dataStateAt string
+	var dataStateAt time.Time
 	if !fsmPool.DSA.IsZero() {
-		dataStateAt = fsmPool.DSA.String()
+		dataStateAt = fsmPool.DSA
 	}
 
 	poolEntry := models.PoolEntry{
 		Name:        fsmPool.Name,
 		Mode:        fsmPool.Mode,
-		DataStateAt: dataStateAt,
+		DataStateAt: models.NewLocalTime(dataStateAt),
 		CloneList:   listClones,
 		FileSystem:  fileSystem,
 		Status:      fsm.Pool().Status(),

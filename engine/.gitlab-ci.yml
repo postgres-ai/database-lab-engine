@@ -360,6 +360,9 @@ build-image-swagger-latest:
     - if: $CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
       changes:
         - engine/**/*
+  artifacts:
+    paths:
+      - engine/bin
   script:
     - bash engine/test/1.synthetic.sh
     - bash engine/test/2.logical_generic.sh

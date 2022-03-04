@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
@@ -223,7 +222,7 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 
 		r.retrieveMutex.Lock()
 		r.State.Status = models.Refreshing
-		r.State.LastRefresh = pointer.ToTimeOrNil(time.Now().Truncate(time.Second))
+		r.State.LastRefresh = models.NewLocalTime(time.Now().Truncate(time.Second))
 
 		defer func() {
 			r.State.Status = models.Finished

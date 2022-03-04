@@ -61,8 +61,8 @@ func MillisecondsToString(value float64) string {
 // FormatTime returns string representing time in UTC in defined format.
 func FormatTime(t time.Time) string {
 	f := t.UTC()
-	return fmt.Sprintf("%d-%02d-%02d %02d:%02d:%02d UTC", f.Year(), f.Month(),
-		f.Day(), f.Hour(), f.Minute(), f.Second())
+	return fmt.Sprintf("%d-%02d-%02d %02d:%02d:%02d %s", f.Year(), f.Month(),
+		f.Day(), f.Hour(), f.Minute(), f.Second(), f.Location().String())
 }
 
 // ParseUnixTime returns time parsed from unix timestamp integer.
@@ -81,11 +81,6 @@ func ParseCustomTime(str string) (time.Time, error) {
 }
 
 // GetDataFreshness returns the time elapsed since the specified date.
-func GetDataFreshness(dataStateAt string) *float64 {
-	parsedTime, err := ParseCustomTime(dataStateAt)
-	if err != nil {
-		return nil
-	}
-
-	return pointer.ToFloat64(time.Since(parsedTime).Seconds())
+func GetDataFreshness(dataStateAt time.Time) *float64 {
+	return pointer.ToFloat64(time.Since(dataStateAt).Seconds())
 }

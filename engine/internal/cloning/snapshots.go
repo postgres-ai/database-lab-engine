@@ -12,7 +12,6 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
 // SnapshotBox contains instance snapshots.
@@ -44,8 +43,8 @@ func (c *Base) fetchSnapshots() error {
 
 		currentSnapshot := &models.Snapshot{
 			ID:           entry.ID,
-			CreatedAt:    util.FormatTime(entry.CreatedAt),
-			DataStateAt:  util.FormatTime(entry.DataStateAt),
+			CreatedAt:    models.NewLocalTime(entry.CreatedAt),
+			DataStateAt:  models.NewLocalTime(entry.DataStateAt),
 			PhysicalSize: entry.Used,
 			LogicalSize:  entry.LogicalReferenced,
 			Pool:         entry.Pool,
@@ -82,7 +81,7 @@ func (c *Base) addSnapshot(snapshot *models.Snapshot) {
 
 // defineLatestSnapshot compares two snapshots and defines the latest one.
 func defineLatestSnapshot(latest, challenger *models.Snapshot) *models.Snapshot {
-	if latest == nil || latest.DataStateAt == "" || latest.DataStateAt < challenger.DataStateAt {
+	if latest == nil || latest.DataStateAt == nil || latest.DataStateAt.IsZero() || latest.DataStateAt.Before(challenger.DataStateAt.Time) {
 		return challenger
 	}
 
@@ -162,7 +161,7 @@ func (c *Base) getSnapshotList() []models.Snapshot {
 	}
 
 	sort.Slice(snapshots, func(i, j int) bool {
-		return snapshots[i].CreatedAt > snapshots[j].CreatedAt
+		return snapshots[i].CreatedAt.After(snapshots[j].CreatedAt.Time)
 	})
 
 	return snapshots

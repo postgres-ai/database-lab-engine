@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,8 +31,8 @@ func TestClientStatus(t *testing.T) {
 					CloningTime:   1,
 				},
 				Protected: true,
-				DeleteAt:  "2020-01-10 00:00:05.000 UTC",
-				CreatedAt: "2020-01-10 00:00:00.000 UTC",
+				DeleteAt:  &models.LocalTime{Time: time.Date(2020, 01, 10, 0, 0, 5, 0, time.UTC)},
+				CreatedAt: &models.LocalTime{Time: time.Date(2020, 01, 10, 0, 0, 0, 0, time.UTC)},
 				Status: models.Status{
 					Code:    "OK",
 					Message: "Instance is ready",
@@ -46,7 +47,7 @@ func TestClientStatus(t *testing.T) {
 			{
 				Name:        "test_pool",
 				Mode:        "zfs",
-				DataStateAt: "2020-01-07 00:00:00.000 UTC",
+				DataStateAt: &models.LocalTime{Time: time.Date(2020, 01, 07, 0, 0, 0, 0, time.UTC)},
 				Status:      "active",
 				CloneList:   []string{"testCloneID"},
 				FileSystem: models.FileSystem{
