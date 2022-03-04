@@ -121,7 +121,7 @@ func TestBuildPoolEntry(t *testing.T) {
 			expectedEntry: models.PoolEntry{
 				Name:        "TestPool",
 				Mode:        "zfs",
-				DataStateAt: "2021-08-01 00:00:00 +0000 UTC",
+				DataStateAt: &models.LocalTime{Time: time.Date(2021, 8, 01, 0, 0, 0, 0, time.UTC)},
 				Status:      resources.ActivePool,
 				CloneList:   []string{"test_clone_0001", "test_clone_0002"},
 				FileSystem:  models.FileSystem{Mode: "zfs"},
@@ -137,7 +137,7 @@ func TestBuildPoolEntry(t *testing.T) {
 			expectedEntry: models.PoolEntry{
 				Name:        "TestPoolWithoutDSA",
 				Mode:        "zfs",
-				DataStateAt: "",
+				DataStateAt: &models.LocalTime{},
 				Status:      resources.EmptyPool,
 				CloneList:   []string{},
 				FileSystem:  models.FileSystem{Mode: "zfs"},

@@ -9,8 +9,8 @@ type Clone struct {
 	ID        string        `json:"id"`
 	Snapshot  *Snapshot     `json:"snapshot"`
 	Protected bool          `json:"protected"`
-	DeleteAt  string        `json:"deleteAt"`
-	CreatedAt string        `json:"createdAt"`
+	DeleteAt  *LocalTime    `json:"deleteAt"`
+	CreatedAt *LocalTime    `json:"createdAt"`
 	Status    Status        `json:"status"`
 	DB        Database      `json:"db"`
 	Metadata  CloneMetadata `json:"metadata"`

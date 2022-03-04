@@ -6,6 +6,7 @@ package cloning
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,9 +53,9 @@ func (s *BaseCloningSuite) TestFindWrapper() {
 }
 
 func (s *BaseCloningSuite) TestCloneList() {
-	clone1 := &models.Clone{CreatedAt: "2020-02-20 01:23:45 UTC"}
-	clone2 := &models.Clone{CreatedAt: "2020-06-23 10:31:27 UTC"}
-	clone3 := &models.Clone{CreatedAt: "2020-05-20 00:43:21 UTC"}
+	clone1 := &models.Clone{CreatedAt: &models.LocalTime{Time: time.Date(2020, 02, 20, 01, 23, 45, 0, time.UTC)}}
+	clone2 := &models.Clone{CreatedAt: &models.LocalTime{Time: time.Date(2020, 06, 23, 10, 31, 27, 0, time.UTC)}}
+	clone3 := &models.Clone{CreatedAt: &models.LocalTime{Time: time.Date(2020, 05, 20, 00, 43, 21, 0, time.UTC)}}
 
 	s.cloning.setWrapper("testCloneID1", &CloneWrapper{Clone: clone1})
 	s.cloning.setWrapper("testCloneID2", &CloneWrapper{Clone: clone2})
@@ -66,9 +67,9 @@ func (s *BaseCloningSuite) TestCloneList() {
 
 	// Check clone order.
 	assert.Equal(s.T(), []*models.Clone{
-		{CreatedAt: "2020-06-23 10:31:27 UTC"},
-		{CreatedAt: "2020-05-20 00:43:21 UTC"},
-		{CreatedAt: "2020-02-20 01:23:45 UTC"},
+		{CreatedAt: &models.LocalTime{Time: time.Date(2020, 06, 23, 10, 31, 27, 0, time.UTC)}},
+		{CreatedAt: &models.LocalTime{Time: time.Date(2020, 05, 20, 00, 43, 21, 0, time.UTC)}},
+		{CreatedAt: &models.LocalTime{Time: time.Date(2020, 02, 20, 01, 23, 45, 0, time.UTC)}},
 	}, list)
 }
 

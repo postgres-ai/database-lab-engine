@@ -5,8 +5,6 @@
 package models
 
 import (
-	"time"
-
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 )
 
@@ -24,7 +22,7 @@ type InstanceStatus struct {
 type PoolEntry struct {
 	Name        string               `json:"name"`
 	Mode        string               `json:"mode"`
-	DataStateAt string               `json:"dataStateAt"`
+	DataStateAt *LocalTime           `json:"dataStateAt"`
 	Status      resources.PoolStatus `json:"status"`
 	CloneList   []string             `json:"cloneList"`
 	FileSystem  FileSystem           `json:"fileSystem"`
@@ -46,7 +44,7 @@ type Cloning struct {
 // Engine represents info about Database Lab Engine instance.
 type Engine struct {
 	Version   string     `json:"version"`
-	StartedAt *time.Time `json:"startedAt,omitempty"`
+	StartedAt *LocalTime `json:"startedAt,omitempty"`
 	Telemetry *bool      `json:"telemetry,omitempty"`
 }
 

@@ -113,6 +113,22 @@ func CommandList() []*cli.Command {
 					ArgsUsage: "ENVIRONMENT_ID",
 					Action:    removeEnvironment(),
 				},
+				{
+					Name:   "show-global",
+					Usage:  "show global CLI settings",
+					Action: showSettings,
+				},
+				{
+					Name:   "set-global",
+					Usage:  "update global CLI settings",
+					Action: updateSettings,
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:  "tz",
+							Usage: "Timezone to display time in DLE responses",
+						},
+					},
+				},
 			},
 		},
 	}

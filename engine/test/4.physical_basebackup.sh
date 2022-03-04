@@ -171,9 +171,8 @@ check_dle_readiness || (echo "Database Lab Engine is not ready" && exit 1)
 
 ### Step 3. Start cloning
 
-# Install Database Lab client CLI
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-master}"/engine/scripts/cli_install.sh | bash
-sudo mv ~/.dblab/dblab /usr/local/bin/dblab
+# Install Database Lab client CLI from job artifacts
+sudo cp engine/bin/cli/dblab-linux-amd64 /usr/local/bin/dblab
 
 dblab --version
 

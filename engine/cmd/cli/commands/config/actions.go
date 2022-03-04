@@ -260,3 +260,50 @@ func removeEnvironment() func(*cli.Context) error {
 		return commands.ToActionError(err)
 	}
 }
+
+// showSettings shows global CLI settings.
+func showSettings(cliCtx *cli.Context) error {
+	configFilename, err := GetFilename()
+	if err != nil {
+		return commands.ToActionError(err)
+	}
+
+	cfg, err := Load(configFilename)
+	if err != nil {
+		return commands.ToActionError(err)
+	}
+
+	settings, err := json.MarshalIndent(cfg.Settings, "", "    ")
+	if err != nil {
+		return commands.ToActionError(err)
+	}
+
+	_, err = fmt.Fprintln(cliCtx.App.Writer, string(settings))
+
+	return commands.ToActionError(err)
+}
+
+// updateSettings updates CLI settings.
+func updateSettings(cliCtx *cli.Context) error {
+	configFilename, err := GetFilename()
+	if err != nil {
+		return commands.ToActionError(err)
+	}
+
+	cfg, err := Load(configFilename)
+	if err != nil {
+		return commands.ToActionError(err)
+	}
+
+	if err := updateSettingsInConfig(cliCtx, cfg); err != nil {
+		return commands.ToActionError(err)
+	}
+
+	if err := SaveConfig(configFilename, cfg); err != nil {
+		return commands.ToActionError(err)
+	}
+
+	_, err = fmt.Fprintf(cliCtx.App.Writer, "CLI settings has been successfully updated.\n")
+
+	return commands.ToActionError(err)
+}

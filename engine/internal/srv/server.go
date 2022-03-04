@@ -54,7 +54,7 @@ type Server struct {
 	docker      *client.Client
 	pm          *pool.Manager
 	tm          *telemetry.Agent
-	startedAt   *time.Time
+	startedAt   *models.LocalTime
 }
 
 // NewServer initializes a new Server instance with provided configuration.
@@ -83,7 +83,7 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config,
 		docker:      dockerClient,
 		pm:          pm,
 		tm:          tm,
-		startedAt:   pointer.ToTimeOrNil(time.Now().Truncate(time.Second)),
+		startedAt:   &models.LocalTime{Time: time.Now().Truncate(time.Second)},
 	}
 
 	return server
@@ -112,7 +112,7 @@ func (s *Server) instanceStatus() *models.InstanceStatus {
 	}
 
 	if s.Retrieval.Scheduler.Spec != nil {
-		instanceStatus.Retrieving.NextRefresh = pointer.ToTimeOrNil(s.Retrieval.Scheduler.Spec.Next(time.Now()))
+		instanceStatus.Retrieving.NextRefresh = models.NewLocalTime(s.Retrieval.Scheduler.Spec.Next(time.Now()))
 	}
 
 	s.summarizeStatus(instanceStatus)
@@ -217,8 +217,8 @@ func (s *Server) Shutdown(ctx context.Context) error {
 // Uptime returns the server uptime.
 func (s *Server) Uptime() float64 {
 	instanceStatus := s.instanceStatus()
-	if instanceStatus.Engine.StartedAt != nil {
-		return time.Since(*instanceStatus.Engine.StartedAt).Truncate(time.Second).Seconds()
+	if instanceStatus.Engine.StartedAt != nil && !instanceStatus.Engine.StartedAt.IsZero() {
+		return time.Since(instanceStatus.Engine.StartedAt.Time).Truncate(time.Second).Seconds()
 	}
 
 	return 0

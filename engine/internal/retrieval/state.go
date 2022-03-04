@@ -16,7 +16,7 @@ import (
 type State struct {
 	Mode        models.RetrievalMode
 	Status      models.RetrievalStatus
-	LastRefresh *time.Time
+	LastRefresh *models.LocalTime
 	mu          sync.Mutex
 	alerts      map[models.AlertType]models.Alert
 }
