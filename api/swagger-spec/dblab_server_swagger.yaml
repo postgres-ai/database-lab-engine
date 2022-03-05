@@ -1,13 +1,13 @@
 swagger: "2.0"
 info:
   description: "This is a Database Lab Engine sample server."
-  version: "2.5.0"
+  version: "3.0.3"
   title: "Database Lab"
   contact:
     email: "team@postgres.ai"
   license:
     name: "Database Lab License"
-    url: "https://gitlab.com/postgres-ai/database-lab/blob/master/LICENSE"
+    url: "https://gitlab.com/postgres-ai/database-lab/blob/branch-3.0/LICENSE"
 basePath: "/"
 tags:
   - name: "Database Lab Engine"
