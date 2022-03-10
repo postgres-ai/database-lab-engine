@@ -32,11 +32,11 @@ require (
 )
 
 require (
-	github.com/Azure/go-ansiterm v0.0.0-20210608223527-2377c96fe795 // indirect
-	github.com/Microsoft/go-winio v0.4.17 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
+	github.com/Microsoft/go-winio v0.5.1 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
-	github.com/containerd/containerd v1.5.9 // indirect
+	github.com/containerd/containerd v1.6.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v2.8.0+incompatible // indirect
@@ -80,7 +80,7 @@ require (
 // Include the single version of the dependency to clean up go.sum from old revisions.
 // Since old and indirect dependencies are listed in the sum file and the vulnerability scanner flags the project as containing vulnerabilities.
 replace (
-	github.com/containerd/containerd => github.com/containerd/containerd v1.5.9 // mitigate CVE-2021-32760 and CVE-2020-15257
+	github.com/containerd/containerd => github.com/containerd/containerd v1.6.1 // mitigate CVE-2021-32760, CVE-2020-15257, CVE-2022-23648
 	github.com/coreos/etcd => github.com/coreos/etcd v3.3.27+incompatible // mitigate CVE-2020-15113 and CVE-2020-15112
 	github.com/docker/cli => github.com/docker/cli v20.10.3-0.20220214172424-cf8c4bab6477+incompatible // mitigate CVE-2018-20699
 	github.com/docker/distribution v2.8.0+incompatible => github.com/agneum/distribution v2.8.1-0.20220215080619-a3a6b67e8f8d+incompatible
