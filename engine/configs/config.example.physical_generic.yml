@@ -215,6 +215,7 @@ retrieval:
           recovery:
           # Uncomment this only if you are on Postgres version 11 or older.
           #  standby_mode: on
+          #  recovery_target_timeline: 'latest'
 
         # Set environment variables here. See https://www.postgresql.org/docs/current/libpq-envars.html
         envs:
@@ -273,7 +274,9 @@ retrieval:
           # Add PostgreSQL recovery configuration parameters to the promotion container.
           recovery:
           # Uncomment this only if you are on Postgres version 11 or older.
-          # standby_mode: on
+          #  recovery_target: 'immediate'
+          #  recovery_target_action: 'promote'
+          #  recovery_target_timeline: 'latest'
 
         # It is possible to define a pre-processing script. For example, "/tmp/scripts/custom.sh".
         # Default: empty string (no pre-processing defined).

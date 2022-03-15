@@ -756,16 +756,18 @@ func parseWALLine(line string) string {
 }
 
 func buildRecoveryConfig(fileConfig, userRecoveryConfig map[string]string) map[string]string {
+	if len(userRecoveryConfig) != 0 {
+		return userRecoveryConfig
+	}
+
 	recoveryConf := fileConfig
 
 	if rc, ok := fileConfig[restoreCommandOption]; ok || rc != "" {
 		for k, v := range defaultRecoveryCfg {
 			recoveryConf[k] = v
 		}
-	}
 
-	for k, v := range userRecoveryConfig {
-		recoveryConf[k] = v
+		delete(fileConfig, "standby_mode")
 	}
 
 	return recoveryConf

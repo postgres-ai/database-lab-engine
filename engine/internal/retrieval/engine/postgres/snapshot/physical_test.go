@@ -164,3 +164,49 @@ func TestParsingWalLine(t *testing.T) {
 		assert.EqualValues(t, tc.expectedDataStateAt, dsa)
 	}
 }
+
+func TestRecoveryConfig(t *testing.T) {
+	testCases := []struct {
+		fileConfig     map[string]string
+		userConfig     map[string]string
+		recoveryConfig map[string]string
+	}{
+		{
+			fileConfig: map[string]string{
+				"restore_command":          "cp /mnt/wal/%f %p",
+				"standby_mode":             "true",
+				"recovery_target_timeline": "latest",
+			},
+			recoveryConfig: map[string]string{
+				"restore_command":          "cp /mnt/wal/%f %p",
+				"recovery_target":          "immediate",
+				"recovery_target_action":   "promote",
+				"recovery_target_timeline": "latest",
+			},
+		},
+		{
+			fileConfig: map[string]string{
+				"restore_command":          "cp /mnt/wal/%f %p",
+				"standby_mode":             "true",
+				"recovery_target_timeline": "latest",
+			},
+			userConfig: map[string]string{
+				"restore_command":          "wal-g wal-fetch %f %p",
+				"recovery_target":          "immediate",
+				"recovery_target_action":   "promote",
+				"recovery_target_timeline": "latest",
+			},
+			recoveryConfig: map[string]string{
+				"restore_command":          "wal-g wal-fetch %f %p",
+				"recovery_target":          "immediate",
+				"recovery_target_action":   "promote",
+				"recovery_target_timeline": "latest",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		recoveryConfig := buildRecoveryConfig(tc.fileConfig, tc.userConfig)
+		assert.EqualValues(t, tc.recoveryConfig, recoveryConfig)
+	}
+}
