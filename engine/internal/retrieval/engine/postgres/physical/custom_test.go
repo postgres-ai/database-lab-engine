@@ -14,7 +14,6 @@ func TestCustomRecoveryConfig(t *testing.T) {
 	recoveryConfig := customTool.GetRecoveryConfig(11.7)
 	expectedResponse11 := map[string]string{
 		"restore_command":          "pg_basebackup -X stream -D dataDirectory",
-		"standby_mode":             "on",
 		"recovery_target_timeline": "latest",
 	}
 	assert.Equal(t, expectedResponse11, recoveryConfig)

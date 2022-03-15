@@ -12,7 +12,6 @@ func TestPgBackRestRecoveryConfig(t *testing.T) {
 	recoveryConfig := pgbackrest.GetRecoveryConfig(11.7)
 	expectedResponse11 := map[string]string{
 		"restore_command":          "pgbackrest --pg1-path=dataDir --stanza=stanzaName archive-get %f %p",
-		"standby_mode":             "on",
 		"recovery_target_timeline": "latest",
 	}
 	assert.Equal(t, expectedResponse11, recoveryConfig)
