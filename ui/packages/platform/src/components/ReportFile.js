@@ -12,6 +12,7 @@ import TextField from '@material-ui/core/TextField';
 import ReactMarkdown from 'react-markdown';
 import Button from '@material-ui/core/Button';
 import rehypeRaw from 'rehype-raw';
+import remarkGfm from 'remark-gfm';
 
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner';
 import { styles } from '@postgres.ai/shared/styles/styles';
@@ -321,6 +322,7 @@ class ReportFile extends Component {
             className='md-report-file-preview'
             children={data.files[fileId].data}
             rehypePlugins={[rehypeRaw]}
+            remarkPlugins={[remarkGfm]}
             components={{
               a: (props) => {
                 return that.markdownLink(props);

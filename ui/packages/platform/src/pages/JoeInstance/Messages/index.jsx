@@ -17,6 +17,7 @@ import {
 import { ExpandMore as ExpandMoreIcon } from '@material-ui/icons';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
+import remarkGfm from 'remark-gfm';
 import { ResizeObserver } from '@juggle/resize-observer';
 
 import { icons } from '@postgres.ai/shared/styles/icons';
@@ -135,6 +136,7 @@ export const Messages = (props) => {
                           className='markdown'
                           children={messages[m].formattedMessage}
                           rehypePlugins={[rehypeRaw]}
+                          remarkPlugins={[remarkGfm]}
                           linkTarget='_blank'
                           components={{
                             a: (properties) => {

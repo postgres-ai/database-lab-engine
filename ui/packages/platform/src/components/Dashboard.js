@@ -15,6 +15,7 @@ import {
 } from '@material-ui/core';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
+import remarkGfm from 'remark-gfm';
 
 import {
   HorizontalScrollContainer
@@ -406,6 +407,7 @@ class Dashboard extends Component {
                   className={classes.onboarding}
                   children={this.state.data.userProfile.data.orgs[org].onboarding_text}
                   rehypePlugins={[rehypeRaw]}
+                  remarkPlugins={[remarkGfm]}
                   components={{
                     a: (props) => {
                       const { href, target, children } = props;
@@ -429,6 +431,7 @@ class Dashboard extends Component {
                   className={classes.onboarding}
                   children={this.state.data.userProfile.data.platform_onboarding_text}
                   rehypePlugins={[rehypeRaw]}
+                  remarkPlugins={[remarkGfm]}
                   components={{
                     a: (props) => {
                       const { href, target, children } = props;
