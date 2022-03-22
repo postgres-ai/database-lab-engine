@@ -1,5 +1,3 @@
-<!-- The document is created using Google Translate. Proofreading and corrections are needed! -->
-
 <div align="center"><img width="500" src="../assets/dle.svg" border="0" /></div>
 
 <div align="center"><h1 align="center">Database Lab Engine (DLE)</h1></div>
@@ -175,10 +173,3 @@ Comuníquese con el equipo de Postgres.ai si desea una licencia comercial o de p
 - Si necesita informar un problema de seguridad, siga las instrucciones en ["Directrices de seguridad del motor de laboratorio de base de datos"](../SECURITY.md).
 
 [![Pacto de colaborador](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?color=blue)](../CODE_OF_CONDUCT.md)
-
-
-
-<!-- 
-## Translations
-- ...
--->
