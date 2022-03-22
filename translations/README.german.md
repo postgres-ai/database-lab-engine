@@ -34,7 +34,7 @@
     <span> | </span>
     <a href="#community--support">Community & Support</a>
     <span> | </span>
-    <a href="./CONTRIBUTING.md">Contributing</a>
+    <a href="../CONTRIBUTING.md">Contributing</a>
   </h3>
 </div>
 
@@ -170,18 +170,9 @@ Wenden Sie sich an das Postgres.ai-Team, wenn Sie eine Test- oder kommerzielle L
 [![FOSSA-Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine.svg?type=large)](https://app .fossa.io/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine?ref=badge_large)
 
 ## Gemeinschaftliche Unterstützung
-- ["Verhaltenskodex der Database Lab Engine Community Covenant"](./CODE_OF_CONDUCT.md)
+- ["Verhaltenskodex der Database Lab Engine Community Covenant"](../CODE_OF_CONDUCT.md)
 - Wo Sie Hilfe bekommen: [Kontaktseite](https://postgres.ai/contact)
 - [Community-Slack](https://slack.postgres.ai)
-- Wenn Sie ein Sicherheitsproblem melden müssen, befolgen Sie die Anweisungen in den ["Database Lab Engine-Sicherheitsrichtlinien"](./SECURITY.md).
+- Wenn Sie ein Sicherheitsproblem melden müssen, befolgen Sie die Anweisungen in den ["Database Lab Engine-Sicherheitsrichtlinien"](../SECURITY.md).
 
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?color=blue)](./CODE_OF_CONDUCT.md)
-
-<!--
-## Translations
-
-This README is available in the following translations:
-
-- [Russian 🇷🇺](translations/README.ru.md) (🙏 [@Tanya301](https://github.com/Tanya301))
-- More are comming soon (We would very appreciate your help with translations, check [contributing guide](./CONTRIBUTING.md#Translation) for the details)
--->
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?color=blue)](../CODE_OF_CONDUCT.md)

@@ -172,7 +172,7 @@ HTML-код для светлых фонов:
 - Где получить помощь: [Контактная страница](https://postgres.ai/contact)
 - [Сообщество в Телеграм (русский язык)](https://t.me/databaselabru)
 - [Сообщество в Slack](https://slack.postgres.ai)
-- Если вам надо сообщить о проблеме безопасности, следуйте инструкциям в документе ["./SECURITY.md"](../SECURITY.md).
+- Если вам надо сообщить о проблеме безопасности, следуйте инструкциям в документе ["SECURITY.md"](../SECURITY.md).
 
 [![Кодекс поведения](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?color=blue)](../CODE_OF_CONDUCT.md)
 

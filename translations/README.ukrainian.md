@@ -1,5 +1,3 @@
-<!-- The document is created using Google Translate. Proofreading and corrections are needed! -->
-
 <div align="center"><img width="500" src="../assets/dle.svg" border="0" /></div>
 
 <div align="center"><h1 align="center">Database Lab Engine (DLE)</h1></div>
@@ -23,7 +21,7 @@
 
   <a href="https://gitlab.com/postgres-ai/database-lab/-/pipelines" target="blank"><img src="https://gitlab.com/postgres-ai/database-lab//badges/master/pipeline.svg" alt="CI pipeline status" /></a> <a href="https://goreportcard.com/report/gitlab.com/postgres-ai/database-lab" target="blank"><img src="https://goreportcard.com/badge/gitlab.com/postgres-ai/database-lab" alt="Go report" /></a>
 
-  <a href="./CODE_OF_CONDUCT.md"><img src="https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?logoColor=black&labelColor=white&color=blue" alt="Contributor Covenant" /></a> <a href="https://slack.postgres.ai" target="blank"><img src="https://img.shields.io/badge/Chat-Slack-blue.svg?logo=slack&style=flat&logoColor=black&labelColor=white&color=blue" alt="Community Slack" /></a> <a href="https://twitter.com/intent/follow?screen_name=Database_Lab" target="blank"><img src="https://img.shields.io/twitter/follow/Database_Lab.svg?style=social&maxAge=3600" alt="Twitter Follow" /></a>
+  <a href="../CODE_OF_CONDUCT.md"><img src="https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?logoColor=black&labelColor=white&color=blue" alt="Contributor Covenant" /></a> <a href="https://slack.postgres.ai" target="blank"><img src="https://img.shields.io/badge/Chat-Slack-blue.svg?logo=slack&style=flat&logoColor=black&labelColor=white&color=blue" alt="Community Slack" /></a> <a href="https://twitter.com/intent/follow?screen_name=Database_Lab" target="blank"><img src="https://img.shields.io/twitter/follow/Database_Lab.svg?style=social&maxAge=3600" alt="Twitter Follow" /></a>
 </div>
 
 <div align="center">
@@ -36,7 +34,7 @@
     <span> | </span>
     <a href="#спільнота-та-підтримка">Спільнота та підтримка</a>
     <span> | </span>
-    <a href="./CONTRIBUTING.md">Участь</a>
+    <a href="../CONTRIBUTING.md">Участь</a>
   </h3>
 </div>
 
@@ -107,7 +105,7 @@
 ### Поставте проекту зірочку
 Найпростіший спосіб підтримки - поставити проекту зірку на GitHub/GitLab:
 
-![Поставте зірку](./assets/star.gif)
+![Поставте зірку](../assets/star.gif)
 
 ### Вкажіть явно, що ви використовуєте DLE
 Будь ласка, опублікуйте твіт зі згадкою [@Database_Lab](https://twitter.com/Database_Lab) або поділіться посиланням на цей репозиторій у вашій улюбленій соціальній мережі.
@@ -137,10 +135,10 @@ HTML-код для світлих фонів:
 ```
 
 ### Запропонуйте ідею або повідомте про помилку
-Детальніше: [./CONTRIBUTING.md](./CONTRIBUTING.md).
+Детальніше: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ### Беріть участь у розробці
-Детальніше: [./CONTRIBUTING.md](./CONTRIBUTING.md).
+Детальніше: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ### Довідники
 - [Компоненти DLE](https://postgres.ai/docs/reference-guides/database-lab-engine-components)
@@ -170,13 +168,13 @@ HTML-код для світлих фонів:
 [![Статус FOSSA](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine.svg?type=large)](https://app .fossa.io/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine?ref=badge_large)
 
 ## Спільнота та підтримка
-- ["Кодекс поведінки спільноти Database Lab Engine"](./CODE_OF_CONDUCT.md)
+- ["Кодекс поведінки спільноти Database Lab Engine"](../CODE_OF_CONDUCT.md)
 - Де отримати допомогу: [Контактна сторінка](https://postgres.ai/contact)
 - [Спільнота у Телеграм (російська мова)](https://t.me/databaselabru)
 - [Спільнота у Slack](https://slack.postgres.ai)
-- Якщо вам потрібно повідомити про проблему безпеки, дотримуйтесь інструкцій у документі ["./SECURITY.md"](./SECURITY.md).
+- Якщо вам потрібно повідомити про проблему безпеки, дотримуйтесь інструкцій у документі ["SECURITY.md"](../SECURITY.md).
 
-[![Кодекс поведінки](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?color=blue)](./CODE_OF_CONDUCT.md)
+[![Кодекс поведінки](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?color=blue)](../CODE_OF_CONDUCT.md)
 
 <!--
 ## Переводы
