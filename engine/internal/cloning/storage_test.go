@@ -19,12 +19,12 @@ const (
       "id": "c5bfsk0hmvjd7kau71jg",
       "snapshot": {
         "id": "east5@snapshot_20211001112229",
-        "createdAt": "2021-10-01 11:23:11 +00:00",
-        "dataStateAt": "2021-10-01 11:22:29 +00:00"
+        "createdAt": "2021-10-01T11:23:11+00:00",
+        "dataStateAt": "2021-10-01T11:22:29+00:00"
       },
       "protected": false,
       "deleteAt": "",
-      "createdAt": "2021-10-01 12:25:52 +00:00",
+      "createdAt": "2021-10-01T12:25:52+00:00",
       "status": {
         "code": "OK",
         "message": "Clone is ready to accept Postgres connections."
