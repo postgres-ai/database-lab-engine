@@ -13,3 +13,16 @@ workflow:
 include:
   - local: 'engine/.gitlab-ci.yml'
   - local: 'ui/.gitlab-ci.yml'
+
+empty-job:
+  stage: test
+  script:
+    - echo 'success'
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - engine/**/*
+        - ui/**/*
+      when: never
