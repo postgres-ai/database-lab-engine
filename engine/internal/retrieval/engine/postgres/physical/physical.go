@@ -132,7 +132,7 @@ func (r *RestoreJob) getRestorer(tool string) (restorer, error) {
 		return newWALG(r.fsPool.DataDir(), r.WALG), nil
 
 	case pgbackrestTool:
-		return newPgBackRest(r.fsPool.DataDir(), r.PgBackRest), nil
+		return newPgBackRest(r.PgBackRest), nil
 
 	case customTool:
 		return newCustomTool(r.CustomTool), nil

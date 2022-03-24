@@ -16,8 +16,7 @@ const (
 
 // pgbackrest defines a pgBackRest as an archival restoration tool.
 type pgbackrest struct {
-	pgDataDir string
-	options   pgbackrestOptions
+	options pgbackrestOptions
 }
 
 type pgbackrestOptions struct {
@@ -25,26 +24,28 @@ type pgbackrestOptions struct {
 	ForceInit bool   `yaml:"forceInit"`
 }
 
-func newPgBackRest(pgDataDir string, options pgbackrestOptions) *pgbackrest {
+func newPgBackRest(options pgbackrestOptions) *pgbackrest {
 	return &pgbackrest{
-		pgDataDir: pgDataDir,
-		options:   options,
+		options: options,
 	}
 }
 
 // GetRestoreCommand returns a command to restore data.
 func (p *pgbackrest) GetRestoreCommand() string {
+	restoreCmd := fmt.Sprintf("sudo -Eu postgres pgbackrest --type=standby --pg1-path=${PGDATA} --stanza=%[1]s restore "+
+		"--recovery-option=restore_command='pgbackrest --pg1-path=${PGDATA} --stanza=%[1]s archive-get %%f %%p'", p.options.Stanza)
+
 	if p.options.ForceInit {
-		return fmt.Sprintf("sudo -Eu postgres pgbackrest --delta --type=standby --pg1-path=%s --stanza=%s restore", p.pgDataDir, p.options.Stanza)
+		restoreCmd += " --delta"
 	}
 
-	return fmt.Sprintf("sudo -Eu postgres pgbackrest --type=standby --pg1-path=%s --stanza=%s restore", p.pgDataDir, p.options.Stanza)
+	return restoreCmd
 }
 
 // GetRecoveryConfig returns a recovery config to restore data.
 func (p *pgbackrest) GetRecoveryConfig(pgVersion float64) map[string]string {
 	recoveryCfg := map[string]string{
-		"restore_command": fmt.Sprintf("pgbackrest --pg1-path=%s --stanza=%s archive-get %%f %%p", p.pgDataDir, p.options.Stanza),
+		"restore_command": fmt.Sprintf("pgbackrest --pg1-path=${PGDATA} --stanza=%s archive-get %%f %%p", p.options.Stanza),
 	}
 
 	if pgVersion < defaults.PGVersion12 {
