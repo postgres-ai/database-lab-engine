@@ -47,7 +47,7 @@ func AddEnvironmentToConfig(c *cli.Context, cfg *CLIConfig, environmentID string
 	}
 
 	if _, ok := cfg.Environments[environmentID]; ok {
-		return errors.Errorf("Environment %q is already initialized.", environmentID)
+		return errors.Errorf("environment %q is already initialized", environmentID)
 	}
 
 	env := Environment{
@@ -80,7 +80,7 @@ func updateEnvironmentInConfig(c *cli.Context, cfg *CLIConfig, environmentID str
 
 	environment, ok := cfg.Environments[environmentID]
 	if !ok {
-		return errors.Errorf("Environment %q not found.", environmentID)
+		return errors.Errorf("environment %q not found", environmentID)
 	}
 
 	if c.NumFlags() == 0 {
@@ -135,7 +135,7 @@ func switchToEnvironment(cfg *CLIConfig, environmentID string) error {
 
 	_, ok := cfg.Environments[environmentID]
 	if !ok {
-		return errors.Errorf("Environment %q not found.", environmentID)
+		return errors.Errorf("environment %q not found", environmentID)
 	}
 
 	cfg.CurrentEnvironment = environmentID
@@ -151,7 +151,7 @@ func removeByID(cfg *CLIConfig, environmentID string) error {
 
 	_, ok := cfg.Environments[environmentID]
 	if !ok {
-		return errors.Errorf("Environment %q not found.", environmentID)
+		return errors.Errorf("environment %q not found", environmentID)
 	}
 
 	delete(cfg.Environments, environmentID)
