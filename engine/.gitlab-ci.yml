@@ -1,5 +1,5 @@
 default:
-  image: golang:1.17
+  image: golang:1.18
 
 stages:
   - test
@@ -56,7 +56,7 @@ lint:
 ### Build binary.
 build-binary-alpine:
   <<: *only_engine
-  image: golang:1.17-alpine
+  image: golang:1.18-alpine
   stage: build-binary
   artifacts:
     paths:
