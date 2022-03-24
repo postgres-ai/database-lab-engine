@@ -165,8 +165,6 @@ HTML-код для светлых фонов:
 
 Свяжитесь с командой Postgres.ai, если вам нужна коммерческая лицензия, которая не содержит предложений GPL, а также, если вам нужна поддержка: [Контактная страница](https://postgres.ai/contact).
 
-[![Статус FOSSA](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine?ref=badge_large)
-
 ## Сообщество и Поддержка
 - ["Кодекс поведения сообщества Database Lab Engine"](../CODE_OF_CONDUCT.md)
 - Где получить помощь: [Контактная страница](https://postgres.ai/contact)

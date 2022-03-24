@@ -167,8 +167,6 @@ Der DLE-Quellcode ist unter der vom OSI genehmigten Open-Source-Lizenz GNU Affer
 
 Wenden Sie sich an das Postgres.ai-Team, wenn Sie eine Test- oder kommerzielle Lizenz wünschen, die die GPL-Klauseln nicht enthält: [Kontaktseite](https://postgres.ai/contact).
 
-[![FOSSA-Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine.svg?type=large)](https://app .fossa.io/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine?ref=badge_large)
-
 ## Gemeinschaftliche Unterstützung
 - ["Verhaltenskodex der Database Lab Engine Community Covenant"](../CODE_OF_CONDUCT.md)
 - Wo Sie Hilfe bekommen: [Kontaktseite](https://postgres.ai/contact)
