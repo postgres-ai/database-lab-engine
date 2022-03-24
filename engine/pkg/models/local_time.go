@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-const localTimeFormat = "2006-01-02 15:04:05 -07:00"
-
 // LocalTime defines a type of time with custom marshalling depends on locale.
 type LocalTime struct {
 	time.Time
@@ -30,7 +28,7 @@ func (t *LocalTime) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	parsedTime, err := time.Parse(localTimeFormat, string(localTime))
+	parsedTime, err := time.Parse(time.RFC3339, string(localTime))
 	if err != nil {
 		return err
 	}
@@ -46,5 +44,5 @@ func (t *LocalTime) MarshalJSON() ([]byte, error) {
 		return []byte(`""`), nil
 	}
 
-	return []byte(fmt.Sprintf("%q", t.Local().Format(localTimeFormat))), nil
+	return []byte(fmt.Sprintf("%q", t.Local().Format(time.RFC3339))), nil
 }

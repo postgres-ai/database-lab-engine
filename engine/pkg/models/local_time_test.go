@@ -18,7 +18,7 @@ func TestLocalTimeMarshalling(t *testing.T) {
 	}{
 		{
 			inputTime:   time.Date(2006, 02, 1, 15, 04, 05, 0, time.UTC),
-			marshalling: `"2006-02-01 15:04:05 +00:00"`,
+			marshalling: `"2006-02-01T15:04:05Z"`,
 		},
 		{
 			inputTime:   time.Time{},
@@ -45,7 +45,7 @@ func TestLocalTimeUnMarshalling(t *testing.T) {
 		expectedTime  time.Time
 	}{
 		{
-			unmarshalling: []byte(`"2006-02-01 15:04:05 +00:00"`),
+			unmarshalling: []byte(`"2006-02-01T15:04:05+00:00"`),
 			expectedTime:  time.Date(2006, 02, 1, 15, 04, 05, 0, time.Local),
 		},
 		{
