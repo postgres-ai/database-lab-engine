@@ -658,7 +658,9 @@ func buildSizeCommand(snapshot string) string {
 func (m *Manager) listDetails(filter snapshotFilter) ([]*ListEntry, error) {
 	// TODO(anatoly): Return map.
 	// TODO(anatoly): Generalize.
-	out, err := m.runner.Run(buildListCommand(filter), false)
+	listCommand := buildListCommand(filter)
+
+	out, err := m.runner.Run(listCommand, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list details")
 	}
@@ -718,7 +720,7 @@ func (m *Manager) listDetails(filter snapshotFilter) ([]*ListEntry, error) {
 
 			if err := rule.setFunc(rule.field); err != nil {
 				return nil, errors.Errorf("ZFS error: cannot parse output.\nCommand: %s.\nOutput: %s\nErr: %v",
-					buildListCommand(filter), out, err)
+					listCommand, out, err)
 			}
 		}
 

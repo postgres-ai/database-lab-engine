@@ -176,7 +176,6 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/clone/{id}", authMW.Authorized(s.patchClone)).Methods(http.MethodPatch)
 	r.HandleFunc("/clone/{id}", authMW.Authorized(s.getClone)).Methods(http.MethodGet)
 	r.HandleFunc("/clone/{id}/reset", authMW.Authorized(s.resetClone)).Methods(http.MethodPost)
-	r.HandleFunc("/clone/{id}", authMW.Authorized(s.getClone)).Methods(http.MethodGet)
 	r.HandleFunc("/observation/start", authMW.Authorized(s.startObservation)).Methods(http.MethodPost)
 	r.HandleFunc("/observation/stop", authMW.Authorized(s.stopObservation)).Methods(http.MethodPost)
 	r.HandleFunc("/observation/summary/{clone_id}/{session_id}", authMW.Authorized(s.sessionSummaryObservation)).Methods(http.MethodGet)

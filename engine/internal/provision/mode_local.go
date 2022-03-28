@@ -298,13 +298,6 @@ func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string
 	return snapshotModel, nil
 }
 
-// DiscoverSnapshots discovers snapshots from active pools.
-func (p *Provisioner) DiscoverSnapshots() {
-	for _, fsManager := range p.pm.GetAvailableFSManagers() {
-		fsManager.RefreshSnapshotList()
-	}
-}
-
 // GetSnapshots provides a snapshot list from active pools.
 func (p *Provisioner) GetSnapshots() ([]resources.Snapshot, error) {
 	snapshots := []resources.Snapshot{}

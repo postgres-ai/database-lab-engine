@@ -333,6 +333,8 @@ func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, 
 			continue
 		}
 
+		fsm.RefreshSnapshotList()
+
 		fsManagers[pool.Name] = fsm
 
 		front := poolList.Front()
