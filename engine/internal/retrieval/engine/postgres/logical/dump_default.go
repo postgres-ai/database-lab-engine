@@ -6,6 +6,7 @@ package logical
 
 import (
 	"context"
+	"fmt"
 )
 
 type defaultDumper struct {
@@ -25,6 +26,7 @@ func (d *defaultDumper) SetConnectionOptions(_ context.Context, c *Connection) e
 	return nil
 }
 
-func (d *defaultDumper) GetDatabaseListQuery() string {
-	return "select datname from pg_catalog.pg_database where not datistemplate"
+func (d *defaultDumper) GetDatabaseListQuery(username string) string {
+	return fmt.Sprintf(`select datname from pg_catalog.pg_database 
+	where not datistemplate and has_database_privilege('%s', datname, 'CONNECT')`, username)
 }
