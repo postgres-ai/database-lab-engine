@@ -117,7 +117,7 @@ type dumper interface {
 	SetConnectionOptions(context.Context, *Connection) error
 
 	// GetDatabaseListQuery provides the query to get the list of databases for dumping.
-	GetDatabaseListQuery() string
+	GetDatabaseListQuery(username string) string
 }
 
 // Connection provides connection options.
@@ -379,7 +379,7 @@ func (d *DumpJob) getDBList(ctx context.Context) (map[string]DumpDefinition, err
 		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}
 
-	rows, err := querier.Query(ctx, d.dumper.GetDatabaseListQuery())
+	rows, err := querier.Query(ctx, d.dumper.GetDatabaseListQuery(d.config.db.Username))
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform query listing databases: %w", err)
 	}

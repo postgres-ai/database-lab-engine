@@ -108,6 +108,7 @@ func (r *rdsDumper) SetConnectionOptions(ctx context.Context, c *Connection) err
 	return nil
 }
 
-func (r *rdsDumper) GetDatabaseListQuery() string {
-	return "select datname from pg_catalog.pg_database where not datistemplate"
+func (r *rdsDumper) GetDatabaseListQuery(username string) string {
+	return fmt.Sprintf(`select datname from pg_catalog.pg_database 
+	where not datistemplate and has_database_privilege('%s', datname, 'CONNECT')`, username)
 }

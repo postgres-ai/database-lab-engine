@@ -82,7 +82,7 @@ linters:
     - megacheck
     - misspell
     - prealloc
-#    - revive # temporarily disabled: https://gitlab.com/postgres-ai/database-lab/-/merge_requests/498
+    - revive
     - structcheck
     - stylecheck
     - unconvert
