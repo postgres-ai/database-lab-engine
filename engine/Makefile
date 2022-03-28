@@ -7,7 +7,7 @@ GOARCH = amd64
 
 COMMIT?=$(shell git rev-parse HEAD)
 BUILD_TIME?=$(shell date -u '+%Y%m%d-%H%M')
-VERSION=$(shell git describe --tags 2>/dev/null || echo "${COMMIT}")
+VERSION=$(shell git describe --tags --match "v*" 2>/dev/null || echo "${COMMIT}")
 
 # Symlink into GOPATH
 BUILD_DIR=${GOPATH}/${SERVER_BINARY}
