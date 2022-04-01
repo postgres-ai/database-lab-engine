@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
-import { parseISO9075Date } from '@postgres.ai/shared/utils/date'
+import { parseDate } from '@postgres.ai/shared/utils/date'
 import {
   SnapshotDto,
   formatSnapshotDto,
@@ -35,7 +35,7 @@ export type CloneDto = {
 export const formatCloneDto = (dto: CloneDto) => ({
   ...dto,
   createdAt: dto.createdAt,
-  createdAtDate: parseISO9075Date(dto.createdAt),
+  createdAtDate: parseDate(dto.createdAt),
   snapshot: dto.snapshot ? formatSnapshotDto(dto.snapshot) : null,
 })
 

@@ -1,4 +1,4 @@
-import { parseISO9075Date } from '@postgres.ai/shared/utils/date'
+import { parseDate } from '@postgres.ai/shared/utils/date'
 
 export type SnapshotDto = {
   createdAt: string
@@ -11,8 +11,8 @@ export type SnapshotDto = {
 
 export const formatSnapshotDto = (dto: SnapshotDto) => ({
   ...dto,
-  createdAtDate: parseISO9075Date(dto.createdAt),
-  dataStateAtDate: parseISO9075Date(dto.dataStateAt)
+  createdAtDate: parseDate(dto.createdAt),
+  dataStateAtDate: parseDate(dto.dataStateAt)
 })
 
 export type Snapshot = ReturnType<typeof formatSnapshotDto>
