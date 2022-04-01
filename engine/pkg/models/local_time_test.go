@@ -52,6 +52,10 @@ func TestLocalTimeUnMarshalling(t *testing.T) {
 			unmarshalling: []byte(`""`),
 			expectedTime:  time.Time{},
 		},
+		{
+			unmarshalling: []byte(`"2006-02-01 15:04:05 UTC"`),
+			expectedTime:  time.Date(2006, 02, 1, 15, 04, 05, 0, time.UTC),
+		},
 	}
 
 	for _, tc := range testCases {

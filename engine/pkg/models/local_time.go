@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const legacyFormat = "2006-01-02 15:04:05 UTC"
+
 // LocalTime defines a type of time with custom marshalling depends on locale.
 type LocalTime struct {
 	time.Time
@@ -30,7 +32,11 @@ func (t *LocalTime) UnmarshalJSON(data []byte) error {
 
 	parsedTime, err := time.Parse(time.RFC3339, string(localTime))
 	if err != nil {
-		return err
+		// Try to parse the legacy format to keep backward compatibility when restore clone sessions.
+		parsedTime, err = time.Parse(legacyFormat, string(localTime))
+		if err != nil {
+			return err
+		}
 	}
 
 	t.Time = parsedTime
