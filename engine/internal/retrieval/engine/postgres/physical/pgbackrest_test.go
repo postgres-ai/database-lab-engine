@@ -31,7 +31,7 @@ func TestPgBackRestRestoreCommand(t *testing.T) {
 		"--recovery-option=restore_command='pgbackrest --pg1-path=${PGDATA} --stanza=stanzaName archive-get %f %p'"
 	assert.Equal(t, expectedResponse, restoreCmd)
 
-	pgbackrest.options.ForceInit = true
+	pgbackrest.options.Delta = true
 	restoreCmd = pgbackrest.GetRestoreCommand()
 	expectedResponse = "sudo -Eu postgres pgbackrest --type=standby --pg1-path=${PGDATA} --stanza=stanzaName restore " +
 		"--recovery-option=restore_command='pgbackrest --pg1-path=${PGDATA} --stanza=stanzaName archive-get %f %p' --delta"

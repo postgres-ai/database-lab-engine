@@ -238,7 +238,7 @@ retrieval:
         # Defines pgBackRest configuration options.
         pgbackrest:
           stanza: stanzaName
-          forceInit: false
+          delta: false
 
     physicalSnapshot:
       options:
