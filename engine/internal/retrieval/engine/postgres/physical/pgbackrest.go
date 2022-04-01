@@ -20,8 +20,8 @@ type pgbackrest struct {
 }
 
 type pgbackrestOptions struct {
-	Stanza    string `yaml:"stanza"`
-	ForceInit bool   `yaml:"forceInit"`
+	Stanza string `yaml:"stanza"`
+	Delta  bool   `yaml:"delta"`
 }
 
 func newPgBackRest(options pgbackrestOptions) *pgbackrest {
@@ -35,7 +35,7 @@ func (p *pgbackrest) GetRestoreCommand() string {
 	restoreCmd := fmt.Sprintf("sudo -Eu postgres pgbackrest --type=standby --pg1-path=${PGDATA} --stanza=%[1]s restore "+
 		"--recovery-option=restore_command='pgbackrest --pg1-path=${PGDATA} --stanza=%[1]s archive-get %%f %%p'", p.options.Stanza)
 
-	if p.options.ForceInit {
+	if p.options.Delta {
 		restoreCmd += " --delta"
 	}
 
