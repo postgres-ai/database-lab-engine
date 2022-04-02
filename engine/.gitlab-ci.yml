@@ -159,6 +159,17 @@ build-image-feature-server:
     DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/dblab-server"
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
 
+build-image-feature-server-zfs2:
+  <<: *build_image_definition
+  <<: *only_feature
+  variables:
+    REGISTRY_USER: "${CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.dblab-server-zfs2"
+    DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/dblab-server"
+    TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}-zfs2"
+
 build-image-feature-ci-checker:
   <<: *build_image_definition
   <<: *only_feature
@@ -189,6 +200,14 @@ build-image-master-server:
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-server"
     TAGS: "${DOCKER_NAME}:master,${DOCKER_NAME}:master-${CI_COMMIT_SHORT_SHA}"
 
+build-image-master-server-zfs2:
+  <<: *build_image_definition
+  <<: *only_master
+  variables:
+    DOCKER_FILE: "Dockerfile.dblab-server-zfs2"
+    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-server"
+    TAGS: "${DOCKER_NAME}:master-zfs2,${DOCKER_NAME}:master-${CI_COMMIT_SHORT_SHA}-zfs2"
+
 build-image-master-ci-checker:
   <<: *build_image_definition
   <<: *only_master
@@ -218,6 +237,20 @@ build-image-latest-server:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export LATEST_TAG=$(echo ${CLEAN_TAG%.*}-latest)
     - export TAGS="${DOCKER_NAME}:${LATEST_TAG},${DOCKER_NAME}:${CLEAN_TAG}"
+
+build-image-latest-server-zfs2:
+  <<: *build_image_definition
+  <<: *only_tag_release
+  variables:
+    REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${DH_CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.dblab-server-zfs2"
+    DOCKER_NAME: "postgresai/dblab-server"
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
+    - export LATEST_TAG=$(echo ${CLEAN_TAG%.*}-latest)
+    - export TAGS="${DOCKER_NAME}:${LATEST_TAG}-zfs2,${DOCKER_NAME}:${CLEAN_TAG}-zfs2"
 
 build-image-latest-server-dev:
   <<: *build_image_definition
@@ -284,6 +317,19 @@ build-image-rc-server:
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-server"
+    DOCKER_NAME: "postgresai/dblab-server"
+
+build-image-rc-server-zfs2:
+  <<: *build_image_definition
+  <<: *only_tag_rc
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
+    - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}-zfs2"
+  variables:
+    REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${DH_CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.dblab-server-zfs2"
     DOCKER_NAME: "postgresai/dblab-server"
 
 build-image-rc-server-dev:
