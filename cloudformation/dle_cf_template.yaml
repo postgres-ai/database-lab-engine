@@ -1,0 +1,495 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS CloudFormation template DLE_Instance_Host: Creates a single EC2 instance based on Database Lab Engine (DLE) AMI,
+  configures DLE, launches the data retrieval process, eventually making it possible to create thin clones using DLE API, CLI, or UI.
+  You will be billed for the AWS resources used if you create a stack from this template.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - 
+        Label:
+          default: "Amazon EC2 configuration"
+        Parameters:
+          - InstanceType
+          - ZFSVolumeSize
+          - SSHLocation
+          - VPC
+          - Subnet
+          - KeyName  
+      - 
+        Label:
+          default: "Database Lab Engine (DLE) configuration"
+        Parameters:
+          - DLERetrievalRefreshTimetable
+          - PostgresDumpParallelJobs
+          - DLEVerificationToken
+          - DLEDebugMode
+      - 
+        Label:
+          default: "Source PostgreSQL parameters"
+        Parameters:
+          - SourcePostgresHost
+          - SourcePostgresPort
+          - SourcePostgresUsername
+          - SourcePostgresPassword
+          - SourcePostgresDBName
+          - SourcePostgresVersion
+          - PostgresConfigSharedPreloadLibraries
+          - SourcePostgresDBList 
+    ParameterLabels:
+      KeyName:
+        default: "Key pair"
+      VPC:
+        default: "VPC security group"
+      Subnet:
+        default: "Subnet"
+      InstanceType:
+        default: "EC2 instance type" 
+      SSHLocation:
+        default: "IP range for SSH connections"
+      ZFSVolumeSize:
+        default: "Size of EBS volume for PGDATA and temporary dump, GiB"
+      DLEDebugMode:
+        default: "Enable debug mode"
+      DLEVerificationToken:
+        default: "DLE verification token"
+      DLERetrievalRefreshTimetable:
+        default: "Data retrieval refresh timetable"       
+      PostgresDumpParallelJobs:
+        default: "Number of pg_dump jobs"
+      SourcePostgresDBName:
+        default: "Source DB name"
+      SourcePostgresVersion:
+        default: "Postgres version"
+      SourcePostgresHost:
+        default: "Host name or IP"
+      SourcePostgresPort:
+        default: "Port"
+      SourcePostgresUsername:
+        default: "User name"
+      SourcePostgresPassword:
+        default: "Password"
+      PostgresConfigSharedPreloadLibraries:
+        default: "shared_preload_libraries parameter"
+      SourcePostgresDBList:
+        default: "Comma separated list of databases to copy" 
+
+Parameters:
+  Subnet:
+    Description: Subnet to attach EC2 machine.
+    Type: AWS::EC2::Subnet::Id
+  VPC:
+    Description: VPC to attach EC2 machine.
+    Type: AWS::EC2::VPC::Id
+    ConstraintDescription: Can contain only ASCII characters and can not be empty.
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: Can contain only ASCII characters and can not be empty.
+  InstanceType:
+    Description: DLE EC2 instance type
+    Type: String
+    Default: t2.small
+    AllowedValues:
+      - t1.micro
+      - t2.nano
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - m1.small
+      - m1.medium
+      - m1.large
+      - m1.xlarge
+      - m2.xlarge
+      - m2.2xlarge
+      - m2.4xlarge
+      - m3.medium
+      - m3.large
+      - m3.xlarge
+      - m3.2xlarge
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.10xlarge
+      - c1.medium
+      - c1.xlarge
+      - c3.large
+      - c3.xlarge
+      - c3.2xlarge
+      - c3.4xlarge
+      - c3.8xlarge
+      - c4.large
+      - c4.xlarge
+      - c4.2xlarge
+      - c4.4xlarge
+      - c4.8xlarge
+      - g2.2xlarge
+      - g2.8xlarge
+      - r3.large
+      - r3.xlarge
+      - r3.2xlarge
+      - r3.4xlarge
+      - r3.8xlarge
+      - i2.xlarge
+      - i2.2xlarge
+      - i2.4xlarge
+      - i2.8xlarge
+      - d2.xlarge
+      - d2.2xlarge
+      - d2.4xlarge
+      - d2.8xlarge
+      - hi1.4xlarge
+      - hs1.8xlarge
+      - cr1.8xlarge
+      - cc2.8xlarge
+      - cg1.4xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+  SSHLocation:
+    Description: CIDR in format x.x.x.x/32 to allow one specific IP address access, 0.0.0.0/0 to allow all IP addresses access, or another CIDR range
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x
+  ZFSVolumeSize:
+    Description: The size of the EBS volumes used for DLE ZFS pool
+    Type: Number
+    Default: 40
+  DLEDebugMode:
+    Description: Enables DLE debug mode
+    Type: String
+    Default: True
+    AllowedValues:
+      - True
+      - False
+  DLEVerificationToken:
+    Description: DLE verification token
+    Type: String
+    Default: "example-verification-token" 
+    MinLength: '9'
+    MaxLength: '32'
+  DLERetrievalRefreshTimetable:
+    Description: DLE refresh schedule on cron format
+    Type: String
+    Default: '0 0 * * *'
+  SourcePostgresDBName:
+    Description: Source database name 
+    Type: String
+    Default: 'postgres'
+  SourcePostgresVersion:
+    Description: Source database Postgres version
+    Type: String
+    Default: 12
+    AllowedValues:
+      - 9.6
+      - 10
+      - 11
+      - 12
+      - 13
+      - 14
+  SourcePostgresHost:
+    Description: Source Postgres cluster host name or IP
+    Type: String
+    Default: ''
+  SourcePostgresPort:
+    Description: Source Postgres cluster port
+    Type: Number
+    MinValue: 1024
+    MaxValue: 65535
+    Default: 5432
+  SourcePostgresUsername:
+    Description: Source Postgres cluster username
+    Type: String
+    Default: postgres
+  SourcePostgresPassword:
+    Description: Source Postgres cluster password
+    Type: String
+    Default: ''
+    NoEcho: true
+  PostgresConfigSharedPreloadLibraries:
+    Description: Source Postgres shared_preload_libraries value
+    Type: String
+    Default: ''
+  PostgresDumpParallelJobs:
+    Description: Number of jobs to run pg_dump against the source database 
+    Type: String
+    Default: '1'
+  SourcePostgresDBList:
+    Description: List of database names on source for copy to DLE. Leave it empty to copy all accessible databases
+    Type: String
+    Default: ''  
+Mappings:
+  AWSInstanceType2Arch:
+    t1.micro:
+      Arch: HVM64
+    t2.nano:
+      Arch: HVM64
+    t2.micro:
+      Arch: HVM64
+    t2.small:
+      Arch: HVM64
+    t2.medium:
+      Arch: HVM64
+    t2.large:
+      Arch: HVM64
+    m1.small:
+      Arch: HVM64
+    m1.medium:
+      Arch: HVM64
+    m1.large:
+      Arch: HVM64
+    m1.xlarge:
+      Arch: HVM64
+    m2.xlarge:
+      Arch: HVM64
+    m2.2xlarge:
+      Arch: HVM64
+    m2.4xlarge:
+      Arch: HVM64
+    m3.medium:
+      Arch: HVM64
+    m3.large:
+      Arch: HVM64
+    m3.xlarge:
+      Arch: HVM64
+    m3.2xlarge:
+      Arch: HVM64
+    m4.large:
+      Arch: HVM64
+    m4.xlarge:
+      Arch: HVM64
+    m4.2xlarge:
+      Arch: HVM64
+    m4.4xlarge:
+      Arch: HVM64
+    m4.10xlarge:
+      Arch: HVM64
+    c1.medium:
+      Arch: HVM64
+    c1.xlarge:
+      Arch: HVM64
+    c3.large:
+      Arch: HVM64
+    c3.xlarge:
+      Arch: HVM64
+    c3.2xlarge:
+      Arch: HVM64
+    c3.4xlarge:
+      Arch: HVM64
+    c3.8xlarge:
+      Arch: HVM64
+    c4.large:
+      Arch: HVM64
+    c4.xlarge:
+      Arch: HVM64
+    c4.2xlarge:
+      Arch: HVM64
+    c4.4xlarge:
+      Arch: HVM64
+    c4.8xlarge:
+      Arch: HVM64
+    r3.large:
+      Arch: HVM64
+    r3.xlarge:
+      Arch: HVM64
+    r3.2xlarge:
+      Arch: HVM64
+    r3.4xlarge:
+      Arch: HVM64
+    r3.8xlarge:
+      Arch: HVM64
+    i2.xlarge:
+      Arch: HVM64
+    i2.2xlarge:
+      Arch: HVM64
+    i2.4xlarge:
+      Arch: HVM64
+    i2.8xlarge:
+      Arch: HVM64
+    d2.xlarge:
+      Arch: HVM64
+    d2.2xlarge:
+      Arch: HVM64
+    d2.4xlarge:
+      Arch: HVM64
+    d2.8xlarge:
+      Arch: HVM64
+    hi1.4xlarge:
+      Arch: HVM64
+    hs1.8xlarge:
+      Arch: HVM64
+    cr1.8xlarge:
+      Arch: HVM64
+    cc2.8xlarge:
+      Arch: HVM64
+  AWSRegionArch2AMI:
+    eu-north-1:
+      HVM64: ami-081887cbd4ae7185f
+    ap-south-1:
+      HVM64: ami-0bddbd3ec5d558943
+    eu-west-3:
+      HVM64: ami-052460c22a01cd753
+    eu-west-2:
+      HVM64: ami-04f292b00b02878fb
+    eu-west-1:
+      HVM64: ami-051b242c0685a2a0a
+    ap-northeast-3:
+      HVM64: ami-01d4b3bdb07544d3b
+    ap-northeast-2:
+      HVM64: ami-0b74271f84354121e
+    ap-northeast-1:
+      HVM64: ami-06e9318c86a7bd3cb
+    sa-east-1:
+      HVM64: ami-07e1a750e8779f490
+    ca-central-1:
+      HVM64: ami-0fbb25015660a32fe
+    ap-southeast-1:
+      HVM64: ami-04933b42f349e54c6
+    ap-southeast-2:
+      HVM64: ami-06357c78fa8690ba7
+    eu-central-1:
+      HVM64: ami-086d7d4e6d34451ad
+    us-east-1:
+      HVM64: ami-074808abc8d765331
+    us-east-2:
+      HVM64: ami-0d62c866f9add835d
+    us-west-1:
+      HVM64: ami-0df8bef65801e5602
+    us-west-2:
+      HVM64: ami-0ab2c332753acfe0c
+Resources:
+  ZFSVolume:
+    Type: AWS::EC2::Volume
+    DeletionPolicy: Snapshot
+    Properties:
+      Encrypted: True
+      AvailabilityZone: !GetAtt DLEInstance.AvailabilityZone
+      Size: !Ref ZFSVolumeSize
+      Tags:
+        -
+          Key: Name
+          Value: dle-zfs-volume
+      VolumeType: gp2
+  DLEInstance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: !FindInMap 
+        - AWSRegionArch2AMI
+        - !Ref 'AWS::Region'
+        - !FindInMap 
+          - AWSInstanceType2Arch
+          - !Ref InstanceType
+          - Arch
+      InstanceType: !Ref InstanceType
+      SecurityGroupIds:
+        - !GetAtt DLESecurityGroup.GroupId
+      KeyName: !Ref KeyName
+      SubnetId: !Ref Subnet
+      Tags:
+        -
+          Key: Name
+          Value: "DLE Instance"
+      UserData:
+        Fn::Base64: !Sub |     # No more Fn::Join needed
+          #!/bin/bash
+          set -ex
+
+          sleep 30
+
+          sudo zpool create -f \
+            -O compression=on \
+            -O atime=off \
+            -O recordsize=128k \
+            -O logbias=throughput \
+            -m /var/lib/dblab/dblab_pool \
+            dblab_pool \
+            /dev/xvdh
+
+          dle_config_path="/home/ubuntu/.dblab/engine/configs"
+          dle_meta_path="/home/ubuntu/.dblab/engine/meta"
+          postgres_conf_path="/home/ubuntu/.dblab/postgres_conf"
+
+          yq e -i '
+          .global.debug=${DLEDebugMode} |
+          .server.verificationToken="${DLEVerificationToken}" |
+          .retrieval.refresh.timetable="${DLERetrievalRefreshTimetable}" |
+          .retrieval.spec.logicalDump.options.source.connection.dbname="${SourcePostgresDBName}" |
+          .retrieval.spec.logicalRestore.options.forceInit=true |
+          .embeddedUI.host="" |
+          .databaseContainer.dockerImage="postgresai/extended-postgres:${SourcePostgresVersion}"
+          ' $dle_config_path/server.yml
+
+          yq e -i '
+          .retrieval.spec.logicalDump.options.source.connection.host = "${SourcePostgresHost}" |
+          .retrieval.spec.logicalDump.options.source.connection.port = ${SourcePostgresPort} |
+          .retrieval.spec.logicalDump.options.source.connection.username = "${SourcePostgresUsername}" |
+          .retrieval.spec.logicalDump.options.source.connection.password = "${SourcePostgresPassword}" |
+          .retrieval.spec.logicalDump.options.parallelJobs = ${PostgresDumpParallelJobs}
+          ' $dle_config_path/server.yml
+
+          for i in $(echo ${SourcePostgresDBList} | sed "s/,/ /g")
+          do
+            yq e -i "
+            .retrieval.spec.logicalDump.options.databases.$i = {}
+            " $dle_config_path/server.yml
+          done
+
+
+          sudo docker run \
+            --detach \
+            --name dblab_server \
+            --label dblab_control \
+            --privileged \
+            --publish 2345:2345 \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            --volume /var/lib/dblab:/var/lib/dblab/:rshared \
+            --volume /var/lib/dblab/dblab_pool/dump:/var/lib/dblab/dblab_pool/dump/:rshared \
+            --volume $dle_config_path:/home/dblab/configs:ro \
+            --volume $dle_meta_path:/home/dblab/meta \
+            --volume $postgres_conf_path:/home/dblab/standard/postgres/control \
+            --env DOCKER_API_VERSION=1.39 \
+            --restart on-failure \
+            registry.gitlab.com/postgres-ai/database-lab/dblab-server:3.0.1
+
+  MountPoint:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      InstanceId: !Ref DLEInstance
+      VolumeId: !Ref ZFSVolume
+      Device: /dev/xvdh
+  DLESecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable ssh access via port 22
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SSHLocation
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: '0.0.0.0/0'
+      VpcId: !Ref VPC
+Outputs:
+  DLEURL:
+    Description: URL for newly created DLE instance
+    Value: !Join 
+      - ''
+      - - 'http://'
+        - !GetAtt 
+          - DLEInstance
+          - PublicDnsName
+  DLETunneling:
+    Description: To connect to DLE istance you may use tunnel
+    Value: !Join 
+      - '' 
+      - - 'ssh -N -L 2345:'
+        - !GetAtt
+          - DLEInstance
+          - PublicDnsName
+        - ':2345 -i YOUR_PRIVATE_KEY ubuntu@'
+        - !GetAtt
+          - DLEInstance
+          - PublicDnsName 

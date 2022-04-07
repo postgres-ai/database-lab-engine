@@ -25,7 +25,9 @@ sudo apt-get update && sudo apt-get install -y \
   docker-ce-cli \
   containerd.io
 
-#sudo docker pull  postgresai/dblab-server:$dle_version
+# pull DLE  docker image
+image_version=$(echo ${dle_version} | sed 's/v*//')
+sudo docker pull  registry.gitlab.com/postgres-ai/database-lab/dblab-server:$image_version
 
 #install postgres client
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
