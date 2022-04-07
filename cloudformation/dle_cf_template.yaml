@@ -6,7 +6,7 @@ Description: >-
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - 
+      -
         Label:
           default: "Amazon EC2 configuration"
         Parameters:
@@ -15,8 +15,14 @@ Metadata:
           - SSHLocation
           - VPC
           - Subnet
-          - KeyName  
-      - 
+          - KeyName
+      - Label:
+          default: "TLS certificate configuration"
+        Parameters:
+          - CertificateSubdomain
+          - CertificateHostedZone
+          - CertificateEmail
+      -
         Label:
           default: "Database Lab Engine (DLE) configuration"
         Parameters:
@@ -24,7 +30,7 @@ Metadata:
           - PostgresDumpParallelJobs
           - DLEVerificationToken
           - DLEDebugMode
-      - 
+      -
         Label:
           default: "Source PostgreSQL parameters"
         Parameters:
@@ -35,30 +41,36 @@ Metadata:
           - SourcePostgresDBName
           - SourcePostgresVersion
           - PostgresConfigSharedPreloadLibraries
-          - SourcePostgresDBList 
+          - SourcePostgresDBList
     ParameterLabels:
       KeyName:
         default: "Key pair"
+      InstanceType:
+        default: "Instance type"
+      SSHLocation:
+        default: "Connection source IP range"
+      ZFSVolumeSize:
+        default: "EBS volume size in GB for ZFS"
+      CertificateSubdomain:
+        default: "Certificate subdomain"
+      CertificateHostedZone:
+        default: "Hosted zone"
+      CertificateEmail:
+        default: "Certificate email"
+      DLEDebugMode:
+        default: "DLE debug mode"
+      DLEVerificationToken:
+        default: "DLE verification token"
+      DLERetrievalRefreshTimetable:
+        default: "DLE retrieval refresh timetable"
+      PostgresDumpParallelJobs:
+        default: "Number of pg_dump jobs"
+      SourcePostgresDBName:
+        default: "Database name"
       VPC:
         default: "VPC security group"
       Subnet:
         default: "Subnet"
-      InstanceType:
-        default: "EC2 instance type" 
-      SSHLocation:
-        default: "IP range for SSH connections"
-      ZFSVolumeSize:
-        default: "Size of EBS volume for PGDATA and temporary dump, GiB"
-      DLEDebugMode:
-        default: "Enable debug mode"
-      DLEVerificationToken:
-        default: "DLE verification token"
-      DLERetrievalRefreshTimetable:
-        default: "Data retrieval refresh timetable"       
-      PostgresDumpParallelJobs:
-        default: "Number of pg_dump jobs"
-      SourcePostgresDBName:
-        default: "Source DB name"
       SourcePostgresVersion:
         default: "Postgres version"
       SourcePostgresHost:
@@ -72,7 +84,7 @@ Metadata:
       PostgresConfigSharedPreloadLibraries:
         default: "shared_preload_libraries parameter"
       SourcePostgresDBList:
-        default: "Comma separated list of databases to copy" 
+        default: "Comma separated list of databases to copy"
 
 Parameters:
   Subnet:
@@ -157,6 +169,18 @@ Parameters:
     Description: The size of the EBS volumes used for DLE ZFS pool
     Type: Number
     Default: 40
+  CertificateSubdomain:
+    Description: Subdomain to obtain a TLS certificate for (for example, dle)
+    Type: String
+  CertificateHostedZone:
+    Description: Hosted zone to obtain a TLS certificate for (for example, example.com)
+    Type: String
+  CertificateEmail:
+    Description: Email address for important account notifications about the issued TLS certificate
+    Type: String
+    AllowedPattern: '^$|[^\s@]+@[^\s@]+\.[^\s@]+'
+    Default: ''
+    ConstraintDescription: Must be a valid email of the form \'user@example.com\'
   DLEDebugMode:
     Description: Enables DLE debug mode
     Type: String
@@ -167,7 +191,7 @@ Parameters:
   DLEVerificationToken:
     Description: DLE verification token
     Type: String
-    Default: "example-verification-token" 
+    Default: "example-verification-token"
     MinLength: '9'
     MaxLength: '32'
   DLERetrievalRefreshTimetable:
@@ -175,7 +199,7 @@ Parameters:
     Type: String
     Default: '0 0 * * *'
   SourcePostgresDBName:
-    Description: Source database name 
+    Description: Source database name. This parameter is used to connect to the database
     Type: String
     Default: 'postgres'
   SourcePostgresVersion:
@@ -213,13 +237,13 @@ Parameters:
     Type: String
     Default: ''
   PostgresDumpParallelJobs:
-    Description: Number of jobs to run pg_dump against the source database 
+    Description: Number of jobs to run pg_dump against the source database
     Type: String
     Default: '1'
   SourcePostgresDBList:
     Description: List of database names on source for copy to DLE. Leave it empty to copy all accessible databases
     Type: String
-    Default: ''  
+    Default: ''
 Mappings:
   AWSInstanceType2Arch:
     t1.micro:
@@ -326,39 +350,44 @@ Mappings:
       Arch: HVM64
   AWSRegionArch2AMI:
     eu-north-1:
-      HVM64: ami-081887cbd4ae7185f
+      HVM64: ami-034e4aed1f3ca0c3c
     ap-south-1:
-      HVM64: ami-0bddbd3ec5d558943
+      HVM64: ami-0e659eacedfb041d7
     eu-west-3:
-      HVM64: ami-052460c22a01cd753
+      HVM64: ami-08e35ca54e9190c97
     eu-west-2:
-      HVM64: ami-04f292b00b02878fb
+      HVM64: ami-0ecae7aba70abc116
     eu-west-1:
-      HVM64: ami-051b242c0685a2a0a
+      HVM64: ami-042f1da51ef5fd484
     ap-northeast-3:
-      HVM64: ami-01d4b3bdb07544d3b
+      HVM64: ami-01e9e9d567c32dd8f
     ap-northeast-2:
-      HVM64: ami-0b74271f84354121e
+      HVM64: ami-090fe41b7122583e1
     ap-northeast-1:
-      HVM64: ami-06e9318c86a7bd3cb
+      HVM64: ami-071b0fe046bc270b3
     sa-east-1:
-      HVM64: ami-07e1a750e8779f490
+      HVM64: ami-07a47547657f8dc18
     ca-central-1:
-      HVM64: ami-0fbb25015660a32fe
+      HVM64: ami-0578cffaf594ab219
     ap-southeast-1:
-      HVM64: ami-04933b42f349e54c6
+      HVM64: ami-0f151d9dcf524c7c2
     ap-southeast-2:
-      HVM64: ami-06357c78fa8690ba7
+      HVM64: ami-005263d8988e47a47
     eu-central-1:
-      HVM64: ami-086d7d4e6d34451ad
+      HVM64: ami-0b32ee6d741554a21
     us-east-1:
-      HVM64: ami-074808abc8d765331
+      HVM64: ami-088b2214cd2a232dc
     us-east-2:
-      HVM64: ami-0d62c866f9add835d
+      HVM64: ami-033774769e0f3cfc7
     us-west-1:
-      HVM64: ami-0df8bef65801e5602
+      HVM64: ami-07215a5d464906c4c
     us-west-2:
-      HVM64: ami-0ab2c332753acfe0c
+      HVM64: ami-05b2a489e553d9f0c
+
+Conditions:
+  CreateSubDomain:
+    !Not [!Equals [!Ref CertificateHostedZone, '']]
+
 Resources:
   ZFSVolume:
     Type: AWS::EC2::Volume
@@ -372,19 +401,23 @@ Resources:
           Key: Name
           Value: dle-zfs-volume
       VolumeType: gp2
+
   DLEInstance:
     Type: 'AWS::EC2::Instance'
     Properties:
-      ImageId: !FindInMap 
+      ImageId: !FindInMap
         - AWSRegionArch2AMI
         - !Ref 'AWS::Region'
-        - !FindInMap 
+        - !FindInMap
           - AWSInstanceType2Arch
           - !Ref InstanceType
           - Arch
       InstanceType: !Ref InstanceType
-      SecurityGroupIds:
-        - !GetAtt DLESecurityGroup.GroupId
+      SecurityGroupIds: !If
+        - CreateSubDomain
+        - - !GetAtt DLESecurityGroup.GroupId
+          - !GetAtt DLEUISecurityGroup.GroupId
+        - - !GetAtt DLESecurityGroup.GroupId
       KeyName: !Ref KeyName
       SubnetId: !Ref Subnet
       Tags:
@@ -413,20 +446,23 @@ Resources:
 
           yq e -i '
           .global.debug=${DLEDebugMode} |
+          .embeddedUI.host="" |
           .server.verificationToken="${DLEVerificationToken}" |
           .retrieval.refresh.timetable="${DLERetrievalRefreshTimetable}" |
-          .retrieval.spec.logicalDump.options.source.connection.dbname="${SourcePostgresDBName}" |
           .retrieval.spec.logicalRestore.options.forceInit=true |
-          .embeddedUI.host="" |
-          .databaseContainer.dockerImage="postgresai/extended-postgres:${SourcePostgresVersion}"
+          .databaseContainer.dockerImage="postgresai/extended-postgres:${SourcePostgresVersion}" |
+          .databaseConfigs.configs.shared_preload_libraries="${PostgresConfigSharedPreloadLibraries}" |
+          .databaseContainer.dockerImage="postgresai/extended-postgres:${SourcePostgresVersion}" 
           ' $dle_config_path/server.yml
 
           yq e -i '
           .retrieval.spec.logicalDump.options.source.connection.host = "${SourcePostgresHost}" |
           .retrieval.spec.logicalDump.options.source.connection.port = ${SourcePostgresPort} |
+          .retrieval.spec.logicalDump.options.source.connection.dbname="${SourcePostgresDBName}" |
           .retrieval.spec.logicalDump.options.source.connection.username = "${SourcePostgresUsername}" |
           .retrieval.spec.logicalDump.options.source.connection.password = "${SourcePostgresPassword}" |
-          .retrieval.spec.logicalDump.options.parallelJobs = ${PostgresDumpParallelJobs}
+          .retrieval.spec.logicalDump.options.parallelJobs = ${PostgresDumpParallelJobs} |
+          .retrieval.spec.logicalRestore.options.configs.shared_preload_libraries = "${PostgresConfigSharedPreloadLibraries}"
           ' $dle_config_path/server.yml
 
           for i in $(echo ${SourcePostgresDBList} | sed "s/,/ /g")
@@ -450,8 +486,31 @@ Resources:
             --volume $dle_meta_path:/home/dblab/meta \
             --volume $postgres_conf_path:/home/dblab/standard/postgres/control \
             --env DOCKER_API_VERSION=1.39 \
-            --restart on-failure \
-            registry.gitlab.com/postgres-ai/database-lab/dblab-server:3.0.1
+            --restart always \
+            registry.gitlab.com/postgres-ai/database-lab/dblab-server:3.0.3
+
+          if [ ! -z "${CertificateHostedZone}" ]; then
+            export DOMAIN=${CertificateSubdomain}.${CertificateHostedZone}
+            export USER_EMAIL=${CertificateEmail}
+            export CERTIFICATE_EMAIL=${!USER_EMAIL:-'noreply@'$DOMAIN}
+
+            sudo certbot certonly --standalone -d $DOMAIN -m $CERTIFICATE_EMAIL --agree-tos -n
+            sudo cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem /etc/envoy/certs/fullchain1.pem
+            sudo cp /etc/letsencrypt/live/$DOMAIN/privkey.pem /etc/envoy/certs/privkey1.pem
+
+          cat <<EOF > /etc/letsencrypt/renewal-hooks/deploy/envoy.deploy
+          #!/bin/bash
+          umask 0177
+          export DOMAIN=${CertificateSubdomain}.${CertificateHostedZone}
+          export DATA_DIR=/etc/envoy/certs/
+          cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem $DATA_DIR/fullchain1.pem
+          cp /etc/letsencrypt/live/$DOMAIN/privkey.pem   $DATA_DIR/privkey1.pem
+          EOF
+            sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/envoy.deploy
+
+            sudo systemctl enable envoy
+            sudo systemctl start envoy
+          fi
 
   MountPoint:
     Type: AWS::EC2::VolumeAttachment
@@ -459,6 +518,28 @@ Resources:
       InstanceId: !Ref DLEInstance
       VolumeId: !Ref ZFSVolume
       Device: /dev/xvdh
+
+  DLEElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref DLEInstance
+
+  SubDomain:
+    Type: AWS::Route53::RecordSet
+    Condition: CreateSubDomain
+    Properties:
+      HostedZoneName: !Sub '${CertificateHostedZone}.'
+      Comment: DNS name for DLE instance.
+      Name: !Sub '${CertificateSubdomain}.${CertificateHostedZone}'
+      Type: CNAME
+      TTL: 60
+      ResourceRecords:
+        - !GetAtt DLEInstance.PublicDnsName
+    DependsOn:
+      - DLEInstance
+      - DLEElasticIP
+
   DLESecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -472,24 +553,72 @@ Resources:
         - IpProtocol: -1
           CidrIp: '0.0.0.0/0'
       VpcId: !Ref VPC
+
+  DLEUISecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Condition: CreateSubDomain
+    Properties:
+      GroupDescription: Enable ports to access DLE UI
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref SSHLocation
+
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref SSHLocation
+
+        - IpProtocol: tcp
+          FromPort: 446
+          ToPort: 446
+          CidrIp: !Ref SSHLocation
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: '0.0.0.0/0'
+      VpcId: !Ref VPC
+
+
 Outputs:
-  DLEURL:
+  VerificationToken:
+    Description: 'DLE verification token'
+    Value: !Ref DLEVerificationToken
+
+  DLE:
     Description: URL for newly created DLE instance
-    Value: !Join 
-      - ''
-      - - 'http://'
-        - !GetAtt 
-          - DLEInstance
-          - PublicDnsName
-  DLETunneling:
-    Description: To connect to DLE istance you may use tunnel
-    Value: !Join 
-      - '' 
-      - - 'ssh -N -L 2345:'
-        - !GetAtt
-          - DLEInstance
-          - PublicDnsName
-        - ':2345 -i YOUR_PRIVATE_KEY ubuntu@'
-        - !GetAtt
-          - DLEInstance
-          - PublicDnsName 
+    Value: !Sub 'https://${CertificateSubdomain}.${CertificateHostedZone}'
+    Condition: CreateSubDomain
+
+  UI:
+    Description: UI URL with a domain for newly created DLE instance
+    Value: !Sub 'https://${CertificateSubdomain}.${CertificateHostedZone}:446'
+    Condition: CreateSubDomain
+
+  DNSName:
+    Description: Public DNS name
+    Value: !GetAtt DLEInstance.PublicDnsName
+
+  EC2SSH:
+    Description: SSH connection to the EC2 instance with Database Lab Engine
+    Value: !Sub
+      - 'ssh -i YOUR_PRIVATE_KEY ubuntu@${DNSName}'
+      - DNSName: !GetAtt DLEInstance.PublicDnsName
+
+  DLETunnel:
+    Description: Create an SSH-tunnel to Database Lab Engine
+    Value: !Sub
+      - 'ssh -N -L 2345:${DNSName}:2345 -i YOUR_PRIVATE_KEY ubuntu@${DNSName}'
+      - DNSName: !GetAtt DLEInstance.PublicDnsName
+
+  UITunnel:
+    Description: Create an SSH-tunnel to Database Lab UI
+    Value: !Sub
+      - 'ssh -N -L 2346:${DNSName}:2346 -i YOUR_PRIVATE_KEY ubuntu@${DNSName}'
+      - DNSName: !GetAtt DLEInstance.PublicDnsName
+
+  CloneTunnel:
+    Description: Create an SSH-tunnel to Database Lab clones
+    Value: !Sub
+      - 'ssh -N -L CLONE_PORT:${DNSName}:CLONE_PORT -i YOUR_PRIVATE_KEY ubuntu@${DNSName}'
+      - DNSName: !GetAtt DLEInstance.PublicDnsName
