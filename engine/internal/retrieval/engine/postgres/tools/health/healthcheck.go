@@ -17,7 +17,7 @@ const (
 	hcInterval    = 5 * time.Second
 	hcTimeout     = 2 * time.Second
 	hcStartPeriod = 3 * time.Second
-	hcRetries     = 5
+	hcRetries     = 15
 
 	// DefaultRestoreInterval defines a default health check interval for database restoration.
 	DefaultRestoreInterval = 5 * time.Second
