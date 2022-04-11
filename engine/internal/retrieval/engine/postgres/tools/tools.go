@@ -302,7 +302,8 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 				return nil
 
 			case types.Unhealthy:
-				return errors.New("container health check failed")
+				return fmt.Errorf("container health check failed. The maximum number of attempts has reached: %d",
+					resp.Config.Healthcheck.Retries)
 			}
 
 			if healthCheckLength := len(resp.State.Health.Log); healthCheckLength > 0 {
