@@ -164,8 +164,6 @@ El código fuente de DLE tiene la licencia de código abierto aprobada por OSI G
 
 Comuníquese con el equipo de Postgres.ai si desea una licencia comercial o de prueba que no contenga las cláusulas GPL: [Página de contacto](https://postgres.ai/contact).
 
-[![Estado de FOSSA](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine?ref=badge_large)
-
 ## Comunidad & Apoyo
 - ["Código de conducta del Pacto de la comunidad de motor de laboratorio de base de datos"](../CODE_OF_CONDUCT.md)
 - Dónde obtener ayuda: [Página de contacto](https://postgres.ai/contact)
