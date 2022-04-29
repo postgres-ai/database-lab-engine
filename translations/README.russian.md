@@ -1,3 +1,10 @@
+<div align="center">
+  <img width="500" src="../assets/dle.svg" border="0" />
+  <sub><br /><a href="./README.german.md">Deutsch</a> | <a href="./README.portuguese-br.md">Português (BR)</a> | <a href="./README.russian.md">Русский</a> | <a href="./README.spanish.md">Español</a> | <a href="./README.ukrainian.md">Українська</a></sub>
+</div>
+
+<br />
+
 <div align="center"><img width="500" src="../assets/dle.svg" border="0" /></div>
 
 <div align="center"><h1 align="center">Database Lab Engine (DLE)</h1></div>
