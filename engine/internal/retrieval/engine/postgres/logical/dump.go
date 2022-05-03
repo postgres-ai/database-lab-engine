@@ -278,7 +278,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to create container %q", d.dumpContainerName())
 	}
 
-	defer tools.RemoveContainer(ctx, d.dockerClient, dumpCont.ID, cont.StopTimeout)
+	defer tools.RemoveContainer(ctx, d.dockerClient, dumpCont.ID, tools.DefaultStopTimeout)
 
 	defer func() {
 		if err != nil {
@@ -491,7 +491,7 @@ func setupPGData(ctx context.Context, dockerClient *client.Client, dataDir strin
 func updateConfigs(ctx context.Context, dockerClient *client.Client, dataDir, contID string, configs map[string]string) error {
 	log.Dbg("Stopping container to update configuration")
 
-	tools.StopContainer(ctx, dockerClient, contID, cont.StopTimeout)
+	tools.StopContainer(ctx, dockerClient, contID, tools.DefaultStopTimeout)
 
 	// Run basic PostgreSQL configuration.
 	cfgManager, err := pgconfig.NewCorrector(dataDir)

@@ -206,7 +206,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to create container %q", r.restoreContainerName())
 	}
 
-	defer tools.RemoveContainer(ctx, r.dockerClient, restoreCont.ID, cont.StopTimeout)
+	defer tools.RemoveContainer(ctx, r.dockerClient, restoreCont.ID, tools.DefaultStopTimeout)
 
 	defer func() {
 		if err != nil {
