@@ -170,7 +170,7 @@ Você pode encontrar mais [no seção "How-to guides"](https://postgres.ai/docs/
 ## Licença
 O código fonte do DLE está licensiado pela licença de código aberto GNU Affero General Public License version 3 (AGPLv3), aprovada pela OSI.
 
-Contacte o time do Postgres.ai se você desejar uma licença _trial_ ou comercial que não contenha as cláusulas da GPL:[Página de contato](https://postgres.ai/contact).
+Contacte o time do Postgres.ai se você desejar uma licença _trial_ ou comercial que não contenha as cláusulas da GPL: [Página de contato](https://postgres.ai/contact).
 
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine?ref=badge_large)
 
