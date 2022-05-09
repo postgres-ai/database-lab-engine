@@ -5,8 +5,6 @@
 
 <br />
 
-<div align="center"><img width="500" src="../assets/dle.svg" border="0" /></div>
-
 <div align="center"><h1 align="center">Database Lab Engine (DLE)</h1></div>
 
 <div align="center">
