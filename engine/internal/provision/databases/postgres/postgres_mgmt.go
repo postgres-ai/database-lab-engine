@@ -163,9 +163,10 @@ begin
     end loop;
   end loop;
 
-  -- Functions, 
+  -- Functions and Procedures, 
   for r in 
     select
+      p.prokind,
       p.proname,
       n.nspname,
       pg_catalog.pg_get_function_identity_arguments(p.oid) as args
@@ -173,11 +174,19 @@ begin
     join pg_catalog.pg_proc as p on p.pronamespace = n.oid
     where not n.nspname in ('pg_catalog', 'information_schema')
     and p.proname not ilike 'dblink%' -- We do not want dblink to be involved (exclusion)
+    and p.prokind in ('f', 'p', 'a', 'w')
   loop
     raise debug 'Changing ownership of function %.%(%) to %', 
                 r.nspname, r.proname, r.args, new_owner;
     execute format(
-      'alter function %I.%I(%s) owner to %I', -- todo: check support CamelStyle r.args
+      'alter %s %I.%I(%s) owner to %I', -- todo: check support CamelStyle r.args,
+      case r.prokind
+        when 'f' then 'function'
+        when 'w' then 'function'
+        when 'p' then 'procedure'
+        when 'a' then 'aggregate'
+        else 'unknown'
+      end,
       r.nspname,
       r.proname,
       r.args,
