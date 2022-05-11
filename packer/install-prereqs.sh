@@ -2,11 +2,28 @@
 
 set -euxo pipefail
 
+### Upgrade the existing software
 sudo apt update -y
 sudo apt upgrade -y
 sudo apt full-upgrade
 
-sudo apt-get update && sudo apt-get install -y \
+### Extend the list of apt repositories 
+# yq repo
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CC86BB64
+sudo add-apt-repository ppa:rmescandon/yq
+
+# Docker repo
+wget --quiet -O - https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+
+# Postgres PGDG repo 
+wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+sudo add-apt-repository "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main"
+
+sudo apt-get update -y
+
+### Installation steps – first, using apt, then non-apt steps, and, finally, get Docker container for DLE
+sudo apt-get install -y \
   apt-transport-https \
   ca-certificates \
   gnupg-agent \
@@ -15,41 +32,22 @@ sudo apt-get update && sudo apt-get install -y \
   curl \
   gnupg2 \
   zfsutils-linux \
-
-# Install Docker
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-
-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-sudo apt-get update && sudo apt-get install -y \
   docker-ce \
   docker-ce-cli \
-  containerd.io
+  containerd.io \
+  postgresql-client-14 \
+  s3fs \
+  yq \
+  jq
 
-# pull DLE  docker image
-image_version=$(echo ${dle_version} | sed 's/v*//')
-sudo docker pull  registry.gitlab.com/postgres-ai/database-lab/dblab-server:$image_version
-
-#install postgres client
-wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" |sudo tee /etc/apt/sources.list.d/pgdg.list
-sudo apt-get update && sudo apt-get install -y postgresql-client-13
-
-#install certbot
+# Install certbot
 sudo snap install certbot --classic
 sudo ln -s /snap/bin/certbot /usr/bin/certbot
 
-#install envoy
+# Install Envoy 
 curl https://func-e.io/install.sh | sudo bash -s -- -b /usr/local/bin
 sudo /usr/local/bin/func-e use 1.19.1 # https://www.envoyproxy.io/docs/envoy/latest/version_history/v1.20.0#incompatible-behavior-changes
 
-
-#install s3fs
-sudo apt install s3fs
-
-#install yq
-sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CC86BB64
-sudo add-apt-repository ppa:rmescandon/yq
-sudo apt update && sudo apt install yq -y
-
-#install jq
-sudo apt install jq -y
+# Pull DLE image
+image_version=$(echo ${dle_version} | sed 's/v*//')
+sudo docker pull registry.gitlab.com/postgres-ai/database-lab/dblab-server:$image_version
