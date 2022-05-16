@@ -114,6 +114,7 @@ declare
 begin
   new_owner := @usernameStr;
 
+  -- Schemas
   -- allow working with all schemas
   for r in select * from pg_namespace loop
     raise debug 'Changing ownership of schema % to %',
@@ -125,6 +126,31 @@ begin
     );
   end loop;
 
+  -- Types and Domains
+  -- d: domain (assuming that ALTER TYPE will be equivalent to ALTER DOMAIN)
+  -- e: enum
+  -- r: range
+  -- m: multirange
+  for r in
+    select n.nspname, t.typname
+    from pg_type t
+    join pg_namespace n on
+      n.oid = t.typnamespace
+      and not n.nspname in ('pg_catalog', 'information_schema')
+      and t.typtype in ('d', 'e', 'r', 'm')
+    order by t.typname
+  loop
+      raise debug 'Changing ownership of type %.% to %',
+                   r.nspname, r.typname, new_owner;
+      execute format(
+        'alter type %I.%I owner to %I;',
+        r.nspname,
+        r.typname,
+        new_owner
+      );
+  end loop;
+
+  -- Relations
   -- c: composite type
   -- p: partitioned table
   -- i: index
