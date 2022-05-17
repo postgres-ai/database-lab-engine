@@ -101,62 +101,31 @@ Parameters:
   InstanceType:
     Description: DLE EC2 instance type
     Type: String
-    Default: t2.small
+    Default: m5.4xlarge
     AllowedValues:
-      - t1.micro
-      - t2.nano
-      - t2.micro
-      - t2.small
-      - t2.medium
-      - t2.large
-      - m1.small
-      - m1.medium
-      - m1.large
-      - m1.xlarge
-      - m2.xlarge
-      - m2.2xlarge
-      - m2.4xlarge
-      - m3.medium
-      - m3.large
-      - m3.xlarge
-      - m3.2xlarge
-      - m4.large
-      - m4.xlarge
-      - m4.2xlarge
-      - m4.4xlarge
-      - m4.10xlarge
-      - c1.medium
-      - c1.xlarge
-      - c3.large
-      - c3.xlarge
-      - c3.2xlarge
-      - c3.4xlarge
-      - c3.8xlarge
-      - c4.large
-      - c4.xlarge
-      - c4.2xlarge
-      - c4.4xlarge
-      - c4.8xlarge
-      - g2.2xlarge
-      - g2.8xlarge
-      - r3.large
-      - r3.xlarge
-      - r3.2xlarge
-      - r3.4xlarge
-      - r3.8xlarge
-      - i2.xlarge
-      - i2.2xlarge
-      - i2.4xlarge
-      - i2.8xlarge
-      - d2.xlarge
-      - d2.2xlarge
-      - d2.4xlarge
-      - d2.8xlarge
-      - hi1.4xlarge
-      - hs1.8xlarge
-      - cr1.8xlarge
-      - cc2.8xlarge
-      - cg1.4xlarge
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.8xlarge
+      - r5.12xlarge
+      - r5.16xlarge
+      - r5.24xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5.8xlarge
+      - m5.12xlarge
+      - m5.16xlarge
+      - m5.24xlarge
+      - t3.nano
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
     ConstraintDescription: must be a valid EC2 instance type.
   SSHLocation:
     Description: CIDR in format x.x.x.x/32 to allow one specific IP address access, 0.0.0.0/0 to allow all IP addresses access, or another CIDR range
@@ -170,13 +139,13 @@ Parameters:
     Type: Number
     Default: 40
   CertificateSubdomain:
-    Description: Subdomain to obtain a TLS certificate for (for example, dle)
+    Description: Subdomain to obtain a TLS certificate for (for example, dle). Leave it empty if you don't need SSL connection or don't have Route 53 hosted zone.
     Type: String
   CertificateHostedZone:
-    Description: Hosted zone to obtain a TLS certificate for (for example, example.com)
+    Description: Hosted zone to obtain a TLS certificate for (for example, example.com). Leave it empty if you don't need SSL connection or don't have Route 53 hosted zone.
     Type: String
   CertificateEmail:
-    Description: Email address for important account notifications about the issued TLS certificate
+    Description: Email address for important account notifications about the issued TLS certificate. Leave it empty if you don't need SSL connection or don't have Route 53 hosted zone.
     Type: String
     AllowedPattern: '^$|[^\s@]+@[^\s@]+\.[^\s@]+'
     Default: ''
@@ -205,7 +174,7 @@ Parameters:
   SourcePostgresVersion:
     Description: Source database Postgres version
     Type: String
-    Default: 12
+    Default: 14
     AllowedValues:
       - 9.6
       - 10
@@ -246,144 +215,87 @@ Parameters:
     Default: ''
 Mappings:
   AWSInstanceType2Arch:
-    t1.micro:
+    r5.large:
       Arch: HVM64
-    t2.nano:
+    r5.xlarge:
       Arch: HVM64
-    t2.micro:
+    r5.2xlarge:
       Arch: HVM64
-    t2.small:
+    r5.4xlarge:
       Arch: HVM64
-    t2.medium:
+    r5.8xlarge:
       Arch: HVM64
-    t2.large:
+    r5.12xlarge:
       Arch: HVM64
-    m1.small:
+    r5.16xlarge:
       Arch: HVM64
-    m1.medium:
+    r5.24xlarge:
       Arch: HVM64
-    m1.large:
+    m5.large:
       Arch: HVM64
-    m1.xlarge:
+    m5.xlarge:
       Arch: HVM64
-    m2.xlarge:
+    m5.2xlarge:
       Arch: HVM64
-    m2.2xlarge:
+    m5.4xlarge:
       Arch: HVM64
-    m2.4xlarge:
+    m5.8xlarge:
       Arch: HVM64
-    m3.medium:
+    m5.12xlarge:
       Arch: HVM64
-    m3.large:
+    m5.16xlarge:
       Arch: HVM64
-    m3.xlarge:
+    m5.24xlarge:
       Arch: HVM64
-    m3.2xlarge:
+    t3.nano:
       Arch: HVM64
-    m4.large:
+    t3.micro:
       Arch: HVM64
-    m4.xlarge:
+    t3.small:
       Arch: HVM64
-    m4.2xlarge:
+    t3.medium:
       Arch: HVM64
-    m4.4xlarge:
+    t3.large:
       Arch: HVM64
-    m4.10xlarge:
+    t3.xlarge:
       Arch: HVM64
-    c1.medium:
-      Arch: HVM64
-    c1.xlarge:
-      Arch: HVM64
-    c3.large:
-      Arch: HVM64
-    c3.xlarge:
-      Arch: HVM64
-    c3.2xlarge:
-      Arch: HVM64
-    c3.4xlarge:
-      Arch: HVM64
-    c3.8xlarge:
-      Arch: HVM64
-    c4.large:
-      Arch: HVM64
-    c4.xlarge:
-      Arch: HVM64
-    c4.2xlarge:
-      Arch: HVM64
-    c4.4xlarge:
-      Arch: HVM64
-    c4.8xlarge:
-      Arch: HVM64
-    r3.large:
-      Arch: HVM64
-    r3.xlarge:
-      Arch: HVM64
-    r3.2xlarge:
-      Arch: HVM64
-    r3.4xlarge:
-      Arch: HVM64
-    r3.8xlarge:
-      Arch: HVM64
-    i2.xlarge:
-      Arch: HVM64
-    i2.2xlarge:
-      Arch: HVM64
-    i2.4xlarge:
-      Arch: HVM64
-    i2.8xlarge:
-      Arch: HVM64
-    d2.xlarge:
-      Arch: HVM64
-    d2.2xlarge:
-      Arch: HVM64
-    d2.4xlarge:
-      Arch: HVM64
-    d2.8xlarge:
-      Arch: HVM64
-    hi1.4xlarge:
-      Arch: HVM64
-    hs1.8xlarge:
-      Arch: HVM64
-    cr1.8xlarge:
-      Arch: HVM64
-    cc2.8xlarge:
+    t3.2xlarge:
       Arch: HVM64
   AWSRegionArch2AMI:
     eu-north-1:
-      HVM64: ami-034e4aed1f3ca0c3c
+      HVM64: ami-0665ae2cfbd4e342d
     ap-south-1:
-      HVM64: ami-0e659eacedfb041d7
+      HVM64: ami-0e374efc30e300f09
     eu-west-3:
-      HVM64: ami-08e35ca54e9190c97
+      HVM64: ami-0efda6ea87e5c4d96
     eu-west-2:
-      HVM64: ami-0ecae7aba70abc116
+      HVM64: ami-0687cbc11ebc16691
     eu-west-1:
-      HVM64: ami-042f1da51ef5fd484
+      HVM64: ami-0d50368f3e8f1ccc0
     ap-northeast-3:
-      HVM64: ami-01e9e9d567c32dd8f
+      HVM64: ami-0e65633c1b72de22f
     ap-northeast-2:
-      HVM64: ami-090fe41b7122583e1
+      HVM64: ami-02f4e02a76c68579d
     ap-northeast-1:
-      HVM64: ami-071b0fe046bc270b3
+      HVM64: ami-04603eedf1f55b4cb
     sa-east-1:
-      HVM64: ami-07a47547657f8dc18
+      HVM64: ami-05267d11294fbeb12
     ca-central-1:
-      HVM64: ami-0578cffaf594ab219
+      HVM64: ami-0504c9f745022749a
     ap-southeast-1:
-      HVM64: ami-0f151d9dcf524c7c2
+      HVM64: ami-0fdf327ea5e077df4
     ap-southeast-2:
-      HVM64: ami-005263d8988e47a47
+      HVM64: ami-01e5c77c1fbc46669
     eu-central-1:
-      HVM64: ami-0b32ee6d741554a21
+      HVM64: ami-0793f98b004f79c42
     us-east-1:
-      HVM64: ami-088b2214cd2a232dc
+      HVM64: ami-07ed8ca1867e9803a
     us-east-2:
-      HVM64: ami-033774769e0f3cfc7
+      HVM64: ami-042693a1c63d12800
     us-west-1:
-      HVM64: ami-07215a5d464906c4c
+      HVM64: ami-0484ba45ecb22a99e
     us-west-2:
-      HVM64: ami-05b2a489e553d9f0c
-
+      HVM64: ami-04859f68862a8bcfd
 Conditions:
   CreateSubDomain:
     !Not [!Equals [!Ref CertificateHostedZone, '']]
@@ -430,6 +342,10 @@ Resources:
           set -ex
 
           sleep 30
+          
+
+          # This code tested and works on Ubuntu 20.04 (current base AMI)
+          disk=$(lsblk -e7 --output PATH,NAME,FSTYPE  --json | jq -r '.blockdevices[] | select(.children == null and .fstype == null) | .path ')
 
           sudo zpool create -f \
             -O compression=on \
@@ -438,7 +354,7 @@ Resources:
             -O logbias=throughput \
             -m /var/lib/dblab/dblab_pool \
             dblab_pool \
-            /dev/xvdh
+            $disk
 
           dle_config_path="/home/ubuntu/.dblab/engine/configs"
           dle_meta_path="/home/ubuntu/.dblab/engine/meta"
