@@ -105,7 +105,22 @@ func (c *ObservingClone) getDBSize(ctx context.Context, dbSize *int64) error {
 
 // getMaxQueryTime gets maximum query duration.
 func (c *ObservingClone) getMaxQueryTime(ctx context.Context, maxTime *float64) error {
-	row := c.superUserDB.QueryRow(ctx, "select max(max_time) from pg_stat_statements")
+	var pgVersion int
+
+	row := c.superUserDB.QueryRow(ctx, "select current_setting('server_version_num')::int")
+
+	if err := row.Scan(&pgVersion); err != nil {
+		return fmt.Errorf("failed to define Postgres Version: %w", err)
+	}
+
+	const pgVersion13 = 130000
+
+	maxTimeQuery := "select max(max_time) from pg_stat_statements"
+	if pgVersion >= pgVersion13 {
+		maxTimeQuery = "select max(max_exec_time + max_plan_time) from pg_stat_statements"
+	}
+
+	row = c.superUserDB.QueryRow(ctx, maxTimeQuery)
 
 	return row.Scan(&maxTime)
 }
