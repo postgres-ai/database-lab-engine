@@ -155,7 +155,7 @@ Making Database Lab Engine more accessible to engineers around the Globe is a gr
 
 ### How-to guides
 - [How to install Database Lab with Terraform on AWS](https://postgres.ai/docs/how-to-guides/administration/install-database-lab-with-terraform)
-- [How to install and initialize Database Lab CLI](https://postgres.ai/docs/guides/cli/cli-install-init)
+- [How to install and initialize Database Lab CLI](https://postgres.ai/docs/how-to-guides/cli/cli-install-init)
 - [How to manage DLE](https://postgres.ai/docs/how-to-guides/administration)
 - [How to work with clones](https://postgres.ai/docs/how-to-guides/cloning)
 
