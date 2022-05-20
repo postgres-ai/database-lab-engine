@@ -34,14 +34,20 @@ Metadata:
         Label:
           default: "Source PostgreSQL parameters"
         Parameters:
+          - SourceDatabaseSize
           - SourcePostgresHost
           - SourcePostgresPort
           - SourcePostgresUsername
           - SourcePostgresPassword
           - SourcePostgresDBName
-          - SourcePostgresVersion
           - PostgresConfigSharedPreloadLibraries
           - SourcePostgresDBList
+      -
+        Label:
+          default: "Advanced DLE configuration"
+        Parameters:
+           - PostgresDockerImage
+           - DLEZFSDataSetsNumber
     ParameterLabels:
       KeyName:
         default: "Key pair"
@@ -49,8 +55,8 @@ Metadata:
         default: "Instance type"
       SSHLocation:
         default: "Connection source IP range"
-      ZFSVolumeSize:
-        default: "EBS volume size in GB for ZFS"
+      SourceDatabaseSize:
+        default: "Total source database size in GiB"
       CertificateSubdomain:
         default: "Certificate subdomain"
       CertificateHostedZone:
@@ -63,6 +69,10 @@ Metadata:
         default: "DLE verification token"
       DLERetrievalRefreshTimetable:
         default: "DLE retrieval refresh timetable"
+      PostgresDockerImage:
+        default: "Postgres docker image"
+      DLEZFSDataSetsNumber:
+        default: "Number of supported snapshots."
       PostgresDumpParallelJobs:
         default: "Number of pg_dump jobs"
       SourcePostgresDBName:
@@ -71,8 +81,6 @@ Metadata:
         default: "VPC security group"
       Subnet:
         default: "Subnet"
-      SourcePostgresVersion:
-        default: "Postgres version"
       SourcePostgresHost:
         default: "Host name or IP"
       SourcePostgresPort:
@@ -85,7 +93,6 @@ Metadata:
         default: "shared_preload_libraries parameter"
       SourcePostgresDBList:
         default: "Comma separated list of databases to copy"
-
 Parameters:
   Subnet:
     Description: Subnet to attach EC2 machine.
@@ -134,8 +141,8 @@ Parameters:
     MaxLength: '18'
     AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
     ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x
-  ZFSVolumeSize:
-    Description: The size of the EBS volumes used for DLE ZFS pool
+  SourceDatabaseSize:
+    Description: The size of the source databases used to calculate the size of EBS volume, in GiB
     Type: Number
     Default: 40
   CertificateSubdomain:
@@ -167,21 +174,20 @@ Parameters:
     Description: DLE refresh schedule on cron format
     Type: String
     Default: '0 0 * * *'
+  DLEZFSDataSetsNumber:
+    Description: Number of database copies needed
+    Type: Number
+    Default: 2
+    MinValue: 2
+    MaxValue: 100
+  PostgresDockerImage:
+    Description: Docker image to run PostgreSQL
+    Type: String
+    Default: 'postgresai/extended-postgres:14'
   SourcePostgresDBName:
     Description: Source database name. This parameter is used to connect to the database
     Type: String
     Default: 'postgres'
-  SourcePostgresVersion:
-    Description: Source database Postgres version
-    Type: String
-    Default: 14
-    AllowedValues:
-      - 9.6
-      - 10
-      - 11
-      - 12
-      - 13
-      - 14
   SourcePostgresHost:
     Description: Source Postgres cluster host name or IP
     Type: String
@@ -301,13 +307,45 @@ Conditions:
     !Not [!Equals [!Ref CertificateHostedZone, '']]
 
 Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal: {Service: [lambda.amazonaws.com]}
+          Action: ['sts:AssumeRole']
+      Path: "/"
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+  PowerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: !Sub |
+          var response = require('cfn-response');
+          exports.handler = function(event, context) {
+            var result = parseInt(event.ResourceProperties.Op1)*(parseInt(event.ResourceProperties.Op2)+2);
+            response.send(event, context, response.SUCCESS, {Value: result});
+          };
+      Runtime: nodejs14.x
+  SizeCalculate:
+    Type: Custom::Power
+    Properties:
+      ServiceToken: !GetAtt PowerFunction.Arn
+      Op1: !Ref SourceDatabaseSize
+      Op2: !Ref DLEZFSDataSetsNumber
+
   ZFSVolume:
     Type: AWS::EC2::Volume
     DeletionPolicy: Snapshot
     Properties:
       Encrypted: True
       AvailabilityZone: !GetAtt DLEInstance.AvailabilityZone
-      Size: !Ref ZFSVolumeSize
+      Size: !GetAtt SizeCalculate.Value
       Tags:
         -
           Key: Name
@@ -342,7 +380,6 @@ Resources:
           set -ex
 
           sleep 30
-          
 
           # This code tested and works on Ubuntu 20.04 (current base AMI)
           disk=$(lsblk -e7 --output PATH,NAME,FSTYPE  --json | jq -r '.blockdevices[] | select(.children == null and .fstype == null) | .path ')
@@ -356,6 +393,10 @@ Resources:
             dblab_pool \
             $disk
 
+          for i in {1..${DLEZFSDataSetsNumber}}; do
+            sudo zfs create dblab_pool/dataset_$i
+          done
+
           dle_config_path="/home/ubuntu/.dblab/engine/configs"
           dle_meta_path="/home/ubuntu/.dblab/engine/meta"
           postgres_conf_path="/home/ubuntu/.dblab/postgres_conf"
@@ -366,9 +407,11 @@ Resources:
           .server.verificationToken="${DLEVerificationToken}" |
           .retrieval.refresh.timetable="${DLERetrievalRefreshTimetable}" |
           .retrieval.spec.logicalRestore.options.forceInit=true |
-          .databaseContainer.dockerImage="postgresai/extended-postgres:${SourcePostgresVersion}" |
-          .databaseConfigs.configs.shared_preload_libraries="${PostgresConfigSharedPreloadLibraries}" |
-          .databaseContainer.dockerImage="postgresai/extended-postgres:${SourcePostgresVersion}" 
+          .poolManager.mountDir = "/var/lib/dblab/dblab_pool" |
+          .retrieval.spec.logicalDump.options.dumpLocation="/var/lib/dblab/dblab_pool/dataset_1/dump/" |
+          .retrieval.spec.logicalRestore.options.dumpLocation="/var/lib/dblab/dblab_pool/dataset_1/dump/" |
+          .databaseContainer.dockerImage="${PostgresDockerImage}" |
+          .databaseConfigs.configs.shared_preload_libraries="${PostgresConfigSharedPreloadLibraries}"
           ' $dle_config_path/server.yml
 
           yq e -i '
@@ -397,13 +440,13 @@ Resources:
             --publish 2345:2345 \
             --volume /var/run/docker.sock:/var/run/docker.sock \
             --volume /var/lib/dblab:/var/lib/dblab/:rshared \
-            --volume /var/lib/dblab/dblab_pool/dump:/var/lib/dblab/dblab_pool/dump/:rshared \
+            --volume /var/lib/dblab/dblab_pool/dataset_1/dump/:/var/lib/dblab/dblab_pool/dataset_1/dump/:rshared \
             --volume $dle_config_path:/home/dblab/configs:ro \
             --volume $dle_meta_path:/home/dblab/meta \
             --volume $postgres_conf_path:/home/dblab/standard/postgres/control \
             --env DOCKER_API_VERSION=1.39 \
             --restart always \
-            registry.gitlab.com/postgres-ai/database-lab/dblab-server:3.0.3
+            registry.gitlab.com/postgres-ai/database-lab/dblab-server:3.1.0
 
           if [ ! -z "${CertificateHostedZone}" ]; then
             export DOMAIN=${CertificateSubdomain}.${CertificateHostedZone}
@@ -495,7 +538,6 @@ Resources:
           CidrIp: '0.0.0.0/0'
       VpcId: !Ref VPC
 
-
 Outputs:
   VerificationToken:
     Description: 'DLE verification token'
@@ -510,6 +552,10 @@ Outputs:
     Description: UI URL with a domain for newly created DLE instance
     Value: !Sub 'https://${CertificateSubdomain}.${CertificateHostedZone}:446'
     Condition: CreateSubDomain
+
+  EBSVolume:
+    Description: Size of provisioned EBS volume
+    Value: !GetAtt SizeCalculate.Value
 
   DNSName:
     Description: Public DNS name
@@ -538,3 +584,4 @@ Outputs:
     Value: !Sub
       - 'ssh -N -L CLONE_PORT:${DNSName}:CLONE_PORT -i YOUR_PRIVATE_KEY ubuntu@${DNSName}'
       - DNSName: !GetAtt DLEInstance.PublicDnsName
+
