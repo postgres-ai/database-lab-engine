@@ -1,6 +1,6 @@
 <div align="center">
   <img width="500" src="./assets/dle.svg" border="0" />
-  <sub><br /><a href="./README.german.md">Deutsch</a> | <a href="./README.portuguese-br.md">Português (BR)</a> | <a href="./README.russian.md">Русский</a> | <a href="./README.spanish.md">Español</a> | <a href="./README.ukrainian.md">Українська</a></sub>
+  <sub><br /><a href="./translations/README.german.md">Deutsch</a> | <a href="./translations/README.portuguese-br.md">Português (BR)</a> | <a href="./translations/README.russian.md">Русский</a> | <a href="./translations/README.spanish.md">Español</a> | <a href="./translations/README.ukrainian.md">Українська</a></sub>
 </div>
 
 <br />
