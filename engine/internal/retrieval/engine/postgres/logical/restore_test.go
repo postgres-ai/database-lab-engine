@@ -122,6 +122,50 @@ func TestRestoreCommandBuilding(t *testing.T) {
 	}
 }
 
+func TestDumpCommandBuilding(t *testing.T) {
+	logicalJob := &DumpJob{
+		config: dumpJobConfig{
+			db: Connection{
+				Host:     "localhost",
+				Port:     5432,
+				DBName:   "postgres",
+				Username: "john",
+				Password: "secret",
+			},
+		},
+	}
+
+	testCases := []struct {
+		copyOptions DumpOptions
+		command     []string
+	}{
+		{
+			copyOptions: DumpOptions{
+				ParallelJobs: 1,
+				DumpLocation: "/tmp/db.dump",
+				Databases: map[string]DumpDefinition{
+					"testDB": {
+						Tables: []string{"test", "users"},
+						ExcludeTables: []string{
+							"test2",
+							"users2",
+						},
+					},
+				},
+			},
+			command: []string{"pg_dump", "--create", "--host", "localhost", "--port", "5432", "--username", "john", "--dbname", "testDB", "--jobs", "1", "--table", "test", "--table", "users", "--exclude-table", "test2", "--exclude-table", "users2", "--format", "directory", "--file", "/tmp/db.dump/testDB"},
+		},
+	}
+
+	for _, tc := range testCases {
+		logicalJob.DumpOptions = tc.copyOptions
+		for dbName, definition := range tc.copyOptions.Databases {
+			dumpCommand := logicalJob.buildLogicalDumpCommand(dbName, definition)
+			assert.Equal(t, tc.command, dumpCommand)
+		}
+	}
+}
+
 func TestDiscoverDumpDirectories(t *testing.T) {
 	t.Skip("docker client is required")
 

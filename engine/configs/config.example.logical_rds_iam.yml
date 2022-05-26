@@ -281,9 +281,15 @@ retrieval:
         #     format: directory
         #     # Compression (only for plain-text dumps): "gzip", "bzip2", or "no". Default: "no".
         #     compression: no
-        #     # Option for a partial restore. Do not specify the tables section to restore all available tables.
+        # Options for a partial dump.
+        # Do not specify the tables section to dump all available tables.
+        # Corresponds to the --table option of pg_dump.
         #     tables:
         #       - table1
+        # Do not dump data for any of the tables matching pattern.
+        # Corresponds to the --exclude-table option of pg_dump.
+        #     excludeTables:
+        #       - table2
         #   database2:
         #   databaseN:
 
