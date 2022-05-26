@@ -219,9 +219,15 @@ retrieval:
         # Do not specify the databases section to take all databases.
         # databases:
         #   database1:
-        #     # Option for a partial dump. Do not specify the tables section to dump all available tables.
+        # Options for a partial dump.
+        # Do not specify the tables section to dump all available tables.
+        # Corresponds to the --table option of pg_dump.
         #     tables:
         #       - table1
+        # Do not dump data for any of the tables matching pattern.
+        # Corresponds to the --exclude-table option of pg_dump.
+        #     excludeTables:
+        #       - table2
         #   database2:
         #   databaseN:
 

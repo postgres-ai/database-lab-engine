@@ -98,10 +98,11 @@ type Source struct {
 
 // DumpDefinition describes a database for dumping.
 type DumpDefinition struct {
-	Tables      []string        `yaml:"tables"`
-	Format      string          `yaml:"format"`
-	Compression compressionType `yaml:"compression"`
-	dbName      string
+	Tables        []string        `yaml:"tables"`
+	ExcludeTables []string        `yaml:"excludeTables"`
+	Format        string          `yaml:"format"`
+	Compression   compressionType `yaml:"compression"`
+	dbName        string
 }
 
 type dumpJobConfig struct {
@@ -435,12 +436,22 @@ func (d *DumpJob) cleanupDumpLocation(ctx context.Context, dumpContID string, db
 }
 
 func (d *DumpJob) dumpDatabase(ctx context.Context, dumpContID, dbName string, dumpDefinition DumpDefinition) error {
-	dumpCommand := d.buildLogicalDumpCommand(dbName, dumpDefinition.Tables)
-	log.Msg("Running dump command: ", dumpCommand)
+	dumpCommand := d.buildLogicalDumpCommand(dbName, dumpDefinition)
 
-	if len(dumpDefinition.Tables) > 0 {
-		log.Msg("Partial dump will be run. Tables for dumping: ", strings.Join(dumpDefinition.Tables, ", "))
+	if len(dumpDefinition.Tables) > 0 ||
+		len(dumpDefinition.ExcludeTables) > 0 {
+		log.Msg("Partial dump")
+
+		if len(dumpDefinition.Tables) > 0 {
+			log.Msg("Including tables: ", strings.Join(dumpDefinition.Tables, ", "))
+		}
+
+		if len(dumpDefinition.ExcludeTables) > 0 {
+			log.Msg("Excluding tables: ", strings.Join(dumpDefinition.ExcludeTables, ", "))
+		}
 	}
+
+	log.Msg("Running dump command: ", dumpCommand)
 
 	if output, err := d.performDumpCommand(ctx, dumpContID, types.ExecConfig{
 		Tty: true,
@@ -488,7 +499,12 @@ func setupPGData(ctx context.Context, dockerClient *client.Client, dataDir strin
 	return nil
 }
 
-func updateConfigs(ctx context.Context, dockerClient *client.Client, dataDir, contID string, configs map[string]string) error {
+func updateConfigs(
+	ctx context.Context,
+	dockerClient *client.Client,
+	dataDir, contID string,
+	configs map[string]string,
+) error {
 	log.Dbg("Stopping container to update configuration")
 
 	tools.StopContainer(ctx, dockerClient, contID, cont.StopTimeout)
@@ -605,19 +621,36 @@ func (d *DumpJob) getExecEnvironmentVariables() []string {
 	return execEnvs
 }
 
-func (d *DumpJob) buildLogicalDumpCommand(dbName string, tables []string) []string {
-	optionalArgs := map[string]string{
-		"--host":     d.config.db.Host,
-		"--port":     strconv.Itoa(d.config.db.Port),
-		"--username": d.config.db.Username,
-		"--dbname":   dbName,
-		"--jobs":     strconv.Itoa(d.DumpOptions.ParallelJobs),
+func (d *DumpJob) buildLogicalDumpCommand(dbName string, dump DumpDefinition) []string {
+	// don't use map here, it creates inconsistency in the order of arguments
+	dumpCmd := []string{"pg_dump", "--create"}
+
+	if d.config.db.Host != "" {
+		dumpCmd = append(dumpCmd, "--host", d.config.db.Host)
 	}
 
-	dumpCmd := append([]string{"pg_dump", "--create"}, prepareCmdOptions(optionalArgs)...)
+	if d.config.db.Port > 0 {
+		dumpCmd = append(dumpCmd, "--port", strconv.Itoa(d.config.db.Port))
+	}
 
-	for _, table := range tables {
+	if d.config.db.Username != "" {
+		dumpCmd = append(dumpCmd, "--username", d.config.db.Username)
+	}
+
+	if dbName != "" {
+		dumpCmd = append(dumpCmd, "--dbname", dbName)
+	}
+
+	if d.DumpOptions.ParallelJobs > 0 {
+		dumpCmd = append(dumpCmd, "--jobs", strconv.Itoa(d.DumpOptions.ParallelJobs))
+	}
+
+	for _, table := range dump.Tables {
 		dumpCmd = append(dumpCmd, "--table", table)
+	}
+
+	for _, table := range dump.ExcludeTables {
+		dumpCmd = append(dumpCmd, "--exclude-table", table)
 	}
 
 	// Define if restore directly or export to dump location.
@@ -650,18 +683,6 @@ func (d *DumpJob) buildLogicalRestoreCommand(dbName string) []string {
 	}
 
 	return restoreCmd
-}
-
-func prepareCmdOptions(options map[string]string) []string {
-	cmdOptions := []string{}
-
-	for optionKey, optionValue := range options {
-		if optionValue != "" {
-			cmdOptions = append(cmdOptions, optionKey, optionValue)
-		}
-	}
-
-	return cmdOptions
 }
 
 func (d *DumpJob) markDatabaseData() error {
