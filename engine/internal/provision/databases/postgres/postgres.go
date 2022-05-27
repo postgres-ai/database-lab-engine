@@ -193,3 +193,48 @@ func runSimpleSQL(command, connStr string) (string, error) {
 
 	return result, err
 }
+
+// runSQLSelectQuery executes a select query and returns the result as a slice of strings.
+func runSQLSelectQuery(selectQuery, connStr string) ([]string, error) {
+	result := make([]string, 0)
+	db, err := sql.Open("postgres", connStr)
+
+	if err != nil {
+		return result, fmt.Errorf("cannot connect to database: %w", err)
+	}
+
+	defer func() {
+		err := db.Close()
+
+		if err != nil {
+			log.Err("cannot close database connection.")
+		}
+	}()
+
+	rows, err := db.Query(selectQuery)
+
+	if err != nil {
+		return result, fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	for rows.Next() {
+		var s string
+
+		if e := rows.Scan(&s); e != nil {
+			log.Err("query execution error:", e)
+			return result, e
+		}
+
+		result = append(result, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		return result, fmt.Errorf("query execution error: %w", err)
+	}
+
+	if err := rows.Close(); err != nil {
+		return result, fmt.Errorf("cannot close database result: %w", err)
+	}
+
+	return result, err
+}

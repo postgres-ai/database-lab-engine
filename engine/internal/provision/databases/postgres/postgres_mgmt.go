@@ -70,6 +70,9 @@ func ResetAllPasswords(c *resources.AppConfig, whitelistUsers []string) error {
 	return nil
 }
 
+// selectAllDatabases provides a query to list available databases.
+const selectAllDatabases = "select datname from pg_catalog.pg_database where not datistemplate"
+
 // CreateUser defines a method for creation of Postgres user.
 func CreateUser(c *resources.AppConfig, user resources.EphemeralUser) error {
 	var query string
@@ -80,17 +83,43 @@ func CreateUser(c *resources.AppConfig, user resources.EphemeralUser) error {
 	}
 
 	if user.Restricted {
-		query = restrictedUserQuery(user.Name, user.Password, dbName)
+		// create restricted user
+		query = restrictedUserQuery(user.Name, user.Password)
+		out, err := runSimpleSQL(query, getPgConnStr(c.Host, dbName, c.DB.Username, c.Port))
+
+		if err != nil {
+			return fmt.Errorf("failed to create restricted user: %w", err)
+		}
+
+		log.Dbg("Restricted user has been created: ", out)
+
+		// set restricted user as owner for database objects
+		databaseList, err := runSQLSelectQuery(selectAllDatabases, getPgConnStr(c.Host, dbName, c.DB.Username, c.Port))
+
+		if err != nil {
+			return fmt.Errorf("failed list all databases: %w", err)
+		}
+
+		for _, database := range databaseList {
+			query = restrictedObjectsQuery(user.Name)
+			out, err = runSimpleSQL(query, getPgConnStr(c.Host, database, c.DB.Username, c.Port))
+
+			if err != nil {
+				return fmt.Errorf("failed to run objects restrict query: %w", err)
+			}
+
+			log.Dbg("Objects restriction applied", database, out)
+		}
 	} else {
 		query = superuserQuery(user.Name, user.Password)
-	}
 
-	out, err := runSimpleSQL(query, getPgConnStr(c.Host, dbName, c.DB.Username, c.Port))
-	if err != nil {
-		return errors.Wrap(err, "failed to run psql")
-	}
+		out, err := runSimpleSQL(query, getPgConnStr(c.Host, dbName, c.DB.Username, c.Port))
+		if err != nil {
+			return fmt.Errorf("failed to create superuser: %w", err)
+		}
 
-	log.Dbg("AddUser:", out)
+		log.Dbg("Super user has been created: ", out)
+	}
 
 	return nil
 }
@@ -99,13 +128,31 @@ func superuserQuery(username, password string) string {
 	return fmt.Sprintf(`create user %s with password %s login superuser;`, pq.QuoteIdentifier(username), pq.QuoteLiteral(password))
 }
 
-const restrictionTemplate = `
+const restrictionUserCreationTemplate = `
 -- create a new user 
 create user @username with password @password login;
+do $$
+declare
+  new_owner text;
+  object_type record;
+  r record;
+begin
+  new_owner := @usernameStr;
 
--- change a database owner
-alter database @database owner to @username; 
+  -- Changing owner of all databases
+  for r in select datname from pg_catalog.pg_database where not datistemplate loop
+    raise debug 'Changing owner of %', r.datname;
+    execute format(
+      'alter database %s owner to %s;',
+      r.datname,
+      new_owner
+    );
+  end loop;
+end
+$$;
+`
 
+const restrictionTemplate = `
 do $$
 declare
   new_owner text;
@@ -260,12 +307,20 @@ end
 $$;
 `
 
-func restrictedUserQuery(username, password, database string) string {
+func restrictedUserQuery(username, password string) string {
 	repl := strings.NewReplacer(
 		"@usernameStr", pq.QuoteLiteral(username),
 		"@username", pq.QuoteIdentifier(username),
 		"@password", pq.QuoteLiteral(password),
-		"@database", pq.QuoteIdentifier(database),
+	)
+
+	return repl.Replace(restrictionUserCreationTemplate)
+}
+
+func restrictedObjectsQuery(username string) string {
+	repl := strings.NewReplacer(
+		"@usernameStr", pq.QuoteLiteral(username),
+		"@username", pq.QuoteIdentifier(username),
 	)
 
 	return repl.Replace(restrictionTemplate)
