@@ -28,8 +28,7 @@ func TestRestrictedUserQuery(t *testing.T) {
 	t.Run("username and password must be quoted", func(t *testing.T) {
 		user := "user1"
 		pwd := "pwd"
-		db := "postgres"
-		query := restrictedUserQuery(user, pwd, db)
+		query := restrictedUserQuery(user, pwd)
 
 		assert.Contains(t, query, `create user "user1" with password 'pwd' login;`)
 		assert.Contains(t, query, `new_owner := 'user1'`)
@@ -39,10 +38,18 @@ func TestRestrictedUserQuery(t *testing.T) {
 	t.Run("special chars must be quoted", func(t *testing.T) {
 		user := "user.test\""
 		pwd := "pwd\\'--"
-		db := "postgres"
-		query := restrictedUserQuery(user, pwd, db)
+		query := restrictedUserQuery(user, pwd)
 
 		assert.Contains(t, query, `create user "user.test""" with password  E'pwd\\''--' login;`)
 		assert.Contains(t, query, `new_owner := 'user.test"'`)
 	})
+
+	t.Run("change owner of all databases", func(t *testing.T) {
+		user := "user.test"
+		pwd := "pwd"
+		query := restrictedUserQuery(user, pwd)
+
+		assert.Contains(t, query, `select datname from pg_catalog.pg_database where not datistemplat`)
+	})
+
 }
