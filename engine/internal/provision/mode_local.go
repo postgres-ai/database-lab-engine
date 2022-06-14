@@ -125,7 +125,7 @@ func (p *Provisioner) Init() error {
 		return fmt.Errorf("failed to revise port pool: %w", err)
 	}
 
-	if err := docker.PrepareImage(p.runner, p.config.DockerImage); err != nil {
+	if err := docker.PrepareImage(p.ctx, p.dockerClient, p.config.DockerImage); err != nil {
 		return fmt.Errorf("cannot prepare docker image %s: %w", p.config.DockerImage, err)
 	}
 

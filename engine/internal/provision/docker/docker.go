@@ -9,12 +9,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"strconv"
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/host"
@@ -22,13 +24,23 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 const (
 	labelClone = "dblab_clone"
+
+	// referenceKey uses as a filtering key to identify image tag.
+	referenceKey = "reference"
 )
 
 var systemVolumes = []string{"/sys", "/lib", "/proc"}
+
+// imagePullProgress describes the progress of pulling the container image.
+type imagePullProgress struct {
+	Status   string `json:"status"`
+	Progress string `json:"progress"`
+}
 
 // RunContainer runs specified container.
 func RunContainer(r runners.Runner, c *resources.AppConfig) error {
@@ -221,8 +233,8 @@ func Exec(r runners.Runner, c *resources.AppConfig, cmd string) (string, error) 
 }
 
 // PrepareImage prepares a Docker image to use.
-func PrepareImage(runner runners.Runner, dockerImage string) error {
-	imageExists, err := ImageExists(runner, dockerImage)
+func PrepareImage(ctx context.Context, docker *client.Client, dockerImage string) error {
+	imageExists, err := ImageExists(ctx, docker, dockerImage)
 	if err != nil {
 		return fmt.Errorf("cannot check docker image existence: %w", err)
 	}
@@ -231,7 +243,7 @@ func PrepareImage(runner runners.Runner, dockerImage string) error {
 		return nil
 	}
 
-	if err := PullImage(runner, dockerImage); err != nil {
+	if err := PullImage(ctx, docker, dockerImage); err != nil {
 		return fmt.Errorf("cannot pull docker image: %w", err)
 	}
 
@@ -239,23 +251,50 @@ func PrepareImage(runner runners.Runner, dockerImage string) error {
 }
 
 // ImageExists checks existence of Docker image.
-func ImageExists(r runners.Runner, dockerImage string) (bool, error) {
-	dockerListImagesCmd := "docker images " + dockerImage + " --quiet"
+func ImageExists(ctx context.Context, docker *client.Client, dockerImage string) (bool, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add(referenceKey, dockerImage)
 
-	out, err := r.Run(dockerListImagesCmd, true)
+	list, err := docker.ImageList(ctx, types.ImageListOptions{
+		All:     false,
+		Filters: filterArgs,
+	})
+
 	if err != nil {
 		return false, fmt.Errorf("failed to list images: %w", err)
 	}
 
-	return len(strings.TrimSpace(out)) > 0, nil
+	return len(list) > 0, nil
 }
 
 // PullImage pulls Docker image from DockerHub registry.
-func PullImage(r runners.Runner, dockerImage string) error {
-	dockerPullImageCmd := "docker pull " + dockerImage
+func PullImage(ctx context.Context, docker *client.Client, dockerImage string) error {
+	pullResponse, err := docker.ImagePull(ctx, dockerImage, types.ImagePullOptions{})
 
-	if _, err := r.Run(dockerPullImageCmd, true); err != nil {
-		return fmt.Errorf("failed to pull images: %w", err)
+	if err != nil {
+		return fmt.Errorf("failed to pull image: %w", err)
+	}
+
+	// reading output of image pulling, without reading pull will not be performed
+	decoder := json.NewDecoder(pullResponse)
+
+	for {
+		var pullResult imagePullProgress
+		if err := decoder.Decode(&pullResult); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+
+			return fmt.Errorf("failed to pull image: %w", err)
+		}
+
+		log.Dbg("Image pulling progress", pullResult.Status, pullResult.Progress)
+	}
+
+	err = pullResponse.Close()
+
+	if err != nil {
+		return fmt.Errorf("failed to pull image: %w", err)
 	}
 
 	return nil
