@@ -954,16 +954,17 @@ function SupportMenu(props) {
         </a>
       </ListItem>
       <ListItem button className={props.classes.bottomFixedMenuItem}>
-        <span
+        <a
           className={props.classes.menuSectionHeaderLink}
-          activeClassName={props.classes.menuSectionHeaderActiveLink}
-          onClick={() => window.Intercom && window.Intercom('show')}
+          activeClassName={props.classes.menuSectionHeaderLink}
+          target='_blank'
+          href={settings.rootUrl + '/contact'}
         >
           <span className={props.classes.menuSectionHeaderIcon}>
             {icons.supportIcon}
           </span>
           Ask support
-        </span>
+        </a>
       </ListItem>
     </List>
   );
