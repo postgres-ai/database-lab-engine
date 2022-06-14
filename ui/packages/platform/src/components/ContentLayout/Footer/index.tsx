@@ -59,7 +59,7 @@ export const Footer = () => {
 
   return (
     <div className={classes.footer}>
-      <div className={classes.footerCopyrightItem}>2021 © Postgres.ai</div>
+      <div className={classes.footerCopyrightItem}>{new Date().getFullYear()} © Postgres.ai</div>
       <div className={classes.footerItem}>
         <Link href={settings.rootUrl + '/docs'} target="_blank">
           Documentation
@@ -85,12 +85,9 @@ export const Footer = () => {
       </div>
       <div className={classes.footerItemSeparator}>|</div>
       <div className={classes.footerItem}>
-        <span
-          onClick={() => window.Intercom && window.Intercom('show')}
-          style={{ cursor: 'pointer' }}
-        >
+        <Link href={settings.rootUrl + '/contact'} target="_blank">
           Ask support
-        </span>
+        </Link>
       </div>
     </div>
   )
