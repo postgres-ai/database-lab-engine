@@ -93,6 +93,10 @@ type HealthCheck struct {
 
 // restorer describes the interface of tools for physical restore.
 type restorer interface {
+
+	// Init initialize restore tooling inside of container.
+	Init(ctx context.Context, containerID string) error
+
 	// GetRestoreCommand returns a command to restore data.
 	GetRestoreCommand() string
 
@@ -115,7 +119,7 @@ func NewJob(cfg config.JobConfig, global *global.Config, engineProps global.Engi
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
-	restorer, err := physicalJob.getRestorer(physicalJob.Tool)
+	restorer, err := physicalJob.getRestorer(cfg.Docker, physicalJob.Tool)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to init restorer")
 	}
@@ -126,10 +130,10 @@ func NewJob(cfg config.JobConfig, global *global.Config, engineProps global.Engi
 }
 
 // getRestorer builds a tool to perform physical restoring.
-func (r *RestoreJob) getRestorer(tool string) (restorer, error) {
+func (r *RestoreJob) getRestorer(client *client.Client, tool string) (restorer, error) {
 	switch tool {
 	case walgTool:
-		return newWALG(r.fsPool.DataDir(), r.WALG), nil
+		return newWALG(client, r.fsPool.DataDir(), r.WALG), nil
 
 	case pgbackrestTool:
 		return newPgBackRest(r.PgBackRest), nil
@@ -213,6 +217,10 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 	if err = r.dockerClient.ContainerStart(ctx, contID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to start container: %v", contID)
+	}
+
+	if err := r.restorer.Init(ctx, contID); err != nil {
+		return fmt.Errorf("failed to initialize restorer: %w", err)
 	}
 
 	log.Msg("Running restore command: ", r.restorer.GetRestoreCommand())

@@ -5,6 +5,7 @@
 package physical
 
 import (
+	"context"
 	"fmt"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
@@ -53,4 +54,9 @@ func (p *pgbackrest) GetRecoveryConfig(pgVersion float64) map[string]string {
 	}
 
 	return recoveryCfg
+}
+
+// Init initialize pgbackrest tool.
+func (p *pgbackrest) Init(ctx context.Context, containerID string) error {
+	return nil
 }
