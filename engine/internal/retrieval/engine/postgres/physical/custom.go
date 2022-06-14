@@ -5,6 +5,8 @@
 package physical
 
 import (
+	"context"
+
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
 )
 
@@ -45,4 +47,9 @@ func (c *custom) GetRecoveryConfig(pgVersion float64) map[string]string {
 	}
 
 	return recoveryCfg
+}
+
+// Init initialize custom recovery tool to work in provided container.
+func (c *custom) Init(ctx context.Context, containerID string) error {
+	return nil
 }
