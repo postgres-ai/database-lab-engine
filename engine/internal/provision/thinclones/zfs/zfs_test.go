@@ -199,7 +199,7 @@ func TestBuildingCommands(t *testing.T) {
 
 func TestSnapshotList(t *testing.T) {
 	t.Run("Snapshot list", func(t *testing.T) {
-		fsManager := NewFSManager(runnerMock{}, Config{})
+		fsManager := NewFSManager(runnerMock{}, Config{Pool: &resources.Pool{Name: "testPool"}})
 
 		require.Equal(t, 0, len(fsManager.SnapshotList()))
 
@@ -216,11 +216,11 @@ func TestSnapshotList(t *testing.T) {
 		fsManager.addSnapshotToList(snapshot3)
 
 		require.Equal(t, 3, len(fsManager.SnapshotList()))
-		require.Equal(t, []resources.Snapshot{{ID: "test1"}, {ID: "test2"}, {ID: "test3"}}, fsManager.SnapshotList())
+		require.Equal(t, []resources.Snapshot{{ID: "test3"}, {ID: "test2"}, {ID: "test1"}}, fsManager.SnapshotList())
 
 		fsManager.removeSnapshotFromList("test2")
 
 		require.Equal(t, 2, len(fsManager.SnapshotList()))
-		require.Equal(t, []resources.Snapshot{{ID: "test1"}, {ID: "test3"}}, fsManager.SnapshotList())
+		require.Equal(t, []resources.Snapshot{{ID: "test3"}, {ID: "test1"}}, fsManager.SnapshotList())
 	})
 }

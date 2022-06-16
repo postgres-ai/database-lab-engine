@@ -703,7 +703,6 @@ func (p *PhysicalInitial) parseWAL(ctx context.Context, containerID string, pgVe
 		Cmd: []string{"sh", "-c", cmd},
 	})
 	if err != nil {
-		log.Dbg("failed to parse WAL: ", err)
 		return ""
 	}
 

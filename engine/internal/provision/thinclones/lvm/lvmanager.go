@@ -47,6 +47,11 @@ func (m *LVManager) Pool() *resources.Pool {
 	return m.pool
 }
 
+// UpdateConfig updates the manager's pool.
+func (m *LVManager) UpdateConfig(pool *resources.Pool) {
+	m.pool = pool
+}
+
 // CreateClone creates a new volume.
 func (m *LVManager) CreateClone(name, _ string) error {
 	return CreateVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir())

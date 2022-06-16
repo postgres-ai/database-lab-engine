@@ -69,16 +69,12 @@ func NewManager(runner runners.Runner, config ManagerConfig) (FSManager, error) 
 
 	switch config.Pool.Mode {
 	case zfs.PoolMode:
-		osUser, err := user.Current()
+		zfsConfig, err := buildZFSConfig(config)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to get current user")
+			return nil, err
 		}
 
-		manager = zfs.NewFSManager(runner, zfs.Config{
-			Pool:              config.Pool,
-			PreSnapshotSuffix: config.PreSnapshotSuffix,
-			OSUsername:        osUser.Username,
-		})
+		manager = zfs.NewFSManager(runner, zfsConfig)
 
 	case lvm.PoolMode:
 		if manager, err = lvm.NewFSManager(runner, config.Pool); err != nil {
@@ -92,4 +88,42 @@ func NewManager(runner runners.Runner, config ManagerConfig) (FSManager, error) 
 	log.Dbg(fmt.Sprintf(`Using "%s" thin-clone manager.`, config.Pool.Mode))
 
 	return manager, nil
+}
+
+// BuildFromExistingManager prepares FSManager from an existing one.
+func BuildFromExistingManager(fsm FSManager, config ManagerConfig) (FSManager, error) {
+	switch manager := fsm.(type) {
+	case *zfs.Manager:
+		zfsConfig, err := buildZFSConfig(config)
+		if err != nil {
+			return nil, err
+		}
+
+		manager.UpdateConfig(zfsConfig)
+
+		fsm = manager
+
+	case *lvm.LVManager:
+		manager.UpdateConfig(config.Pool)
+
+		fsm = manager
+
+	default:
+		return nil, fmt.Errorf(`unsupported thin-clone manager: %T`, manager)
+	}
+
+	return fsm, nil
+}
+
+func buildZFSConfig(config ManagerConfig) (zfs.Config, error) {
+	osUser, err := user.Current()
+	if err != nil {
+		return zfs.Config{}, fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	return zfs.Config{
+		Pool:              config.Pool,
+		PreSnapshotSuffix: config.PreSnapshotSuffix,
+		OSUsername:        osUser.Username,
+	}, nil
 }

@@ -259,6 +259,10 @@ func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, 
 
 	poolMappings := make(map[string]string)
 
+	pm.mu.Lock()
+	originalPools := pm.fsManagerPool
+	pm.mu.Unlock()
+
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -324,10 +328,19 @@ func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, 
 			}
 		}
 
-		fsm, err := NewManager(pm.runner, ManagerConfig{
+		var fsm FSManager
+
+		managerConfig := ManagerConfig{
 			Pool:              pool,
 			PreSnapshotSuffix: pm.cfg.PreSnapshotSuffix,
-		})
+		}
+
+		if originalFSM, ok := originalPools[pool.Name]; ok {
+			fsm, err = BuildFromExistingManager(originalFSM, managerConfig)
+		} else {
+			fsm, err = NewManager(pm.runner, managerConfig)
+		}
+
 		if err != nil {
 			log.Msg("failed to create clone manager:", err.Error())
 			continue
