@@ -129,7 +129,7 @@ func (c *ObservingClone) getMaxQueryTime(ctx context.Context, maxTime *float64) 
 func (c *ObservingClone) countLogErrors(ctx context.Context, logErrors *LogErrors) error {
 	row := c.superUserDB.QueryRow(ctx, `select coalesce(sum(count), 0), coalesce(string_agg(distinct message, ','), '') 
 	from pg_log_errors_stats() 
-	where type in ('ERROR', 'FATAL') and database = current_database()`)
+	where type in ('ERROR', 'FATAL')`)
 
 	return row.Scan(&logErrors.Count, &logErrors.Message)
 }
