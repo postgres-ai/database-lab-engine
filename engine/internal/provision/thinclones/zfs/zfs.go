@@ -159,9 +159,10 @@ type Config struct {
 // NewFSManager creates a new Manager instance for ZFS.
 func NewFSManager(runner runners.Runner, config Config) *Manager {
 	m := Manager{
-		runner: runner,
-		config: config,
-		mu:     &sync.Mutex{},
+		runner:    runner,
+		config:    config,
+		mu:        &sync.Mutex{},
+		snapshots: make([]resources.Snapshot, 0),
 	}
 
 	return &m
@@ -170,6 +171,11 @@ func NewFSManager(runner runners.Runner, config Config) *Manager {
 // Pool gets a storage pool.
 func (m *Manager) Pool() *resources.Pool {
 	return m.config.Pool
+}
+
+// UpdateConfig updates the manager's configuration.
+func (m *Manager) UpdateConfig(cfg Config) {
+	m.config = cfg
 }
 
 // CreateClone creates a new ZFS clone.
@@ -316,14 +322,20 @@ func (m *Manager) CreateSnapshot(poolSuffix, dataStateAt string) (string, error)
 		return "", fmt.Errorf("failed to parse dataStateAt: %w", err)
 	}
 
-	m.addSnapshotToList(resources.Snapshot{
+	newSnapshot := resources.Snapshot{
 		ID:          snapshotName,
 		CreatedAt:   time.Now(),
 		DataStateAt: dataStateTime,
 		Pool:        m.config.Pool.Name,
-	})
+	}
 
-	go m.RefreshSnapshotList()
+	if !strings.HasSuffix(snapshotName, m.config.PreSnapshotSuffix) {
+		m.addSnapshotToList(newSnapshot)
+
+		log.Dbg("New snapshot:", newSnapshot)
+
+		m.RefreshSnapshotList()
+	}
 
 	return snapshotName, nil
 }
@@ -511,8 +523,11 @@ func (m *Manager) GetFilesystemState() (models.FileSystem, error) {
 
 // SnapshotList returns a list of snapshots.
 func (m *Manager) SnapshotList() []resources.Snapshot {
-	snapshotList := m.snapshots
-	return snapshotList
+	m.mu.Lock()
+	snapshots := m.snapshots
+	m.mu.Unlock()
+
+	return snapshots
 }
 
 // RefreshSnapshotList updates the list of snapshots.
@@ -559,20 +574,22 @@ func (m *Manager) getSnapshots() ([]resources.Snapshot, error) {
 
 func (m *Manager) addSnapshotToList(snapshot resources.Snapshot) {
 	m.mu.Lock()
-	m.snapshots = append(m.snapshots, snapshot)
+	m.snapshots = append([]resources.Snapshot{snapshot}, m.snapshots...)
 	m.mu.Unlock()
 }
 
 func (m *Manager) removeSnapshotFromList(snapshotName string) {
+	m.mu.Lock()
+
 	for i, snapshot := range m.snapshots {
 		if snapshot.ID == snapshotName {
-			m.mu.Lock()
-			m.snapshots = append(m.snapshots[:i], m.snapshots[i+1:]...)
-			m.mu.Unlock()
+			m.snapshots = append((m.snapshots)[:i], (m.snapshots)[i+1:]...)
 
 			break
 		}
 	}
+
+	m.mu.Unlock()
 }
 
 // ListFilesystems lists ZFS file systems (clones, pools).
