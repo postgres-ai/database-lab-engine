@@ -81,6 +81,18 @@ func main() {
 		return
 	}
 
+	if err := os.MkdirAll(source.RepoDir, 0666); err != nil {
+		log.Errf("failed to create a directory to download archives: %v", err)
+		return
+	}
+
+	defer func() {
+		if err := os.RemoveAll(source.RepoDir); err != nil {
+			log.Errf("failed to remove the directory with source code archives: %v", err)
+			return
+		}
+	}()
+
 	codeProvider := source.NewCodeProvider(ctx, &cfg.Source)
 
 	srv := runci.NewServer(cfg, dleClient, platformSvc, codeProvider, dockerCLI, networkID)
@@ -114,7 +126,7 @@ func discoverNetwork(ctx context.Context, cfg *runci.Config, dockerCLI *client.C
 	networkID := ""
 
 	for networkLabel, endpointSettings := range inspection.NetworkSettings.Networks {
-		if strings.HasPrefix(networkLabel, "network_") {
+		if strings.HasPrefix(networkLabel, networks.NetworkPrefix) {
 			networkResource, err := dockerCLI.NetworkInspect(ctx, endpointSettings.NetworkID, types.NetworkInspectOptions{})
 			if err != nil {
 				log.Err(err)
