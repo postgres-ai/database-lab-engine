@@ -23,8 +23,8 @@ const (
 	// InternalType contains name of the internal network type.
 	InternalType = "internal"
 
-	// networkPrefix defines a distinctive prefix for internal DLE networks.
-	networkPrefix = "dle_network_"
+	// NetworkPrefix defines a distinctive prefix for internal DLE networks.
+	NetworkPrefix = "dle_network_"
 )
 
 // Setup creates a new internal Docker network and connects container to it.
@@ -164,5 +164,5 @@ func hasContainerConnected(networkResource types.NetworkResource, containerID st
 }
 
 func getNetworkName(instanceID string) string {
-	return networkPrefix + instanceID
+	return NetworkPrefix + instanceID
 }

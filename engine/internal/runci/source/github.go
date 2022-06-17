@@ -44,7 +44,7 @@ func (cp *GHProvider) Download(ctx context.Context, opts Opts, outputFile string
 	log.Dbg(fmt.Sprintf("Download options: %#v", opts))
 
 	archiveLink, _, err := cp.client.Repositories.GetArchiveLink(ctx, opts.Owner, opts.Repo,
-		github.Zipball, &github.RepositoryContentGetOptions{Ref: opts.Ref}, true)
+		github.Zipball, &github.RepositoryContentGetOptions{Ref: getRunRef(opts)}, true)
 	if err != nil {
 		return errors.Wrap(err, "failed to download content")
 	}
@@ -72,6 +72,16 @@ func (cp *GHProvider) Download(ctx context.Context, opts Opts, outputFile string
 	return nil
 }
 
+func getRunRef(opts Opts) string {
+	ref := opts.Commit
+
+	if ref == "" {
+		ref = opts.Ref
+	}
+
+	return ref
+}
+
 // Extract extracts downloaded repository archive.
 func (cp *GHProvider) Extract(file string) (string, error) {
 	extractDirNameCmd := fmt.Sprintf("unzip -qql %s | head -n1 | tr -s ' ' | cut -d' ' -f5-", file)
@@ -85,14 +95,19 @@ func (cp *GHProvider) Extract(file string) (string, error) {
 
 	log.Dbg("Archive directory: ", string(bytes.TrimSpace(dirName)))
 
-	resp, err := exec.Command("unzip", "-d", RepoDir, file).CombinedOutput()
+	archiveDir, err := os.MkdirTemp(RepoDir, "*_extract")
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := exec.Command("unzip", "-d", archiveDir, file).CombinedOutput()
 	log.Dbg("Response: ", string(resp))
 
 	if err != nil {
 		return "", err
 	}
 
-	source := path.Join(RepoDir, string(bytes.TrimSpace(dirName)))
+	source := path.Join(archiveDir, string(bytes.TrimSpace(dirName)))
 	log.Dbg("Source: ", source)
 
 	return source, nil
