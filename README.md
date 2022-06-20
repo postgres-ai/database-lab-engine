@@ -11,7 +11,7 @@
 <div align="center">
   <strong>:zap: Blazing-fast cloning of PostgreSQL databases :elephant:</strong><br>
   Thin clones of PostgreSQL to build powerful development, test, QA, and staging environments.<br>
-  <sub>Available for any PostgreSQL, including AWS RDS, GCP CloudSQL, Heroku, Digital Ocean, and self-managed instances.</sub>
+  Available for any PostgreSQL, including AWS RDS<sup>*</sup>, GCP CloudSQL<sup>*</sup>, Heroku<sup>*</sup>, Digital Ocean<sup>*</sup>, and self-managed instances.
 </div>
 
 <br />
@@ -37,6 +37,9 @@
     <a href="./CONTRIBUTING.md">Contributing</a>
   </h3>
 </div>
+
+---
+  <sub><sup>*</sup> For a managed PostgreSQL cloud service such as AWS RDS or Heroku, where physical connection and access to PGDATA are not available, DLE is supposed to be running on a separate VM in the same region, performing periodical automated full refresh of data and serving itself as a database-as-a-service solution providing thin database clones for development and testing purposes.</sub>
 
 ## Why DLE?
 - Build dev/QA/staging environments based on full-size production-like databases.
