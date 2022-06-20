@@ -444,7 +444,9 @@ func (p *PhysicalInitial) startScheduler(ctx context.Context) {
 }
 
 func (p *PhysicalInitial) waitToStopScheduler() {
-	<-p.schedulerCtx.Done()
+	if p.schedulerCtx != nil {
+		<-p.schedulerCtx.Done()
+	}
 
 	if p.scheduler != nil {
 		log.Msg("Stop snapshot scheduler")

@@ -17,6 +17,7 @@ import (
 	"github.com/docker/go-units"
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
@@ -63,7 +64,7 @@ const (
 // TODO(akartasov): Control container manager.
 
 // StopControlContainers stops control containers run by Database Lab Engine.
-func StopControlContainers(ctx context.Context, dockerClient *client.Client, instanceID, dataDir string) error {
+func StopControlContainers(ctx context.Context, dockerClient *client.Client, instanceID string, fsm pool.FSManager) error {
 	log.Msg("Stop control containers")
 
 	list, err := getContainerList(ctx, dockerClient, instanceID, getControlContainerFilters())
@@ -80,10 +81,10 @@ func StopControlContainers(ctx context.Context, dockerClient *client.Client, ins
 			continue
 		}
 
-		if shouldStopInternalProcess(controlLabel) {
+		if shouldStopInternalProcess(controlLabel) && fsm != nil {
 			log.Msg("Stopping control container: ", containerName)
 
-			if err := tools.StopPostgres(ctx, dockerClient, controlCont.ID, dataDir, tools.DefaultStopTimeout); err != nil {
+			if err := tools.StopPostgres(ctx, dockerClient, controlCont.ID, fsm.Pool().DataDir(), tools.DefaultStopTimeout); err != nil {
 				log.Msg("Failed to stop Postgres", err)
 				tools.PrintContainerLogs(ctx, dockerClient, controlCont.ID)
 
