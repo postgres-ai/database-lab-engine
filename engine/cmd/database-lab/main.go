@@ -294,10 +294,8 @@ func setShutdownListener() chan os.Signal {
 func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, engProps global.EngineProps, fsm pool.FSManager) {
 	log.Msg("Stopping auxiliary containers")
 
-	if fsm != nil {
-		if err := cont.StopControlContainers(ctx, dockerCLI, engProps.InstanceID, fsm.Pool().DataDir()); err != nil {
-			log.Err("Failed to stop control containers", err)
-		}
+	if err := cont.StopControlContainers(ctx, dockerCLI, engProps.InstanceID, fsm); err != nil {
+		log.Err("Failed to stop control containers", err)
 	}
 
 	if err := cont.CleanUpSatelliteContainers(ctx, dockerCLI, engProps.InstanceID); err != nil {
