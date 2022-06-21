@@ -19,7 +19,6 @@ import (
 	"github.com/araddon/dateparse"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
@@ -541,19 +540,14 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 	}
 
 	// Run promotion container.
-	promoteCont, err := p.dockerClient.ContainerCreate(ctx,
-		p.buildContainerConfig(clonePath, promoteImage, pwd, recoveryConfig[targetActionOption]),
-		hostConfig,
-		&network.NetworkingConfig{},
-		nil,
-		p.promoteContainerName(),
-	)
+	containerID, err := tools.CreateContainerIfMissing(ctx, p.dockerClient, p.promoteContainerName(),
+		p.buildContainerConfig(clonePath, promoteImage, pwd, recoveryConfig[targetActionOption]), hostConfig)
 
 	if err != nil {
-		return errors.Wrap(err, "failed to create container")
+		return fmt.Errorf("failed to create container %w", err)
 	}
 
-	defer tools.RemoveContainer(ctx, p.dockerClient, promoteCont.ID, cont.StopPhysicalTimeout)
+	defer tools.RemoveContainer(ctx, p.dockerClient, containerID, cont.StopPhysicalTimeout)
 
 	defer func() {
 		if err != nil {
@@ -562,14 +556,14 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 		}
 	}()
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", p.promoteContainerName(), promoteCont.ID))
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", p.promoteContainerName(), containerID))
 
-	if err := p.dockerClient.ContainerStart(ctx, promoteCont.ID, types.ContainerStartOptions{}); err != nil {
+	if err := p.dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrap(err, "failed to start container")
 	}
 
 	if syState.DSA == "" {
-		dsa, err := p.getDSAFromWAL(ctx, cfgManager.GetPgVersion(), promoteCont.ID, clonePath)
+		dsa, err := p.getDSAFromWAL(ctx, cfgManager.GetPgVersion(), containerID, clonePath)
 		if err != nil {
 			log.Dbg("cannot extract DSA form WAL files: ", err)
 		}
@@ -584,11 +578,11 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 	log.Msg("Starting PostgreSQL and waiting for readiness")
 	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, p.promoteContainerName()))
 
-	if err := tools.CheckContainerReadiness(ctx, p.dockerClient, promoteCont.ID); err != nil {
+	if err := tools.CheckContainerReadiness(ctx, p.dockerClient, containerID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
 	}
 
-	shouldBePromoted, err := p.checkRecovery(ctx, promoteCont.ID)
+	shouldBePromoted, err := p.checkRecovery(ctx, containerID)
 	if err != nil {
 		return errors.Wrap(err, "failed to check recovery mode")
 	}
@@ -598,11 +592,11 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 	// Detect dataStateAt.
 	if shouldBePromoted == "t" {
 		// Promote PGDATA.
-		if err := p.runPromoteCommand(ctx, promoteCont.ID, clonePath); err != nil {
+		if err := p.runPromoteCommand(ctx, containerID, clonePath); err != nil {
 			return errors.Wrapf(err, "failed to promote PGDATA: %s", clonePath)
 		}
 
-		isInRecovery, err := p.checkRecovery(ctx, promoteCont.ID)
+		isInRecovery, err := p.checkRecovery(ctx, containerID)
 		if err != nil {
 			return errors.Wrap(err, "failed to check recovery mode after promotion")
 		}
@@ -612,18 +606,18 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 		}
 	}
 
-	if err := p.markDSA(ctx, syState.DSA, promoteCont.ID, clonePath, cfgManager.GetPgVersion()); err != nil {
+	if err := p.markDSA(ctx, syState.DSA, containerID, clonePath, cfgManager.GetPgVersion()); err != nil {
 		return errors.Wrap(err, "failed to mark dataStateAt")
 	}
 
 	if p.queryProcessor != nil {
-		if err := p.queryProcessor.applyPreprocessingQueries(ctx, promoteCont.ID); err != nil {
+		if err := p.queryProcessor.applyPreprocessingQueries(ctx, containerID); err != nil {
 			return errors.Wrap(err, "failed to run preprocessing queries")
 		}
 	}
 
 	// Checkpoint.
-	if err := p.checkpoint(ctx, promoteCont.ID); err != nil {
+	if err := p.checkpoint(ctx, containerID); err != nil {
 		return err
 	}
 
@@ -644,9 +638,9 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 		return errors.Wrap(err, "failed to store prepared configuration")
 	}
 
-	if err := tools.StopPostgres(ctx, p.dockerClient, promoteCont.ID, clonePath, tools.DefaultStopTimeout); err != nil {
+	if err := tools.StopPostgres(ctx, p.dockerClient, containerID, clonePath, tools.DefaultStopTimeout); err != nil {
 		log.Msg("Failed to stop Postgres", err)
-		tools.PrintContainerLogs(ctx, p.dockerClient, promoteCont.ID)
+		tools.PrintContainerLogs(ctx, p.dockerClient, containerID)
 	}
 
 	return nil

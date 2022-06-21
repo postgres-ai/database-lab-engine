@@ -13,7 +13,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
@@ -214,18 +213,14 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 	}
 
 	// Run patch container.
-	patchCont, err := s.dockerClient.ContainerCreate(ctx,
-		s.buildContainerConfig(dataDir, patchImage, pwd),
-		hostConfig,
-		&network.NetworkingConfig{},
-		nil,
-		s.patchContainerName(),
-	)
+	containerID, err := tools.CreateContainerIfMissing(ctx, s.dockerClient, s.patchContainerName(),
+		s.buildContainerConfig(dataDir, patchImage, pwd), hostConfig)
+
 	if err != nil {
-		return errors.Wrap(err, "failed to create container")
+		return fmt.Errorf("failed to create container %w", err)
 	}
 
-	defer tools.RemoveContainer(ctx, s.dockerClient, patchCont.ID, cont.StopPhysicalTimeout)
+	defer tools.RemoveContainer(ctx, s.dockerClient, containerID, cont.StopPhysicalTimeout)
 
 	defer func() {
 		if err != nil {
@@ -234,20 +229,20 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 		}
 	}()
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", s.patchContainerName(), patchCont.ID))
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", s.patchContainerName(), containerID))
 
-	if err := s.dockerClient.ContainerStart(ctx, patchCont.ID, types.ContainerStartOptions{}); err != nil {
+	if err := s.dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrap(err, "failed to start container")
 	}
 
 	log.Msg("Starting PostgreSQL and waiting for readiness")
 	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, s.patchContainerName()))
 
-	if err := tools.CheckContainerReadiness(ctx, s.dockerClient, patchCont.ID); err != nil {
+	if err := tools.CheckContainerReadiness(ctx, s.dockerClient, containerID); err != nil {
 		return errors.Wrap(err, "failed to readiness check")
 	}
 
-	if err := s.queryProcessor.applyPreprocessingQueries(ctx, patchCont.ID); err != nil {
+	if err := s.queryProcessor.applyPreprocessingQueries(ctx, containerID); err != nil {
 		return errors.Wrap(err, "failed to run preprocessing queries")
 	}
 

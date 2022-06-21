@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -520,4 +521,24 @@ func processAttachResponse(ctx context.Context, reader io.Reader) ([]byte, error
 	}
 
 	return bytes.TrimSpace(outBuf.Bytes()), nil
+}
+
+// CreateContainerIfMissing create a new container if there is no other container with the same name, if the container
+// exits returns existing container id.
+func CreateContainerIfMissing(ctx context.Context, docker *client.Client, containerName string,
+	config *container.Config, hostConfig *container.HostConfig) (string, error) {
+	containerData, err := docker.ContainerInspect(ctx, containerName)
+
+	if err == nil {
+		return containerData.ID, nil
+	}
+
+	createdContainer, err := docker.ContainerCreate(ctx, config, hostConfig, &network.NetworkingConfig{},
+		nil, containerName,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	return createdContainer.ID, nil
 }

@@ -20,7 +20,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/pkg/errors"
@@ -195,18 +194,13 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to generate PostgreSQL password")
 	}
 
-	restoreCont, err := r.dockerClient.ContainerCreate(ctx,
-		r.buildContainerConfig(pwd),
-		hostConfig,
-		&network.NetworkingConfig{},
-		nil,
-		r.restoreContainerName(),
-	)
+	containerID, err := tools.CreateContainerIfMissing(ctx, r.dockerClient, r.restoreContainerName(), r.buildContainerConfig(pwd), hostConfig)
+
 	if err != nil {
-		return errors.Wrapf(err, "failed to create container %q", r.restoreContainerName())
+		return fmt.Errorf("failed to create container %q %w", r.restoreContainerName(), err)
 	}
 
-	defer tools.RemoveContainer(ctx, r.dockerClient, restoreCont.ID, cont.StopTimeout)
+	defer tools.RemoveContainer(ctx, r.dockerClient, containerID, cont.StopTimeout)
 
 	defer func() {
 		if err != nil {
@@ -214,9 +208,9 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", r.restoreContainerName(), restoreCont.ID))
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", r.restoreContainerName(), containerID))
 
-	if err := r.dockerClient.ContainerStart(ctx, restoreCont.ID, types.ContainerStartOptions{}); err != nil {
+	if err := r.dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to start container %q", r.restoreContainerName())
 	}
 
@@ -224,24 +218,24 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 	log.Msg("Waiting for container readiness")
 
-	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, restoreCont.ID); err != nil {
+	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, containerID); err != nil {
 		var errHealthCheck *tools.ErrHealthCheck
 		if !errors.As(err, &errHealthCheck) {
 			return errors.Wrap(err, "failed to readiness check")
 		}
 
-		if err := setupPGData(ctx, r.dockerClient, dataDir, restoreCont.ID); err != nil {
+		if err := setupPGData(ctx, r.dockerClient, dataDir, containerID); err != nil {
 			return errors.Wrap(err, "failed to set up Postgres data")
 		}
 	}
 
 	if len(r.RestoreOptions.Configs) > 0 {
-		if err := updateConfigs(ctx, r.dockerClient, dataDir, restoreCont.ID, r.RestoreOptions.Configs); err != nil {
+		if err := updateConfigs(ctx, r.dockerClient, dataDir, containerID, r.RestoreOptions.Configs); err != nil {
 			return errors.Wrap(err, "failed to update configs")
 		}
 	}
 
-	dbList, err := r.getDBList(ctx, restoreCont.ID)
+	dbList, err := r.getDBList(ctx, containerID)
 	if err != nil {
 		return err
 	}
@@ -249,7 +243,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Dbg("Database List to restore: ", dbList)
 
 	for dbName, dbDefinition := range dbList {
-		if err := r.restoreDB(ctx, restoreCont.ID, dbName, dbDefinition); err != nil {
+		if err := r.restoreDB(ctx, containerID, dbName, dbDefinition); err != nil {
 			return errors.Wrap(err, "failed to restore a database")
 		}
 	}
@@ -261,11 +255,11 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 	log.Msg("Running analyze command: ", analyzeCmd)
 
-	if err := tools.ExecCommand(ctx, r.dockerClient, restoreCont.ID, types.ExecConfig{Cmd: analyzeCmd}); err != nil {
+	if err := tools.ExecCommand(ctx, r.dockerClient, containerID, types.ExecConfig{Cmd: analyzeCmd}); err != nil {
 		return errors.Wrap(err, "failed to recalculate statistics after restore")
 	}
 
-	if err := tools.StopPostgres(ctx, r.dockerClient, restoreCont.ID, dataDir, tools.DefaultStopTimeout); err != nil {
+	if err := tools.StopPostgres(ctx, r.dockerClient, containerID, dataDir, tools.DefaultStopTimeout); err != nil {
 		return errors.Wrap(err, "failed to stop Postgres instance")
 	}
 

@@ -15,7 +15,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/jackc/pgx/v4"
 	"github.com/pkg/errors"
@@ -30,7 +29,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
-
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
@@ -270,16 +268,13 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to generate PostgreSQL password")
 	}
 
-	dumpCont, err := d.dockerClient.ContainerCreate(ctx, d.buildContainerConfig(pwd), hostConfig, &network.NetworkingConfig{},
-		nil, d.dumpContainerName(),
-	)
-	if err != nil {
-		log.Err(err)
+	containerID, err := tools.CreateContainerIfMissing(ctx, d.dockerClient, d.dumpContainerName(), d.buildContainerConfig(pwd), hostConfig)
 
-		return errors.Wrapf(err, "failed to create container %q", d.dumpContainerName())
+	if err != nil {
+		return fmt.Errorf("failed to create container %q %w", d.dumpContainerName(), err)
 	}
 
-	defer tools.RemoveContainer(ctx, d.dockerClient, dumpCont.ID, cont.StopTimeout)
+	defer tools.RemoveContainer(ctx, d.dockerClient, containerID, cont.StopTimeout)
 
 	defer func() {
 		if err != nil {
@@ -287,9 +282,9 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", d.dumpContainerName(), dumpCont.ID))
+	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", d.dumpContainerName(), containerID))
 
-	if err := d.dockerClient.ContainerStart(ctx, dumpCont.ID, types.ContainerStartOptions{}); err != nil {
+	if err := d.dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to start container %q", d.dumpContainerName())
 	}
 
@@ -299,13 +294,13 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 
 	log.Msg("Waiting for container readiness")
 
-	if err := tools.MakeDir(ctx, d.dockerClient, dumpCont.ID, tmpDBLabPGDataDir); err != nil {
+	if err := tools.MakeDir(ctx, d.dockerClient, containerID, tmpDBLabPGDataDir); err != nil {
 		return err
 	}
 
 	dataDir := d.fsPool.DataDir()
 
-	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, dumpCont.ID); err != nil {
+	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, containerID); err != nil {
 		var errHealthCheck *tools.ErrHealthCheck
 		if !errors.As(err, &errHealthCheck) {
 			return errors.Wrap(err, "failed to readiness check")
@@ -316,13 +311,13 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 			pgDataDir = dataDir
 		}
 
-		if err := setupPGData(ctx, d.dockerClient, pgDataDir, dumpCont.ID); err != nil {
+		if err := setupPGData(ctx, d.dockerClient, pgDataDir, containerID); err != nil {
 			return errors.Wrap(err, "failed to set up Postgres data")
 		}
 	}
 
 	if d.DumpOptions.Restore.Enabled && len(d.DumpOptions.Restore.Configs) > 0 {
-		if err := updateConfigs(ctx, d.dockerClient, dataDir, dumpCont.ID, d.DumpOptions.Restore.Configs); err != nil {
+		if err := updateConfigs(ctx, d.dockerClient, dataDir, containerID, d.DumpOptions.Restore.Configs); err != nil {
 			return errors.Wrap(err, "failed to update configs")
 		}
 	}
@@ -336,12 +331,12 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 		}
 	}
 
-	if err := d.cleanupDumpLocation(ctx, dumpCont.ID, dbList); err != nil {
+	if err := d.cleanupDumpLocation(ctx, containerID, dbList); err != nil {
 		return err
 	}
 
 	for dbName, dbDetails := range dbList {
-		if err := d.dumpDatabase(ctx, dumpCont.ID, dbName, dbDetails); err != nil {
+		if err := d.dumpDatabase(ctx, containerID, dbName, dbDetails); err != nil {
 			return errors.Wrapf(err, "failed to dump the database %s", dbName)
 		}
 	}
@@ -358,11 +353,11 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 
 		log.Msg("Running analyze command: ", analyzeCmd)
 
-		if err := tools.ExecCommand(ctx, d.dockerClient, dumpCont.ID, types.ExecConfig{Cmd: analyzeCmd}); err != nil {
+		if err := tools.ExecCommand(ctx, d.dockerClient, containerID, types.ExecConfig{Cmd: analyzeCmd}); err != nil {
 			return errors.Wrap(err, "failed to recalculate statistics after restore")
 		}
 
-		if err := tools.StopPostgres(ctx, d.dockerClient, dumpCont.ID, dataDir, tools.DefaultStopTimeout); err != nil {
+		if err := tools.StopPostgres(ctx, d.dockerClient, containerID, dataDir, tools.DefaultStopTimeout); err != nil {
 			return errors.Wrap(err, "failed to stop Postgres instance")
 		}
 	}
