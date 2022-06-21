@@ -16,7 +16,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
@@ -291,17 +290,17 @@ func (r *RestoreJob) startContainer(ctx context.Context, containerName string, c
 		return "", err
 	}
 
-	newContainer, err := r.dockerClient.ContainerCreate(ctx, containerConfig, hostConfig, &network.NetworkingConfig{}, nil,
-		containerName)
+	containerID, err := tools.CreateContainerIfMissing(ctx, r.dockerClient, containerName, containerConfig, hostConfig)
+
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to create container %s", containerName)
+		return "", fmt.Errorf("failed to create container %q %w", containerName, err)
 	}
 
-	if err = r.dockerClient.ContainerStart(ctx, newContainer.ID, types.ContainerStartOptions{}); err != nil {
+	if err = r.dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
 		return "", errors.Wrapf(err, "failed to start container %s", containerName)
 	}
 
-	return newContainer.ID, nil
+	return containerID, nil
 }
 
 func (r *RestoreJob) syncInstanceName() string {

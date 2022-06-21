@@ -13,7 +13,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 
@@ -95,54 +94,37 @@ func (ui *UIManager) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to prepare Docker image: %w", err)
 	}
 
-	var containerID = ""
-
-	// try to fetch an existing UI container
-	containerData, err := ui.docker.ContainerInspect(ctx, getEmbeddedUIName(ui.engProps.InstanceID))
-
-	if err == nil {
-		containerID = containerData.ID
-	}
-
-	if containerID == "" {
-		embeddedUI, err := ui.docker.ContainerCreate(ctx,
-			&container.Config{
-				Labels: map[string]string{
-					cont.DBLabSatelliteLabel:  cont.DBLabEmbeddedUILabel,
-					cont.DBLabInstanceIDLabel: ui.engProps.InstanceID,
-					cont.DBLabEngineNameLabel: ui.engProps.ContainerName,
-				},
-				Image: ui.cfg.DockerImage,
-				Env: []string{
-					EnvEngineName + "=" + ui.engProps.ContainerName,
-					EnvEnginePort + "=" + strconv.FormatUint(uint64(ui.engProps.EnginePort), 10),
-				},
-				Healthcheck: &container.HealthConfig{
-					Interval: healthCheckInterval,
-					Timeout:  healthCheckTimeout,
-					Retries:  healthCheckRetries,
-				},
+	containerID, err := tools.CreateContainerIfMissing(ctx, ui.docker, getEmbeddedUIName(ui.engProps.InstanceID),
+		&container.Config{
+			Labels: map[string]string{
+				cont.DBLabSatelliteLabel:  cont.DBLabEmbeddedUILabel,
+				cont.DBLabInstanceIDLabel: ui.engProps.InstanceID,
+				cont.DBLabEngineNameLabel: ui.engProps.ContainerName,
 			},
-			&container.HostConfig{
-				PortBindings: map[nat.Port][]nat.PortBinding{
-					"80/tcp": {
-						{
-							HostIP:   ui.cfg.Host,
-							HostPort: strconv.Itoa(ui.cfg.Port),
-						},
+			Image: ui.cfg.DockerImage,
+			Env: []string{
+				EnvEngineName + "=" + ui.engProps.ContainerName,
+				EnvEnginePort + "=" + strconv.FormatUint(uint64(ui.engProps.EnginePort), 10),
+			},
+			Healthcheck: &container.HealthConfig{
+				Interval: healthCheckInterval,
+				Timeout:  healthCheckTimeout,
+				Retries:  healthCheckRetries,
+			},
+		},
+		&container.HostConfig{
+			PortBindings: map[nat.Port][]nat.PortBinding{
+				"80/tcp": {
+					{
+						HostIP:   ui.cfg.Host,
+						HostPort: strconv.Itoa(ui.cfg.Port),
 					},
 				},
 			},
-			&network.NetworkingConfig{},
-			nil,
-			getEmbeddedUIName(ui.engProps.InstanceID),
-		)
+		})
 
-		if err != nil {
-			return fmt.Errorf("failed to prepare Docker image for embedded UI: %w", err)
-		}
-
-		containerID = embeddedUI.ID
+	if err != nil {
+		return fmt.Errorf("failed to prepare Docker image for embedded UI: %w", err)
 	}
 
 	if err := networks.Connect(ctx, ui.docker, ui.engProps.InstanceID, containerID); err != nil {
