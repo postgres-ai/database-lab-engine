@@ -126,10 +126,7 @@ func main() {
 	emergencyShutdown := func() {
 		cancel()
 
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer shutdownCancel()
-
-		shutdownDatabaseLabEngine(shutdownCtx, docker, engProps, pm.First())
+		shutdownDatabaseLabEngine(context.Background(), docker, engProps, pm.First())
 	}
 
 	cloningSvc := cloning.NewBase(&cfg.Cloning, provisioner, tm, observingChan)
@@ -185,16 +182,18 @@ func main() {
 	<-shutdownCh
 	cancel()
 
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	ctxBackground := context.Background()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(ctxBackground, shutdownTimeout)
 	defer shutdownCancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Msg(err)
 	}
 
-	shutdownDatabaseLabEngine(shutdownCtx, docker, engProps, pm.First())
+	shutdownDatabaseLabEngine(ctxBackground, docker, engProps, pm.First())
 	cloningSvc.SaveClonesState()
-	tm.SendEvent(context.Background(), telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
+	tm.SendEvent(ctxBackground, telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
 }
 
 func getEngineProperties(ctx context.Context, dockerCLI *client.Client, cfg *config.Config) (global.EngineProps, error) {

@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
@@ -87,8 +87,6 @@ func StopControlContainers(ctx context.Context, dockerClient *client.Client, ins
 			if err := tools.StopPostgres(ctx, dockerClient, controlCont.ID, fsm.Pool().DataDir(), tools.DefaultStopTimeout); err != nil {
 				log.Msg("Failed to stop Postgres", err)
 				tools.PrintContainerLogs(ctx, dockerClient, controlCont.ID)
-
-				continue
 			}
 		}
 
@@ -114,7 +112,11 @@ func CleanUpControlContainers(ctx context.Context, dockerClient *client.Client, 
 // CleanUpSatelliteContainers removes satellite containers run by Database Lab Engine.
 func CleanUpSatelliteContainers(ctx context.Context, dockerClient *client.Client, instanceID string) error {
 	log.Msg("Clean up satellite containers")
-	return cleanUpContainers(ctx, dockerClient, instanceID, getSatelliteContainerFilters())
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(ctx, StopTimeout)
+	defer shutdownCancel()
+
+	return cleanUpContainers(shutdownCtx, dockerClient, instanceID, getSatelliteContainerFilters())
 }
 
 // cleanUpContainers removes containers run by Database Lab Engine.
