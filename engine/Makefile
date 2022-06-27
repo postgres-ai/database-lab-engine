@@ -44,6 +44,11 @@ build: ## Build binary files of all Database Lab components (Engine, CI Checker,
 	${GOBUILD} -o bin/${RUN_CI_BINARY} ./cmd/runci/main.go
 	${GOBUILD} -o bin/${CLI_BINARY} ./cmd/cli/main.go
 
+build-debug: ## Build the Database Lab Server binary for debugging
+	${GOBUILD} -ldflags "-X gitlab.com/postgres-ai/database-lab/v3/version.version=${VERSION} \
+	-X gitlab.com/postgres-ai/database-lab/v3/version.buildTime=${BUILD_TIME}" \
+	-gcflags="all=-N -l" -o bin/${SERVER_BINARY}-debug ./cmd/database-lab/main.go
+
 build-ci-checker: ## Build the Database Lab CI Checker binary
 	${GOBUILD} -o bin/${RUN_CI_BINARY} ./cmd/runci/main.go
 
