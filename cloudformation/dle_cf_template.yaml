@@ -108,7 +108,7 @@ Parameters:
   InstanceType:
     Description: DLE EC2 instance type
     Type: String
-    Default: m5.4xlarge
+    Default: m5.2xlarge
     AllowedValues:
       - r5.large
       - r5.xlarge
@@ -126,13 +126,6 @@ Parameters:
       - m5.12xlarge
       - m5.16xlarge
       - m5.24xlarge
-      - t3.nano
-      - t3.micro
-      - t3.small
-      - t3.medium
-      - t3.large
-      - t3.xlarge
-      - t3.2xlarge
     ConstraintDescription: must be a valid EC2 instance type.
   SSHLocation:
     Description: CIDR in format x.x.x.x/32 to allow one specific IP address access, 0.0.0.0/0 to allow all IP addresses access, or another CIDR range
@@ -253,58 +246,46 @@ Mappings:
       Arch: HVM64
     m5.24xlarge:
       Arch: HVM64
-    t3.nano:
-      Arch: HVM64
-    t3.micro:
-      Arch: HVM64
-    t3.small:
-      Arch: HVM64
-    t3.medium:
-      Arch: HVM64
-    t3.large:
-      Arch: HVM64
-    t3.xlarge:
-      Arch: HVM64
-    t3.2xlarge:
-      Arch: HVM64
   AWSRegionArch2AMI:
     eu-north-1:
-      HVM64: ami-0665ae2cfbd4e342d
+      HVM64: ami-0888261a1eacb636e
     ap-south-1:
-      HVM64: ami-0e374efc30e300f09
+      HVM64: ami-00539bfa7a6926e1b
     eu-west-3:
-      HVM64: ami-0efda6ea87e5c4d96
+      HVM64: ami-038d1f1d1ef71112b
     eu-west-2:
-      HVM64: ami-0687cbc11ebc16691
+      HVM64: ami-07c2bca027887871b
     eu-west-1:
-      HVM64: ami-0d50368f3e8f1ccc0
+      HVM64: ami-0e38f0f4f0acd49c2
     ap-northeast-3:
-      HVM64: ami-0e65633c1b72de22f
+      HVM64: ami-01cd2976ef1688c25
     ap-northeast-2:
-      HVM64: ami-02f4e02a76c68579d
+      HVM64: ami-049c608703690f99e
     ap-northeast-1:
-      HVM64: ami-04603eedf1f55b4cb
+      HVM64: ami-0cb59515cd67fdc93
     sa-east-1:
-      HVM64: ami-05267d11294fbeb12
+      HVM64: ami-0b3aeaa58412025de
     ca-central-1:
-      HVM64: ami-0504c9f745022749a
+      HVM64: ami-075d0aae6fdd356b1
     ap-southeast-1:
-      HVM64: ami-0fdf327ea5e077df4
+      HVM64: ami-054e735ba76985f92
     ap-southeast-2:
-      HVM64: ami-01e5c77c1fbc46669
+      HVM64: ami-06558ef4fedcf3c2f
     eu-central-1:
-      HVM64: ami-0793f98b004f79c42
+      HVM64: ami-048a27a74e4c1239d
     us-east-1:
-      HVM64: ami-07ed8ca1867e9803a
+      HVM64: ami-0ed40b8023c788775
     us-east-2:
-      HVM64: ami-042693a1c63d12800
+      HVM64: ami-0d6a0bd053962b66f
     us-west-1:
-      HVM64: ami-0484ba45ecb22a99e
+      HVM64: ami-0ef7453c037b624ec
     us-west-2:
-      HVM64: ami-04859f68862a8bcfd
+      HVM64: ami-0bdf048f8e10f02eb
 Conditions:
   CreateSubDomain:
     !Not [!Equals [!Ref CertificateHostedZone, '']]
+  NotCreateSubDomain:
+    !Not [Condition: CreateSubDomain]  
 
 Resources:
   LambdaExecutionRole:
@@ -446,7 +427,7 @@ Resources:
             --volume $postgres_conf_path:/home/dblab/standard/postgres/control \
             --env DOCKER_API_VERSION=1.39 \
             --restart always \
-            registry.gitlab.com/postgres-ai/database-lab/dblab-server:3.1.0
+            registry.gitlab.com/postgres-ai/database-lab/dblab-server:3.1.1
 
           if [ ! -z "${CertificateHostedZone}" ]; then
             export DOMAIN=${CertificateSubdomain}.${CertificateHostedZone}
@@ -470,6 +451,18 @@ Resources:
             sudo systemctl enable envoy
             sudo systemctl start envoy
           fi
+          
+          while ! echo "UI started" | nc localhost 2346; do sleep 10; done
+          /opt/aws/bin/cfn-signal -e $? -d "DLE UI is available" -r "DLE Deploy Process Complete" '${WaitHandle}'
+
+  WaitHandle:
+    Type: AWS::CloudFormation::WaitConditionHandle
+  WaitCondition:
+    Type: AWS::CloudFormation::WaitCondition
+    DependsOn: DLEInstance
+    Properties:
+      Handle: !Ref 'WaitHandle'
+      Timeout: '600'
 
   MountPoint:
     Type: AWS::EC2::VolumeAttachment
@@ -539,49 +532,52 @@ Resources:
       VpcId: !Ref VPC
 
 Outputs:
-  VerificationToken:
+  02VerificationToken:
     Description: 'DLE verification token'
     Value: !Ref DLEVerificationToken
 
-  DLE:
+  08DLEInstance:
     Description: URL for newly created DLE instance
     Value: !Sub 'https://${CertificateSubdomain}.${CertificateHostedZone}'
     Condition: CreateSubDomain
 
-  UI:
+  01WebUIUrl:
     Description: UI URL with a domain for newly created DLE instance
     Value: !Sub 'https://${CertificateSubdomain}.${CertificateHostedZone}:446'
     Condition: CreateSubDomain
+  01WebUIUrl:
+    Description: UI URL with a domain for newly created DLE instance
+    Value: !Sub 'http://localhost:2346'
+    Condition: NotCreateSubDomain
 
-  EBSVolume:
+  07EBSVolumeSize:
     Description: Size of provisioned EBS volume
     Value: !GetAtt SizeCalculate.Value
 
-  DNSName:
+  03DNSName:
     Description: Public DNS name
     Value: !GetAtt DLEInstance.PublicDnsName
 
-  EC2SSH:
+  06EC2SSH:
     Description: SSH connection to the EC2 instance with Database Lab Engine
     Value: !Sub
-      - 'ssh -i YOUR_PRIVATE_KEY ubuntu@${DNSName}'
+      - 'ssh ubuntu@${DNSName} -i YOUR_PRIVATE_KEY'
       - DNSName: !GetAtt DLEInstance.PublicDnsName
 
-  DLETunnel:
+  05DLETunnel:
     Description: Create an SSH-tunnel to Database Lab Engine
     Value: !Sub
-      - 'ssh -N -L 2345:${DNSName}:2345 -i YOUR_PRIVATE_KEY ubuntu@${DNSName}'
+      - 'ssh -N -L 2345:${DNSName}:2345 ubuntu@${DNSName} -i YOUR_PRIVATE_KEY'
       - DNSName: !GetAtt DLEInstance.PublicDnsName
 
-  UITunnel:
-    Description: Create an SSH-tunnel to Database Lab UI
+  00UITunnel:
+    Description: Use SSH port forwarding to be able to access DLE UI
     Value: !Sub
-      - 'ssh -N -L 2346:${DNSName}:2346 -i YOUR_PRIVATE_KEY ubuntu@${DNSName}'
+      - 'ssh -N -L 2346:${DNSName}:2346 ubuntu@${DNSName} -i YOUR_PRIVATE_KEY'
       - DNSName: !GetAtt DLEInstance.PublicDnsName
 
-  CloneTunnel:
-    Description: Create an SSH-tunnel to Database Lab clones
+  04CloneTunnel:
+    Description: Use SSH port forwarding to be able to access a database clone
     Value: !Sub
-      - 'ssh -N -L CLONE_PORT:${DNSName}:CLONE_PORT -i YOUR_PRIVATE_KEY ubuntu@${DNSName}'
+      - 'ssh -N -L CLONE_PORT:${DNSName}:CLONE_PORT ubuntu@${DNSName} -i YOUR_PRIVATE_KEY'
       - DNSName: !GetAtt DLEInstance.PublicDnsName
-
