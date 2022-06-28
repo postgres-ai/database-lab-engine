@@ -14,12 +14,13 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
@@ -64,7 +65,8 @@ const (
 // TODO(akartasov): Control container manager.
 
 // StopControlContainers stops control containers run by Database Lab Engine.
-func StopControlContainers(ctx context.Context, dockerClient *client.Client, instanceID string, fsm pool.FSManager) error {
+func StopControlContainers(ctx context.Context, dockerClient *client.Client, dbCfg *global.Database, instanceID string,
+	fsm pool.FSManager) error {
 	log.Msg("Stop control containers")
 
 	list, err := getContainerList(ctx, dockerClient, instanceID, getControlContainerFilters())
@@ -83,6 +85,11 @@ func StopControlContainers(ctx context.Context, dockerClient *client.Client, ins
 
 		if shouldStopInternalProcess(controlLabel) && fsm != nil {
 			log.Msg("Stopping control container: ", containerName)
+
+			if err := tools.RunCheckpoint(ctx, dockerClient, controlCont.ID, dbCfg.User(), dbCfg.Name()); err != nil {
+				log.Msg("Failed to make a checkpoint:", err)
+				tools.PrintContainerLogs(ctx, dockerClient, controlCont.ID)
+			}
 
 			if err := tools.StopPostgres(ctx, dockerClient, controlCont.ID, fsm.Pool().DataDir(), tools.DefaultStopTimeout); err != nil {
 				log.Msg("Failed to stop Postgres", err)
