@@ -357,6 +357,10 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 			return errors.Wrap(err, "failed to recalculate statistics after restore")
 		}
 
+		if err := tools.RunCheckpoint(ctx, d.dockerClient, containerID, d.globalCfg.Database.User(), d.globalCfg.Database.DBName); err != nil {
+			return errors.Wrap(err, "failed to run checkpoint before stop")
+		}
+
 		if err := tools.StopPostgres(ctx, d.dockerClient, containerID, dataDir, tools.DefaultStopTimeout); err != nil {
 			return errors.Wrap(err, "failed to stop Postgres instance")
 		}

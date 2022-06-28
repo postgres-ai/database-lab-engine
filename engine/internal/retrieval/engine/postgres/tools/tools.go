@@ -258,6 +258,40 @@ func StartPostgres(ctx context.Context, dockerClient *client.Client, containerID
 	return nil
 }
 
+// RunCheckpoint runs checkpoint, usually before the postgres stop
+func RunCheckpoint(
+	ctx context.Context,
+	dockerClient *client.Client,
+	containerID string,
+	user string,
+	database string,
+) error {
+	commandCheckpoint := []string{
+		"psql",
+		"-U",
+		user,
+		"-d",
+		database,
+		"-XAtc",
+		"checkpoint",
+	}
+	log.Msg("Run checkpoint command", commandCheckpoint)
+
+	output, err := ExecCommandWithOutput(
+		ctx,
+		dockerClient,
+		containerID,
+		types.ExecConfig{Cmd: commandCheckpoint},
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to make checkpoint")
+	}
+
+	log.Msg("Checkpoint result: ", output)
+
+	return nil
+}
+
 // StopPostgres stops Postgres inside container.
 func StopPostgres(ctx context.Context, dockerClient *client.Client, containerID, dataDir string, timeout int) error {
 	pgVersion, err := DetectPGVersion(dataDir)

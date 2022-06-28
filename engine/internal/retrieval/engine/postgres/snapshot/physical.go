@@ -149,8 +149,10 @@ type syncState struct {
 }
 
 // NewPhysicalInitialJob creates a new physical initial job.
-func NewPhysicalInitialJob(cfg config.JobConfig, global *global.Config, engineProps global.EngineProps, cloneManager pool.FSManager,
-	tm *telemetry.Agent) (*PhysicalInitial, error) {
+func NewPhysicalInitialJob(
+	cfg config.JobConfig, global *global.Config, engineProps global.EngineProps, cloneManager pool.FSManager,
+	tm *telemetry.Agent,
+) (*PhysicalInitial, error) {
 	p := &PhysicalInitial{
 		name:         cfg.Spec.Name,
 		cloneManager: cloneManager,
@@ -397,7 +399,13 @@ func (p *PhysicalInitial) checkSyncInstance(ctx context.Context) (string, error)
 
 	log.Msg("Sync instance has been checked. It is running")
 
-	if err := p.checkpoint(ctx, syncContainer.ID); err != nil {
+	if err := tools.RunCheckpoint(
+		ctx,
+		p.dockerClient,
+		syncContainer.ID,
+		p.globalCfg.Database.User(),
+		p.globalCfg.Database.Name(),
+	); err != nil {
 		return "", errors.Wrap(err, "failed to make a checkpoint for sync instance")
 	}
 
@@ -616,9 +624,8 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 		}
 	}
 
-	// Checkpoint.
-	if err := p.checkpoint(ctx, containerID); err != nil {
-		return err
+	if err := tools.RunCheckpoint(ctx, p.dockerClient, containerID, p.globalCfg.Database.User(), p.globalCfg.Database.Name()); err != nil {
+		return errors.Wrap(err, "failed to run checkpoint")
 	}
 
 	if err := cfgManager.RemoveRecoveryConfig(); err != nil {
@@ -646,7 +653,10 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 	return nil
 }
 
-func (p *PhysicalInitial) getDSAFromWAL(ctx context.Context, pgVersion float64, containerID, cloneDir string) (string, error) {
+func (p *PhysicalInitial) getDSAFromWAL(ctx context.Context, pgVersion float64, containerID, cloneDir string) (
+	string,
+	error,
+) {
 	log.Dbg(cloneDir)
 
 	walDirectory := walDir(cloneDir, pgVersion)
@@ -692,7 +702,12 @@ func walDir(cloneDir string, pgVersion float64) string {
 	return path.Join(cloneDir, dir)
 }
 
-func (p *PhysicalInitial) parseWAL(ctx context.Context, containerID string, pgVersion float64, walFilePath string) string {
+func (p *PhysicalInitial) parseWAL(
+	ctx context.Context,
+	containerID string,
+	pgVersion float64,
+	walFilePath string,
+) string {
 	cmd := walCommand(pgVersion, walFilePath)
 
 	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
@@ -768,7 +783,11 @@ func buildRecoveryConfig(fileConfig, userRecoveryConfig map[string]string) map[s
 	return recoveryConf
 }
 
-func (p *PhysicalInitial) markDSA(ctx context.Context, defaultDSA, containerID, dataDir string, pgVersion float64) error {
+func (p *PhysicalInitial) markDSA(
+	ctx context.Context,
+	defaultDSA, containerID, dataDir string,
+	pgVersion float64,
+) error {
 	extractedDataStateAt, err := p.extractDataStateAt(ctx, containerID, dataDir, pgVersion, defaultDSA)
 	if err != nil {
 		if defaultDSA == "" {
@@ -895,8 +914,10 @@ and the source doesn't have enough activity.
 Step 3. Use the timestamp of the latest checkpoint. This is extracted from PGDATA using the
 pg_controldata utility. Note that this is not an exact value of the latest activity in the source
 before we took a copy of PGDATA, but we suppose it is not far from it. */
-func (p *PhysicalInitial) extractDataStateAt(ctx context.Context, containerID, dataDir string, pgVersion float64,
-	defaultDSA string) (string, error) {
+func (p *PhysicalInitial) extractDataStateAt(
+	ctx context.Context, containerID, dataDir string, pgVersion float64,
+	defaultDSA string,
+) (string, error) {
 	output, err := p.getLastXActReplayTimestamp(ctx, containerID)
 	if err != nil {
 		log.Dbg("unable to get last replay timestamp from the promotion container: ", err)
@@ -998,20 +1019,6 @@ func (p *PhysicalInitial) runPromoteCommand(ctx context.Context, containerID, cl
 	}
 
 	log.Msg("Promotion result: ", output)
-
-	return nil
-}
-
-func (p *PhysicalInitial) checkpoint(ctx context.Context, containerID string) error {
-	commandCheckpoint := []string{"psql", "-U", p.globalCfg.Database.User(), "-d", p.globalCfg.Database.Name(), "-XAtc", "checkpoint"}
-	log.Msg("Run checkpoint command", commandCheckpoint)
-
-	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{Cmd: commandCheckpoint})
-	if err != nil {
-		return errors.Wrap(err, "failed to make checkpoint")
-	}
-
-	log.Msg("Checkpoint result: ", output)
 
 	return nil
 }

@@ -126,7 +126,7 @@ func main() {
 	emergencyShutdown := func() {
 		cancel()
 
-		shutdownDatabaseLabEngine(context.Background(), docker, engProps, pm.First())
+		shutdownDatabaseLabEngine(context.Background(), docker, &cfg.Global.Database, engProps.InstanceID, pm.First())
 	}
 
 	cloningSvc := cloning.NewBase(&cfg.Cloning, provisioner, tm, observingChan)
@@ -191,7 +191,7 @@ func main() {
 		log.Msg(err)
 	}
 
-	shutdownDatabaseLabEngine(ctxBackground, docker, engProps, pm.First())
+	shutdownDatabaseLabEngine(ctxBackground, docker, &cfg.Global.Database, engProps.InstanceID, pm.First())
 	cloningSvc.SaveClonesState()
 	tm.SendEvent(ctxBackground, telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
 }
@@ -290,14 +290,14 @@ func setShutdownListener() chan os.Signal {
 	return c
 }
 
-func shutdownDatabaseLabEngine(ctx context.Context, dockerCLI *client.Client, engProps global.EngineProps, fsm pool.FSManager) {
+func shutdownDatabaseLabEngine(ctx context.Context, docker *client.Client, dbCfg *global.Database, instanceID string, fsm pool.FSManager) {
 	log.Msg("Stopping auxiliary containers")
 
-	if err := cont.StopControlContainers(ctx, dockerCLI, engProps.InstanceID, fsm); err != nil {
+	if err := cont.StopControlContainers(ctx, docker, dbCfg, instanceID, fsm); err != nil {
 		log.Err("Failed to stop control containers", err)
 	}
 
-	if err := cont.CleanUpSatelliteContainers(ctx, dockerCLI, engProps.InstanceID); err != nil {
+	if err := cont.CleanUpSatelliteContainers(ctx, docker, instanceID); err != nil {
 		log.Err("Failed to stop satellite containers", err)
 	}
 
