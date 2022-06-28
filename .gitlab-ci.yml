@@ -13,6 +13,7 @@ workflow:
 include:
   - local: 'engine/.gitlab-ci.yml'
   - local: 'ui/.gitlab-ci.yml'
+  - local: 'cloudformation/.gitlab-ci.yml'
 
 empty-job:
   stage: test
