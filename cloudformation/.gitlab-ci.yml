@@ -1,7 +1,3 @@
-stages:
-  - test
-  - build
-
 .only_cf_branch: &only_cf_branch
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"

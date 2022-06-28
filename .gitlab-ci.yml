@@ -26,4 +26,5 @@ empty-job:
       changes:
         - engine/**/*
         - ui/**/*
+        - cloudformation/**/*
       when: never
