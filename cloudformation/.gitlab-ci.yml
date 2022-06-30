@@ -1,24 +1,9 @@
-.only_cf_branch: &only_cf_branch
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
-        - cloudformation/*
-
-.only_cf_tag_rc: &only_cf_rc
+build_aws_ami:
   rules:
     - if: $CI_COMMIT_TAG =~ /^cf\/[0-9.]+[\-_]*[a-zA-Z]+[a-zA-Z0-9.\-_]*[a-zA-Z0-9]+$/
-
-.only_cf_release: &only_cf_release
-  rules:
-    - if: $CI_COMMIT_TAG =~ /^cf\/[0-9.]+$/
-
-### Build jobs.
-build_ami_branch:
-  <<: *only_cf_branch
   stage: build
   image: ubuntu:20.04
   before_script:
-    - export CI_COMMIT_TAG="cf/3.1.2-rc.0"
     - export DLE_VERSION=$(echo ${CI_COMMIT_TAG#"cf/"})
     - export AWS_DEFAULT_REGION="us-east-1"
 
@@ -50,17 +35,3 @@ build_ami_branch:
   artifacts:
     paths:
       - cloudformation/output/*.yaml
-
-build_ami_rc:
-  <<: *only_cf_rc
-  stage: build
-  script:
-    - cd cloudformation
-    - echo "Build AMI RC"
-
-build_ami_release:
-  <<: *only_cf_release
-  stage: build
-  script:
-    - cd cloudformation
-    - echo "Build AMI"
