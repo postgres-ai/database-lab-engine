@@ -20,11 +20,7 @@ build_ami_branch:
   before_script:
     - export CI_COMMIT_TAG="cf/3.1.2-rc.0"
     - export DLE_VERSION=$(echo ${CI_COMMIT_TAG#"cf/"})
-#    - export AWS_ACCESS_KEY_ID="1251265365213"
-#    - export AWS_SECRET_ACCESS_KEY="sdfafadsfdasfads"
     - export AWS_DEFAULT_REGION="us-east-1"
-    - export DLE_CF_TEMPLATE_FILE="dle_cf.yaml"
-
 
   script:
     - apt-get update -y && apt-get install -y curl jq unzip gnupg2 lsb-release software-properties-common
@@ -43,13 +39,16 @@ build_ami_branch:
     - ./aws/install
 
     - cd cloudformation
+    - export DLE_CF_TEMPLATE_FILE="output/dle_cf-${DLE_VERSION}.yaml"
     - sed -e "s|\$DLE_DOCKER_IMAGE_VERSION|$DLE_VERSION|" dle_cf_template.yaml > ${DLE_CF_TEMPLATE_FILE}
     - bash getAMIs.sh
 
+    - export PACKAGE_NAME="cf"
+    - 'curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file ${DLE_CF_TEMPLATE_FILE} "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${PACKAGE_NAME}/${DLE_VERSION}/dle_cf.yaml"'
+
   artifacts:
     paths:
-      - "cloudformation/${DLE_CF_TEMPLATE_FILE}"
-      - cloudformation/dle_cf.yaml
+      - cloudformation/output
 
 build_ami_rc:
   <<: *only_cf_rc

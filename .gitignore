@@ -12,4 +12,4 @@ engine/bin/
 /engine/configs/run_ci.yaml
 /engine/configs/ci_checker.yml
 /packer/example.com.key
-cloudformation/dle_cf.yaml
+cloudformation/output
