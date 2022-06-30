@@ -12,13 +12,6 @@
   rules:
     - if: $CI_COMMIT_TAG =~ /^cf\/[0-9.]+$/
 
-### Test jobs.
-test_cf_template:
-  <<: *only_cf_branch
-  stage: test
-  script:
-    - echo "run tests"
-
 ### Build jobs.
 build_ami_branch:
   <<: *only_cf_branch
@@ -34,16 +27,17 @@ build_ami_branch:
 
 
   script:
-    - curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
-    - sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-    - sudo apt-get update && sudo apt-get install packer
+    - apt-get update && apt-get install curl
+    - curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add -
+    - apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+    - apt-get update && apt-get install packer
 
     - export PKR_VAR_dle_version="v${DLE_VERSION}"
     - export PKR_VAR_ami_name_prefix="DBLABserver"
     # - packer build packer/template.json.pkr.hcl
 
     - cd cloudformation
-    - sed -e "s|\$DLE_DOCKER_IMAGE_VERSION|$DLE_VERSION|" dle_cf_template.yaml > dle_cf.yaml
+    - sed -e "s|\$DLE_DOCKER_IMAGE_VERSION|$DLE_VERSION|" dle_cf_template.yaml > ${DLE_CF_TEMPLATE_FILE}
     - bash getAMIs.sh
 
   artifacts:
