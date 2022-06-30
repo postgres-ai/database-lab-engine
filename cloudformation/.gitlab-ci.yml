@@ -32,7 +32,7 @@ build_ami_branch:
 
     - export PKR_VAR_dle_version="v${DLE_VERSION}"
     - export PKR_VAR_ami_name_prefix="DBLABserver"
-    # - packer build packer/template.json.pkr.hcl
+    - packer build packer/template.json.pkr.hcl
 
     - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
     - unzip awscliv2.zip
@@ -43,12 +43,12 @@ build_ami_branch:
     - sed -e "s|\$DLE_DOCKER_IMAGE_VERSION|$DLE_VERSION|" dle_cf_template.yaml > ${DLE_CF_TEMPLATE_FILE}
     - bash getAMIs.sh
 
-    - export PACKAGE_NAME="cf"
+    - export PACKAGE_NAME="cloudformation"
     - 'curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file ${DLE_CF_TEMPLATE_FILE} "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${PACKAGE_NAME}/${DLE_VERSION}/dle_cf.yaml"'
 
   artifacts:
     paths:
-      - cloudformation/output
+      - cloudformation/output/*.yaml
 
 build_ami_rc:
   <<: *only_cf_rc
