@@ -17,16 +17,39 @@ test_cf_template:
   <<: *only_cf_branch
   stage: test
   script:
-    - cd cloudformation
     - echo "run tests"
 
 ### Build jobs.
 build_ami_branch:
   <<: *only_cf_branch
   stage: build
+  image: ubuntu:20.04
+  before_script:
+    - export CI_COMMIT_TAG="cf/3.1.2-rc.0"
+    - export DLE_VERSION=$(echo ${CI_COMMIT_TAG#"cf/"})
+#    - export AWS_ACCESS_KEY_ID="1251265365213"
+#    - export AWS_SECRET_ACCESS_KEY="sdfafadsfdasfads"
+    - export AWS_DEFAULT_REGION="us-east-1"
+    - export DLE_CF_TEMPLATE_FILE="dle_cf.yaml"
+
+
   script:
+    - curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+    - sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+    - sudo apt-get update && sudo apt-get install packer
+
+    - export PKR_VAR_dle_version="v${DLE_VERSION}"
+    - export PKR_VAR_ami_name_prefix="DBLABserver"
+    # - packer build packer/template.json.pkr.hcl
+
     - cd cloudformation
-    - echo "Build AMI for branch"
+    - sed -e "s|\$DLE_DOCKER_IMAGE_VERSION|$DLE_VERSION|" dle_cf_template.yaml > dle_cf.yaml
+    - bash getAMIs.sh
+
+  artifacts:
+    paths:
+      - "cloudformation/${DLE_CF_TEMPLATE_FILE}"
+      - cloudformation/dle_cf.yaml
 
 build_ami_rc:
   <<: *only_cf_rc

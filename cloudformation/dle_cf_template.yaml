@@ -446,7 +446,7 @@ Resources:
             --volume $postgres_conf_path:/home/dblab/standard/postgres/control \
             --env DOCKER_API_VERSION=1.39 \
             --restart always \
-            registry.gitlab.com/postgres-ai/database-lab/dblab-server:3.1.0
+            registry.gitlab.com/postgres-ai/database-lab/dblab-server:$DLE_DOCKER_IMAGE_VERSION
 
           if [ ! -z "${CertificateHostedZone}" ]; then
             export DOMAIN=${CertificateSubdomain}.${CertificateHostedZone}
