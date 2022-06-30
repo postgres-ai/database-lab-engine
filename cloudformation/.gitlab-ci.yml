@@ -27,12 +27,12 @@ build_ami_branch:
 
 
   script:
-    - apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CC86BB64
-    - add-apt-repository ppa:rmescandon/yq
-    - apt-get update -y && apt-get install -y curl yq jq unzip
+    - apt-get update -y && apt-get install -y curl jq unzip gnupg2
     - curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add -
     - apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-    - apt-get update && apt-get install packer
+    - apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CC86BB64
+    - add-apt-repository ppa:rmescandon/yq
+    - apt-get update && apt-get install packer yq
 
     - export PKR_VAR_dle_version="v${DLE_VERSION}"
     - export PKR_VAR_ami_name_prefix="DBLABserver"
