@@ -10,7 +10,7 @@ export POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
 export DLE_SERVER_PORT=${DLE_SERVER_PORT:-12345}
 export DLE_PORT_POOL_FROM=${DLE_PORT_POOL_FROM:-9000}
 export DLE_PORT_POOL_TO=${DLE_PORT_POOL_TO:-9100}
-export DLE_TEST_MOUNT_DIR="/var/lib/test/dblab"
+export DLE_TEST_MOUNT_DIR="/var/lib/test/dblab_mount"
 export DLE_TEST_POOL_NAME="test_dblab_pool"
 
 DIR=${0%/*}
@@ -91,9 +91,12 @@ yq eval -i '
   .databaseContainer.dockerImage = "postgresai/extended-postgres:" + strenv(POSTGRES_VERSION)
 ' "${configDir}/server.yml"
 
-# logerrors is not supported in PostgreSQL 9.6
+# Edit the following options for PostgreSQL 9.6
 if [ "${POSTGRES_VERSION}" = "9.6" ]; then
-  yq eval -i '.databaseConfigs.configs.shared_preload_libraries = "pg_stat_statements, auto_explain"' "${configDir}/server.yml"
+  yq eval -i '
+  .databaseConfigs.configs.shared_preload_libraries = "pg_stat_statements, auto_explain" |
+  .databaseConfigs.configs.log_directory = "log"
+  ' "${configDir}/server.yml"
 fi
 
 ## Launch Database Lab server
@@ -160,6 +163,21 @@ dblab clone create \
   --username dblab_user_1 \
   --password secret_password \
   --id testclone
+
+### Check that database system was properly shut down (clone data dir)
+CLONE_LOG_DIR="${DLE_TEST_MOUNT_DIR}"/"${DLE_TEST_POOL_NAME}"/clones/dblab_clone_"${DLE_PORT_POOL_FROM}"/data/log
+LOG_FILE_CSV=$(sudo ls -t "$CLONE_LOG_DIR" | grep .csv | head -n 1)
+if sudo test -d "$CLONE_LOG_DIR"
+then
+  if sudo grep -q 'database system was not properly shut down; automatic recovery in progress' "$CLONE_LOG_DIR"/"$LOG_FILE_CSV"
+  then
+      echo "ERROR: database system was not properly shut down" && exit 1
+  else
+      echo "INFO: database system was properly shut down - OK"
+  fi
+else
+  echo "ERROR: the log directory \"$CLONE_LOG_DIR\" does not exist" && exit 1
+fi
 
 # Connect to a clone and check the available table
 PGPASSWORD=secret_password psql \

@@ -8,7 +8,7 @@ DLE_SERVER_NAME="dblab_server_test"
 # Environment variables for replacement rules
 export POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
 export WALG_BACKUP_NAME="${WALG_BACKUP_NAME:-"LATEST"}"
-export DLE_TEST_MOUNT_DIR="/var/lib/test/dblab"
+export DLE_TEST_MOUNT_DIR="/var/lib/test/dblab_mount"
 export DLE_TEST_POOL_NAME="test_dblab_pool"
 export DLE_SERVER_PORT=${DLE_SERVER_PORT:-12345}
 export DLE_PORT_POOL_FROM=${DLE_PORT_POOL_FROM:-9000}
@@ -58,9 +58,14 @@ yq eval -i '
   .retrieval.spec.physicalSnapshot.options.skipStartSnapshot = true
 ' "${configDir}/server.yml"
 
-# logerrors is not supported in PostgreSQL 9.6
+# Edit the following options for PostgreSQL 9.6
 if [ "${POSTGRES_VERSION}" = "9.6" ]; then
-  yq eval -i '.databaseConfigs.configs.shared_preload_libraries = "pg_stat_statements, auto_explain"' "${configDir}/server.yml"
+  yq eval -i '
+  .databaseConfigs.configs.shared_preload_libraries = "pg_stat_statements, auto_explain" |
+  .databaseConfigs.configs.log_directory = "log" |
+  .retrieval.spec.physicalRestore.options.sync.configs.log_directory = "log" |
+  .retrieval.spec.physicalSnapshot.options.promotion.configs.log_directory = "log"
+  ' "${configDir}/server.yml"
 fi
 
 set +euxo pipefail # ---- do not display secrets
@@ -177,6 +182,21 @@ dblab clone create \
   --password secret_password \
   --id testclone
 
+### Check that database system was properly shut down (clone data dir)
+CLONE_LOG_DIR="${DLE_TEST_MOUNT_DIR}"/"${DLE_TEST_POOL_NAME}"/clones/dblab_clone_"${DLE_PORT_POOL_FROM}"/data/log
+LOG_FILE_CSV=$(sudo ls -t "$CLONE_LOG_DIR" | grep .csv | head -n 1)
+if sudo test -d "$CLONE_LOG_DIR"
+then
+  if sudo grep -q 'database system was not properly shut down; automatic recovery in progress' "$CLONE_LOG_DIR"/"$LOG_FILE_CSV"
+  then
+      echo "ERROR: database system was not properly shut down" && exit 1
+  else
+      echo "INFO: database system was properly shut down - OK"
+  fi
+else
+  echo "ERROR: the log directory \"$CLONE_LOG_DIR\" does not exist" && exit 1
+fi
+
 PGPASSWORD=secret_password psql \
   "host=localhost port=${DLE_PORT_POOL_FROM} user=dblab_user_1 dbname=test" -c 'show max_wal_senders'
 
@@ -207,6 +227,21 @@ dblab clone list
 
 ## Stop DLE.
 sudo docker stop ${DLE_SERVER_NAME}
+
+### Check that database system was properly shut down (main data dir)
+LOG_DIR="${DLE_TEST_MOUNT_DIR}"/"${DLE_TEST_POOL_NAME}"/data/log
+LOG_FILE_CSV=$(sudo ls -t "$LOG_DIR" | grep .csv | head -n 1)
+if sudo test -d "$LOG_DIR"
+then
+  if [[ $(sudo tail -n 10 "$LOG_DIR"/"$LOG_FILE_CSV" | grep -c 'received fast shutdown request\|database system is shut down') = 2 ]]
+  then
+      echo "INFO: database system was properly shut down - OK"
+  else
+      echo "ERROR: database system was not properly shut down" && exit 1
+  fi
+else
+  echo "ERROR: the log directory \"$LOG_DIR\" does not exist" && exit 1
+fi
 
 ## Stop control containers.
 cleanup_service_containers
