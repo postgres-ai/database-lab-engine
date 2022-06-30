@@ -27,7 +27,9 @@ build_ami_branch:
 
 
   script:
-    - apt-get update && apt-get install curl
+    - apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CC86BB64
+    - add-apt-repository ppa:rmescandon/yq
+    - apt-get update -y && apt-get install -y curl yq jq unzip
     - curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add -
     - apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
     - apt-get update && apt-get install packer
@@ -35,6 +37,10 @@ build_ami_branch:
     - export PKR_VAR_dle_version="v${DLE_VERSION}"
     - export PKR_VAR_ami_name_prefix="DBLABserver"
     # - packer build packer/template.json.pkr.hcl
+
+    - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    - unzip awscliv2.zip
+    - ./aws/install
 
     - cd cloudformation
     - sed -e "s|\$DLE_DOCKER_IMAGE_VERSION|$DLE_VERSION|" dle_cf_template.yaml > ${DLE_CF_TEMPLATE_FILE}
