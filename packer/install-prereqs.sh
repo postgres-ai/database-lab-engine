@@ -38,7 +38,13 @@ sudo apt-get install -y \
   postgresql-client-14 \
   s3fs \
   yq \
-  jq
+  jq 	
+
+# Install cfn-signal helper script 
+sudo mkdir -p /opt/aws/bin
+wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+sudo python3 -m easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-py3-latest.tar.gz
+rm aws-cfn-bootstrap-py3-latest.tar.gz
 
 # Install certbot
 sudo snap install certbot --classic
@@ -51,3 +57,10 @@ sudo /usr/local/bin/func-e use 1.19.1 # https://www.envoyproxy.io/docs/envoy/lat
 # Pull DLE image
 image_version=$(echo ${dle_version} | sed 's/v*//')
 sudo docker pull registry.gitlab.com/postgres-ai/database-lab/dblab-server:$image_version
+sudo docker pull postgresai/ce-ui:latest
+sudo docker pull postgresai/extended-postgres:10
+sudo docker pull postgresai/extended-postgres:11
+sudo docker pull postgresai/extended-postgres:12
+sudo docker pull postgresai/extended-postgres:13
+sudo docker pull postgresai/extended-postgres:14
+
