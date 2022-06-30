@@ -30,15 +30,16 @@ build_ami_branch:
     - add-apt-repository ppa:rmescandon/yq
     - apt-get update && apt-get install packer yq
 
+    - cd packer
     - export PKR_VAR_dle_version="v${DLE_VERSION}"
     - export PKR_VAR_ami_name_prefix="DBLABserver"
-    - packer build packer/template.json.pkr.hcl
+    - packer build template.json.pkr.hcl
 
     - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
     - unzip awscliv2.zip
     - ./aws/install
 
-    - cd cloudformation
+    - cd ../cloudformation
     - export DLE_CF_TEMPLATE_FILE="output/dle_cf-${DLE_VERSION}.yaml"
     - sed -e "s|\$DLE_DOCKER_IMAGE_VERSION|$DLE_VERSION|" dle_cf_template.yaml > ${DLE_CF_TEMPLATE_FILE}
     - bash getAMIs.sh
