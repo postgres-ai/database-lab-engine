@@ -30,7 +30,7 @@ build_aws_ami:
     - bash getAMIs.sh
 
     - export PACKAGE_NAME="cloudformation"
-    - 'curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file ${DLE_CF_TEMPLATE_FILE} "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${PACKAGE_NAME}/${DLE_VERSION}/dle_cf.yaml"'
+    - 'curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file ${DLE_CF_TEMPLATE_FILE} "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${PACKAGE_NAME}/${DLE_VERSION}/dle_cf-${DLE_VERSION}.yaml"'
 
   artifacts:
     paths:

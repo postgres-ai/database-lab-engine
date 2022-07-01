@@ -29,7 +29,7 @@ fi
 if [ -z "$1" ]
 then
 NAME=DBLABserver*
-echo "No name parameter provided"
+echo "No parameter provided."
 else
 NAME=$1
 fi
