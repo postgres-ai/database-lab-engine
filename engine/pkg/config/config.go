@@ -75,11 +75,11 @@ func LoadInstanceID() (string, error) {
 			instanceID = xid.New().String()
 			log.Dbg("no instance_id file was found, generate new instance ID", instanceID)
 
-			if err := os.MkdirAll(path.Dir(idFilepath), 0644); err != nil {
+			if err := os.MkdirAll(path.Dir(idFilepath), 0744); err != nil {
 				return "", fmt.Errorf("failed to make directory meta: %w", err)
 			}
 
-			return instanceID, os.WriteFile(idFilepath, []byte(instanceID), 0544)
+			return instanceID, os.WriteFile(idFilepath, []byte(instanceID), 0644)
 		}
 
 		return instanceID, fmt.Errorf("failed to load instanceid, %w", err)
