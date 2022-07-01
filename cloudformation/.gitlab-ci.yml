@@ -4,7 +4,8 @@ build_aws_ami:
   stage: build
   image: ubuntu:20.04
   before_script:
-    - export DLE_VERSION=$(echo ${CI_COMMIT_TAG#"cf/"})
+    - export CF_VERSION=$(echo ${CI_COMMIT_TAG#"cf/"})
+    - export DLE_VERSION=$(echo ${CF_VERSION%_preview*})
     - export AWS_DEFAULT_REGION="us-east-1"
 
   script:
@@ -25,12 +26,12 @@ build_aws_ami:
     - ./aws/install
 
     - cd ../cloudformation
-    - export DLE_CF_TEMPLATE_FILE="output/dle_cf-${DLE_VERSION}.yaml"
+    - export DLE_CF_TEMPLATE_FILE="output/dle_cf-${CF_VERSION}.yaml"
     - sed -e "s|\$DLE_DOCKER_IMAGE_VERSION|$DLE_VERSION|" dle_cf_template.yaml > ${DLE_CF_TEMPLATE_FILE}
     - bash getAMIs.sh
 
     - export PACKAGE_NAME="cloudformation"
-    - 'curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file ${DLE_CF_TEMPLATE_FILE} "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${PACKAGE_NAME}/${DLE_VERSION}/dle_cf-${DLE_VERSION}.yaml"'
+    - 'curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file ${DLE_CF_TEMPLATE_FILE} "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${PACKAGE_NAME}/${CF_VERSION}/dle_cf-${CF_VERSION}.yaml"'
 
   artifacts:
     paths:
