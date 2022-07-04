@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -346,6 +347,11 @@ func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, 
 			continue
 		}
 
+		if err := preparePoolDirectories(fsm); err != nil {
+			log.Msg("failed to prepare pool directories:", err.Error())
+			continue
+		}
+
 		fsm.RefreshSnapshotList()
 
 		fsManagers[pool.Name] = fsm
@@ -396,6 +402,22 @@ func extractDataStateAt(dataPath string) (*time.Time, error) {
 	}
 
 	return &dsa, nil
+}
+
+func preparePoolDirectories(fsm FSManager) error {
+	dataDir := fsm.Pool().DataDir()
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
+		return err
+	}
+
+	return filepath.Walk(dataDir, func(name string, info os.FileInfo, err error) error {
+		if err == nil {
+			// PGDATA dir permissions must be 0700 to avoid errors.
+			err = os.Chmod(name, 0700)
+		}
+
+		return err
+	})
 }
 
 func (pm *Manager) describeAvailablePools() []string {
