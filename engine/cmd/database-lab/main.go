@@ -113,7 +113,11 @@ func main() {
 	}
 
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
-	retrievalSvc := retrieval.New(cfg, engProps, docker, pm, tm, runner)
+	retrievalSvc, err := retrieval.New(cfg, engProps, docker, pm, tm, runner)
+	if err != nil {
+		log.Errf(errors.WithMessage(err, `error in the "retrieval" section of the config`).Error())
+		return
+	}
 
 	// Create a cloning service to provision new clones.
 	provisioner, err := provision.New(ctx, &cfg.Provision, dbCfg, docker, pm, engProps.InstanceID, internalNetworkID)
@@ -146,7 +150,7 @@ func main() {
 		EngineVersion: version.GetVersion(),
 		DBVersion:     provisioner.DetectDBVersion(),
 		Pools:         pm.CollectPoolStat(),
-		Restore:       retrievalSvc.CollectRestoreTelemetry(),
+		Restore:       retrievalSvc.ReportState(),
 	})
 
 	embeddedUI := embeddedui.New(cfg.EmbeddedUI, engProps, runner, docker)
@@ -233,7 +237,8 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 		return err
 	}
 
-	if err := retrieval.IsValidConfig(cfg); err != nil {
+	newRetrievalConfig, err := retrieval.ValidateConfig(&cfg.Retrieval)
+	if err != nil {
 		return err
 	}
 
@@ -257,7 +262,7 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 
 	provisionSvc.Reload(cfg.Provision, dbCfg)
 	tm.Reload(cfg.Global)
-	retrievalSvc.Reload(ctx, cfg)
+	retrievalSvc.Reload(ctx, newRetrievalConfig)
 	cloningSvc.Reload(cfg.Cloning)
 	platformSvc.Reload(newPlatformSvc)
 	est.Reload(cfg.Estimator)

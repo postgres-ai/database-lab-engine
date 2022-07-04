@@ -30,6 +30,10 @@ const (
 	Failed RetrievalStatus = "failed"
 	// Refreshing defines status when data retrieving is in progress.
 	Refreshing RetrievalStatus = "refreshing"
+	// Renewed defines status when data retrieving is successfully completed.
+	Renewed RetrievalStatus = "renewed"
+	// Snapshotting defines status when data snapshotting is in progress.
+	Snapshotting RetrievalStatus = "snapshotting"
 	// Finished defines status when data retrieving is finished.
 	Finished RetrievalStatus = "finished"
 )
