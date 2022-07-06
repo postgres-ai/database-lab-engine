@@ -71,3 +71,26 @@ func TestVolumesBuilding(t *testing.T) {
 		assert.Equal(t, tc.expectedVolumes, volumes)
 	}
 }
+
+func TestDefaultVolumes(t *testing.T) {
+	pool := resources.NewPool("test")
+
+	pool.MountDir = "/tmp/test"
+	pool.PoolDirName = "default"
+	pool.SocketSubDir = "socket"
+
+	appConfig := &resources.AppConfig{
+		Pool: pool,
+	}
+
+	unixSocketCloneDir, volumes := createDefaultVolumes(appConfig)
+
+	assert.NotEmpty(t, unixSocketCloneDir)
+	assert.Equal(t, "/tmp/test/default/socket", unixSocketCloneDir)
+
+	assert.Equal(t, 2, len(volumes))
+
+	assert.ElementsMatch(t, []string{
+		"--volume /tmp/test/default:/tmp/test/default",
+		"--volume /tmp/test/default/socket:/tmp/test/default/socket"}, volumes)
+}
