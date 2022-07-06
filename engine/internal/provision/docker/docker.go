@@ -49,8 +49,7 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 		return errors.Wrap(err, "failed to get host info")
 	}
 
-	// Directly mount PGDATA if Database Lab is running without any virtualization.
-	volumes := []string{fmt.Sprintf("--volume %s:%s", c.DataDir(), c.DataDir())}
+	unixSocketCloneDir, volumes := createDefaultVolumes(c)
 
 	if hostInfo.VirtualizationRole == "guest" {
 		// Build custom mounts rely on mounts of the Database Lab instance if it's running inside Docker container.
@@ -60,8 +59,6 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 			return errors.Wrap(err, "failed to detect container volumes")
 		}
 	}
-
-	unixSocketCloneDir := c.Pool.SocketCloneDir(c.CloneName)
 
 	if err := createSocketCloneDir(unixSocketCloneDir); err != nil {
 		return errors.Wrap(err, "failed to create socket clone directory")
@@ -100,6 +97,18 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 	}
 
 	return nil
+}
+
+func createDefaultVolumes(c *resources.AppConfig) (string, []string) {
+	unixSocketCloneDir := c.Pool.SocketCloneDir(c.CloneName)
+
+	// Directly mount PGDATA if Database Lab is running without any virtualization.
+	volumes := []string{
+		fmt.Sprintf("--volume %s:%s", c.DataDir(), c.DataDir()),
+		fmt.Sprintf("--volume %s:%s", unixSocketCloneDir, unixSocketCloneDir),
+	}
+
+	return unixSocketCloneDir, volumes
 }
 
 func getMountVolumes(r runners.Runner, c *resources.AppConfig, containerID string) ([]string, error) {
