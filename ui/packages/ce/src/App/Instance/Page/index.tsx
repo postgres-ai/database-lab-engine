@@ -7,6 +7,8 @@ import { getInstance } from 'api/instances/getInstance'
 import { getSnapshots } from 'api/snapshots/getSnapshots'
 import { destroyClone } from 'api/clones/destroyClone'
 import { resetClone } from 'api/clones/resetClone'
+import { getWSToken } from "api/engine/getWSToken";
+import { initWS } from "api/engine/initWS";
 
 export const Page = () => {
   const routes = {
@@ -20,6 +22,8 @@ export const Page = () => {
     getSnapshots,
     destroyClone,
     resetClone,
+    getWSToken,
+    initWS,
   }
 
   const elements = {

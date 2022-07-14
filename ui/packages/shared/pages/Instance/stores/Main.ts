@@ -11,6 +11,8 @@ import { GetInstance } from '@postgres.ai/shared/types/api/endpoints/getInstance
 import { RefreshInstance } from '@postgres.ai/shared/types/api/endpoints/refreshInstance'
 import { DestroyClone } from '@postgres.ai/shared/types/api/endpoints/destroyClone'
 import { ResetClone } from '@postgres.ai/shared/types/api/endpoints/resetClone'
+import { GetWSToken } from "@postgres.ai/shared/types/api/endpoints/getWSToken";
+import { InitWS } from "@postgres.ai/shared/types/api/endpoints/initWS";
 import { Instance } from '@postgres.ai/shared/types/api/entities/instance'
 import { SnapshotsStore } from '@postgres.ai/shared/stores/Snapshots'
 import { getTextFromUnknownApiError } from '@postgres.ai/shared/utils/api'
@@ -25,6 +27,8 @@ export type Api = {
   refreshInstance?: RefreshInstance
   destroyClone: DestroyClone
   resetClone: ResetClone
+  getWSToken: GetWSToken
+  initWS?: InitWS
 }
 
 type Error = {

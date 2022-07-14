@@ -7,6 +7,7 @@ package platform
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/pkg/errors"
 
@@ -98,4 +99,16 @@ func (s *Service) IsPersonalTokenEnabled() bool {
 // isAllowedOrganization checks if organization is associated to the current Platform service.
 func (s *Service) isAllowedOrganization(organizationID uint) bool {
 	return organizationID != 0 && organizationID == s.organizationID
+}
+
+// OriginURL reports the origin Platform hostname.
+func (s *Service) OriginURL() string {
+	parsedURL, err := url.Parse(s.cfg.URL)
+	if err != nil {
+		log.Dbg("Cannot parse Platform URL")
+	}
+
+	platformURL := url.URL{Scheme: parsedURL.Scheme, Host: parsedURL.Host}
+
+	return platformURL.String()
 }

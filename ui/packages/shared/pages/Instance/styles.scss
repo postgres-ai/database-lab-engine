@@ -1,0 +1,19 @@
+/*--------------------------------------------------------------------------
+ * Copyright (c) 2019-2022, Postgres.ai, Nikolay Samokhvalov nik@postgres.ai
+ * All Rights Reserved. Proprietary and confidential.
+ * Unauthorized copying of this file, via any medium is strictly prohibited
+ *--------------------------------------------------------------------------
+ */
+
+#logs-container {
+    margin: 1rem 0;
+    border: 1px solid #b4b4b4;
+    border-radius: 4px;
+    margin-top: 20px;
+    overflow: hidden;
+    padding: 0.5rem 1rem;
+    & > p {
+      font-size: medium;
+      font-family: 'Source Code Pro, monospace';
+    }
+}

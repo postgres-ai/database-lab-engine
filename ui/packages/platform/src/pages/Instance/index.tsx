@@ -10,6 +10,7 @@ import { getSnapshots } from 'api/snapshots/getSnapshots'
 import { destroyClone } from 'api/clones/destroyClone'
 import { resetClone } from 'api/clones/resetClone'
 import { bannersStore } from 'stores/banners'
+import { getWSToken } from "api/instances/getWSToken";
 
 type Params = {
   org: string
@@ -50,6 +51,7 @@ export const Instance = () => {
     getSnapshots,
     destroyClone,
     resetClone,
+    getWSToken,
   }
 
   const callbacks = {

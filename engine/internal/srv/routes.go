@@ -17,6 +17,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
+	wsPackage "gitlab.com/postgres-ai/database-lab/v3/internal/srv/ws"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
@@ -25,6 +26,10 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v3/version"
+)
+
+const (
+	logsSinceInterval = "5m"
 )
 
 func (s *Server) getInstanceStatus(w http.ResponseWriter, r *http.Request) {
@@ -213,7 +218,7 @@ func (s *Server) startEstimator(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ws, err := s.upgrader.Upgrade(w, r, nil)
+	ws, err := s.wsService.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		api.SendError(w, r, err)
 		return
@@ -227,7 +232,7 @@ func (s *Server) startEstimator(w http.ResponseWriter, r *http.Request) {
 
 	done := make(chan struct{})
 
-	go wsPing(ws, done)
+	go wsPackage.Ping(ws, done)
 
 	if err := s.runEstimator(ctx, ws, db, pid, cloneContainer.ID, done); err != nil {
 		api.SendError(w, r, err)

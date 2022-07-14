@@ -1,37 +1,113 @@
 package srv
 
 import (
-	"time"
+	"bufio"
+	"encoding/base64"
+	"io"
+	"net/http"
 
+	"github.com/ahmetalpbalkan/dlog"
+	dockTypes "github.com/docker/docker/api/types"
 	"github.com/gorilla/websocket"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/engine"
 )
 
-const (
-	// Time allowed to write a message to the peer.
-	writeWait = 10 * time.Second
+// websocketAuth generates a one-time token to access web-socket handlers.
+func (s *Server) websocketAuth(w http.ResponseWriter, r *http.Request) {
+	tokenString, err := s.wsService.tokenKeeper.IssueToken()
+	if err != nil {
+		api.SendError(w, r, err)
+		return
+	}
 
-	// Time allowed to read the next pong message from the peer.
-	pongWait = 60 * time.Second
+	if err := api.WriteJSON(w, http.StatusOK, models.WSToken{Token: tokenString}); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
+}
 
-	// Send pings to peer with this period. Must be less than pongWait.
-	pingPeriod = (pongWait * 9) / 10 //nolint
-)
+// instanceLogs provides logs entries of the Database Lab Engine instance via web-sockets connection.
+func (s *Server) instanceLogs(w http.ResponseWriter, r *http.Request) {
+	s.wsService.upgrader.CheckOrigin = func(r *http.Request) bool {
+		requestOrigin := r.Header.Get("Origin")
 
-func wsPing(ws *websocket.Conn, done chan struct{}) {
-	ticker := time.NewTicker(pingPeriod)
-	defer ticker.Stop()
+		var uiURL string
 
-	for {
-		select {
-		case <-ticker.C:
-			if err := ws.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(writeWait)); err != nil {
-				log.Err(err)
+		if s.wsService.uiManager.IsEnabled() {
+			if s.wsService.uiManager.GetHost() == "" || s.wsService.uiManager.GetHost() == engine.DefaultListenerHost {
+				return true
 			}
 
-		case <-done:
-			return
+			uiURL = s.wsService.uiManager.OriginURL()
+		}
+
+		platformURL := s.Platform.OriginURL()
+
+		log.Dbg("Request Origin", requestOrigin)
+		log.Dbg("UI URL", uiURL)
+		log.Dbg("Platform URL", platformURL)
+
+		return (uiURL != "" && uiURL == requestOrigin) || (platformURL != "" && platformURL == requestOrigin)
+	}
+
+	conn, err := s.wsService.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Err(err)
+
+		return
+	}
+
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Dbg("Failed to close connection", err)
+		}
+	}()
+
+	readCloser, err := s.docker.ContainerLogs(r.Context(), s.engProps.ContainerName, dockTypes.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Since:      logsSinceInterval,
+		Follow:     true,
+	})
+	if err != nil {
+		log.Err("Failed to get container logs", err)
+
+		if writingErr := conn.WriteMessage(websocket.TextMessage, []byte(err.Error())); writingErr != nil {
+			log.Dbg("Failed to report about error", err)
+		}
+
+		return
+	}
+
+	defer func() {
+		if err := readCloser.Close(); err != nil {
+			log.Dbg("Failed to close reader of logs", err)
+		}
+	}()
+
+	sc := bufio.NewScanner(dlog.NewReader(readCloser))
+	for sc.Scan() {
+		encodedLine := base64.StdEncoding.EncodeToString(s.filterLogLine(sc.Bytes()))
+
+		err := conn.WriteMessage(websocket.TextMessage, []byte(encodedLine))
+		if err != nil && err != io.EOF {
+			log.Err(err)
+			break
 		}
 	}
+
+	if sc.Err() != nil {
+		log.Dbg(err)
+
+		return
+	}
+}
+
+func (s *Server) filterLogLine(inputLine []byte) []byte {
+	return s.re.ReplaceAll(inputLine, []byte("********"))
 }

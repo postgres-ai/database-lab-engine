@@ -8,6 +8,8 @@ package embeddedui
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -151,7 +153,7 @@ func (ui *UIManager) Restart(ctx context.Context) error {
 	return nil
 }
 
-// Stop removes a embedded UI container.
+// Stop removes an embedded UI container.
 func (ui *UIManager) Stop(ctx context.Context) {
 	tools.RemoveContainer(ctx, ui.docker, getEmbeddedUIName(ui.engProps.InstanceID), cont.StopTimeout)
 }
@@ -169,4 +171,26 @@ func reportLaunching(cfg Config) {
 	}
 
 	log.Msg(fmt.Sprintf("Embedded UI has started successfully on %s:%d.", host, cfg.Port))
+}
+
+// IsEnabled reports if the embedded UI container is enabled.
+func (ui *UIManager) IsEnabled() bool {
+	return ui.cfg.Enabled
+}
+
+// GetHost provides a host name from the UI container configuration.
+func (ui *UIManager) GetHost() string {
+	return ui.cfg.Host
+}
+
+// OriginURL reports the URL of the embedded UI container.
+func (ui *UIManager) OriginURL() string {
+	uiHost := ui.cfg.Host
+	if uiHost == "" || uiHost == engine.DefaultListenerHost {
+		uiHost = engine.Localhost
+	}
+
+	localURL := url.URL{Scheme: engine.HTTPScheme, Host: net.JoinHostPort(uiHost, strconv.Itoa(ui.cfg.Port))}
+
+	return localURL.String()
 }
