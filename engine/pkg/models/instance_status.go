@@ -74,3 +74,8 @@ type PoolEntryView struct {
 	*PoolEntry
 	FileSystem FileSystemView `json:"fileSystem"`
 }
+
+// WSToken represents web-socket token response.
+type WSToken struct {
+	Token string `json:"token"`
+}

@@ -9,8 +9,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/client"
@@ -19,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/embeddedui"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
@@ -28,6 +31,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	srvCfg "gitlab.com/postgres-ai/database-lab/v3/internal/srv/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/mw"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/ws"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/validator"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
@@ -36,6 +40,8 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
+
+const minTokenLength = 8
 
 // Server defines an HTTP server of the Database Lab.
 type Server struct {
@@ -49,12 +55,20 @@ type Server struct {
 	Platform    *platform.Service
 	Observer    *observer.Observer
 	Estimator   *estimator.Estimator
-	upgrader    websocket.Upgrader
+	wsService   WSService
 	httpSrv     *http.Server
 	docker      *client.Client
 	pm          *pool.Manager
 	tm          *telemetry.Agent
 	startedAt   *models.LocalTime
+	re          *regexp.Regexp
+}
+
+// WSService defines a service to manage web-sockets.
+type WSService struct {
+	upgrader    websocket.Upgrader
+	uiManager   *embeddedui.UIManager
+	tokenKeeper *ws.TokenKeeper
 }
 
 // NewServer initializes a new Server instance with provided configuration.
@@ -68,7 +82,9 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config,
 	observer *observer.Observer,
 	estimator *estimator.Estimator,
 	pm *pool.Manager,
-	tm *telemetry.Agent) *Server {
+	tm *telemetry.Agent,
+	tokenKeeper *ws.TokenKeeper,
+	uiManager *embeddedui.UIManager) *Server {
 	server := &Server{
 		Config:      cfg,
 		Global:      globalCfg,
@@ -79,12 +95,17 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config,
 		Platform:    platform,
 		Observer:    observer,
 		Estimator:   estimator,
-		upgrader:    websocket.Upgrader{},
-		docker:      dockerClient,
-		pm:          pm,
-		tm:          tm,
-		startedAt:   &models.LocalTime{Time: time.Now().Truncate(time.Second)},
+		wsService: WSService{
+			upgrader:    websocket.Upgrader{},
+			tokenKeeper: tokenKeeper,
+			uiManager:   uiManager,
+		},
+		docker:    dockerClient,
+		pm:        pm,
+		tm:        tm,
+		startedAt: &models.LocalTime{Time: time.Now().Truncate(time.Second)},
 	}
+	server.initLogRegExp()
 
 	return server
 }
@@ -161,6 +182,7 @@ func attachAPI(r *mux.Router) error {
 // Reload reloads server configuration.
 func (s *Server) Reload(cfg srvCfg.Config) {
 	*s.Config = cfg
+	s.initLogRegExp()
 }
 
 // InitHandlers initializes handler functions of the HTTP server.
@@ -181,6 +203,13 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/observation/summary/{clone_id}/{session_id}", authMW.Authorized(s.sessionSummaryObservation)).Methods(http.MethodGet)
 	r.HandleFunc("/observation/download", authMW.Authorized(s.downloadArtifact)).Methods(http.MethodGet)
 	r.HandleFunc("/estimate", s.startEstimator).Methods(http.MethodGet)
+
+	// Sub-route /admin
+	adminR := r.PathPrefix("/admin").Subrouter()
+	adminR.Use(authMW.AdminMW)
+	adminR.HandleFunc("/ws-auth", s.websocketAuth).Methods(http.MethodGet)
+
+	r.HandleFunc("/instance/logs", authMW.WebSocketsMW(s.wsService.tokenKeeper, s.instanceLogs))
 
 	// Health check.
 	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet)
@@ -226,4 +255,30 @@ func (s *Server) Uptime() float64 {
 // reportLaunching reports the launch of the HTTP server.
 func reportLaunching(cfg *srvCfg.Config) {
 	log.Msg(fmt.Sprintf("API server started listening on %s:%d.", cfg.Host, cfg.Port))
+}
+
+func (s *Server) initLogRegExp() {
+	secretPatterns := []string{
+		"password:\\s?(\\S+)",
+		"POSTGRES_PASSWORD=(\\S+)",
+		"PGPASSWORD=(\\S+)",
+		"accessToken:\\s?(\\S+)",
+		"ACCESS_KEY(_ID)?:\\s?(\\S+)",
+	}
+
+	if len(s.Config.VerificationToken) >= minTokenLength && !containsSpace(s.Config.VerificationToken) {
+		secretPatterns = append(secretPatterns, s.Config.VerificationToken)
+	}
+
+	s.re = regexp.MustCompile("(?i)" + strings.Join(secretPatterns, "|"))
+}
+
+func containsSpace(s string) bool {
+	for _, v := range s {
+		if unicode.IsSpace(v) {
+			return true
+		}
+	}
+
+	return false
 }

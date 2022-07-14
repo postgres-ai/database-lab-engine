@@ -26,3 +26,13 @@ func TestIfOrganizationIsAllowed(t *testing.T) {
 	assert.Equal(t, s.isAllowedOrganization(0), false)
 	assert.Equal(t, s.isAllowedOrganization(1), true)
 }
+
+func TestOriginURL(t *testing.T) {
+	s := Service{
+		cfg: Config{
+			URL: "https://example.com:2345/api/path",
+		},
+	}
+
+	assert.Equal(t, "https://example.com:2345", s.OriginURL())
+}

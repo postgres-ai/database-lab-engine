@@ -125,7 +125,7 @@ type Connection struct {
 	Port     int    `yaml:"port"`
 	DBName   string `yaml:"dbname"`
 	Username string `yaml:"username"`
-	Password string `yaml:"password"`
+	Password string `yaml:"password" json:"-"`
 }
 
 // ImmediateRestore contains options for direct data restore without saving the dump file on disk.

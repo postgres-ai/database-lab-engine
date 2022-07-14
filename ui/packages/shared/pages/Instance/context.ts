@@ -25,6 +25,7 @@ export type Host = {
   elements: {
     breadcrumbs: React.ReactNode
   },
+  wsHost?: string
 }
 
 // Host context.

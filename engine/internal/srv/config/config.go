@@ -7,7 +7,7 @@ package config
 
 // Config provides configuration for an HTTP server of the Database Lab.
 type Config struct {
-	VerificationToken string `yaml:"verificationToken"`
+	VerificationToken string `yaml:"verificationToken" json:"-"`
 	Host              string `yaml:"host"`
 	Port              uint   `yaml:"port"`
 }

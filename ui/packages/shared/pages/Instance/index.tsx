@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { makeStyles } from '@material-ui/core'
 import { observer } from 'mobx-react-lite'
 
@@ -17,11 +17,20 @@ import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 import { Tabs } from './Tabs'
 import { Clones } from './Clones'
 import { Info } from './Info'
+import { establishConnection } from './wsLogs'
 import { ClonesModal } from './ClonesModal'
 import { SnapshotsModal } from './SnapshotsModal'
-import { HostProvider, StoresProvider, Host } from './context'
+import { Host, HostProvider, StoresProvider } from './context'
+
+import PropTypes from "prop-types";
+import Typography from "@material-ui/core/Typography";
+import Box from "@material-ui/core/Box";
+import Alert from '@material-ui/lab/Alert';
+import AlertTitle from '@material-ui/lab/AlertTitle';
 
 import { useCreatedStores } from './useCreatedStores'
+
+import './styles.scss';
 
 type Props = Host
 
@@ -45,13 +54,13 @@ const useStyles = makeStyles((theme) => ({
     [theme.breakpoints.down('sm')]: {
       flexDirection: 'column',
     },
-  },
+  }
 }))
 
 export const Instance = observer((props: Props) => {
   const classes = useStyles()
 
-  const { instanceId } = props
+  const { instanceId, api } = props
 
   const stores = useCreatedStores(props)
 
@@ -69,6 +78,19 @@ export const Instance = observer((props: Props) => {
       return props.callbacks?.hideDeprecatedApiBanner
     }
   }, [instance])
+
+  const [activeTab, setActiveTab] = React.useState(0);
+
+  const [isLogConnectionEnabled, enableLogConnection] = React.useState(false);
+
+  const switchTab = (event: React.ChangeEvent<{}>, tabID: number) => {
+    if (tabID == 1 && api.initWS != undefined && !isLogConnectionEnabled) {
+      establishConnection(api);
+      enableLogConnection(true)
+    }
+
+    setActiveTab(tabID);
+  };
 
   return (
     <HostProvider value={props}>
@@ -90,13 +112,18 @@ export const Instance = observer((props: Props) => {
               </Button>
             }
           >
-            <Tabs />
+            <Tabs
+                value={activeTab}
+                handleChange={switchTab}
+                hasLogs={api.initWS != undefined}
+            />
           </SectionTitle>
 
           {instanceError && (
             <ErrorStub {...instanceError} className={classes.errorStub} />
           )}
 
+          <TabPanel value={activeTab} index={0}>
           {!instanceError && (
             <div className={classes.content}>
               {!instance && <StubSpinner />}
@@ -113,8 +140,42 @@ export const Instance = observer((props: Props) => {
           <ClonesModal />
 
           <SnapshotsModal />
+            Instance
+          </TabPanel>
+
+          <TabPanel value={activeTab} index={1}>
+            <Alert severity="info">
+              <AlertTitle>Sensitive data are masked.</AlertTitle>
+              You can see the raw log data connecting to the machine and running the <strong>'docker logs'</strong> command.
+            </Alert>
+            <div id="logs-container"></div>
+          </TabPanel>
         </>
+
       </StoresProvider>
     </HostProvider>
   )
 })
+
+function TabPanel(props: PropTypes.InferProps<any>) {
+  const { children, value, index, ...other } = props;
+
+  return (
+      <Typography
+          component="div"
+          role="tabpanel"
+          hidden={value !== index}
+          id={`scrollable-auto-tabpanel-${index}`}
+          aria-labelledby={`scrollable-auto-tab-${index}`}
+          {...other}
+      >
+        <Box p={3}>{children}</Box>
+      </Typography>
+  );
+}
+
+TabPanel.propTypes = {
+  children: PropTypes.node,
+  index: PropTypes.any.isRequired,
+  value: PropTypes.any.isRequired
+};

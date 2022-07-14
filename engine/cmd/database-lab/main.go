@@ -32,6 +32,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/ws"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
@@ -125,6 +126,13 @@ func main() {
 		log.Errf(errors.WithMessage(err, `error in the "provision" section of the config`).Error())
 	}
 
+	tokenHolder, err := ws.NewTokenKeeper()
+	if err != nil {
+		log.Errf(errors.WithMessage(err, `failed to init WebSockets Token Manager`).Error())
+	}
+
+	go tokenHolder.RunCleaningUp(ctx)
+
 	observingChan := make(chan string, 1)
 
 	emergencyShutdown := func() {
@@ -154,7 +162,8 @@ func main() {
 	})
 
 	embeddedUI := embeddedui.New(cfg.EmbeddedUI, engProps, runner, docker)
-	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc, obs, est, pm, tm)
+	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc,
+		obs, est, pm, tm, tokenHolder, embeddedUI)
 	shutdownCh := setShutdownListener()
 
 	go setReloadListener(ctx, provisioner, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server)

@@ -5,13 +5,9 @@
  *--------------------------------------------------------------------------
  */
 
-import {
-  makeStyles,
-  Tabs as TabsComponent,
-  Tab as TabComponent,
-} from '@material-ui/core'
-
-import { colors } from '@postgres.ai/shared/styles/colors'
+import React from 'react';
+import {makeStyles, Tab as TabComponent, Tabs as TabsComponent,} from '@material-ui/core'
+import {colors} from '@postgres.ai/shared/styles/colors'
 
 const useStyles = makeStyles({
   tabsRoot: {
@@ -39,12 +35,21 @@ const useStyles = makeStyles({
   },
 })
 
-export const Tabs = () => {
+type Props = {
+  value: number
+  handleChange: (event: React.ChangeEvent<{}>, newValue: number) => void
+  hasLogs: boolean
+}
+
+export const Tabs = (props: Props) => {
   const classes = useStyles()
+
+  const { value, handleChange, hasLogs } = props
 
   return (
     <TabsComponent
-      value={0}
+      value={value}
+      onChange={handleChange}
       classes={{ root: classes.tabsRoot, indicator: classes.tabsIndicator }}
     >
       <TabComponent
@@ -52,6 +57,15 @@ export const Tabs = () => {
         classes={{
           root: classes.tabRoot,
         }}
+        value={0}
+      />
+      <TabComponent
+          label="Logs"
+          disabled={!hasLogs}
+          classes={{
+            root: classes.tabRoot,
+          }}
+          value={1}
       />
       {/* // TODO(Anton): Probably will be later. */}
       {/* <TabComponent
