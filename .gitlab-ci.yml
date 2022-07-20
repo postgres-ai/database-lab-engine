@@ -42,6 +42,22 @@ ci-checker:
       when: never
   before_script:
     - echo "prepare shell scripts"
+  variables:
+    COMMENT: |
+      This is a multi-line test comment
+      - With GitHub **Markdown** :sparkles:
+      - Created by [postgres-ai/migration-ci-action][1]
+      
+      [1]: https://github.com/marketplace/actions/database-lab-realistic-db-testing-in-ci
+      
+      ### Summary
+        | Status | Passed  :heavy_check_mark: |
+        |:---:| ---  |
+        | Session | #872  |
+        | Project | - |
+        | DLE version | v3.1.1-15-g1db723b-20220616-0755 |
+        | Data state at | 2022-06-12 00:00:06 +0000 UTC |
+        | Duration    | 44s|
   script:
     # Run CI checker.
     - echo "Run CI checker"
@@ -51,7 +67,8 @@ ci-checker:
 
     # Post summary.
     - echo "Post summary"
-    - export MR_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes?body=note"
+#    - export MR_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes?body=${COMMENT}"
+    - export MR_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes/1032432395?body=${COMMENT}"
     - |
-      curl --request POST --header "PRIVATE-TOKEN: ${CI_CHECKER_TOKEN}" --data "{'body':'Summary'}" "${MR_URL}"
+      curl --request PUT --header "PRIVATE-TOKEN: ${CI_CHECKER_TOKEN}" "${MR_URL}"
 
