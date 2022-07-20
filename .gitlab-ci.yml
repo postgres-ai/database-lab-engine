@@ -68,7 +68,7 @@ ci-checker:
     # Post summary.
     - echo "Post summary"
 #    - export MR_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes?body=${COMMENT}"
-    - export MR_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes/1032432395?body=${COMMENT}"
+    - export MR_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes/1032432395"
     - |
-      curl --request PUT --header "PRIVATE-TOKEN: ${CI_CHECKER_TOKEN}" "${MR_URL}"
+      curl --request PUT --header "PRIVATE-TOKEN: ${CI_CHECKER_TOKEN}" --data-urlencode "body=${COMMENT}" "${MR_URL}"
 
