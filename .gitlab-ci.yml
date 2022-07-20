@@ -51,5 +51,5 @@ ci-checker:
 
     # Post summary.
     - echo "Post summary"
-    - 'curl --request POST --header "PRIVATE-TOKEN: ${CI_CHECKER_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/issues/${CI_MERGE_REQUEST_IID}/notes?body=note" --data="{'body':'Summary'}"'
+    - 'curl --request POST --header "PRIVATE-TOKEN: ${CI_CHECKER_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/issues/${CI_MERGE_REQUEST_IID}/notes?body=note" --data="{\'body\':\'Summary\'}"'
 
