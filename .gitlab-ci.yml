@@ -49,8 +49,6 @@ ci-checker:
       env
       echo 'Migration has been completed'
     INPUT_DBNAME: "test_small"
-    INPUT_MIGRATION_ENVS:
-      - MIGRATION_ENV: "test"
     INPUT_OBSERVATION_INTERVAL: 10
     INPUT_MAX_LOCK_DURATION: 1
     INPUT_MAX_DURATION: 600
