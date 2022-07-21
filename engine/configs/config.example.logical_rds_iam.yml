@@ -124,13 +124,7 @@ databaseConfigs: &db_configs
     # Note, if you are using PostgreSQL 9.6 and older, remove the logerrors extension from the list since it is not supported.
     shared_preload_libraries: "pg_stat_statements, pg_stat_kcache, auto_explain, logerrors"
     # work_mem and all the Query Planning parameters – copy the values from the source.
-    # To do it, use this query:
-    #     select format($$%s = '%s'$$, name, setting)
-    #     from pg_settings
-    #     where
-    #       name ~ '(work_mem$|^enable_|_cost$|scan_size$|effective_cache_size|^jit)'
-    #       or name ~ '(^geqo|default_statistics_target|constraint_exclusion|cursor_tuple_fraction)'
-    #       or name ~ '(collapse_limit$|parallel|plan_cache_mode)';
+    # Detailed guide: https://postgres.ai/docs/how-to-guides/administration/postgresql-configuration#postgresql-configuration-in-clones
     work_mem: "100MB"
     # ... put Query Planning parameters here
 
