@@ -6,14 +6,11 @@
 package source
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
-	"path"
 
 	"github.com/google/go-github/v34/github"
 	"github.com/pkg/errors"
@@ -22,15 +19,17 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
+const githubType = "github"
+
 // GHProvider declares GitHub code provider.
 type GHProvider struct {
 	client *github.Client
 }
 
-// NewCodeProvider create a new code provider
-func NewCodeProvider(ctx context.Context, cfg *Config) *GHProvider {
+// NewGHProvider create a new GitHub code provider.
+func NewGHProvider(ctx context.Context, token string) *GHProvider {
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: cfg.Token},
+		&oauth2.Token{AccessToken: token},
 	)
 	tc := oauth2.NewClient(ctx, ts)
 
@@ -80,35 +79,4 @@ func getRunRef(opts Opts) string {
 	}
 
 	return ref
-}
-
-// Extract extracts downloaded repository archive.
-func (cp *GHProvider) Extract(file string) (string, error) {
-	extractDirNameCmd := fmt.Sprintf("unzip -qql %s | head -n1 | tr -s ' ' | cut -d' ' -f5-", file)
-
-	log.Dbg("Command: ", extractDirNameCmd)
-
-	dirName, err := exec.Command("bash", "-c", extractDirNameCmd).Output()
-	if err != nil {
-		return "", err
-	}
-
-	log.Dbg("Archive directory: ", string(bytes.TrimSpace(dirName)))
-
-	archiveDir, err := os.MkdirTemp(RepoDir, "*_extract")
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := exec.Command("unzip", "-d", archiveDir, file).CombinedOutput()
-	log.Dbg("Response: ", string(resp))
-
-	if err != nil {
-		return "", err
-	}
-
-	source := path.Join(archiveDir, string(bytes.TrimSpace(dirName)))
-	log.Dbg("Source: ", source)
-
-	return source, nil
 }

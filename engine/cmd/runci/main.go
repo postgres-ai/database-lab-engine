@@ -93,7 +93,11 @@ func main() {
 		}
 	}()
 
-	codeProvider := source.NewCodeProvider(ctx, &cfg.Source)
+	codeProvider, err := source.NewCodeProvider(ctx, &cfg.Source)
+	if err != nil {
+		log.Errf("failed to create a code provider: %v", err)
+		return
+	}
 
 	srv := runci.NewServer(cfg, dleClient, platformSvc, codeProvider, dockerCLI, networkID)
 

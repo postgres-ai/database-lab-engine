@@ -6,7 +6,14 @@
 package source
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path"
+
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 const (
@@ -23,7 +30,6 @@ type Config struct {
 // Provider declares code provider interface.
 type Provider interface {
 	Download(ctx context.Context, opts Opts, output string) error
-	Extract(file string) (sourceCodeDir string, err error)
 }
 
 // Opts declares repository options.
@@ -37,4 +43,49 @@ type Opts struct {
 	CommitLink  string `json:"commit_link"`
 	RequestLink string `json:"request_link"`
 	DiffLink    string `json:"diff_link"`
+}
+
+// NewCodeProvider creates a new code provider.
+func NewCodeProvider(ctx context.Context, cfg *Config) (Provider, error) {
+	switch cfg.Type {
+	case gitlabType:
+		return NewGLProvider(cfg.Token)
+
+	case githubType:
+		return NewGHProvider(ctx, cfg.Token), nil
+
+	default:
+		return nil, fmt.Errorf("code provider %q is not supported", cfg.Type)
+	}
+}
+
+// ExtractArchive extracts the downloaded repository archive.
+func ExtractArchive(file string) (string, error) {
+	extractDirNameCmd := fmt.Sprintf("unzip -qql %s | head -n1 | tr -s ' ' | cut -d' ' -f5-", file)
+
+	log.Dbg("Command: ", extractDirNameCmd)
+
+	dirName, err := exec.Command("bash", "-c", extractDirNameCmd).Output()
+	if err != nil {
+		return "", err
+	}
+
+	log.Dbg("Archive directory: ", string(bytes.TrimSpace(dirName)))
+
+	archiveDir, err := os.MkdirTemp(RepoDir, "*_extract")
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := exec.Command("unzip", "-d", archiveDir, file).CombinedOutput()
+	log.Dbg("Response: ", string(resp))
+
+	if err != nil {
+		return "", err
+	}
+
+	source := path.Join(archiveDir, string(bytes.TrimSpace(dirName)))
+	log.Dbg("Source: ", source)
+
+	return source, nil
 }

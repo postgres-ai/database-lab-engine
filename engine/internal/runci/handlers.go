@@ -85,7 +85,7 @@ func (s *Server) runMigration(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	sourceCodeDir, err := s.codeProvider.Extract(outputFile)
+	sourceCodeDir, err := source.ExtractArchive(outputFile)
 	if err != nil {
 		api.SendError(w, r, err)
 		return
