@@ -31,6 +31,7 @@ empty-job:
 
 ci-checker:
   stage: test
+  image: alpine:3.15
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: always
@@ -41,17 +42,30 @@ ci-checker:
         - packer/**/*
       when: never
   before_script:
-    - echo "prepare shell scripts"
+    - apk add --no-cache curl jq
+    - env
   variables:
+    INPUT_COMMANDS: |
+      env
+      echo 'Migration has been completed'
+    INPUT_DBNAME: "test_small"
+    INPUT_MIGRATION_ENVS:
+      - MIGRATION_ENV: "test"
+    INPUT_OBSERVATION_INTERVAL: 10
+    INPUT_MAX_LOCK_DURATION: 1
+    INPUT_MAX_DURATION: 600
+    INPUT_DOWNLOAD_ARTIFACTS: "true"
+    # MR_URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes?body=${COMMENT}
+    MR_URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes/1032432395
     COMMENT: |
       This is a multi-line test comment
-      - With GitHub **Markdown** :sparkles:
+      - With GitLab **Markdown** :sparkles:
       - Created by [postgres-ai/migration-ci-action][1]
       
       [1]: https://github.com/marketplace/actions/database-lab-realistic-db-testing-in-ci
       
       ### Summary
-        | Status | Passed  :heavy_check_mark: |
+        | Status | Passed  :white_check_mark: |
         |:---:| ---  |
         | Session | #872  |
         | Project | - |
@@ -61,14 +75,16 @@ ci-checker:
   script:
     # Run CI checker.
     - echo "Run CI checker"
+    # - bash ./engine/scripts/run_checker.sh
+    - bash run_checker.sh
 
     # Download artifacts.
     - echo "Download artifacts"
+    - cat response.json || true
 
     # Post summary.
     - echo "Post summary"
-#    - export MR_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes?body=${COMMENT}"
-    - export MR_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes/1032432395"
-    - |
+
+    - | 
       curl --request PUT --header "PRIVATE-TOKEN: ${CI_CHECKER_TOKEN}" --data-urlencode "body=${COMMENT}" "${MR_URL}"
 
