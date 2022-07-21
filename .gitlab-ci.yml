@@ -18,6 +18,8 @@ include:
 empty-job:
   stage: test
   image: scratch
+  script:
+    - ""
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: always
