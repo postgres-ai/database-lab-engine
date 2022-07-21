@@ -42,8 +42,7 @@ ci-checker:
         - packer/**/*
       when: never
   before_script:
-    - apk add --no-cache curl jq
-    - env
+    - apk add --no-cache curl jq bash
   variables:
     INPUT_COMMANDS: |
       env
