@@ -17,8 +17,7 @@ include:
 
 empty-job:
   stage: test
-  script:
-    - echo 'success'
+  image: scratch
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: always
@@ -48,6 +47,8 @@ ci-checker:
       env
       echo 'Migration has been completed'
     INPUT_DBNAME: "test_small"
+    INPUT_MIGRATION_ENVS: |
+      MIGRATION_ENV: "test"
     INPUT_OBSERVATION_INTERVAL: 10
     INPUT_MAX_LOCK_DURATION: 1
     INPUT_MAX_DURATION: 600

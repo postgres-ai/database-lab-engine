@@ -6,19 +6,23 @@ if [[ "${INPUT_DOWNLOAD_ARTIFACTS}" == "true" ]]; then
   KEEP_CLONE=true
 fi
 
+PROJECT_URL=${CI_MERGE_REQUEST_SOURCE_PROJECT_URL:-${CI_PROJECT_URL}}
+PROJECT_ID=${CI_MERGE_REQUEST_PROJECT_ID:-${CI_PROJECT_ID}}
+REF=${CI_COMMIT_TAG:-${CI_COMMIT_SHA}}
+
+
 JSON_DATA=$(jq -n -c \
-  --arg owner "$CI_PROJECT_NAMESPACE" \
-  --arg repo "$CI_PROJECT_NAME" \
-  --arg ref "$CI_COMMIT_REF_SLUG" \
+  --arg repo "$PROJECT_ID" \
+  --arg ref "$REF" \
   --arg commands "$INPUT_COMMANDS" \
   --arg db_name "$INPUT_DBNAME" \
   --arg username "$GITLAB_USER_LOGIN" \
   --arg username_full "$GITLAB_USER_NAME" \
   --arg username_link "${CI_SERVER_URL}/$GITLAB_USER_LOGIN" \
   --arg branch "${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME}}" \
-  --arg branch_link "${CI_SERVER_URL}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/-/tree/${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME}}" \
+  --arg branch_link "${PROJECT_URL}/-/tree/${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME}}" \
   --arg commit "${CI_COMMIT_SHA}" \
-  --arg commit_link "${CI_SERVER_URL}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/-/commit/${CI_COMMIT_SHA}" \
+  --arg commit_link "${PROJECT_URL}/-/commit/${CI_COMMIT_SHA}" \
   --arg request_link "${CI_MERGE_REQUEST_PROJECT_URL}/-/merge_requests/${CI_MERGE_REQUEST_IID}" \
   --arg diff_link "${CI_MERGE_REQUEST_PROJECT_URL}/-/merge_requests/${CI_MERGE_REQUEST_IID}/diffs" \
   --arg migration_envs "$INPUT_MIGRATION_ENVS" \
