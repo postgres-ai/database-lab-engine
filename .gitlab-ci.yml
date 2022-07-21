@@ -17,7 +17,7 @@ include:
 
 empty-job:
   stage: test
-  image: scratch
+  image: alpine:3.15
   script:
     - ""
   rules:
