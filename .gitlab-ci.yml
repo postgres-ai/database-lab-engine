@@ -14,6 +14,7 @@ include:
   - local: 'engine/.gitlab-ci.yml'
   - local: 'ui/.gitlab-ci.yml'
   - local: 'cloudformation/.gitlab-ci.yml'
+  - local: 'checker/.gitlab-ci.yml'
 
 empty-job:
   stage: test
@@ -28,35 +29,5 @@ empty-job:
         - engine/**/*
         - ui/**/*
         - cloudformation/**/*
-      when: never
-
-ci-checker:
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
         - checker/**/*
-      when: always
-
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
-        - engine/**/*
-        - ui/**/*
-        - cloudformation/**/*
-        - packer/**/*
       when: never
-  image: docker:20
-  stage: test
-  services:
-    - name: docker:dind
-  variables:
-    REGISTRY_USER: "${CI_REGISTRY_USER}"
-    REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
-    REGISTRY: "${CI_REGISTRY}"
-    DOCKER_FILE: "checker/Dockerfile"
-    DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/ci-checker-template"
-    TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
-  script:
-    - apk add --no-cache bash
-    - bash ./engine/scripts/ci_docker_build_push.sh
-
-
