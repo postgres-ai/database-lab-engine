@@ -3,7 +3,7 @@ database-lab-ci-checker:
   stage: test
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-  image: registry.gitlab.com/postgres-ai/database-lab/ci-checker-template:400-ci-checker-prototype
+  image: postgresai/gitlab-ci-template:0.0.1
   variables:
     # Merge Request URL for publishing the CI checker summary.
     MR_URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes
