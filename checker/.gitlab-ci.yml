@@ -13,7 +13,7 @@
 
 .job_template: &build_checker_template_image_definition
   image: docker:20
-  stage: test
+  stage: build
   services:
     - name: docker:dind
   script:
