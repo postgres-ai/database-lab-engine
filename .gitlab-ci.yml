@@ -31,60 +31,32 @@ empty-job:
       when: never
 
 ci-checker:
-  stage: test
-  image: alpine:3.15
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - checker/**/*
       when: always
+
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
+        - engine/**/*
         - ui/**/*
         - cloudformation/**/*
         - packer/**/*
       when: never
-  before_script:
-    - apk add --no-cache curl jq bash
+  image: docker:20
+  stage: test
+  services:
+    - name: docker:dind
   variables:
-    INPUT_COMMANDS: |
-      env
-      echo 'Migration has been completed'
-    INPUT_DBNAME: "test_small"
-    INPUT_MIGRATION_ENVS: |
-      MIGRATION_ENV: "test"
-    INPUT_OBSERVATION_INTERVAL: 10
-    INPUT_MAX_LOCK_DURATION: 1
-    INPUT_MAX_DURATION: 600
-    INPUT_DOWNLOAD_ARTIFACTS: "true"
-    # MR_URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes?body=${COMMENT}
-    MR_URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes/1032432395
-    COMMENT: |
-      This is a multi-line test comment
-      - With GitLab **Markdown** :sparkles:
-      - Created by [postgres-ai/migration-ci-action][1]
-      
-      [1]: https://github.com/marketplace/actions/database-lab-realistic-db-testing-in-ci
-      
-      ### Summary
-        | Status | Passed  :white_check_mark: |
-        |:---:| ---  |
-        | Session | #872  |
-        | Project | - |
-        | DLE version | v3.1.1-15-g1db723b-20220616-0755 |
-        | Data state at | 2022-06-12 00:00:06 +0000 UTC |
-        | Duration    | 44s|
+    REGISTRY_USER: "${CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${CI_REGISTRY}"
+    DOCKER_FILE: "checker/Dockerfile"
+    DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/checker-client"
+    TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
   script:
-    # Run CI checker.
-    - echo "Run CI checker"
-    # - bash ./engine/scripts/run_checker.sh
-    - bash run_checker.sh
+    - apk add --no-cache bash
+    - bash ./engine/scripts/ci_docker_build_push.sh
 
-    # Download artifacts.
-    - echo "Download artifacts"
-    - cat response.json || true
-
-    # Post summary.
-    - echo "Post summary"
-
-    - | 
-      curl --request PUT --header "PRIVATE-TOKEN: ${CI_CHECKER_TOKEN}" --data-urlencode "body=${COMMENT}" "${MR_URL}"
 
