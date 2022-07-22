@@ -53,7 +53,7 @@ ci-checker:
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
     DOCKER_FILE: "checker/Dockerfile"
-    DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/checker-client"
+    DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/ci-checker-template"
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
   script:
     - apk add --no-cache bash

@@ -1,0 +1,43 @@
+# Database Lab CI Checker job.
+database-lab-ci-checker:
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  image: registry.gitlab.com/postgres-ai/database-lab/ci-checker-template:400-ci-checker-prototype
+  variables:
+    # Merge Request URL for publishing the CI checker summary.
+    MR_URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes
+
+    # Commands to run DB migrations.
+    INPUT_COMMANDS: |
+      sqitch deploy --verbose
+      echo 'Migration has been completed'
+
+    # The name of the database against which the database migrations will be tested.
+    INPUT_DBNAME: "test_small"
+
+    # Custom environment variables to pass to the CI Checker environment.
+    INPUT_MIGRATION_ENVS: |
+      MIGRATION_ENV: "test"
+
+    # Observation parameters.
+    INPUT_OBSERVATION_INTERVAL: 10
+    INPUT_MAX_LOCK_DURATION: 1
+    INPUT_MAX_DURATION: 600
+    INPUT_DOWNLOAD_ARTIFACTS: "true"
+  artifacts:
+    paths:
+      - artifacts
+  script:
+    # Run the CI checker script to start session and verify DB migrations.
+    - bash run_checker.sh
+
+    # Publish summary to Merge Request.
+    - export JSON_RESPONSE=$(cat response.json | jq)
+    - |
+      export COMMENT="### Summary 
+      \`\`\`json 
+      ${JSON_RESPONSE}
+      \`\`\`"
+    - |
+      curl --request POST --header "PRIVATE-TOKEN: ${CI_CHECKER_TOKEN}" --data-urlencode "body=${COMMENT}" "${MR_URL}"
