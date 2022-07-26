@@ -288,6 +288,28 @@ Conditions:
     !Not [Condition: CreateSubDomain]
 
 Resources:
+  IamSSMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "EC2RoleForSSM"
+      Description: "EC2 IAM role for SSM access"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  EC2SSMInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      InstanceProfileName: "EC2RoleForSSM"
+      Roles:
+        - Ref: "IamSSMRole"
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -344,6 +366,7 @@ Resources:
           - !Ref InstanceType
           - Arch
       InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref EC2SSMInstanceProfile
       SecurityGroupIds: !If
         - CreateSubDomain
         - - !GetAtt DLESecurityGroup.GroupId
@@ -451,6 +474,18 @@ Resources:
             sudo systemctl enable envoy
             sudo systemctl start envoy
           fi
+         
+          # upgrade ssm agent version
+          wget https://s3.us-east-1.amazonaws.com/amazon-ssm-us-east-1/amazon-ssm-agent/3.1.1575.0/amazon-ssm-agent-ubuntu-amd64.tar.gz
+          tar -xf amazon-ssm-agent-ubuntu-amd64.tar.gz
+          bash snap-install.sh
+
+          # Initialize CLI configuration
+          su ubuntu -c '/usr/local/bin/dblab init \
+           --environment-id=test \
+           --url=http://localhost:2345 \
+           --token=${DLEVerificationToken} \
+           --insecure'
           
           while ! echo "UI started" | nc localhost 2346; do sleep 10; done
           /opt/aws/bin/cfn-signal -e $? -d "DLE UI is available" -r "DLE Deploy Process Complete" '${WaitHandle}'
