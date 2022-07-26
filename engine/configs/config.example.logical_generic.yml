@@ -126,6 +126,8 @@ databaseConfigs: &db_configs
     # work_mem and all the Query Planning parameters – copy the values from the source.
     # Detailed guide: https://postgres.ai/docs/how-to-guides/administration/postgresql-configuration#postgresql-configuration-in-clones
     work_mem: "100MB"
+    # The maximum amount of memory to be used by maintenance operations, such as VACUUM, CREATE INDEX, and ALTER TABLE ADD FOREIGN KEY. 
+    maintenance_work_mem: "500MB"
     # ... put Query Planning parameters here
 
 # Details of provisioning – where data is located,
