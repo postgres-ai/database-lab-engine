@@ -28,7 +28,8 @@ import (
 )
 
 const (
-	labelClone = "dblab_clone"
+	// LabelClone specifies the container label used to identify clone containers.
+	LabelClone = "dblab_clone"
 
 	// referenceKey uses as a filtering key to identify image tag.
 	referenceKey = "reference"
@@ -78,8 +79,7 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 		"--publish", fmt.Sprintf("%[1]s:%[1]s", instancePort),
 		"--env", "PGDATA=" + c.DataDir(),
 		strings.Join(volumes, " "),
-		"--label", labelClone,
-		"--label", c.Pool.Name,
+		fmt.Sprintf("--label %s='%s'", LabelClone, c.Pool.Name),
 		strings.Join(containerFlags, " "),
 		c.DockerImage,
 		"-p", instancePort,
@@ -210,7 +210,7 @@ func RemoveContainer(r runners.Runner, cloneName string) (string, error) {
 // ListContainers lists container names.
 func ListContainers(r runners.Runner, clonePool string) ([]string, error) {
 	dockerListCmd := fmt.Sprintf(`docker container ls --filter "label=%s" --filter "label=%s" --all --format '{{.Names}}'`,
-		labelClone, clonePool)
+		LabelClone, clonePool)
 
 	out, err := r.Run(dockerListCmd, false)
 	if err != nil {

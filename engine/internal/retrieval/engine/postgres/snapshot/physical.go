@@ -17,12 +17,17 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+
 	"github.com/pkg/errors"
+
 	"github.com/robfig/cron/v3"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/diagnostic"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
@@ -35,7 +40,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/pgtool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
-
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
@@ -561,6 +565,16 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 		if err != nil {
 			tools.PrintContainerLogs(ctx, p.dockerClient, p.promoteContainerName())
 			tools.PrintLastPostgresLogs(ctx, p.dockerClient, p.promoteContainerName(), clonePath)
+
+			filterArgs := filters.NewArgs(
+				filters.KeyValuePair{Key: "label",
+					Value: fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabPromoteLabel)})
+
+			err = diagnostic.CollectDiagnostics(ctx, p.dockerClient, filterArgs, p.promoteContainerName(), clonePath)
+
+			if err != nil {
+				log.Err("Failed to collect container diagnostics", err)
+			}
 		}
 	}()
 

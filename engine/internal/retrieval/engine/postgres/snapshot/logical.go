@@ -13,9 +13,13 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
+
 	"github.com/docker/docker/client"
+
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/diagnostic"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
@@ -226,6 +230,16 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 		if err != nil {
 			tools.PrintContainerLogs(ctx, s.dockerClient, s.patchContainerName())
 			tools.PrintLastPostgresLogs(ctx, s.dockerClient, s.patchContainerName(), dataDir)
+
+			filterArgs := filters.NewArgs(
+				filters.KeyValuePair{Key: "label",
+					Value: fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabPatchLabel)})
+
+			err = diagnostic.CollectDiagnostics(ctx, s.dockerClient, filterArgs, s.patchContainerName(), dataDir)
+
+			if err != nil {
+				log.Err("Failed to collect container diagnostics", err)
+			}
 		}
 	}()
 

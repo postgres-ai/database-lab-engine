@@ -230,7 +230,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	}
 
 	if len(r.RestoreOptions.Configs) > 0 {
-		if err := updateConfigs(ctx, r.dockerClient, dataDir, containerID, r.RestoreOptions.Configs); err != nil {
+		if err := updateConfigs(ctx, r.dockerClient, dataDir, containerID, r.restoreContainerName(), r.RestoreOptions.Configs); err != nil {
 			return errors.Wrap(err, "failed to update configs")
 		}
 	}

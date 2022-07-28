@@ -16,9 +16,12 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/diagnostic"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
@@ -28,7 +31,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/pgtool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
-
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
@@ -333,6 +335,16 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) (err error) {
 		if err != nil {
 			tools.PrintContainerLogs(ctx, r.dockerClient, r.syncInstanceName())
 			tools.PrintLastPostgresLogs(ctx, r.dockerClient, r.syncInstanceName(), r.fsPool.DataDir())
+
+			filterArgs := filters.NewArgs(
+				filters.KeyValuePair{Key: "label",
+					Value: fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabSyncLabel)})
+
+			err = diagnostic.CollectDiagnostics(ctx, r.dockerClient, filterArgs, r.syncInstanceName(), r.fsPool.DataDir())
+
+			if err != nil {
+				log.Err("Failed to collect container diagnostics", err)
+			}
 		}
 	}()
 

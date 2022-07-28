@@ -15,10 +15,14 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+
 	"github.com/jackc/pgx/v4"
+
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/diagnostic"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
@@ -285,10 +289,12 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", d.dumpContainerName(), containerID))
 
 	if err := d.dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
+		collectDiagnostics(ctx, d.dockerClient, d.dumpContainerName(), d.fsPool.DataDir())
 		return errors.Wrapf(err, "failed to start container %q", d.dumpContainerName())
 	}
 
 	if err := d.setupConnectionOptions(ctx); err != nil {
+		collectDiagnostics(ctx, d.dockerClient, d.dumpContainerName(), d.fsPool.DataDir())
 		return errors.Wrap(err, "failed to setup connection options")
 	}
 
@@ -300,24 +306,26 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 
 	dataDir := d.fsPool.DataDir()
 
+	pgDataDir := tmpDBLabPGDataDir
+	if d.DumpOptions.Restore.Enabled {
+		pgDataDir = dataDir
+	}
+
 	if err := tools.CheckContainerReadiness(ctx, d.dockerClient, containerID); err != nil {
 		var errHealthCheck *tools.ErrHealthCheck
 		if !errors.As(err, &errHealthCheck) {
 			return errors.Wrap(err, "failed to readiness check")
 		}
 
-		pgDataDir := tmpDBLabPGDataDir
-		if d.DumpOptions.Restore.Enabled {
-			pgDataDir = dataDir
-		}
-
 		if err := setupPGData(ctx, d.dockerClient, pgDataDir, containerID); err != nil {
+			collectDiagnostics(ctx, d.dockerClient, d.dumpContainerName(), pgDataDir)
 			return errors.Wrap(err, "failed to set up Postgres data")
 		}
 	}
 
 	if d.DumpOptions.Restore.Enabled && len(d.DumpOptions.Restore.Configs) > 0 {
-		if err := updateConfigs(ctx, d.dockerClient, dataDir, containerID, d.DumpOptions.Restore.Configs); err != nil {
+		if err := updateConfigs(ctx, d.dockerClient, dataDir, containerID, d.dumpContainerName(), d.DumpOptions.Restore.Configs); err != nil {
+			collectDiagnostics(ctx, d.dockerClient, d.dumpContainerName(), pgDataDir)
 			return errors.Wrap(err, "failed to update configs")
 		}
 	}
@@ -367,6 +375,18 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 	}
 
 	return nil
+}
+
+func collectDiagnostics(ctx context.Context, client *client.Client, postgresName, dataDir string) {
+	filterArgs := filters.NewArgs(
+		filters.KeyValuePair{Key: "label",
+			Value: fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabDumpLabel)})
+
+	err := diagnostic.CollectDiagnostics(ctx, client, filterArgs, postgresName, dataDir)
+
+	if err != nil {
+		log.Err("Failed to collect container diagnostics", err)
+	}
 }
 
 func (d *DumpJob) getDBList(ctx context.Context) (map[string]DumpDefinition, error) {
@@ -501,7 +521,7 @@ func setupPGData(ctx context.Context, dockerClient *client.Client, dataDir strin
 func updateConfigs(
 	ctx context.Context,
 	dockerClient *client.Client,
-	dataDir, contID string,
+	dataDir, contID, containerName string,
 	configs map[string]string,
 ) error {
 	log.Dbg("Stopping container to update configuration")
@@ -519,12 +539,14 @@ func updateConfigs(
 	}
 
 	if err := dockerClient.ContainerStart(ctx, contID, types.ContainerStartOptions{}); err != nil {
+		diagnostic.CollectContainerDiagnostics(ctx, dockerClient, containerName)
 		return errors.Wrapf(err, "failed to start container %q", contID)
 	}
 
 	log.Dbg("Waiting for container readiness")
 
 	if err := tools.CheckContainerReadiness(ctx, dockerClient, contID); err != nil {
+		diagnostic.CollectContainerDiagnostics(ctx, dockerClient, containerName)
 		return errors.Wrap(err, "failed to readiness check")
 	}
 

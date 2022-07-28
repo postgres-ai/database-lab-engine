@@ -6,15 +6,21 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/client"
+
 	_ "github.com/lib/pq" // Register Postgres database driver.
+
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/diagnostic"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/docker"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
@@ -106,6 +112,8 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 		cnt++
 
 		if cnt > waitPostgresTimeout {
+			err := collectDiagnostics(c)
+
 			if runnerErr := Stop(r, c.Pool, c.CloneName); runnerErr != nil {
 				log.Err(runnerErr)
 			}
@@ -117,6 +125,25 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 	}
 
 	return nil
+}
+
+func collectDiagnostics(c *resources.AppConfig) error {
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		log.Fatal("Failed to create a Docker client:", err)
+	}
+
+	filterArgs := filters.NewArgs(
+		filters.KeyValuePair{Key: "label",
+			Value: fmt.Sprintf("%s=%s", docker.LabelClone, c.Pool.Name)})
+
+	err = diagnostic.CollectDiagnostics(context.Background(), dockerClient, filterArgs, c.CloneName, c.DataDir())
+
+	if err != nil {
+		log.Err("Failed to collect container diagnostics", err)
+	}
+
+	return err
 }
 
 // Stop stops Postgres instance.
