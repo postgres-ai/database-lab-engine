@@ -23,6 +23,7 @@ import (
 	"github.com/docker/cli/cli/streams"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
@@ -575,4 +576,59 @@ func CreateContainerIfMissing(ctx context.Context, docker *client.Client, contai
 	}
 
 	return createdContainer.ID, nil
+}
+
+// ListContainersByLabel lists containers by label name and value.
+func ListContainersByLabel(ctx context.Context, docker *client.Client, filterArgs filters.Args) ([]string, error) {
+	list, err := docker.ContainerList(ctx,
+		types.ContainerListOptions{
+			All:     true,
+			Filters: filterArgs,
+		})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var containers = make([]string, 0, len(list))
+
+	for _, c := range list {
+		containers = append(containers, c.Names[0])
+	}
+
+	return containers, nil
+}
+
+// CopyContainerLogs collects container logs.
+func CopyContainerLogs(ctx context.Context, docker *client.Client, containerName, filePath string) error {
+	reader, err := docker.ContainerLogs(ctx, containerName, types.ContainerLogsOptions{ShowStdout: true, ShowStderr: true, Timestamps: true})
+
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		err := reader.Close()
+		if err != nil {
+			log.Err("Failed to close container output reader", err)
+		}
+	}()
+
+	writeFile, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0777)
+	if err != nil {
+		return fmt.Errorf("failed to open container output file %w", err)
+	}
+
+	defer func() {
+		err := writeFile.Close()
+		if err != nil {
+			log.Err("Failed to close container output file", err)
+		}
+	}()
+
+	if _, err := io.Copy(writeFile, reader); err != nil {
+		return fmt.Errorf("failed to copy container output %w", err)
+	}
+
+	return nil
 }

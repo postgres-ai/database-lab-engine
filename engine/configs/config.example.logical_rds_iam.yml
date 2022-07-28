@@ -322,6 +322,8 @@ cloning:
   #   - no recently logged queries in the query log
   maxIdleMinutes: 120
 
+diagnostic:
+  logsRetentionDays: 7
 
 # ### INTEGRATION ###
 

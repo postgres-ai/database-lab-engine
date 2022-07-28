@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/diagnostic"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/embeddedui"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
@@ -166,7 +167,9 @@ func main() {
 		obs, est, pm, tm, tokenHolder, embeddedUI)
 	shutdownCh := setShutdownListener()
 
-	go setReloadListener(ctx, provisioner, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server)
+	logCleaner := diagnostic.NewLogCleaner()
+
+	go setReloadListener(ctx, provisioner, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server, logCleaner)
 
 	server.InitHandlers()
 
@@ -192,6 +195,10 @@ func main() {
 
 	defer retrievalSvc.Stop()
 
+	if err := logCleaner.ScheduleLogCleanupJob(cfg.Diagnostic); err != nil {
+		log.Err("Failed to schedule a cleanup job of the diagnostic logs collector", err)
+	}
+
 	<-shutdownCh
 	cancel()
 
@@ -206,6 +213,7 @@ func main() {
 
 	shutdownDatabaseLabEngine(ctxBackground, docker, &cfg.Global.Database, engProps.InstanceID, pm.First())
 	cloningSvc.SaveClonesState()
+	logCleaner.StopLogCleanupJob()
 	tm.SendEvent(ctxBackground, telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
 }
 
@@ -234,9 +242,9 @@ func getEngineProperties(ctx context.Context, dockerCLI *client.Client, cfg *con
 	return engProps, nil
 }
 
-func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent, retrievalSvc *retrieval.Retrieval,
-	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, embeddedUI *embeddedui.UIManager,
-	server *srv.Server) error {
+func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent,
+	retrievalSvc *retrieval.Retrieval, pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service,
+	est *estimator.Estimator, embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner) error {
 	cfg, err := config.LoadConfiguration()
 	if err != nil {
 		return err
@@ -264,6 +272,10 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 		return err
 	}
 
+	if err := cleaner.ScheduleLogCleanupJob(cfg.Diagnostic); err != nil {
+		return err
+	}
+
 	dbCfg := resources.DB{
 		Username: cfg.Global.Database.User(),
 		DBName:   cfg.Global.Database.Name(),
@@ -280,16 +292,16 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 	return nil
 }
 
-func setReloadListener(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent, retrievalSvc *retrieval.Retrieval,
-	pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service, est *estimator.Estimator, embeddedUI *embeddedui.UIManager,
-	server *srv.Server) {
+func setReloadListener(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent,
+	retrievalSvc *retrieval.Retrieval, pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service,
+	est *estimator.Estimator, embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner) {
 	reloadCh := make(chan os.Signal, 1)
 	signal.Notify(reloadCh, syscall.SIGHUP)
 
 	for range reloadCh {
 		log.Msg("Reloading configuration")
 
-		if err := reloadConfig(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server); err != nil {
+		if err := reloadConfig(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server, cleaner); err != nil {
 			log.Err("Failed to reload configuration", err)
 		}
 
