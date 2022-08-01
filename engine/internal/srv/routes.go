@@ -540,6 +540,7 @@ func (s *Server) healthCheck(w http.ResponseWriter, _ *http.Request) {
 
 	healthResponse := models.Engine{
 		Version: version.GetVersion(),
+		Edition: s.engProps.GetEdition(),
 	}
 
 	if err := json.NewEncoder(w).Encode(healthResponse); err != nil {

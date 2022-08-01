@@ -233,10 +233,16 @@ func getEngineProperties(ctx context.Context, dockerCLI *client.Client, cfg *con
 		return global.EngineProps{}, fmt.Errorf("failed to load instance ID: %w", err)
 	}
 
+	infra := os.Getenv("DLE_COMPUTING_INFRASTRUCTURE")
+	if infra == "" {
+		infra = global.LocalInfra
+	}
+
 	engProps := global.EngineProps{
-		InstanceID:    instanceID,
-		ContainerName: strings.Trim(dleContainer.Name, "/"),
-		EnginePort:    cfg.Server.Port,
+		InstanceID:     instanceID,
+		ContainerName:  strings.Trim(dleContainer.Name, "/"),
+		Infrastructure: infra,
+		EnginePort:     cfg.Server.Port,
 	}
 
 	return engProps, nil

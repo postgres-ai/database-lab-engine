@@ -49,7 +49,25 @@ type Telemetry struct {
 
 // EngineProps contains internal Database Lab Engine properties.
 type EngineProps struct {
-	InstanceID    string
-	ContainerName string
-	EnginePort    uint
+	InstanceID     string
+	ContainerName  string
+	Infrastructure string
+	EnginePort     uint
+}
+
+const (
+	// LocalInfra defines a local infra.
+	LocalInfra = "local"
+
+	communityEdition = "community"
+	standardEdition  = "standard"
+)
+
+// GetEdition provides the DLE edition.
+func (p *EngineProps) GetEdition() string {
+	if p.Infrastructure != LocalInfra {
+		return standardEdition
+	}
+
+	return communityEdition
 }

@@ -44,6 +44,7 @@ type Cloning struct {
 // Engine represents info about Database Lab Engine instance.
 type Engine struct {
 	Version   string     `json:"version"`
+	Edition   string     `json:"edition"`
 	StartedAt *LocalTime `json:"startedAt,omitempty"`
 	Telemetry *bool      `json:"telemetry,omitempty"`
 }
