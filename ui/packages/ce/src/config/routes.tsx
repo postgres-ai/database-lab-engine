@@ -1,5 +1,5 @@
 export const ROUTES = {
-  name: 'Database Lab Community Edition',
+  name: 'Database Lab',
   path: '/',
 
   AUTH: {

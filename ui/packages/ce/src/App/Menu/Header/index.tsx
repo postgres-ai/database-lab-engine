@@ -10,6 +10,7 @@ import logoIconUrl from './icons/logo.svg'
 import { ReactComponent as StarsIcon } from './icons/stars.svg'
 
 import styles from './styles.module.scss'
+import { DLEEdition } from "helpers/edition";
 
 type Props = {
   isCollapsed: boolean
@@ -28,7 +29,7 @@ export const Header = (props: Props) => {
           <h1 className={styles.title}>
             Database Lab
             <br />
-            <span className={styles.name}>Community Edition</span>
+            <span className={styles.name}>{DLEEdition()}</span>
           </h1>
         )}
       </Link>
