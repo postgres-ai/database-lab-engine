@@ -340,9 +340,7 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) (err error) {
 				filters.KeyValuePair{Key: "label",
 					Value: fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabSyncLabel)})
 
-			err = diagnostic.CollectDiagnostics(ctx, r.dockerClient, filterArgs, r.syncInstanceName(), r.fsPool.DataDir())
-
-			if err != nil {
+			if err := diagnostic.CollectDiagnostics(ctx, r.dockerClient, filterArgs, r.syncInstanceName(), r.fsPool.DataDir()); err != nil {
 				log.Err("Failed to collect container diagnostics", err)
 			}
 		}

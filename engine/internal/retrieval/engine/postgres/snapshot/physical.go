@@ -570,9 +570,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 				filters.KeyValuePair{Key: "label",
 					Value: fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabPromoteLabel)})
 
-			err = diagnostic.CollectDiagnostics(ctx, p.dockerClient, filterArgs, p.promoteContainerName(), clonePath)
-
-			if err != nil {
+			if err := diagnostic.CollectDiagnostics(ctx, p.dockerClient, filterArgs, p.promoteContainerName(), clonePath); err != nil {
 				log.Err("Failed to collect container diagnostics", err)
 			}
 		}

@@ -137,9 +137,7 @@ func collectDiagnostics(c *resources.AppConfig) error {
 		filters.KeyValuePair{Key: "label",
 			Value: fmt.Sprintf("%s=%s", docker.LabelClone, c.Pool.Name)})
 
-	err = diagnostic.CollectDiagnostics(context.Background(), dockerClient, filterArgs, c.CloneName, c.DataDir())
-
-	if err != nil {
+	if err := diagnostic.CollectDiagnostics(context.Background(), dockerClient, filterArgs, c.CloneName, c.DataDir()); err != nil {
 		log.Err("Failed to collect container diagnostics", err)
 	}
 
