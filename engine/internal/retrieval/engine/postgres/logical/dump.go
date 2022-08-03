@@ -382,9 +382,7 @@ func collectDiagnostics(ctx context.Context, client *client.Client, postgresName
 		filters.KeyValuePair{Key: "label",
 			Value: fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabDumpLabel)})
 
-	err := diagnostic.CollectDiagnostics(ctx, client, filterArgs, postgresName, dataDir)
-
-	if err != nil {
+	if err := diagnostic.CollectDiagnostics(ctx, client, filterArgs, postgresName, dataDir); err != nil {
 		log.Err("Failed to collect container diagnostics", err)
 	}
 }
