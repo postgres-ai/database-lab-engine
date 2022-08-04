@@ -14,6 +14,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/google/go-github/v34 v34.0.0
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/jackc/pgtype v1.5.0
@@ -47,7 +48,6 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.7.0 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect

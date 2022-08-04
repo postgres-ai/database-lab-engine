@@ -134,7 +134,7 @@ func AddVolumesToHostConfig(ctx context.Context, docker *client.Client, hostConf
 
 	log.Dbg("Virtualization system: ", hostInfo.VirtualizationSystem)
 
-	if hostInfo.VirtualizationRole == "guest" {
+	if IsInDocker() {
 		inspection, err := docker.ContainerInspect(ctx, hostInfo.Hostname)
 		if err != nil {
 			return err
@@ -631,4 +631,13 @@ func CopyContainerLogs(ctx context.Context, docker *client.Client, containerName
 	}
 
 	return nil
+}
+
+// IsInDocker checks if the DLE process is running inside Docker container.
+func IsInDocker() bool {
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return true
+	}
+
+	return false
 }
