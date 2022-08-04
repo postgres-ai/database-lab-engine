@@ -249,8 +249,9 @@ func extractTar(dir string, reader *tar.Reader, header *tar.Header) error {
 		}
 
 		defer func() {
-			err = f.Close()
-			log.Err("Failed to close TAR stream", err)
+			if err := f.Close(); err != nil {
+				log.Err("Failed to close TAR stream", err)
+			}
 		}()
 
 		if _, err := io.Copy(f, reader); err != nil {
