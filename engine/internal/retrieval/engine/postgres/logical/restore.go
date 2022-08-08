@@ -166,18 +166,24 @@ func (r *RestoreJob) Reload(cfg map[string]interface{}) (err error) {
 func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Msg("Run job: ", r.Name())
 
-	isEmpty, err := tools.IsEmptyDirectory(r.fsPool.DataDir())
+	dataDir := r.fsPool.DataDir()
+
+	isEmpty, err := tools.IsEmptyDirectory(dataDir)
 	if err != nil {
-		return errors.Wrapf(err, "failed to explore the data directory %q", r.fsPool.DataDir())
+		return fmt.Errorf("failed to explore the data directory %q: %w", dataDir, err)
 	}
 
 	if !isEmpty {
 		if !r.ForceInit {
-			return errors.Errorf("the data directory %q is not empty. Use 'forceInit' or empty the data directory",
-				r.fsPool.DataDir())
+			return fmt.Errorf("the data directory %q is not empty. Use 'forceInit' or empty the data directory: %w",
+				dataDir, err)
 		}
 
-		log.Msg(fmt.Sprintf("The data directory %q is not empty. Existing data may be overwritten.", r.fsPool.DataDir()))
+		log.Msg(fmt.Sprintf("The data directory %q is not empty. Existing data may be overwritten.", dataDir))
+
+		if err := updateConfigs(dataDir, r.RestoreOptions.Configs); err != nil {
+			return fmt.Errorf("failed to update configuration: %w", err)
+		}
 	}
 
 	if err := tools.PullImage(ctx, r.dockerClient, r.RestoreOptions.DockerImage); err != nil {
@@ -214,8 +220,6 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to start container %q", r.restoreContainerName())
 	}
 
-	dataDir := r.fsPool.DataDir()
-
 	log.Msg("Waiting for container readiness")
 
 	if err := tools.CheckContainerReadiness(ctx, r.dockerClient, containerID); err != nil {
@@ -224,14 +228,8 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 			return errors.Wrap(err, "failed to readiness check")
 		}
 
-		if err := setupPGData(ctx, r.dockerClient, dataDir, containerID); err != nil {
+		if err := setupPGData(ctx, r.dockerClient, dataDir, containerID, r.RestoreOptions.Configs); err != nil {
 			return errors.Wrap(err, "failed to set up Postgres data")
-		}
-	}
-
-	if len(r.RestoreOptions.Configs) > 0 {
-		if err := updateConfigs(ctx, r.dockerClient, dataDir, containerID, r.restoreContainerName(), r.RestoreOptions.Configs); err != nil {
-			return errors.Wrap(err, "failed to update configs")
 		}
 	}
 
