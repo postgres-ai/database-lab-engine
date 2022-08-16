@@ -265,6 +265,9 @@ retrieval:
             # Worker limit for parallel queries.
             maxParallelWorkers: 2
 
+            # Inline SQL. Queries run after scripts placed in 'queryPath'.
+            inline: ""
+
           # Add PostgreSQL configuration parameters to the promotion container.
           configs:
             shared_buffers: 2GB

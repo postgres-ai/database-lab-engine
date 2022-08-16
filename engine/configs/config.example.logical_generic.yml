@@ -288,6 +288,18 @@ retrieval:
         #   database2:
         #   databaseN:
 
+        # It is possible to define pre-processing SQL queries. For example, "/tmp/scripts/sql".
+        # Default: empty string (no pre-processing defined).
+        queryPreprocessing:
+          # Path to SQL pre-processing queries. Default: empty string (no pre-processing defined).
+          queryPath: ""
+
+          # Worker limit for parallel queries. Parallelization doesn't work for inline SQL queries.
+          maxParallelWorkers: 2
+
+          # Inline SQL. Queries run after scripts placed in 'queryPath'.
+          inline: ""
+
     logicalSnapshot:
       options:
         # Adjust PostgreSQL configuration
@@ -307,6 +319,9 @@ retrieval:
 
             # Worker limit for parallel queries.
             maxParallelWorkers: 2
+
+            # Inline SQL. Queries run after scripts placed in 'queryPath'.
+            inline: ""
 
 cloning:
   # Host that will be specified in database connection info for all clones
