@@ -29,6 +29,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/query"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
@@ -54,7 +55,7 @@ type LogicalInitial struct {
 	globalCfg      *global.Config
 	engineProps    global.EngineProps
 	dbMarker       *dbmarker.Marker
-	queryProcessor *queryProcessor
+	queryProcessor *query.Processor
 }
 
 // LogicalOptions describes options for a logical initialization job.
@@ -68,7 +69,7 @@ type LogicalOptions struct {
 // DataPatching allows executing queries to transform data before snapshot taking.
 type DataPatching struct {
 	DockerImage        string                 `yaml:"dockerImage"`
-	QueryPreprocessing QueryPreprocessing     `yaml:"queryPreprocessing"`
+	QueryPreprocessing query.PreprocessorCfg  `yaml:"queryPreprocessing"`
 	ContainerConfig    map[string]interface{} `yaml:"containerConfig"`
 }
 
@@ -90,10 +91,8 @@ func NewLogicalInitialJob(cfg config.JobConfig, global *global.Config, enginePro
 		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
-	if li.options.DataPatching.QueryPreprocessing.QueryPath != "" {
-		li.queryProcessor = newQueryProcessor(cfg.Docker, global.Database.Name(), global.Database.User(),
-			li.options.DataPatching.QueryPreprocessing.QueryPath,
-			li.options.DataPatching.QueryPreprocessing.MaxParallelWorkers)
+	if qp := li.options.DataPatching.QueryPreprocessing; qp.QueryPath != "" || qp.Inline != "" {
+		li.queryProcessor = query.NewQueryProcessor(cfg.Docker, qp, global.Database.Name(), global.Database.User())
 	}
 
 	return li, nil
@@ -254,7 +253,7 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 		return errors.Wrap(err, "failed to readiness check")
 	}
 
-	if err := s.queryProcessor.applyPreprocessingQueries(ctx, containerID); err != nil {
+	if err := s.queryProcessor.ApplyPreprocessingQueries(ctx, containerID); err != nil {
 		return errors.Wrap(err, "failed to run preprocessing queries")
 	}
 

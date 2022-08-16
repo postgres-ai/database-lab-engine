@@ -31,6 +31,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/query"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
@@ -87,19 +88,21 @@ type RestoreJob struct {
 	engineProps       global.EngineProps
 	dbMarker          *dbmarker.Marker
 	dbMark            *dbmarker.Config
+	queryProcessor    *query.Processor
 	isDumpLocationDir bool
 	RestoreOptions
 }
 
 // RestoreOptions defines a logical restore options.
 type RestoreOptions struct {
-	DumpLocation    string                    `yaml:"dumpLocation"`
-	DockerImage     string                    `yaml:"dockerImage"`
-	ContainerConfig map[string]interface{}    `yaml:"containerConfig"`
-	Databases       map[string]DumpDefinition `yaml:"databases"`
-	ForceInit       bool                      `yaml:"forceInit"`
-	ParallelJobs    int                       `yaml:"parallelJobs"`
-	Configs         map[string]string         `yaml:"configs"`
+	DumpLocation       string                    `yaml:"dumpLocation"`
+	DockerImage        string                    `yaml:"dockerImage"`
+	ContainerConfig    map[string]interface{}    `yaml:"containerConfig"`
+	Databases          map[string]DumpDefinition `yaml:"databases"`
+	ForceInit          bool                      `yaml:"forceInit"`
+	ParallelJobs       int                       `yaml:"parallelJobs"`
+	Configs            map[string]string         `yaml:"configs"`
+	QueryPreprocessing query.PreprocessorCfg     `yaml:"queryPreprocessing"`
 }
 
 // Partial defines tables and rules for a partial logical restore.
@@ -124,6 +127,10 @@ func NewJob(cfg config.JobConfig, global *global.Config, engineProps global.Engi
 	}
 
 	restoreJob.setDefaults()
+
+	if qp := restoreJob.RestoreOptions.QueryPreprocessing; qp.QueryPath != "" || qp.Inline != "" {
+		restoreJob.queryProcessor = query.NewQueryProcessor(cfg.Docker, qp, global.Database.Name(), global.Database.User())
+	}
 
 	return restoreJob, nil
 }
@@ -231,6 +238,10 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		if err := setupPGData(ctx, r.dockerClient, dataDir, containerID, r.RestoreOptions.Configs); err != nil {
 			return errors.Wrap(err, "failed to set up Postgres data")
 		}
+	}
+
+	if err := r.queryProcessor.ApplyPreprocessingQueries(ctx, containerID); err != nil {
+		return errors.Wrap(err, "failed to run preprocessing queries")
 	}
 
 	dbList, err := r.getDBList(ctx, containerID)

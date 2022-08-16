@@ -38,6 +38,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/pgtool"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/query"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
@@ -96,7 +97,7 @@ type PhysicalInitial struct {
 	scheduler      *cron.Cron
 	schedulerCtx   context.Context
 	promotionMutex sync.Mutex
-	queryProcessor *queryProcessor
+	queryProcessor *query.Processor
 	tm             *telemetry.Agent
 }
 
@@ -117,7 +118,7 @@ type Promotion struct {
 	DockerImage        string                 `yaml:"dockerImage"`
 	ContainerConfig    map[string]interface{} `yaml:"containerConfig"`
 	HealthCheck        HealthCheck            `yaml:"healthCheck"`
-	QueryPreprocessing QueryPreprocessing     `yaml:"queryPreprocessing"`
+	QueryPreprocessing query.PreprocessorCfg  `yaml:"queryPreprocessing"`
 	Configs            map[string]string      `yaml:"configs"`
 	Recovery           map[string]string      `yaml:"recovery"`
 }
@@ -177,10 +178,8 @@ func NewPhysicalInitialJob(
 		return nil, errors.Wrap(err, "invalid physicalSnapshot configuration")
 	}
 
-	if p.options.Promotion.QueryPreprocessing.QueryPath != "" {
-		p.queryProcessor = newQueryProcessor(cfg.Docker, global.Database.Name(), global.Database.User(),
-			p.options.Promotion.QueryPreprocessing.QueryPath,
-			p.options.Promotion.QueryPreprocessing.MaxParallelWorkers)
+	if qp := p.options.Promotion.QueryPreprocessing; qp.QueryPath != "" || qp.Inline != "" {
+		p.queryProcessor = query.NewQueryProcessor(cfg.Docker, qp, global.Database.Name(), global.Database.User())
 	}
 
 	p.setupScheduler()
@@ -631,7 +630,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 	}
 
 	if p.queryProcessor != nil {
-		if err := p.queryProcessor.applyPreprocessingQueries(ctx, containerID); err != nil {
+		if err := p.queryProcessor.ApplyPreprocessingQueries(ctx, containerID); err != nil {
 			return errors.Wrap(err, "failed to run preprocessing queries")
 		}
 	}
