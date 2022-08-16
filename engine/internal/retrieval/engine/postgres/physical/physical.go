@@ -27,6 +27,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/pgtool"
@@ -158,6 +159,11 @@ func (r *RestoreJob) Name() string {
 // Reload reloads job configuration.
 func (r *RestoreJob) Reload(cfg map[string]interface{}) (err error) {
 	return options.Unmarshal(cfg, &r.CopyOptions)
+}
+
+// ReportActivity reports the current job activity.
+func (r *RestoreJob) ReportActivity(_ context.Context) (*activity.Activity, error) {
+	return nil, nil
 }
 
 // Run starts the job.

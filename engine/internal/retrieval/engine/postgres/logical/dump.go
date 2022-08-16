@@ -17,9 +17,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
-
 	"github.com/jackc/pgx/v4"
-
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/diagnostic"
@@ -28,6 +26,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/db"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
@@ -237,6 +236,33 @@ func (d *DumpJob) Reload(cfg map[string]interface{}) (err error) {
 	return nil
 }
 
+// ReportActivity reports the current job activity.
+func (d *DumpJob) ReportActivity(ctx context.Context) (*activity.Activity, error) {
+	dbConnection := d.config.db
+	dbConnection.Password = d.getPassword()
+
+	pgeList, err := dbSourceActivity(ctx, dbConnection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get source activity: %w", err)
+	}
+
+	jobActivity := &activity.Activity{
+		Source: pgeList,
+	}
+
+	if d.DumpOptions.Restore.Enabled {
+		pgEvents, err := pgContainerActivity(ctx, d.dockerClient, d.dumpContainerName(), d.globalCfg.Database)
+		if err != nil {
+			log.Err(err)
+			return jobActivity, fmt.Errorf("failed to get activity for target container: %w", err)
+		}
+
+		jobActivity.Target = pgEvents
+	}
+
+	return jobActivity, nil
+}
+
 // Run starts the job.
 func (d *DumpJob) Run(ctx context.Context) (err error) {
 	log.Msg("Run job: ", d.Name())
@@ -364,7 +390,10 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 
 		log.Msg("Running analyze command: ", analyzeCmd)
 
-		if err := tools.ExecCommand(ctx, d.dockerClient, containerID, types.ExecConfig{Cmd: analyzeCmd}); err != nil {
+		if err := tools.ExecCommand(ctx, d.dockerClient, containerID, types.ExecConfig{
+			Cmd: analyzeCmd,
+			Env: []string{"PGAPPNAME=" + dleRetrieval},
+		}); err != nil {
 			return errors.Wrap(err, "failed to recalculate statistics after restore")
 		}
 
@@ -624,7 +653,9 @@ func (d *DumpJob) getExecEnvironmentVariables() []string {
 
 	// Set unlimited statement_timeout for the dump session
 	// because there is a risk of dump failure due to exceeding the statement_timeout.
-	execEnvs = append(execEnvs, "PGOPTIONS=-c statement_timeout=0")
+	//
+	// PGAPPNAME marks the dumping command to detect retrieval events in pg_stat_activity.
+	execEnvs = append(execEnvs, "PGOPTIONS=-c statement_timeout=0", "PGAPPNAME="+dleRetrieval)
 
 	return execEnvs
 }

@@ -203,6 +203,7 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/observation/summary/{clone_id}/{session_id}", authMW.Authorized(s.sessionSummaryObservation)).Methods(http.MethodGet)
 	r.HandleFunc("/observation/download", authMW.Authorized(s.downloadArtifact)).Methods(http.MethodGet)
 	r.HandleFunc("/estimate", s.startEstimator).Methods(http.MethodGet)
+	r.HandleFunc("/instance/retrieval", authMW.Authorized(s.retrievalState)).Methods(http.MethodGet)
 
 	// Sub-route /admin
 	adminR := r.PathPrefix("/admin").Subrouter()

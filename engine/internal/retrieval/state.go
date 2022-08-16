@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/components"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
@@ -17,6 +18,7 @@ type State struct {
 	Mode        models.RetrievalMode
 	Status      models.RetrievalStatus
 	LastRefresh *models.LocalTime
+	CurrentJob  components.JobRunner
 	mu          sync.Mutex
 	alerts      map[models.AlertType]models.Alert
 }

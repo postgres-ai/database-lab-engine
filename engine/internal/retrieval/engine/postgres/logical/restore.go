@@ -28,6 +28,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
@@ -162,6 +163,20 @@ func (r *RestoreJob) Reload(cfg map[string]interface{}) (err error) {
 	return nil
 }
 
+// ReportActivity reports the current job activity.
+func (r *RestoreJob) ReportActivity(ctx context.Context) (*activity.Activity, error) {
+	pgEvents, err := pgContainerActivity(ctx, r.dockerClient, r.restoreContainerName(), r.globalCfg.Database)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get activity for target container: %w", err)
+	}
+
+	jobActivity := &activity.Activity{
+		Target: pgEvents,
+	}
+
+	return jobActivity, nil
+}
+
 // Run starts the job.
 func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Msg("Run job: ", r.Name())
@@ -253,7 +268,10 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 	log.Msg("Running analyze command: ", analyzeCmd)
 
-	if err := tools.ExecCommand(ctx, r.dockerClient, containerID, types.ExecConfig{Cmd: analyzeCmd}); err != nil {
+	if err := tools.ExecCommand(ctx, r.dockerClient, containerID, types.ExecConfig{
+		Cmd: analyzeCmd,
+		Env: []string{"PGAPPNAME=" + dleRetrieval},
+	}); err != nil {
 		return errors.Wrap(err, "failed to recalculate statistics after restore")
 	}
 
@@ -483,7 +501,9 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 	log.Msg("Running restore command for "+dbName, restoreCommand)
 
 	output, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
-		Tty: true, Cmd: restoreCommand,
+		Tty: true,
+		Cmd: restoreCommand,
+		Env: []string{"PGAPPNAME=" + dleRetrieval},
 	})
 
 	if output != "" {

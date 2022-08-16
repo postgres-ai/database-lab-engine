@@ -68,6 +68,7 @@ type Retrieving struct {
 	LastRefresh *LocalTime          `json:"lastRefresh"`
 	NextRefresh *LocalTime          `json:"nextRefresh"`
 	Alerts      map[AlertType]Alert `json:"alerts"`
+	Activity    *Activity           `json:"activity"`
 }
 
 // Alert describes retrieval subsystem alert.
@@ -90,4 +91,19 @@ func AlertLevelByType(alertType AlertType) AlertLevel {
 	default:
 		return UnknownLevel
 	}
+}
+
+// Activity represents the current job activity.
+type Activity struct {
+	Source []PGActivityEvent `json:"source"`
+	Target []PGActivityEvent `json:"target"`
+}
+
+// PGActivityEvent represents pg_stat_activity events.
+type PGActivityEvent struct {
+	User          string  `json:"user"`
+	Query         string  `json:"query"`
+	Duration      float64 `json:"duration"`
+	WaitEventType string  `json:"waitEventType"`
+	WaitEvent     string  `json:"waitEvent"`
 }

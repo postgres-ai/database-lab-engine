@@ -27,6 +27,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
@@ -112,6 +113,11 @@ func (s *LogicalInitial) patchContainerName() string {
 // Reload reloads job configuration.
 func (s *LogicalInitial) Reload(cfg map[string]interface{}) (err error) {
 	return options.Unmarshal(cfg, &s.options)
+}
+
+// ReportActivity reports the current job activity.
+func (s *LogicalInitial) ReportActivity(_ context.Context) (*activity.Activity, error) {
+	return nil, nil
 }
 
 // Run starts the job.
