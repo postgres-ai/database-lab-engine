@@ -114,6 +114,7 @@ func TrimPort(hostname string) string {
 func DetectPGVersion(dataDir string) (float64, error) {
 	version, err := exec.Command("cat", fmt.Sprintf(`%s/PG_VERSION`, dataDir)).CombinedOutput()
 	if err != nil {
+		log.Dbg(string(version))
 		return 0, err
 	}
 

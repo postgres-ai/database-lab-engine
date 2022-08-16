@@ -34,6 +34,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
@@ -276,6 +277,11 @@ func (p *PhysicalInitial) reloadScheduler() {
 	}
 
 	p.startScheduler(p.schedulerCtx)
+}
+
+// ReportActivity reports the current job activity.
+func (p *PhysicalInitial) ReportActivity(_ context.Context) (*activity.Activity, error) {
+	return nil, nil
 }
 
 // Run starts the job.

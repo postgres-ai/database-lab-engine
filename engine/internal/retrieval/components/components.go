@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 )
 
 // JobBuilder builds jobs.
@@ -27,4 +28,7 @@ type JobRunner interface {
 
 	// Run starts a job.
 	Run(ctx context.Context) error
+
+	// ReportActivity reports the current job activity.
+	ReportActivity(context.Context) (*activity.Activity, error)
 }

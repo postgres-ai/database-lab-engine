@@ -265,13 +265,19 @@ func (r *Retrieval) RefreshData(ctx context.Context, poolName string) error {
 
 			fsm.Pool().SetStatus(resources.EmptyPool)
 		}
+
+		r.State.CurrentJob = nil
 	}()
 
 	for _, j := range jobs {
+		r.State.CurrentJob = j
+
 		if err = j.Run(ctx); err != nil {
 			return err
 		}
 	}
+
+	r.State.CurrentJob = nil
 
 	return nil
 }
@@ -313,9 +319,13 @@ func (r *Retrieval) SnapshotData(ctx context.Context, poolName string) error {
 
 			fsm.Pool().SetStatus(resources.EmptyPool)
 		}
+
+		r.State.CurrentJob = nil
 	}()
 
 	for _, j := range jobs {
+		r.State.CurrentJob = j
+
 		if err = j.Run(ctx); err != nil {
 			return err
 		}

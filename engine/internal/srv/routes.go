@@ -16,6 +16,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	wsPackage "gitlab.com/postgres-ai/database-lab/v3/internal/srv/ws"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
@@ -37,6 +38,64 @@ func (s *Server) getInstanceStatus(w http.ResponseWriter, r *http.Request) {
 		api.SendError(w, r, err)
 		return
 	}
+}
+
+func (s *Server) retrievalState(w http.ResponseWriter, r *http.Request) {
+	retrieving := models.Retrieving{
+		Mode:        s.Retrieval.State.Mode,
+		Status:      s.Retrieval.State.Status,
+		Alerts:      s.Retrieval.State.Alerts(),
+		LastRefresh: s.Retrieval.State.LastRefresh,
+	}
+
+	if spec := s.Retrieval.Scheduler.Spec; spec != nil {
+		retrieving.NextRefresh = models.NewLocalTime(spec.Next(time.Now()))
+	}
+
+	retrieving.Activity = s.jobActivity(r.Context())
+
+	if err := api.WriteJSON(w, http.StatusOK, retrieving); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
+}
+
+func (s *Server) jobActivity(ctx context.Context) *models.Activity {
+	currentJob := s.Retrieval.State.CurrentJob
+	if currentJob == nil {
+		return nil
+	}
+
+	if s.Retrieval.State.Status != models.Refreshing {
+		return nil
+	}
+
+	jobActivity, err := currentJob.ReportActivity(ctx)
+	if err != nil {
+		log.Dbg("Failed to get job activity", err)
+		return nil
+	}
+
+	return &models.Activity{
+		Source: toPGActivityEvent(jobActivity.Source),
+		Target: toPGActivityEvent(jobActivity.Target),
+	}
+}
+
+func toPGActivityEvent(pgEvents []activity.PGEvent) []models.PGActivityEvent {
+	pgActivityEvents := make([]models.PGActivityEvent, 0, len(pgEvents))
+
+	for _, event := range pgEvents {
+		pgActivityEvents = append(pgActivityEvents, models.PGActivityEvent{
+			User:          event.User,
+			Query:         event.Query,
+			Duration:      event.Duration,
+			WaitEventType: event.WaitEventType,
+			WaitEvent:     event.WaitEvent,
+		})
+	}
+
+	return pgActivityEvents
 }
 
 func (s *Server) getSnapshots(w http.ResponseWriter, r *http.Request) {
