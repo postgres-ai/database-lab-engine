@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/robfig/cron/v3"
+
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/logical"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/physical"
@@ -15,6 +17,10 @@ import (
 func ValidateConfig(cfg *config.Config) (*config.Config, error) {
 	retrievalCfg, err := formatJobsSpec(cfg)
 	if err != nil {
+		return nil, err
+	}
+
+	if err = validateRefreshTimetable(retrievalCfg); err != nil {
 		return nil, err
 	}
 
@@ -58,6 +64,21 @@ func formatJobsSpec(cfg *config.Config) (*config.Config, error) {
 func validateStructure(r *config.Config) error {
 	if hasLogicalJob(r.JobsSpec) && hasPhysicalJob(r.JobsSpec) {
 		return errors.New("must not contain physical and logical jobs simultaneously")
+	}
+
+	return nil
+}
+
+func validateRefreshTimetable(r *config.Config) error {
+	if r.Refresh.Timetable == "" {
+		return nil
+	}
+
+	specParser := cron.NewParser(parseOption)
+
+	_, err := specParser.Parse(r.Refresh.Timetable)
+	if err != nil {
+		return fmt.Errorf("invalid timetable: %w", err)
 	}
 
 	return nil

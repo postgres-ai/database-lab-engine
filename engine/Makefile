@@ -5,6 +5,8 @@ RUN_CI_BINARY = run-ci
 CLI_BINARY = dblab
 GOARCH = amd64
 
+PWD= $(shell pwd)
+
 COMMIT?=$(shell git rev-parse HEAD)
 BUILD_TIME?=$(shell date -u '+%Y%m%d-%H%M')
 VERSION=$(shell git describe --tags --match "v*" 2>/dev/null || echo "${COMMIT}")
@@ -32,7 +34,7 @@ help: ## Display the help message
 all: clean build ## Build all binary components of the project
 
 install-lint: ## Install the linter to $GOPATH/bin which is expected to be in $PATH
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.45.0
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.45.2
 
 run-lint: ## Run linters
 	golangci-lint run
@@ -77,4 +79,20 @@ fmt: ## Format code
 clean: ## Remove compiled binaries from the local bin/ directory
 	rm -f bin/*
 
-.PHONY: help all build test run-lint install-lint lint fmt clean build-image build-dle build-ci-checker build-client build-ci-checker
+run-dle: build-dle
+	docker run \
+	--rm \
+	--volume /tmp:/tmp \
+	--volume /var/run/docker.sock:/var/run/docker.sock \
+	--volume /var/lib/dblab:/var/lib/dblab/:rshared \
+	--volume /var/lib/dblab/dblab_pool/dump:/var/lib/dblab/dblab_pool/dump \
+	--volume /sys/kernel/debug:/sys/kernel/debug:rw \
+	--volume /lib/modules:/lib/modules:ro \
+    --volume $(PWD)/configs:/home/dblab/configs:ro \
+    --volume $(PWD)/meta:/home/dblab/meta \
+	--volume /proc:/host_proc:ro \
+	--env DOCKER_API_VERSION=1.39 \
+	-p "2345:2345" \
+	dblab_server:local
+
+.PHONY: help all build test run-lint install-lint lint fmt clean build-image build-dle build-ci-checker build-client build-ci-checker run-dle

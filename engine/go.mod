@@ -1,6 +1,6 @@
 module gitlab.com/postgres-ai/database-lab/v3
 
-go 1.17
+go 1.18
 
 require (
 	github.com/AlekSi/pointer v1.1.0
@@ -33,6 +33,7 @@ require (
 	golang.org/x/mod v0.5.1
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
 	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
 
 require (
@@ -77,7 +78,6 @@ require (
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
 	google.golang.org/grpc v1.43.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 
 // Include the single version of the dependency to clean up go.sum from old revisions.

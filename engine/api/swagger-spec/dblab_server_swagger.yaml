@@ -486,6 +486,112 @@ paths:
             $ref: "#/definitions/Error"
 
 
+  /admin/config:
+    post:
+      tags:
+        - "config"
+      summary: "Set instance configuration"
+      description: ""
+      operationId: "setConfig"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - in: body
+          name: body
+          description: "Set configuration object"
+          required: true
+          schema:
+            $ref: '#/definitions/Config'
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/Config"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+    get:
+      tags:
+        - "config"
+      summary: "Get instance configuration"
+      description: ""
+      operationId: "getConfig"
+      produces:
+        - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/Config"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /admin/config.yaml:
+    get:
+      tags:
+        - "config"
+      summary: "Get the config of the instance"
+      description: ""
+      operationId: "getConfigYaml"
+      produces:
+        - "application/yaml"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/Config"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /admin/test-db-source:
+    post:
+      tags:
+        - "config"
+      summary: "Test source database"
+      description: ""
+      operationId: "testDBConnection"
+      consumes:
+        - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - in: body
+          name: body
+          description: "Connection DB object"
+          required: true
+          schema:
+            $ref: '#/definitions/Connection'
+      responses:
+        200:
+          description: "Successful operation"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
 definitions:
   Instance:
     type: "object"
@@ -877,6 +983,24 @@ definitions:
         type: "string"
       hint:
         type: "string"
+
+  Config:
+    type: object
+
+  Connection:
+    type: "object"
+    properties:
+      host:
+        type: "string"
+      port:
+        type: "string"
+      dbname:
+        type: "string"
+      username:
+        type: "string"
+      password:
+        type: "string"
+
 
 externalDocs:
   description: "Database Lab Docs"

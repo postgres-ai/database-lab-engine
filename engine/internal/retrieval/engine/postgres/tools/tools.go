@@ -192,11 +192,11 @@ func InitDB(ctx context.Context, dockerClient *client.Client, containerID string
 		Cmd: initCommand,
 	})
 
+	log.Dbg(out)
+
 	if err != nil {
 		return errors.Wrap(err, "failed to init Postgres")
 	}
-
-	log.Dbg(out)
 
 	return nil
 }

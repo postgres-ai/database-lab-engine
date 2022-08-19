@@ -8,14 +8,20 @@ import { makeAutoObservable } from 'mobx'
 
 import { GetSnapshots } from '@postgres.ai/shared/types/api/endpoints/getSnapshots'
 import { GetInstance } from '@postgres.ai/shared/types/api/endpoints/getInstance'
+import { Config } from '@postgres.ai/shared/types/api/entities/config'
+import { GetConfig } from '@postgres.ai/shared/types/api/endpoints/getConfig'
+import { UpdateConfig } from '@postgres.ai/shared/types/api/endpoints/updateConfig'
+import { TestDbSource } from '@postgres.ai/shared/types/api/endpoints/testDbSource'
 import { RefreshInstance } from '@postgres.ai/shared/types/api/endpoints/refreshInstance'
 import { DestroyClone } from '@postgres.ai/shared/types/api/endpoints/destroyClone'
 import { ResetClone } from '@postgres.ai/shared/types/api/endpoints/resetClone'
-import { GetWSToken } from "@postgres.ai/shared/types/api/endpoints/getWSToken";
-import { InitWS } from "@postgres.ai/shared/types/api/endpoints/initWS";
+import { GetWSToken } from '@postgres.ai/shared/types/api/endpoints/getWSToken'
+import { InitWS } from '@postgres.ai/shared/types/api/endpoints/initWS'
 import { Instance } from '@postgres.ai/shared/types/api/entities/instance'
 import { SnapshotsStore } from '@postgres.ai/shared/stores/Snapshots'
 import { getTextFromUnknownApiError } from '@postgres.ai/shared/utils/api'
+import { dbSource } from 'types/api/entities/dbSource'
+import { GetFullConfig } from 'types/api/endpoints/getFullConfig'
 
 const POLLING_TIME = 2000
 
@@ -29,16 +35,23 @@ export type Api = {
   resetClone: ResetClone
   getWSToken: GetWSToken
   initWS?: InitWS
+  getConfig?: GetConfig
+  updateConfig?: UpdateConfig
+  testDbSource?: TestDbSource
+  getFullConfig?: GetFullConfig
 }
 
 type Error = {
   title?: string
-  message: string
+  message?: string
 }
 
 export class MainStore {
   instance: Instance | null = null
+  config: Config | null = null
+  fullConfig?: string
   instanceError: Error | null = null
+  updateConfigError: string | null = null
 
   unstableClones = new Set<string>()
   private updateInstanceTimeoutId: number | null = null
@@ -63,8 +76,8 @@ export class MainStore {
 
   load = (instanceId: string) => {
     this.instance = null
-
     this.loadInstance(instanceId)
+    this.getConfig()
     this.snapshots.load(instanceId)
   }
 
@@ -114,6 +127,54 @@ export class MainStore {
       this.instanceError = { message: await getTextFromUnknownApiError(error) }
 
     return !!response
+  }
+
+  getConfig = async () => {
+    if (!this.api.getConfig) return
+
+    const { response, error } = await this.api.getConfig()
+
+    if (response) {
+      this.config = response
+    }
+
+    if (error) await getTextFromUnknownApiError(error)
+
+    return !!response
+  }
+
+  updateConfig = async (values: Config) => {
+    if (!this.api.updateConfig) return
+
+    const { response, error } = await this.api.updateConfig({ ...values })
+
+    if (error)
+      this.updateConfigError = await error.json().then((err) => err.message)
+
+    return response
+  }
+
+  getFullConfig = async () => {
+    if (!this.api.getFullConfig) return
+
+    const { response, error } = await this.api.getFullConfig()
+    if (response) {
+      this.fullConfig = response
+    }
+
+    if (error) await getTextFromUnknownApiError(error)
+
+    return response
+  }
+
+  testDbSource = async (values: dbSource) => {
+    if (!this.api.testDbSource) return
+
+    const { response, error } = await this.api.testDbSource(values)
+
+    if (error) await getTextFromUnknownApiError(error)
+
+    return response
   }
 
   resetClone = async (cloneId: string, snapshotId: string) => {

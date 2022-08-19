@@ -82,6 +82,7 @@ metaDir="$HOME/.dblab/engine/meta"
 
 # Copy the contents of configuration example 
 mkdir -p "${configDir}"
+mkdir -p "${metaDir}"
 
 curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-master}"/engine/configs/config.example.logical_generic.yml \
  --output "${configDir}/server.yml"
@@ -96,22 +97,23 @@ yq eval -i '
   .provision.portPool.from = env(DLE_PORT_POOL_FROM) |
   .provision.portPool.to = env(DLE_PORT_POOL_TO) |
   .retrieval.spec.logicalDump.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump" |
-  .retrieval.spec.logicalDump.options.source.connection.dbname = strenv(SOURCE_DBNAME) |
-  .retrieval.spec.logicalDump.options.source.connection.host = strenv(SOURCE_HOST) |
-  .retrieval.spec.logicalDump.options.source.connection.port = env(SOURCE_PORT) |
-  .retrieval.spec.logicalDump.options.source.connection.username = strenv(SOURCE_USERNAME) |
-  .retrieval.spec.logicalDump.options.source.connection.password = strenv(SOURCE_PASSWORD) |
   .retrieval.spec.logicalRestore.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump" |
   .databaseContainer.dockerImage = "postgresai/extended-postgres:" + strenv(POSTGRES_VERSION)
 ' "${configDir}/server.yml"
 
+SHARED_PRELOAD_LIBRARIES="pg_stat_statements, auto_explain, pgaudit, logerrors, pg_stat_kcache"
+
 # Edit the following options for PostgreSQL 9.6
 if [ "${POSTGRES_VERSION}" = "9.6" ]; then
   yq eval -i '
-  .databaseConfigs.configs.shared_preload_libraries = "pg_stat_statements, auto_explain" |
   .databaseConfigs.configs.log_directory = "log"
   ' "${configDir}/server.yml"
+
+  SHARED_PRELOAD_LIBRARIES="pg_stat_statements, auto_explain"
 fi
+
+pendingFile="${metaDir}/pending.retrieval"
+sudo touch $pendingFile
 
 ## Launch Database Lab server
 sudo docker run \
@@ -123,7 +125,7 @@ sudo docker run \
   --volume /var/run/docker.sock:/var/run/docker.sock \
   --volume ${DLE_TEST_MOUNT_DIR}/${DLE_TEST_POOL_NAME}/dump:${DLE_TEST_MOUNT_DIR}/${DLE_TEST_POOL_NAME}/dump \
   --volume ${DLE_TEST_MOUNT_DIR}:${DLE_TEST_MOUNT_DIR}/:rshared \
-  --volume "${configDir}":/home/dblab/configs:ro \
+  --volume "${configDir}":/home/dblab/configs \
   --volume "${metaDir}":/home/dblab/meta \
   --volume /sys/kernel/debug:/sys/kernel/debug:rw \
   --volume /lib/modules:/lib/modules:ro \
@@ -134,6 +136,118 @@ sudo docker run \
 
 # Check the Database Lab Engine logs
 sudo docker logs ${DLE_SERVER_NAME} -f 2>&1 | awk '{print "[CONTAINER dblab_server]: "$0}' &
+
+check_dle_running(){
+  if [[ $(curl --silent --header 'Verification-Token: secret_token' --header 'Content-Type: application/json' http://localhost:${DLE_SERVER_PORT}/status | jq -r .status.code) ==  "OK" ]] ; then
+      return 0
+  fi
+  return 1
+}
+
+### Waiting for the Database Lab Engine running.
+for i in {1..30}; do
+  check_dle_running && break || echo "Database Lab Engine is not running yet"
+  sleep 1
+done
+
+check_dle_running || (echo "Database Lab Engine is not running" && exit 1)
+
+check_dle_pending(){
+  if [[ $(curl --silent --header 'Verification-Token: secret_token' --header 'Content-Type: application/json' http://localhost:${DLE_SERVER_PORT}/status | jq -r .retrieving.status) ==  "pending" ]] ; then
+      return 0
+  fi
+  return 1
+}
+
+for i in {1..30}; do
+  check_dle_pending && break || echo "Retrieval state is not pending yet"
+  sleep 1
+done
+
+check_dle_pending || (echo "Database Lab Engine is not pending" && exit 1)
+
+PATCH_CONFIG_DATA=$(jq -n -c \
+  --arg dbname "$SOURCE_DBNAME" \
+  --arg host "$SOURCE_HOST" \
+  --arg port "$SOURCE_PORT" \
+  --arg username "$SOURCE_USERNAME" \
+  --arg password "$SOURCE_PASSWORD" \
+  --arg spl "$SHARED_PRELOAD_LIBRARIES" \
+  --arg dockerImage "postgresai/extended-postgres:${POSTGRES_VERSION}" \
+'{
+  "global": {
+    "debug": true
+  },
+  "databaseConfigs": {
+      "configs": {
+        "shared_buffers": "256MB",
+        "shared_preload_libraries": $spl
+      }
+  },
+  "databaseContainer": {
+      "dockerImage": $dockerImage
+  },
+  "retrieval": {
+    "refresh": {
+      "timetable": "5 0 * * 1"
+    },
+    "spec": {
+      "logicalDump": {
+        "options": {
+          "source": {
+            "connection": {
+              "dbname": $dbname,
+              "host": $host,
+              "port": $port,
+              "username": $username,
+              "password": $password
+            }
+          },
+          "parallelJobs": 2,
+          "databases": {
+            "postgres": {},
+            "test": {}
+          },
+        },
+      },
+      "logicalRestore": {
+        "options": {
+          "parallelJobs": 2
+        }
+      }
+    }
+  }
+}')
+
+echo $PATCH_CONFIG_DATA
+
+response_code=$(curl --silent -XPOST --data "$PATCH_CONFIG_DATA" --write-out "%{http_code}" \
+  --header 'Verification-Token: secret_token' \
+  --header 'Content-Type: application/json' \
+  --output /tmp/response.json \
+  http://localhost:${DLE_SERVER_PORT}/admin/config)
+
+if [[ $response_code -ne 200 ]]; then
+  echo "Status code: ${response_code}"
+  exit 1
+fi
+
+if [[ -f $pendingFile ]]; then
+  echo "Pending file has not been removed"
+  exit 1
+fi
+
+if [[ $(yq eval '.retrieval.spec.logicalDump.options.source.connection.dbname' ${configDir}/server.yml) != "$SOURCE_DBNAME" ||
+      $(yq eval '.retrieval.spec.logicalDump.options.source.connection.host' ${configDir}/server.yml) != "$SOURCE_HOST" ||
+      $(yq eval '.retrieval.spec.logicalDump.options.source.connection.port' ${configDir}/server.yml) != "$SOURCE_PORT" ||
+      $(yq eval '.retrieval.spec.logicalDump.options.source.connection.username' ${configDir}/server.yml) != "$SOURCE_USERNAME" ||
+      $(yq eval '.retrieval.spec.logicalDump.options.source.connection.password' ${configDir}/server.yml) != "$SOURCE_PASSWORD" ||
+      $(yq eval '.retrieval.refresh.timetable' ${configDir}/server.yml) != "5 0 * * 1" ||
+      $(yq eval '.databaseContainer.dockerImage' ${configDir}/server.yml) != "postgresai/extended-postgres:${POSTGRES_VERSION}" ||
+      $(yq eval '.databaseConfigs.configs.shared_buffers' ${configDir}/server.yml) != "256MB" ]] ; then
+  echo "Configuration has not been updated properly"
+  exit 1
+fi
 
 check_dle_readiness(){
   if [[ $(curl --silent --header 'Verification-Token: secret_token' --header 'Content-Type: application/json' http://localhost:${DLE_SERVER_PORT}/status | jq -r .retrieving.status) ==  "finished" ]] ; then

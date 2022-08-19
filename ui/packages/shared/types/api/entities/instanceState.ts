@@ -27,7 +27,7 @@ export type InstanceStateDto = {
     lastRefresh: string | null
     nextRefresh: string | null
     mode: string
-    status: 'finished' | 'failed' | 'refreshing'
+    status: 'finished' | 'failed' | 'refreshing' | 'pending'
     alerts?: {
       refresh_failed?: {
         level: 'error'

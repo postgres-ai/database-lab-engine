@@ -62,6 +62,7 @@ type Server struct {
 	tm          *telemetry.Agent
 	startedAt   *models.LocalTime
 	re          *regexp.Regexp
+	reloadFn    func(server *Server) error
 }
 
 // WSService defines a service to manage web-sockets.
@@ -72,19 +73,11 @@ type WSService struct {
 }
 
 // NewServer initializes a new Server instance with provided configuration.
-func NewServer(cfg *srvCfg.Config, globalCfg *global.Config,
-	engineProps global.EngineProps,
-	dockerClient *client.Client,
-	cloning *cloning.Base,
-	provisioner *provision.Provisioner,
-	retrievalSvc *retrieval.Retrieval,
-	platform *platform.Service,
-	observer *observer.Observer,
-	estimator *estimator.Estimator,
-	pm *pool.Manager,
-	tm *telemetry.Agent,
-	tokenKeeper *ws.TokenKeeper,
-	uiManager *embeddedui.UIManager) *Server {
+func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps global.EngineProps,
+	dockerClient *client.Client, cloning *cloning.Base, provisioner *provision.Provisioner,
+	retrievalSvc *retrieval.Retrieval, platform *platform.Service, observer *observer.Observer,
+	estimator *estimator.Estimator, pm *pool.Manager, tm *telemetry.Agent, tokenKeeper *ws.TokenKeeper,
+	uiManager *embeddedui.UIManager, reloadConfigFn func(server *Server) error) *Server {
 	server := &Server{
 		Config:      cfg,
 		Global:      globalCfg,
@@ -104,6 +97,7 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config,
 		pm:        pm,
 		tm:        tm,
 		startedAt: &models.LocalTime{Time: time.Now().Truncate(time.Second)},
+		reloadFn:  reloadConfigFn,
 	}
 	server.initLogRegExp()
 
@@ -209,6 +203,10 @@ func (s *Server) InitHandlers() {
 	adminR := r.PathPrefix("/admin").Subrouter()
 	adminR.Use(authMW.AdminMW)
 	adminR.HandleFunc("/ws-auth", s.websocketAuth).Methods(http.MethodGet)
+	adminR.HandleFunc("/config", s.getProjectedAdminConfig).Methods(http.MethodGet)
+	adminR.HandleFunc("/config.yaml", s.getAdminConfigYaml).Methods(http.MethodGet)
+	adminR.HandleFunc("/config", s.setProjectedAdminConfig).Methods(http.MethodPost)
+	adminR.HandleFunc("/test-db-source", s.testDBSource).Methods(http.MethodPost)
 
 	r.HandleFunc("/instance/logs", authMW.WebSocketsMW(s.wsService.tokenKeeper, s.instanceLogs))
 

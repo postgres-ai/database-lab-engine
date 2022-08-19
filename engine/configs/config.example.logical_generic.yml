@@ -219,7 +219,7 @@ retrieval:
         # Option for specifying the database list that must be copied.
         # By default, DLE dumps and restores all available databases.
         # Do not specify the databases section to take all databases.
-        # databases:
+        databases:
         #   database1:
         # Options for a partial dump.
         # Do not specify the tables section to dump all available tables.

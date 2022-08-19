@@ -57,6 +57,8 @@ const (
 	DBLabRestoreLabel = "dblab_restore"
 	// DBLabEmbeddedUILabel defines a label value for embedded UI containers.
 	DBLabEmbeddedUILabel = "dblab_embedded_ui"
+	// DBLabFoundationLabel defines a label value to mark foundation containers.
+	DBLabFoundationLabel = "dblab_foundation"
 
 	// DBLabRunner defines a label to mark runner containers.
 	DBLabRunner = "dblab_runner"

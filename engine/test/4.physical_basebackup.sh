@@ -141,7 +141,7 @@ sudo docker run \
   --publish ${DLE_SERVER_PORT}:${DLE_SERVER_PORT} \
   --volume /var/run/docker.sock:/var/run/docker.sock \
   --volume ${DLE_TEST_MOUNT_DIR}:${DLE_TEST_MOUNT_DIR}/:rshared \
-  --volume "${configDir}":/home/dblab/configs:ro \
+  --volume "${configDir}":/home/dblab/configs \
   --volume "${metaDir}":/home/dblab/meta \
   --volume /sys/kernel/debug:/sys/kernel/debug:rw \
   --volume /lib/modules:/lib/modules:ro \

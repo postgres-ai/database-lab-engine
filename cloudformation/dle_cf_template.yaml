@@ -404,6 +404,10 @@ Resources:
           dle_config_path="/home/ubuntu/.dblab/engine/configs"
           dle_meta_path="/home/ubuntu/.dblab/engine/meta"
           postgres_conf_path="/home/ubuntu/.dblab/postgres_conf"
+          
+          # Create a special marker file to identify that the DLE is running as a "managed" instance
+          # (e.g., launched using Marketplace or Terraform), and has not yet been configured.
+          touch $dle_meta_path/pending.retrieval
 
           yq e -i '
           .global.debug=${DLEDebugMode} |

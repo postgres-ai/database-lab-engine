@@ -18,6 +18,7 @@ import { Tabs } from './Tabs'
 import { Clones } from './Clones'
 import { Info } from './Info'
 import { establishConnection } from './wsLogs'
+import { Configuration } from '../Configuration'
 import { ClonesModal } from './ClonesModal'
 import { SnapshotsModal } from './SnapshotsModal'
 import { Host, HostProvider, StoresProvider } from './context'
@@ -71,6 +72,9 @@ export const Instance = observer((props: Props) => {
   const { instance, instanceError } = stores.main
 
   useEffect(() => {
+    if (instance && instance?.state.retrieving?.status === "pending") {
+      setActiveTab(2)
+    }
     if (instance && !instance?.state?.pools) {
       if (!props.callbacks) return
 
@@ -126,7 +130,7 @@ export const Instance = observer((props: Props) => {
           <TabPanel value={activeTab} index={0}>
           {!instanceError && (
             <div className={classes.content}>
-              {!instance && <StubSpinner />}
+              {!instance || !instance?.state.retrieving?.status && <StubSpinner />}
 
               {instance && (
                 <>
@@ -140,7 +144,6 @@ export const Instance = observer((props: Props) => {
           <ClonesModal />
 
           <SnapshotsModal />
-            Instance
           </TabPanel>
 
           <TabPanel value={activeTab} index={1}>
@@ -151,6 +154,10 @@ export const Instance = observer((props: Props) => {
             <div id="logs-container"></div>
           </TabPanel>
         </>
+
+        <TabPanel value={activeTab} index={2}>
+          <Configuration switchActiveTab={(id: number) => setActiveTab(id)} activeTab={activeTab} />
+        </TabPanel>
 
       </StoresProvider>
     </HostProvider>
