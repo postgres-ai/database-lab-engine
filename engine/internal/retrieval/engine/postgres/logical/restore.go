@@ -286,7 +286,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to recalculate statistics after restore")
 	}
 
-	if err := tools.RunCheckpoint(ctx, r.dockerClient, containerID, r.globalCfg.Database.User(), r.globalCfg.Database.DBName); err != nil {
+	if err := tools.RunCheckpoint(ctx, r.dockerClient, containerID, r.globalCfg.Database.User(), r.globalCfg.Database.Name()); err != nil {
 		return errors.Wrap(err, "failed to run checkpoint before stop")
 	}
 

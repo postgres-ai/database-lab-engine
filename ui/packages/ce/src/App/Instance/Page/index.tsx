@@ -9,6 +9,10 @@ import { destroyClone } from 'api/clones/destroyClone'
 import { resetClone } from 'api/clones/resetClone'
 import { getWSToken } from "api/engine/getWSToken";
 import { initWS } from "api/engine/initWS";
+import { getConfig } from 'api/configs/getConfig'
+import { getFullConfig } from 'api/configs/getFullConfig'
+import { updateConfig } from 'api/configs/updateConfig'
+import { testDbSource } from 'api/configs/testDbSource'
 
 export const Page = () => {
   const routes = {
@@ -23,6 +27,10 @@ export const Page = () => {
     destroyClone,
     resetClone,
     getWSToken,
+    getConfig,
+    getFullConfig,
+    updateConfig,
+    testDbSource,
     initWS,
   }
 

@@ -25,7 +25,7 @@ linters-settings:
     lang-version: "1.17"
     extra-rules: false
   gosimple:
-    go: "1.17"
+    go: "1.18"
     checks: [ "all" ]
   goimports:
     local-prefixes: gitlab.com/postgres-ai/database-lab

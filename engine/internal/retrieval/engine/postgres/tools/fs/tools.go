@@ -26,7 +26,7 @@ func CopyDirectoryContent(sourceDir, dataDir string) error {
 		sourcePath := filepath.Join(sourceDir, entry.Name())
 		destPath := filepath.Join(dataDir, entry.Name())
 
-		if err := copyFile(sourcePath, destPath); err != nil {
+		if err := CopyFile(sourcePath, destPath); err != nil {
 			return err
 		}
 	}
@@ -34,7 +34,8 @@ func CopyDirectoryContent(sourceDir, dataDir string) error {
 	return nil
 }
 
-func copyFile(sourceFilename, destinationFilename string) error {
+// CopyFile copies a file from one location to another.
+func CopyFile(sourceFilename, destinationFilename string) error {
 	dst, err := os.Create(destinationFilename)
 	if err != nil {
 		return err

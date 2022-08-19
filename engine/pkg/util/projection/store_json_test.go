@@ -1,0 +1,67 @@
+package projection
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestStoreJson(t *testing.T) {
+	r := require.New(t)
+	s := fullTestStruct()
+	node := map[string]interface{}{}
+
+	err := StoreJSON(s, node, StoreOptions{})
+	r.NoError(err)
+
+	var expected = map[string]interface{}{
+		"nested": map[string]interface{}{
+			"string": "string",
+			"int":    int64(1),
+			"float":  1.1,
+			"bool":   true,
+			"miss":   "miss",
+			"missMap": map[string]interface{}{
+				"nested": "missNested",
+			},
+			"ptrString": "string",
+			"ptrInt":    int64(1),
+			"ptrFloat":  1.1,
+			"ptrBool":   true,
+			"ptrMiss":   "ptrMiss",
+			"ptrMissMap": map[string]interface{}{
+				"nested": "ptrMissNested",
+			},
+		},
+	}
+	r.EqualValues(expected, node)
+}
+
+func TestStoreJsonNull(t *testing.T) {
+	r := require.New(t)
+	s := &testStruct{}
+	node := getJSONNormal()
+
+	err := StoreJSON(s, node, StoreOptions{})
+	r.NoError(err)
+
+	expected := map[string]interface{}{
+		"nested": map[string]interface{}{
+			"string": "",
+			"int":    int64(0),
+			"float":  0.0,
+			"bool":   false,
+			"miss":   "",
+			"missMap": map[string]interface{}{
+				"nested": "",
+			},
+
+			"ptrString": "string",
+			"ptrInt":    int64(1),
+			"ptrFloat":  1.1,
+			"ptrBool":   true,
+		},
+	}
+
+	r.EqualValues(expected, node)
+}

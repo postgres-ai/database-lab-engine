@@ -26,6 +26,8 @@ type RetrievalStatus string
 const (
 	// Inactive defines status when data retrieving is disabled.
 	Inactive RetrievalStatus = "inactive"
+	// Pending defines status when data retrieving is pending configuration verification.
+	Pending RetrievalStatus = "pending"
 	// Failed defines status when data retrieving is failed.
 	Failed RetrievalStatus = "failed"
 	// Refreshing defines status when data retrieving is in progress.

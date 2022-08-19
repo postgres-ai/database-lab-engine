@@ -595,7 +595,7 @@ func (s *Server) downloadArtifact(w http.ResponseWriter, r *http.Request) {
 
 // healthCheck provides a health check handler.
 func (s *Server) healthCheck(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", api.JSONContentType)
 
 	healthResponse := models.Engine{
 		Version: version.GetVersion(),

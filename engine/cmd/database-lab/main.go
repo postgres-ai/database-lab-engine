@@ -54,6 +54,8 @@ func main() {
 		log.Fatal(errors.WithMessage(err, "failed to parse config"))
 	}
 
+	config.ApplyGlobals(cfg)
+
 	docker, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		log.Fatal("Failed to create a Docker client:", err)
@@ -163,11 +165,28 @@ func main() {
 	})
 
 	embeddedUI := embeddedui.New(cfg.EmbeddedUI, engProps, runner, docker)
-	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc,
-		obs, est, pm, tm, tokenHolder, embeddedUI)
-	shutdownCh := setShutdownListener()
 
 	logCleaner := diagnostic.NewLogCleaner()
+
+	reloadConfigFn := func(server *srv.Server) error {
+		return reloadConfig(
+			ctx,
+			provisioner,
+			tm,
+			retrievalSvc,
+			pm,
+			cloningSvc,
+			platformSvc,
+			est,
+			embeddedUI,
+			server,
+			logCleaner,
+		)
+	}
+
+	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc,
+		obs, est, pm, tm, tokenHolder, embeddedUI, reloadConfigFn)
+	shutdownCh := setShutdownListener()
 
 	go setReloadListener(ctx, provisioner, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server, logCleaner)
 
@@ -255,6 +274,8 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 	if err != nil {
 		return err
 	}
+
+	config.ApplyGlobals(cfg)
 
 	if err := provision.IsValidConfig(cfg.Provision); err != nil {
 		return err

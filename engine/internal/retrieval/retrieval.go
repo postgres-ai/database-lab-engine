@@ -8,6 +8,7 @@ package retrieval
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -26,7 +27,10 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/physical"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/snapshot"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/db"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/v3/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
@@ -35,8 +39,11 @@ import (
 )
 
 const (
+	parseOption           = cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow
 	refreshJobs  jobGroup = "refresh"
 	snapshotJobs jobGroup = "snapshot"
+
+	pendingFilename = "pending.retrieval"
 )
 
 type jobGroup string
@@ -45,6 +52,7 @@ type jobGroup string
 type Retrieval struct {
 	Scheduler    Scheduler
 	State        State
+	imageState   *db.ImageContent
 	cfg          *config.Config
 	global       *global.Config
 	engineProps  global.EngineProps
@@ -76,6 +84,7 @@ func New(cfg *dblabCfg.Config, engineProps global.EngineProps, docker *client.Cl
 			Status: models.Inactive,
 			alerts: make(map[models.AlertType]models.Alert),
 		},
+		imageState: db.NewImageContent(engineProps),
 	}
 
 	retrievalCfg, err := ValidateConfig(&cfg.Retrieval)
@@ -85,7 +94,55 @@ func New(cfg *dblabCfg.Config, engineProps global.EngineProps, docker *client.Cl
 
 	r.setup(retrievalCfg)
 
+	if err := checkPendingMarker(r); err != nil {
+		return nil, fmt.Errorf("failed to check pending marker: %w", err)
+	}
+
 	return r, nil
+}
+
+// ImageContent provides the content of foundation Docker image.
+func (r *Retrieval) ImageContent() *db.ImageContent {
+	return r.imageState
+}
+
+func checkPendingMarker(r *Retrieval) error {
+	pendingPath, err := util.GetMetaPath(pendingFilename)
+	if err != nil {
+		return fmt.Errorf("failed to build pending filename: %w", err)
+	}
+
+	if _, err := os.Stat(pendingPath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
+		return fmt.Errorf("failed to get pending file info: %w", err)
+	}
+
+	r.State.Status = models.Pending
+
+	return nil
+}
+
+// RemovePendingMarker removes the file from the metadata directory which specifies that retrieval is pending.
+func (r *Retrieval) RemovePendingMarker() error {
+	pending, err := util.GetMetaPath(pendingFilename)
+	if err != nil {
+		return fmt.Errorf("failed to build pending filename: %w", err)
+	}
+
+	if err := os.Remove(pending); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
+		return err
+	}
+
+	r.State.Status = models.Inactive
+
+	return nil
 }
 
 // Reload reloads retrieval configuration.
@@ -109,7 +166,8 @@ func (r *Retrieval) reloadStatefulJobs() {
 			log.Msg("Skip reloading of the stateful retrieval job. Spec not found", job.Name())
 			continue
 		}
-
+		// todo should we remove if jobs are not there ?
+		// todo should we check for completion before ?
 		if err := job.Reload(cfg.Options); err != nil {
 			log.Err("Failed to reload configuration of the retrieval job", job.Name(), err)
 		}
@@ -122,6 +180,10 @@ func (r *Retrieval) Run(ctx context.Context) error {
 	r.ctxCancel = cancel
 
 	log.Msg("Retrieval mode:", r.State.Mode)
+
+	if err := r.collectFoundationImageContent(); err != nil {
+		return fmt.Errorf("failed to collect content lists from the foundation Docker image of the logicalDump job: %w", err)
+	}
 
 	fsManager, err := r.getNextPoolToDataRetrieving()
 	if err != nil {
@@ -148,6 +210,12 @@ func (r *Retrieval) Run(ctx context.Context) error {
 
 	log.Msg("Pool to perform data retrieving: ", fsManager.Pool().Name)
 
+	if r.State.Status == models.Pending {
+		log.Msg("Data retrieving suspended because Retrieval state is pending")
+
+		return nil
+	}
+
 	if err := r.run(runCtx, fsManager); err != nil {
 		alert := telemetry.Alert{Level: models.RefreshFailed,
 			Message: fmt.Sprintf("Failed to perform initial data retrieving: %s", r.State.Mode)}
@@ -160,6 +228,49 @@ func (r *Retrieval) Run(ctx context.Context) error {
 	r.setupScheduler(ctx)
 
 	return nil
+}
+
+func (r *Retrieval) collectFoundationImageContent() error {
+	if _, ok := r.cfg.JobsSpec[logical.DumpJobType]; !ok {
+		return nil
+	}
+
+	dumpOptions := &logical.DumpOptions{}
+
+	if err := r.JobConfig(logical.DumpJobType, &dumpOptions); err != nil {
+		return fmt.Errorf("failed to get config of %s job: %w", logical.DumpJobType, err)
+	}
+
+	if err := r.imageState.Collect(dumpOptions.DockerImage); err != nil {
+		return err
+	}
+
+	// Collect a list of databases mentioned in the Retrieval config. An empty list means all databases.
+	dbs := make([]string, 0)
+
+	if len(dumpOptions.Databases) != 0 {
+		dbs = append(dbs, collectDBList(dumpOptions.Databases)...)
+
+		restoreOptions := &logical.RestoreOptions{}
+
+		if err := r.JobConfig(logical.RestoreJobType, &restoreOptions); err == nil && len(restoreOptions.Databases) != 0 {
+			dbs = append(dbs, collectDBList(restoreOptions.Databases)...)
+		}
+	}
+
+	r.imageState.SetDatabases(dbs)
+
+	return nil
+}
+
+func collectDBList(definitions map[string]logical.DumpDefinition) []string {
+	dbs := []string{}
+
+	for dbName := range definitions {
+		dbs = append(dbs, dbName)
+	}
+
+	return dbs
 }
 
 func (r *Retrieval) getNextPoolToDataRetrieving() (pool.FSManager, error) {
@@ -406,7 +517,7 @@ func (r *Retrieval) setupScheduler(ctx context.Context) {
 		return
 	}
 
-	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	specParser := cron.NewParser(parseOption)
 
 	spec, err := specParser.Parse(r.cfg.Refresh.Timetable)
 	if err != nil {
@@ -422,7 +533,7 @@ func (r *Retrieval) setupScheduler(ctx context.Context) {
 
 func (r *Retrieval) refreshFunc(ctx context.Context) func() {
 	return func() {
-		if err := r.fullRefresh(ctx); err != nil {
+		if err := r.FullRefresh(ctx); err != nil {
 			alert := telemetry.Alert{Level: models.RefreshFailed, Message: "Failed to run full-refresh"}
 			r.State.addAlert(alert)
 			r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
@@ -431,8 +542,8 @@ func (r *Retrieval) refreshFunc(ctx context.Context) func() {
 	}
 }
 
-// fullRefresh performs full refresh for an unused storage pool and makes it active.
-func (r *Retrieval) fullRefresh(ctx context.Context) error {
+// FullRefresh performs full refresh for an unused storage pool and makes it active.
+func (r *Retrieval) FullRefresh(ctx context.Context) error {
 	if r.State.Status == models.Refreshing || r.State.Status == models.Snapshotting {
 		alert := telemetry.Alert{
 			Level:   models.RefreshSkipped,
@@ -441,6 +552,12 @@ func (r *Retrieval) fullRefresh(ctx context.Context) error {
 		r.State.addAlert(alert)
 		r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
 		log.Msg(alert.Message)
+
+		return nil
+	}
+
+	if r.State.Status == models.Pending {
+		log.Msg("Data retrieving suspended because Retrieval state is pending")
 
 		return nil
 	}
@@ -541,4 +658,21 @@ func (r *Retrieval) ReportState() telemetry.Restore {
 		Refreshing: r.cfg.Refresh.Timetable,
 		Jobs:       r.cfg.Jobs,
 	}
+}
+
+// ErrStageNotFound means that the requested stage is not exist in the retrieval jobs config.
+var ErrStageNotFound = errors.New("stage not found")
+
+// JobConfig parses job configuration to the provided structure.
+func (r *Retrieval) JobConfig(stage string, jobCfg any) error {
+	stageSpec, ok := r.cfg.JobsSpec[stage]
+	if !ok {
+		return ErrStageNotFound
+	}
+
+	if err := options.Unmarshal(stageSpec.Options, jobCfg); err != nil {
+		return fmt.Errorf("failed to unmarshal configuration options: %w", err)
+	}
+
+	return nil
 }

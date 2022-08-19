@@ -6,14 +6,6 @@
 package config
 
 import (
-	"fmt"
-	"os"
-	"path"
-
-	"github.com/pkg/errors"
-	"github.com/rs/xid"
-	"gopkg.in/yaml.v2"
-
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/diagnostic"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/embeddedui"
@@ -25,8 +17,6 @@ import (
 	retConfig "gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	srvCfg "gitlab.com/postgres-ai/database-lab/v3/internal/srv/config"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
-	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
-	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
 const (
@@ -47,67 +37,4 @@ type Config struct {
 	PoolManager pool.Config       `yaml:"poolManager"`
 	EmbeddedUI  embeddedui.Config `yaml:"embeddedUI"`
 	Diagnostic  diagnostic.Config `yaml:"diagnostic"`
-}
-
-// LoadConfiguration instances a new application configuration.
-func LoadConfiguration() (*Config, error) {
-	cfg, err := readConfig()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse config")
-	}
-
-	log.SetDebug(cfg.Global.Debug)
-	log.Dbg("Config loaded", cfg)
-
-	return cfg, nil
-}
-
-// LoadInstanceID tries to make instance ID persistent across runs and load its value after restart
-func LoadInstanceID() (string, error) {
-	instanceID := ""
-
-	idFilepath, err := util.GetMetaPath(instanceIDFile)
-	if err != nil {
-		return "", fmt.Errorf("failed to get path of the instanceID file: %w", err)
-	}
-
-	data, err := os.ReadFile(idFilepath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			instanceID = xid.New().String()
-			log.Dbg("no instance_id file was found, generate new instance ID", instanceID)
-
-			if err := os.MkdirAll(path.Dir(idFilepath), 0744); err != nil {
-				return "", fmt.Errorf("failed to make directory meta: %w", err)
-			}
-
-			return instanceID, os.WriteFile(idFilepath, []byte(instanceID), 0644)
-		}
-
-		return instanceID, fmt.Errorf("failed to load instanceid, %w", err)
-	}
-
-	instanceID = string(data)
-
-	return instanceID, nil
-}
-
-// readConfig reads application configuration.
-func readConfig() (*Config, error) {
-	configPath, err := util.GetConfigPath(configName)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get config path")
-	}
-
-	b, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, errors.Errorf("error loading %s config file", configPath)
-	}
-
-	cfg := &Config{}
-	if err := yaml.Unmarshal(b, cfg); err != nil {
-		return nil, errors.WithMessagef(err, "error parsing %s config", configPath)
-	}
-
-	return cfg, nil
 }

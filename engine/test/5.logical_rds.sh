@@ -76,7 +76,7 @@ sudo docker run \
   --label dblab_test \
   --privileged \
   --publish ${DLE_SERVER_PORT}:${DLE_SERVER_PORT} \
-  --volume "${configDir}":/home/dblab/configs:ro \
+  --volume "${configDir}":/home/dblab/configs \
   --volume "${metaDir}":/home/dblab/meta \
   --volume ${DLE_TEST_MOUNT_DIR}/${DLE_TEST_POOL_NAME}/dump:${DLE_TEST_MOUNT_DIR}/${DLE_TEST_POOL_NAME}/dump \
   --volume ${DLE_TEST_MOUNT_DIR}:${DLE_TEST_MOUNT_DIR}/:rshared \

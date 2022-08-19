@@ -14,6 +14,12 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
+// YamlContentType is the content type header for YAML.
+const YamlContentType = "application/yaml; charset=utf-8"
+
+// JSONContentType is the content type header for JSON.
+const JSONContentType = "application/json; charset=utf-8"
+
 // WriteJSON responds with JSON.
 func WriteJSON(w http.ResponseWriter, httpStatusCode int, v interface{}) error {
 	b, err := json.MarshalIndent(v, "", "  ")
@@ -21,7 +27,7 @@ func WriteJSON(w http.ResponseWriter, httpStatusCode int, v interface{}) error {
 		return errors.Wrap(err, "failed to marshal response")
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", JSONContentType)
 	w.WriteHeader(httpStatusCode)
 
 	if _, err := w.Write(b); err != nil {
@@ -49,7 +55,17 @@ func ReadJSON(r *http.Request, v interface{}) error {
 
 // WriteData responds with JSON.
 func WriteData(w http.ResponseWriter, httpStatusCode int, b []byte) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	return WriteDataTyped(w, httpStatusCode, JSONContentType, b)
+}
+
+// WriteDataTyped responds with data including content type.
+func WriteDataTyped(
+	w http.ResponseWriter,
+	httpStatusCode int,
+	contentType string,
+	b []byte,
+) error {
+	w.Header().Set("Content-Type", contentType)
 	w.WriteHeader(httpStatusCode)
 
 	if _, err := w.Write(b); err != nil {
