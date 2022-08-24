@@ -35,26 +35,39 @@ func NewSoftYaml(
 	}, nil
 }
 
-func (y *yamlSoft) Set(path []string, value interface{}, t ptypes.Type) error {
+func (y *yamlSoft) Set(set FieldSet) error {
 	node := y.root
-	for _, key := range path {
+	for i, key := range set.Path {
 		if node.Kind != yaml.MappingNode {
 			return fmt.Errorf("node is not a mapping node")
 		}
 
 		child, hasChild := findNodeForKey(node, key)
 		if !hasChild {
-			return nil
+			if set.CreateKey && i == len(set.Path)-1 {
+				child = &yaml.Node{
+					Kind: yaml.ScalarNode,
+					Tag:  "!!map",
+				}
+				keyNode := &yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Tag:   "!!str",
+					Value: key,
+				}
+				node.Content = append(node.Content, keyNode, child)
+			} else {
+				return nil
+			}
 		}
 
 		node = child
 	}
 
-	if value == nil {
+	if set.Value == nil {
 		return nil
 	}
 
-	if mv, ok := value.(map[string]interface{}); ok {
+	if mv, ok := set.Value.(map[string]interface{}); ok {
 		if err := node.Encode(mv); err != nil {
 			return fmt.Errorf("cannot encode map: %w", err)
 		}
@@ -62,20 +75,20 @@ func (y *yamlSoft) Set(path []string, value interface{}, t ptypes.Type) error {
 		return nil
 	}
 
-	conv, err := ptypes.Convert(value, ptypes.String)
+	conv, err := ptypes.Convert(set.Value, ptypes.String)
 	if err != nil {
 		return err
 	}
 
 	node.Value = conv.(string)
-	node.Tag = ptypeToNodeTag(t)
+	node.Tag = ptypeToNodeTag(set.Type)
 
 	return nil
 }
 
-func (y *yamlSoft) Get(path []string, t ptypes.Type) (interface{}, error) {
+func (y *yamlSoft) Get(get FieldGet) (interface{}, error) {
 	node := y.root
-	for _, key := range path {
+	for _, key := range get.Path {
 		if node.Kind != yaml.MappingNode {
 			return nil, fmt.Errorf("node is not a mapping node")
 		}
@@ -96,7 +109,7 @@ func (y *yamlSoft) Get(path []string, t ptypes.Type) (interface{}, error) {
 		return convertMap(node)
 	}
 
-	typed, err := ptypes.Convert(node.Value, t)
+	typed, err := ptypes.Convert(node.Value, get.Type)
 	if err != nil {
 		return nil, err
 	}

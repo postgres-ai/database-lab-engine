@@ -20,3 +20,14 @@ func Unique(list []string) []string {
 
 	return uqList
 }
+
+// IncludesString checks if a string is included in a slice.
+func IncludesString(list []string, value string) bool {
+	for _, entry := range list {
+		if entry == value {
+			return true
+		}
+	}
+
+	return false
+}

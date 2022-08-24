@@ -21,7 +21,7 @@ type ConfigProjection struct {
 	Password               *string                `proj:"retrieval.spec.logicalDump.options.source.connection.password" groups:"sensitive"`
 	Port                   *int64                 `proj:"retrieval.spec.logicalDump.options.source.connection.port"`
 	Username               *string                `proj:"retrieval.spec.logicalDump.options.source.connection.username"`
-	DBList                 map[string]interface{} `proj:"retrieval.spec.logicalDump.options.databases"`
+	DBList                 map[string]interface{} `proj:"retrieval.spec.logicalDump.options.databases,createKey"`
 	DumpParallelJobs       *int64                 `proj:"retrieval.spec.logicalDump.options.parallelJobs"`
 	RestoreParallelJobs    *int64                 `proj:"retrieval.spec.logicalRestore.options.parallelJobs"`
 }

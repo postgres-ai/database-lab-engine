@@ -24,6 +24,8 @@ func TestStoreJson(t *testing.T) {
 			"missMap": map[string]interface{}{
 				"nested": "missNested",
 			},
+			"create": "create",
+
 			"ptrString": "string",
 			"ptrInt":    int64(1),
 			"ptrFloat":  1.1,
@@ -32,6 +34,7 @@ func TestStoreJson(t *testing.T) {
 			"ptrMissMap": map[string]interface{}{
 				"nested": "ptrMissNested",
 			},
+			"ptrCreate": "ptrCreate",
 		},
 	}
 	r.EqualValues(expected, node)
@@ -55,11 +58,13 @@ func TestStoreJsonNull(t *testing.T) {
 			"missMap": map[string]interface{}{
 				"nested": "",
 			},
+			"create": "",
 
 			"ptrString": "string",
 			"ptrInt":    int64(1),
 			"ptrFloat":  1.1,
 			"ptrBool":   true,
+			"ptrCreate": "ptrCreate",
 		},
 	}
 

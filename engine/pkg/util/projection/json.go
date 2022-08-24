@@ -15,9 +15,9 @@ func NewSoftJSON(root map[string]interface{}) Accessor {
 	return &softJSON{root: root}
 }
 
-func (s *softJSON) Set(path []string, value interface{}, _ ptypes.Type) error {
+func (s *softJSON) Set(field FieldSet) error {
 	parent := s.root
-	for _, key := range path[:len(path)-1] {
+	for _, key := range field.Path[:len(field.Path)-1] {
 		child, hasChild := parent[key]
 		if !hasChild {
 			child = make(map[string]interface{})
@@ -32,11 +32,11 @@ func (s *softJSON) Set(path []string, value interface{}, _ ptypes.Type) error {
 		}
 	}
 
-	key := path[len(path)-1]
+	key := field.Path[len(field.Path)-1]
 
 	child, ok := parent[key]
 	if !ok {
-		parent[key] = value
+		parent[key] = field.Value
 		return nil
 	}
 
@@ -46,15 +46,15 @@ func (s *softJSON) Set(path []string, value interface{}, _ ptypes.Type) error {
 	case []interface{}:
 		return fmt.Errorf("node is already a sequence node")
 	default:
-		parent[key] = value
+		parent[key] = field.Value
 	}
 
 	return nil
 }
 
-func (s *softJSON) Get(path []string, t ptypes.Type) (interface{}, error) {
+func (s *softJSON) Get(field FieldGet) (interface{}, error) {
 	parent := s.root
-	for _, key := range path[:len(path)-1] {
+	for _, key := range field.Path[:len(field.Path)-1] {
 		child, hasChild := parent[key]
 		if !hasChild {
 			return nil, nil
@@ -68,7 +68,7 @@ func (s *softJSON) Get(path []string, t ptypes.Type) (interface{}, error) {
 		}
 	}
 
-	key := path[len(path)-1]
+	key := field.Path[len(field.Path)-1]
 
 	child, ok := parent[key]
 	if !ok {
@@ -79,7 +79,7 @@ func (s *softJSON) Get(path []string, t ptypes.Type) (interface{}, error) {
 		return nil, nil
 	}
 
-	typed, err := ptypes.Convert(child, t)
+	typed, err := ptypes.Convert(child, field.Type)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert %#v: %w", child, err)
 	}
