@@ -43,14 +43,6 @@ type locale struct {
 
 // CheckSource checks the readiness of the source database to dump and restore processes.
 func CheckSource(ctx context.Context, conf *models.ConnectionTest, imageContent *ImageContent) (*models.TestConnection, error) {
-	if !imageContent.IsReady() {
-		return &models.TestConnection{
-			Status:  models.TCStatusNotice,
-			Result:  models.TCResultUnexploredImage,
-			Message: "Service has not collected data about the Docker image yet. Please try again later",
-		}, nil
-	}
-
 	connStr := ConnectionString(conf.Host, conf.Port, conf.Username, conf.DBName, conf.Password)
 
 	conn, err := pgx.Connect(ctx, connStr)
@@ -77,6 +69,15 @@ func CheckSource(ctx context.Context, conf *models.ConnectionTest, imageContent 
 			Status:  models.TCStatusError,
 			Result:  models.TCResultConnectionError,
 			Message: err.Error(),
+		}, nil
+	}
+
+	if !imageContent.IsReady() {
+		return &models.TestConnection{
+			Status: models.TCStatusNotice,
+			Result: models.TCResultUnexploredImage,
+			Message: "The connection to the database was successful. " +
+				"Details about the extensions and locales of the Docker image have not yet been collected. Please try again later",
 		}, nil
 	}
 
