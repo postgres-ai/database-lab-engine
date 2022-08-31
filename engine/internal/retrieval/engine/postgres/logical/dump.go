@@ -185,6 +185,8 @@ func (d *DumpJob) setDefaults() {
 	if d.DumpOptions.ParallelJobs == 0 {
 		d.DumpOptions.ParallelJobs = defaultParallelJobs
 	}
+
+	d.config.db = d.DumpOptions.Source.Connection
 }
 
 // setupDumper sets up a tool to perform physical restoring.

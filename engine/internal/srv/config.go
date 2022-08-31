@@ -13,6 +13,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/logical"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/db"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config"
@@ -216,6 +217,10 @@ func (s *Server) projectedAdminConfig() (interface{}, error) {
 func (s *Server) applyProjectedAdminConfig(ctx context.Context, obj interface{}) (interface{}, error) {
 	if s.Retrieval.State.Mode != models.Logical {
 		return nil, fmt.Errorf("config is only available in logical mode")
+	}
+
+	if _, err := s.Retrieval.GetStageSpec(logical.DumpJobType); err == retrieval.ErrStageNotFound {
+		return nil, fmt.Errorf("logicalDump job is not enabled. Consider editing DLE config manually")
 	}
 
 	objMap, ok := obj.(map[string]interface{})

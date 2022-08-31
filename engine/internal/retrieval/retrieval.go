@@ -232,6 +232,10 @@ func (r *Retrieval) Run(ctx context.Context) error {
 
 func (r *Retrieval) collectFoundationImageContent() error {
 	if _, ok := r.cfg.JobsSpec[logical.DumpJobType]; !ok {
+		if r.State.Mode == models.Logical {
+			log.Msg("logicalDump job is not enabled. Docker image extensions and locales will not be checked")
+		}
+
 		return nil
 	}
 
@@ -665,9 +669,9 @@ var ErrStageNotFound = errors.New("stage not found")
 
 // JobConfig parses job configuration to the provided structure.
 func (r *Retrieval) JobConfig(stage string, jobCfg any) error {
-	stageSpec, ok := r.cfg.JobsSpec[stage]
-	if !ok {
-		return ErrStageNotFound
+	stageSpec, err := r.GetStageSpec(stage)
+	if err != nil {
+		return err
 	}
 
 	if err := options.Unmarshal(stageSpec.Options, jobCfg); err != nil {
@@ -675,4 +679,14 @@ func (r *Retrieval) JobConfig(stage string, jobCfg any) error {
 	}
 
 	return nil
+}
+
+// GetStageSpec returns the stage spec if exists.
+func (r *Retrieval) GetStageSpec(stage string) (config.JobSpec, error) {
+	stageSpec, ok := r.cfg.JobsSpec[stage]
+	if !ok {
+		return config.JobSpec{}, ErrStageNotFound
+	}
+
+	return stageSpec, nil
 }
