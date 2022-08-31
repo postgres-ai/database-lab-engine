@@ -41,7 +41,7 @@ export type Api = {
   updateConfig?: UpdateConfig
   testDbSource?: TestDbSource
   getFullConfig?: GetFullConfig
-  getInstanceRetrieval: GetInstanceRetrieval
+  getInstanceRetrieval?: GetInstanceRetrieval
 }
 
 type Error = {
@@ -100,6 +100,8 @@ export class MainStore {
   }
 
   private loadInstanceRetrieval = async (instanceId: string) => {
+    if (!this.api.getInstanceRetrieval) return
+
     const { response, error } = await this.api.getInstanceRetrieval({
       instanceId: instanceId,
     })
