@@ -4,6 +4,7 @@ import { PageContainer } from 'components/PageContainer'
 import { NavPath } from 'components/NavPath'
 import { ROUTES } from 'config/routes'
 import { getInstance } from 'api/instances/getInstance'
+import { getInstanceRetrieval } from 'api/instances/getInstanceRetrieval'
 import { getSnapshots } from 'api/snapshots/getSnapshots'
 import { destroyClone } from 'api/clones/destroyClone'
 import { resetClone } from 'api/clones/resetClone'
@@ -23,6 +24,7 @@ export const Page = () => {
 
   const api = {
     getInstance,
+    getInstanceRetrieval,
     getSnapshots,
     destroyClone,
     resetClone,
