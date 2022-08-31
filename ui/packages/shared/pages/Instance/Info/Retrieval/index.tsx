@@ -1,9 +1,14 @@
+import { useState } from 'react'
 import { observer } from 'mobx-react-lite'
+import { makeStyles } from '@material-ui/core'
 
 import { useStores } from '@postgres.ai/shared/pages/Instance/context'
 import { Status } from '@postgres.ai/shared/components/Status'
 import { capitalize } from '@postgres.ai/shared/utils/strings'
 import { formatDateStd } from '@postgres.ai/shared/utils/date'
+import { Button } from '@postgres.ai/shared/components/Button2'
+import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
+import { InfoIcon } from '@postgres.ai/shared/icons/Info'
 
 import { Section } from '../components/Section'
 import { Property } from '../components/Property'
@@ -11,21 +16,53 @@ import { Property } from '../components/Property'
 import { RefreshFailedAlert } from './RefreshFailedAlert'
 
 import { getTypeByStatus } from './utils'
+import { RetrievalModal } from './RetrievalModal'
+
+const useStyles = makeStyles(() => ({
+  infoIcon: {
+    height: '12px',
+    width: '12px',
+    marginLeft: '8px',
+    color: '#808080',
+  },
+  detailsButton: {
+    marginLeft: '8px',
+  },
+}))
 
 export const Retrieval = observer(() => {
   const stores = useStores()
+  const classes = useStyles()
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
 
-  const { instance } = stores.main
+  const { instance, instanceRetrieval } = stores.main
   if (!instance) return null
 
   const { retrieving } = instance.state
   if (!retrieving) return null
+
+  if (!instanceRetrieval) return null
+  const { mode, status, activity } = instanceRetrieval
+  const showActivities = mode === 'logical' && status === 'refreshing'
 
   return (
     <Section title="Retrieval">
       <Property name="Status">
         <Status type={getTypeByStatus(retrieving.status)}>
           {capitalize(retrieving.status)}
+          <Button
+            theme="primary"
+            onClick={() => setIsModalOpen(true)}
+            isDisabled={!showActivities}
+            className={classes.detailsButton}
+          >
+            Show details
+          </Button>
+          {!showActivities && (
+            <Tooltip content="No retrieval activity details">
+              <InfoIcon className={classes.infoIcon} />
+            </Tooltip>
+          )}
         </Status>
       </Property>
       <Property name="Mode">{retrieving.mode}</Property>
@@ -40,6 +77,11 @@ export const Retrieval = observer(() => {
           : 'Not scheduled'}
       </Property>
       <RefreshFailedAlert />
+      <RetrievalModal
+        data={activity}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </Section>
   )
 })

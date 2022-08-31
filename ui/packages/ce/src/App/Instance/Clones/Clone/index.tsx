@@ -4,6 +4,7 @@ import { Clone as ClonePage } from '@postgres.ai/shared/pages/Clone'
 
 import { getSnapshots } from 'api/snapshots/getSnapshots'
 import { getInstance } from 'api/instances/getInstance'
+import { getInstanceRetrieval } from 'api/instances/getInstanceRetrieval'
 import { getClone } from 'api/clones/getClone'
 import { resetClone } from 'api/clones/resetClone'
 import { destroyClone } from 'api/clones/destroyClone'
@@ -22,6 +23,7 @@ export const Clone = () => {
   const api = {
     getSnapshots,
     getInstance,
+    getInstanceRetrieval,
     getClone,
     resetClone,
     destroyClone,

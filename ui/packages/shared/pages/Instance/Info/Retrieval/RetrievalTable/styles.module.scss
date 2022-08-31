@@ -1,0 +1,22 @@
+.tableRow {
+  display: inline-table !important;
+  width: 100%;
+}
+
+.tableBody {
+  height: 100%;
+  
+  div:not(:first-child) {
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(224, 224, 224, 1);
+  }
+
+  div {
+    padding-bottom: 0.75rem;
+  }
+
+  td {
+    border-bottom: 0;
+    padding: 12px 18px;
+  }
+}

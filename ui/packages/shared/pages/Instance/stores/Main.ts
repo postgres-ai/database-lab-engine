@@ -22,6 +22,8 @@ import { SnapshotsStore } from '@postgres.ai/shared/stores/Snapshots'
 import { getTextFromUnknownApiError } from '@postgres.ai/shared/utils/api'
 import { dbSource } from 'types/api/entities/dbSource'
 import { GetFullConfig } from 'types/api/endpoints/getFullConfig'
+import { GetInstanceRetrieval } from 'types/api/endpoints/getInstanceRetrieval'
+import { InstanceRetrieval } from 'types/api/entities/instanceRetrieval'
 
 const POLLING_TIME = 2000
 
@@ -39,6 +41,7 @@ export type Api = {
   updateConfig?: UpdateConfig
   testDbSource?: TestDbSource
   getFullConfig?: GetFullConfig
+  getInstanceRetrieval: GetInstanceRetrieval
 }
 
 type Error = {
@@ -48,6 +51,7 @@ type Error = {
 
 export class MainStore {
   instance: Instance | null = null
+  instanceRetrieval: InstanceRetrieval | null = null
   config: Config | null = null
   fullConfig?: string
   instanceError: Error | null = null
@@ -59,6 +63,7 @@ export class MainStore {
   readonly snapshots: SnapshotsStore
 
   isReloadingClones = false
+  isReloadingInstanceRetrieval = false
 
   private readonly api: Api
 
@@ -77,6 +82,7 @@ export class MainStore {
   load = (instanceId: string) => {
     this.instance = null
     this.loadInstance(instanceId)
+    this.loadInstanceRetrieval(instanceId)
     this.getConfig()
     this.snapshots.load(instanceId)
   }
@@ -84,6 +90,27 @@ export class MainStore {
   reloadSnapshots = async () => {
     if (!this.instance) return
     await this.snapshots.reload(this.instance.id)
+  }
+
+  reloadInstanceRetrieval = async () => {
+    if (!this.instance) return
+    this.isReloadingInstanceRetrieval = true
+    this.loadInstanceRetrieval(this.instance.id)
+    this.isReloadingInstanceRetrieval = false
+  }
+
+  private loadInstanceRetrieval = async (instanceId: string) => {
+    const { response, error } = await this.api.getInstanceRetrieval({
+      instanceId: instanceId,
+    })
+
+    if (response) 
+      this.instanceRetrieval = await response?.json()
+
+    if (error)
+      this.instanceError = { message: await getTextFromUnknownApiError(error) }
+
+    return !!response
   }
 
   private loadInstance = async (
@@ -217,6 +244,7 @@ export class MainStore {
     if (!this.instance) return
 
     await this.loadInstance(this.instance.id, true)
+    await this.loadInstanceRetrieval(this.instance.id)
 
     if (!this.unstableClones.size) return
 
@@ -230,6 +258,7 @@ export class MainStore {
     if (!this.instance) return
     this.isReloadingClones = true
     await this.loadInstance(this.instance.id)
+    await this.loadInstanceRetrieval(this.instance.id)
     this.isReloadingClones = false
   }
 }
