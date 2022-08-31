@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/ptypes"
 )
 
@@ -13,10 +14,11 @@ const projectionTag = "proj"
 const projectionGroupTag = "groups"
 
 type fieldTag struct {
-	path   []string
-	groups []string
-	isPtr  bool
-	fType  ptypes.Type
+	path      []string
+	groups    []string
+	isPtr     bool
+	fType     ptypes.Type
+	createKey bool
 }
 
 // LoadOptions is used to filter fields to load.
@@ -37,6 +39,8 @@ func getFieldTag(value reflect.StructField) (*fieldTag, error) {
 
 	options := strings.Split(tag, ",")
 	path := strings.Split(options[0], ".")
+
+	createKey := util.IncludesString(options, "createKey")
 
 	var isPtr bool
 
@@ -64,10 +68,11 @@ func getFieldTag(value reflect.StructField) (*fieldTag, error) {
 	}
 
 	return &fieldTag{
-		path:   path,
-		fType:  fType,
-		isPtr:  isPtr,
-		groups: groups,
+		path:      path,
+		fType:     fType,
+		isPtr:     isPtr,
+		groups:    groups,
+		createKey: createKey,
 	}, nil
 }
 

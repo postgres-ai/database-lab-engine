@@ -15,7 +15,9 @@ func Load(target interface{}, accessor Accessor, options LoadOptions) error {
 			return nil
 		}
 
-		accessorValue, err := accessor.Get(tag.path, tag.fType)
+		accessorValue, err := accessor.Get(FieldGet{
+			Path: tag.path, Type: tag.fType,
+		})
 		if err != nil {
 			return err
 		}
@@ -53,7 +55,10 @@ func Store(target interface{}, accessor Accessor, options StoreOptions) error {
 		} else {
 			accessorValue = field.Interface()
 		}
-		err := accessor.Set(tag.path, accessorValue, tag.fType)
+		err := accessor.Set(FieldSet{
+			Path: tag.path, Value: accessorValue, Type: tag.fType,
+			CreateKey: tag.createKey,
+		})
 		if err != nil {
 			return err
 		}
