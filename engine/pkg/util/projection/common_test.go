@@ -1,6 +1,7 @@
 package projection
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,10 +15,12 @@ func getJSONNormal() map[string]interface{} {
 			"int":       int64(1),
 			"float":     1.1,
 			"bool":      true,
+			"create":    "create",
 			"ptrString": "string",
 			"ptrInt":    int64(1),
 			"ptrFloat":  1.1,
 			"ptrBool":   true,
+			"ptrCreate": "ptrCreate",
 		},
 	}
 }
@@ -43,10 +46,12 @@ nested:
   int: 1
   float: 1.1
   bool: true
+  create: create
   ptrString: "string"
   ptrInt: 1
   ptrFloat: 1.1
   ptrBool: true
+  ptrCreate: ptrCreate
 `
 
 const yamlNull = `
@@ -55,10 +60,12 @@ nested:
   int: null
   float: null
   bool: null
+  create: null
   ptrString: null
   ptrInt: null
   ptrFloat: null
   ptrBool: null
+  ptrCreate: null
 `
 
 const yamlDiverted = `
@@ -67,10 +74,12 @@ nested:
   int: 200
   float: 200.2
   bool: false
+  create: "to be stored"
   ptrString: "to be stored"
   ptrInt: 200
   ptrFloat: 200.2
   ptrBool: false
+  ptrCreate: "to be stored"
 `
 
 const yamlNullApplied = `
@@ -79,10 +88,12 @@ nested:
   int: 0
   float: 0.0
   bool: false
+  create: ""
   ptrString: "string"
   ptrInt: 1
   ptrFloat: 1.1
   ptrBool: true
+  ptrCreate: "ptrCreate"
 `
 
 type testStruct struct {
@@ -101,6 +112,9 @@ type testStruct struct {
 
 	PtrMissField       *string `proj:"nested.ptrMiss"`
 	PtrMissNestedField *string `proj:"nested.ptrMissMap.nested"`
+
+	CreateField    string  `proj:"nested.create,createKey"`
+	PtrCreateField *string `proj:"nested.ptrCreate,createKey"`
 }
 
 func fullTestStruct() *testStruct {
@@ -110,20 +124,24 @@ func fullTestStruct() *testStruct {
 	boolField := true
 	missField := "ptrMiss"
 	missNestedField := "ptrMissNested"
+	ptrCreateField := "ptrCreate"
 
 	return &testStruct{
-		StringField:        "string",
-		IntField:           int64(1),
-		FloatField:         1.1,
-		BoolField:          true,
-		MissField:          "miss",
-		MissNestedField:    "missNested",
+		StringField:     "string",
+		IntField:        int64(1),
+		FloatField:      1.1,
+		BoolField:       true,
+		MissField:       "miss",
+		MissNestedField: "missNested",
+		CreateField:     "create",
+
 		PtrStringField:     &strField,
 		PtrIntField:        &intField,
 		PtrFloatField:      &floatField,
 		PtrBoolField:       &boolField,
 		PtrMissField:       &missField,
 		PtrMissNestedField: &missNestedField,
+		PtrCreateField:     &ptrCreateField,
 	}
 }
 
@@ -195,7 +213,7 @@ func requireYamlNormal(t *testing.T, node *yaml.Node) {
 	normal := &yaml.Node{}
 	err := yaml.Unmarshal([]byte(yamlNormal), normal)
 	require.NoError(t, err)
-	require.EqualValues(t, normal, node)
+	requireNodeEquals(t, normal, node)
 }
 
 func requireYamlNullApplied(t *testing.T, node *yaml.Node) {
@@ -203,5 +221,31 @@ func requireYamlNullApplied(t *testing.T, node *yaml.Node) {
 	null := &yaml.Node{}
 	err := yaml.Unmarshal([]byte(yamlNullApplied), null)
 	require.NoError(t, err)
-	require.EqualValues(t, null, node)
+	requireNodeEquals(t, null, node)
+}
+
+func requireNodeEquals(t *testing.T, left *yaml.Node, right *yaml.Node) {
+	t.Helper()
+
+	var dive func(left, right *yaml.Node, path string)
+
+	dive = func(left, right *yaml.Node, path string) {
+		if left.Kind != right.Kind {
+			t.Errorf("Kind %d != %d, at path %s", left.Kind, right.Kind, path)
+		}
+		if left.Tag != right.Tag {
+			t.Errorf("Tag %s != %s, at path %s", left.Tag, right.Tag, path)
+		}
+		if left.Value != right.Value {
+			t.Errorf("Value %s != %s, at path %s", left.Value, right.Value, path)
+		}
+		if len(left.Content) != len(right.Content) {
+			t.Errorf("Content length %d != %d, at path %s", len(left.Content), len(right.Content), path)
+		}
+		for i := range left.Content {
+			dive(left.Content[i], right.Content[i], path+"."+strconv.Itoa(i))
+		}
+	}
+
+	dive(left, right, "")
 }
