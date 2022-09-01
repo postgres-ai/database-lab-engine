@@ -47,7 +47,7 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
       password: '',
       databases: '',
       pg_dump: '',
-      pg_restore: ''
+      pg_restore: '',
     },
     validationSchema: Schema,
     onSubmit,
@@ -63,5 +63,11 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
     dbname: formik.values.dbname,
   }
 
-  return [{ formik, connectionData }]
+  const isConnectionDataValid =
+    formik.values.host &&
+    formik.values.port &&
+    formik.values.username &&
+    formik.values.dbname
+
+  return [{ formik, connectionData, isConnectionDataValid }]
 }

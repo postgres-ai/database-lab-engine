@@ -94,27 +94,26 @@ export const Configuration = observer(
         }
       })
     }
-    const [{ formik, connectionData }] = useForm(onSubmit)
+    const [{ formik, connectionData, isConnectionDataValid }] =
+      useForm(onSubmit)
 
     const onTestConnectionClick = async () => {
       setConnectionResponse(null)
-      setIsTestConnectionLoading(true)
       Object.keys(connectionData).map(function (key) {
         if (key !== 'password') {
           formik.validateField(key)
         }
       })
-
-      formik.isValid &&
+      if (isConnectionDataValid) {
+        setIsTestConnectionLoading(true)
         testDbSource(connectionData).then((response) => {
           if (response) {
-            setTimeout(() => {
-              setConnectionStatus(response.status)
-              setConnectionResponse(response.message)
-              setIsTestConnectionLoading(false)
-            }, 1500)
+            setConnectionStatus(response.status)
+            setConnectionResponse(response.message)
+            setIsTestConnectionLoading(false)
           }
         })
+      }
     }
 
     const handleModalClick = async () => {
@@ -249,189 +248,202 @@ export const Configuration = observer(
             </Box>
             <Box mb={3}>
               <SectionTitle level={2} tag="h2" text="Section retrieval" />
-              <Box mt={0.5}>
-                <Typography>Subsection retrieval.refresh</Typography>
-              </Box>
-              <GrayTextTypography>
-                Define full data refresh on schedule. The process requires at
-                least one additional filesystem mount point. The schedule is to
-                be specified using{' '}
-                <a
-                  href="https://en.wikipedia.org/wiki/Cron#Overview"
-                  target="_blank"
-                >
-                  crontab format.
-                </a>
-              </GrayTextTypography>
-              <Box mt={2} mb={2}>
-                <TextField
-                  className={styles.textField}
-                  label="timetable"
-                  variant="outlined"
-                  size="small"
-                  value={formik.values.timetable}
-                  onChange={(e) =>
-                    formik.setFieldValue('timetable', e.target.value)
-                  }
-                />
-              </Box>
-              <Typography>Subsection retrieval.spec.logicalDump</Typography>
-              <GrayTextTypography>
-                Source database credentials and dumping options.
-              </GrayTextTypography>
-              <Box mt={2} mb={2}>
-                <TextField
-                  className={styles.textField}
-                  label="source.connection.host"
-                  variant="outlined"
-                  size="small"
-                  value={formik.values.host}
-                  error={Boolean(formik.errors.host)}
-                  onChange={(e) => formik.setFieldValue('host', e.target.value)}
-                />
-              </Box>
-              <Box mt={2} mb={2}>
-                <TextField
-                  className={styles.textField}
-                  label="source.connection.port"
-                  variant="outlined"
-                  size="small"
-                  value={formik.values.port}
-                  error={Boolean(formik.errors.port)}
-                  onChange={(e) => formik.setFieldValue('port', e.target.value)}
-                />
-              </Box>
-              <Box mt={2} mb={2}>
-                <TextField
-                  className={styles.textField}
-                  label="source.connection.username"
-                  variant="outlined"
-                  size="small"
-                  value={formik.values.username}
-                  error={Boolean(formik.errors.username)}
-                  onChange={(e) =>
-                    formik.setFieldValue('username', e.target.value)
-                  }
-                />
-              </Box>
-              <Box mt={2} mb={2}>
-                <TextField
-                  className={styles.textField}
-                  label="source.connection.password"
-                  variant="outlined"
-                  size="small"
-                  type="password"
-                  placeholder={formik.values.password}
-                  onChange={(e) =>
-                    formik.setFieldValue('password', e.target.value)
-                  }
-                />
-              </Box>
-              <Box mt={2} mb={2}>
-                <TextField
-                  className={styles.textField}
-                  label="source.connection.dbname"
-                  variant="outlined"
-                  size="small"
-                  value={formik.values.dbname}
-                  error={Boolean(formik.errors.dbname)}
-                  onChange={(e) =>
-                    formik.setFieldValue('dbname', e.target.value)
-                  }
-                />
-              </Box>
-              <Box mt={2} mb={2}>
-                <div className={styles.textField}>
+              <Box mt={2}>
+                <Typography>Subsection retrieval.spec.logicalDump</Typography>
+                <GrayTextTypography>
+                  Source database credentials and dumping options.
+                </GrayTextTypography>
+                <Box mt={2} mb={2}>
                   <TextField
                     className={styles.textField}
+                    label="source.connection.host"
                     variant="outlined"
-                    helperText={
-                      'Database(s) divided by space or end of string'
-                    }
-                    margin="normal"
+                    size="small"
+                    value={formik.values.host}
+                    error={Boolean(formik.errors.host)}
                     onChange={(e) =>
-                      formik.setFieldValue('databases', e.target.value)
+                      formik.setFieldValue('host', e.target.value)
                     }
-                    value={formik.values.databases}
-                    multiline
-                    label="Databases"
-                    inputProps={{
-                      name: 'databases',
-                      id: 'databases',
-                    }}
-                    InputLabelProps={{
-                      shrink: true,
-                    }}
                   />
-                </div>
+                </Box>
+                <Box mt={2} mb={2}>
+                  <TextField
+                    className={styles.textField}
+                    label="source.connection.port"
+                    variant="outlined"
+                    size="small"
+                    value={formik.values.port}
+                    error={Boolean(formik.errors.port)}
+                    onChange={(e) =>
+                      formik.setFieldValue('port', e.target.value)
+                    }
+                  />
+                </Box>
+                <Box mt={2} mb={2}>
+                  <TextField
+                    className={styles.textField}
+                    label="source.connection.username"
+                    variant="outlined"
+                    size="small"
+                    value={formik.values.username}
+                    error={Boolean(formik.errors.username)}
+                    onChange={(e) =>
+                      formik.setFieldValue('username', e.target.value)
+                    }
+                  />
+                </Box>
+                <Box mt={2} mb={2}>
+                  <TextField
+                    className={styles.textField}
+                    label="source.connection.password"
+                    variant="outlined"
+                    size="small"
+                    type="password"
+                    placeholder={formik.values.password}
+                    onChange={(e) =>
+                      formik.setFieldValue('password', e.target.value)
+                    }
+                  />
+                </Box>
+                <Box mt={2} mb={0}>
+                  <TextField
+                    className={styles.textField}
+                    label="source.connection.dbname"
+                    variant="outlined"
+                    size="small"
+                    value={formik.values.dbname}
+                    error={Boolean(formik.errors.dbname)}
+                    onChange={(e) =>
+                      formik.setFieldValue('dbname', e.target.value)
+                    }
+                  />
+                </Box>
+                <Box mt={1} mb={2}>
+                  <div className={styles.textField}>
+                    <TextField
+                      className={styles.textField}
+                      variant="outlined"
+                      helperText={
+                        'Database(s) divided by space or end of string'
+                      }
+                      margin="normal"
+                      onChange={(e) =>
+                        formik.setFieldValue('databases', e.target.value)
+                      }
+                      value={formik.values.databases}
+                      multiline
+                      label="Databases"
+                      inputProps={{
+                        name: 'databases',
+                        id: 'databases',
+                      }}
+                      InputLabelProps={{
+                        shrink: true,
+                      }}
+                    />
+                  </div>
 
-                <div>
-                  {formik.values.databases &&
-                    uniqueDatabases(formik.values.databases)
-                      .split(',')
-                      .map((database, index) => {
-                        if (database !== '') {
-                          return (
-                            <Chip
-                              key={index}
-                              className={styles.chip}
-                              label={database}
-                              onDelete={(event) =>
-                                handleDeleteDatabase(event, database)
-                              }
-                              color="primary"
-                            />
-                          )
-                        }
-                      })}
-                </div>
-              </Box>
-              <Box mt={2} mb={2}>
-                <TextField
-                  className={styles.textField}
-                  label="pg_dump"
-                  variant="outlined"
-                  size="small"
-                  value={formik.values.pg_dump}
-                  onChange={(e) =>
-                    formik.setFieldValue('pg_dump', e.target.value)
-                  }
-                />
-              </Box>
-              <Box mt={2} mb={2}>
-                <TextField
-                  className={styles.textField}
-                  label="pg_restore"
-                  variant="outlined"
-                  size="small"
-                  value={formik.values.pg_restore}
-                  onChange={(e) =>
-                    formik.setFieldValue('pg_restore', e.target.value)
-                  }
-                />
+                  <div>
+                    {formik.values.databases &&
+                      uniqueDatabases(formik.values.databases)
+                        .split(',')
+                        .map((database, index) => {
+                          if (database !== '') {
+                            return (
+                              <Chip
+                                key={index}
+                                className={styles.chip}
+                                label={database}
+                                onDelete={(event) =>
+                                  handleDeleteDatabase(event, database)
+                                }
+                                color="primary"
+                              />
+                            )
+                          }
+                        })}
+                  </div>
+                </Box>
+                <Box mt={2}>
+                  <Button
+                    variant="primary"
+                    size="medium"
+                    onClick={onTestConnectionClick}
+                    isDisabled={isTestConnectionLoading}
+                  >
+                    Test connection
+                    {isTestConnectionLoading && (
+                      <Spinner size="sm" className={styles.spinner} />
+                    )}
+                  </Button>
+                </Box>
+                {connectionStatus && connectionResponse ? (
+                  <ResponseMessage
+                    type={connectionStatus}
+                    message={connectionResponse}
+                  />
+                ) : null}
               </Box>
             </Box>
-            <Box className={styles.buttonContainer}>
-              <Button
-                variant="primary"
-                size="medium"
-                onClick={onTestConnectionClick}
-                isDisabled={isTestConnectionLoading}
+            <Box mt={2} mb={2}>
+              <TextField
+                className={styles.textField}
+                label="pg_dump jobs"
+                variant="outlined"
+                size="small"
+                value={formik.values.pg_dump}
+                onChange={(e) =>
+                  formik.setFieldValue('pg_dump', e.target.value)
+                }
+              />
+            </Box>
+            <Box mt={2} mb={2}>
+              <TextField
+                className={styles.textField}
+                label="pg_restore jobs"
+                variant="outlined"
+                size="small"
+                value={formik.values.pg_restore}
+                onChange={(e) =>
+                  formik.setFieldValue('pg_restore', e.target.value)
+                }
+              />
+            </Box>
+            <Box>
+              <Typography>Subsection retrieval.refresh</Typography>
+            </Box>
+            <GrayTextTypography>
+              Define full data refresh on schedule. The process requires at
+              least one additional filesystem mount point. The schedule is to be
+              specified using{' '}
+              <a
+                href="https://en.wikipedia.org/wiki/Cron#Overview"
+                target="_blank"
               >
-                Test connection
-                {isTestConnectionLoading && (
-                  <Spinner size="sm" className={styles.spinner} />
-                )}
-              </Button>
-              {connectionStatus && connectionResponse ? (
-                <ResponseMessage
-                  type={connectionStatus}
-                  message={connectionResponse}
-                />
-              ) : null}
+                crontab format.
+              </a>
+            </GrayTextTypography>
+            <Box mt={2} mb={2}>
+              <TextField
+                className={styles.textField}
+                label="timetable"
+                variant="outlined"
+                size="small"
+                value={formik.values.timetable}
+                onChange={(e) =>
+                  formik.setFieldValue('timetable', e.target.value)
+                }
+              />
             </Box>
           </Box>
-          <Box className={styles.buttonContainer} mt={2} mb={2}>
+          <Box
+            mt={2}
+            mb={2}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
             <Button
               variant="primary"
               size="medium"
@@ -443,20 +455,22 @@ export const Configuration = observer(
                 <Spinner size="sm" className={styles.spinner} />
               )}
             </Button>
-            <Button
-              variant="secondary"
-              size="medium"
-              onClick={() => switchActiveTab(0)}
-            >
-              Cancel
-            </Button>
-            {(submitStatus && submitMessage) || updateConfigError ? (
-              <ResponseMessage
-                type={updateConfigError ? 'error' : submitStatus}
-                message={updateConfigError || submitMessage}
-              />
-            ) : null}
+            <Box sx={{ px: 2 }}>
+              <Button
+                variant="secondary"
+                size="medium"
+                onClick={() => switchActiveTab(0)}
+              >
+                Cancel
+              </Button>
+            </Box>
           </Box>
+          {(submitStatus && submitMessage) || updateConfigError ? (
+            <ResponseMessage
+              type={updateConfigError ? 'error' : submitStatus}
+              message={updateConfigError || submitMessage}
+            />
+          ) : null}
         </Box>
         <Modal
           title="Full configuration file (view only)"

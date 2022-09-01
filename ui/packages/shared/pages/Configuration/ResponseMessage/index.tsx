@@ -1,3 +1,4 @@
+import { Box } from '@material-ui/core'
 import { makeStyles } from '@material-ui/core/styles'
 import BlockIcon from '@material-ui/icons/Block'
 import CheckCircleOutlineIcon from '@material-ui/icons/CheckCircleOutline'
@@ -43,23 +44,25 @@ export const ResponseMessage = ({
   const classes = useStyles()
 
   return (
-    <span
-      className={
-        type === 'success' || type === 'ok'
-          ? classes.success
-          : type === 'warning' || type === 'notice'
-          ? classes.warning
-          : classes.error
-      }
-    >
-      {type === 'success' || type === 'ok' ? (
-        <CheckCircleOutlineIcon className={classes.successIcon} />
-      ) : type === 'warning' || type === 'notice' ? (
-        <WarningIcon className={classes.warningIcon} />
-      ) : (
-        <BlockIcon className={classes.errorIcon} />
-      )}
-      {message}
-    </span>
+    <Box mt={1} mb={1}>
+      <span
+        className={
+          type === 'success' || type === 'ok'
+            ? classes.success
+            : type === 'warning' || type === 'notice'
+            ? classes.warning
+            : classes.error
+        }
+      >
+        {type === 'success' || type === 'ok' ? (
+          <CheckCircleOutlineIcon className={classes.successIcon} />
+        ) : type === 'warning' || type === 'notice' ? (
+          <WarningIcon className={classes.warningIcon} />
+        ) : (
+          <BlockIcon className={classes.errorIcon} />
+        )}
+        {message}
+      </span>
+    </Box>
   )
 }
