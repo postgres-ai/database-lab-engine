@@ -62,6 +62,9 @@ const (
 
 	// DBLabRunner defines a label to mark runner containers.
 	DBLabRunner = "dblab_runner"
+
+	// DefaultPostgresSocket defines default path for Postgres socket
+	DefaultPostgresSocket = "/var/run/postgresql"
 )
 
 // TODO(akartasov): Control container manager.

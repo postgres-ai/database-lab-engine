@@ -1,6 +1,7 @@
 package retrieval
 
 import (
+	"context"
 	"os"
 	"path"
 	"testing"
@@ -116,4 +117,16 @@ func TestPendingMarker(t *testing.T) {
 		require.Nil(t, err)
 		assert.Equal(t, models.Finished, r.State.Status)
 	})
+}
+
+func TestSyncStatusNotReportedForLogicalMode(t *testing.T) {
+	var r = Retrieval{
+		State: State{
+			Mode: models.Logical,
+		},
+	}
+	status, err := r.ReportSyncStatus(context.TODO())
+	assert.NoError(t, err)
+	assert.NotNil(t, status)
+	assert.Equal(t, models.SyncStatusNotAvailable, status.Status.Code)
 }

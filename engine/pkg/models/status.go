@@ -31,4 +31,10 @@ const (
 
 	InstanceMessageOK      = "Instance is ready"
 	InstanceMessageWarning = "Subsystems that need attention"
+
+	SyncStatusOK           StatusCode = "OK"
+	SyncStatusStarting     StatusCode = "Starting"
+	SyncStatusDown         StatusCode = "Down"
+	SyncStatusNotAvailable StatusCode = "Not available"
+	SyncStatusError        StatusCode = "Error"
 )

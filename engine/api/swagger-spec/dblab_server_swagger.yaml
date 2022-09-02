@@ -610,6 +610,8 @@ definitions:
         $ref: "#/definitions/Retrieving"
       provisioner:
         $ref: "#/definitions/Provisioner"
+      synchronization:
+        $ref: "#/definitions/Synchronization"
 
   Status:
     type: "object"
@@ -716,6 +718,24 @@ definitions:
         type: "string"
       containerConfig:
         type: "object"
+
+  Synchronization:
+    type: "object"
+    properties:
+      status:
+        $ref: "#/definitions/Status"
+      startedAt:
+        type: "string"
+        format: "date-time"
+      lastReplayedLsn:
+        type: "string"
+      lastReplayedLsnAt:
+        type: "string"
+        format: "date-time"
+      replicationLag:
+        type: "string"
+      replicationUptime:
+        type: "integer"
 
   Snapshot:
     type: "object"

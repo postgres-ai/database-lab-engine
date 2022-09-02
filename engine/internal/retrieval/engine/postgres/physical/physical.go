@@ -11,12 +11,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 
 	"github.com/pkg/errors"
@@ -207,7 +209,12 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to generate PostgreSQL password")
 	}
 
-	contID, err := r.startContainer(ctx, r.restoreContainerName(), r.buildContainerConfig(cont.DBLabRestoreLabel, pwd))
+	hostConfig, err := cont.BuildHostConfig(ctx, r.dockerClient, r.fsPool.DataDir(), r.CopyOptions.ContainerConfig)
+	if err != nil {
+		return errors.Wrap(err, "failed to build container host config")
+	}
+
+	contID, err := r.startContainer(ctx, r.restoreContainerName(), r.buildContainerConfig(cont.DBLabRestoreLabel, pwd), hostConfig)
 	if err != nil {
 		return err
 	}
@@ -288,12 +295,8 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	return nil
 }
 
-func (r *RestoreJob) startContainer(ctx context.Context, containerName string, containerConfig *container.Config) (string, error) {
-	hostConfig, err := cont.BuildHostConfig(ctx, r.dockerClient, r.fsPool.DataDir(), r.CopyOptions.ContainerConfig)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to build container host config")
-	}
-
+func (r *RestoreJob) startContainer(ctx context.Context, containerName string, containerConfig *container.Config,
+	hostConfig *container.HostConfig) (string, error) {
 	if err := tools.PullImage(ctx, r.dockerClient, r.CopyOptions.DockerImage); err != nil {
 		return "", err
 	}
@@ -354,7 +357,24 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) (err error) {
 
 	log.Msg("Starting sync instance: ", r.syncInstanceName())
 
-	syncInstanceID, err := r.startContainer(ctx, r.syncInstanceName(), syncInstanceConfig)
+	hostConfig, err := cont.BuildHostConfig(ctx, r.dockerClient, r.fsPool.DataDir(), r.CopyOptions.ContainerConfig)
+	if err != nil {
+		return fmt.Errorf("failed to build container host config: %w", err)
+	}
+
+	path := filepath.Join(r.fsPool.SocketDir(), r.syncInstanceName())
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return fmt.Errorf("failed to make socket directory: %w", err)
+	}
+
+	hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
+		Type:     mount.TypeBind,
+		Source:   path,
+		Target:   cont.DefaultPostgresSocket,
+		ReadOnly: false,
+	})
+
+	syncInstanceID, err := r.startContainer(ctx, r.syncInstanceName(), syncInstanceConfig, hostConfig)
 	if err != nil {
 		return err
 	}
