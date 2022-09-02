@@ -9,9 +9,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
@@ -26,9 +29,11 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/logical"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/physical"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/snapshot"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/db"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/status"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 
@@ -689,4 +694,86 @@ func (r *Retrieval) GetStageSpec(stage string) (config.JobSpec, error) {
 	}
 
 	return stageSpec, nil
+}
+
+// ReportSyncStatus return status of sync containers.
+func (r *Retrieval) ReportSyncStatus(ctx context.Context) (*models.Sync, error) {
+	if r.State.Mode != models.Physical {
+		return &models.Sync{
+			Status: models.Status{Code: models.SyncStatusNotAvailable},
+		}, nil
+	}
+
+	filterArgs := filters.NewArgs(
+		filters.KeyValuePair{Key: "label",
+			Value: fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabSyncLabel)})
+
+	filterArgs.Add("label", fmt.Sprintf("%s=%s", cont.DBLabInstanceIDLabel, r.engineProps.InstanceID))
+
+	ids, err := tools.ListContainersByLabel(ctx, r.docker, filterArgs)
+	if err != nil {
+		return &models.Sync{
+			Status: models.Status{Code: models.SyncStatusError, Message: err.Error()},
+		}, fmt.Errorf("failed to list containers by label %w", err)
+	}
+
+	if len(ids) != 1 {
+		return &models.Sync{
+			Status: models.Status{Code: models.SyncStatusError},
+		}, fmt.Errorf("failed to match sync container")
+	}
+
+	id := ids[0]
+
+	sync, err := r.reportContainerSyncStatus(ctx, id)
+
+	return sync, err
+}
+
+func (r *Retrieval) reportContainerSyncStatus(ctx context.Context, containerID string) (*models.Sync, error) {
+	resp, err := r.docker.ContainerInspect(ctx, containerID)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect container %w", err)
+	}
+
+	if resp.State == nil {
+		return nil, fmt.Errorf("failed to read container state")
+	}
+
+	if resp.State.Health != nil && resp.State.Health.Status == types.Unhealthy {
+		// in case of Unhealthy state, add health check output to status
+		var healthCheckOutput = ""
+
+		if healthCheckLength := len(resp.State.Health.Log); healthCheckLength > 0 {
+			if lastHealthCheck := resp.State.Health.Log[healthCheckLength-1]; lastHealthCheck.ExitCode > 1 {
+				healthCheckOutput = lastHealthCheck.Output
+			}
+		}
+
+		return &models.Sync{
+			Status: models.Status{
+				Code:    models.SyncStatusDown,
+				Message: healthCheckOutput,
+			},
+		}, nil
+	}
+
+	socketPath := filepath.Join(r.poolManager.First().Pool().SocketDir(), resp.Name)
+	value, err := status.FetchSyncMetrics(ctx, r.global, socketPath)
+
+	if err != nil {
+		log.Warn("Failed to fetch synchronization metrics", err)
+
+		return &models.Sync{
+			Status: models.Status{
+				Code:    models.SyncStatusError,
+				Message: err.Error(),
+			},
+		}, nil
+	}
+
+	value.StartedAt = resp.State.StartedAt
+
+	return value, nil
 }

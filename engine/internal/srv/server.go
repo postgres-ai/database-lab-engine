@@ -132,6 +132,13 @@ func (s *Server) instanceStatus() *models.InstanceStatus {
 
 	s.summarizeStatus(instanceStatus)
 
+	sync, err := s.Retrieval.ReportSyncStatus(context.Background())
+	if err != nil {
+		log.Warn(err)
+	} else {
+		instanceStatus.Synchronization = sync
+	}
+
 	return instanceStatus
 }
 

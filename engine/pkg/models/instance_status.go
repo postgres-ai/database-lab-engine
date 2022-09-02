@@ -10,12 +10,13 @@ import (
 
 // InstanceStatus represents status of a Database Lab Engine instance.
 type InstanceStatus struct {
-	Status      *Status          `json:"status"`
-	Engine      Engine           `json:"engine"`
-	Pools       []PoolEntry      `json:"pools"`
-	Cloning     Cloning          `json:"cloning"`
-	Retrieving  Retrieving       `json:"retrieving"`
-	Provisioner ContainerOptions `json:"provisioner"`
+	Status          *Status          `json:"status"`
+	Engine          Engine           `json:"engine"`
+	Pools           []PoolEntry      `json:"pools"`
+	Cloning         Cloning          `json:"cloning"`
+	Retrieving      Retrieving       `json:"retrieving"`
+	Provisioner     ContainerOptions `json:"provisioner"`
+	Synchronization *Sync            `json:"synchronization"`
 }
 
 // PoolEntry represents a pool entry.
