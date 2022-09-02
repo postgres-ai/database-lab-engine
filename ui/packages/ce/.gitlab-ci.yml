@@ -5,6 +5,12 @@
       changes:
         - ui/**/*
 
+.only_ui_master: &only_ui_master
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - ui/**/*
+
 .only_ui_tag_release: &only_ui_tag_release
   rules:
     - if: $CI_COMMIT_TAG =~ /^ui\/[0-9.]+$/
@@ -31,6 +37,16 @@ ui_build_ce_image_release:
   before_script:
     - export UI_VERSION=$(echo ${CI_COMMIT_TAG#"ui/"})
     - export TAGS="${DOCKER_NAME}:${UI_VERSION},${DOCKER_NAME}:latest"
+
+ui_build_ce_image_master:
+  <<: *build_definition
+  <<: *only_ui_master
+  variables:
+    REGISTRY_USER: "${CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${CI_REGISTRY}"
+    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/ce-ui"
+    TAGS: "${DOCKER_NAME}:master,${DOCKER_NAME}:master-${CI_COMMIT_SHORT_SHA}"
 
 ui_build_ce_image_dev:
   <<: *build_definition
