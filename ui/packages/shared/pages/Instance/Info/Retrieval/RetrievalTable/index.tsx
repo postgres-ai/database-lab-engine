@@ -24,19 +24,25 @@ export const RetrievalTable = ({
         </TableRow>
       </TableHead>
       <TableBody className={styles.tableBody}>
-        {data
-          ? data.map((item) => (
-              <div>
-                {Object.entries(item).map((val, index) => (
-                  <TableRow key={index} hover className={styles.tableRow}>
-                    <TableCell>
-                      {val[0]} : {val[1]}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </div>
-            ))
-          : null}
+        {data ? (
+          data.map((item) => (
+            <div>
+              {Object.entries(item).map((val, index) => (
+                <TableRow key={index} hover className={styles.tableRow}>
+                  <TableCell>
+                    {val[0]} : {val[1]}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </div>
+          ))
+        ) : (
+          <TableRow className={styles.tableRow}>
+            <TableCell>
+              No activity on the {activity}
+            </TableCell>
+          </TableRow>
+        )}
       </TableBody>
     </Table>
   )
