@@ -13,7 +13,7 @@ export const RetrievalTable = ({
   data,
   activity,
 }: {
-  data: ActivityType[] | null
+  data: ActivityType[]
   activity: string
 }) => {
   return (
@@ -24,7 +24,7 @@ export const RetrievalTable = ({
         </TableRow>
       </TableHead>
       <TableBody className={styles.tableBody}>
-        {data ? (
+        {data && data.length > 0 ? (
           data.map((item) => (
             <div>
               {Object.entries(item).map((val, index) => (
@@ -38,9 +38,7 @@ export const RetrievalTable = ({
           ))
         ) : (
           <TableRow className={styles.tableRow}>
-            <TableCell>
-              No activity on the {activity}
-            </TableCell>
+            <TableCell>No activity on the {activity}</TableCell>
           </TableRow>
         )}
       </TableBody>

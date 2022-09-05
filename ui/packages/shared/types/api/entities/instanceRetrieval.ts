@@ -14,7 +14,7 @@ export type InstanceRetrieval = {
   status: string
   currentJob?: string
   activity: {
-    source: ActivityType[] | null
-    target: ActivityType[] | null
-  }
+    source: ActivityType[]
+    target: ActivityType[]
+  } | null
 }

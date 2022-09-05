@@ -14,8 +14,8 @@ export const RetrievalModal = ({
   isOpen: boolean
   onClose: () => void
   data: {
-    source: ActivityType[] | null
-    target: ActivityType[] | null
+    source: ActivityType[]
+    target: ActivityType[]
   }
 }) => {
   const stores = useStores()
