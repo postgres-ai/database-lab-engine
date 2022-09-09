@@ -276,6 +276,10 @@ func (s *Server) initLogRegExp() {
 		secretPatterns = append(secretPatterns, s.Config.VerificationToken)
 	}
 
+	if accessToken := s.Platform.AccessToken(); len(accessToken) >= minTokenLength && !containsSpace(accessToken) {
+		secretPatterns = append(secretPatterns, accessToken)
+	}
+
 	s.re = regexp.MustCompile("(?i)" + strings.Join(secretPatterns, "|"))
 }
 
