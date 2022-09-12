@@ -11,7 +11,7 @@ import clsx from 'clsx'
 
 type Props = {
   title?: string
-  message: string
+  message?: string
   className?: string
   size?: 'big' | 'normal'
 }
