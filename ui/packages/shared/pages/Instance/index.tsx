@@ -156,7 +156,10 @@ export const Instance = observer((props: Props) => {
         </>
 
         <TabPanel value={activeTab} index={2}>
-          <Configuration switchActiveTab={(id: number) => setActiveTab(id)} activeTab={activeTab} />
+          <Configuration 
+            switchActiveTab={(id: number) => setActiveTab(id)} 
+            activeTab={activeTab} 
+            reload={() => stores.main.load(props.instanceId)} />
         </TabPanel>
 
       </StoresProvider>

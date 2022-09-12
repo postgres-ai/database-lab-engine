@@ -1,28 +1,35 @@
-import { DatabaseType } from "types/api/entities/config"
+import { DatabaseType } from 'types/api/entities/config'
 
 export const uniqueDatabases = (values: string) => {
-  let splitValuesArray = values.split(/[,(\s)(\n)(\r)(\t)(\r\n)]/)
-  let newValuesArray = []
+  const splitDatabaseArray = values.split(/[,(\s)(\n)(\r)(\t)(\r\n)]/)
+  let databaseArray = []
 
-  for (let i in splitValuesArray) {
+  for (let i in splitDatabaseArray) {
     if (
-      splitValuesArray[i] !== '' &&
-      newValuesArray.indexOf(splitValuesArray[i]) === -1
+      splitDatabaseArray[i] !== '' &&
+      databaseArray.indexOf(splitDatabaseArray[i]) === -1
     ) {
-      newValuesArray.push(splitValuesArray[i])
+      databaseArray.push(splitDatabaseArray[i])
     }
   }
 
-  return newValuesArray.join(',')
+  return databaseArray.join(' ')
 }
 
 export const postUniqueDatabases = (values: any) => {
-  let splitValuesArray = values.split(/[,(\s)(\n)(\r)(\t)(\r\n)]/)
+  const splitDatabaseArray = values.split(/[,(\s)(\n)(\r)(\t)(\r\n)]/)
 
-  const obj = splitValuesArray.reduce((acc: DatabaseType, curr: number) => {
-    acc[curr] = {}
-    return acc
-  }, {})
+  const databases = splitDatabaseArray.reduce(
+    (acc: DatabaseType, curr: number) => {
+      acc[curr] = {}
+      return acc
+    },
+    {},
+  )
 
-  return values.length !== 0 ? obj : null
+  const nonEmptyDatabase = Object.fromEntries(
+    Object.entries(databases).filter(([name]) => name != ''),
+  )
+
+  return values.length !== 0 ? nonEmptyDatabase : null
 }

@@ -38,6 +38,11 @@ export const updateConfig = async (req: Config) => {
               },
             },
           },
+          logicalRestore: {
+            options: {
+              parallelJobs: req.pg_restore,
+            },
+          },
         },
       },
     }),

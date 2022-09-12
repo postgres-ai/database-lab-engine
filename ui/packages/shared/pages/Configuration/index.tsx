@@ -47,9 +47,11 @@ export const Configuration = observer(
   ({
     switchActiveTab,
     activeTab,
+    reload,
   }: {
     switchActiveTab: (activeTab: number) => void
     activeTab: number
+    reload: () => void
   }) => {
     const classes = useStyles()
     const stores = useStores()
@@ -74,6 +76,11 @@ export const Configuration = observer(
       useState<boolean>(false)
     const [isOpen, setIsOpen] = useState(false)
 
+    const switchTab = async () => {
+      reload()
+      switchActiveTab(0)
+    }
+
     const onSubmit = async (values: FormValues) => {
       setSubmitMessage(null)
       await updateConfig(values).then((response) => {
@@ -82,10 +89,7 @@ export const Configuration = observer(
           setSubmitMessage(
             <p>
               Changes applied.{' '}
-              <span
-                className={styles.underline}
-                onClick={() => switchActiveTab(0)}
-              >
+              <span className={styles.underline} onClick={switchTab}>
                 Switch to Overview
               </span>{' '}
               to see details and to work with clones
@@ -130,7 +134,7 @@ export const Configuration = observer(
         let curDividers = formik.values.databases.match(
           /[,(\s)(\n)(\r)(\t)(\r\n)]/gm,
         )
-        let splitDatabases = currentDatabases.split(',')
+        let splitDatabases = currentDatabases.split(' ')
         let newDatabases = ''
 
         for (let i in splitDatabases) {
@@ -346,7 +350,7 @@ export const Configuration = observer(
                   <div>
                     {formik.values.databases &&
                       uniqueDatabases(formik.values.databases)
-                        .split(',')
+                        .split(' ')
                         .map((database, index) => {
                           if (database !== '') {
                             return (
