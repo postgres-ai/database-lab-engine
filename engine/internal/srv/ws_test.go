@@ -1,15 +1,21 @@
 package srv
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/config"
 )
 
 func TestLogLineFiltering(t *testing.T) {
-	s := Server{Config: &config.Config{VerificationToken: "secretToken"}}
+	pl, err := platform.New(context.Background(), platform.Config{AccessToken: "platformAccessToken"})
+	require.NoError(t, err)
+
+	s := Server{Config: &config.Config{VerificationToken: "secretToken"}, Platform: pl}
 	s.initLogRegExp()
 
 	testCases := []struct {
@@ -55,6 +61,10 @@ func TestLogLineFiltering(t *testing.T) {
 		{
 			input:  []byte(`AWS_ACCESS_KEY_ID:password`),
 			output: []byte(`AWS_********`),
+		},
+		{
+			input:  []byte(`platform: "platformAccessToken"`),
+			output: []byte(`platform: "********"`),
 		},
 	}
 

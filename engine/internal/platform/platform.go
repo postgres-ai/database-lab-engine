@@ -112,3 +112,8 @@ func (s *Service) OriginURL() string {
 
 	return platformURL.String()
 }
+
+// AccessToken returns Platform AccessToken.
+func (s *Service) AccessToken() string {
+	return s.cfg.AccessToken
+}
