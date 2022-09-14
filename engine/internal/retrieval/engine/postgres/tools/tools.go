@@ -321,6 +321,8 @@ func StopPostgres(ctx context.Context, dockerClient *client.Client, containerID,
 func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, containerID string) (err error) {
 	log.Msg("Check container readiness: ", containerID)
 
+	var errorRepeats bool
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -344,11 +346,22 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 			}
 
 			if healthCheckLength := len(resp.State.Health.Log); healthCheckLength > 0 {
+				// Checking exit code 2 and 3 because pg_isready returns
+				//  0 to the shell if the server is accepting connections normally,
+				//  1 if the server is rejecting connections (for example during startup),
+				//  2 if there was no response to the connection attempt, and
+				//  3 if no attempt was made (for example due to invalid parameters).
+				// Supposedly, the status 2 will be returned in cases where the server is not running
+				// and will not start on its own, so there is no reason to wait for all specified retries.
 				if lastHealthCheck := resp.State.Health.Log[healthCheckLength-1]; lastHealthCheck.ExitCode > 1 {
-					return &ErrHealthCheck{
-						ExitCode: lastHealthCheck.ExitCode,
-						Output:   lastHealthCheck.Output,
+					if errorRepeats {
+						return &ErrHealthCheck{
+							ExitCode: lastHealthCheck.ExitCode,
+							Output:   lastHealthCheck.Output,
+						}
 					}
+
+					errorRepeats = true
 				}
 			}
 		}

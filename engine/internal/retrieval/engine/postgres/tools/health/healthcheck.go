@@ -46,21 +46,21 @@ func GetConfig(username, dbname string, options ...ContainerOption) *container.H
 	return healthConfig
 }
 
-// OptionRetries allows overwrite retries counter.
+// OptionRetries allows overwriting retries counter.
 func OptionRetries(retries int) ContainerOption {
 	return func(h *container.HealthConfig) {
 		h.Retries = retries
 	}
 }
 
-// OptionInterval allows overwrite a health check interval.
+// OptionInterval allows overwriting a health check interval.
 func OptionInterval(interval time.Duration) ContainerOption {
 	return func(h *container.HealthConfig) {
 		h.Interval = interval
 	}
 }
 
-// OptionTest allows overwrite a health check test command.
+// OptionTest allows overwriting a health check test command.
 func OptionTest(testCommand string) ContainerOption {
 	return func(h *container.HealthConfig) {
 		if testCommand != "" {
