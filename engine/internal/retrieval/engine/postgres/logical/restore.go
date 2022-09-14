@@ -232,6 +232,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 	defer func() {
 		if err != nil {
+			collectDiagnostics(ctx, r.dockerClient, r.restoreContainerName(), r.fsPool.DataDir())
 			tools.PrintContainerLogs(ctx, r.dockerClient, r.restoreContainerName())
 		}
 	}()
