@@ -6,6 +6,6 @@ type Sync struct {
 	StartedAt         string `json:"startedAt,omitempty"`
 	LastReplayedLsn   string `json:"lastReplayedLsn"`
 	LastReplayedLsnAt string `json:"lastReplayedLsnAt"`
-	ReplicationLag    string `json:"replicationLag"`
+	ReplicationLag    int    `json:"replicationLag"`
 	ReplicationUptime int    `json:"replicationUptime"`
 }
