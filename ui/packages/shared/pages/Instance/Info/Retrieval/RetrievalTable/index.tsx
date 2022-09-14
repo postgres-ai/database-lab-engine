@@ -25,8 +25,8 @@ export const RetrievalTable = ({
       </TableHead>
       <TableBody className={styles.tableBody}>
         {data && data.length > 0 ? (
-          data.map((item) => (
-            <div>
+          data.map((item, index) => (
+            <div key={index}>
               {Object.entries(item).map((val, index) => (
                 <TableRow key={index} hover className={styles.tableRow}>
                   <TableCell>

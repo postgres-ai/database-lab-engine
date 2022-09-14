@@ -103,8 +103,8 @@ export const Configuration = observer(
 
     const onTestConnectionClick = async () => {
       setConnectionResponse(null)
-      Object.keys(connectionData).map(function (key) {
-        if (key !== 'password') {
+      Object.keys(connectionData).map(function (key: string) {
+        if (key !== 'password' && key !== 'db_list') {
           formik.validateField(key)
         }
       })

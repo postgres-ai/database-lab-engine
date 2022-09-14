@@ -4,6 +4,7 @@ export type dbSource = {
   dbname: string
   username: string
   password: string
+  db_list?: string[]
 }
 
 export type TestSourceDTO = {
