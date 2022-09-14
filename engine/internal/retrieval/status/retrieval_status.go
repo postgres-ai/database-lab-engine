@@ -97,22 +97,18 @@ func FetchSyncMetrics(ctx context.Context, config *global.Config, socketPath str
 		return &sync, fmt.Errorf("failed to read Postgres version %w", err)
 	}
 
-	var replicationLag string
-
 	var query = lag9xQuery
 
 	if pgVersion >= pgVersion10 {
 		query = lagQuery
 	}
 
-	replicationLag, err = lag(ctx, conn, query)
+	replicationLag, err := lag(ctx, conn, query)
 	if err != nil {
 		log.Warn("Failed to fetch replication lag", err)
 	} else {
 		sync.ReplicationLag = replicationLag
 	}
-
-	var replayedLsn, lastReplayedLsnAt string
 
 	query = lastReplayedLsn9xQuery
 
@@ -120,7 +116,7 @@ func FetchSyncMetrics(ctx context.Context, config *global.Config, socketPath str
 		query = lastReplayedLsnQuery
 	}
 
-	lastReplayedLsnAt, replayedLsn, err = lastReplayedLsn(ctx, conn, query)
+	lastReplayedLsnAt, replayedLsn, err := lastReplayedLsn(ctx, conn, query)
 	if err != nil {
 		log.Warn("Failed to fetch last replayed lsn", err)
 	} else {
@@ -166,16 +162,16 @@ func version(ctx context.Context, conn *pgx.Conn) (int, error) {
 	return pgVersion, nil
 }
 
-func lag(ctx context.Context, conn *pgx.Conn, query string) (string, error) {
-	var lagSec sql.NullString
+func lag(ctx context.Context, conn *pgx.Conn, query string) (int, error) {
+	var lagSec int
 
 	row := conn.QueryRow(ctx, query)
 
 	if err := row.Scan(&lagSec); err != nil {
-		return "", fmt.Errorf("failed to read replication lag: %w", err)
+		return 0, fmt.Errorf("failed to read replication lag: %w", err)
 	}
 
-	return lagSec.String, nil
+	return lagSec, nil
 }
 
 func lastReplayedLsn(ctx context.Context, conn *pgx.Conn, query string) (string, string, error) {
