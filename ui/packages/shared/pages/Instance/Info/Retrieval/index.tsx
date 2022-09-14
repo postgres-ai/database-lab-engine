@@ -43,25 +43,30 @@ export const Retrieval = observer(() => {
 
   if (!instanceRetrieval) return null
   const { mode, status, activity } = instanceRetrieval
-  const showActivities = mode === 'logical' && status === 'refreshing'
+  const isVisible = mode !== 'physical'
+  const isActive = mode === 'logical' && status === 'refreshing'
 
   return (
     <Section title="Retrieval">
       <Property name="Status">
         <Status type={getTypeByStatus(retrieving.status)}>
           {capitalize(retrieving.status)}
-          <Button
-            theme="primary"
-            onClick={() => setIsModalOpen(true)}
-            isDisabled={!showActivities}
-            className={classes.detailsButton}
-          >
-            Show details
-          </Button>
-          {!showActivities && (
-            <Tooltip content="No retrieval activity details">
-              <InfoIcon className={classes.infoIcon} />
-            </Tooltip>
+          {isVisible && (
+            <>
+              <Button
+                theme="primary"
+                onClick={() => setIsModalOpen(true)}
+                isDisabled={!isActive}
+                className={classes.detailsButton}
+              >
+                Show details
+              </Button>
+              {!isActive && (
+                <Tooltip content="No retrieval activity details">
+                  <InfoIcon className={classes.infoIcon} />
+                </Tooltip>
+              )}
+            </>
           )}
         </Status>
       </Property>

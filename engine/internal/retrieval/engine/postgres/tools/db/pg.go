@@ -18,15 +18,24 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
-// ConnectionString builds PostgreSQL connection string.
-func ConnectionString(host, port, username, dbname, password string) string {
-	return fmt.Sprintf("host=%s port=%s user='%s' database='%s' password='%s'", host, port, username, dbname, password)
-}
-
 const (
 	availableExtensions = "select name, default_version, coalesce(installed_version,'') from pg_available_extensions " +
 		"where installed_version is not null"
+
 	availableLocales = "select datname, lower(datcollate), lower(datctype) from pg_catalog.pg_database"
+
+	availableDBsTemplate = `select datname from pg_catalog.pg_database 
+	where not datistemplate and has_database_privilege('%s', datname, 'CONNECT')`
+
+	// maxNumberVerifiedDBs defines the maximum number of databases to verify availability as a database source.
+	// The DB source instance can contain a large number of databases, so the verification will take a long time.
+	// Therefore, we introduced a limit on the maximum number of databases to check for suitability as a source.
+	maxNumberVerifiedDBs = 5
+)
+
+var (
+	errExtensionWarning = errors.New("extension warning found")
+	errLocaleWarning    = errors.New("locale warning found")
 )
 
 type extension struct {
@@ -41,19 +50,21 @@ type locale struct {
 	ctype   string
 }
 
+// ConnectionString builds PostgreSQL connection string.
+func ConnectionString(host, port, username, dbname, password string) string {
+	return fmt.Sprintf("host=%s port=%s user='%s' database='%s' password='%s'", host, port, username, dbname, password)
+}
+
+// GetDatabaseListQuery provides the query to get the list of databases available for user.
+func GetDatabaseListQuery(username string) string {
+	return fmt.Sprintf(availableDBsTemplate, username)
+}
+
 // CheckSource checks the readiness of the source database to dump and restore processes.
 func CheckSource(ctx context.Context, conf *models.ConnectionTest, imageContent *ImageContent) (*models.TestConnection, error) {
-	connStr := ConnectionString(conf.Host, conf.Port, conf.Username, conf.DBName, conf.Password)
-
-	conn, err := pgx.Connect(ctx, connStr)
-	if err != nil {
-		log.Dbg("failed to test database connection:", err)
-
-		return &models.TestConnection{
-			Status:  models.TCStatusError,
-			Result:  models.TCResultConnectionError,
-			Message: err.Error(),
-		}, nil
+	conn, tcResponse := checkConnection(ctx, conf, conf.DBName)
+	if tcResponse != nil {
+		return tcResponse, nil
 	}
 
 	defer func() {
@@ -62,16 +73,102 @@ func CheckSource(ctx context.Context, conf *models.ConnectionTest, imageContent 
 		}
 	}()
 
-	var one int
+	dbList := conf.DBList
 
-	if err := conn.QueryRow(ctx, "select 1").Scan(&one); err != nil {
-		return &models.TestConnection{
+	if len(dbList) == 0 {
+		dbSourceList, err := getDBList(ctx, conn, conf.Username)
+		if err != nil {
+			return nil, err
+		}
+
+		dbList = dbSourceList
+	}
+
+	if len(dbList) > maxNumberVerifiedDBs {
+		dbList = dbList[:maxNumberVerifiedDBs]
+		tcResponse = &models.TestConnection{
+			Status: models.TCStatusNotice,
+			Result: models.TCResultUnverifiedDB,
+			Message: "Too many databases are supposed to be checked. Only the following databases have been verified: " +
+				strings.Join(dbList, ", "),
+		}
+	}
+
+	for _, dbName := range dbList {
+		dbConn, listTC := checkConnection(ctx, conf, dbName)
+		if listTC != nil {
+			return listTC, nil
+		}
+
+		listTC, err := checkContent(ctx, dbConn, dbName, imageContent)
+		if err != nil {
+			return nil, err
+		}
+
+		if listTC != nil {
+			return listTC, nil
+		}
+	}
+
+	if tcResponse != nil {
+		return tcResponse, nil
+	}
+
+	return &models.TestConnection{
+		Status:  models.TCStatusOK,
+		Result:  models.TCResultOK,
+		Message: models.TCMessageOK,
+	}, nil
+}
+
+func getDBList(ctx context.Context, conn *pgx.Conn, dbUsername string) ([]string, error) {
+	dbList := make([]string, 0)
+
+	rows, err := conn.Query(ctx, GetDatabaseListQuery(dbUsername))
+	if err != nil {
+		return nil, fmt.Errorf("failed to perform query listing databases: %w", err)
+	}
+
+	for rows.Next() {
+		var dbName string
+		if err := rows.Scan(&dbName); err != nil {
+			return nil, fmt.Errorf("failed to scan next row in database list result set: %w", err)
+		}
+
+		dbList = append(dbList, dbName)
+	}
+
+	return dbList, nil
+}
+
+func checkConnection(ctx context.Context, conf *models.ConnectionTest, dbName string) (*pgx.Conn, *models.TestConnection) {
+	connStr := ConnectionString(conf.Host, conf.Port, conf.Username, dbName, conf.Password)
+
+	conn, err := pgx.Connect(ctx, connStr)
+	if err != nil {
+		log.Dbg("failed to test database connection:", err)
+
+		return nil, &models.TestConnection{
 			Status:  models.TCStatusError,
 			Result:  models.TCResultConnectionError,
 			Message: err.Error(),
-		}, nil
+		}
 	}
 
+	var one int
+
+	if err := conn.QueryRow(ctx, "select 1").Scan(&one); err != nil {
+		return nil, &models.TestConnection{
+			Status:  models.TCStatusError,
+			Result:  models.TCResultConnectionError,
+			Message: err.Error(),
+		}
+	}
+
+	return conn, nil
+}
+
+func checkContent(ctx context.Context, conn *pgx.Conn, dbName string, imageContent *ImageContent) (*models.TestConnection, error) {
 	if !imageContent.IsReady() {
 		return &models.TestConnection{
 			Status: models.TCStatusNotice,
@@ -82,26 +179,30 @@ func CheckSource(ctx context.Context, conf *models.ConnectionTest, imageContent 
 	}
 
 	if missing, unsupported, err := checkExtensions(ctx, conn, imageContent.Extensions()); err != nil {
+		if err != errExtensionWarning {
+			return nil, fmt.Errorf("failed to check database extensions: %w", err)
+		}
+
 		return &models.TestConnection{
 			Status:  models.TCStatusWarning,
 			Result:  models.TCResultMissingExtension,
-			Message: buildExtensionsWarningMessage(missing, unsupported),
+			Message: buildExtensionsWarningMessage(dbName, missing, unsupported),
 		}, nil
 	}
 
 	if missing, err := checkLocales(ctx, conn, imageContent.Locales(), imageContent.Databases()); err != nil {
+		if err != errLocaleWarning {
+			return nil, fmt.Errorf("failed to check database locales: %w", err)
+		}
+
 		return &models.TestConnection{
 			Status:  models.TCStatusWarning,
 			Result:  models.TCResultMissingLocale,
-			Message: buildLocalesWarningMessage(missing),
+			Message: buildLocalesWarningMessage(dbName, missing),
 		}, nil
 	}
 
-	return &models.TestConnection{
-		Status:  models.TCStatusOK,
-		Result:  models.TCResultOK,
-		Message: models.TCMessageOK,
-	}, nil
+	return nil, nil
 }
 
 func checkExtensions(ctx context.Context, conn *pgx.Conn, imageExtensions map[string]string) ([]extension, []extension, error) {
@@ -140,7 +241,7 @@ func checkExtensions(ctx context.Context, conn *pgx.Conn, imageExtensions map[st
 	}
 
 	if len(missingExtensions) != 0 || len(unsupportedVersions) != 0 {
-		return missingExtensions, unsupportedVersions, errors.New("extension warning found")
+		return missingExtensions, unsupportedVersions, errExtensionWarning
 	}
 
 	return nil, nil, nil
@@ -158,19 +259,19 @@ func toCanonicalSemver(v string) string {
 	return v
 }
 
-func buildExtensionsWarningMessage(missingExtensions, unsupportedVersions []extension) string {
+func buildExtensionsWarningMessage(dbName string, missingExtensions, unsupportedVersions []extension) string {
 	sb := &strings.Builder{}
 
 	if len(missingExtensions) > 0 {
-		sb.WriteString("There are missing extensions:")
+		sb.WriteString("There are missing extensions in the \"" + dbName + "\" database:")
 
 		formatExtensionList(sb, missingExtensions)
 
-		sb.WriteRune('\n')
+		sb.WriteString(".\n")
 	}
 
 	if len(unsupportedVersions) > 0 {
-		sb.WriteString("There are extensions with an unsupported version:")
+		sb.WriteString("There are extensions with an unsupported version in the \"" + dbName + "\" database:")
 
 		formatExtensionList(sb, unsupportedVersions)
 	}
@@ -225,17 +326,17 @@ func checkLocales(ctx context.Context, conn *pgx.Conn, imageLocales, databases m
 	}
 
 	if len(missingLocales) != 0 {
-		return missingLocales, errors.New("locale warning found")
+		return missingLocales, errLocaleWarning
 	}
 
 	return nil, nil
 }
 
-func buildLocalesWarningMessage(missingLocales []locale) string {
+func buildLocalesWarningMessage(dbName string, missingLocales []locale) string {
 	sb := &strings.Builder{}
 
 	if length := len(missingLocales); length > 0 {
-		sb.WriteString("There are missing locales:")
+		sb.WriteString("There are missing locales in the \"" + dbName + "\" database:")
 
 		for i, missing := range missingLocales {
 			sb.WriteString(fmt.Sprintf(" '%s' (collate: %s, ctype: %s)", missing.name, missing.collate, missing.ctype))

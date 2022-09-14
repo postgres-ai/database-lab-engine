@@ -6,7 +6,8 @@ package logical
 
 import (
 	"context"
-	"fmt"
+
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/db"
 )
 
 type defaultDumper struct {
@@ -27,6 +28,5 @@ func (d *defaultDumper) SetConnectionOptions(_ context.Context, c *Connection) e
 }
 
 func (d *defaultDumper) GetDatabaseListQuery(username string) string {
-	return fmt.Sprintf(`select datname from pg_catalog.pg_database 
-	where not datistemplate and has_database_privilege('%s', datname, 'CONNECT')`, username)
+	return db.GetDatabaseListQuery(username)
 }

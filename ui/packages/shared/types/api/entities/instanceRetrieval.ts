@@ -16,5 +16,5 @@ export type InstanceRetrieval = {
   activity: {
     source: ActivityType[]
     target: ActivityType[]
-  } | null
+  }
 }

@@ -28,6 +28,9 @@ const (
 	// TCResultMissingLocale defines the warning about a missing locale.
 	TCResultMissingLocale = "missing_locale"
 
+	// TCResultUnverifiedDB defines notification of the presence of unverified databases.
+	TCResultUnverifiedDB = "unverified_database"
+
 	// TCMessageOK defines the source database is ready for dump and restore.
 	TCMessageOK = "Database ready for dump and restore"
 )

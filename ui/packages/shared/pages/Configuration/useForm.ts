@@ -55,12 +55,26 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
     validateOnChange: false,
   })
 
+  const formatDatabaseArray = (database: any) => {
+    let databases = []
+    const splitDatabaseArray = database.split(/[,(\s)(\n)(\r)(\t)(\r\n)]/)
+
+    for (let i = 0; i < splitDatabaseArray.length; i++) {
+      if (splitDatabaseArray[i] !== '') {
+        databases.push(splitDatabaseArray[i])
+      }
+    }
+
+    return databases
+  }
+
   const connectionData = {
     host: formik.values.host,
     port: formik.values.port,
     username: formik.values.username,
     password: formik.values.password,
     dbname: formik.values.dbname,
+    ...(formik.values.databases && { db_list: formatDatabaseArray(formik.values.databases)}),
   }
 
   const isConnectionDataValid =

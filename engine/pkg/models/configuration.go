@@ -2,11 +2,12 @@ package models
 
 // ConnectionTest defines a connection test model.
 type ConnectionTest struct {
-	Host     string `json:"host"`
-	Port     string `json:"port"`
-	DBName   string `json:"dbname"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Host     string   `json:"host"`
+	Port     string   `json:"port"`
+	DBName   string   `json:"dbname"`
+	Username string   `json:"username"`
+	Password string   `json:"password"`
+	DBList   []string `json:"db_list"`
 }
 
 // ConfigProjection is a projection of the configuration.

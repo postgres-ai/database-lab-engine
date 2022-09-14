@@ -10,6 +10,7 @@ export const testDbSource = async (req: dbSource) => {
       dbname: req.dbname,
       username: req.username,
       password: req.password,
+      db_list: req.db_list
     }),
   })
 
