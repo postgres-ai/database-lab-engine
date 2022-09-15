@@ -251,11 +251,11 @@ func StartPostgres(ctx context.Context, dockerClient *client.Client, containerID
 		Cmd: startCommand,
 	})
 
-	if err != nil {
-		return errors.Wrap(err, "failed to stop Postgres")
-	}
-
 	log.Dbg(out)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to start Postgres")
+	}
 
 	return nil
 }

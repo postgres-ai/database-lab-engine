@@ -112,6 +112,11 @@ if [ "${POSTGRES_VERSION}" = "9.6" ]; then
   SHARED_PRELOAD_LIBRARIES="pg_stat_statements, auto_explain"
 fi
 
+# Edit the following options for PostgreSQL 15beta4
+if [ "${POSTGRES_VERSION}" = "15beta4" ]; then
+  SHARED_PRELOAD_LIBRARIES="pg_stat_statements, auto_explain, logerrors, pg_stat_kcache"
+fi
+
 pendingFile="${metaDir}/pending.retrieval"
 sudo touch $pendingFile
 

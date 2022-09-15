@@ -99,6 +99,14 @@ if [ "${POSTGRES_VERSION}" = "9.6" ]; then
   ' "${configDir}/server.yml"
 fi
 
+# Edit the following options for PostgreSQL 15beta4
+if [ "${POSTGRES_VERSION}" = "15beta4" ]; then
+  yq eval -i '
+  .databaseConfigs.configs.shared_preload_libraries = "pg_stat_statements, auto_explain, logerrors, pg_stat_kcache" |
+  .databaseConfigs.configs.log_directory = "log"
+  ' "${configDir}/server.yml"
+fi
+
 ## Launch Database Lab server
 sudo docker run \
   --name ${DLE_SERVER_NAME} \
