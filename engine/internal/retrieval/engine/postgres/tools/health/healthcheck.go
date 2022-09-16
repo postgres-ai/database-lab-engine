@@ -17,7 +17,9 @@ const (
 	hcInterval    = 5 * time.Second
 	hcTimeout     = 2 * time.Second
 	hcStartPeriod = 3 * time.Second
-	hcRetries     = 15
+
+	// HCRetries defines the default number of retries.
+	HCRetries = 15
 
 	// DefaultRestoreInterval defines a default health check interval for database restoration.
 	DefaultRestoreInterval = 5 * time.Second
@@ -36,7 +38,7 @@ func GetConfig(username, dbname string, options ...ContainerOption) *container.H
 		Interval:    hcInterval,
 		Timeout:     hcTimeout,
 		StartPeriod: hcStartPeriod,
-		Retries:     hcRetries,
+		Retries:     HCRetries,
 	}
 
 	for _, healthCheckOption := range options {
