@@ -133,9 +133,9 @@ func AddVolumesToHostConfig(ctx context.Context, docker *client.Client, hostConf
 		return errors.Wrap(err, "failed to get host info")
 	}
 
-	log.Dbg("Virtualization system: ", hostInfo.VirtualizationSystem)
-
 	if IsInDocker() {
+		log.Dbg("host info: ", hostInfo.Hostname)
+
 		inspection, err := docker.ContainerInspect(ctx, hostInfo.Hostname)
 		if err != nil {
 			return err
