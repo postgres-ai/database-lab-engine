@@ -35,6 +35,7 @@ import (
 	"github.com/shirou/gopsutil/host"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
@@ -321,7 +322,7 @@ func StopPostgres(ctx context.Context, dockerClient *client.Client, containerID,
 func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, containerID string) (err error) {
 	log.Msg("Check container readiness: ", containerID)
 
-	var errorRepeats bool
+	var errorRepeats int
 
 	for {
 		select {
@@ -354,14 +355,14 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 				// Supposedly, the status 2 will be returned in cases where the server is not running
 				// and will not start on its own, so there is no reason to wait for all specified retries.
 				if lastHealthCheck := resp.State.Health.Log[healthCheckLength-1]; lastHealthCheck.ExitCode > 1 {
-					if errorRepeats {
+					if errorRepeats >= health.HCRetries {
 						return &ErrHealthCheck{
 							ExitCode: lastHealthCheck.ExitCode,
 							Output:   lastHealthCheck.Output,
 						}
 					}
 
-					errorRepeats = true
+					errorRepeats++
 				}
 			}
 		}
