@@ -1,5 +1,4 @@
 include:
-  - template: Security/SAST.gitlab-ci.yml
   - local: 'ui/packages/ce/.gitlab-ci.yml'
   - local: 'ui/packages/platform/.gitlab-ci.yml'
 
@@ -10,7 +9,7 @@ include:
       changes:
         - ui/**/*
 
-check_code_style:
+check-code-style:
   <<: *only_ui
   stage: test
   image: node:16.13.0
@@ -19,20 +18,22 @@ check_code_style:
     - npm --prefix ui/ run lint -w packages/ce
     - npm --prefix ui/ run lint -w packages/platform
 
-eslint-sast:
+semgrep-sast:
+  stage: test
+  image: returntocorp/semgrep
   <<: *only_ui
-  extends: .sast-analyzer
-  image:
-    name: "$SAST_ANALYZER_IMAGE"
   variables:
-    SAST_ANALYZER_IMAGE_TAG: 2
-    SAST_ANALYZER_IMAGE: "$SECURE_ANALYZERS_PREFIX/eslint:$SAST_ANALYZER_IMAGE_TAG"
-
-nodejs-scan-sast:
-  <<: *only_ui
-  extends: .sast-analyzer
-  image:
-    name: "$SAST_ANALYZER_IMAGE"
-  variables:
-    SAST_ANALYZER_IMAGE_TAG: 2
-    SAST_ANALYZER_IMAGE: "$SECURE_ANALYZERS_PREFIX/nodejs-scan:$SAST_ANALYZER_IMAGE_TAG"
+    # See more at semgrep.dev/explore.
+    SEMGREP_RULES: >-
+      p/security-audit
+      p/secrets
+      p/default
+      p/owasp-top-ten
+      p/javascript
+      p/react
+    # Upload findings to GitLab SAST Dashboard:
+    SEMGREP_GITLAB_JSON: "1"
+  script: semgrep ci --gitlab-sast > gl-sast-report.json || true
+  artifacts:
+    reports:
+      sast: gl-sast-report.json
