@@ -24,29 +24,13 @@ Metadata:
           - CertificateEmail
       -
         Label:
-          default: "Database Lab Engine (DLE) configuration"
-        Parameters:
-          - DLERetrievalRefreshTimetable
-          - PostgresDumpParallelJobs
-          - DLEVerificationToken
-          - DLEDebugMode
-      -
-        Label:
           default: "Source PostgreSQL parameters"
         Parameters:
           - SourceDatabaseSize
-          - SourcePostgresHost
-          - SourcePostgresPort
-          - SourcePostgresUsername
-          - SourcePostgresPassword
-          - SourcePostgresDBName
-          - PostgresConfigSharedPreloadLibraries
-          - SourcePostgresDBList
       -
         Label:
           default: "Advanced DLE configuration"
         Parameters:
-           - PostgresDockerImage
            - DLEZFSDataSetsNumber
     ParameterLabels:
       KeyName:
@@ -63,36 +47,14 @@ Metadata:
         default: "Hosted zone"
       CertificateEmail:
         default: "Certificate email"
-      DLEDebugMode:
-        default: "DLE debug mode"
       DLEVerificationToken:
         default: "DLE verification token"
-      DLERetrievalRefreshTimetable:
-        default: "DLE retrieval refresh timetable"
-      PostgresDockerImage:
-        default: "Postgres docker image"
       DLEZFSDataSetsNumber:
         default: "Number of supported snapshots."
-      PostgresDumpParallelJobs:
-        default: "Number of pg_dump jobs"
-      SourcePostgresDBName:
-        default: "Database name"
       VPC:
         default: "VPC security group"
       Subnet:
         default: "Subnet"
-      SourcePostgresHost:
-        default: "Host name or IP"
-      SourcePostgresPort:
-        default: "Port"
-      SourcePostgresUsername:
-        default: "User name"
-      SourcePostgresPassword:
-        default: "Password"
-      PostgresConfigSharedPreloadLibraries:
-        default: "shared_preload_libraries parameter"
-      SourcePostgresDBList:
-        default: "Comma separated list of databases to copy"
 Parameters:
   Subnet:
     Description: Subnet to attach EC2 machine.
@@ -150,68 +112,18 @@ Parameters:
     AllowedPattern: '^$|[^\s@]+@[^\s@]+\.[^\s@]+'
     Default: ''
     ConstraintDescription: Must be a valid email of the form \'user@example.com\'
-  DLEDebugMode:
-    Description: Enables DLE debug mode
-    Type: String
-    Default: True
-    AllowedValues:
-      - True
-      - False
   DLEVerificationToken:
     Description: DLE verification token
     Type: String
     Default: "example-verification-token"
     MinLength: '9'
     MaxLength: '32'
-  DLERetrievalRefreshTimetable:
-    Description: DLE refresh schedule on cron format
-    Type: String
-    Default: '0 0 * * *'
   DLEZFSDataSetsNumber:
     Description: Number of database copies needed
     Type: Number
     Default: 2
     MinValue: 2
     MaxValue: 100
-  PostgresDockerImage:
-    Description: Docker image to run PostgreSQL
-    Type: String
-    Default: 'postgresai/extended-postgres:14'
-  SourcePostgresDBName:
-    Description: Source database name. This parameter is used to connect to the database
-    Type: String
-    Default: 'postgres'
-  SourcePostgresHost:
-    Description: Source Postgres cluster host name or IP
-    Type: String
-    Default: ''
-  SourcePostgresPort:
-    Description: Source Postgres cluster port
-    Type: Number
-    MinValue: 1024
-    MaxValue: 65535
-    Default: 5432
-  SourcePostgresUsername:
-    Description: Source Postgres cluster username
-    Type: String
-    Default: postgres
-  SourcePostgresPassword:
-    Description: Source Postgres cluster password
-    Type: String
-    Default: ''
-    NoEcho: true
-  PostgresConfigSharedPreloadLibraries:
-    Description: Source Postgres shared_preload_libraries value
-    Type: String
-    Default: ''
-  PostgresDumpParallelJobs:
-    Description: Number of jobs to run pg_dump against the source database
-    Type: String
-    Default: '1'
-  SourcePostgresDBList:
-    Description: List of database names on source for copy to DLE. Leave it empty to copy all accessible databases
-    Type: String
-    Default: ''
 Mappings:
   AWSInstanceType2Arch:
     r5.large:
@@ -404,41 +316,20 @@ Resources:
           dle_config_path="/home/ubuntu/.dblab/engine/configs"
           dle_meta_path="/home/ubuntu/.dblab/engine/meta"
           postgres_conf_path="/home/ubuntu/.dblab/postgres_conf"
-          
-          # Create a special marker file to identify that the DLE is running as a "managed" instance
-          # (e.g., launched using Marketplace or Terraform), and has not yet been configured.
-          touch $dle_meta_path/pending.retrieval
+          dle_logs_path="home/ubuntu/.dblab/engine/logs"
 
           yq e -i '
-          .global.debug=${DLEDebugMode} |
           .embeddedUI.host="" |
+          .embeddedUI.dockerImage="registry.gitlab.com/postgres-ai/database-lab/ce-ui:$DLE_DOCKER_IMAGE_VERSION" |
           .server.verificationToken="${DLEVerificationToken}" |
-          .retrieval.refresh.timetable="${DLERetrievalRefreshTimetable}" |
-          .retrieval.spec.logicalRestore.options.forceInit=true |
           .poolManager.mountDir = "/var/lib/dblab/dblab_pool" |
           .retrieval.spec.logicalDump.options.dumpLocation="/var/lib/dblab/dblab_pool/dataset_1/dump/" |
-          .retrieval.spec.logicalRestore.options.dumpLocation="/var/lib/dblab/dblab_pool/dataset_1/dump/" |
-          .databaseContainer.dockerImage="${PostgresDockerImage}" |
-          .databaseConfigs.configs.shared_preload_libraries="${PostgresConfigSharedPreloadLibraries}"
+          .retrieval.spec.logicalRestore.options.forceInit=true |
+          .retrieval.spec.logicalRestore.options.dumpLocation="/var/lib/dblab/dblab_pool/dataset_1/dump/"
           ' $dle_config_path/server.yml
 
-          yq e -i '
-          .retrieval.spec.logicalDump.options.source.connection.host = "${SourcePostgresHost}" |
-          .retrieval.spec.logicalDump.options.source.connection.port = ${SourcePostgresPort} |
-          .retrieval.spec.logicalDump.options.source.connection.dbname="${SourcePostgresDBName}" |
-          .retrieval.spec.logicalDump.options.source.connection.username = "${SourcePostgresUsername}" |
-          .retrieval.spec.logicalDump.options.source.connection.password = "${SourcePostgresPassword}" |
-          .retrieval.spec.logicalDump.options.parallelJobs = ${PostgresDumpParallelJobs} |
-          .retrieval.spec.logicalRestore.options.configs.shared_preload_libraries = "${PostgresConfigSharedPreloadLibraries}"
-          ' $dle_config_path/server.yml
 
-          for i in $(echo ${SourcePostgresDBList} | sed "s/,/ /g")
-          do
-            yq e -i "
-            .retrieval.spec.logicalDump.options.databases.$i = {}
-            " $dle_config_path/server.yml
-          done
-
+          touch $dle_meta_path/pending.retrieval
 
           sudo docker run \
             --detach \
@@ -449,9 +340,14 @@ Resources:
             --volume /var/run/docker.sock:/var/run/docker.sock \
             --volume /var/lib/dblab:/var/lib/dblab/:rshared \
             --volume /var/lib/dblab/dblab_pool/dataset_1/dump/:/var/lib/dblab/dblab_pool/dataset_1/dump/:rshared \
-            --volume $dle_config_path:/home/dblab/configs:ro \
+            --volume $dle_config_path:/home/dblab/configs \
             --volume $dle_meta_path:/home/dblab/meta \
+            --volume $dle_logs_path:/home/dblab/logs \
             --volume $postgres_conf_path:/home/dblab/standard/postgres/control \
+            --volume /sys/kernel/debug:/sys/kernel/debug:rw \
+            --volume /lib/modules:/lib/modules:ro \
+            --volume /proc:/host_proc:ro \
+            --env DLE_COMPUTING_INFRASTRUCTURE=AWS \
             --env DOCKER_API_VERSION=1.39 \
             --restart always \
             registry.gitlab.com/postgres-ai/database-lab/dblab-server:$DLE_DOCKER_IMAGE_VERSION
@@ -478,7 +374,7 @@ Resources:
             sudo systemctl enable envoy
             sudo systemctl start envoy
           fi
-         
+
           # upgrade ssm agent version
           wget https://s3.us-east-1.amazonaws.com/amazon-ssm-us-east-1/amazon-ssm-agent/3.1.1575.0/amazon-ssm-agent-ubuntu-amd64.tar.gz
           tar -xf amazon-ssm-agent-ubuntu-amd64.tar.gz
@@ -490,7 +386,7 @@ Resources:
            --url=http://localhost:2345 \
            --token=${DLEVerificationToken} \
            --insecure'
-          
+           
           while ! echo "UI started" | nc localhost 2346; do sleep 10; done
           /opt/aws/bin/cfn-signal -e $? -d "DLE UI is available" -r "DLE Deploy Process Complete" '${WaitHandle}'
 
