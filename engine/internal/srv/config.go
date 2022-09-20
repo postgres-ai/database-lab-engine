@@ -28,7 +28,7 @@ const connectionCheckTimeout = 10 * time.Second
 func (s *Server) getProjectedAdminConfig(w http.ResponseWriter, r *http.Request) {
 	cfg, err := s.projectedAdminConfig()
 	if err != nil {
-		api.SendError(w, r, err)
+		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
@@ -41,7 +41,7 @@ func (s *Server) getProjectedAdminConfig(w http.ResponseWriter, r *http.Request)
 func (s *Server) getAdminConfigYaml(w http.ResponseWriter, r *http.Request) {
 	cfg, err := adminConfigYaml()
 	if err != nil {
-		api.SendError(w, r, err)
+		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
