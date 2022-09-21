@@ -167,6 +167,7 @@ func adminConfigYaml() ([]byte, error) {
 	}
 
 	yamlUtils.DefaultConfigMask().Yaml(document)
+	yamlUtils.TraverseNode(document)
 
 	doc, err := yaml.Marshal(document)
 	if err != nil {
