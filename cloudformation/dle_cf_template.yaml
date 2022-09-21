@@ -203,7 +203,6 @@ Resources:
   IamSSMRole:
     Type: "AWS::IAM::Role"
     Properties:
-      RoleName: "EC2RoleForSSM"
       Description: "EC2 IAM role for SSM access"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -386,7 +385,29 @@ Resources:
            --url=http://localhost:2345 \
            --token=${DLEVerificationToken} \
            --insecure'
-           
+
+          # Start Netdata
+
+          touch $dle_config_path/netdata_DLE.conf
+          echo  "DLE_token=${DLEVerificationToken}"> $dle_config_path/netdata_DLE.conf
+          
+          sudo docker run -d \
+            --name=netdata \
+            --network host \
+            --hostname=$(hostname) \
+            -p 19999:19999 \
+            -v netdataconfig:/etc/netdata \
+            -v $dle_config_path/netdata_DLE.conf:/etc/netdata/charts.d/DLE.conf \
+            -v netdatalib:/var/lib/netdata \
+            -v netdatacache:/var/cache/netdata \
+            -v /proc:/host/proc:ro \
+            -v /sys:/host/sys:ro \
+            -v /etc/os-release:/host/etc/os-release:ro \
+            --restart unless-stopped \
+            --cap-add SYS_PTRACE \
+            --security-opt apparmor=unconfined \
+            postgresai/netdata-for-dle:v1.34.1
+
           while ! echo "UI started" | nc localhost 2346; do sleep 10; done
           /opt/aws/bin/cfn-signal -e $? -d "DLE UI is available" -r "DLE Deploy Process Complete" '${WaitHandle}'
 
@@ -510,6 +531,20 @@ Outputs:
     Value: !Sub
       - 'ssh -N -L 2346:${DNSName}:2346 ubuntu@${DNSName} -i YOUR_PRIVATE_KEY'
       - DNSName: !GetAtt DLEInstance.PublicDnsName
+
+  07NetdataTunnel:
+    Description: Use SSH port forwarding to be able to access monitoring (Netdata)
+    Value: !Sub
+      - 'ssh -N -L 19999:${DNSName}:19999 ubuntu@${DNSName} -i YOUR_PRIVATE_KEY'
+      - DNSName: !GetAtt DLEInstance.PublicDnsName
+  08NetdataUrl:
+    Description: Netdata URL with a domain for newly created DLE instance
+    Value: !Sub 'https://${CertificateSubdomain}.${CertificateHostedZone}:19999'
+    Condition: CreateSubDomain
+  08NetdataUrl:
+    Description: Netdata URL with a domain for newly created DLE instance
+    Value: !Sub 'http://localhost:19999'
+    Condition: NotCreateSubDomain
 
   04CloneTunnel:
     Description: Use SSH port forwarding to be able to access a database clone
