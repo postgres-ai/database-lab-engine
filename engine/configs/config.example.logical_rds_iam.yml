@@ -232,7 +232,8 @@ retrieval:
 
         # Use parallel jobs to dump faster.
         # It’s ignored if “immediateRestore.enabled: true” is present because “pg_dump | pg_restore” is always single-threaded.
-        parallelJobs: 2
+        # If your source database has 4 vCPUs or less, and you don't want to saturate them, use 2 or 1.
+        parallelJobs: 4
 
         # Options for direct restore to Database Lab Engine instance.
         # Uncomment this if you prefer restoring from the dump on the fly. In this case,
@@ -258,7 +259,8 @@ retrieval:
         dumpLocation: "/var/lib/dblab/dblab_pool/dump"
 
         # Use parallel jobs to restore faster.
-        parallelJobs: 2
+        # If your machine with DLE has 4 vCPUs or less, and you don't want to saturate them, use 2 or 1.
+        parallelJobs: 4
 
         # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
         # Note the existing data will be overwritten.
