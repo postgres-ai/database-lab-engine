@@ -25,7 +25,7 @@ export const tooltipText = {
   sharedPreloadLibraries: () => (
     <div>
       Specifies one or more shared libraries (comma-separated list) to be preloaded at Postgres server start
-      (<a target={'_blank'} href={'hhttps://postgresqlco.nf/doc/en/param/shared_preload_libraries/'} className={styles.externalLink}>details</a>).
+      (<a target={'_blank'} href={'https://postgresqlco.nf/doc/en/param/shared_preload_libraries/'} className={styles.externalLink}>details</a>).
       If some libraries/extensions are missing, Postgres fails to start, so make sure that {' '}
       <span className={styles.firaCodeFont}>dockerImage</span> used above contains all the needed extensions.
     </div>
