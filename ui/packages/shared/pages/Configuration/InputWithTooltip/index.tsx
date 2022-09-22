@@ -21,25 +21,28 @@ export const InputWithTooltip = ({
   error,
   onChange,
   tooltipText,
+  disabled,
 }: {
   value?: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   tooltipText: () => React.ReactNode
   label: string
   error?: string
+  disabled: boolean
 }) => {
   const classes = useStyles()
 
   return (
     <Box mt={2} mb={2} display="flex" alignItems="center">
       <TextField
-        className={classNames(classes.textField, styles.textField)}
+        className={classNames(!disabled && classes.textField, styles.textField)}
         label={label}
         variant="outlined"
         size="small"
         value={value}
         error={Boolean(error)}
         onChange={onChange}
+        disabled={disabled}
       />
       <Tooltip content={<p className={styles.tooltipText}>{tooltipText()}</p>}>
         <InfoIcon className={styles.infoIcon} />
@@ -54,6 +57,7 @@ export const InputWithChip = ({
   id,
   onChange,
   tooltipText,
+  disabled,
   handleDeleteDatabase,
 }: {
   value: string
@@ -62,6 +66,7 @@ export const InputWithChip = ({
   handleDeleteDatabase: (event: any, database: string) => void
   label: string
   id: string
+  disabled: boolean
 }) => {
   const classes = useStyles()
   
@@ -69,11 +74,12 @@ export const InputWithChip = ({
     <Box mt={2} mb={2}>
       <Box display="flex" alignItems="center">
         <TextField
-          className={classNames(classes.textField, styles.textField)}
+          className={classNames(!disabled && classes.textField, styles.textField)}
           variant="outlined"
           onChange={onChange}
           value={value}
           multiline
+          disabled={disabled}
           label={label}
           inputProps={{
             name: id,
