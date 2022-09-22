@@ -5,21 +5,13 @@
  *--------------------------------------------------------------------------
  */
 
-import {
-  Box,
-  Checkbox,
-  FormControlLabel,
-  Typography,
-  TextField,
-  Chip,
-} from '@material-ui/core'
+import { Box, Checkbox, FormControlLabel, Typography } from '@material-ui/core'
 import { useState, useEffect } from 'react'
 import { withStyles, makeStyles } from '@material-ui/core/styles'
 import { Modal } from '@postgres.ai/shared/components/Modal'
-import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
 import { Button } from '@postgres.ai/shared/components/Button'
-import { Header } from './Header'
+import { ConfigSectionTitle, Header, ModalTitle } from './Header'
 import { observer } from 'mobx-react-lite'
 import Editor from '@monaco-editor/react'
 import { useStores } from '@postgres.ai/shared/pages/Instance/context'
@@ -29,6 +21,9 @@ import styles from './styles.module.scss'
 import { SimpleModalControls } from '@postgres.ai/shared/components/SimpleModalControls'
 import { ResponseMessage } from './ResponseMessage'
 import { uniqueDatabases } from './utils'
+import { ExternalIcon } from '@postgres.ai/shared/icons/External'
+import { InputWithChip, InputWithTooltip } from './InputWithTooltip'
+import { tooltipText } from './tooltipText'
 
 export const GrayTextTypography = withStyles({
   root: {
@@ -62,6 +57,7 @@ export const Configuration = observer(
       fullConfig,
       testDbSource,
       updateConfigError,
+      getFullConfigError,
     } = stores.main
     const configData = config && JSON.parse(JSON.stringify(config))
     const [submitMessage, setSubmitMessage] = useState<
@@ -186,188 +182,106 @@ export const Configuration = observer(
                     }}
                   />
                 }
-                label={<GrayTextTypography>Debug mode</GrayTextTypography>}
-                color="#8a8a8a"
+                label={'Debug mode'}
               />
             </Box>
             <Box mb={2}>
-              <SectionTitle
-                level={2}
-                tag="h2"
-                text="Section databaseContainer"
+              <ConfigSectionTitle tag="databaseContainer" />
+              <GrayTextTypography style={{ marginTop: '0.5rem' }}>
+                DLE manages various database containers, such as clones. This
+                section defines default container settings.
+              </GrayTextTypography>
+              <InputWithTooltip
+                label="dockerImage"
+                value={formik.values.dockerImage}
+                error={formik.errors.dockerImage}
+                tooltipText={tooltipText.dockerImage}
+                onChange={(e) =>
+                  formik.setFieldValue('dockerImage', e.target.value)
+                }
               />
-              <GrayTextTypography style={{ marginTop: '0.5rem' }}>
-                Container settings that will be used by default for each
-                Postgres container the DLE manages
-              </GrayTextTypography>
-              <Box mt={1} mb={2}>
-                <TextField
-                  className={styles.textField}
-                  label="dockerImage"
-                  variant="outlined"
-                  size="small"
-                  margin="normal"
-                  value={formik.values.dockerImage}
-                  error={Boolean(formik.errors.dockerImage)}
-                  onChange={(e) =>
-                    formik.setFieldValue('dockerImage', e.target.value)
-                  }
-                />
-              </Box>
             </Box>
             <Box mb={3}>
-              <SectionTitle level={2} tag="h2" text="Section databaseConfigs" />
+              <ConfigSectionTitle tag="databaseConfigs" />
               <GrayTextTypography style={{ marginTop: '0.5rem' }}>
-                Default PostgreSQL configuration used by all Postgres instances
-                managed by DLE. Each section have additional settings to
-                override these defaults.
+                Default Postgres configuration used for all Postgres instances
+                running in containers managed by DLE.
               </GrayTextTypography>
-              <Box mt={2} mb={1}>
-                <TextField
-                  className={styles.textField}
-                  label="configs.shared_buffers"
-                  variant="outlined"
-                  size="small"
-                  value={formik.values.sharedBuffers}
-                  onChange={(e) =>
-                    formik.setFieldValue('sharedBuffers', e.target.value)
-                  }
-                />
-              </Box>
-              <Box mt={2} mb={2}>
-                <TextField
-                  className={styles.textField}
-                  label="configs.shared_preload_libraries"
-                  variant="outlined"
-                  size="small"
-                  value={formik.values.sharedPreloadLibraries}
-                  onChange={(e) =>
-                    formik.setFieldValue(
-                      'sharedPreloadLibraries',
-                      e.target.value,
-                    )
-                  }
-                />
-              </Box>
+              <InputWithTooltip
+                label="configs.shared_buffers"
+                value={formik.values.sharedBuffers}
+                tooltipText={tooltipText.sharedBuffers}
+                onChange={(e) =>
+                  formik.setFieldValue('sharedBuffers', e.target.value)
+                }
+              />
+              <InputWithTooltip
+                label="configs.shared_preload_libraries"
+                value={formik.values.sharedPreloadLibraries}
+                tooltipText={tooltipText.sharedPreloadLibraries}
+                onChange={(e) =>
+                  formik.setFieldValue('sharedPreloadLibraries', e.target.value)
+                }
+              />
             </Box>
             <Box mb={3}>
-              <SectionTitle level={2} tag="h2" text="Section retrieval" />
-              <Box mt={2}>
-                <Typography>Subsection retrieval.spec.logicalDump</Typography>
+              <ConfigSectionTitle tag="retrieval" />
+              <Box mt={1}>
+                <Typography className={styles.subsection}>
+                  Subsection "retrieval.spec.logicalDump"
+                </Typography>
                 <GrayTextTypography>
                   Source database credentials and dumping options.
                 </GrayTextTypography>
-                <Box mt={2} mb={2}>
-                  <TextField
-                    className={styles.textField}
-                    label="source.connection.host"
-                    variant="outlined"
-                    size="small"
-                    value={formik.values.host}
-                    error={Boolean(formik.errors.host)}
-                    onChange={(e) =>
-                      formik.setFieldValue('host', e.target.value)
-                    }
-                  />
-                </Box>
-                <Box mt={2} mb={2}>
-                  <TextField
-                    className={styles.textField}
-                    label="source.connection.port"
-                    variant="outlined"
-                    size="small"
-                    value={formik.values.port}
-                    error={Boolean(formik.errors.port)}
-                    onChange={(e) =>
-                      formik.setFieldValue('port', e.target.value)
-                    }
-                  />
-                </Box>
-                <Box mt={2} mb={2}>
-                  <TextField
-                    className={styles.textField}
-                    label="source.connection.username"
-                    variant="outlined"
-                    size="small"
-                    value={formik.values.username}
-                    error={Boolean(formik.errors.username)}
-                    onChange={(e) =>
-                      formik.setFieldValue('username', e.target.value)
-                    }
-                  />
-                </Box>
-                <Box mt={2} mb={2}>
-                  <TextField
-                    className={styles.textField}
-                    label="source.connection.password"
-                    variant="outlined"
-                    size="small"
-                    type="password"
-                    placeholder={formik.values.password}
-                    onChange={(e) =>
-                      formik.setFieldValue('password', e.target.value)
-                    }
-                  />
-                </Box>
-                <Box mt={2} mb={0}>
-                  <TextField
-                    className={styles.textField}
-                    label="source.connection.dbname"
-                    variant="outlined"
-                    size="small"
-                    value={formik.values.dbname}
-                    error={Boolean(formik.errors.dbname)}
-                    onChange={(e) =>
-                      formik.setFieldValue('dbname', e.target.value)
-                    }
-                  />
-                </Box>
-                <Box mt={1} mb={2}>
-                  <div className={styles.textField}>
-                    <TextField
-                      className={styles.textField}
-                      variant="outlined"
-                      helperText={
-                        'Database(s) divided by space or end of string'
-                      }
-                      margin="normal"
-                      onChange={(e) =>
-                        formik.setFieldValue('databases', e.target.value)
-                      }
-                      value={formik.values.databases}
-                      multiline
-                      label="Databases"
-                      inputProps={{
-                        name: 'databases',
-                        id: 'databases',
-                      }}
-                      InputLabelProps={{
-                        shrink: true,
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    {formik.values.databases &&
-                      uniqueDatabases(formik.values.databases)
-                        .split(' ')
-                        .map((database, index) => {
-                          if (database !== '') {
-                            return (
-                              <Chip
-                                key={index}
-                                className={styles.chip}
-                                label={database}
-                                onDelete={(event) =>
-                                  handleDeleteDatabase(event, database)
-                                }
-                                color="primary"
-                              />
-                            )
-                          }
-                        })}
-                  </div>
-                </Box>
+                <InputWithTooltip
+                  label="source.connection.host"
+                  value={formik.values.host}
+                  error={formik.errors.host}
+                  tooltipText={tooltipText.host}
+                  onChange={(e) => formik.setFieldValue('host', e.target.value)}
+                />
+                <InputWithTooltip
+                  label="source.connection.port"
+                  value={formik.values.port}
+                  error={formik.errors.port}
+                  tooltipText={tooltipText.port}
+                  onChange={(e) => formik.setFieldValue('port', e.target.value)}
+                />
+                <InputWithTooltip
+                  label="source.connection.username"
+                  value={formik.values.username}
+                  error={formik.errors.username}
+                  tooltipText={tooltipText.username}
+                  onChange={(e) =>
+                    formik.setFieldValue('username', e.target.value)
+                  }
+                />
+                <InputWithTooltip
+                  label="source.connection.password"
+                  tooltipText={tooltipText.password}
+                  onChange={(e) =>
+                    formik.setFieldValue('password', e.target.value)
+                  }
+                />
+                <InputWithTooltip
+                  label="source.connection.dbname"
+                  value={formik.values.dbname}
+                  error={formik.errors.dbname}
+                  tooltipText={tooltipText.dbname}
+                  onChange={(e) =>
+                    formik.setFieldValue('dbname', e.target.value)
+                  }
+                />
+                <InputWithChip
+                  value={formik.values.databases}
+                  label="Databases"
+                  id="databases"
+                  tooltipText={tooltipText.databases}
+                  handleDeleteDatabase={handleDeleteDatabase}
+                  onChange={(e) =>
+                    formik.setFieldValue('databases', e.target.value)
+                  }
+                />
                 <Box mt={2}>
                   <Button
                     variant="primary"
@@ -389,32 +303,24 @@ export const Configuration = observer(
                 ) : null}
               </Box>
             </Box>
-            <Box mt={2} mb={2}>
-              <TextField
-                className={styles.textField}
-                label="pg_dump jobs"
-                variant="outlined"
-                size="small"
-                value={formik.values.pg_dump}
-                onChange={(e) =>
-                  formik.setFieldValue('pg_dump', e.target.value)
-                }
-              />
-            </Box>
-            <Box mt={2} mb={2}>
-              <TextField
-                className={styles.textField}
-                label="pg_restore jobs"
-                variant="outlined"
-                size="small"
-                value={formik.values.pg_restore}
-                onChange={(e) =>
-                  formik.setFieldValue('pg_restore', e.target.value)
-                }
-              />
-            </Box>
+            <InputWithTooltip
+              label="pg_dump jobs"
+              value={formik.values.pg_dump}
+              tooltipText={tooltipText.pg_dump}
+              onChange={(e) => formik.setFieldValue('pg_dump', e.target.value)}
+            />
+            <InputWithTooltip
+              label="pg_restore jobs"
+              value={formik.values.pg_restore}
+              tooltipText={tooltipText.pg_restore}
+              onChange={(e) =>
+                formik.setFieldValue('pg_restore', e.target.value)
+              }
+            />
             <Box>
-              <Typography>Subsection retrieval.refresh</Typography>
+              <Typography className={styles.subsection}>
+                Subsection "retrieval.refresh"
+              </Typography>
             </Box>
             <GrayTextTypography>
               Define full data refresh on schedule. The process requires at
@@ -423,22 +329,21 @@ export const Configuration = observer(
               <a
                 href="https://en.wikipedia.org/wiki/Cron#Overview"
                 target="_blank"
+                className={styles.externalLink}
               >
-                crontab format.
+                crontab format
+                <ExternalIcon className={styles.externalIcon} />
               </a>
+              .
             </GrayTextTypography>
-            <Box mt={2} mb={2}>
-              <TextField
-                className={styles.textField}
-                label="timetable"
-                variant="outlined"
-                size="small"
-                value={formik.values.timetable}
-                onChange={(e) =>
-                  formik.setFieldValue('timetable', e.target.value)
-                }
-              />
-            </Box>
+            <InputWithTooltip
+              label="timetable"
+              value={formik.values.timetable}
+              tooltipText={tooltipText.timetable}
+              onChange={(e) =>
+                formik.setFieldValue('timetable', e.target.value)
+              }
+            />
           </Box>
           <Box
             mt={2}
@@ -477,7 +382,7 @@ export const Configuration = observer(
           ) : null}
         </Box>
         <Modal
-          title="Full configuration file (view only)"
+          title={<ModalTitle />}
           onClose={() => setIsOpen(false)}
           isOpen={isOpen}
           size="xl"
@@ -486,7 +391,7 @@ export const Configuration = observer(
             height="70vh"
             width="100%"
             defaultLanguage="yaml"
-            value={fullConfig}
+            value={getFullConfigError ? getFullConfigError : fullConfig}
             loading={<StubSpinner />}
             theme="vs-light"
             options={{ domReadOnly: true, readOnly: true }}
@@ -494,7 +399,7 @@ export const Configuration = observer(
           <SimpleModalControls
             items={[
               {
-                text: 'Cancel',
+                text: 'Close',
                 onClick: () => setIsOpen(false),
               },
             ]}
