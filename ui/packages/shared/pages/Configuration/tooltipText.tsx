@@ -6,7 +6,7 @@ export const tooltipText = {
      Docker image used to run all database containers – clones, snapshot preparation containers, sync containers.
       Although such images are based on traditional Docker images for Postgres, DLE expects slightly different behavior: e.g.,
       Postgres is not the first process used to start container, so Postgres restarts are possible, they do not trigger
-      container state change. For details, see
+      container state change. For details, see {' '}
       <a target={'_blank'} href={'https://postgres.ai/docs/database-lab/supported-databases'} className={styles.externalLink}>the docs</a>.
     </div>
   ),
@@ -26,7 +26,7 @@ export const tooltipText = {
     <div>
       Specifies one or more shared libraries (comma-separated list) to be preloaded at Postgres server start
       (<a target={'_blank'} href={'hhttps://postgresqlco.nf/doc/en/param/shared_preload_libraries/'} className={styles.externalLink}>details</a>).
-      If some libraries/extensions are missing, Postgres fails to start, so make sure that
+      If some libraries/extensions are missing, Postgres fails to start, so make sure that {' '}
       <span className={styles.firaCodeFont}>dockerImage</span> used above contains all the needed extensions.
     </div>
   ),
@@ -54,7 +54,7 @@ export const tooltipText = {
     <div>
       Database name used to connect to the source to run diagnostics queries.
       This database is not necesserarily to be copied (another field, 
-      <span className={styles.firaCodeFont}>databases</span>, defines which database to copy).]
+      {' '}<span className={styles.firaCodeFont}>databases</span>, defines which database to copy).
     </div>
   ),
   databases: () => (

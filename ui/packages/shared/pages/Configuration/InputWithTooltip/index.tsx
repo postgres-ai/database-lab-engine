@@ -44,7 +44,7 @@ export const InputWithTooltip = ({
         onChange={onChange}
         disabled={disabled}
       />
-      <Tooltip content={<p className={styles.tooltipText}>{tooltipText()}</p>}>
+      <Tooltip interactive content={<p>{tooltipText()}</p>}>
         <InfoIcon className={styles.infoIcon} />
       </Tooltip>
     </Box>
@@ -69,12 +69,15 @@ export const InputWithChip = ({
   disabled: boolean
 }) => {
   const classes = useStyles()
-  
+
   return (
     <Box mt={2} mb={2}>
       <Box display="flex" alignItems="center">
         <TextField
-          className={classNames(!disabled && classes.textField, styles.textField)}
+          className={classNames(
+            !disabled && classes.textField,
+            styles.textField,
+          )}
           variant="outlined"
           onChange={onChange}
           value={value}
@@ -89,9 +92,7 @@ export const InputWithChip = ({
             shrink: true,
           }}
         />
-        <Tooltip
-          content={<p className={styles.tooltipText}>{tooltipText()}</p>}
-        >
+        <Tooltip interactive content={<p>{tooltipText()}</p>}>
           <InfoIcon className={styles.infoIcon} />
         </Tooltip>
       </Box>
