@@ -12,11 +12,18 @@
   }
 
   div {
-    padding-bottom: 0.75rem;
+    padding: 0.75rem 0;
   }
 
   td {
     border-bottom: 0;
-    padding: 12px 18px;
+    padding: 0px 18px;
+    font-size: 13px;
+    font-family: 'Fira Code', monospace;   
   }
+}
+
+.tableSubtitle {
+  font-size: 15px;
+  font-weight: bold;
 }

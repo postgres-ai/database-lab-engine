@@ -23,7 +23,7 @@ import { getTextFromUnknownApiError } from '@postgres.ai/shared/utils/api'
 import { dbSource } from 'types/api/entities/dbSource'
 import { GetFullConfig } from 'types/api/endpoints/getFullConfig'
 import { GetInstanceRetrieval } from 'types/api/endpoints/getInstanceRetrieval'
-import { InstanceRetrieval } from 'types/api/entities/instanceRetrieval'
+import { InstanceRetrievalType } from 'types/api/entities/instanceRetrieval'
 
 const POLLING_TIME = 2000
 
@@ -51,7 +51,7 @@ type Error = {
 
 export class MainStore {
   instance: Instance | null = null
-  instanceRetrieval: InstanceRetrieval | null = null
+  instanceRetrieval: InstanceRetrievalType | null = null
   config: Config | null = null
   fullConfig?: string
   instanceError: Error | null = null
@@ -108,7 +108,7 @@ export class MainStore {
     })
 
     if (response) 
-      this.instanceRetrieval = await response?.json()
+      this.instanceRetrieval = response
 
     if (error)
       this.instanceError = { message: await getTextFromUnknownApiError(error) }

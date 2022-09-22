@@ -6,12 +6,13 @@
  */
 
 import { request } from 'helpers/request'
+import { formatInstanceRetrieval } from '@postgres.ai/shared/types/api/entities/instanceRetrieval'
 
 export const getInstanceRetrieval = async () => {
   const response = await request('/instance/retrieval')
 
   return {
-    response: response.ok ? response : null,
+    response: response.ok ? formatInstanceRetrieval(await response.json()) : null,
     error: response.ok ? null : response,
   }
 }

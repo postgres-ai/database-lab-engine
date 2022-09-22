@@ -20,7 +20,7 @@ export const RetrievalTable = ({
     <Table>
       <TableHead>
         <TableRow>
-          <TableCell>Activity on the {activity}</TableCell>
+          <TableCell className={styles.tableSubtitle}>Activity on the {activity}</TableCell>
         </TableRow>
       </TableHead>
       <TableBody className={styles.tableBody}>
@@ -30,16 +30,20 @@ export const RetrievalTable = ({
               {Object.entries(item).map((val, index) => (
                 <TableRow key={index} hover className={styles.tableRow}>
                   <TableCell>
-                    {val[0]} : {val[1]}
+                    {val[0]}: {val[1]}
                   </TableCell>
                 </TableRow>
               ))}
             </div>
           ))
         ) : (
-          <TableRow className={styles.tableRow}>
-            <TableCell>No activity on the {activity}</TableCell>
-          </TableRow>
+          <TableBody className={styles.tableBody}>
+            <div>
+              <TableRow className={styles.tableRow}>
+                <TableCell>No activity on the {activity}</TableCell>
+              </TableRow>
+            </div>
+          </TableBody>
         )}
       </TableBody>
     </Table>
