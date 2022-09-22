@@ -1,6 +1,16 @@
 .textField {
   width: 300px;
   max-width: 100%;
+
+  input,
+  label {
+    font-family: 'Fira Code', monospace;
+    color: #000;
+  }
+
+  label {
+    font-size: 10px;
+  }
 }
 
 .databasesContainer {
@@ -25,4 +35,57 @@
 
 .spinner {
   margin-left: 8px;
+}
+
+.infoIcon {
+  margin-left: 6px;
+  height: 12px;
+  width: 12px;
+}
+
+.externalIcon {
+  margin-left: 2px;
+  height: 12px;
+  width: 12px;
+}
+
+.externalLink {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+
+  &:link,
+  &:hover {
+    color: #0000EE;
+  }
+
+  &:visited {
+    color: #551A8B;
+  }
+}
+
+.largeIcon {
+  height: 15px;
+  width: 15px;
+}
+
+.subsection {
+  margin-bottom: 0.25rem;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.modalTitle {
+  font-size: 16px;
+  font-weight: bold !important;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.firaCodeFont {
+  font-family: 'Fira Code', monospace !important;
 }

@@ -37,7 +37,7 @@ export const establishConnection = async (api: Api) => {
         }
       }
   
-      if (logEntry.split(' ')[3] === '[ERROR]') {
+      if (logEntry.split(' ')[2] === '[ERROR]' || logEntry.split(' ')[3] === "[ERROR]") {
         tag.classList.add('error-log')
       }
     }

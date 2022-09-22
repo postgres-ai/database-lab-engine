@@ -11,6 +11,7 @@ import { observer } from 'mobx-react-lite'
 
 import { Button } from '@postgres.ai/shared/components/Button2'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
+import { Spinner } from '@postgres.ai/shared/components/Spinner';
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 
@@ -55,6 +56,12 @@ const useStyles = makeStyles((theme) => ({
     [theme.breakpoints.down('sm')]: {
       flexDirection: 'column',
     },
+  },
+  spinnerContainer: {
+    display: "flex",
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center"
   }
 }))
 
@@ -87,10 +94,11 @@ export const Instance = observer((props: Props) => {
 
   const [isLogConnectionEnabled, enableLogConnection] = React.useState(false);
 
-  const switchTab = (event: React.ChangeEvent<{}>, tabID: number) => {
+  const switchTab = (_event: React.ChangeEvent<{}>, tabID: number) => {
     if (tabID == 1 && api.initWS != undefined && !isLogConnectionEnabled) {
-      establishConnection(api);
-      enableLogConnection(true)
+      establishConnection(api).then(() => {
+        enableLogConnection(true)
+      });
     }
 
     setActiveTab(tabID);
@@ -151,7 +159,13 @@ export const Instance = observer((props: Props) => {
               <AlertTitle>Sensitive data are masked.</AlertTitle>
               You can see the raw log data connecting to the machine and running the <strong>'docker logs'</strong> command.
             </Alert>
-            <div id="logs-container"></div>
+            <div id="logs-container">
+              {!isLogConnectionEnabled && (
+                <div className={classes.spinnerContainer}>
+                  <Spinner />
+                </div>
+              )}
+            </div>
           </TabPanel>
         </>
 

@@ -56,6 +56,7 @@ export class MainStore {
   fullConfig?: string
   instanceError: Error | null = null
   updateConfigError: string | null = null
+  getFullConfigError: string | null = null
 
   unstableClones = new Set<string>()
   private updateInstanceTimeoutId: number | null = null
@@ -191,7 +192,8 @@ export class MainStore {
       this.fullConfig = response
     }
 
-    if (error) await getTextFromUnknownApiError(error)
+    if (error)
+      this.getFullConfigError = await error.json().then((err) => err.message)
 
     return response
   }
