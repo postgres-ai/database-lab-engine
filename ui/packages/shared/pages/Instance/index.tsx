@@ -76,10 +76,15 @@ export const Instance = observer((props: Props) => {
     stores.main.load(instanceId)
   }, [instanceId])
 
-  const { instance, instanceError } = stores.main
+  const { instance, instanceError, instanceRetrieval } = stores.main
+  const isConfigurationActive = instanceRetrieval?.mode !== 'physical'
 
   useEffect(() => {
-    if (instance && instance?.state.retrieving?.status === "pending") {
+    if (
+      instance &&
+      instance?.state.retrieving?.status === 'pending' &&
+      isConfigurationActive
+    ) {
       setActiveTab(2)
     }
     if (instance && !instance?.state?.pools) {
@@ -94,7 +99,7 @@ export const Instance = observer((props: Props) => {
 
   const [isLogConnectionEnabled, enableLogConnection] = React.useState(false);
 
-  const switchTab = (_event: React.ChangeEvent<{}>, tabID: number) => {
+  const switchTab = (_: React.ChangeEvent<{}>, tabID: number) => {
     if (tabID == 1 && api.initWS != undefined && !isLogConnectionEnabled) {
       establishConnection(api).then(() => {
         enableLogConnection(true)

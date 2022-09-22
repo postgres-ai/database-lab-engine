@@ -11,6 +11,11 @@
   label {
     font-size: 10px;
   }
+
+  :disabled {
+    cursor: not-allowed;
+    color: rgba(0, 0, 0, 0.38)
+  }
 }
 
 .databasesContainer {
@@ -88,4 +93,12 @@
 
 .firaCodeFont {
   font-family: 'Fira Code', monospace !important;
+}
+
+.snackbar {
+  div {
+    background-color: #ff6212;
+    color: #fff;
+    border-radius: 4px;
+  }
 }

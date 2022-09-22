@@ -55,7 +55,8 @@ export class MainStore {
   config: Config | null = null
   fullConfig?: string
   instanceError: Error | null = null
-  updateConfigError: string | null = null
+  configError: string | null = null
+  dbSourceError: string | null = null
   getFullConfigError: string | null = null
 
   unstableClones = new Set<string>()
@@ -83,8 +84,11 @@ export class MainStore {
   load = (instanceId: string) => {
     this.instance = null
     this.loadInstance(instanceId)
-    this.loadInstanceRetrieval(instanceId)
-    this.getConfig()
+    this.loadInstanceRetrieval(instanceId).then(() => {
+      if (this.instanceRetrieval?.mode !== "physical") {
+        this.getConfig()
+      }
+    })
     this.snapshots.load(instanceId)
   }
 
@@ -168,9 +172,11 @@ export class MainStore {
       this.config = response
     }
 
-    if (error) await getTextFromUnknownApiError(error)
+    if (error) {
+      this.configError = await error.json().then((err) => err.message)
+    }
 
-    return !!response
+    return response
   }
 
   updateConfig = async (values: Config) => {
@@ -179,7 +185,7 @@ export class MainStore {
     const { response, error } = await this.api.updateConfig({ ...values })
 
     if (error)
-      this.updateConfigError = await error.json().then((err) => err.message)
+      this.configError = await error.json().then((err) => err.message)
 
     return response
   }
@@ -203,7 +209,8 @@ export class MainStore {
 
     const { response, error } = await this.api.testDbSource(values)
 
-    if (error) await getTextFromUnknownApiError(error)
+    if (error)
+      this.dbSourceError = await error.json().then((err) => err.message)
 
     return response
   }
