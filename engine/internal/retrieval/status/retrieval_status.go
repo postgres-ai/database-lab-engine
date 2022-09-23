@@ -32,6 +32,7 @@ const (
 			  ELSE
 				coalesce(round(date_part('epoch', now() - pg_last_xact_replay_timestamp())::int8, 0), 0)
 			  END)
+		  ELSE 0
 		  END lag_sec;
 	`
 
@@ -43,6 +44,7 @@ const (
 			  ELSE
 				coalesce(round(date_part('epoch', now() - pg_last_xact_replay_timestamp())::int8, 0), 0)
 			  END)
+		  ELSE 0
 		  END lag_sec;
 	`
 
