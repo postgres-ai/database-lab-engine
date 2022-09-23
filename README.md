@@ -57,7 +57,7 @@ For example, cloning a 1 TiB PostgreSQL database takes ~10 seconds. Dozens of in
 
 Try it yourself right now:
 - enter [the Database Lab Platform](https://console.postgres.ai/), join the "Demo" organization, and test cloning of ~1 TiB demo database, or
-- check out another demo setup, DLE CE: https://nik-tf-test.aws.postgres.ai:446/instance, use the token `demo` to enter (this setup has self-signed certificates, so ignore browser's complaints)
+- check out another demo setup, DLE CE: https://demo.aws.postgres.ai:446/instance, use the token `demo_token` to enter
 
 ## How it works
 Thin cloning is fast because it uses [Copy-on-Write (CoW)](https://en.wikipedia.org/wiki/Copy-on-write#In_computer_storage). DLE supports two technologies to enable CoW and thin cloning: [ZFS](https://en.wikipedia.org/wiki/ZFS) (default) and [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).

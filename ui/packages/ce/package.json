@@ -56,5 +56,5 @@
     "stylelint-config-standard-scss": "^2.0.1",
     "stylelint-prettier": "^2.0.0"
   },
-  "proxy": "https://nik-tf-test.aws.postgres.ai:446/api"
+  "proxy": "https://demo.aws.postgres.ai:446/api"
 }
