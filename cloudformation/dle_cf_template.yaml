@@ -218,7 +218,6 @@ Resources:
   EC2SSMInstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
     Properties:
-      InstanceProfileName: "EC2RoleForSSM"
       Roles:
         - Ref: "IamSSMRole"
   LambdaExecutionRole:
@@ -315,7 +314,7 @@ Resources:
           dle_config_path="/home/ubuntu/.dblab/engine/configs"
           dle_meta_path="/home/ubuntu/.dblab/engine/meta"
           postgres_conf_path="/home/ubuntu/.dblab/postgres_conf"
-          dle_logs_path="home/ubuntu/.dblab/engine/logs"
+          dle_logs_path="/home/ubuntu/.dblab/engine/logs"
 
           yq e -i '
           .embeddedUI.host="" |
