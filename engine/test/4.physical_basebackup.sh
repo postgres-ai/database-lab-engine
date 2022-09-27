@@ -98,7 +98,7 @@ metaDir="$HOME/.dblab/engine/meta"
 # Copy the contents of configuration example 
 mkdir -p "${configDir}"
 
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-master}"/engine/configs/config.example.physical_generic.yml \
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG:-master}"/engine/configs/config.example.physical_generic.yml \
  --output "${configDir}/server.yml"
 
 # Edit the following options
@@ -115,10 +115,6 @@ yq eval -i '
   .retrieval.spec.physicalRestore.options.envs.PGPASSWORD = strenv(SOURCE_PASSWORD) |
   .retrieval.spec.physicalRestore.options.envs.PGHOST = strenv(SOURCE_HOST) |
   .retrieval.spec.physicalRestore.options.envs.PGPORT = env(SOURCE_PORT) |
-  .retrieval.spec.physicalSnapshot.options.envs.PGUSER = strenv(SOURCE_USERNAME) |
-  .retrieval.spec.physicalSnapshot.options.envs.PGPASSWORD = strenv(SOURCE_PASSWORD) |
-  .retrieval.spec.physicalSnapshot.options.envs.PGHOST = strenv(SOURCE_HOST) |
-  .retrieval.spec.physicalSnapshot.options.envs.PGPORT = env(SOURCE_PORT) |
   .retrieval.spec.physicalRestore.options.customTool.command = "pg_basebackup -X stream -D " + strenv(DLE_TEST_MOUNT_DIR) + "/" + strenv(DLE_TEST_POOL_NAME) + "/data"
 ' "${configDir}/server.yml"
 
