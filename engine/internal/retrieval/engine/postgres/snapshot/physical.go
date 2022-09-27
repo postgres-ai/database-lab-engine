@@ -281,7 +281,7 @@ func (p *PhysicalInitial) reloadScheduler() {
 
 // ReportActivity reports the current job activity.
 func (p *PhysicalInitial) ReportActivity(_ context.Context) (*activity.Activity, error) {
-	return nil, nil
+	return &activity.Activity{}, nil
 }
 
 // Run starts the job.

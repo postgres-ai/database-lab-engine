@@ -116,7 +116,7 @@ func (s *LogicalInitial) Reload(cfg map[string]interface{}) (err error) {
 
 // ReportActivity reports the current job activity.
 func (s *LogicalInitial) ReportActivity(_ context.Context) (*activity.Activity, error) {
-	return nil, nil
+	return &activity.Activity{}, nil
 }
 
 // Run starts the job.
