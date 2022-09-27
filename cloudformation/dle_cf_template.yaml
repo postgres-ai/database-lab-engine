@@ -354,6 +354,8 @@ Resources:
             export DOMAIN=${CertificateSubdomain}.${CertificateHostedZone}
             export USER_EMAIL=${CertificateEmail}
             export CERTIFICATE_EMAIL=${!USER_EMAIL:-'noreply@'$DOMAIN}
+          
+            yq e -i '.cloning.accessHost="$DOMAIN"' $dle_config_path/server.yml
 
             sudo certbot certonly --standalone -d $DOMAIN -m $CERTIFICATE_EMAIL --agree-tos -n
             sudo cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem /etc/envoy/certs/fullchain1.pem
