@@ -84,7 +84,7 @@ metaDir="$HOME/.dblab/engine/meta"
 mkdir -p "${configDir}"
 mkdir -p "${metaDir}"
 
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${CI_COMMIT_BRANCH:-master}"/engine/configs/config.example.logical_generic.yml \
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG:-master}"/engine/configs/config.example.logical_generic.yml \
  --output "${configDir}/server.yml"
 
 # Edit the following options
