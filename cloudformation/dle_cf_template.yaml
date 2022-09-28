@@ -502,8 +502,8 @@ Outputs:
     Description: UI URL with a domain for newly created DLE instance
     Value: !Sub 'https://${CertificateSubdomain}.${CertificateHostedZone}:446'
     Condition: CreateSubDomain
-  01WebUIUrl:
-    Description: UI URL with a domain for newly created DLE instance
+  01WebUIUrlLocal:
+    Description: UI URL for newly created DLE instance
     Value: !Sub 'http://localhost:2346'
     Condition: NotCreateSubDomain
 
@@ -542,8 +542,8 @@ Outputs:
     Description: Netdata URL with a domain for newly created DLE instance
     Value: !Sub 'https://${CertificateSubdomain}.${CertificateHostedZone}:19999'
     Condition: CreateSubDomain
-  08NetdataUrl:
-    Description: Netdata URL with a domain for newly created DLE instance
+  08NetdataUrlLocal:
+    Description: Netdata URL without a domain for newly created DLE instance
     Value: !Sub 'http://localhost:19999'
     Condition: NotCreateSubDomain
 
