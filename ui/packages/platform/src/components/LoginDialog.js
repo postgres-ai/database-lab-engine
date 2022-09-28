@@ -36,7 +36,7 @@ class LoginDialog extends React.Component {
     emailError: false,
     passwordError: false,
     isProcessing: false
-  }
+  };
 
   componentDidMount() {
     const that = this;
@@ -70,18 +70,18 @@ class LoginDialog extends React.Component {
       this.setState({ emailError: false, passwordError: false });
       Actions.doAuth(state.email, state.password);
     }
-  }
+  };
 
   handleCancel = () => {
     this.setState({ open: false });
     window.location = '/';
-  }
+  };
 
   handleChange = event => {
     this.setState({
       [event.target.name]: event.target.value
     }, function () {});
-  }
+  };
 
   render() {
     const { classes } = this.props;

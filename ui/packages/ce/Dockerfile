@@ -5,7 +5,7 @@ WORKDIR /app
 
 COPY ./ui/ .
 
-RUN npm ci -ws
+RUN --mount=type=bind,id=pnpm,source=.pnpm-store,target=/app/.pnpm-store
 
 ARG API_URL_PREFIX
 ENV REACT_APP_API_URL_PREFIX ${API_URL_PREFIX}
@@ -13,7 +13,12 @@ ENV REACT_APP_API_URL_PREFIX ${API_URL_PREFIX}
 ARG WS_URL_PREFIX
 ENV REACT_APP_WS_URL_PREFIX ${WS_URL_PREFIX}
 
-RUN npm run build -w @postgres.ai/ce
+RUN apk add --no-cache --update git && \
+    npm i -g pnpm; \
+    pnpm config set store-dir /app/.pnpm-store; \
+    pnpm set verify-store-integrity false; \
+    pnpm --filter @postgres.ai/ce i; \
+    pnpm --filter @postgres.ai/ce build
 
 # Run phase.
 FROM nginx:1.20.1-alpine as run

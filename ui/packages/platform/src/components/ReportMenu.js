@@ -75,11 +75,11 @@ class ReportMenu extends Component {
 
     Actions.getCheckupReportFile(auth.token, id, type);
     this.props.history.push('/reportfile/' + reportId + '/' + id + '/' + type);
-  }
+  };
 
   handleReportClick = (event, reportId) => {
     this.props.history.push('/report/' + reportId);
-  }
+  };
 
   render() {
     const { classes } = this.props;

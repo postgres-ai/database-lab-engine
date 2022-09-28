@@ -9,14 +9,30 @@ include:
       changes:
         - ui/**/*
 
+default:
+  image: node:lts-alpine
+  cache: &cache
+    key: "$CI_COMMIT_REF_SLUG"
+    paths:
+      - .pnpm-store
+    policy: pull
+
 check-code-style:
   <<: *only_ui
   stage: test
-  image: node:16.13.0
+  before_script:
+    - apk add --no-cache curl
+    - curl -f https://get.pnpm.io/v6.16.js | node - add --global pnpm@7
+    - pnpm config set store-dir /builds/postgres-ai/database-lab/.pnpm-store/
+
   script:
-    - npm --prefix ui/ ci -ws
-    - npm --prefix ui/ run lint -w packages/ce
-    - npm --prefix ui/ run lint -w packages/platform
+    - pnpm --dir ui/ i
+    - pnpm --dir ui/ --filter @postgres.ai/ce lint
+    - pnpm --dir ui/ --filter @postgres.ai/platform lint
+  interruptible: true
+  cache:
+    <<: *cache
+    policy: push
 
 semgrep-sast:
   stage: test

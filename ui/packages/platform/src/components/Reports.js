@@ -182,7 +182,7 @@ class Reports extends Component {
     if (url) {
       this.props.history.push(url);
     }
-  }
+  };
 
   getReportLink(id, projectId) {
     const org = this.props.org ? this.props.org : null;

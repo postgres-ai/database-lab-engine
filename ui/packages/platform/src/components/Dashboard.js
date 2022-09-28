@@ -170,43 +170,43 @@ class Dashboard extends Component {
 
   handleClick = (event, alias) => {
     this.props.history.push('/' + alias);
-  }
+  };
 
   useDemoDataButtonHandler = () => {
     const auth = this.state.data && this.state.data.auth ?
       this.state.data.auth : null;
     Actions.useDemoData(auth.token);
-  }
+  };
 
   addOrgButtonHandler = () => {
     this.props.history.push(ROUTES.CREATE_ORG.path);
-  }
+  };
 
   addDblabInstanceButtonHandler = () => {
     this.props.history.push(Urls.linkDbLabInstanceAdd(this.props));
-  }
+  };
 
   addCheckupAgentButtonHandler = () => {
     this.props.history.push(Urls.linkCheckupAgentAdd(this.props));
-  }
+  };
 
   dblabInstancesButtonHandler = (org, project) => {
     return () => {
       this.props.history.push(Urls.linkDbLabInstances({ org, project }));
     };
-  }
+  };
 
   joeInstancesButtonHandler = (org, project) => {
     return () => {
       this.props.history.push(Urls.linkJoeInstances({ org, project }));
     };
-  }
+  };
 
   checkupReportsButtonHandler = (org, project) => {
     return () => {
       this.props.history.push(Urls.linkReports({ org, project }));
     };
-  }
+  };
 
   render() {
     const renderProjects = this.props.onlyProjects;

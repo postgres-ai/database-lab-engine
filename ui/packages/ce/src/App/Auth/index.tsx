@@ -41,7 +41,7 @@ export const Auth = () => {
           <TextField
             className={styles.field}
             value={authToken}
-            onChange={(e) => setAuthToken(e.target.value)}
+            onChange={(e:React.ChangeEvent<HTMLInputElement>) => setAuthToken(e.target.value)}
             fullWidth
             label="Verification token"
             type="password"

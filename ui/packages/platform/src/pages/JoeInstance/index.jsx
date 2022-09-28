@@ -352,7 +352,7 @@ class JoeInstance extends Component {
     }
 
     this.sendCommand('help');
-  }
+  };
 
   sendCommand = (cmd) => {
     const instanceId = this.props.match.params.instanceId;
@@ -369,19 +369,19 @@ class JoeInstance extends Component {
       cmd,
       instance.channels[this.state.channelId].sessionId
     );
-  }
+  };
 
   handleChangeChannel = (event) => {
     this.setState({ channelId: event.target.value }, () => {
       this.sendHelpCommand();
     });
-  }
+  };
 
   handleChangeCommand = (event) => {
     this.setState({
       command: event.target.value
     });
-  }
+  };
 
   componentWillUnmount() {
     const instanceId = this.props.match.params.instanceId;
@@ -418,7 +418,7 @@ class JoeInstance extends Component {
         );
       }, VERIFY_MESSAGES_TIMEOUT);
     }
-  }
+  };
 
   loadMessageArtifacts = (event, messageId) => {
     const auth = this.state.data && this.state.data.auth ?
@@ -446,7 +446,7 @@ class JoeInstance extends Component {
     );
 
     return true;
-  }
+  };
 
   preformatJoeMessageStatus = (status) => {
     const { classes } = this.props;
@@ -479,7 +479,7 @@ class JoeInstance extends Component {
         <span className={classes.messageStatusIcon}>{icon}</span> {text}
       </div>
     );
-  }
+  };
 
   markdownLink = (linkProps, messageId) => {
     const { classes } = this.props;
@@ -568,7 +568,7 @@ class JoeInstance extends Component {
     return (
       <a className={classes.link} href={href} target={target}>{children}</a>
     );
-  }
+  };
 
   render() {
     const { classes } = this.props;

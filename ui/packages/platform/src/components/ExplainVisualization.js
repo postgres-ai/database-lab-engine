@@ -104,16 +104,16 @@ class ExplainVisualization extends Component {
     this.setState({
       [id]: value
     });
-  }
+  };
 
   insertSample = () => {
     this.setState({ plan: explainSamples[0].value });
-  }
+  };
 
   getExternalVisualization = () => {
     return this.state && this.state.data &&
       this.state.data.externalVisualization ? this.state.data.externalVisualization : null;
-  }
+  };
 
   showExternalVisualization = (type) => {
     const { plan } = this.state;
@@ -123,26 +123,26 @@ class ExplainVisualization extends Component {
     }
 
     Actions.getExternalVisualizationData(type, plan, '');
-  }
+  };
 
   closeExternalVisualization = () => {
     Actions.closeExternalVisualization();
     this.setState({
       showFlameGraph: false
     });
-  }
+  };
 
   handleExternalVisualizationClick = (type) => {
     return () => {
       this.showExternalVisualization(type);
     };
-  }
+  };
 
   showFlameGraphVisualization = () => {
     this.setState({
       showFlameGraph: true
     });
-  }
+  };
 
   render() {
     const { classes } = this.props;

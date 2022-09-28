@@ -108,7 +108,7 @@ class ShareUrlDialog extends Component {
   state = {
     shared: null,
     uuid: null
-  }
+  };
 
   componentDidMount() {
     const that = this;
@@ -145,14 +145,14 @@ class ShareUrlDialog extends Component {
     copyText.select();
     copyText.setSelectionRange(0, 99999);
     document.execCommand('copy');
-  }
+  };
 
   closeShareDialog = (close, save) => {
     Actions.closeShareUrlDialog(close, save, this.state.shared === 'shared');
     if (close) {
       this.setState({ data: null, shared: null });
     }
-  }
+  };
 
   handleChange = (event) => {
     this.setState({ shared: event.target.value });

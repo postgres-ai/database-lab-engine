@@ -63,7 +63,7 @@ class DisplayToken extends Component {
     copyText.select();
     copyText.setSelectionRange(0, 99999);
     document.execCommand('copy');
-  }
+  };
 
   render() {
     const { classes } = this.props;

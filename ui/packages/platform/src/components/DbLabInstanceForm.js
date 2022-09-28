@@ -192,7 +192,7 @@ class DbLabInstanceForm extends Component {
 
   generateTokenHandler = () => {
     this.setState({ token: Utils.generateToken() });
-  }
+  };
 
   render() {
     const { classes, orgPermissions } = this.props;

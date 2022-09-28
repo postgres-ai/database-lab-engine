@@ -197,7 +197,7 @@ class FlameGraph extends Component {
     this.setNoData(prevState, false);
 
     this.draw(data);
-  }
+  };
 
   setNoData = (prevState, noData) => {
     if (!prevState) {
@@ -208,7 +208,7 @@ class FlameGraph extends Component {
     if (prevState.noData !== noData) {
       this.setState({ noData });
     }
-  }
+  };
 
   convert = (explainJson, type) => {
     if (!explainJson || !Array.isArray(explainJson) ||
@@ -218,7 +218,7 @@ class FlameGraph extends Component {
 
     const data = this.convertRec(explainJson[0].Plan, type);
     return data;
-  }
+  };
 
   convertRec = (plan, type) => {
     let children = [];
@@ -230,7 +230,7 @@ class FlameGraph extends Component {
     }
 
     return this.newNode(plan, type, children);
-  }
+  };
 
   newNode = (plan, type, children) => {
     const buffersHit = plan['Shared Hit Blocks'];
@@ -261,7 +261,7 @@ class FlameGraph extends Component {
       timing,
       children
     };
-  }
+  };
 
   buildNodeName = (plan) => {
     const nodeType = plan['Node Type'];
@@ -289,7 +289,7 @@ class FlameGraph extends Component {
     }
 
     return name;
-  }
+  };
 
   draw = (data) => {
     d3.select('#' + this.props.name).selectAll('*').remove();
@@ -306,7 +306,7 @@ class FlameGraph extends Component {
     d3.select('#' + this.props.name)
       .datum(data)
       .call(fg);
-  }
+  };
 }
 
 export default withStyles(styles, { withTheme: true })(FlameGraph);

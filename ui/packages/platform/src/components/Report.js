@@ -131,7 +131,7 @@ class Report extends Component {
 
   handleClick = (event, id, type) => {
     this.props.history.push(this.getReportFileLink(id, type));
-  }
+  };
 
   getReportFileLink(id, type) {
     const reportId = this.props.match.params.reportId;
@@ -145,7 +145,7 @@ class Report extends Component {
     const reportId = this.props.match.params.reportId;
 
     Actions.downloadReportJsonFiles(auth.token, reportId);
-  }
+  };
 
   render() {
     const { classes } = this.props;

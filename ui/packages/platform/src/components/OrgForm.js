@@ -237,7 +237,7 @@ class OrgForm extends Component {
     if (name === 'name' && this.isAdd(this.props.mode)) {
       this.setState({ alias: Aliases.formatAlias(event.target.value) });
     }
-  }
+  };
 
   buttonHandler = () => {
     const orgId = this.props.orgId ? this.props.orgId : null;
@@ -262,7 +262,7 @@ class OrgForm extends Component {
         });
       }
     }
-  }
+  };
 
   domainButtonHandler = () => {
     const orgId = this.props.orgId ? this.props.orgId : null;
@@ -276,7 +276,7 @@ class OrgForm extends Component {
         Actions.addOrgDomain(auth.token, orgId, this.state.domain);
       }
     }
-  }
+  };
 
   deleteDomainHandler = (domainId, confirmed) => {
     const orgId = this.props.orgId ? this.props.orgId : null;
@@ -290,11 +290,11 @@ class OrgForm extends Component {
     }
 
     Actions.deleteOrgDomain(auth.token, orgId, domainId);
-  }
+  };
 
   isAdd = (mode) => {
     return mode === 'new';
-  }
+  };
 
   render() {
     const { classes, orgPermissions, theme } = this.props;

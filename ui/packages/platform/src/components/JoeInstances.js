@@ -122,7 +122,7 @@ class JoeInstances extends Component {
     if (url) {
       this.props.history.push(url);
     }
-  }
+  };
 
   handleChangeProject = (event) => {
     const org = this.props.org ? this.props.org : null;

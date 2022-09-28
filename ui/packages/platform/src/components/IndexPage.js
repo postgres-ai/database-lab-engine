@@ -1011,12 +1011,12 @@ class IndexPage extends Component {
 
   handleDrawerToggle = () => {
     this.setState({ mobileOpen: !this.state.mobileOpen });
-  }
+  };
 
   goHrefUrl = event => {
     this.props.history.push(event.target.getAttribute('hrefurl'));
     return false;
-  }
+  };
 
   resendCode = () => {
     const auth = this.state.data && this.state.data.auth ? this.state.data.auth :
@@ -1025,7 +1025,7 @@ class IndexPage extends Component {
     if (auth.token) {
       Actions.sendUserCode(auth.token);
     }
-  }
+  };
 
   confirmTosAgreement = () => {
     const auth = this.state.data && this.state.data.auth ? this.state.data.auth :
@@ -1034,11 +1034,11 @@ class IndexPage extends Component {
     if (auth.token) {
       Actions.confirmTosAgreement(auth.token);
     }
-  }
+  };
 
   addOrgButtonHandler = () => {
     this.props.history.push(ROUTES.CREATE_ORG.path);
-  }
+  };
 
   render() {
     const { classes } = this.props;

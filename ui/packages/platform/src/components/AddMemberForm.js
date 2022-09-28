@@ -86,7 +86,7 @@ class InviteForm extends Component {
     this.setState({
       [name]: value
     });
-  }
+  };
 
   buttonHandler = () => {
     const orgId = this.props.orgId ? this.props.orgId : null;
@@ -97,7 +97,7 @@ class InviteForm extends Component {
     if (auth && data && !data.isUpdating && this.state.email) {
       Actions.inviteUser(auth.token, orgId, this.state.email.trim());
     }
-  }
+  };
 
   render() {
     const { classes, orgPermissions, theme } = this.props;

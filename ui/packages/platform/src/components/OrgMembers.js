@@ -134,7 +134,7 @@ class OrgSettings extends Component {
     const org = this.props.org ? this.props.org : null;
 
     this.props.history.push('/' + org + '/members/add');
-  }
+  };
 
   deleteHandler = (event, u) => {
     const { orgId, env } = this.props;
@@ -163,7 +163,7 @@ class OrgSettings extends Component {
     if (window.confirm(message) === true) {
       Actions.deleteOrgUser(this.state.data.auth.token, orgId, u.id);
     }
-  }
+  };
 
   changeRoleHandler = (userId, userRoleId) => {
     const { orgId } = this.props;
@@ -176,7 +176,7 @@ class OrgSettings extends Component {
         [userId]: userRoleId
       }
     });
-  }
+  };
 
   roleSelector(u) {
     const that = this;

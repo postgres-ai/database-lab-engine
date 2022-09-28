@@ -6,10 +6,8 @@
     "npm": ">=7"
   },
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "start:platform": "source ./packages/platform/deploy/configs/production.sh && npm run start -w @postgres.ai/platform",
     "start:ce": "npm run start -w @postgres.ai/ce"
-  },
-  "workspaces": [
-    "./packages/*"
-  ]
+  }
 }
