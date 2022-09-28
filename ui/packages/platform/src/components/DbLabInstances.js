@@ -130,7 +130,7 @@ class DbLabInstances extends Component {
     if (url) {
       this.props.history.push(url);
     }
-  }
+  };
 
   handleChangeProject = (event) => {
     const org = this.props.org ? this.props.org : null;
@@ -155,7 +155,7 @@ class DbLabInstances extends Component {
 
   closeMenu = () => {
     this.setState({ anchorEl: null });
-  }
+  };
 
   menuHandler = (event, action) => {
     const anchorEl = this.state.anchorEl;
@@ -210,7 +210,7 @@ class DbLabInstances extends Component {
         }
       }
     }, 100);
-  }
+  };
 
   render() {
     const { classes, orgPermissions, orgId } = this.props;

@@ -18,6 +18,7 @@
 node_modules/
 build/
 src/npm-debug.log
+packages/**/.eslintcache
 
 # Temporary files and dirs (vim, etc.)
 *.swp

@@ -157,7 +157,7 @@ class JoeSessionCommand extends Component {
     }
 
     return parseInt(this.props.commandId, 10);
-  }
+  };
 
   getCommandData = () => {
     const commandId = this.getCommandId();
@@ -165,17 +165,17 @@ class JoeSessionCommand extends Component {
       this.state.data.command.data ? this.state.data.command.data : null;
 
     return data && data.commandId === commandId ? data : null;
-  }
+  };
 
   getExternalVisualization = () => {
     return this.state && this.state.data &&
       this.state.data.externalVisualization ? this.state.data.externalVisualization : null;
-  }
+  };
 
   isExplain = () => {
     const data = this.getCommandData();
     return !!data && data.command === 'explain';
-  }
+  };
 
   showExternalVisualization = (type) => {
     const data = this.getCommandData();
@@ -194,7 +194,7 @@ class JoeSessionCommand extends Component {
       },
       data.query
     );
-  }
+  };
 
   closeExternalVisualization = () => {
     this.props.history.replace(this.getCommandId());
@@ -202,24 +202,24 @@ class JoeSessionCommand extends Component {
     this.setState({
       showFlameGraph: false
     });
-  }
+  };
 
   handleExternalVisualizationClick = (type) => {
     return () => {
       this.showExternalVisualization(type);
     };
-  }
+  };
 
   showFlameGraphVisualization = () => {
     this.setHashUrl('#' + hashLinkVisualizePrefix + visualizeTypes.flame);
     this.setState({
       showFlameGraph: true
     });
-  }
+  };
 
   handleChangeTab = (event, tabValue) => {
     this.setState({ tab: tabValue });
-  }
+  };
 
   showShareDialog = () => {
     const commandId = this.getCommandId();
@@ -236,7 +236,7 @@ class JoeSessionCommand extends Component {
       'Anyone on the internet with the special link can view query, plan and ' +
       'all parameters. Check that there is no sensitive data.'
     );
-  }
+  };
 
   render() {
     const { classes } = this.props;

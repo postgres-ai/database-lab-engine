@@ -90,7 +90,7 @@ const styles = theme => ({
 class SharedUrl extends Component {
   state = {
     signUpBannerClosed: localStorage.getItem(SIGNUP_BANNER_PARAM) === '1'
-  }
+  };
 
   componentDidMount() {
     const that = this;
@@ -118,14 +118,14 @@ class SharedUrl extends Component {
   closeBanner = () => {
     localStorage.setItem(SIGNUP_BANNER_PARAM, 1);
     this.setState({ signUpBannerClosed: true });
-  }
+  };
 
   signUp = () => {
     window.open(
       settings.signinUrl,
       '_blank'
     );
-  }
+  };
 
   render() {
     const { classes } = this.props;

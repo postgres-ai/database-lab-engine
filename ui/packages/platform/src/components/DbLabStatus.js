@@ -218,7 +218,7 @@ class DbLabStatus extends Component {
         <Brightness1Icon className={className}/>
       </Tooltip>
     );
-  }
+  };
 
   getInstanceStatus = (instance, onlyText) => {
     const { classes } = this.props;
@@ -271,7 +271,7 @@ class DbLabStatus extends Component {
         <Brightness1Icon className={className}/>
       </Tooltip>
     );
-  }
+  };
 
   getSessionStatus = (session) => {
     const { classes } = this.props;
@@ -301,7 +301,7 @@ class DbLabStatus extends Component {
         <nobr>{icon}{label}</nobr>
       </div>
     );
-  }
+  };
 
   render() {
     const onlyText = this.props.onlyText;

@@ -190,13 +190,13 @@ class Audit extends Component {
     this.setState({
       [name]: value
     });
-  }
+  };
 
   buttonAddHandler = () => {
     const org = this.props.org ? this.props.org : null;
 
     this.props.history.push('/' + org + '/members/add');
-  }
+  };
 
   showMore() {
     const { orgId } = this.props;
@@ -254,7 +254,7 @@ class Audit extends Component {
         <strong>{actor}</strong>{actorSrc} {acted} table&nbsp;<strong>{r.table_name}</strong>
       </div>
     );
-  }
+  };
 
   getDataSectionTitle = (r, before) => {
     switch (r.action) {
@@ -265,7 +265,7 @@ class Audit extends Component {
     default:
       return before ? 'Before:' : 'After:';
     }
-  }
+  };
 
   getChangesTitle = (r) => {
     let displayedCount = r.data_before ? r.data_before.length : r.data_after.length;
@@ -277,7 +277,7 @@ class Audit extends Component {
     }
 
     return 'Changes';
-  }
+  };
 
   render() {
     const { classes, orgPermissions, orgId } = this.props;

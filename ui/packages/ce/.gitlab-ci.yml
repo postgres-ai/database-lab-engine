@@ -24,6 +24,9 @@
   script:
     - apk add --no-cache bash
     - bash ./ui/packages/ce/ci_docker_build_push.sh
+  needs:
+    - job: check-code-style
+      artifacts: false
 
 # Jobs.
 ui_build_ce_image_release:
@@ -57,4 +60,3 @@ ui_build_ce_image_dev:
     REGISTRY: "${CI_REGISTRY}"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/ce-ui"
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
-  when: manual

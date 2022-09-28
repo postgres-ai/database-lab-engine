@@ -406,7 +406,7 @@ class DbLabSession extends Component {
     const sessionId = this.props.match.params.sessionId;
 
     Actions.downloadDblabSessionLog(auth.token, sessionId);
-  }
+  };
 
   downloadArtifact = (artifactType) => {
     const auth = this.state && this.state.data && this.state.data.auth ?
@@ -414,7 +414,7 @@ class DbLabSession extends Component {
     const sessionId = this.props.match.params.sessionId;
 
     Actions.downloadDblabSessionArtifact(auth.token, sessionId, artifactType);
-  }
+  };
 
   getArtifact = (artifactType) => {
     const auth = this.state && this.state.data && this.state.data.auth ?
@@ -422,7 +422,7 @@ class DbLabSession extends Component {
     const sessionId = this.props.match.params.sessionId;
 
     Actions.getDbLabSessionArtifact(auth.token, sessionId, artifactType);
-  }
+  };
 
   render() {
     const that = this;

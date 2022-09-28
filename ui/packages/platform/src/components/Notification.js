@@ -67,7 +67,7 @@ class Notification extends Component {
     }
 
     Actions.hideNotification();
-  }
+  };
 
   render() {
     const { classes } = this.props;

@@ -101,7 +101,7 @@ class AccessTokens extends Component {
     } else if (name === 'isPersonal') {
       this.setState({ isPersonal: event.target.checked });
     }
-  }
+  };
 
   componentDidMount() {
     const that = this;
@@ -167,7 +167,7 @@ class AccessTokens extends Component {
       Actions.getAccessToken(auth.token, this.state.tokenName,
         this.state.tokenExpires, orgId, this.state.isPersonal);
     }
-  }
+  };
 
   getTodayDate() {
     const date = new Date();
@@ -186,7 +186,7 @@ class AccessTokens extends Component {
       name + '"?') === true) {
       Actions.revokeAccessToken(auth.token, orgId, id);
     }
-  }
+  };
 
   render() {
     const { classes, orgPermissions, orgId } = this.props;

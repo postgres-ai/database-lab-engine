@@ -295,7 +295,7 @@ class CheckupAgentForm extends Component {
     }
 
     this.setState({ hosts: newHosts });
-  }
+  };
 
   handleChange = event => {
     const name = event.target.name;
@@ -308,7 +308,7 @@ class CheckupAgentForm extends Component {
 
   handleChangeTab = (event, tabValue) => {
     this.setState({ tab: tabValue });
-  }
+  };
 
   addToken = () => {
     const orgId = this.props.orgId ? this.props.orgId : null;
@@ -329,7 +329,7 @@ class CheckupAgentForm extends Component {
 
       Actions.getAccessToken(auth.token, tokenName, expiresAt, orgId);
     }
-  }
+  };
 
   copyDockerCfg = () => {
     let copyText = document.getElementById('generatedDockerCfg');
@@ -338,7 +338,7 @@ class CheckupAgentForm extends Component {
     copyText.setSelectionRange(0, 99999);
     document.execCommand('copy');
     copyText.setSelectionRange(0, 0);
-  }
+  };
 
   copySrcCfg = () => {
     let copyText = document.getElementById('generatedSrcCfg');
@@ -347,7 +347,7 @@ class CheckupAgentForm extends Component {
     copyText.setSelectionRange(0, 99999);
     document.execCommand('copy');
     copyText.setSelectionRange(0, 0);
-  }
+  };
 
   render() {
     const that = this;
