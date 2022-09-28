@@ -10,6 +10,9 @@ RUN npm ci -ws
 ARG API_URL_PREFIX
 ENV REACT_APP_API_URL_PREFIX ${API_URL_PREFIX}
 
+ARG WS_URL_PREFIX
+ENV REACT_APP_WS_URL_PREFIX ${WS_URL_PREFIX}
+
 RUN npm run build -w @postgres.ai/ce
 
 # Run phase.
