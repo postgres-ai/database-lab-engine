@@ -12,7 +12,7 @@ include:
       changes:
         - ui/**/*
 
-default:
+.ui_cache: &ui_cache
   image: node:lts-alpine
   cache: &cache
     key: "$CI_COMMIT_REF_SLUG"
@@ -22,6 +22,7 @@ default:
 
 check-code-style:
   <<: *only_ui
+  <<: *ui_cache
   stage: test
   before_script:
     - apk add --no-cache curl
@@ -41,6 +42,7 @@ semgrep-sast:
   stage: test
   image: returntocorp/semgrep
   <<: *only_ui
+  <<: *ui_cache
   variables:
     # See more at semgrep.dev/explore.
     SEMGREP_RULES: >-
