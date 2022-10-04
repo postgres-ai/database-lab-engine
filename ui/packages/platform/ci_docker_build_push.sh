@@ -26,7 +26,7 @@ done
 source "./ui/packages/platform/deploy/configs/${NAMESPACE}.sh"
 
 set -x
-docker build \
+DOCKER_BUILDKIT=1 docker build \
       --build-arg ARG_REACT_APP_API_SERVER="${REACT_APP_API_SERVER}" \
       --build-arg ARG_PUBLIC_URL="${PUBLIC_URL}" \
       --build-arg ARG_REACT_APP_SIGNIN_URL="${REACT_APP_SIGNIN_URL}" \

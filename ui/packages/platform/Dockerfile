@@ -12,6 +12,8 @@ WORKDIR /app
 
 COPY ./ui/ .
 
+RUN --mount=type=bind,id=pnpm,source=.pnpm-store,target=/app/.pnpm-store
+
 ARG ARG_REACT_APP_API_SERVER
 ENV REACT_APP_API_SERVER=$ARG_REACT_APP_API_SERVER
 
@@ -42,8 +44,12 @@ ENV REACT_APP_STRIPE_API_KEY=$ARG_REACT_APP_STRIPE_API_KEY
 ARG ARG_REACT_APP_SENTRY_DSN
 ENV REACT_APP_SENTRY_DSN=$ARG_REACT_APP_SENTRY_DSN
 
-RUN npm ci -ws
-RUN npm run build -w @postgres.ai/platform
+RUN apk add --no-cache --update git && \
+    npm i -g pnpm; \
+    pnpm config set store-dir /app/.pnpm-store; \
+    pnpm set verify-store-integrity false; \
+    pnpm --filter @postgres.ai/platform i; \
+    pnpm --filter @postgres.ai/platform build
 
 # Run phase.
 FROM nginx:1.20.1-alpine as run

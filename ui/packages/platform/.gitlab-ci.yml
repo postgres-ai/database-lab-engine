@@ -65,6 +65,9 @@
   script:
     - apk add --no-cache bash
     - bash ./ui/packages/platform/ci_docker_build_push.sh
+  needs:
+    - job: check-code-style
+      artifacts: false
 
 .deploy_definition: &deploy_definition
   stage: deploy
