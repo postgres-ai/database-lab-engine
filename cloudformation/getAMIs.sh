@@ -17,7 +17,7 @@ NOAMI="NOT_SUPPORTED"
 # Change your aws profile if needed here (example, " --profile default"):
 PROFILE=${DLE_AWS_PROFILE:-""}
 
-DLE_CF_TEMPLATE_FILE="${DLE_CF_TEMPLATE_FILE:-dle_cf.yaml}"
+DLE_CF_TEMPLATE_FILE="${DLE_CF_TEMPLATE_FILE:-dle_cf_template.yaml}"
 
 # Check whether AWS CLI is installed and in search path
 if ! aws_loc="$(type -p "aws")" || [ -z "$aws_loc" ]; then
