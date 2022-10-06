@@ -160,39 +160,39 @@ Mappings:
       Arch: HVM64
   AWSRegionArch2AMI:
     eu-north-1:
-      HVM64: ami-0888261a1eacb636e
+      HVM64: ami-09d9e079b37b2cb70
     ap-south-1:
-      HVM64: ami-00539bfa7a6926e1b
+      HVM64: ami-02724fdeb697971fe
     eu-west-3:
-      HVM64: ami-038d1f1d1ef71112b
+      HVM64: ami-05d0e3243114ebecd
     eu-west-2:
-      HVM64: ami-07c2bca027887871b
+      HVM64: ami-04e33af41123d6dda
     eu-west-1:
-      HVM64: ami-0e38f0f4f0acd49c2
+      HVM64: ami-066433aacb63c1599
     ap-northeast-3:
-      HVM64: ami-01cd2976ef1688c25
+      HVM64: ami-0a21dfc175a1e7ca6
     ap-northeast-2:
-      HVM64: ami-049c608703690f99e
+      HVM64: ami-0ae0dd482bbe35b52
     ap-northeast-1:
-      HVM64: ami-0cb59515cd67fdc93
+      HVM64: ami-0627be691f1d37e46
     sa-east-1:
-      HVM64: ami-0b3aeaa58412025de
+      HVM64: ami-006f02a26fe6d6dab
     ca-central-1:
-      HVM64: ami-075d0aae6fdd356b1
+      HVM64: ami-0b6b8f39051e16607
     ap-southeast-1:
-      HVM64: ami-054e735ba76985f92
+      HVM64: ami-08af0daa0cad9e22c
     ap-southeast-2:
-      HVM64: ami-06558ef4fedcf3c2f
+      HVM64: ami-0f9db3c26e6c72bf5
     eu-central-1:
-      HVM64: ami-048a27a74e4c1239d
+      HVM64: ami-02af16e4c00db42d3
     us-east-1:
-      HVM64: ami-0ed40b8023c788775
+      HVM64: ami-0a30cae8ab4ebfaab
     us-east-2:
-      HVM64: ami-0d6a0bd053962b66f
+      HVM64: ami-03c6dd9057f62145e
     us-west-1:
-      HVM64: ami-0ef7453c037b624ec
+      HVM64: ami-044089283cd0a74f8
     us-west-2:
-      HVM64: ami-0bdf048f8e10f02eb
+      HVM64: ami-0df17c09c98bbed09
 Conditions:
   CreateSubDomain:
     !Not [!Equals [!Ref CertificateHostedZone, '']]
@@ -318,7 +318,7 @@ Resources:
 
           yq e -i '
           .embeddedUI.host="" |
-          .embeddedUI.dockerImage="registry.gitlab.com/postgres-ai/database-lab/ce-ui:$DLE_DOCKER_IMAGE_VERSION" |
+          .embeddedUI.dockerImage="postgresai/ce-ui:$DLE_DOCKER_IMAGE_VERSION" |
           .server.verificationToken="${DLEVerificationToken}" |
           .poolManager.mountDir = "/var/lib/dblab/dblab_pool" |
           .retrieval.spec.logicalDump.options.dumpLocation="/var/lib/dblab/dblab_pool/dataset_1/dump/" |
@@ -354,6 +354,8 @@ Resources:
             export DOMAIN=${CertificateSubdomain}.${CertificateHostedZone}
             export USER_EMAIL=${CertificateEmail}
             export CERTIFICATE_EMAIL=${!USER_EMAIL:-'noreply@'$DOMAIN}
+          
+            yq e -i '.cloning.accessHost="$DOMAIN"' $dle_config_path/server.yml
 
             sudo certbot certonly --standalone -d $DOMAIN -m $CERTIFICATE_EMAIL --agree-tos -n
             sudo cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem /etc/envoy/certs/fullchain1.pem
@@ -372,11 +374,6 @@ Resources:
             sudo systemctl enable envoy
             sudo systemctl start envoy
           fi
-
-          # upgrade ssm agent version
-          wget https://s3.us-east-1.amazonaws.com/amazon-ssm-us-east-1/amazon-ssm-agent/3.1.1575.0/amazon-ssm-agent-ubuntu-amd64.tar.gz
-          tar -xf amazon-ssm-agent-ubuntu-amd64.tar.gz
-          bash snap-install.sh
 
           # Initialize CLI configuration
           su ubuntu -c '/usr/local/bin/dblab init \
@@ -500,8 +497,8 @@ Outputs:
     Description: UI URL with a domain for newly created DLE instance
     Value: !Sub 'https://${CertificateSubdomain}.${CertificateHostedZone}:446'
     Condition: CreateSubDomain
-  01WebUIUrl:
-    Description: UI URL with a domain for newly created DLE instance
+  01WebUIUrlLocal:
+    Description: UI URL for newly created DLE instance
     Value: !Sub 'http://localhost:2346'
     Condition: NotCreateSubDomain
 
@@ -540,8 +537,8 @@ Outputs:
     Description: Netdata URL with a domain for newly created DLE instance
     Value: !Sub 'https://${CertificateSubdomain}.${CertificateHostedZone}:19999'
     Condition: CreateSubDomain
-  08NetdataUrl:
-    Description: Netdata URL with a domain for newly created DLE instance
+  08NetdataUrlLocal:
+    Description: Netdata URL without a domain for newly created DLE instance
     Value: !Sub 'http://localhost:19999'
     Condition: NotCreateSubDomain
 

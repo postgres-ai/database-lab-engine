@@ -57,10 +57,15 @@ sudo /usr/local/bin/func-e use 1.19.1 # https://www.envoyproxy.io/docs/envoy/lat
 # Pull DLE image
 image_version=$(echo ${dle_version} | sed 's/v*//')
 sudo docker pull registry.gitlab.com/postgres-ai/database-lab/dblab-server:$image_version
-sudo docker pull postgresai/ce-ui:latest
+sudo docker pull postgresai/ce-ui:1.1.0
 sudo docker pull postgresai/extended-postgres:10
 sudo docker pull postgresai/extended-postgres:11
 sudo docker pull postgresai/extended-postgres:12
 sudo docker pull postgresai/extended-postgres:13
 sudo docker pull postgresai/extended-postgres:14
+
+# upgrade ssm agent version
+wget https://s3.us-east-1.amazonaws.com/amazon-ssm-us-east-1/amazon-ssm-agent/3.1.1575.0/amazon-ssm-agent-ubuntu-amd64.tar.gz
+tar -xf amazon-ssm-agent-ubuntu-amd64.tar.gz
+sudo bash snap-install.sh
 
