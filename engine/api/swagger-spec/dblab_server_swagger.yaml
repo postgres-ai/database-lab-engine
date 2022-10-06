@@ -1,8 +1,8 @@
 swagger: "2.0"
 info:
   description: "This is a Database Lab Engine sample server."
-  version: "2.5.0"
-  title: "Database Lab"
+  version: "3.2.0"
+  title: "Database Lab Engine API"
   contact:
     email: "team@postgres.ai"
   license:
@@ -461,6 +461,30 @@ paths:
           schema:
             $ref: "#/definitions/Error"
 
+  /instance/retrieval:
+    get:
+      tags:
+        - "instance"
+      summary: "Report state of retrieval subsystem"
+      description: ""
+      operationId: "instanceRetrieval"
+      produces:
+        - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/Retrieving"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
   /healthz:
     get:
       tags:
@@ -592,6 +616,30 @@ paths:
           schema:
             $ref: "#/definitions/Error"
 
+  /admin/ws-auth:
+    post:
+      tags:
+        - "config"
+      summary: "Test source database"
+      description: ""
+      operationId: "testDBConnection"
+      consumes:
+        - "application/json"
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/WSToken"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
 definitions:
   Instance:
     type: "object"
@@ -710,6 +758,34 @@ definitions:
       nextRefresh:
         type: "string"
         format: "date-time"
+      activity:
+        $ref: "#/definitions/Activity"
+
+  Activity:
+    type: "object"
+    properties:
+      source:
+        type: "array"
+        items:
+          $ref: "#/definitions/PGActivityEvent"
+      target:
+        type: "array"
+        items:
+          $ref: "#/definitions/PGActivityEvent"
+
+  PGActivityEvent:
+    type: "object"
+    properties:
+      user:
+        type: "string"
+      query:
+        type: "string"
+      duration:
+        type: "number"
+      waitEventType:
+        type: "string"
+      waitEvent:
+        type: "string"
 
   Provisioner:
     type: "object"
@@ -1020,6 +1096,17 @@ definitions:
         type: "string"
       password:
         type: "string"
+      db_list:
+        type: "array"
+        items:
+          type: "string"
+
+  WSToken:
+    type: "object"
+    properties:
+      token:
+        type: "string"
+        description: "WebSocket token"
 
 
 externalDocs:
