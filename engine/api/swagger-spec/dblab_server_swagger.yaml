@@ -679,10 +679,14 @@ definitions:
     properties:
       version:
         type: "string"
+      edition:
+        type: "string"
       startedAt:
         type: "string"
         format: "date-time"
       telemetry:
+        type: boolean
+      allowModifyingConfig:
         type: boolean
 
   PoolEntry:

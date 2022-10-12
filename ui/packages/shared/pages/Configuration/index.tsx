@@ -31,6 +31,10 @@ import { ExternalIcon } from '@postgres.ai/shared/icons/External'
 import { InputWithChip, InputWithTooltip } from './InputWithTooltip'
 import { tooltipText } from './tooltipText'
 
+const NON_LOGICAL_RETRIEVAL_MESSAGE =
+  'Configuration editing is only available in logical mode'
+const PREVENT_MODIFYING_MESSAGE = 'Editing is disabled by admin'
+
 export const GrayTextTypography = withStyles({
   root: {
     color: '#8a8a8a',
@@ -49,10 +53,14 @@ export const Configuration = observer(
     switchActiveTab,
     activeTab,
     reload,
+    isConfigurationActive,
+    allowModifyingConfig,
   }: {
     switchActiveTab: (activeTab: number) => void
     activeTab: number
     reload: () => void
+    isConfigurationActive: boolean
+    allowModifyingConfig?: boolean
   }) => {
     const classes = useStyles()
     const stores = useStores()
@@ -65,10 +73,10 @@ export const Configuration = observer(
       configError,
       dbSourceError,
       getFullConfigError,
-      instanceRetrieval,
     } = stores.main
     const configData = config && JSON.parse(JSON.stringify(config))
-    const isConfigurationActive = instanceRetrieval?.mode !== 'physical'
+    const isConfigurationDisabled =
+      !isConfigurationActive || !allowModifyingConfig
     const [submitMessage, setSubmitMessage] = useState<
       string | React.ReactNode | null
     >('')
@@ -115,13 +123,17 @@ export const Configuration = observer(
       })
       if (isConnectionDataValid) {
         setIsTestConnectionLoading(true)
-        testDbSource(connectionData).then((response) => {
-          if (response) {
-            setConnectionStatus(response.status)
-            setConnectionResponse(response.message)
+        testDbSource(connectionData)
+          .then((response) => {
+            if (response) {
+              setConnectionStatus(response.status)
+              setConnectionResponse(response.message)
+              setIsTestConnectionLoading(false)
+            }
+          })
+          .finally(() => {
             setIsTestConnectionLoading(false)
-          }
-        })
+          })
       }
     }
 
@@ -175,9 +187,13 @@ export const Configuration = observer(
     return (
       <div className={styles.root}>
         <Snackbar
-          anchorOrigin={{ vertical: "bottom", horizontal: 'right' }}
-          open={!isConfigurationActive && !isOpen}
-          message={'Configuration editing is only available in logical mode'}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          open={isConfigurationDisabled && !isOpen}
+          message={
+            !allowModifyingConfig
+              ? PREVENT_MODIFYING_MESSAGE
+              : NON_LOGICAL_RETRIEVAL_MESSAGE
+          }
           className={styles.snackbar}
         />
         <Box>
@@ -189,7 +205,7 @@ export const Configuration = observer(
                   <Checkbox
                     name="debug"
                     checked={formik.values.debug}
-                    disabled={!isConfigurationActive}
+                    disabled={isConfigurationDisabled}
                     onChange={(e) =>
                       formik.setFieldValue('debug', e.target.checked)
                     }
@@ -212,7 +228,7 @@ export const Configuration = observer(
                 value={formik.values.dockerImage}
                 error={formik.errors.dockerImage}
                 tooltipText={tooltipText.dockerImage}
-                disabled={!isConfigurationActive}
+                disabled={isConfigurationDisabled}
                 onChange={(e) =>
                   formik.setFieldValue('dockerImage', e.target.value)
                 }
@@ -228,7 +244,7 @@ export const Configuration = observer(
                 label="configs.shared_buffers"
                 value={formik.values.sharedBuffers}
                 tooltipText={tooltipText.sharedBuffers}
-                disabled={!isConfigurationActive}
+                disabled={isConfigurationDisabled}
                 onChange={(e) =>
                   formik.setFieldValue('sharedBuffers', e.target.value)
                 }
@@ -237,7 +253,7 @@ export const Configuration = observer(
                 label="configs.shared_preload_libraries"
                 value={formik.values.sharedPreloadLibraries}
                 tooltipText={tooltipText.sharedPreloadLibraries}
-                disabled={!isConfigurationActive}
+                disabled={isConfigurationDisabled}
                 onChange={(e) =>
                   formik.setFieldValue('sharedPreloadLibraries', e.target.value)
                 }
@@ -257,7 +273,7 @@ export const Configuration = observer(
                   value={formik.values.host}
                   error={formik.errors.host}
                   tooltipText={tooltipText.host}
-                  disabled={!isConfigurationActive}
+                  disabled={isConfigurationDisabled}
                   onChange={(e) => formik.setFieldValue('host', e.target.value)}
                 />
                 <InputWithTooltip
@@ -265,7 +281,7 @@ export const Configuration = observer(
                   value={formik.values.port}
                   error={formik.errors.port}
                   tooltipText={tooltipText.port}
-                  disabled={!isConfigurationActive}
+                  disabled={isConfigurationDisabled}
                   onChange={(e) => formik.setFieldValue('port', e.target.value)}
                 />
                 <InputWithTooltip
@@ -273,7 +289,7 @@ export const Configuration = observer(
                   value={formik.values.username}
                   error={formik.errors.username}
                   tooltipText={tooltipText.username}
-                  disabled={!isConfigurationActive}
+                  disabled={isConfigurationDisabled}
                   onChange={(e) =>
                     formik.setFieldValue('username', e.target.value)
                   }
@@ -281,7 +297,7 @@ export const Configuration = observer(
                 <InputWithTooltip
                   label="source.connection.password"
                   tooltipText={tooltipText.password}
-                  disabled={!isConfigurationActive}
+                  disabled={isConfigurationDisabled}
                   onChange={(e) =>
                     formik.setFieldValue('password', e.target.value)
                   }
@@ -291,7 +307,7 @@ export const Configuration = observer(
                   value={formik.values.dbname}
                   error={formik.errors.dbname}
                   tooltipText={tooltipText.dbname}
-                  disabled={!isConfigurationActive}
+                  disabled={isConfigurationDisabled}
                   onChange={(e) =>
                     formik.setFieldValue('dbname', e.target.value)
                   }
@@ -302,7 +318,7 @@ export const Configuration = observer(
                   id="databases"
                   tooltipText={tooltipText.databases}
                   handleDeleteDatabase={handleDeleteDatabase}
-                  disabled={!isConfigurationActive}
+                  disabled={isConfigurationDisabled}
                   onChange={(e) =>
                     formik.setFieldValue('databases', e.target.value)
                   }
@@ -313,7 +329,7 @@ export const Configuration = observer(
                     size="medium"
                     onClick={onTestConnectionClick}
                     isDisabled={
-                      isTestConnectionLoading || !isConfigurationActive
+                      isTestConnectionLoading || isConfigurationDisabled
                     }
                   >
                     Test connection
@@ -334,14 +350,14 @@ export const Configuration = observer(
               label="pg_dump jobs"
               value={formik.values.pg_dump}
               tooltipText={tooltipText.pg_dump}
-              disabled={!isConfigurationActive}
+              disabled={isConfigurationDisabled}
               onChange={(e) => formik.setFieldValue('pg_dump', e.target.value)}
             />
             <InputWithTooltip
               label="pg_restore jobs"
               value={formik.values.pg_restore}
               tooltipText={tooltipText.pg_restore}
-              disabled={!isConfigurationActive}
+              disabled={isConfigurationDisabled}
               onChange={(e) =>
                 formik.setFieldValue('pg_restore', e.target.value)
               }
@@ -369,7 +385,7 @@ export const Configuration = observer(
               label="timetable"
               value={formik.values.timetable}
               tooltipText={tooltipText.timetable}
-              disabled={!isConfigurationActive}
+              disabled={isConfigurationDisabled}
               onChange={(e) =>
                 formik.setFieldValue('timetable', e.target.value)
               }
@@ -387,7 +403,7 @@ export const Configuration = observer(
               variant="primary"
               size="medium"
               onClick={formik.submitForm}
-              isDisabled={formik.isSubmitting || !isConfigurationActive}
+              isDisabled={formik.isSubmitting || isConfigurationDisabled}
             >
               Apply changes
               {formik.isSubmitting && (

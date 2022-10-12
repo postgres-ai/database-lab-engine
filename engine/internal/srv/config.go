@@ -23,7 +23,10 @@ import (
 	yamlUtils "gitlab.com/postgres-ai/database-lab/v3/pkg/util/yaml"
 )
 
-const connectionCheckTimeout = 10 * time.Second
+const (
+	connectionCheckTimeout = 10 * time.Second
+	configManagementDenied = "configuration management via UI/API disabled by admin"
+)
 
 func (s *Server) getProjectedAdminConfig(w http.ResponseWriter, r *http.Request) {
 	cfg, err := s.projectedAdminConfig()
@@ -57,6 +60,11 @@ func (s *Server) getAdminConfigYaml(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) setProjectedAdminConfig(w http.ResponseWriter, r *http.Request) {
+	if !s.Config.AllowModifyingConfig {
+		api.SendBadRequestError(w, r, configManagementDenied)
+		return
+	}
+
 	var cfg interface{}
 	if err := api.ReadJSON(r, &cfg); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
@@ -91,6 +99,11 @@ func (s *Server) setProjectedAdminConfig(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) testDBSource(w http.ResponseWriter, r *http.Request) {
+	if !s.Config.AllowModifyingConfig {
+		api.SendBadRequestError(w, r, configManagementDenied)
+		return
+	}
+
 	if s.Retrieval.State.Mode != models.Logical {
 		api.SendBadRequestError(w, r, "the endpoint is only available in the Logical mode of the data retrieval")
 		return
