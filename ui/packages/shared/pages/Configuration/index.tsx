@@ -56,7 +56,7 @@ export const Configuration = observer(
     isConfigurationActive,
     allowModifyingConfig,
   }: {
-    switchActiveTab: (activeTab: number) => void
+    switchActiveTab: (_: null, activeTab: number) => void
     activeTab: number
     reload: () => void
     isConfigurationActive: boolean
@@ -91,7 +91,7 @@ export const Configuration = observer(
 
     const switchTab = async () => {
       reload()
-      switchActiveTab(0)
+      switchActiveTab(null, 0)
     }
 
     const onSubmit = async (values: FormValues) => {
@@ -414,7 +414,7 @@ export const Configuration = observer(
               <Button
                 variant="secondary"
                 size="medium"
-                onClick={() => switchActiveTab(0)}
+                onClick={() => switchActiveTab(null, 0)}
               >
                 Cancel
               </Button>

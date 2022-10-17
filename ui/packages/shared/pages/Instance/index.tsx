@@ -11,24 +11,21 @@ import { observer } from 'mobx-react-lite'
 
 import { Button } from '@postgres.ai/shared/components/Button2'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
-import { Spinner } from '@postgres.ai/shared/components/Spinner';
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 
 import { Tabs } from './Tabs'
+import { Logs } from '../Logs'
 import { Clones } from './Clones'
 import { Info } from './Info'
-import { establishConnection } from './wsLogs'
 import { Configuration } from '../Configuration'
 import { ClonesModal } from './ClonesModal'
 import { SnapshotsModal } from './SnapshotsModal'
 import { Host, HostProvider, StoresProvider } from './context'
 
-import PropTypes from "prop-types";
-import Typography from "@material-ui/core/Typography";
-import Box from "@material-ui/core/Box";
-import Alert from '@material-ui/lab/Alert';
-import AlertTitle from '@material-ui/lab/AlertTitle';
+import PropTypes from 'prop-types'
+import Typography from '@material-ui/core/Typography'
+import Box from '@material-ui/core/Box'
 
 import { useCreatedStores } from './useCreatedStores'
 
@@ -57,12 +54,6 @@ const useStyles = makeStyles((theme) => ({
       flexDirection: 'column',
     },
   },
-  spinnerContainer: {
-    display: "flex",
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center"
-  }
 }))
 
 export const Instance = observer((props: Props) => {
@@ -97,16 +88,10 @@ export const Instance = observer((props: Props) => {
 
   const [activeTab, setActiveTab] = React.useState(0);
 
-  const [isLogConnectionEnabled, enableLogConnection] = React.useState(false);
-
-  const switchTab = (_: React.ChangeEvent<{}>, tabID: number) => {
-    if (tabID == 1 && api.initWS != undefined && !isLogConnectionEnabled) {
-      establishConnection(api).then(() => {
-        enableLogConnection(true)
-      });
-    }
-
+  const switchTab = (_: React.ChangeEvent<{} | null>, tabID: number) => {
+    const contentElement = document.getElementById('content-container')
     setActiveTab(tabID);
+    contentElement.scroll(0, 0)
   };
 
   return (
@@ -160,17 +145,7 @@ export const Instance = observer((props: Props) => {
           </TabPanel>
 
           <TabPanel value={activeTab} index={1}>
-            <Alert severity="info">
-              <AlertTitle>Sensitive data are masked.</AlertTitle>
-              You can see the raw log data connecting to the machine and running the <strong>'docker logs'</strong> command.
-            </Alert>
-            <div id="logs-container">
-              {!isLogConnectionEnabled && (
-                <div className={classes.spinnerContainer}>
-                  <Spinner />
-                </div>
-              )}
-            </div>
+            {activeTab === 1 && <Logs api={api} />}
           </TabPanel>
         </>
 
@@ -178,7 +153,7 @@ export const Instance = observer((props: Props) => {
           <Configuration 
               isConfigurationActive={isConfigurationActive}
               allowModifyingConfig={instance?.state.engine.allowModifyingConfig}
-              switchActiveTab={(id: number) => setActiveTab(id)} 
+              switchActiveTab={switchTab} 
               activeTab={activeTab} 
               reload={() => stores.main.load(props.instanceId)} 
             />
