@@ -107,6 +107,7 @@ export const InputWithChip = ({
                     key={index}
                     className={styles.chip}
                     label={database}
+                    disabled={disabled}
                     onDelete={(event) => handleDeleteDatabase(event, database)}
                     color="primary"
                   />
