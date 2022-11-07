@@ -23,8 +23,8 @@ server:
   # HTTP server port. Default: 2345.
   port: 2345
 
-  # Allow modifying configuration via UI/API. Default: true.
-  allowModifyingConfig: true
+  # Disable modifying configuration via UI/API. Default: false.
+  disableConfigModification: false
 
 # Embedded UI. Controls the application to provide a user interface to DLE API.
 embeddedUI:
