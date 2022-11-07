@@ -152,7 +152,7 @@ export const Instance = observer((props: Props) => {
         <TabPanel value={activeTab} index={2}>
           <Configuration 
               isConfigurationActive={isConfigurationActive}
-              allowModifyingConfig={instance?.state.engine.allowModifyingConfig}
+              disableConfigModification={instance?.state.engine.disableConfigModification}
               switchActiveTab={switchTab} 
               activeTab={activeTab} 
               reload={() => stores.main.load(props.instanceId)} 

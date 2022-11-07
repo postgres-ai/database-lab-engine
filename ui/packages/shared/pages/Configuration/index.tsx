@@ -54,13 +54,13 @@ export const Configuration = observer(
     activeTab,
     reload,
     isConfigurationActive,
-    allowModifyingConfig,
+    disableConfigModification,
   }: {
     switchActiveTab: (_: null, activeTab: number) => void
     activeTab: number
     reload: () => void
     isConfigurationActive: boolean
-    allowModifyingConfig?: boolean
+    disableConfigModification?: boolean
   }) => {
     const classes = useStyles()
     const stores = useStores()
@@ -76,7 +76,7 @@ export const Configuration = observer(
     } = stores.main
     const configData = config && JSON.parse(JSON.stringify(config))
     const isConfigurationDisabled =
-      !isConfigurationActive || !allowModifyingConfig
+      !isConfigurationActive || disableConfigModification
     const [submitMessage, setSubmitMessage] = useState<
       string | React.ReactNode | null
     >('')
@@ -190,7 +190,7 @@ export const Configuration = observer(
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           open={isConfigurationDisabled && !isOpen}
           message={
-            !allowModifyingConfig
+            disableConfigModification
               ? PREVENT_MODIFYING_MESSAGE
               : NON_LOGICAL_RETRIEVAL_MESSAGE
           }
