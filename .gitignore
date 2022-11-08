@@ -11,7 +11,5 @@ engine/bin/
 /engine/configs/server.yml
 /engine/configs/run_ci.yaml
 /engine/configs/ci_checker.yml
-/packer/example.com.key
-cloudformation/output/*.yaml
 
 engine/meta
