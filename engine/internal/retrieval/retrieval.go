@@ -51,6 +51,8 @@ const (
 	pendingFilename = "pending.retrieval"
 )
 
+var errNoJobs = errors.New("no jobs to snapshot pool data")
+
 type jobGroup string
 
 // Retrieval describes a data retrieval.
@@ -337,7 +339,7 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 		r.State.cleanAlerts()
 	}
 
-	if err := r.SnapshotData(ctx, poolName); err != nil {
+	if err := r.SnapshotData(ctx, poolName); err != nil && err != errNoJobs {
 		return err
 	}
 
@@ -423,8 +425,8 @@ func (r *Retrieval) SnapshotData(ctx context.Context, poolName string) error {
 	}
 
 	if len(jobs) == 0 {
-		log.Dbg("no jobs to snapshot pool data:", fsm.Pool())
-		return nil
+		log.Dbg(errNoJobs, fsm.Pool())
+		return errNoJobs
 	}
 
 	log.Dbg("Taking a snapshot on the pool: ", fsm.Pool())
@@ -653,7 +655,7 @@ func preparePoolToRefresh(poolToUpdate pool.FSManager) error {
 
 	for _, snapshotEntry := range snapshots {
 		if err := poolToUpdate.DestroySnapshot(snapshotEntry.ID); err != nil {
-			return errors.Wrap(err, "failed to destroy the existing snapshot")
+			return errors.Wrap(err, "failed to destroy existing snapshot")
 		}
 	}
 

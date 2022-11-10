@@ -275,6 +275,10 @@ func (c *Base) DestroyClone(cloneID string) error {
 		return models.New(models.ErrCodeBadRequest, "clone is protected")
 	}
 
+	if c.hasDependentSnapshots(w) {
+		return models.New(models.ErrCodeBadRequest, "clone has dependent snapshots")
+	}
+
 	if err := c.UpdateCloneStatus(cloneID, models.Status{
 		Code:    models.StatusDeleting,
 		Message: models.CloneMessageDeleting,
@@ -486,6 +490,11 @@ func (c *Base) GetSnapshots() ([]models.Snapshot, error) {
 	return c.getSnapshotList(), nil
 }
 
+// ReloadSnapshots reloads snapshot list.
+func (c *Base) ReloadSnapshots() error {
+	return c.fetchSnapshots()
+}
+
 // GetClones returns the list of clones descend ordered by creation time.
 func (c *Base) GetClones() []*models.Clone {
 	clones := make([]*models.Clone, 0, c.lenClones())
@@ -618,7 +627,8 @@ func (c *Base) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 	idleDuration := time.Duration(c.config.MaxIdleMinutes) * time.Minute
 	minimumTime := currentTime.Add(-idleDuration)
 
-	if wrapper.Clone.Protected || wrapper.Clone.Status.Code == models.StatusExporting || wrapper.TimeStartedAt.After(minimumTime) {
+	if wrapper.Clone.Protected || wrapper.Clone.Status.Code == models.StatusExporting || wrapper.TimeStartedAt.After(minimumTime) ||
+		c.hasDependentSnapshots(wrapper) {
 		return false, nil
 	}
 

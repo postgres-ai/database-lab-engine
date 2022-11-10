@@ -30,6 +30,9 @@ const (
 	ext4 = "ext4"
 )
 
+// ErrNoPools means that there no available pools.
+var ErrNoPools = errors.New("no available pools")
+
 // Manager describes a pool manager.
 type Manager struct {
 	cfg              *Config
@@ -144,7 +147,7 @@ func (pm *Manager) GetFSManager(name string) (FSManager, error) {
 	pm.mu.Unlock()
 
 	if !ok {
-		return nil, errors.New("pool manager not found")
+		return nil, fmt.Errorf("pool manager not found: %s", name)
 	}
 
 	return fsm, nil
@@ -240,7 +243,7 @@ func (pm *Manager) ReloadPools() error {
 	fsPools, fsManagerList := pm.examineEntries(dirEntries)
 
 	if len(fsPools) == 0 {
-		return errors.New("no available pools")
+		return ErrNoPools
 	}
 
 	pm.mu.Lock()

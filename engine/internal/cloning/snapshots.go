@@ -6,12 +6,14 @@ package cloning
 
 import (
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
 // SnapshotBox contains instance snapshots.
@@ -165,4 +167,19 @@ func (c *Base) getSnapshotList() []models.Snapshot {
 	})
 
 	return snapshots
+}
+
+func (c *Base) hasDependentSnapshots(w *CloneWrapper) bool {
+	c.snapshotBox.snapshotMutex.RLock()
+	defer c.snapshotBox.snapshotMutex.RUnlock()
+
+	poolName := util.GetPoolName(w.Clone.Snapshot.Pool, util.GetCloneNameStr(w.Clone.DB.Port))
+
+	for name := range c.snapshotBox.items {
+		if strings.HasPrefix(name, poolName) {
+			return true
+		}
+	}
+
+	return false
 }

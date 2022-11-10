@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -16,6 +17,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	wsPackage "gitlab.com/postgres-ai/database-lab/v3/internal/srv/ws"
@@ -108,6 +110,104 @@ func (s *Server) getSnapshots(w http.ResponseWriter, r *http.Request) {
 	if err = api.WriteJSON(w, http.StatusOK, snapshots); err != nil {
 		api.SendError(w, r, err)
 		return
+	}
+}
+
+func (s *Server) createSnapshot(w http.ResponseWriter, r *http.Request) {
+	var poolName string
+
+	if r.Body != http.NoBody {
+		var createRequest types.SnapshotCreateRequest
+		if err := api.ReadJSON(r, &createRequest); err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+
+		poolName = createRequest.PoolName
+	}
+
+	if poolName == "" {
+		firstFSM := s.pm.First()
+
+		if firstFSM == nil || firstFSM.Pool() == nil {
+			api.SendBadRequestError(w, r, pool.ErrNoPools.Error())
+			return
+		}
+
+		poolName = firstFSM.Pool().Name
+	}
+
+	if err := s.Retrieval.SnapshotData(context.Background(), poolName); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	fsManager, err := s.pm.GetFSManager(poolName)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	fsManager.RefreshSnapshotList()
+
+	snapshotList := fsManager.SnapshotList()
+
+	if len(snapshotList) == 0 {
+		api.SendBadRequestError(w, r, "No snapshots at pool: "+poolName)
+		return
+	}
+
+	latestSnapshot := snapshotList[0]
+
+	if err := api.WriteJSON(w, http.StatusOK, latestSnapshot); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
+}
+
+func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
+	var destroyRequest types.SnapshotDestroyRequest
+	if err := api.ReadJSON(r, &destroyRequest); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	const snapshotParts = 2
+
+	parts := strings.Split(destroyRequest.SnapshotID, "@")
+	if len(parts) != snapshotParts {
+		api.SendBadRequestError(w, r, fmt.Sprintf("invalid snapshot name given: %s", destroyRequest.SnapshotID))
+		return
+	}
+
+	rootParts := strings.Split(parts[0], "/")
+	if len(rootParts) < 1 {
+		api.SendBadRequestError(w, r, fmt.Sprintf("invalid root part of snapshot name given: %s", destroyRequest.SnapshotID))
+		return
+	}
+
+	poolName := rootParts[0]
+
+	fsm, err := s.pm.GetFSManager(poolName)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if err = fsm.DestroySnapshot(destroyRequest.SnapshotID); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	log.Dbg(fmt.Sprintf("Snapshot %s has been deleted", destroyRequest.SnapshotID))
+
+	if err := api.WriteJSON(w, http.StatusOK, ""); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
+
+	if err := s.Cloning.ReloadSnapshots(); err != nil {
+		log.Dbg("Failed to reload snapshots", err.Error())
 	}
 }
 
