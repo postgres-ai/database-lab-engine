@@ -47,9 +47,9 @@ export const Instance = () => {
 
   const api = {
     getInstance,
-    refreshInstance,
     getSnapshots,
     destroyClone,
+    refreshInstance,
     resetClone,
     getWSToken,
   }
@@ -77,6 +77,7 @@ export const Instance = () => {
     <InstancePage
       title={`Database Lab instance #${params.instanceId}`}
       instanceId={params.instanceId}
+      hideInstanceTabs
       routes={routes}
       api={api}
       callbacks={callbacks}
