@@ -13,12 +13,17 @@ const (
 	ClonePrefix = "dblab_clone_"
 )
 
-// GetCloneName returns a clone name.
+// GetCloneName returns clone name.
 func GetCloneName(port uint) string {
 	return ClonePrefix + strconv.FormatUint(uint64(port), 10)
 }
 
-// GetCloneNameStr returns a clone name.
+// GetCloneNameStr returns clone name.
 func GetCloneNameStr(port string) string {
 	return ClonePrefix + port
+}
+
+// GetPoolName returns pool name.
+func GetPoolName(basePool, snapshotSuffix string) string {
+	return basePool + "/" + snapshotSuffix
 }

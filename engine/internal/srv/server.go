@@ -196,6 +196,8 @@ func (s *Server) InitHandlers() {
 
 	r.HandleFunc("/status", authMW.Authorized(s.getInstanceStatus)).Methods(http.MethodGet)
 	r.HandleFunc("/snapshots", authMW.Authorized(s.getSnapshots)).Methods(http.MethodGet)
+	r.HandleFunc("/snapshot/create", authMW.Authorized(s.createSnapshot)).Methods(http.MethodPost)
+	r.HandleFunc("/snapshot/delete", authMW.Authorized(s.deleteSnapshot)).Methods(http.MethodPost)
 	r.HandleFunc("/clone", authMW.Authorized(s.createClone)).Methods(http.MethodPost)
 	r.HandleFunc("/clone/{id}", authMW.Authorized(s.destroyClone)).Methods(http.MethodDelete)
 	r.HandleFunc("/clone/{id}", authMW.Authorized(s.patchClone)).Methods(http.MethodPatch)

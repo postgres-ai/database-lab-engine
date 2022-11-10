@@ -272,7 +272,7 @@ func (m *Manager) CreateSnapshot(poolSuffix, dataStateAt string) (string, error)
 	poolName := m.config.Pool.Name
 
 	if poolSuffix != "" {
-		poolName += "/" + poolSuffix
+		poolName = util.GetPoolName(m.config.Pool.Name, poolSuffix)
 	}
 
 	originalDSA := dataStateAt

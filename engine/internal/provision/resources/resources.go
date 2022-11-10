@@ -33,12 +33,12 @@ type EphemeralUser struct {
 
 // Snapshot defines snapshot of the data with related meta-information.
 type Snapshot struct {
-	ID                string
-	CreatedAt         time.Time
-	DataStateAt       time.Time
-	Used              uint64
-	LogicalReferenced uint64
-	Pool              string
+	ID                string    `json:"id"`
+	CreatedAt         time.Time `json:"createdAt"`
+	DataStateAt       time.Time `json:"dataStateAt"`
+	Used              uint64    `json:"used"`
+	LogicalReferenced uint64    `json:"logicalReferenced"`
+	Pool              string    `json:"pool"`
 }
 
 // SessionState defines current state of a Session.

@@ -37,3 +37,13 @@ type ResetCloneRequest struct {
 	SnapshotID string `json:"snapshotID"`
 	Latest     bool   `json:"latest"`
 }
+
+// SnapshotCreateRequest describes params for a creating snapshot request.
+type SnapshotCreateRequest struct {
+	PoolName string `json:"poolName"`
+}
+
+// SnapshotDestroyRequest describes params for a destroying snapshot request.
+type SnapshotDestroyRequest struct {
+	SnapshotID string `json:"snapshotID"`
+}
