@@ -92,7 +92,7 @@ const styles = () => ({
       paddingTop: '40px'
     },
     'position': 'absolute',
-    'min-width': drawerWidth,
+    'width': drawerWidth,
     'background-color': colors.consoleMenuBackground,
     'border-right-color': colors.consoleStroke,
     '& hr': {
@@ -140,6 +140,7 @@ const styles = () => ({
   },
   toolbar: theme.mixins.toolbar,
   topToolbar: {
+    color: '#fff',
     minHeight: 40,
     height: 40,
     paddingLeft: 14,

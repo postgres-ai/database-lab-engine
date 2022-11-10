@@ -3,10 +3,10 @@ import { wsSnackbar } from '@postgres.ai/shared/pages/Logs/wsSnackbar'
 
 export const useWsScroll = () => {
   const snackbarTag = document.createElement('div')
-  const contentElement = document.getElementById('content-container')
+  const contentElement = document.getElementById('content-container') as HTMLElement
 
   useEffect(() => {
-    const targetNode = document.getElementById('logs-container')
+    const targetNode = document.getElementById('logs-container') as HTMLElement
     contentElement.addEventListener(
       'scroll',
       () => {

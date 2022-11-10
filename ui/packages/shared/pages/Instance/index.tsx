@@ -49,6 +49,7 @@ const useStyles = makeStyles((theme) => ({
     marginTop: '16px',
     position: 'relative',
     flex: '1 1 100%',
+    height: "100%",
 
     [theme.breakpoints.down('sm')]: {
       flexDirection: 'column',
@@ -91,7 +92,7 @@ export const Instance = observer((props: Props) => {
   const switchTab = (_: React.ChangeEvent<{} | null>, tabID: number) => {
     const contentElement = document.getElementById('content-container')
     setActiveTab(tabID);
-    contentElement.scroll(0, 0)
+    contentElement?.scroll(0, 0)
   };
 
   return (
@@ -118,6 +119,7 @@ export const Instance = observer((props: Props) => {
                 value={activeTab}
                 handleChange={switchTab}
                 hasLogs={api.initWS != undefined}
+                hideInstanceTabs={props?.hideInstanceTabs}
             />
           </SectionTitle>
 
@@ -130,11 +132,13 @@ export const Instance = observer((props: Props) => {
             <div className={classes.content}>
               {!instance || !instance?.state.retrieving?.status && <StubSpinner />}
 
-              {instance && (
+              {instance ? (
                 <>
                   <Clones />
                   <Info />
                 </>
+              ) : (
+                <StubSpinner />
               )}
             </div>
           )}
@@ -149,16 +153,12 @@ export const Instance = observer((props: Props) => {
           </TabPanel>
         </>
 
-        <TabPanel value={activeTab} index={2}>
-          <Configuration 
-              isConfigurationActive={isConfigurationActive}
-              disableConfigModification={instance?.state.engine.disableConfigModification}
-              switchActiveTab={switchTab} 
-              activeTab={activeTab} 
-              reload={() => stores.main.load(props.instanceId)} 
-            />
-        </TabPanel>
-
+          <TabPanel value={activeTab} index={2}>
+            <Configuration
+              switchActiveTab={(id: number) => setActiveTab(id)}
+              activeTab={activeTab}
+              reload={() => stores.main.load(props.instanceId)} />
+          </TabPanel>
       </StoresProvider>
     </HostProvider>
   )
@@ -174,9 +174,12 @@ function TabPanel(props: PropTypes.InferProps<any>) {
           hidden={value !== index}
           id={`scrollable-auto-tabpanel-${index}`}
           aria-labelledby={`scrollable-auto-tab-${index}`}
+          style={{height: "100%"}}
           {...other}
       >
-        <Box p={3}>{children}</Box>
+        <Box p={3}sx={{ height: '100%' }}>
+          {children}
+        </Box>
       </Typography>
   );
 }

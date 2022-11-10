@@ -29,7 +29,7 @@ export const Logs = ({ api }: { api: Api }) => {
 
   useEffect(() => {
     const config = { attributes: false, childList: true, subtree: true }
-    const targetNode = document.getElementById('logs-container')
+    const targetNode = document.getElementById('logs-container') as HTMLElement
 
     if (isLoading && targetNode.querySelectorAll('p').length === 1) {
       setIsLoading(false)
