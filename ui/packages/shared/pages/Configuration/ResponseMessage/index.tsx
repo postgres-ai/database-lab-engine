@@ -1,38 +1,41 @@
-import { Box } from '@material-ui/core'
-import { makeStyles } from '@material-ui/core/styles'
+import Box from '@mui/material/Box'
+import { makeStyles } from '@material-ui/core'
 import BlockIcon from '@material-ui/icons/Block'
 import CheckCircleOutlineIcon from '@material-ui/icons/CheckCircleOutline'
 import WarningIcon from '@material-ui/icons/Warning'
 
-const useStyles = makeStyles({
-  successIcon: {
-    marginRight: 8,
-    color: 'green',
+const useStyles = makeStyles(
+  {
+    successIcon: {
+      marginRight: 8,
+      color: 'green',
+    },
+    success: {
+      color: 'green',
+      alignItems: 'center',
+      display: 'flex',
+    },
+    errorIcon: {
+      marginRight: 8,
+      color: 'red',
+    },
+    error: {
+      color: 'red',
+      alignItems: 'center',
+      display: 'flex',
+    },
+    warning: {
+      color: '#FD8411',
+      alignItems: 'center',
+      display: 'flex',
+    },
+    warningIcon: {
+      marginRight: 8,
+      color: '#FD8411',
+    },
   },
-  success: {
-    color: 'green',
-    alignItems: 'center',
-    display: 'flex',
-  },
-  errorIcon: {
-    marginRight: 8,
-    color: 'red',
-  },
-  error: {
-    color: 'red',
-    alignItems: 'center',
-    display: 'flex',
-  },
-  warning: {
-    color: '#FD8411',
-    alignItems: 'center',
-    display: 'flex',
-  },
-  warningIcon: {
-    marginRight: 8,
-    color: '#FD8411',
-  },
-})
+  { index: 1 },
+)
 
 export const ResponseMessage = ({
   type,

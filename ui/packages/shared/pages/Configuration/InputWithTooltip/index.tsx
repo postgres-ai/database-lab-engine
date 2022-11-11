@@ -1,5 +1,6 @@
-import { Box, TextField, Chip } from '@material-ui/core'
-import { makeStyles } from '@material-ui/core/styles'
+import { TextField, Chip } from '@material-ui/core'
+import Box from '@mui/material/Box'
+import { makeStyles } from '@material-ui/core'
 import { InfoIcon } from '@postgres.ai/shared/icons/Info'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { uniqueDatabases } from '../utils'
@@ -7,13 +8,16 @@ import { uniqueDatabases } from '../utils'
 import styles from '../styles.module.scss'
 import classNames from 'classnames'
 
-const useStyles = makeStyles({
-  textField: {
-    '& .MuiOutlinedInput-notchedOutline': {
-      borderColor: '#000 !important',
+const useStyles = makeStyles(
+  {
+    textField: {
+      '& .MuiOutlinedInput-notchedOutline': {
+        borderColor: '#000 !important',
+      },
     },
   },
-})
+  { index: 1 },
+)
 
 export const InputWithTooltip = ({
   value,
@@ -28,7 +32,7 @@ export const InputWithTooltip = ({
   tooltipText: () => React.ReactNode
   label: string
   error?: string
-  disabled: boolean
+  disabled: boolean | undefined
 }) => {
   const classes = useStyles()
 
@@ -66,7 +70,7 @@ export const InputWithChip = ({
   handleDeleteDatabase: (event: any, database: string) => void
   label: string
   id: string
-  disabled: boolean
+  disabled: boolean | undefined
 }) => {
   const classes = useStyles()
 

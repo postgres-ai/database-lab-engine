@@ -2,7 +2,7 @@ import { useParams } from 'react-router-dom'
 
 import { Instance as InstancePage } from '@postgres.ai/shared/pages/Instance'
 
-import ConsoleBreadcrumbs from 'components/ConsoleBreadcrumbs'
+import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
 import { ROUTES } from 'config/routes'
 import { getInstance } from 'api/instances/getInstance'
 import { refreshInstance } from 'api/instances/refreshInstance'
@@ -10,7 +10,7 @@ import { getSnapshots } from 'api/snapshots/getSnapshots'
 import { destroyClone } from 'api/clones/destroyClone'
 import { resetClone } from 'api/clones/resetClone'
 import { bannersStore } from 'stores/banners'
-import { getWSToken } from "api/instances/getWSToken";
+import { getWSToken } from 'api/instances/getWSToken'
 
 type Params = {
   org: string
@@ -61,7 +61,7 @@ export const Instance = () => {
 
   const elements = {
     breadcrumbs: (
-      <ConsoleBreadcrumbs
+      <ConsoleBreadcrumbsWrapper
         hasDivider
         org={params.org}
         project={params.project}

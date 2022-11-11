@@ -20,10 +20,10 @@ import { InitWS } from '@postgres.ai/shared/types/api/endpoints/initWS'
 import { Instance } from '@postgres.ai/shared/types/api/entities/instance'
 import { SnapshotsStore } from '@postgres.ai/shared/stores/Snapshots'
 import { getTextFromUnknownApiError } from '@postgres.ai/shared/utils/api'
-import { dbSource } from 'types/api/entities/dbSource'
-import { GetFullConfig } from 'types/api/endpoints/getFullConfig'
-import { GetInstanceRetrieval } from 'types/api/endpoints/getInstanceRetrieval'
-import { InstanceRetrievalType } from 'types/api/entities/instanceRetrieval'
+import { dbSource } from '@postgres.ai/shared/types/api/entities/dbSource'
+import { GetFullConfig } from '@postgres.ai/shared/types/api/endpoints/getFullConfig'
+import { GetInstanceRetrieval } from '@postgres.ai/shared/types/api/endpoints/getInstanceRetrieval'
+import { InstanceRetrievalType } from '@postgres.ai/shared/types/api/entities/instanceRetrieval'
 
 const POLLING_TIME = 2000
 
@@ -85,7 +85,7 @@ export class MainStore {
     this.instance = null
     this.loadInstance(instanceId)
     this.loadInstanceRetrieval(instanceId).then(() => {
-      if (this.instanceRetrieval?.mode !== "physical") {
+      if (this.instanceRetrieval?.mode !== 'physical') {
         this.getConfig()
       }
     })
@@ -111,8 +111,7 @@ export class MainStore {
       instanceId: instanceId,
     })
 
-    if (response) 
-      this.instanceRetrieval = response
+    if (response) this.instanceRetrieval = response
 
     if (error)
       this.instanceError = { message: await getTextFromUnknownApiError(error) }
@@ -184,8 +183,7 @@ export class MainStore {
 
     const { response, error } = await this.api.updateConfig({ ...values })
 
-    if (error)
-      this.configError = await error.json().then((err) => err.message)
+    if (error) this.configError = await error.json().then((err) => err.message)
 
     return response
   }

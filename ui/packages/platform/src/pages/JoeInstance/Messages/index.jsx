@@ -157,7 +157,6 @@ export const Messages = (props) => {
                         value={messages[m].message}
                         className={classes.sqlCode}
                         margin='normal'
-                        variant='outlined'
                         InputProps={{
                           readOnly: true
                         }}
@@ -254,7 +253,6 @@ export const Messages = (props) => {
                                         }
                                         className={classes.code}
                                         margin='normal'
-                                        variant='outlined'
                                         InputProps={{
                                           readOnly: true
                                         }}

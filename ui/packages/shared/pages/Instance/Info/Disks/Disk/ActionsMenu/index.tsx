@@ -19,13 +19,16 @@ type Props = {
   isActive: boolean
 }
 
-const useStyles = makeStyles({
-  root: {
-    padding: '3px 1px',
-    border: `1px solid ${colors.consoleStroke}`,
-    borderRadius: '4px',
+const useStyles = makeStyles(
+  {
+    root: {
+      padding: '3px 1px',
+      border: `1px solid ${colors.consoleStroke}`,
+      borderRadius: '4px',
+    },
   },
-})
+  { index: 1 },
+)
 
 export const ActionsMenu = (props: Props) => {
   const classes = useStyles()

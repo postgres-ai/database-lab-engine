@@ -21,36 +21,39 @@ const VALUE_TO_DESC: Record<Props['value'], string> = {
   empty: 'Disk is emptied and ready for a data retrieval',
 }
 
-const useStyles = makeStyles({
-  root: {
-    display: 'flex',
-    color: colors.white,
-  },
-  warning: {
-    display: 'flex',
-    flex: '0 0 16px',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: '4px',
-    height: '16px',
-    background: colors.state.warning,
-    borderRadius: '3px',
-  },
-  icon: {
-    height: '10px',
-  },
-  label: {
-    fontSize: '12px',
-    padding: '1px 6px',
-    borderRadius: '3px',
-    flex: '0 0 auto',
-    background: (props: Props) => {
-      if (props.value === 'refreshing') return colors.state.notice
-      if (props.value === 'active') return colors.state.ok
-      return colors.state.unknown
+const useStyles = makeStyles(
+  {
+    root: {
+      display: 'flex',
+      color: colors.white,
+    },
+    warning: {
+      display: 'flex',
+      flex: '0 0 16px',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: '4px',
+      height: '16px',
+      background: colors.state.warning,
+      borderRadius: '3px',
+    },
+    icon: {
+      height: '10px',
+    },
+    label: {
+      fontSize: '12px',
+      padding: '1px 6px',
+      borderRadius: '3px',
+      flex: '0 0 auto',
+      background: (props: Props) => {
+        if (props.value === 'refreshing') return colors.state.notice
+        if (props.value === 'active') return colors.state.ok
+        return colors.state.unknown
+      },
     },
   },
-})
+  { index: 1 },
+)
 
 export const Status = (props: Props) => {
   const { value, hasWarning } = props

@@ -19,16 +19,19 @@ type Props = {
   }[]
 }
 
-const useStyles = makeStyles({
-  root: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    marginTop: '16px',
+const useStyles = makeStyles(
+  {
+    root: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      marginTop: '16px',
+    },
+    button: {
+      marginLeft: '8px',
+    },
   },
-  button: {
-    marginLeft: '8px',
-  },
-})
+  { index: 1 },
+)
 
 export const SimpleModalControls = (props: Props) => {
   const classes = useStyles()

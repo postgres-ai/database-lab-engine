@@ -1,10 +1,13 @@
 {
   "extends": "@tsconfig/recommended/tsconfig.json",
   "compilerOptions": {
+    "target": "es5",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
+    "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "module": "esnext",
+    "esModuleInterop": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -13,7 +16,9 @@
     "baseUrl": "src",
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": true,
-    "typeRoots": ["./node_modules/@types"]
+    "noImplicitThis": false,
+    "typeRoots": ["./node_modules/@types"],
+    "strictPropertyInitialization": false
   },
   "include": ["src", "../shared"],
   "exclude": ["node_modules", "**/node_modules/*"]

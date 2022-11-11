@@ -27,53 +27,56 @@ type Props = {
   status: 'refreshing' | 'active' | 'empty'
 }
 
-const useStyles = makeStyles({
-  root: {
-    border: `1px solid ${colors.consoleStroke}`,
-    padding: '6px 8px 8px',
-    borderRadius: '4px',
+const useStyles = makeStyles(
+  {
+    root: {
+      border: `1px solid ${colors.consoleStroke}`,
+      padding: '6px 8px 8px',
+      borderRadius: '4px',
 
-    '& + $root': {
+      '& + $root': {
+        marginTop: '8px',
+      },
+    },
+    header: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    titleWrapper: {
+      display: 'flex',
+      flex: '1 1 auto',
+      alignItems: 'center',
+      marginRight: '16px',
+      minWidth: 0,
+    },
+    title: {
+      fontWeight: 700,
+      fontSize: '14px',
+      margin: '0 4px 0 0',
+      whiteSpace: 'nowrap',
+      textOverflow: 'ellipsis',
+      overflow: 'hidden',
+    },
+    content: {
       marginTop: '8px',
     },
+    markerUsed: {
+      color: colors.primary.light,
+    },
+    markerFree: {
+      color: colors.gray,
+    },
+    warningMessage: {
+      fontSize: '10px',
+      marginTop: '6px',
+    },
+    uppercaseContent: {
+      textTransform: 'uppercase',
+    },
   },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  titleWrapper: {
-    display: 'flex',
-    flex: '1 1 auto',
-    alignItems: 'center',
-    marginRight: '16px',
-    minWidth: 0,
-  },
-  title: {
-    fontWeight: 700,
-    fontSize: '14px',
-    margin: '0 4px 0 0',
-    whiteSpace: 'nowrap',
-    textOverflow: 'ellipsis',
-    overflow: 'hidden',
-  },
-  content: {
-    marginTop: '8px',
-  },
-  markerUsed: {
-    color: colors.primary.light,
-  },
-  markerFree: {
-    color: colors.gray,
-  },
-  warningMessage: {
-    fontSize: '10px',
-    marginTop: '6px',
-  },
-  uppercaseContent: {
-    textTransform: 'uppercase',
-  },
-})
+  { index: 1 },
+)
 
 const getPercent = (value: number, total: number) =>
   Math.round((value / total) * 100)

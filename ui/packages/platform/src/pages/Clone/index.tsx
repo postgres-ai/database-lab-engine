@@ -8,7 +8,7 @@ import { getClone } from 'api/clones/getClone'
 import { resetClone } from 'api/clones/resetClone'
 import { destroyClone } from 'api/clones/destroyClone'
 import { updateClone } from 'api/clones/updateClone'
-import ConsoleBreadcrumbs from 'components/ConsoleBreadcrumbs'
+import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
 
 import { ROUTES } from 'config/routes'
 
@@ -44,7 +44,7 @@ export const Clone = () => {
 
   const elements = {
     breadcrumbs: (
-      <ConsoleBreadcrumbs
+      <ConsoleBreadcrumbsWrapper
         org={params.org}
         project={params.project}
         hasDivider

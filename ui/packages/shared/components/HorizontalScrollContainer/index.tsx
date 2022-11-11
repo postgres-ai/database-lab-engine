@@ -9,43 +9,49 @@ import React, { useState, useRef, useLayoutEffect, useEffect } from 'react'
 import { makeStyles } from '@material-ui/core'
 import clsx from 'clsx'
 
-import { createTransitionInteractive, borderRadius } from '@postgres.ai/shared/styles/vars'
+import {
+  createTransitionInteractive,
+  borderRadius,
+} from '@postgres.ai/shared/styles/vars'
 
 import { checkIsVisibleLeftCurtain, checkIsVisibleRightCurtain } from './utils'
 import { Dimensions } from './types'
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    position: 'relative',
-    overflow: 'hidden',
+const useStyles = makeStyles(
+  (theme) => ({
+    root: {
+      position: 'relative',
+      overflow: 'hidden',
 
-    [theme.breakpoints.down('xs')]: {
-      borderRadius,
+      [theme.breakpoints.down('xs')]: {
+        borderRadius,
+      },
     },
-  },
-  curtain: {
-    position: 'absolute',
-    top: 0,
-    width: '25px',
-    height: '100%',
-    pointerEvents: 'none',
-    transition: createTransitionInteractive('opacity'),
-  },
-  curtainLeft: {
-    left: 0,
-    background: 'linear-gradient(to right, rgba(0,0,0,0.08), transparent);',
-  },
-  curtainRight: {
-    right: 0,
-    background: 'linear-gradient(to left, rgba(0,0,0,0.08), transparent);',
-  },
-  curtainHidden: {
-    opacity: 0,
-  },
-  content: {
-    overflow: 'auto',
-  },
-}))
+    curtain: {
+      position: 'absolute',
+      top: 0,
+      width: '25px',
+      height: '100%',
+      pointerEvents: 'none',
+      transition: createTransitionInteractive('opacity'),
+    },
+    curtainLeft: {
+      left: 0,
+      background: 'linear-gradient(to right, rgba(0,0,0,0.08), transparent);',
+    },
+    curtainRight: {
+      right: 0,
+      background: 'linear-gradient(to left, rgba(0,0,0,0.08), transparent);',
+    },
+    curtainHidden: {
+      opacity: 0,
+    },
+    content: {
+      overflow: 'auto',
+    },
+  }),
+  { index: 1 },
+)
 
 type Props = {
   children: React.ReactNode

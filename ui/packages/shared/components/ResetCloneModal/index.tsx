@@ -29,15 +29,18 @@ type Props = {
   version: InstanceState['engine']['version']
 }
 
-const useStyles = makeStyles({
-  snapshots: {
-    margin: '16px 0 0 0',
+const useStyles = makeStyles(
+  {
+    snapshots: {
+      margin: '16px 0 0 0',
+    },
+    snapshotTag: {
+      marginLeft: '4px',
+      fontWeight: 700,
+    },
   },
-  snapshotTag: {
-    marginLeft: '4px',
-    fontWeight: 700,
-  },
-})
+  { index: 1 },
+)
 
 export const ResetCloneModal = (props: Props) => {
   const { isOpen, onClose, clone, onResetClone, snapshots } = props

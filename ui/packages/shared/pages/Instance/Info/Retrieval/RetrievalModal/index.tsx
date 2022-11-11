@@ -1,7 +1,7 @@
 import { Modal } from '@postgres.ai/shared/components/Modal'
 import { useStores } from '@postgres.ai/shared/pages/Instance/context'
 import { ModalReloadButton } from '@postgres.ai/shared/pages/Instance/components/ModalReloadButton'
-import { ActivityType } from 'types/api/entities/instanceRetrieval'
+import { ActivityType } from '@postgres.ai/shared/types/api/entities/instanceRetrieval'
 import { RetrievalTable } from '../RetrievalTable'
 
 import styles from './styles.module.scss'

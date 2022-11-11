@@ -26,42 +26,45 @@ type Props = {
   cloneId: string
 }
 
-const useStyles = makeStyles({
-  root: {
-    fontSize: '14px',
-  },
-  item: {
-    '& + $item': {
-      marginTop: '16px',
+const useStyles = makeStyles(
+  {
+    root: {
+      fontSize: '14px',
+    },
+    item: {
+      '& + $item': {
+        marginTop: '16px',
+      },
+    },
+    fieldText: {
+      margin: 0,
+    },
+    field: {
+      width: 'calc(100% - 24px)',
+      margin: '16px 0 0 0',
+    },
+    fieldWrapper: {
+      display: 'flex',
+      alignItems: 'flex-end',
+    },
+    fieldInfo: {
+      display: 'flex',
+      alignItems: 'center',
+      height: '32px',
+      marginLeft: '12px',
+    },
+    copyButton: {
+      width: '32px',
+      height: '32px',
+      padding: '8px',
+    },
+    note: {
+      margin: '24px 0 0 0',
+      fontSize: '12px',
     },
   },
-  fieldText: {
-    margin: 0,
-  },
-  field: {
-    width: 'calc(100% - 24px)',
-    margin: '16px 0 0 0',
-  },
-  fieldWrapper: {
-    display: 'flex',
-    alignItems: 'flex-end',
-  },
-  fieldInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    height: '32px',
-    marginLeft: '12px',
-  },
-  copyButton: {
-    width: '32px',
-    height: '32px',
-    padding: '8px',
-  },
-  note: {
-    margin: '24px 0 0 0',
-    fontSize: '12px',
-  },
-})
+  { index: 1 },
+)
 
 export const ConnectionModal = observer((props: Props) => {
   const { isOpen, onClose, cloneId } = props

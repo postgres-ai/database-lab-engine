@@ -11,6 +11,7 @@ export type InstanceStateDto = {
   cloning: {
     clones: CloneDto[]
     expectedCloningTime: number
+    numClones?: number
   }
   status: {
     code: 'OK' | 'WARNING' | 'NO_RESPONSE'

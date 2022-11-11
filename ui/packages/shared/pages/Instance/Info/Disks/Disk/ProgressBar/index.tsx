@@ -11,40 +11,43 @@ type Props = {
   thresholdPercent: number
 }
 
-const useStyles = makeStyles((theme) => ({
-  '@keyframes grow': {
-    '0%': {
-      transform: 'scaleX(0)',
+const useStyles = makeStyles(
+  (theme) => ({
+    '@keyframes grow': {
+      '0%': {
+        transform: 'scaleX(0)',
+      },
+      '100%': {
+        transform: 'scaleX(1)',
+      },
     },
-    '100%': {
-      transform: 'scaleX(1)',
+    root: {
+      height: '12px',
+      position: 'relative',
+      borderRadius: '4px',
+      background: colors.gray,
+      overflow: 'hidden',
+      marginTop: '8px',
     },
-  },
-  root: {
-    height: '12px',
-    position: 'relative',
-    borderRadius: '4px',
-    background: colors.gray,
-    overflow: 'hidden',
-    marginTop: '8px',
-  },
-  indicator: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    height: '100%',
-    width: '30%',
-    background: colors.primary.light,
-    animation: `$grow 500ms ${theme.transitions.easing.easeOut}`,
-    transformOrigin: 0,
-  },
-  pointer: {
-    position: 'absolute',
-    height: '100%',
-    top: 0,
-    transform: 'translateX(-50%)',
-  },
-}))
+    indicator: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      height: '100%',
+      width: '30%',
+      background: colors.primary.light,
+      animation: `$grow 500ms ${theme.transitions.easing.easeOut}`,
+      transformOrigin: 0,
+    },
+    pointer: {
+      position: 'absolute',
+      height: '100%',
+      top: 0,
+      transform: 'translateX(-50%)',
+    },
+  }),
+  { index: 1 },
+)
 
 export const ProgressBar = (props: Props) => {
   const classes = useStyles()

@@ -1,4 +1,7 @@
-import { dbSource, TestSourceDTO } from 'types/api/entities/dbSource'
+import {
+  dbSource,
+  TestSourceDTO,
+} from '@postgres.ai/shared/types/api/entities/dbSource'
 
 export type TestDbSource = (values: dbSource) => Promise<{
   response: TestSourceDTO | null
