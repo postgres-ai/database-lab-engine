@@ -5,7 +5,7 @@ import {
   TableCell,
   TableBody,
 } from '@material-ui/core'
-import { ActivityType } from 'types/api/entities/instanceRetrieval'
+import { ActivityType } from '@postgres.ai/shared/types/api/entities/instanceRetrieval'
 
 import styles from './styles.module.scss'
 
@@ -20,7 +20,9 @@ export const RetrievalTable = ({
     <Table>
       <TableHead>
         <TableRow>
-          <TableCell className={styles.tableSubtitle}>Activity on the {activity}</TableCell>
+          <TableCell className={styles.tableSubtitle}>
+            Activity on the {activity}
+          </TableCell>
         </TableRow>
       </TableHead>
       <TableBody className={styles.tableBody}>

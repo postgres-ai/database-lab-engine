@@ -7,7 +7,7 @@ import { getInstance } from 'api/instances/getInstance'
 import { getSnapshots } from 'api/snapshots/getSnapshots'
 import { createClone } from 'api/clones/createClone'
 import { getClone } from 'api/clones/getClone'
-import ConsoleBreadcrumbs from 'components/ConsoleBreadcrumbs'
+import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
 
 type Params = {
   org: string
@@ -42,7 +42,7 @@ export const CreateClone = () => {
 
   const elements = {
     breadcrumbs: (
-      <ConsoleBreadcrumbs
+      <ConsoleBreadcrumbsWrapper
         hasDivider
         org={params.org}
         project={params.project}

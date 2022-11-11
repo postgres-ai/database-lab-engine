@@ -18,17 +18,20 @@ import { RefreshFailedAlert } from './RefreshFailedAlert'
 import { getTypeByStatus } from './utils'
 import { RetrievalModal } from './RetrievalModal'
 
-const useStyles = makeStyles(() => ({
-  infoIcon: {
-    height: '12px',
-    width: '12px',
-    marginLeft: '8px',
-    color: '#808080',
-  },
-  detailsButton: {
-    marginLeft: '8px',
-  },
-}))
+const useStyles = makeStyles(
+  () => ({
+    infoIcon: {
+      height: '12px',
+      width: '12px',
+      marginLeft: '8px',
+      color: '#808080',
+    },
+    detailsButton: {
+      marginLeft: '8px',
+    },
+  }),
+  { index: 1 },
+)
 
 export const Retrieval = observer(() => {
   const stores = useStores()

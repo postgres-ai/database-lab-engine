@@ -31,26 +31,29 @@ import { ModalReloadButton } from '@postgres.ai/shared/pages/Instance/components
 
 import { getTags } from './utils'
 
-const useStyles = makeStyles({
-  root: {
-    fontSize: '14px',
-    marginTop: 0,
+const useStyles = makeStyles(
+  {
+    root: {
+      fontSize: '14px',
+      marginTop: 0,
+    },
+    container: {
+      maxHeight: '400px',
+    },
+    cellContentCentered: {
+      display: 'flex',
+      alignItems: 'center',
+    },
+    sortIcon: {
+      marginLeft: '8px',
+      width: '10px',
+    },
+    emptyStub: {
+      marginTop: '16px',
+    },
   },
-  container: {
-    maxHeight: '400px',
-  },
-  cellContentCentered: {
-    display: 'flex',
-    alignItems: 'center',
-  },
-  sortIcon: {
-    marginLeft: '8px',
-    width: '10px',
-  },
-  emptyStub: {
-    marginTop: '16px',
-  }
-})
+  { index: 1 },
+)
 
 export const SnapshotsModal = observer(() => {
   const classes = useStyles()

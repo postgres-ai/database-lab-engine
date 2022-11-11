@@ -14,15 +14,18 @@ type Props = {
   onReload: () => void
 }
 
-const useStyles = makeStyles({
-  spinner: {
-    margin: '5px',
+const useStyles = makeStyles(
+  {
+    spinner: {
+      margin: '5px',
+    },
+    content: {
+      flex: '0 0 auto',
+      alignSelf: 'flex-start',
+    },
   },
-  content: {
-    flex: '0 0 auto',
-    alignSelf: 'flex-start',
-  },
-})
+  { index: 1 },
+)
 
 export const ModalReloadButton = (props: Props) => {
   const classes = useStyles()

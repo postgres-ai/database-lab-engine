@@ -1,4 +1,4 @@
-import { DatabaseType } from 'types/api/entities/config'
+import { DatabaseType } from '@postgres.ai/shared/types/api/entities/config'
 
 export const uniqueDatabases = (values: string) => {
   const splitDatabaseArray = values.split(/[,(\s)(\n)(\r)(\t)(\r\n)]/)

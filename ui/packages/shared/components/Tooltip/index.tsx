@@ -13,12 +13,15 @@ import {
 
 type Props = Omit<TooltipProps, 'title'> & { content: TooltipProps['title'] }
 
-const useStyles = makeStyles({
-  tooltip: {
-    fontSize: '10px',
-    padding: '4px 8px'
+const useStyles = makeStyles(
+  {
+    tooltip: {
+      fontSize: '10px',
+      padding: '4px 8px',
+    },
   },
-})
+  { index: 1 },
+)
 
 export const Tooltip = (props: Props) => {
   const {

@@ -25,37 +25,40 @@ import { Host, HostProvider, StoresProvider } from './context'
 
 import PropTypes from 'prop-types'
 import Typography from '@material-ui/core/Typography'
-import Box from '@material-ui/core/Box'
+import Box from '@mui/material/Box'
 
 import { useCreatedStores } from './useCreatedStores'
 
-import './styles.scss';
+import './styles.scss'
 
 type Props = Host
 
-const useStyles = makeStyles((theme) => ({
-  title: {
-    marginTop: '8px',
-  },
-  reloadButton: {
-    flex: '0 0 auto',
-    alignSelf: 'flex-start',
-  },
-  errorStub: {
-    marginTop: '16px',
-  },
-  content: {
-    display: 'flex',
-    marginTop: '16px',
-    position: 'relative',
-    flex: '1 1 100%',
-    height: "100%",
-
-    [theme.breakpoints.down('sm')]: {
-      flexDirection: 'column',
+const useStyles = makeStyles(
+  (theme) => ({
+    title: {
+      marginTop: '8px',
     },
-  },
-}))
+    reloadButton: {
+      flex: '0 0 auto',
+      alignSelf: 'flex-start',
+    },
+    errorStub: {
+      marginTop: '16px',
+    },
+    content: {
+      display: 'flex',
+      marginTop: '16px',
+      position: 'relative',
+      flex: '1 1 100%',
+      height: '100%',
+
+      [theme.breakpoints.down('sm')]: {
+        flexDirection: 'column',
+      },
+    },
+  }),
+  { index: 1 },
+)
 
 export const Instance = observer((props: Props) => {
   const classes = useStyles()
@@ -87,19 +90,19 @@ export const Instance = observer((props: Props) => {
     }
   }, [instance])
 
-  const [activeTab, setActiveTab] = React.useState(0);
+  const [activeTab, setActiveTab] = React.useState(0)
 
-  const switchTab = (_: React.ChangeEvent<{} | null>, tabID: number) => {
+  const switchTab = (_: React.ChangeEvent<{}> | null, tabID: number) => {
     const contentElement = document.getElementById('content-container')
-    setActiveTab(tabID);
+    setActiveTab(tabID)
     contentElement?.scroll(0, 0)
-  };
+  }
 
   return (
     <HostProvider value={props}>
       <StoresProvider value={stores}>
         <>
-          { props.elements.breadcrumbs }
+          {props.elements.breadcrumbs}
           <SectionTitle
             text={props.title}
             level={1}
@@ -116,10 +119,10 @@ export const Instance = observer((props: Props) => {
             }
           >
             <Tabs
-                value={activeTab}
-                handleChange={switchTab}
-                hasLogs={api.initWS != undefined}
-                hideInstanceTabs={props?.hideInstanceTabs}
+              value={activeTab}
+              handleChange={switchTab}
+              hasLogs={api.initWS != undefined}
+              hideInstanceTabs={props?.hideInstanceTabs}
             />
           </SectionTitle>
 
@@ -128,24 +131,25 @@ export const Instance = observer((props: Props) => {
           )}
 
           <TabPanel value={activeTab} index={0}>
-          {!instanceError && (
-            <div className={classes.content}>
-              {!instance || !instance?.state.retrieving?.status && <StubSpinner />}
+            {!instanceError && (
+              <div className={classes.content}>
+                {!instance ||
+                  (!instance?.state.retrieving?.status && <StubSpinner />)}
 
-              {instance ? (
-                <>
-                  <Clones />
-                  <Info />
-                </>
-              ) : (
-                <StubSpinner />
-              )}
-            </div>
-          )}
+                {instance ? (
+                  <>
+                    <Clones />
+                    <Info />
+                  </>
+                ) : (
+                  <StubSpinner />
+                )}
+              </div>
+            )}
 
-          <ClonesModal />
+            <ClonesModal />
 
-          <SnapshotsModal />
+            <SnapshotsModal />
           </TabPanel>
 
           <TabPanel value={activeTab} index={1}>
@@ -153,39 +157,42 @@ export const Instance = observer((props: Props) => {
           </TabPanel>
         </>
 
-          <TabPanel value={activeTab} index={2}>
-            <Configuration
-              switchActiveTab={(id: number) => setActiveTab(id)}
-              activeTab={activeTab}
-              reload={() => stores.main.load(props.instanceId)} />
-          </TabPanel>
+        <TabPanel value={activeTab} index={2}>
+          <Configuration
+            isConfigurationActive={isConfigurationActive}
+            disableConfigModification={instance?.state.engine.disableConfigModification}
+            switchActiveTab={switchTab}
+            activeTab={activeTab}
+            reload={() => stores.main.load(props.instanceId)}
+          />
+        </TabPanel>
       </StoresProvider>
     </HostProvider>
   )
 })
 
 function TabPanel(props: PropTypes.InferProps<any>) {
-  const { children, value, index, ...other } = props;
+  const { children, value, index, ...other } = props
 
   return (
-      <Typography
-          component="div"
-          role="tabpanel"
-          hidden={value !== index}
-          id={`scrollable-auto-tabpanel-${index}`}
-          aria-labelledby={`scrollable-auto-tab-${index}`}
-          style={{height: "100%"}}
-          {...other}
-      >
-        <Box p={3}sx={{ height: '100%' }}>
-          {children}
-        </Box>
-      </Typography>
-  );
+    <Typography
+      component="div"
+      role="tabpanel"
+      hidden={value !== index}
+      id={`scrollable-auto-tabpanel-${index}`}
+      aria-labelledby={`scrollable-auto-tab-${index}`}
+      style={{ height: '100%' }}
+      {...other}
+    >
+      <Box p={3} sx={{ height: '100%' }}>
+        {children}
+      </Box>
+    </Typography>
+  )
 }
 
 TabPanel.propTypes = {
   children: PropTypes.node,
   index: PropTypes.any.isRequired,
-  value: PropTypes.any.isRequired
-};
+  value: PropTypes.any.isRequired,
+}

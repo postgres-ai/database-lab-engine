@@ -8,7 +8,10 @@
 import React from 'react'
 import { makeStyles } from '@material-ui/core'
 
-import { Status, Props as StatusProps } from '@postgres.ai/shared/components/Status'
+import {
+  Status,
+  Props as StatusProps,
+} from '@postgres.ai/shared/components/Status'
 
 type Props = {
   children: React.ReactNode
@@ -16,16 +19,19 @@ type Props = {
   icon?: StatusProps['icon']
 }
 
-const useStyles = makeStyles({
-  root: {
-    fontWeight: 400,
-    marginTop: '2px',
-    fontSize: '10px',
+const useStyles = makeStyles(
+  {
+    root: {
+      fontWeight: 400,
+      marginTop: '2px',
+      fontSize: '10px',
+    },
+    icon: {
+      alignSelf: 'flex-start',
+    },
   },
-  icon: {
-    alignSelf: 'flex-start',
-  },
-})
+  { index: 1 },
+)
 
 export const ValueStatus = (props: Props) => {
   const { children, type, icon } = props

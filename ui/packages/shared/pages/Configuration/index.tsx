@@ -6,14 +6,14 @@
  */
 
 import {
-  Box,
   Checkbox,
   FormControlLabel,
   Typography,
   Snackbar,
 } from '@material-ui/core'
+import Box from '@mui/material/Box'
 import { useState, useEffect } from 'react'
-import { withStyles, makeStyles } from '@material-ui/core/styles'
+import { makeStyles } from '@material-ui/core'
 import { Modal } from '@postgres.ai/shared/components/Modal'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
 import { Button } from '@postgres.ai/shared/components/Button'
@@ -35,18 +35,18 @@ const NON_LOGICAL_RETRIEVAL_MESSAGE =
   'Configuration editing is only available in logical mode'
 const PREVENT_MODIFYING_MESSAGE = 'Editing is disabled by admin'
 
-export const GrayTextTypography = withStyles({
-  root: {
-    color: '#8a8a8a',
-    fontSize: '12px',
+const useStyles = makeStyles(
+  {
+    checkboxRoot: {
+      padding: '9px 10px',
+    },
+    grayText: {
+      color: '#8a8a8a',
+      fontSize: '12px',
+    },
   },
-})(Typography)
-
-const useStyles = makeStyles({
-  checkboxRoot: {
-    padding: '9px 10px',
-  },
-})
+  { index: 1 },
+)
 
 export const Configuration = observer(
   ({
@@ -219,10 +219,13 @@ export const Configuration = observer(
             </Box>
             <Box mb={2}>
               <ConfigSectionTitle tag="databaseContainer" />
-              <GrayTextTypography style={{ marginTop: '0.5rem' }}>
+              <span
+                className={classes.grayText}
+                style={{ marginTop: '0.5rem' }}
+              >
                 DLE manages various database containers, such as clones. This
                 section defines default container settings.
-              </GrayTextTypography>
+              </span>
               <InputWithTooltip
                 label="dockerImage"
                 value={formik.values.dockerImage}
@@ -236,10 +239,13 @@ export const Configuration = observer(
             </Box>
             <Box mb={3}>
               <ConfigSectionTitle tag="databaseConfigs" />
-              <GrayTextTypography style={{ marginTop: '0.5rem' }}>
+              <span
+                className={classes.grayText}
+                style={{ marginTop: '0.5rem' }}
+              >
                 Default Postgres configuration used for all Postgres instances
                 running in containers managed by DLE.
-              </GrayTextTypography>
+              </span>
               <InputWithTooltip
                 label="configs.shared_buffers"
                 value={formik.values.sharedBuffers}
@@ -265,9 +271,9 @@ export const Configuration = observer(
                 <Typography className={styles.subsection}>
                   Subsection "retrieval.spec.logicalDump"
                 </Typography>
-                <GrayTextTypography>
+                <span className={classes.grayText}>
                   Source database credentials and dumping options.
-                </GrayTextTypography>
+                </span>
                 <InputWithTooltip
                   label="source.connection.host"
                   value={formik.values.host}
@@ -367,7 +373,7 @@ export const Configuration = observer(
                 Subsection "retrieval.refresh"
               </Typography>
             </Box>
-            <GrayTextTypography>
+            <span className={classes.grayText}>
               Define full data refresh on schedule. The process requires at
               least one additional filesystem mount point. The schedule is to be
               specified using{' '}
@@ -380,7 +386,7 @@ export const Configuration = observer(
                 <ExternalIcon className={styles.externalIcon} />
               </a>
               .
-            </GrayTextTypography>
+            </span>
             <InputWithTooltip
               label="timetable"
               value={formik.values.timetable}

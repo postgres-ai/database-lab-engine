@@ -5,39 +5,45 @@
  *--------------------------------------------------------------------------
  */
 
-import { makeStyles } from '@material-ui/core';
+import { makeStyles } from '@material-ui/core'
 import clsx from 'clsx'
 
-import { Spinner, Props as SpinnerProps } from '@postgres.ai/shared/components/Spinner'
+import {
+  Spinner,
+  Props as SpinnerProps,
+} from '@postgres.ai/shared/components/Spinner'
 
-import { colors } from '@postgres.ai/shared/styles/colors';
+import { colors } from '@postgres.ai/shared/styles/colors'
 
 type Props = {
-  className?: string,
+  className?: string
   size?: SpinnerProps['size']
 }
 
-const useStyles = makeStyles({
-  root: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    height: '100%',
-    width: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: colors.white
-  }
-});
+const useStyles = makeStyles(
+  {
+    root: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      height: '100%',
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: colors.white,
+    },
+  },
+  { index: 1 },
+)
 
 export const StubSpinner = (props: Props) => {
   const { className, size = 'lg' } = props
-  const classes = useStyles();
+  const classes = useStyles()
 
   return (
     <div className={clsx(classes.root, className)}>
-      <Spinner size={size}/>
+      <Spinner size={size} />
     </div>
-  );
-};
+  )
+}

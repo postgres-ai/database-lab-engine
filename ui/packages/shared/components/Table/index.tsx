@@ -31,15 +31,18 @@ const cellStyles = {
 // Table.
 type TableProps = TableBaseProps
 
-const useTableStyles = makeStyles({
-  root: {
-    whiteSpace: 'nowrap',
+const useTableStyles = makeStyles(
+  {
+    root: {
+      whiteSpace: 'nowrap',
 
-    '& .MuiTableCell-root': {
-      lineHeight: 'normal',
+      '& .MuiTableCell-root': {
+        lineHeight: 'normal',
+      },
     },
   },
-})
+  { index: 1 },
+)
 
 const Table = (props: TableProps) => {
   const classes = useTableStyles()
@@ -51,14 +54,17 @@ const Table = (props: TableProps) => {
 // TableHeaderCell.
 type TableHeaderCellProps = TableCellBaseProps
 
-const useTableHeaderCellStyles = makeStyles({
-  root: {
-    ...cellStyles,
-    color: colors.pgaiDarkGray,
-    paddingTop: '12px',
-    paddingBottom: '12px',
+const useTableHeaderCellStyles = makeStyles(
+  {
+    root: {
+      ...cellStyles,
+      color: colors.pgaiDarkGray,
+      paddingTop: '12px',
+      paddingBottom: '12px',
+    },
   },
-})
+  { index: 1 },
+)
 
 const TableHeaderCell = (props: TableHeaderCellProps) => {
   const classes = useTableHeaderCellStyles()
@@ -71,14 +77,17 @@ const TableHeaderCell = (props: TableHeaderCellProps) => {
 // TableBodyCell.
 type TableBodyCellProps = TableCellBaseProps
 
-const useTableBodyCellStyles = makeStyles({
-  root: {
-    ...cellStyles,
-    fontSize: '12px',
-    paddingTop: '8px',
-    paddingBottom: '8px',
+const useTableBodyCellStyles = makeStyles(
+  {
+    root: {
+      ...cellStyles,
+      fontSize: '12px',
+      paddingTop: '8px',
+      paddingBottom: '8px',
+    },
   },
-})
+  { index: 1 },
+)
 
 const TableBodyCell = (props: TableBodyCellProps) => {
   const classes = useTableBodyCellStyles()
@@ -91,23 +100,31 @@ const TableBodyCell = (props: TableBodyCellProps) => {
 // TableBodyCellMenu.
 type TableBodyCellMenuProps = TableBodyCellProps & RowMenuProps
 
-const useTableBodyCellMenuStyles = makeStyles({
-  root: {
-    padding: 0,
+const useTableBodyCellMenuStyles = makeStyles(
+  {
+    root: {
+      padding: 0,
+    },
   },
-})
+  { index: 1 },
+)
 
 const TableBodyCellMenu = (props: TableBodyCellMenuProps) => {
   const classes = useTableBodyCellMenuStyles()
 
   const { isLoading, isDisabled, children, ...hiddenProps } = props
 
-  const handleClick: React.MouseEventHandler<HTMLTableDataCellElement> = e => e.stopPropagation()
+  const handleClick: React.MouseEventHandler<HTMLTableDataCellElement> = (e) =>
+    e.stopPropagation()
 
   return (
-    <TableBodyCell {...hiddenProps} className={classes.root} onClick={handleClick}>
+    <TableBodyCell
+      {...hiddenProps}
+      className={classes.root}
+      onClick={handleClick}
+    >
       <RowMenu {...hiddenProps} isLoading={isLoading} isDisabled={isDisabled} />
-      { children }
+      {children}
     </TableBodyCell>
   )
 }

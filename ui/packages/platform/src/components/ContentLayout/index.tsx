@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 /*--------------------------------------------------------------------------
  * Copyright (c) 2019-2021, Postgres.ai, Nikolay Samokhvalov nik@postgres.ai
  * All Rights Reserved. Proprietary and confidential.

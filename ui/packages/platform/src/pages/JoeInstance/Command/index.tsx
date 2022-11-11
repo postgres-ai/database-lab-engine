@@ -24,31 +24,34 @@ type Props = {
 
 const LABEL_FONT_SIZE = '18px'
 
-const useStyles = makeStyles({
-  root: {
-    display: 'flex',
-    alignItems: 'flex-end',
-    marginTop: '20px',
+const useStyles = makeStyles(
+  {
+    root: {
+      display: 'flex',
+      alignItems: 'flex-end',
+      marginTop: '20px',
+    },
+    field: {
+      margin: '0 8px 0 0',
+      flex: '1 1 100%',
+      fontSize: LABEL_FONT_SIZE,
+    },
+    fieldInput: {
+      fontSize: '14px',
+      lineHeight: 'normal',
+      height: 'auto',
+      padding: '12px',
+    },
+    fieldLabel: {
+      fontSize: LABEL_FONT_SIZE,
+    },
+    button: {
+      flex: '0 0 auto',
+      height: '40px',
+    },
   },
-  field: {
-    margin: '0 8px 0 0',
-    flex: '1 1 100%',
-    fontSize: LABEL_FONT_SIZE,
-  },
-  fieldInput: {
-    fontSize: '14px',
-    lineHeight: 'normal',
-    height: 'auto',
-    padding: '12px',
-  },
-  fieldLabel: {
-    fontSize: LABEL_FONT_SIZE,
-  },
-  button: {
-    flex: '0 0 auto',
-    height: '40px',
-  },
-})
+  { index: 1 },
+)
 
 export const Command = React.memo((props: Props) => {
   const { isDisabled, onSend } = props

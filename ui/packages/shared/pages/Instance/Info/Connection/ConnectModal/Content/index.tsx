@@ -18,43 +18,46 @@ import { useStores } from '@postgres.ai/shared/pages/Instance/context'
 
 import { getCliInitCommand, getSshPortForwardingCommand } from './utils'
 
-const useStyles = makeStyles({
-  root: {
-    fontSize: '14px',
-  },
-  list: {
-    listStyle: 'decimal inside none',
-    margin: 0,
-    padding: 0,
-  },
-  item: {
-    '& + $item': {
-      marginTop: '16px',
+const useStyles = makeStyles(
+  {
+    root: {
+      fontSize: '14px',
+    },
+    list: {
+      listStyle: 'decimal inside none',
+      margin: 0,
+      padding: 0,
+    },
+    item: {
+      '& + $item': {
+        marginTop: '16px',
+      },
+    },
+    textField: {
+      width: 'calc(100% - 24px)',
+      margin: '16px 0 0 0',
+    },
+    textFieldWrapper: {
+      display: 'flex',
+      alignItems: 'flex-end',
+    },
+    textFieldInfo: {
+      display: 'flex',
+      alignItems: 'center',
+      height: '32px',
+      marginLeft: '12px',
+    },
+    copyButton: {
+      width: '32px',
+      height: '32px',
+      padding: '8px',
+    },
+    note: {
+      margin: '24px 0 0 0',
     },
   },
-  textField: {
-    width: 'calc(100% - 24px)',
-    margin: '16px 0 0 0',
-  },
-  textFieldWrapper: {
-    display: 'flex',
-    alignItems: 'flex-end',
-  },
-  textFieldInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    height: '32px',
-    marginLeft: '12px',
-  },
-  copyButton: {
-    width: '32px',
-    height: '32px',
-    padding: '8px',
-  },
-  note: {
-    margin: '24px 0 0 0',
-  },
-})
+  { index: 1 },
+)
 
 export const Content = observer(() => {
   const classes = useStyles()
@@ -72,10 +75,12 @@ export const Content = observer(() => {
       <ol className={classes.list}>
         <li className={classes.item}>
           Generate a personal token on&nbsp;
-          <Link to={
-            // ROUTES.ORG.TOKENS.createPath({ org: context.org })
-            '/'
-            }>
+          <Link
+            to={
+              // ROUTES.ORG.TOKENS.createPath({ org: context.org })
+              '/'
+            }
+          >
             Access token page
           </Link>
           .
@@ -112,9 +117,7 @@ export const Content = observer(() => {
                 </>
               }
             >
-              <span className={classes.textFieldInfo}>
-                {icons.infoIcon}
-              </span>
+              <span className={classes.textFieldInfo}>{icons.infoIcon}</span>
             </Tooltip>
           </div>
         </li>

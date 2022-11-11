@@ -26,30 +26,33 @@ type Props = {
   }
 }
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    padding: '24px',
-    width: '100%',
+const useStyles = makeStyles(
+  (theme) => ({
+    root: {
+      padding: '24px',
+      width: '100%',
 
-    [theme.breakpoints.down('xs')]: {
-      padding: '20px',
-      margin: '20px',
-      maxHeight: 'calc(100% - 40px)',
+      [theme.breakpoints.down('xs')]: {
+        padding: '20px',
+        margin: '20px',
+        maxHeight: 'calc(100% - 40px)',
+      },
     },
-  },
-  closeButton: {
-    position: 'absolute',
-    right: '12px',
-    top: '12px',
-    color: colors.pgaiDarkGray,
-  },
-  titleContent: {
-    paddingRight: '36px'
-  },
-  content: {
-    marginTop: '16px',
-  },
-}))
+    closeButton: {
+      position: 'absolute',
+      right: '12px',
+      top: '12px',
+      color: colors.pgaiDarkGray,
+    },
+    titleContent: {
+      paddingRight: '36px',
+    },
+    content: {
+      marginTop: '16px',
+    },
+  }),
+  { index: 1 },
+)
 
 export const Modal = (props: Props) => {
   const {
@@ -80,9 +83,11 @@ export const Modal = (props: Props) => {
         rightContent={titleRightContent}
         contentClassName={classes.titleContent}
       >
-        { props.headerContent }
+        {props.headerContent}
       </SectionTitle>
-      <div className={clsx(classes.content, props.classes?.content)}>{children}</div>
+      <div className={clsx(classes.content, props.classes?.content)}>
+        {children}
+      </div>
     </Dialog>
   )
 }

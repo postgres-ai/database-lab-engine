@@ -42,113 +42,116 @@ import { Host } from './context'
 
 const textFieldWidth = 400
 
-const useStyles = makeStyles((theme) => ({
-  title: {
-    marginTop: '16px',
-  },
-  container: {
-    maxWidth: '425px',
-    marginTop: '16px',
-  },
-  text: {
-    marginTop: '4px',
-  },
-  errorStub: {
-    marginTop: '24px',
-  },
-  spinner: {
-    marginLeft: '8px',
-  },
-  summary: {
-    marginTop: 20,
-  },
-  paramTitle: {
-    display: 'inline-block',
-    width: 200,
-  },
-  readyStatus: {
-    color: 'green',
-  },
-  failedStatus: {
-    color: 'red',
-  },
-  startingStatus: {
-    color: 'orange',
-  },
-  fieldBlock: {
-    width: '100%',
-    maxWidth: textFieldWidth + 25,
-    position: 'relative',
-  },
-  saveButton: {
-    padding: 8,
-    marginLeft: 10,
-    marginBottom: -56,
-  },
-  actions: {
-    display: 'flex',
-    marginRight: '-16px',
-  },
-  actionButton: {
-    marginRight: '16px',
-  },
-  remark: {
-    fontSize: '12px',
-    lineHeight: '14px',
-    maxWidth: textFieldWidth,
-    display: 'inline-block',
-  },
-  textField: {
-    ...styles.inputField,
-    'max-width': textFieldWidth,
-    display: 'inline-block',
-    '& .MuiOutlinedInput-input': {
-      paddingRight: '32px!important',
+const useStyles = makeStyles(
+  (theme) => ({
+    title: {
+      marginTop: '16px',
     },
-  },
-  errorMessage: {
-    color: 'red',
-    marginBottom: 10,
-  },
-  textFieldInfo: {
-    position: 'absolute',
-    top: '25px',
-    marginLeft: '5px',
-    display: 'inline-block',
-    [theme.breakpoints.down('sm')]: {
-      display: 'none',
+    container: {
+      maxWidth: '425px',
+      marginTop: '16px',
     },
-  },
-  checkBoxInfo: {
-    'margin-top': '0px',
-    'margin-left': '3px',
-    display: 'inline-block',
-    '& svg': {
-      verticalAlign: 'middle',
+    text: {
+      marginTop: '4px',
     },
-  },
-  checkboxLabel: {
-    marginRight: '0px',
-  },
-  copyFieldContainer: {
-    position: 'relative',
-    display: 'inline-block',
-    maxWidth: textFieldWidth,
-    width: '100%',
-  },
-  copyButton: {
-    position: 'absolute',
-    top: 16,
-    right: 0,
-    zIndex: 100,
-    width: 32,
-    height: 32,
-    padding: 8,
-  },
-  status: {
-    maxWidth: `${textFieldWidth}px`,
-  },
-}))
+    errorStub: {
+      marginTop: '24px',
+    },
+    spinner: {
+      marginLeft: '8px',
+    },
+    summary: {
+      marginTop: 20,
+    },
+    paramTitle: {
+      display: 'inline-block',
+      width: 200,
+    },
+    readyStatus: {
+      color: 'green',
+    },
+    failedStatus: {
+      color: 'red',
+    },
+    startingStatus: {
+      color: 'orange',
+    },
+    fieldBlock: {
+      width: '100%',
+      maxWidth: textFieldWidth + 25,
+      position: 'relative',
+    },
+    saveButton: {
+      padding: 8,
+      marginLeft: 10,
+      marginBottom: -56,
+    },
+    actions: {
+      display: 'flex',
+      marginRight: '-16px',
+    },
+    actionButton: {
+      marginRight: '16px',
+    },
+    remark: {
+      fontSize: '12px',
+      lineHeight: '14px',
+      maxWidth: textFieldWidth,
+      display: 'inline-block',
+    },
+    textField: {
+      ...styles.inputField,
+      'max-width': textFieldWidth,
+      display: 'inline-block',
+      '& .MuiOutlinedInput-input': {
+        paddingRight: '32px!important',
+      },
+    },
+    errorMessage: {
+      color: 'red',
+      marginBottom: 10,
+    },
+    textFieldInfo: {
+      position: 'absolute',
+      top: '25px',
+      marginLeft: '5px',
+      display: 'inline-block',
+      [theme.breakpoints.down('sm')]: {
+        display: 'none',
+      },
+    },
+    checkBoxInfo: {
+      'margin-top': '0px',
+      'margin-left': '3px',
+      display: 'inline-block',
+      '& svg': {
+        verticalAlign: 'middle',
+      },
+    },
+    checkboxLabel: {
+      marginRight: '0px',
+    },
+    copyFieldContainer: {
+      position: 'relative',
+      display: 'inline-block',
+      maxWidth: textFieldWidth,
+      width: '100%',
+    },
+    copyButton: {
+      position: 'absolute',
+      top: 16,
+      right: 0,
+      zIndex: 100,
+      width: 32,
+      height: 32,
+      padding: 8,
+    },
+    status: {
+      maxWidth: `${textFieldWidth}px`,
+    },
+  }),
+  { index: 1 },
+)
 
 type Props = Host
 

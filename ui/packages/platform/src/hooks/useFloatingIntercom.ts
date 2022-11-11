@@ -4,11 +4,14 @@ import { makeStyles } from '@material-ui/core'
 
 import { createTransitionInteractive } from '@postgres.ai/shared/styles/vars'
 
-const useStyles = makeStyles({
-  intercom: {
-    transition: createTransitionInteractive('transform'),
+const useStyles = makeStyles(
+  {
+    intercom: {
+      transition: createTransitionInteractive('transform'),
+    },
   },
-})
+  { index: 1 },
+)
 
 const UPDATE_INTERVAL = 1000
 
@@ -89,6 +92,5 @@ export const useFloatingIntercom = (
     const shiftYDelta = getIntercomShiftYDelta(targetRect, intercomRect)
     const shiftY = currentShiftYRef.current + shiftYDelta
     setShiftY(shiftY)
-
   }, UPDATE_INTERVAL)
 }

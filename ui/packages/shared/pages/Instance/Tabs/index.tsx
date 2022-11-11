@@ -13,34 +13,37 @@ import {
 } from '@material-ui/core'
 import { colors } from '@postgres.ai/shared/styles/colors'
 
-const useStyles = makeStyles({
-  tabsRoot: {
-    minHeight: 0,
-    marginTop: '-8px',
-  },
-  tabsIndicator: {
-    height: '3px',
-  },
-  tabRoot: {
-    fontWeight: 400,
-    minWidth: 0,
-    minHeight: 0,
-    padding: '6px 16px',
-    borderBottom: `3px solid ${colors.consoleStroke}`,
-
-    '& + $tabRoot': {
-      marginLeft: '10px',
+const useStyles = makeStyles(
+  {
+    tabsRoot: {
+      minHeight: 0,
+      marginTop: '-8px',
     },
+    tabsIndicator: {
+      height: '3px',
+    },
+    tabRoot: {
+      fontWeight: 400,
+      minWidth: 0,
+      minHeight: 0,
+      padding: '6px 16px',
+      borderBottom: `3px solid ${colors.consoleStroke}`,
 
-    '&.Mui-disabled': {
-      opacity: 1,
-      color: colors.pgaiDarkGray,
+      '& + $tabRoot': {
+        marginLeft: '10px',
+      },
+
+      '&.Mui-disabled': {
+        opacity: 1,
+        color: colors.pgaiDarkGray,
+      },
+    },
+    tabHidden: {
+      display: 'none',
     },
   },
-  tabHidden: {
-    display: 'none',
-  },
-})
+  { index: 1 },
+)
 
 type Props = {
   value: number

@@ -35,20 +35,23 @@ export type TextFieldProps = {
   placeholder?: string
 }
 
-const useStyles = makeStyles({
-  root: {
-    fontSize: '14px',
+const useStyles = makeStyles(
+  {
+    root: {
+      fontSize: '14px',
+    },
+    selectIcon: {
+      fontSize: '24px',
+    },
+    inputRoot: {
+      padding: 0,
+    },
+    input: {
+      padding: '8px',
+    },
   },
-  selectIcon: {
-    fontSize: '24px',
-  },
-  inputRoot: {
-    padding: 0,
-  },
-  input: {
-    padding: '8px',
-  },
-})
+  { index: 1 },
+)
 
 export const TextField = (props: TextFieldProps) => {
   const classes = useStyles()
@@ -79,7 +82,7 @@ export const TextField = (props: TextFieldProps) => {
       }}
       SelectProps={{
         classes: {
-          icon: classes.selectIcon
+          icon: classes.selectIcon,
         },
       }}
       InputLabelProps={{
