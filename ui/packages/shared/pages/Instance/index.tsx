@@ -50,7 +50,7 @@ const useStyles = makeStyles(
       marginTop: '16px',
       position: 'relative',
       flex: '1 1 100%',
-      height: '100%',
+      height: "100%",
 
       [theme.breakpoints.down('sm')]: {
         flexDirection: 'column',
@@ -160,7 +160,9 @@ export const Instance = observer((props: Props) => {
         <TabPanel value={activeTab} index={2}>
           <Configuration
             isConfigurationActive={isConfigurationActive}
-            disableConfigModification={instance?.state.engine.disableConfigModification}
+            disableConfigModification={
+              instance?.state.engine.disableConfigModification
+            }
             switchActiveTab={switchTab}
             activeTab={activeTab}
             reload={() => stores.main.load(props.instanceId)}
@@ -181,7 +183,6 @@ function TabPanel(props: PropTypes.InferProps<any>) {
       hidden={value !== index}
       id={`scrollable-auto-tabpanel-${index}`}
       aria-labelledby={`scrollable-auto-tab-${index}`}
-      style={{ height: '100%' }}
       {...other}
     >
       <Box p={3} sx={{ height: '100%' }}>

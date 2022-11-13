@@ -24,7 +24,6 @@ import { useStores } from '@postgres.ai/shared/pages/Instance/context'
 import { FormValues, useForm } from './useForm'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import styles from './styles.module.scss'
-import { SimpleModalControls } from '@postgres.ai/shared/components/SimpleModalControls'
 import { ResponseMessage } from './ResponseMessage'
 import { uniqueDatabases } from './utils'
 import { ExternalIcon } from '@postgres.ai/shared/icons/External'
@@ -447,14 +446,6 @@ export const Configuration = observer(
             loading={<StubSpinner />}
             theme="vs-light"
             options={{ domReadOnly: true, readOnly: true }}
-          />
-          <SimpleModalControls
-            items={[
-              {
-                text: 'Close',
-                onClick: () => setIsOpen(false),
-              },
-            ]}
           />
         </Modal>
       </div>

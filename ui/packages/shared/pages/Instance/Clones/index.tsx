@@ -30,6 +30,7 @@ const useStyles = makeStyles(
       width: 0,
       flex: '1 1 100%',
       marginRight: '40px',
+      height: "100%",
 
       [theme.breakpoints.down('sm')]: {
         width: '100%',

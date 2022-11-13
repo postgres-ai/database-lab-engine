@@ -20,9 +20,9 @@ const useStyles = makeStyles(
 )
 
 export const Logs = ({ api }: { api: Api }) => {
-  useWsScroll()
   const classes = useStyles()
   const [isLoading, setIsLoading] = React.useState(true)
+  useWsScroll(isLoading)
 
   useEffect(() => {
     if (api.initWS != undefined) {
@@ -39,14 +39,10 @@ export const Logs = ({ api }: { api: Api }) => {
     }
 
     const callback = (mutationList: MutationRecord[]) => {
-      const isScrolling = !targetNode?.querySelector('.snackbar-tag')
       for (const mutation of mutationList) {
         if (mutation.type === 'childList') {
           setIsLoading(false)
         }
-      }
-      if (isScrolling) {
-        targetNode?.scrollIntoView(false)
       }
     }
 

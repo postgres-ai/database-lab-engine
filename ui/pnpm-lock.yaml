@@ -318,6 +318,7 @@ importers:
       mobx: ^6.3.5
       mobx-react-lite: ^3.2.1
       moment: ^2.24.0
+      prop-types: ^15.7.2
       react: ^17.0.2
       react-countdown-hook: ^1.1.0
       react-scripts: ^5.0.0
@@ -353,6 +354,7 @@ importers:
       mobx: 6.3.5
       mobx-react-lite: 3.2.1_q4lbzywu4qsgtdbruoec55bs5y
       moment: 2.29.1
+      prop-types: 15.8.1
       react: 17.0.2
       react-countdown-hook: 1.1.0_react@17.0.2
       react-scripts: 5.0.1_tizddwkfj74kbuyzvndsbd4uti
