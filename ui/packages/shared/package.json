@@ -30,6 +30,7 @@
     "mobx": "^6.3.5",
     "mobx-react-lite": "^3.2.1",
     "moment": "^2.24.0",
+    "prop-types": "^15.7.2",
     "react": "^17.0.2",
     "react-countdown-hook": "^1.1.0",
     "react-scripts": "^5.0.0",

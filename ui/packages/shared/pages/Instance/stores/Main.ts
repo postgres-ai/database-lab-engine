@@ -197,7 +197,9 @@ export class MainStore {
     }
 
     if (error)
-      this.getFullConfigError = await error.json().then((err) => err.message)
+      this.getFullConfigError = await error
+        .json()
+        .then((err: Error) => err.message)
 
     return response
   }
