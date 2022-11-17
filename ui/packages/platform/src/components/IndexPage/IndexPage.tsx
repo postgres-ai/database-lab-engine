@@ -771,7 +771,7 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
       />
       <Route
         path="/:org/explain"
-        render={(props) => <ExplainVisualizationWrapper />}
+        render={() => <ExplainVisualizationWrapper />}
       />
       <Route
         path="/:org/sessions"
@@ -1177,13 +1177,7 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
           <Route
             path="/:org"
             render={(props) => (
-              <OrganizationMenu
-                {...props}
-                raw={this.props.raw}
-                auth={this.props.auth}
-                classes={classes}
-                env={env}
-              />
+              <OrganizationMenu {...props} classes={classes} env={env} />
             )}
           />
         </Switch>
@@ -1268,42 +1262,18 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
                 path={ROUTES.ROOT.path}
                 exact
                 render={(props) => (
-                  <DashboardWrapper
-                    onlyProjects={false}
-                    {...props}
-                    org={this.props.org}
-                    orgId={this.props.orgId}
-                    orgPermissions={{
-                      dblabInstanceCreate:
-                        this.props.orgPermissions?.dblabInstanceCreate,
-                      checkupReportConfigure:
-                        this.props.orgPermissions?.checkupReportConfigure,
-                    }}
-                  />
+                  <DashboardWrapper onlyProjects={false} {...props} />
                 )}
               />
               <Route
                 path={ROUTES.CREATE_ORG.path}
-                render={(props) => (
-                  <OrgFormWrapper
-                    project={this.props.match?.params.project}
-                    mode={this.props.match?.params.mode}
-                    org={this.props.org}
-                    orgId={this.props.orgId}
-                    orgPermissions={{
-                      settingsOrganizationUpdate:
-                        this.props.orgPermissions?.settingsOrganizationUpdate,
-                    }}
-                    {...props}
-                  />
-                )}
+                render={(props) => <OrgFormWrapper mode={'new'} {...props} />}
               />
               <Route
                 path="/:org"
                 render={(props) => (
                   <OrganizationWrapper
                     {...props}
-                    raw={this.props.raw}
                     env={env}
                     auth={auth}
                     classes={classes}

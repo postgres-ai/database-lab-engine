@@ -38,16 +38,10 @@ import ConsolePageTitle from '../ConsolePageTitle'
 import { WarningWrapper } from 'components/Warning/WarningWrapper'
 import { messages } from '../../assets/messages'
 import { formatAlias } from 'utils/aliases'
+import { OrgFormProps } from 'components/OrgForm/OrgFormWrapper'
 
-interface OrgFormProps {
+interface OrgFormWithStylesProps extends OrgFormProps {
   classes: ClassesType
-  mode?: string | undefined
-  project: string | undefined
-  org: string | number
-  orgId: number
-  orgPermissions: {
-    settingsOrganizationUpdate?: boolean
-  }
 }
 
 interface DomainsType {
@@ -101,7 +95,7 @@ interface OrgFormState {
   } | null
 }
 
-class OrgForm extends Component<OrgFormProps, OrgFormState> {
+class OrgForm extends Component<OrgFormWithStylesProps, OrgFormState> {
   state = {
     id: null,
     name: '',

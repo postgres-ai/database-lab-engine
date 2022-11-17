@@ -13,7 +13,7 @@ export interface ReportFileProps extends RouteComponentProps<MatchParams> {
   projectId: string | number | undefined
   reportId: string
   fileType: string
-  raw: boolean
+  raw?: boolean
 }
 
 export const ReportFileWrapper = (props: ReportFileProps) => {

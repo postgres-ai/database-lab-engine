@@ -4,12 +4,12 @@ import { RouteComponentProps } from 'react-router'
 import Dashboard from 'components/Dashboard/Dashboard'
 
 export interface DashboardProps {
-  org: string | number
-  orgId: number
+  org?: string | number
+  orgId?: number
   onlyProjects: boolean
   history: RouteComponentProps['history']
   project?: string | undefined
-  orgPermissions: {
+  orgPermissions?: {
     dblabInstanceCreate?: boolean
     checkupReportConfigure?: boolean
   }
