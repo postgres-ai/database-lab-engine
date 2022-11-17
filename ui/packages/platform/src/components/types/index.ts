@@ -56,7 +56,7 @@ export interface ProjectWrapperProps {
       project: string
     }
   }
-  raw: boolean
+  raw?: boolean
   org: string | number
   orgId: number
   userIsOwner: boolean
@@ -105,11 +105,10 @@ export interface OrganizationWrapperProps {
     userId: number
     token: string
   } | null
-  raw: boolean
+  raw?: boolean
 }
 
 export interface OrganizationMenuProps {
-  raw: boolean
   classes: { [classes: string]: string }
   location: RouteComponentProps['location']
   match: {
@@ -117,11 +116,6 @@ export interface OrganizationMenuProps {
       org: string
     }
   }
-  auth: {
-    isProcessed: boolean
-    userId: number
-    token: string
-  } | null
   env: {
     data: {
       orgs?: Orgs

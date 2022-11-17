@@ -214,12 +214,13 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
   }
 
   renderProjects() {
-    const { classes, org } = this.props
+    const { classes } = this.props
+    const org = this.props.org as string | number
+    const orgId = this.props.orgId
     const projectsData =
       this.state && this.state.data && this.state.data.projects
         ? this.state.data.projects
         : null
-    const orgId = this.props.orgId
 
     const breadcrumbs = (
       <ConsoleBreadcrumbsWrapper
@@ -260,8 +261,8 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
 
     const projects = projectsData.data
 
-    const dblabPermitted = this.props.orgPermissions.dblabInstanceCreate
-    const checkupPermitted = this.props.orgPermissions.checkupReportConfigure
+    const dblabPermitted = this.props.orgPermissions?.dblabInstanceCreate
+    const checkupPermitted = this.props.orgPermissions?.checkupReportConfigure
 
     const addDblabInstanceButton = (
       <ConsoleButtonWrapper

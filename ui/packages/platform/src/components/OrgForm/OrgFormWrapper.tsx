@@ -2,12 +2,12 @@ import { makeStyles } from '@material-ui/core'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import OrgForm from 'components/OrgForm/OrgForm'
 
-interface OrgFormProps {
+export interface OrgFormProps {
   mode?: string | undefined
-  project: string | undefined
-  org: string | number
-  orgId: number
-  orgPermissions: {
+  project?: string | undefined
+  org?: string | number
+  orgId?: number
+  orgPermissions?: {
     settingsOrganizationUpdate?: boolean
   }
 }
