@@ -321,13 +321,6 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
     this.unsubscribe()
   }
 
-  componentDidUpdate(prevProps: JoeHistoryProps) {
-    if (JSON.stringify(prevProps) !== JSON.stringify(this.props)) {
-      let filter = this.buildFilter()
-      filter && this.applyFilter(filter, false)
-    }
-  }
-
   onCommandClick(
     _: MouseEvent<HTMLTableRowElement, globalThis.MouseEvent>,
     project: string,
@@ -372,7 +365,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
     return queryParams
   }
 
-  applyFilter(value?: string, changeUrl?: boolean) {
+  applyFilter(value?: string, changeUrl = true) {
     const { orgId } = this.props
     let filterValue =
       typeof value !== 'undefined' ? value : this.state.searchFilter
@@ -402,7 +395,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
         }
       }
     } else {
-      queryParams = this.getQueryParams(filterValue as string)
+      queryParams = this.getQueryParams(filterValue)
     }
 
     let search = filterValue
@@ -424,7 +417,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
       }
     }
 
-    queryParams.search = search?.trim() as string
+    queryParams.search = search?.trim()
 
     Object.keys(queryParams).forEach(
       (key) =>
@@ -498,7 +491,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
       return userName
     }
 
-    return this.state.data?.userProfile?.data.info.email as string
+    return String(this.state.data?.userProfile?.data.info.email)
   }
 
   getSessionId(command: CommandDataProps) {
@@ -597,7 +590,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
     const isFilterAvailable =
       (commandStore &&
         commandStore.isHistoryExists &&
-        commandStore.isHistoryExists[orgId as number]) ||
+        commandStore.isHistoryExists[orgId]) ||
       commands.length > 0 ||
       (commands.length === 0 &&
         (this.state.searchFilter ? this.state.searchFilter : '') !== '')
@@ -836,7 +829,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
                                   title={
                                     format.formatTimestampUtc(
                                       c['created_at'],
-                                    ) as string
+                                    ) ?? ''
                                   }
                                   classes={{ tooltip: classes.toolTip }}
                                 >
@@ -986,7 +979,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
               inline
               title={
                 this.state.searchFilter === ''
-                  ? 'There is no Joe Bot history yet'
+                  ? 'No bot – no history (yet)'
                   : 'No commands matching the filters.'
               }
               actions={
@@ -1018,9 +1011,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
                             disabled={commandStore && commandStore.isProcessing}
                             onClick={() => this.addInstance()}
                           >
-                            <span className={classes.whiteSpace}>
-                              Add instance
-                            </span>
+                            <span className={classes.whiteSpace}>Add Joe</span>
                           </Button>
                         ),
                       },
@@ -1030,9 +1021,12 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
             >
               {this.state.searchFilter === '' ? (
                 <p>
-                  Joe Bot is a virtual DBA for SQL Optimization. Joe helps
-                  engineers quickly troubleshoot and optimize SQL. Joe runs on
-                  top of the Database Lab Engine. (
+                  Joe Bot is a virtual DBA helping engineers analyze and
+                  optimize PostgreSQL queries. It provides a convenient,
+                  chat-like interface to full-size Postgres clones that are
+                  provisioned and seconds, behaves as production (same execution
+                  plans, same data volumes), writable and isolated for safe
+                  "what if" experiments to check various optimization ideas (
                   <Link to="https://postgres.ai/docs/joe" target="_blank">
                     Learn more
                   </Link>
