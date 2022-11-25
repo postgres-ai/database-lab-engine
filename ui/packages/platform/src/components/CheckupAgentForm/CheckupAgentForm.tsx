@@ -103,6 +103,54 @@ class CheckupAgentForm extends Component<
   CheckupAgentFormWithStylesProps,
   CheckupAgentFormState
 > {
+  state = {
+    data: {
+      auth: {
+        token: '',
+      },
+      tokenRequest: {
+        isProcessing: false,
+        isProcessed: false,
+        data: {
+          name: '',
+          is_personal: false,
+          expires_at: '',
+          token: '',
+        },
+        errorMessage: '',
+        error: false,
+      },
+      reports: {
+        error: false,
+        isProcessed: false,
+        isProcessing: false,
+      },
+      projects: {
+        error: false,
+        isProcessing: false,
+        isProcessed: false,
+      },
+    },
+    hosts: '',
+    projectName: '',
+    databaseName: '',
+    databaseUserName: '',
+    ssDatabaseName: '',
+    port: null,
+    sshPort: null,
+    pgPort: null,
+    statementTimeout: null,
+    pgSocketDir: '',
+    psqlBinary: '',
+    collectPeriod: 600,
+    newHostName: '',
+    apiToken: '',
+    sshKeysPath: '',
+    password: '',
+    connectionType: '',
+    tab: 0,
+  }
+
   unsubscribe: () => void
   componentDidMount() {
     const that = this
@@ -605,7 +653,7 @@ class CheckupAgentForm extends Component<
                         collectPeriod: e.target.value,
                       })
                     }}
-                    value={this.state.collectPeriod || 600}
+                    value={this.state.collectPeriod}
                     helperText={
                       'The delay between collection of two ' +
                       'statistics snapshots, sec'
@@ -864,7 +912,7 @@ class CheckupAgentForm extends Component<
           <h2>3. Deploy using Docker or building from source</h2>
 
           <Tabs
-            value={this.state?.tab || 0}
+            value={this.state?.tab}
             onChange={this.handleChangeTab}
             aria-label="simple tabs example"
           >
@@ -920,7 +968,7 @@ class CheckupAgentForm extends Component<
             </div>
           </TabPanel>
 
-          <TabPanel value={this.state?.tab || 0} index={0}>
+          <TabPanel value={this.state?.tab} index={0}>
             <Typography>
               <strong>Requirements: </strong> Docker
               <br />

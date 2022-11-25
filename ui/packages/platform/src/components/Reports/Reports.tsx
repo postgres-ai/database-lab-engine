@@ -50,8 +50,8 @@ interface ReportsWithStylesProps extends ReportsProps {
 interface ReportsType {
   error: boolean
   errorMessage: string
-  errorCode: number
-  orgId: number
+  errorCode: number | null
+  orgId: number | null
   projectId: string | number | undefined
   isDeleting: boolean
   isProcessing: boolean
@@ -83,8 +83,38 @@ interface ReportsState {
 }
 
 class Reports extends Component<ReportsWithStylesProps, ReportsState> {
+  state = {
+    data: {
+      auth: {
+        token: '',
+      },
+      userProfile: {
+        data: {
+          orgs: {},
+        },
+      },
+      reports: {
+        error: false,
+        errorMessage: '',
+        errorCode: null,
+        orgId: null,
+        projectId: undefined,
+        isDeleting: false,
+        isProcessing: false,
+        data: [],
+      },
+      projects: {
+        error: false,
+        isProcessing: false,
+        isProcessed: false,
+        data: [],
+      },
+    },
+    selectedRows: {},
+  }
+
   onSelectRow(event: React.ChangeEvent<HTMLInputElement>, rowId: number) {
-    let selectedRows = this.state.selectedRows
+    let selectedRows: ReportsState['selectedRows'] = this.state.selectedRows
 
     if (selectedRows[rowId] && !event.target.checked) {
       delete selectedRows[rowId]
@@ -312,7 +342,7 @@ class Reports extends Component<ReportsWithStylesProps, ReportsState> {
           >
             <MenuItem value={0}>All</MenuItem>
 
-            {projects.data.map((p) => {
+            {projects.data.map((p: { id: number; name: string }) => {
               return (
                 <MenuItem value={p.id} key={p.id}>
                   {p.name}
@@ -459,43 +489,62 @@ class Reports extends Component<ReportsWithStylesProps, ReportsState> {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data.data.map((r) => {
-                  return (
-                    <TableRow
-                      hover
-                      className={classes.row}
-                      key={r.id}
-                      onClick={(event) =>
-                        this.handleClick(event, r.id, r.project_id)
-                      }
-                      style={{ cursor: 'pointer' }}
-                    >
-                      {this.props.orgPermissions?.checkupReportDelete ? (
-                        <TableCell className={classes.checkboxTableCell}>
-                          <Checkbox
-                            checked={!!this.state.selectedRows[r.id]}
-                            onChange={(event) => this.onSelectRow(event, r.id)}
-                            onClick={(event) => this.onCheckBoxClick(event)}
-                          />
+                {data.data.map(
+                  (r: {
+                    id: number
+                    project_id: string
+                    created_formatted: string
+                    project_name: string
+                    epoch: string
+                  }) => {
+                    return (
+                      <TableRow
+                        hover
+                        className={classes.row}
+                        key={r.id}
+                        onClick={(event) =>
+                          this.handleClick(event, r.id, r.project_id)
+                        }
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {this.props.orgPermissions?.checkupReportDelete ? (
+                          <TableCell className={classes.checkboxTableCell}>
+                            <Checkbox
+                              checked={
+                                !!(
+                                  this.state
+                                    .selectedRows as ReportsState['selectedRows']
+                                )[r.id]
+                              }
+                              onChange={(event) =>
+                                this.onSelectRow(event, r.id)
+                              }
+                              onClick={(event) => this.onCheckBoxClick(event)}
+                            />
+                          </TableCell>
+                        ) : null}
+                        <TableCell className={classes.cell}>
+                          <NavLink
+                            to={
+                              this.getReportLink(r.id, r.project_id) as string
+                            }
+                          >
+                            {r.id}
+                          </NavLink>
                         </TableCell>
-                      ) : null}
-                      <TableCell className={classes.cell}>
-                        <NavLink
-                          to={this.getReportLink(r.id, r.project_id) as string}
-                        >
-                          {r.id}
-                        </NavLink>
-                      </TableCell>
-                      <TableCell className={classes.cell}>
-                        {r.project_name}
-                      </TableCell>
-                      <TableCell className={classes.cell}>
-                        {r.created_formatted}
-                      </TableCell>
-                      <TableCell className={classes.cell}>{r.epoch}</TableCell>
-                    </TableRow>
-                  )
-                })}
+                        <TableCell className={classes.cell}>
+                          {r.project_name}
+                        </TableCell>
+                        <TableCell className={classes.cell}>
+                          {r.created_formatted}
+                        </TableCell>
+                        <TableCell className={classes.cell}>
+                          {r.epoch}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  },
+                )}
               </TableBody>
             </Table>
           </HorizontalScrollContainer>
