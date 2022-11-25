@@ -587,7 +587,8 @@ func (r *Retrieval) FullRefresh(ctx context.Context) error {
 		}
 		r.State.addAlert(alert)
 		r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
-		log.Msg(alert.Message)
+		log.Msg(alert.Message + ". Hint: Check that there is at least one pool that does not have clones running. " +
+			"Refresh can be performed only to a pool without clones.")
 
 		return nil
 	}
