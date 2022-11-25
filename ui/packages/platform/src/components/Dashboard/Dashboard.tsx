@@ -415,8 +415,8 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
                     a: (props) => {
                       const { href, target, children } = props
                       return (
-                        <Link to={href as string} target={target}>
-                          {children as string}
+                        <Link to={String(href)} target={target}>
+                          {String(children)}
                         </Link>
                       )
                     },
@@ -438,8 +438,8 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
                     a: (props) => {
                       const { href, target, children } = props
                       return (
-                        <Link to={href as string} target={target}>
-                          {children as string}
+                        <Link to={String(href)} target={target}>
+                          {String(children)}
                         </Link>
                       )
                     },

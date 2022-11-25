@@ -164,7 +164,7 @@ class FlameGraph extends Component<FlameGraphProps, FlameGraphState> {
     let explainJson
 
     try {
-      explainJson = JSON.parse(this.props.data as string)
+      explainJson = JSON.parse(String(this.props.data))
     } catch (err) {
       this.setNoData(prevState as FlameGraphState, true)
       return
