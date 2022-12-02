@@ -89,7 +89,7 @@ func CheckSource(ctx context.Context, conf *models.ConnectionTest, imageContent 
 		tcResponse = &models.TestConnection{
 			Status: models.TCStatusNotice,
 			Result: models.TCResultUnverifiedDB,
-			Message: "Too many databases are supposed to be checked. Only the following databases have been verified: " +
+			Message: "Too many databases were requested to be checked. Only the following databases have been verified: " +
 				strings.Join(dbList, ", "),
 		}
 	}
@@ -263,7 +263,8 @@ func buildExtensionsWarningMessage(dbName string, missingExtensions, unsupported
 	sb := &strings.Builder{}
 
 	if len(missingExtensions) > 0 {
-		sb.WriteString("There are missing extensions in the \"" + dbName + "\" database:")
+		sb.WriteString("The image specified in section \"databaseContainer\" lacks the following " +
+			"extensions used in the source database (\"" + dbName + "\"):")
 
 		formatExtensionList(sb, missingExtensions)
 
@@ -271,7 +272,8 @@ func buildExtensionsWarningMessage(dbName string, missingExtensions, unsupported
 	}
 
 	if len(unsupportedVersions) > 0 {
-		sb.WriteString("There are extensions with an unsupported version in the \"" + dbName + "\" database:")
+		sb.WriteString("The source database (\"" + dbName + "\") uses extensions that are present " +
+			"in image specified in section \"databaseContainer\" but their versions are not supported by the image:")
 
 		formatExtensionList(sb, unsupportedVersions)
 	}
@@ -336,7 +338,8 @@ func buildLocalesWarningMessage(dbName string, missingLocales []locale) string {
 	sb := &strings.Builder{}
 
 	if length := len(missingLocales); length > 0 {
-		sb.WriteString("There are missing locales in the \"" + dbName + "\" database:")
+		sb.WriteString("The image specified in section \"databaseContainer\" lacks the following " +
+			"locales used in the source database (\"" + dbName + "\"):")
 
 		for i, missing := range missingLocales {
 			sb.WriteString(fmt.Sprintf(" '%s' (collate: %s, ctype: %s)", missing.name, missing.collate, missing.ctype))
