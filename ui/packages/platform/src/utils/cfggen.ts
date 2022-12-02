@@ -135,9 +135,10 @@ EOF
     if (data.password === 'inputpassword') {
       result =
         result +
-        `echo -e "\\n\\nEnter the password for DB user "${data.databaseUserName}": " \\
+        `echo -e "\\n\\nIMPORTANT: First, ensure you did 'docker login' for gitlab.registry.com, then proceed.\\n\\n" \\
+        echo -e "\\n\\nEnter the password for DB user "${data.databaseUserName}": " \\
 && read -s -p "" DB_PWD \\
-&& PGPASSWORD="$\{DB_PWD} \\
+&& PGPASSWORD="$\{DB_PWD}" \\
 && `
     }
 
@@ -157,12 +158,11 @@ EOF
     result =
       result +
       `
-  -e CHECKUP_CONFIG_PATH="./${data.projectName}.yml" \\
+  -e CHECKUP_CONFIG_PATH="/${data.projectName}.yml" \\
   -e ${hostsType}="${hosts}" \\
   -e CHECKUP_SNAPSHOT_DISTANCE_SECONDS=${data.collectPeriod} \\
   -e PGPASSWORD="$\{DB_PWD}" \\
-  registry.gitlab.com/postgres-ai/postgres-checkup:latest \\
-  bash run_checkup.sh
+  registry.gitlab.com/postgres-ai/postgres-checkup:latest bash run_checkup.sh
 `
 
     return result
