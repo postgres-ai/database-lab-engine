@@ -1,18 +1,30 @@
-import { TextField, Chip } from '@material-ui/core'
+import classNames from 'classnames'
 import Box from '@mui/material/Box'
-import { makeStyles } from '@material-ui/core'
+import { TextField, Chip, makeStyles } from '@material-ui/core'
+
+import { Select } from '@postgres.ai/shared/components/Select'
 import { InfoIcon } from '@postgres.ai/shared/icons/Info'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
+
 import { uniqueDatabases } from '../utils'
 
 import styles from '../styles.module.scss'
-import classNames from 'classnames'
 
 const useStyles = makeStyles(
   {
     textField: {
       '& .MuiOutlinedInput-notchedOutline': {
         borderColor: '#000 !important',
+      },
+    },
+    selectField: {
+      marginTop: '0',
+      '& .MuiInputBase-root': {
+        padding: '6px',
+      },
+
+      '& .MuiSelect-select:focus': {
+        backgroundColor: 'inherit',
       },
     },
   },
@@ -67,7 +79,10 @@ export const InputWithChip = ({
   value: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   tooltipText: () => React.ReactNode
-  handleDeleteDatabase: (event: any, database: string) => void
+  handleDeleteDatabase: (
+    event: React.FormEvent<HTMLInputElement>,
+    database: string,
+  ) => void
   label: string
   id: string
   disabled: boolean | undefined
@@ -119,6 +134,49 @@ export const InputWithChip = ({
               }
             })}
       </div>
+    </Box>
+  )
+}
+
+export const SelectWithTooltip = ({
+  value,
+  label,
+  error,
+  onChange,
+  tooltipText,
+  disabled,
+  items,
+}: {
+  value: string
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  tooltipText: () => React.ReactNode
+  label: string
+  error?: boolean
+  disabled: boolean | undefined
+  items: { value: string; children: React.ReactNode }[]
+}) => {
+  const classes = useStyles()
+
+  return (
+    <Box mt={2} mb={2}>
+      <Box mb={1} display="flex" alignItems="center">
+        <Select
+          className={classNames(
+            classes.selectField,
+            !disabled && classes.textField,
+            styles.textField,
+          )}
+          label={label}
+          error={error}
+          value={value}
+          disabled={disabled}
+          onChange={onChange}
+          items={items}
+        />
+        <Tooltip interactive content={<p>{tooltipText()}</p>}>
+          <InfoIcon className={styles.infoIcon} />
+        </Tooltip>
+      </Box>
     </Box>
   )
 }

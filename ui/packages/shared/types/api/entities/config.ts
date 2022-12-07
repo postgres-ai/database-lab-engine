@@ -1,3 +1,5 @@
+import { getImageType } from "@postgres.ai/shared/pages/Configuration/utils"
+
 export interface DatabaseType {
   [name: string]: string | Object
 }
@@ -60,6 +62,7 @@ export const formatConfig = (config: configTypes) => {
   return {
     debug: config.global?.debug,
     dockerImage: config.databaseContainer?.dockerImage,
+    ...config.databaseContainer?.dockerImage && {dockerImageType: getImageType(config.databaseContainer?.dockerImage)},
     sharedBuffers: config.databaseConfigs?.configs?.shared_buffers,
     sharedPreloadLibraries:
       config.databaseConfigs?.configs?.shared_preload_libraries,

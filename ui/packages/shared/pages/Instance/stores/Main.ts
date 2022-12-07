@@ -24,6 +24,7 @@ import { dbSource } from '@postgres.ai/shared/types/api/entities/dbSource'
 import { GetFullConfig } from '@postgres.ai/shared/types/api/endpoints/getFullConfig'
 import { GetInstanceRetrieval } from '@postgres.ai/shared/types/api/endpoints/getInstanceRetrieval'
 import { InstanceRetrievalType } from '@postgres.ai/shared/types/api/entities/instanceRetrieval'
+import { GetEngine } from '@postgres.ai/shared/types/api/endpoints/getEngine'
 
 const POLLING_TIME = 2000
 
@@ -41,6 +42,7 @@ export type Api = {
   updateConfig?: UpdateConfig
   testDbSource?: TestDbSource
   getFullConfig?: GetFullConfig
+  getEngine?: GetEngine
   getInstanceRetrieval?: GetInstanceRetrieval
 }
 
@@ -169,6 +171,8 @@ export class MainStore {
 
     if (response) {
       this.config = response
+      this.configError = null
+      this.dbSourceError = null
     }
 
     if (error) {
@@ -201,6 +205,15 @@ export class MainStore {
         .json()
         .then((err: Error) => err.message)
 
+    return response
+  }
+
+  getEngine = async () => {
+    if (!this.api.getEngine) return
+
+    const { response, error } = await this.api.getEngine()
+
+    if (error) await getTextFromUnknownApiError(error)
     return response
   }
 
