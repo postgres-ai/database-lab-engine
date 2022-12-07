@@ -5,30 +5,39 @@
  *--------------------------------------------------------------------------
  */
 
+import { useState, useEffect } from 'react'
+import { observer } from 'mobx-react-lite'
+import Editor from '@monaco-editor/react'
 import {
   Checkbox,
   FormControlLabel,
   Typography,
   Snackbar,
+  makeStyles,
 } from '@material-ui/core'
 import Box from '@mui/material/Box'
-import { useState, useEffect } from 'react'
-import { makeStyles } from '@material-ui/core'
+
 import { Modal } from '@postgres.ai/shared/components/Modal'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
 import { Button } from '@postgres.ai/shared/components/Button'
-import { ConfigSectionTitle, Header, ModalTitle } from './Header'
-import { observer } from 'mobx-react-lite'
-import Editor from '@monaco-editor/react'
-import { useStores } from '@postgres.ai/shared/pages/Instance/context'
-import { FormValues, useForm } from './useForm'
-import { Spinner } from '@postgres.ai/shared/components/Spinner'
-import styles from './styles.module.scss'
-import { ResponseMessage } from './ResponseMessage'
-import { uniqueDatabases } from './utils'
 import { ExternalIcon } from '@postgres.ai/shared/icons/External'
-import { InputWithChip, InputWithTooltip } from './InputWithTooltip'
+import { Spinner } from '@postgres.ai/shared/components/Spinner'
+import { useStores } from '@postgres.ai/shared/pages/Instance/context'
+import { MainStore } from '@postgres.ai/shared/pages/Instance/stores/Main'
+
 import { tooltipText } from './tooltipText'
+import { FormValues, useForm } from './useForm'
+import { ResponseMessage } from './ResponseMessage'
+import { ConfigSectionTitle, Header, ModalTitle } from './Header'
+import { imageOptions } from './imageOptions'
+import { formatDockerImageArray, uniqueDatabases } from './utils'
+import {
+  SelectWithTooltip,
+  InputWithChip,
+  InputWithTooltip,
+} from './InputWithTooltip'
+
+import styles from './styles.module.scss'
 
 const NON_LOGICAL_RETRIEVAL_MESSAGE =
   'Configuration editing is only available in logical mode'
@@ -50,13 +59,11 @@ const useStyles = makeStyles(
 export const Configuration = observer(
   ({
     switchActiveTab,
-    activeTab,
     reload,
     isConfigurationActive,
     disableConfigModification,
   }: {
     switchActiveTab: (_: null, activeTab: number) => void
-    activeTab: number
     reload: () => void
     isConfigurationActive: boolean
     disableConfigModification?: boolean
@@ -72,21 +79,22 @@ export const Configuration = observer(
       configError,
       dbSourceError,
       getFullConfigError,
+      getEngine,
     } = stores.main
-    const configData = config && JSON.parse(JSON.stringify(config))
+    const configData: MainStore['config'] =
+      config && JSON.parse(JSON.stringify(config))
     const isConfigurationDisabled =
       !isConfigurationActive || disableConfigModification
     const [submitMessage, setSubmitMessage] = useState<
       string | React.ReactNode | null
     >('')
-    const [connectionResponse, setConnectionResponse] = useState<string | null>(
-      null,
-    )
+    const [dleEdition, setDledition] = useState('')
     const [submitStatus, setSubmitStatus] = useState('')
     const [connectionStatus, setConnectionStatus] = useState('')
-    const [isTestConnectionLoading, setIsTestConnectionLoading] =
-      useState<boolean>(false)
-    const [isOpen, setIsOpen] = useState(false)
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [isConnectionLoading, setIsConnectionLoading] = useState(false)
+    const [connectionRes, setConnectionRes] = useState<string | null>(null)
+    const [dockerImages, setDockerImages] = useState<string[]>([])
 
     const switchTab = async () => {
       reload()
@@ -114,31 +122,31 @@ export const Configuration = observer(
       useForm(onSubmit)
 
     const onTestConnectionClick = async () => {
-      setConnectionResponse(null)
+      setConnectionRes(null)
       Object.keys(connectionData).map(function (key: string) {
         if (key !== 'password' && key !== 'db_list') {
           formik.validateField(key)
         }
       })
       if (isConnectionDataValid) {
-        setIsTestConnectionLoading(true)
+        setIsConnectionLoading(true)
         testDbSource(connectionData)
           .then((response) => {
             if (response) {
               setConnectionStatus(response.status)
-              setConnectionResponse(response.message)
-              setIsTestConnectionLoading(false)
+              setConnectionRes(response.message)
+              setIsConnectionLoading(false)
             }
           })
           .finally(() => {
-            setIsTestConnectionLoading(false)
+            setIsConnectionLoading(false)
           })
       }
     }
 
     const handleModalClick = async () => {
       await getFullConfig()
-      setIsOpen(true)
+      setIsModalOpen(true)
     }
 
     const handleDeleteDatabase = (
@@ -150,9 +158,8 @@ export const Configuration = observer(
         let curDividers = formik.values.databases.match(
           /[,(\s)(\n)(\r)(\t)(\r\n)]/gm,
         )
-        let splitDatabases = currentDatabases.split(' ')
         let newDatabases = ''
-
+        let splitDatabases = currentDatabases.split(' ')
         for (let i in splitDatabases) {
           if (curDividers && splitDatabases[i] !== database) {
             newDatabases =
@@ -161,8 +168,22 @@ export const Configuration = observer(
               (curDividers[i] ? curDividers[i] : '')
           }
         }
-
         formik.setFieldValue('databases', newDatabases)
+      }
+    }
+
+    const handleDockerImageSelect = (
+      e: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+      const newDockerImages = formatDockerImageArray(e.target.value)
+      setDockerImages(newDockerImages)
+      formik.setFieldValue('dockerImageType', e.target.value)
+
+      // select latest Postgres version on dockerImage change
+      if (configData?.dockerImageType !== e.target.value) {
+        formik.setFieldValue('dockerImage', newDockerImages.slice(-1)[0])
+      } else {
+        formik.setFieldValue('dockerImage', configData?.dockerImage)
       }
     }
 
@@ -173,21 +194,27 @@ export const Configuration = observer(
           if (key !== 'password') {
             formik.setFieldValue(key, value)
           }
+          setDockerImages(
+            formatDockerImageArray(configData?.dockerImageType || ''),
+          )
         }
       }
     }, [config])
 
-    // Clear response message on tab change
     useEffect(() => {
-      setConnectionResponse(null)
+      // Clear response message on tab change and set dockerImageType
+      setConnectionRes(null)
       setSubmitMessage(null)
-    }, [activeTab])
+      getEngine().then((res) => {
+        setDledition(res?.edition)
+      })
+    }, [])
 
     return (
       <div className={styles.root}>
         <Snackbar
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          open={isConfigurationDisabled && !isOpen}
+          open={isConfigurationDisabled && !isModalOpen}
           message={
             disableConfigModification
               ? PREVENT_MODIFYING_MESSAGE
@@ -195,247 +222,321 @@ export const Configuration = observer(
           }
           className={styles.snackbar}
         />
-        <Box>
-          <Header retrievalMode="logical" setOpen={handleModalClick} />
+        {!config || !dleEdition ? (
+          <div className={styles.spinnerContainer}>
+            <Spinner size="lg" className={styles.spinner} />
+          </div>
+        ) : (
           <Box>
-            <Box mb={2}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    name="debug"
-                    checked={formik.values.debug}
+            <Header retrievalMode="logical" setOpen={handleModalClick} />
+            <Box>
+              <Box mb={2}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      name="debug"
+                      checked={formik.values.debug}
+                      disabled={isConfigurationDisabled}
+                      onChange={(e) =>
+                        formik.setFieldValue('debug', e.target.checked)
+                      }
+                      classes={{
+                        root: classes.checkboxRoot,
+                      }}
+                    />
+                  }
+                  label={'Debug mode'}
+                />
+              </Box>
+              <Box mb={2}>
+                <ConfigSectionTitle tag="databaseContainer" />
+                <span
+                  className={classes.grayText}
+                  style={{ marginTop: '0.5rem', display: 'block' }}
+                >
+                  DLE manages various database containers, such as clones. This
+                  section defines default container settings.
+                </span>
+                {dleEdition !== 'community' ? (
+                  <div>
+                    <SelectWithTooltip
+                      label="dockerImage - choose from the list"
+                      value={formik.values.dockerImageType}
+                      error={Boolean(formik.errors.dockerImageType)}
+                      tooltipText={tooltipText.dockerImageType}
+                      disabled={isConfigurationDisabled}
+                      items={imageOptions.map((image) => {
+                        return {
+                          value: image.type,
+                          children: image.name,
+                        }
+                      })}
+                      onChange={handleDockerImageSelect}
+                    />
+                    {formik.values.dockerImageType === 'custom' ? (
+                      <InputWithTooltip
+                        label="dockerImage"
+                        value={formik.values.dockerImage}
+                        error={formik.errors.dockerImage}
+                        tooltipText={tooltipText.dockerImage}
+                        disabled={isConfigurationDisabled}
+                        onChange={(e) =>
+                          formik.setFieldValue('dockerImage', e.target.value)
+                        }
+                      />
+                    ) : (
+                      <SelectWithTooltip
+                        label="dockerImage - Postgres major version"
+                        value={formik.values.dockerImage}
+                        error={Boolean(formik.errors.dockerImage)}
+                        tooltipText={tooltipText.dockerImage}
+                        disabled={isConfigurationDisabled}
+                        items={dockerImages.map((image) => {
+                          return {
+                            value: image,
+                            children: image.split(':')[1],
+                          }
+                        })}
+                        onChange={(e) =>
+                          formik.setFieldValue('dockerImage', e.target.value)
+                        }
+                      />
+                    )}
+                    <Typography paragraph>
+                      Haven't found the image you need? Contact support:{' '}
+                      <a
+                        href={'https://postgres.ai/contact'}
+                        target="_blank"
+                        className={styles.externalLink}
+                      >
+                        https://postgres.ai/contact
+                        <ExternalIcon className={styles.externalIcon} />
+                      </a>
+                    </Typography>
+                  </div>
+                ) : (
+                  <InputWithTooltip
+                    label="dockerImage"
+                    value={formik.values.dockerImage}
+                    error={formik.errors.dockerImage}
+                    tooltipText={tooltipText.dockerImage}
                     disabled={isConfigurationDisabled}
                     onChange={(e) =>
-                      formik.setFieldValue('debug', e.target.checked)
+                      formik.setFieldValue('dockerImage', e.target.value)
                     }
-                    classes={{
-                      root: classes.checkboxRoot,
-                    }}
                   />
-                }
-                label={'Debug mode'}
-              />
-            </Box>
-            <Box mb={2}>
-              <ConfigSectionTitle tag="databaseContainer" />
-              <span
-                className={classes.grayText}
-                style={{ marginTop: '0.5rem' }}
-              >
-                DLE manages various database containers, such as clones. This
-                section defines default container settings.
-              </span>
-              <InputWithTooltip
-                label="dockerImage"
-                value={formik.values.dockerImage}
-                error={formik.errors.dockerImage}
-                tooltipText={tooltipText.dockerImage}
-                disabled={isConfigurationDisabled}
-                onChange={(e) =>
-                  formik.setFieldValue('dockerImage', e.target.value)
-                }
-              />
-            </Box>
-            <Box mb={3}>
-              <ConfigSectionTitle tag="databaseConfigs" />
-              <span
-                className={classes.grayText}
-                style={{ marginTop: '0.5rem' }}
-              >
-                Default Postgres configuration used for all Postgres instances
-                running in containers managed by DLE.
-              </span>
-              <InputWithTooltip
-                label="configs.shared_buffers"
-                value={formik.values.sharedBuffers}
-                tooltipText={tooltipText.sharedBuffers}
-                disabled={isConfigurationDisabled}
-                onChange={(e) =>
-                  formik.setFieldValue('sharedBuffers', e.target.value)
-                }
-              />
-              <InputWithTooltip
-                label="configs.shared_preload_libraries"
-                value={formik.values.sharedPreloadLibraries}
-                tooltipText={tooltipText.sharedPreloadLibraries}
-                disabled={isConfigurationDisabled}
-                onChange={(e) =>
-                  formik.setFieldValue('sharedPreloadLibraries', e.target.value)
-                }
-              />
-            </Box>
-            <Box mb={3}>
-              <ConfigSectionTitle tag="retrieval" />
-              <Box mt={1}>
-                <Typography className={styles.subsection}>
-                  Subsection "retrieval.spec.logicalDump"
-                </Typography>
-                <span className={classes.grayText}>
-                  Source database credentials and dumping options.
+                )}
+              </Box>
+              <Box mb={3}>
+                <ConfigSectionTitle tag="databaseConfigs" />
+                <span
+                  className={classes.grayText}
+                  style={{ marginTop: '0.5rem', display: 'block' }}
+                >
+                  Default Postgres configuration used for all Postgres instances
+                  running in containers managed by DLE.
                 </span>
                 <InputWithTooltip
-                  label="source.connection.host"
-                  value={formik.values.host}
-                  error={formik.errors.host}
-                  tooltipText={tooltipText.host}
-                  disabled={isConfigurationDisabled}
-                  onChange={(e) => formik.setFieldValue('host', e.target.value)}
-                />
-                <InputWithTooltip
-                  label="source.connection.port"
-                  value={formik.values.port}
-                  error={formik.errors.port}
-                  tooltipText={tooltipText.port}
-                  disabled={isConfigurationDisabled}
-                  onChange={(e) => formik.setFieldValue('port', e.target.value)}
-                />
-                <InputWithTooltip
-                  label="source.connection.username"
-                  value={formik.values.username}
-                  error={formik.errors.username}
-                  tooltipText={tooltipText.username}
+                  label="configs.shared_buffers"
+                  value={formik.values.sharedBuffers}
+                  tooltipText={tooltipText.sharedBuffers}
                   disabled={isConfigurationDisabled}
                   onChange={(e) =>
-                    formik.setFieldValue('username', e.target.value)
+                    formik.setFieldValue('sharedBuffers', e.target.value)
                   }
                 />
                 <InputWithTooltip
-                  label="source.connection.password"
-                  tooltipText={tooltipText.password}
+                  label="configs.shared_preload_libraries"
+                  value={formik.values.sharedPreloadLibraries}
+                  tooltipText={tooltipText.sharedPreloadLibraries}
                   disabled={isConfigurationDisabled}
                   onChange={(e) =>
-                    formik.setFieldValue('password', e.target.value)
+                    formik.setFieldValue(
+                      'sharedPreloadLibraries',
+                      e.target.value,
+                    )
                   }
                 />
-                <InputWithTooltip
-                  label="source.connection.dbname"
-                  value={formik.values.dbname}
-                  error={formik.errors.dbname}
-                  tooltipText={tooltipText.dbname}
-                  disabled={isConfigurationDisabled}
-                  onChange={(e) =>
-                    formik.setFieldValue('dbname', e.target.value)
-                  }
-                />
-                <InputWithChip
-                  value={formik.values.databases}
-                  label="Databases"
-                  id="databases"
-                  tooltipText={tooltipText.databases}
-                  handleDeleteDatabase={handleDeleteDatabase}
-                  disabled={isConfigurationDisabled}
-                  onChange={(e) =>
-                    formik.setFieldValue('databases', e.target.value)
-                  }
-                />
-                <Box mt={2}>
-                  <Button
-                    variant="primary"
-                    size="medium"
-                    onClick={onTestConnectionClick}
-                    isDisabled={
-                      isTestConnectionLoading || isConfigurationDisabled
+              </Box>
+              <Box mb={3}>
+                <ConfigSectionTitle tag="retrieval" />
+                <Box mt={1}>
+                  <Typography className={styles.subsection}>
+                    Subsection "retrieval.spec.logicalDump"
+                  </Typography>
+                  <span className={classes.grayText}>
+                    Source database credentials and dumping options.
+                  </span>
+                  <InputWithTooltip
+                    label="source.connection.host"
+                    value={formik.values.host}
+                    error={formik.errors.host}
+                    tooltipText={tooltipText.host}
+                    disabled={isConfigurationDisabled}
+                    onChange={(e) =>
+                      formik.setFieldValue('host', e.target.value)
                     }
-                  >
-                    Test connection
-                    {isTestConnectionLoading && (
-                      <Spinner size="sm" className={styles.spinner} />
-                    )}
-                  </Button>
-                </Box>
-                {(connectionStatus && connectionResponse) || dbSourceError ? (
-                  <ResponseMessage
-                    type={dbSourceError ? 'error' : connectionStatus}
-                    message={dbSourceError || connectionResponse}
                   />
-                ) : null}
+                  <InputWithTooltip
+                    label="source.connection.port"
+                    value={formik.values.port}
+                    error={formik.errors.port}
+                    tooltipText={tooltipText.port}
+                    disabled={isConfigurationDisabled}
+                    onChange={(e) =>
+                      formik.setFieldValue('port', e.target.value)
+                    }
+                  />
+                  <InputWithTooltip
+                    label="source.connection.username"
+                    value={formik.values.username}
+                    error={formik.errors.username}
+                    tooltipText={tooltipText.username}
+                    disabled={isConfigurationDisabled}
+                    onChange={(e) =>
+                      formik.setFieldValue('username', e.target.value)
+                    }
+                  />
+                  <InputWithTooltip
+                    label="source.connection.password"
+                    tooltipText={tooltipText.password}
+                    disabled={isConfigurationDisabled}
+                    onChange={(e) =>
+                      formik.setFieldValue('password', e.target.value)
+                    }
+                  />
+                  <InputWithTooltip
+                    label="source.connection.dbname"
+                    value={formik.values.dbname}
+                    error={formik.errors.dbname}
+                    tooltipText={tooltipText.dbname}
+                    disabled={isConfigurationDisabled}
+                    onChange={(e) =>
+                      formik.setFieldValue('dbname', e.target.value)
+                    }
+                  />
+                  <InputWithChip
+                    value={formik.values.databases}
+                    label="Databases"
+                    id="databases"
+                    tooltipText={tooltipText.databases}
+                    handleDeleteDatabase={handleDeleteDatabase}
+                    disabled={isConfigurationDisabled}
+                    onChange={(e) =>
+                      formik.setFieldValue('databases', e.target.value)
+                    }
+                  />
+                  <Box mt={2}>
+                    <Button
+                      variant="primary"
+                      size="medium"
+                      onClick={onTestConnectionClick}
+                      isDisabled={
+                        isConnectionLoading || isConfigurationDisabled
+                      }
+                    >
+                      Test connection
+                      {isConnectionLoading && (
+                        <Spinner size="sm" className={styles.spinner} />
+                      )}
+                    </Button>
+                  </Box>
+                  {(connectionStatus && connectionRes) || dbSourceError ? (
+                    <ResponseMessage
+                      type={dbSourceError ? 'error' : connectionStatus}
+                      message={dbSourceError || connectionRes}
+                    />
+                  ) : null}
+                </Box>
+              </Box>
+              <InputWithTooltip
+                label="pg_dump jobs"
+                value={formik.values.pg_dump}
+                tooltipText={tooltipText.pg_dump}
+                disabled={isConfigurationDisabled}
+                onChange={(e) =>
+                  formik.setFieldValue('pg_dump', e.target.value)
+                }
+              />
+              <InputWithTooltip
+                label="pg_restore jobs"
+                value={formik.values.pg_restore}
+                tooltipText={tooltipText.pg_restore}
+                disabled={isConfigurationDisabled}
+                onChange={(e) =>
+                  formik.setFieldValue('pg_restore', e.target.value)
+                }
+              />
+              <Box>
+                <Typography className={styles.subsection}>
+                  Subsection "retrieval.refresh"
+                </Typography>
+              </Box>
+              <span className={classes.grayText}>
+                Define full data refresh on schedule. The process requires at
+                least one additional filesystem mount point. The schedule is to
+                be specified using{' '}
+                <a
+                  href="https://en.wikipedia.org/wiki/Cron#Overview"
+                  target="_blank"
+                  className={styles.externalLink}
+                >
+                  crontab format
+                  <ExternalIcon className={styles.externalIcon} />
+                </a>
+                .
+              </span>
+              <InputWithTooltip
+                label="timetable"
+                value={formik.values.timetable}
+                tooltipText={tooltipText.timetable}
+                disabled={isConfigurationDisabled}
+                onChange={(e) =>
+                  formik.setFieldValue('timetable', e.target.value)
+                }
+              />
+            </Box>
+            <Box
+              mt={2}
+              mb={2}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Button
+                variant="primary"
+                size="medium"
+                onClick={formik.submitForm}
+                isDisabled={formik.isSubmitting || isConfigurationDisabled}
+              >
+                Apply changes
+                {formik.isSubmitting && (
+                  <Spinner size="sm" className={styles.spinner} />
+                )}
+              </Button>
+              <Box sx={{ px: 2 }}>
+                <Button
+                  variant="secondary"
+                  size="medium"
+                  onClick={() => switchActiveTab(null, 0)}
+                >
+                  Cancel
+                </Button>
               </Box>
             </Box>
-            <InputWithTooltip
-              label="pg_dump jobs"
-              value={formik.values.pg_dump}
-              tooltipText={tooltipText.pg_dump}
-              disabled={isConfigurationDisabled}
-              onChange={(e) => formik.setFieldValue('pg_dump', e.target.value)}
-            />
-            <InputWithTooltip
-              label="pg_restore jobs"
-              value={formik.values.pg_restore}
-              tooltipText={tooltipText.pg_restore}
-              disabled={isConfigurationDisabled}
-              onChange={(e) =>
-                formik.setFieldValue('pg_restore', e.target.value)
-              }
-            />
-            <Box>
-              <Typography className={styles.subsection}>
-                Subsection "retrieval.refresh"
-              </Typography>
-            </Box>
-            <span className={classes.grayText}>
-              Define full data refresh on schedule. The process requires at
-              least one additional filesystem mount point. The schedule is to be
-              specified using{' '}
-              <a
-                href="https://en.wikipedia.org/wiki/Cron#Overview"
-                target="_blank"
-                className={styles.externalLink}
-              >
-                crontab format
-                <ExternalIcon className={styles.externalIcon} />
-              </a>
-              .
-            </span>
-            <InputWithTooltip
-              label="timetable"
-              value={formik.values.timetable}
-              tooltipText={tooltipText.timetable}
-              disabled={isConfigurationDisabled}
-              onChange={(e) =>
-                formik.setFieldValue('timetable', e.target.value)
-              }
-            />
+            {(submitStatus && submitMessage) || configError ? (
+              <ResponseMessage
+                type={configError ? 'error' : submitStatus}
+                message={configError || submitMessage}
+              />
+            ) : null}
           </Box>
-          <Box
-            mt={2}
-            mb={2}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Button
-              variant="primary"
-              size="medium"
-              onClick={formik.submitForm}
-              isDisabled={formik.isSubmitting || isConfigurationDisabled}
-            >
-              Apply changes
-              {formik.isSubmitting && (
-                <Spinner size="sm" className={styles.spinner} />
-              )}
-            </Button>
-            <Box sx={{ px: 2 }}>
-              <Button
-                variant="secondary"
-                size="medium"
-                onClick={() => switchActiveTab(null, 0)}
-              >
-                Cancel
-              </Button>
-            </Box>
-          </Box>
-          {(submitStatus && submitMessage) || configError ? (
-            <ResponseMessage
-              type={configError ? 'error' : submitStatus}
-              message={configError || submitMessage}
-            />
-          ) : null}
-        </Box>
+        )}
         <Modal
           title={<ModalTitle />}
-          onClose={() => setIsOpen(false)}
-          isOpen={isOpen}
+          onClose={() => setIsModalOpen(false)}
+          isOpen={isModalOpen}
           size="xl"
         >
           <Editor

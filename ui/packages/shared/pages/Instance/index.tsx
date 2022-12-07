@@ -50,7 +50,7 @@ const useStyles = makeStyles(
       marginTop: '16px',
       position: 'relative',
       flex: '1 1 100%',
-      height: "100%",
+      height: '100%',
 
       [theme.breakpoints.down('sm')]: {
         flexDirection: 'column',
@@ -158,15 +158,16 @@ export const Instance = observer((props: Props) => {
         </>
 
         <TabPanel value={activeTab} index={2}>
-          <Configuration
-            isConfigurationActive={isConfigurationActive}
-            disableConfigModification={
-              instance?.state.engine.disableConfigModification
-            }
-            switchActiveTab={switchTab}
-            activeTab={activeTab}
-            reload={() => stores.main.load(props.instanceId)}
-          />
+          {activeTab === 2 && (
+            <Configuration
+              isConfigurationActive={isConfigurationActive}
+              disableConfigModification={
+                instance?.state.engine.disableConfigModification
+              }
+              switchActiveTab={switchTab}
+              reload={() => stores.main.load(props.instanceId)}
+            />
+          )}
         </TabPanel>
       </StoresProvider>
     </HostProvider>

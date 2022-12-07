@@ -301,6 +301,7 @@ importers:
       '@material-ui/styles': ^4.11.4
       '@monaco-editor/react': ^4.4.5
       '@mui/material': ^5.10.12
+      '@postgres.ai/ce': link:../ce
       '@postgres.ai/shared': link:../shared
       '@types/node': ^12.20.33
       '@types/react': ^17.0.30
@@ -337,6 +338,7 @@ importers:
       '@material-ui/styles': 4.11.4_xd63vgjm47lzoal5ybyqmsdesy
       '@monaco-editor/react': 4.4.5_gnpkoj5uzrqs5wqxh42z7ffyam
       '@mui/material': 5.10.12_dsohmejvyqw7rxhao4urtt3rue
+      '@postgres.ai/ce': link:../ce
       '@postgres.ai/shared': 'link:'
       '@types/node': 12.20.33
       '@types/react': 17.0.39
