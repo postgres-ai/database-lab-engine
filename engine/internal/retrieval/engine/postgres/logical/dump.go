@@ -88,6 +88,7 @@ type DumpOptions struct {
 	Databases       map[string]DumpDefinition `yaml:"databases"`
 	ParallelJobs    int                       `yaml:"parallelJobs"`
 	Restore         ImmediateRestore          `yaml:"immediateRestore"`
+	CustomOptions   []string                  `yaml:"customOptions"`
 }
 
 // Source describes source of data to dump.
@@ -133,9 +134,10 @@ type Connection struct {
 
 // ImmediateRestore contains options for direct data restore without saving the dump file on disk.
 type ImmediateRestore struct {
-	Enabled   bool              `yaml:"enabled"`
-	ForceInit bool              `yaml:"forceInit"`
-	Configs   map[string]string `yaml:"configs"`
+	Enabled       bool              `yaml:"enabled"`
+	ForceInit     bool              `yaml:"forceInit"`
+	Configs       map[string]string `yaml:"configs"`
+	CustomOptions []string          `yaml:"customOptions"`
 }
 
 // NewDumpJob creates a new DumpJob.
@@ -694,6 +696,8 @@ func (d *DumpJob) buildLogicalDumpCommand(dbName string, dump DumpDefinition) []
 		dumpCmd = append(dumpCmd, "--exclude-table", table)
 	}
 
+	dumpCmd = append(dumpCmd, d.DumpOptions.CustomOptions...)
+
 	// Define if restore directly or export to dump location.
 	if d.DumpOptions.Restore.Enabled {
 		dumpCmd = append(dumpCmd, "--format", customFormat)
@@ -711,8 +715,7 @@ func (d *DumpJob) buildLogicalDumpCommand(dbName string, dump DumpDefinition) []
 }
 
 func (d *DumpJob) buildLogicalRestoreCommand(dbName string) []string {
-	restoreCmd := []string{"|", "pg_restore", "--username", d.globalCfg.Database.User(), "--dbname", defaults.DBName,
-		"--no-privileges", "--no-owner", "--exit-on-error"}
+	restoreCmd := []string{"|", "pg_restore", "--username", d.globalCfg.Database.User(), "--dbname", defaults.DBName}
 
 	if dbName != defaults.DBName {
 		// To avoid recreating of the default database.
@@ -722,6 +725,8 @@ func (d *DumpJob) buildLogicalRestoreCommand(dbName string) []string {
 	if d.Restore.ForceInit {
 		restoreCmd = append(restoreCmd, "--clean", "--if-exists")
 	}
+
+	restoreCmd = append(restoreCmd, d.DumpOptions.Restore.CustomOptions...)
 
 	return restoreCmd
 }

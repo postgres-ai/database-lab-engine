@@ -104,6 +104,7 @@ type RestoreOptions struct {
 	ParallelJobs       int                       `yaml:"parallelJobs"`
 	Configs            map[string]string         `yaml:"configs"`
 	QueryPreprocessing query.PreprocessorCfg     `yaml:"queryPreprocessing"`
+	CustomOptions      []string                  `yaml:"customOptions"`
 }
 
 // Partial defines tables and rules for a partial logical restore.
@@ -736,8 +737,7 @@ func (r *RestoreJob) buildPlainTextCommand(dumpName string, definition DumpDefin
 }
 
 func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DumpDefinition) []string {
-	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName,
-		"--no-privileges", "--no-owner", "--exit-on-error"}
+	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName}
 
 	if definition.dbName != defaults.DBName {
 		// To avoid recreating of the default database.
@@ -759,6 +759,8 @@ func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DumpDefin
 	}
 
 	restoreCmd = append(restoreCmd, r.getDumpLocation(definition.Format, dumpName))
+
+	restoreCmd = append(restoreCmd, r.RestoreOptions.CustomOptions...)
 
 	return restoreCmd
 }

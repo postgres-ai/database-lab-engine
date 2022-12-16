@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -341,6 +342,14 @@ func (s *Server) validateConfig(
 		return err
 	}
 
+	if err := validateCustomOptions(proj.DumpCustomOptions); err != nil {
+		return fmt.Errorf("invalid custom dump options: %w", err)
+	}
+
+	if err := validateCustomOptions(proj.RestoreCustomOptions); err != nil {
+		return fmt.Errorf("invalid custom restore options: %w", err)
+	}
+
 	if proj.DockerImage != nil {
 		stream, err := s.docker.ImagePull(ctx, *proj.DockerImage, types.ImagePullOptions{})
 		if err != nil {
@@ -350,6 +359,28 @@ func (s *Server) validateConfig(
 		err = stream.Close()
 		if err != nil {
 			log.Err(err)
+		}
+	}
+
+	return nil
+}
+
+var (
+	isValidCustomOption = regexp.MustCompile("^[A-Za-z0-9-_=\"]+$").MatchString
+	errInvalidOption    = fmt.Errorf("due to security reasons, current implementation of custom options supports only " +
+		"letters, numbers, hyphen, underscore, equal sign, and double quotes")
+	errInvalidOptionType = fmt.Errorf("invalid type of custom option")
+)
+
+func validateCustomOptions(customOptions []interface{}) error {
+	for _, opt := range customOptions {
+		castedValue, ok := opt.(string)
+		if !ok {
+			return fmt.Errorf("%w: %q", errInvalidOptionType, opt)
+		}
+
+		if !isValidCustomOption(castedValue) {
+			return fmt.Errorf("invalid option %q: %w", castedValue, errInvalidOption)
 		}
 	}
 
