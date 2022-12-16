@@ -21,8 +21,10 @@ export type FormValues = {
   username: string
   password: string
   databases: string
-  pg_dump: string
-  pg_restore: string
+  dumpParallelJobs: string
+  restoreParallelJobs: string
+  pgDumpCustomOptions: string
+  pgRestoreCustomOptions: string
 }
 
 const Schema = Yup.object().shape({
@@ -48,8 +50,10 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
       username: '',
       password: '',
       databases: '',
-      pg_dump: '',
-      pg_restore: '',
+      dumpParallelJobs: '',
+      restoreParallelJobs: '',
+      pgDumpCustomOptions: '',
+      pgRestoreCustomOptions: '',
     },
     validationSchema: Schema,
     onSubmit,

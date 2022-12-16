@@ -1,4 +1,7 @@
-import { postUniqueDatabases } from '@postgres.ai/shared/pages/Configuration/utils'
+import {
+  postUniqueCustomOptions,
+  postUniqueDatabases,
+} from '@postgres.ai/shared/pages/Configuration/utils'
 import { Config } from '@postgres.ai/shared/types/api/entities/config'
 import { request } from 'helpers/request'
 
@@ -26,7 +29,8 @@ export const updateConfig = async (req: Config) => {
           logicalDump: {
             options: {
               databases: postUniqueDatabases(req.databases),
-              parallelJobs: req.pg_dump,
+              customOptions: postUniqueCustomOptions(req.pgDumpCustomOptions),
+              parallelJobs: req.dumpParallelJobs,
               source: {
                 connection: {
                   dbname: req.dbname,
@@ -40,7 +44,10 @@ export const updateConfig = async (req: Config) => {
           },
           logicalRestore: {
             options: {
-              parallelJobs: req.pg_restore,
+              customOptions: postUniqueCustomOptions(
+                req.pgRestoreCustomOptions,
+              ),
+              parallelJobs: req.restoreParallelJobs,
             },
           },
         },
