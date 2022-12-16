@@ -29,8 +29,12 @@ import { tooltipText } from './tooltipText'
 import { FormValues, useForm } from './useForm'
 import { ResponseMessage } from './ResponseMessage'
 import { ConfigSectionTitle, Header, ModalTitle } from './Header'
-import { imageOptions } from './imageOptions'
-import { formatDockerImageArray, uniqueDatabases } from './utils'
+import {
+  dockerImageOptions,
+  defaultPgDumpOptions,
+  defaultPgRestoreOptions,
+} from './configOptions'
+import { formatDockerImageArray, FormValuesKey, uniqueChipValue } from './utils'
 import {
   SelectWithTooltip,
   InputWithChip,
@@ -38,6 +42,11 @@ import {
 } from './InputWithTooltip'
 
 import styles from './styles.module.scss'
+
+type PgOptionsType = {
+  optionType: string
+  addDefaultOptions: string[]
+}
 
 const NON_LOGICAL_RETRIEVAL_MESSAGE =
   'Configuration editing is only available in logical mode'
@@ -149,27 +158,56 @@ export const Configuration = observer(
       setIsModalOpen(true)
     }
 
-    const handleDeleteDatabase = (
+    const handleDeleteChip = (
       _: React.FormEvent<HTMLInputElement>,
-      database: string,
+      uniqueValue: string,
+      id: string,
     ) => {
-      if (formik.values.databases) {
-        let currentDatabases = uniqueDatabases(formik.values.databases)
-        let curDividers = formik.values.databases.match(
+      if (formik.values[id as FormValuesKey]) {
+        let newValues = ''
+        const currentValues = uniqueChipValue(
+          String(formik.values[id as FormValuesKey]),
+        )
+        const splitValues = currentValues.split(' ')
+        const curDividers = String(formik.values[id as FormValuesKey]).match(
           /[,(\s)(\n)(\r)(\t)(\r\n)]/gm,
         )
-        let newDatabases = ''
-        let splitDatabases = currentDatabases.split(' ')
-        for (let i in splitDatabases) {
-          if (curDividers && splitDatabases[i] !== database) {
-            newDatabases =
-              newDatabases +
-              splitDatabases[i] +
+        for (let i in splitValues) {
+          if (curDividers && splitValues[i] !== uniqueValue) {
+            newValues =
+              newValues +
+              splitValues[i] +
               (curDividers[i] ? curDividers[i] : '')
           }
         }
-        formik.setFieldValue('databases', newDatabases)
+        formik.setFieldValue(id, newValues)
       }
+    }
+
+    const handleSelectPgOptions = (
+      e: React.ChangeEvent<HTMLInputElement>,
+      formikName: string,
+      formikValue: string,
+      initialValue: string | undefined,
+      pgOptions: PgOptionsType[],
+    ) => {
+      let pgValue = formikValue
+      // set initial value on change
+      formik.setFieldValue(formikName, initialValue)
+
+      const selectedPgOptions = pgOptions.filter(
+        (pg) => e.target.value === pg.optionType,
+      )
+
+      // add options to formik field
+      selectedPgOptions.forEach((pg) => {
+        pg.addDefaultOptions.forEach((addOption) => {
+          if (!pgValue.includes(addOption)) {
+            const addOptionWithSpace = addOption + ' '
+            formik.setFieldValue(formikName, (pgValue += addOptionWithSpace))
+          }
+        })
+      })
     }
 
     const handleDockerImageSelect = (
@@ -177,6 +215,20 @@ export const Configuration = observer(
     ) => {
       const newDockerImages = formatDockerImageArray(e.target.value)
       setDockerImages(newDockerImages)
+      handleSelectPgOptions(
+        e,
+        'pgDumpCustomOptions',
+        formik.values.pgDumpCustomOptions,
+        configData?.pgDumpCustomOptions,
+        defaultPgDumpOptions,
+      )
+      handleSelectPgOptions(
+        e,
+        'pgRestoreCustomOptions',
+        formik.values.pgRestoreCustomOptions,
+        configData?.pgRestoreCustomOptions,
+        defaultPgRestoreOptions,
+      )
       formik.setFieldValue('dockerImageType', e.target.value)
 
       // select latest Postgres version on dockerImage change
@@ -206,7 +258,7 @@ export const Configuration = observer(
       setConnectionRes(null)
       setSubmitMessage(null)
       getEngine().then((res) => {
-        setDledition(res?.edition)
+        setDledition(String(res?.edition))
       })
     }, [])
 
@@ -265,7 +317,7 @@ export const Configuration = observer(
                       error={Boolean(formik.errors.dockerImageType)}
                       tooltipText={tooltipText.dockerImageType}
                       disabled={isConfigurationDisabled}
-                      items={imageOptions.map((image) => {
+                      items={dockerImageOptions.map((image) => {
                         return {
                           value: image.type,
                           children: image.name,
@@ -420,7 +472,7 @@ export const Configuration = observer(
                     label="Databases"
                     id="databases"
                     tooltipText={tooltipText.databases}
-                    handleDeleteDatabase={handleDeleteDatabase}
+                    handleDeleteChip={handleDeleteChip}
                     disabled={isConfigurationDisabled}
                     onChange={(e) =>
                       formik.setFieldValue('databases', e.target.value)
@@ -451,22 +503,54 @@ export const Configuration = observer(
               </Box>
               <InputWithTooltip
                 label="pg_dump jobs"
-                value={formik.values.pg_dump}
-                tooltipText={tooltipText.pg_dump}
+                value={formik.values.dumpParallelJobs}
+                tooltipText={tooltipText.dumpParallelJobs}
                 disabled={isConfigurationDisabled}
                 onChange={(e) =>
-                  formik.setFieldValue('pg_dump', e.target.value)
+                  formik.setFieldValue('dumpParallelJobs', e.target.value)
                 }
               />
               <InputWithTooltip
                 label="pg_restore jobs"
-                value={formik.values.pg_restore}
-                tooltipText={tooltipText.pg_restore}
+                value={formik.values.restoreParallelJobs}
+                tooltipText={tooltipText.restoreParallelJobs}
                 disabled={isConfigurationDisabled}
                 onChange={(e) =>
-                  formik.setFieldValue('pg_restore', e.target.value)
+                  formik.setFieldValue('restoreParallelJobs', e.target.value)
                 }
               />
+              {dleEdition !== 'community' && (
+                <>
+                  <InputWithChip
+                    value={formik.values.pgDumpCustomOptions}
+                    label="pg_dump customOptions"
+                    id="pgDumpCustomOptions"
+                    tooltipText={tooltipText.pgDumpCustomOptions}
+                    handleDeleteChip={handleDeleteChip}
+                    disabled={isConfigurationDisabled}
+                    onChange={(e) =>
+                      formik.setFieldValue(
+                        'pgDumpCustomOptions',
+                        e.target.value,
+                      )
+                    }
+                  />
+                  <InputWithChip
+                    value={formik.values.pgRestoreCustomOptions}
+                    label="pg_restore customOptions"
+                    id="pgRestoreCustomOptions"
+                    tooltipText={tooltipText.pgRestoreCustomOptions}
+                    handleDeleteChip={handleDeleteChip}
+                    disabled={isConfigurationDisabled}
+                    onChange={(e) =>
+                      formik.setFieldValue(
+                        'pgRestoreCustomOptions',
+                        e.target.value,
+                      )
+                    }
+                  />
+                </>
+              )}
               <Box>
                 <Typography className={styles.subsection}>
                   Subsection "retrieval.refresh"

@@ -95,7 +95,7 @@ export const tooltipText = {
       databases, leave this value empty.
     </div>
   ),
-  pg_dump: () => (
+  dumpParallelJobs: () => (
     <div>
       Number of parallel workers used to dump the source databases to disk. If
       the source is production server under load, it is not recommended to use
@@ -104,7 +104,15 @@ export const tooltipText = {
       (e.g., due to CPU or disk IO saturation).
     </div>
   ),
-  pg_restore: () => (
+  pgDumpCustomOptions: () => (
+    <div>
+      pg_dump options to be used to create a database dump, for example:
+      '--exclude-schema=repack --exclude-schema="camelStyleSchemaName"'. Note
+      that due to security reasons, the current implementation supports only
+      letters, numbers, hyphen, underscore, equal sign, and double quotes.
+    </div>
+  ),
+  restoreParallelJobs: () => (
     <div>
       Number of parallel workers used to restore databases from dump to Postgres
       managed by DLE. For initial data retrieval (very first data refresh), it
@@ -115,6 +123,15 @@ export const tooltipText = {
       refreshes, if DLE is constantly used, it is recommended to reduce this
       value by 50% to keep some room for normal use of DLE (such as work with
       clones).
+    </div>
+  ),
+  pgRestoreCustomOptions: () => (
+    <div>
+      pg_restore options to be used to restore from a database dump, for
+      example: '--exclude-schema=repack
+      --exclude-schema="camelStyleSchemaName"'. Note that due to security
+      reasons, the current implementation supports only letters, numbers,
+      hyphen, underscore, equal sign, and double quotes.
     </div>
   ),
   timetable: () => (

@@ -1,20 +1,24 @@
 import { DatabaseType } from '@postgres.ai/shared/types/api/entities/config'
-import { imageOptions } from '../imageOptions'
+
+import { dockerImageOptions } from '../configOptions'
+import { FormValues } from '../useForm'
 
 const extendedCustomImage = 'custom-images/extended-postgres'
 // used for creating an array for postgresImages, should be incremented if a new version comes out
 const versionArrayLength = 7
 
-export const uniqueDatabases = (values: string) => {
-  const splitDatabaseArray = values.split(/[,(\s)(\n)(\r)(\t)(\r\n)]/)
+export type FormValuesKey = keyof FormValues
+
+export const uniqueChipValue = (values: string) => {
+  const splitChipArray = values.split(/[,(\s)(\n)(\r)(\t)(\r\n)]/)
   let databaseArray = []
 
-  for (let i in splitDatabaseArray) {
+  for (let i in splitChipArray) {
     if (
-      splitDatabaseArray[i] !== '' &&
-      databaseArray.indexOf(splitDatabaseArray[i]) === -1
+      splitChipArray[i] !== '' &&
+      databaseArray.indexOf(splitChipArray[i]) === -1
     ) {
-      databaseArray.push(splitDatabaseArray[i])
+      databaseArray.push(splitChipArray[i])
     }
   }
 
@@ -65,12 +69,44 @@ export const getImageType = (imageUrl: string) => {
     return 'Generic Postgres'
   } else if (
     postgresCustomImageType &&
-    imageOptions.some((element) =>
-      postgresCustomImageType.includes(element.type),
+    dockerImageOptions.some((element) =>
+      element.type.includes(postgresCustomImageType),
     )
   ) {
     return postgresCustomImageType
   } else {
     return 'custom'
   }
+}
+
+export const formatDatabases = (databases: DatabaseType | null) => {
+  let formattedDatabases = ''
+
+  if (databases !== null) {
+    Object.keys(databases).forEach(function (key) {
+      formattedDatabases += key + ' '
+    })
+  }
+
+  return formattedDatabases
+}
+
+export const formatDumpCustomOptions = (options: string[] | null) => {
+  let formattedOptions = ''
+
+  if (options !== null) {
+    options.forEach(function (key) {
+      formattedOptions += key + ' '
+    })
+  }
+
+  return formattedOptions
+}
+
+export const postUniqueCustomOptions = (options: string) => {
+  const splitOptionsArray = options.split(/[,(\s)(\n)(\r)(\t)(\r\n)]/)
+  const uniqueOptions = splitOptionsArray.filter(
+    (item, index) => splitOptionsArray.indexOf(item) === index && item !== '',
+  )
+  return uniqueOptions
 }

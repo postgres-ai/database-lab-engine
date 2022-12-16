@@ -6,7 +6,7 @@ import { Select } from '@postgres.ai/shared/components/Select'
 import { InfoIcon } from '@postgres.ai/shared/icons/Info'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 
-import { uniqueDatabases } from '../utils'
+import { uniqueChipValue } from '../utils'
 
 import styles from '../styles.module.scss'
 
@@ -74,14 +74,15 @@ export const InputWithChip = ({
   onChange,
   tooltipText,
   disabled,
-  handleDeleteDatabase,
+  handleDeleteChip,
 }: {
   value: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   tooltipText: () => React.ReactNode
-  handleDeleteDatabase: (
+  handleDeleteChip: (
     event: React.FormEvent<HTMLInputElement>,
-    database: string,
+    uniqueValue: string,
+    label: string
   ) => void
   label: string
   id: string
@@ -115,19 +116,21 @@ export const InputWithChip = ({
           <InfoIcon className={styles.infoIcon} />
         </Tooltip>
       </Box>
-      <div>
+      <div className={styles.chipContainer}>
         {value &&
-          uniqueDatabases(value)
+          uniqueChipValue(value)
             .split(' ')
-            .map((database, index) => {
-              if (database !== '') {
+            .map((uniqueValue, index) => {
+              if (uniqueValue !== '') {
                 return (
                   <Chip
                     key={index}
                     className={styles.chip}
-                    label={database}
+                    label={uniqueValue}
                     disabled={disabled}
-                    onDelete={(event) => handleDeleteDatabase(event, database)}
+                    onDelete={(event) =>
+                      handleDeleteChip(event, uniqueValue, id)
+                    }
                     color="primary"
                   />
                 )
