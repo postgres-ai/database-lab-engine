@@ -40,25 +40,27 @@ func TestRestoreCommandBuilding(t *testing.T) {
 						Format: customFormat,
 					},
 				},
-				DumpLocation: "/tmp/db.dump",
+				DumpLocation:  "/tmp/db.dump",
+				CustomOptions: []string{"--no-privileges", "--no-owner", "--exit-on-error"},
 			},
-			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--exit-on-error", "--create", "--jobs", "1", "/tmp/db.dump"},
+			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--create", "--jobs", "1", "/tmp/db.dump", "--no-privileges", "--no-owner", "--exit-on-error"},
 		},
 		{
 			copyOptions: RestoreOptions{
 				ParallelJobs: 4,
 				ForceInit:    true,
 			},
-			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--exit-on-error", "--create", "--clean", "--if-exists", "--jobs", "4", ""},
+			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--create", "--clean", "--if-exists", "--jobs", "4"},
 		},
 		{
 			copyOptions: RestoreOptions{
-				ParallelJobs: 2,
-				ForceInit:    false,
-				Databases:    map[string]DumpDefinition{"testDB": {}},
-				DumpLocation: "/tmp/db.dump",
+				ParallelJobs:  2,
+				ForceInit:     false,
+				Databases:     map[string]DumpDefinition{"testDB": {}},
+				DumpLocation:  "/tmp/db.dump",
+				CustomOptions: []string{"--no-privileges", "--no-owner", "--exit-on-error"},
 			},
-			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--exit-on-error", "--create", "--jobs", "2", "/tmp/db.dump/testDB"},
+			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--create", "--jobs", "2", "/tmp/db.dump/testDB", "--no-privileges", "--no-owner", "--exit-on-error"},
 		},
 		{
 			copyOptions: RestoreOptions{
@@ -69,9 +71,10 @@ func TestRestoreCommandBuilding(t *testing.T) {
 						Format: directoryFormat,
 					},
 				},
-				DumpLocation: "/tmp/db.dump",
+				DumpLocation:  "/tmp/db.dump",
+				CustomOptions: []string{"--no-privileges", "--no-owner", "--exit-on-error"},
 			},
-			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--no-privileges", "--no-owner", "--exit-on-error", "--create", "--jobs", "1", "--table", "test", "--table", "users", "/tmp/db.dump/testDB"},
+			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--create", "--jobs", "1", "--table", "test", "--table", "users", "/tmp/db.dump/testDB", "--no-privileges", "--no-owner", "--exit-on-error"},
 		},
 		{
 			copyOptions: RestoreOptions{
@@ -133,6 +136,11 @@ func TestDumpCommandBuilding(t *testing.T) {
 				Password: "secret",
 			},
 		},
+		globalCfg: &global.Config{
+			Database: global.Database{
+				Username: "postgres",
+			},
+		},
 	}
 
 	testCases := []struct {
@@ -152,8 +160,31 @@ func TestDumpCommandBuilding(t *testing.T) {
 						},
 					},
 				},
+				CustomOptions: []string{"--exclude-scheme=test-scheme"},
 			},
-			command: []string{"pg_dump", "--create", "--host", "localhost", "--port", "5432", "--username", "john", "--dbname", "testDB", "--jobs", "1", "--table", "test", "--table", "users", "--exclude-table", "test2", "--exclude-table", "users2", "--format", "directory", "--file", "/tmp/db.dump/testDB"},
+			command: []string{"pg_dump", "--create", "--host", "localhost", "--port", "5432", "--username", "john", "--dbname", "testDB", "--jobs", "1", "--table", "test", "--table", "users", "--exclude-table", "test2", "--exclude-table", "users2", "--exclude-scheme=test-scheme", "--format", "directory", "--file", "/tmp/db.dump/testDB"},
+		},
+		{
+			copyOptions: DumpOptions{
+
+				ParallelJobs: 1,
+				DumpLocation: "/tmp/db.dump",
+				Databases: map[string]DumpDefinition{
+					"testDB": {
+						Tables: []string{"test", "users"},
+						ExcludeTables: []string{
+							"test2",
+							"users2",
+						},
+					},
+				},
+				Restore: ImmediateRestore{
+					Enabled:       true,
+					CustomOptions: []string{"--no-privileges", "--no-owner", "--exit-on-error"},
+				},
+				CustomOptions: []string{"--exclude-scheme=test-scheme"},
+			},
+			command: []string{"sh", "-c", "pg_dump --create --host localhost --port 5432 --username john --dbname testDB --jobs 1 --table test --table users --exclude-table test2 --exclude-table users2 --exclude-scheme=test-scheme --format custom | pg_restore --username postgres --dbname postgres --create --no-privileges --no-owner --exit-on-error"},
 		},
 	}
 

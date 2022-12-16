@@ -75,6 +75,14 @@ func (y *yamlSoft) Set(set FieldSet) error {
 		return nil
 	}
 
+	if seq, ok := set.Value.([]interface{}); ok {
+		if err := node.Encode(seq); err != nil {
+			return fmt.Errorf("cannot encode slice: %w", err)
+		}
+
+		return nil
+	}
+
 	conv, err := ptypes.Convert(set.Value, ptypes.String)
 	if err != nil {
 		return err
@@ -107,6 +115,10 @@ func (y *yamlSoft) Get(get FieldGet) (interface{}, error) {
 
 	if node.Tag == "!!map" {
 		return convertMap(node)
+	}
+
+	if node.Tag == "!!seq" {
+		return convertSlice(node)
 	}
 
 	typed, err := ptypes.Convert(node.Value, get.Type)
@@ -191,6 +203,8 @@ func ptypeToNodeTag(t ptypes.Type) string {
 		return "!!bool"
 	case ptypes.Map:
 		return "!!map"
+	case ptypes.Slice:
+		return "!!seq"
 	default:
 		return ""
 	}
@@ -208,6 +222,8 @@ func nodeTagToPType(nodeTag string) ptypes.Type {
 		return ptypes.Bool
 	case "!!map":
 		return ptypes.Map
+	case "!!seq":
+		return ptypes.Slice
 	default:
 		return ptypes.Invalid
 	}

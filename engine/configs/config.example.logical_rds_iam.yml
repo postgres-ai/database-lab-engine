@@ -252,6 +252,15 @@ retrieval:
         #   # Option to adjust PostgreSQL configuration for a logical dump job.
         #   # It's useful if a dumped database contains non-standard extensions.
         #   <<: *db_configs
+        #   # Custom options for pg_restore command.
+        #   customOptions:
+        #     - "--no-privileges"
+        #     - "--no-owner"
+        #     - "--exit-on-error"
+
+        # Custom options for pg_dump command.
+        customOptions:
+          - "--exclude-schema=rdsdms"
 
     # Restores PostgreSQL database from the provided dump. If you use this block, do not use
     # "restore" option in the "logicalDump" job.
@@ -305,6 +314,13 @@ retrieval:
 
           # Inline SQL. Queries run after scripts placed in 'queryPath'.
           inline: ""
+
+        # Custom options for pg_restore command.
+        customOptions:
+          - "--no-tablespaces"
+          - "--no-privileges"
+          - "--no-owner"
+          - "--exit-on-error"
 
     logicalSnapshot:
       options:

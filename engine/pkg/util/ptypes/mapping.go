@@ -24,6 +24,8 @@ const (
 	Bool
 	// Map is a map type.
 	Map
+	// Slice is a slice type.
+	Slice
 )
 
 // Convert converts the value to the given type.
@@ -39,6 +41,8 @@ func Convert(value interface{}, expected Type) (interface{}, error) {
 		return convertBool(value)
 	case Map:
 		return convertMap(value)
+	case Slice:
+		return convertSlice(value)
 	}
 
 	return nil, errors.Errorf("unsupported type for conversion: %T", value)
@@ -123,6 +127,18 @@ func convertMap(value interface{}) (interface{}, error) {
 	return nil, errors.Errorf("unsupported map type: %T", value)
 }
 
+func convertSlice(value interface{}) (interface{}, error) {
+	switch v := value.(type) {
+	case []string:
+		return v, nil
+
+	case []interface{}:
+		return v, nil
+	}
+
+	return nil, errors.Errorf("unsupported slice type: %T", value)
+}
+
 // MapKindToType returns the type of the given kind.
 func MapKindToType(kind reflect.Kind) Type {
 	switch kind {
@@ -136,6 +152,8 @@ func MapKindToType(kind reflect.Kind) Type {
 		return Bool
 	case reflect.Map:
 		return Map
+	case reflect.Slice:
+		return Slice
 	}
 
 	return Invalid
@@ -153,6 +171,8 @@ func NewPtr(value interface{}) reflect.Value {
 	case bool:
 		return reflect.ValueOf(&v)
 	case map[string]interface{}:
+		return reflect.ValueOf(&v)
+	case []interface{}:
 		return reflect.ValueOf(&v)
 	}
 
