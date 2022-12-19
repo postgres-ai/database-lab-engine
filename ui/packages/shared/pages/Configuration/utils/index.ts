@@ -63,7 +63,7 @@ export const formatDockerImageArray = (type: string) => {
 export const getImageType = (imageUrl: string) => {
   const postgresCustomImageType =
     imageUrl.includes(extendedCustomImage) &&
-    imageUrl.split(`${extendedCustomImage}-`)[1].split(':')[0]
+    imageUrl.split(`${extendedCustomImage}-`)[1]?.split(':')[0]
 
   if (imageUrl.includes('postgresai/extended-postgres')) {
     return 'Generic Postgres'

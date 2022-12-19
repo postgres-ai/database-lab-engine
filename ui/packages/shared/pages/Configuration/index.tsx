@@ -202,7 +202,7 @@ export const Configuration = observer(
       // add options to formik field
       selectedPgOptions.forEach((pg) => {
         pg.addDefaultOptions.forEach((addOption) => {
-          if (!pgValue.includes(addOption)) {
+          if (!pgValue?.includes(addOption)) {
             const addOptionWithSpace = addOption + ' '
             formik.setFieldValue(formikName, (pgValue += addOptionWithSpace))
           }
