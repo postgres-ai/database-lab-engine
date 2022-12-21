@@ -22,11 +22,11 @@ export const defaultPgDumpOptions = [
   },
   {
     optionType: 'rds',
-    addDefaultOptions: [],
+    addDefaultOptions: ['--exclude-schema=awsdms'],
   },
   {
     optionType: 'rdsAurora',
-    addDefaultOptions: [],
+    addDefaultOptions: ['--exclude-schema=awsdms'],
   },
   {
     optionType: 'heroku',
@@ -49,11 +49,11 @@ export const defaultPgRestoreOptions = [
   },
   {
     optionType: 'rds',
-    addDefaultOptions: ['---exclude-schema=awsdms'],
+    addDefaultOptions: [],
   },
   {
     optionType: 'rdsAurora',
-    addDefaultOptions: ['---exclude-schema=awsdms'],
+    addDefaultOptions: [],
   },
   {
     optionType: 'heroku',
