@@ -65,14 +65,18 @@ export const getImageType = (imageUrl: string) => {
     imageUrl.includes(extendedCustomImage) &&
     imageUrl.split(`${extendedCustomImage}-`)[1]?.split(':')[0]
 
+  const formattedDockerImageArray = formatDockerImageArray(
+    postgresCustomImageType || '',
+  )
+
+  const satisfiesDockerTypeAndImage =
+    dockerImageOptions.some(
+      (element) => element.type === postgresCustomImageType,
+    ) && formattedDockerImageArray.some((image) => image === imageUrl)
+
   if (imageUrl.includes('postgresai/extended-postgres')) {
     return 'Generic Postgres'
-  } else if (
-    postgresCustomImageType &&
-    dockerImageOptions.some((element) =>
-      element.type.includes(postgresCustomImageType),
-    )
-  ) {
+  } else if (postgresCustomImageType && satisfiesDockerTypeAndImage) {
     return postgresCustomImageType
   } else {
     return 'custom'
