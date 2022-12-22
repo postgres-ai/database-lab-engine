@@ -3,7 +3,7 @@ import { DatabaseType } from '@postgres.ai/shared/types/api/entities/config'
 import { dockerImageOptions } from '../configOptions'
 import { FormValues } from '../useForm'
 
-const extendedCustomImage = 'custom-images/extended-postgres'
+const seContainerRegistry = 'se-images'
 // used for creating an array for postgresImages, should be incremented if a new version comes out
 const versionArrayLength = 7
 
@@ -53,7 +53,7 @@ export const formatDockerImageArray = (type: string) => {
   } else {
     images = versions.map(
       (version) =>
-        `registry.gitlab.com/postgres-ai/${extendedCustomImage}-${type}:${version}`,
+        `registry.gitlab.com/postgres-ai/${seContainerRegistry}/${type}:${version}`,
     )
   }
 
@@ -62,8 +62,8 @@ export const formatDockerImageArray = (type: string) => {
 
 export const getImageType = (imageUrl: string) => {
   const postgresCustomImageType =
-    imageUrl.includes(extendedCustomImage) &&
-    imageUrl.split(`${extendedCustomImage}-`)[1]?.split(':')[0]
+    imageUrl.includes(seContainerRegistry) &&
+    imageUrl.split(`${seContainerRegistry}/`)[1]?.split(':')[0]
 
   const formattedDockerImageArray = formatDockerImageArray(
     postgresCustomImageType || '',
