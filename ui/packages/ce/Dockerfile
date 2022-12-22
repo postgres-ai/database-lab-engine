@@ -5,7 +5,7 @@ WORKDIR /app
 
 COPY ./ui/ .
 
-RUN --mount=type=bind,id=pnpm,source=.pnpm-store,target=/app/.pnpm-store
+# RUN --mount=type=bind,id=pnpm,source=.pnpm-store,target=/app/.pnpm-store
 
 ARG API_URL_PREFIX
 ENV REACT_APP_API_URL_PREFIX ${API_URL_PREFIX}

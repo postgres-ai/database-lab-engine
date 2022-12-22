@@ -12,7 +12,7 @@ WORKDIR /app
 
 COPY ./ui/ .
 
-RUN --mount=type=bind,id=pnpm,source=.pnpm-store,target=/app/.pnpm-store
+# RUN --mount=type=bind,id=pnpm,source=.pnpm-store,target=/app/.pnpm-store
 
 ARG ARG_REACT_APP_API_SERVER
 ENV REACT_APP_API_SERVER=$ARG_REACT_APP_API_SERVER
