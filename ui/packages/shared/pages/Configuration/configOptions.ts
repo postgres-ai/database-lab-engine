@@ -5,7 +5,7 @@ export const dockerImageOptions = [
   },
   { name: 'Generic Postgres with PostGIS', type: 'postgis' },
   { name: 'Amazon RDS for Postgres', type: 'rds' },
-  { name: 'Amazon RDS Aurora for Postgres', type: 'rdsAurora' },
+  { name: 'Amazon RDS Aurora for Postgres', type: 'aurora' },
   { name: 'Heroku Postgres', type: 'heroku' },
   { name: 'Supabase Postgres', type: 'supabase' },
   { name: 'Custom image', type: 'custom' },
@@ -25,7 +25,7 @@ export const defaultPgDumpOptions = [
     addDefaultOptions: ['--exclude-schema=awsdms'],
   },
   {
-    optionType: 'rdsAurora',
+    optionType: 'aurora',
     addDefaultOptions: ['--exclude-schema=awsdms'],
   },
   {
@@ -52,7 +52,7 @@ export const defaultPgRestoreOptions = [
     addDefaultOptions: [],
   },
   {
-    optionType: 'rdsAurora',
+    optionType: 'aurora',
     addDefaultOptions: [],
   },
   {

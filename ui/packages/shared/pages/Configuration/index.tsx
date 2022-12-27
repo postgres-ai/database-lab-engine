@@ -213,9 +213,7 @@ export const Configuration = observer(
     const handleDockerImageSelect = (
       e: React.ChangeEvent<HTMLInputElement>,
     ) => {
-      const selectedDockerImage =
-        e.target.value === 'rdsAurora' ? 'rds' : e.target.value
-      const newDockerImages = formatDockerImageArray(selectedDockerImage)
+      const newDockerImages = formatDockerImageArray(e.target.value)
       setDockerImages(newDockerImages)
       handleSelectPgOptions(
         e,
@@ -236,10 +234,10 @@ export const Configuration = observer(
       // select latest Postgres version on dockerImage change
       if (
         configData?.dockerImageType !== e.target.value &&
-        selectedDockerImage !== 'custom'
+        e.target.value !== 'custom'
       ) {
         formik.setFieldValue('dockerImage', newDockerImages.slice(-1)[0])
-      } else if (selectedDockerImage === 'custom') {
+      } else if (e.target.value === 'custom') {
         formik.setFieldValue('dockerImage', '')
       } else {
         formik.setFieldValue('dockerImage', configData?.dockerImage)
