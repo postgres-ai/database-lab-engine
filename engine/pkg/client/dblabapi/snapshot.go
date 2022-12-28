@@ -8,8 +8,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 
 	"github.com/pkg/errors"
 
@@ -56,6 +58,19 @@ func (c *Client) ListSnapshotsRaw(ctx context.Context) (io.ReadCloser, error) {
 func (c *Client) CreateSnapshot(ctx context.Context, snapshotRequest types.SnapshotCreateRequest) (*models.Snapshot, error) {
 	u := c.URL("/snapshot/create")
 
+	return c.createRequest(ctx, snapshotRequest, u)
+}
+
+// CreateSnapshotFromClone creates a new snapshot from clone.
+func (c *Client) CreateSnapshotFromClone(
+	ctx context.Context,
+	snapshotRequest types.SnapshotCloneCreateRequest) (*models.Snapshot, error) {
+	u := c.URL("/snapshot/clone")
+
+	return c.createRequest(ctx, snapshotRequest, u)
+}
+
+func (c *Client) createRequest(ctx context.Context, snapshotRequest any, u *url.URL) (*models.Snapshot, error) {
 	body := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(body).Encode(snapshotRequest); err != nil {
 		return nil, errors.Wrap(err, "failed to encode SnapshotCreateRequest")
@@ -83,22 +98,23 @@ func (c *Client) CreateSnapshot(ctx context.Context, snapshotRequest types.Snaps
 }
 
 // DeleteSnapshot deletes snapshot.
+//nolint:dupl
 func (c *Client) DeleteSnapshot(ctx context.Context, snapshotRequest types.SnapshotDestroyRequest) error {
 	u := c.URL("/snapshot/delete")
 
 	body := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(body).Encode(snapshotRequest); err != nil {
-		return errors.Wrap(err, "failed to encode snapshotDestroyRequest")
+		return fmt.Errorf("failed to encode snapshotDestroyRequest: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, u.String(), body)
 	if err != nil {
-		return errors.Wrap(err, "failed to make a request")
+		return fmt.Errorf("failed to make a request: %w", err)
 	}
 
 	response, err := c.Do(ctx, request)
 	if err != nil {
-		return errors.Wrap(err, "failed to get response")
+		return fmt.Errorf("failed to get response: %w", err)
 	}
 
 	defer func() { _ = response.Body.Close() }()

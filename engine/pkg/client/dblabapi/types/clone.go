@@ -12,6 +12,7 @@ type CloneCreateRequest struct {
 	DB        *DatabaseRequest           `json:"db"`
 	Snapshot  *SnapshotCloneFieldRequest `json:"snapshot"`
 	ExtraConf map[string]string          `json:"extra_conf"`
+	Branch    string                     `json:"branch"`
 }
 
 // CloneUpdateRequest represents params of an update request.
@@ -38,12 +39,45 @@ type ResetCloneRequest struct {
 	Latest     bool   `json:"latest"`
 }
 
-// SnapshotCreateRequest describes params for a creating snapshot request.
+// SnapshotCreateRequest describes params for creating snapshot request.
 type SnapshotCreateRequest struct {
 	PoolName string `json:"poolName"`
 }
 
-// SnapshotDestroyRequest describes params for a destroying snapshot request.
+// SnapshotDestroyRequest describes params for destroying snapshot request.
 type SnapshotDestroyRequest struct {
 	SnapshotID string `json:"snapshotID"`
+}
+
+// SnapshotCloneCreateRequest describes params for creating snapshot request from clone.
+type SnapshotCloneCreateRequest struct {
+	CloneID string `json:"cloneID"`
+	Message string `json:"message"`
+}
+
+// BranchCreateRequest describes params for creating branch request.
+type BranchCreateRequest struct {
+	BranchName string `json:"branchName"`
+	BaseBranch string `json:"baseBranch"`
+	SnapshotID string `json:"snapshotID"`
+}
+
+// SnapshotResponse describes commit response.
+type SnapshotResponse struct {
+	SnapshotID string `json:"snapshotID"`
+}
+
+// ResetRequest describes params for reset request.
+type ResetRequest struct {
+	SnapshotID string `json:"snapshotID"`
+}
+
+// LogRequest describes params for log request.
+type LogRequest struct {
+	BranchName string `json:"branchName"`
+}
+
+// BranchDeleteRequest describes params for deleting branch request.
+type BranchDeleteRequest struct {
+	BranchName string `json:"branchName"`
 }

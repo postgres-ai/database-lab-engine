@@ -123,6 +123,16 @@ func (c *Base) cleanupInvalidClones() error {
 	return nil
 }
 
+// GetLatestSnapshot returns the latest snapshot.
+func (c *Base) GetLatestSnapshot() (*models.Snapshot, error) {
+	snapshot, err := c.getLatestSnapshot()
+	if err != nil {
+		return nil, fmt.Errorf("failed to find the latest snapshot: %w", err)
+	}
+
+	return snapshot, err
+}
+
 // CreateClone creates a new clone.
 func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clone, error) {
 	cloneRequest.ID = strings.TrimSpace(cloneRequest.ID)
@@ -157,6 +167,7 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 	clone := &models.Clone{
 		ID:        cloneRequest.ID,
 		Snapshot:  snapshot,
+		Branch:    cloneRequest.Branch,
 		Protected: cloneRequest.Protected,
 		CreatedAt: models.NewLocalTime(createdAt),
 		Status: models.Status{
@@ -388,6 +399,21 @@ func (c *Base) UpdateCloneStatus(cloneID string, status models.Status) error {
 	return nil
 }
 
+// UpdateCloneSnapshot updates clone snapshot.
+func (c *Base) UpdateCloneSnapshot(cloneID string, snapshot *models.Snapshot) error {
+	c.cloneMutex.Lock()
+	defer c.cloneMutex.Unlock()
+
+	w, ok := c.clones[cloneID]
+	if !ok {
+		return errors.Errorf("clone %q not found", cloneID)
+	}
+
+	w.Clone.Snapshot = snapshot
+
+	return nil
+}
+
 // ResetClone resets clone to chosen snapshot.
 func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) error {
 	w, ok := c.findWrapper(cloneID)
@@ -488,6 +514,11 @@ func (c *Base) GetSnapshots() ([]models.Snapshot, error) {
 	}
 
 	return c.getSnapshotList(), nil
+}
+
+// GetSnapshotByID returns snapshot by ID.
+func (c *Base) GetSnapshotByID(snapshotID string) (*models.Snapshot, error) {
+	return c.getSnapshotByID(snapshotID)
 }
 
 // ReloadSnapshots reloads snapshot list.

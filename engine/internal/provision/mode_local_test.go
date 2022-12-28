@@ -12,6 +12,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
@@ -101,6 +102,78 @@ func (m mockFSManager) GetFilesystemState() (models.FileSystem, error) {
 
 func (m mockFSManager) Pool() *resources.Pool {
 	return m.pool
+}
+
+func (m mockFSManager) InitBranching() error {
+	return nil
+}
+
+func (m mockFSManager) VerifyBranchMetadata() error {
+	return nil
+}
+
+func (m mockFSManager) CreateBranch(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) Snapshot(_ string) error {
+	return nil
+}
+
+func (m mockFSManager) Reset(_ string, _ thinclones.ResetOptions) error {
+	return nil
+}
+
+func (m mockFSManager) ListBranches() (map[string]string, error) {
+	return nil, nil
+}
+
+func (m mockFSManager) AddBranchProp(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) DeleteBranchProp(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) SetRelation(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) SetRoot(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) GetRepo() (*models.Repo, error) {
+	return nil, nil
+}
+
+func (m mockFSManager) SetDSA(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) SetMessage(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) SetMountpoint(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) Rename(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) DeleteBranch(_ string) error {
+	return nil
+}
+
+func (m mockFSManager) DeleteChildProp(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) DeleteRootProp(_, _ string) error {
+	return nil
 }
 
 func TestBuildPoolEntry(t *testing.T) {

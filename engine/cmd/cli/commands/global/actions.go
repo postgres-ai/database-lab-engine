@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands"
@@ -25,7 +24,7 @@ func initCLI(c *cli.Context) error {
 	}
 
 	if err := os.MkdirAll(dirname, 0755); err != nil {
-		return errors.Wrapf(err, "Cannot create config directory %s", dirname)
+		return fmt.Errorf("cannot create config directory %s: %w", dirname, err)
 	}
 
 	filename := config.BuildFileName(dirname)

@@ -157,6 +157,13 @@ func (s *Server) createSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := fsManager.InitBranching(); err != nil {
+		api.SendBadRequestError(w, r, "Cannot verify branch metadata: "+err.Error())
+		return
+	}
+
+	// TODO: set branching metadata.
+
 	latestSnapshot := snapshotList[0]
 
 	if err := api.WriteJSON(w, http.StatusOK, latestSnapshot); err != nil {
@@ -199,6 +206,8 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: update branching metadata.
+
 	log.Dbg(fmt.Sprintf("Snapshot %s has been deleted", destroyRequest.SnapshotID))
 
 	if err := api.WriteJSON(w, http.StatusOK, ""); err != nil {
@@ -206,8 +215,63 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fsm.RefreshSnapshotList()
+
 	if err := s.Cloning.ReloadSnapshots(); err != nil {
 		log.Dbg("Failed to reload snapshots", err.Error())
+	}
+}
+
+func (s *Server) createSnapshotClone(w http.ResponseWriter, r *http.Request) {
+	if r.Body == http.NoBody {
+		api.SendBadRequestError(w, r, "request body cannot be empty")
+		return
+	}
+
+	var createRequest types.SnapshotCloneCreateRequest
+	if err := api.ReadJSON(r, &createRequest); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if createRequest.CloneID == "" {
+		api.SendBadRequestError(w, r, "cloneID cannot be empty")
+		return
+	}
+
+	clone, err := s.Cloning.GetClone(createRequest.CloneID)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	fsm, err := s.pm.GetFSManager(clone.Snapshot.Pool)
+	if err != nil {
+		api.SendBadRequestError(w, r, fmt.Sprintf("failed to find filesystem manager: %s", err.Error()))
+		return
+	}
+
+	cloneName := util.GetCloneNameStr(clone.DB.Port)
+
+	snapshotID, err := fsm.CreateSnapshot(cloneName, time.Now().Format(util.DataStateAtFormat))
+	if err != nil {
+		api.SendBadRequestError(w, r, fmt.Sprintf("failed to create a snapshot: %s", err.Error()))
+		return
+	}
+
+	if err := s.Cloning.ReloadSnapshots(); err != nil {
+		log.Dbg("Failed to reload snapshots", err.Error())
+	}
+
+	snapshot, err := s.Cloning.GetSnapshotByID(snapshotID)
+	if err != nil {
+		api.SendBadRequestError(w, r, fmt.Sprintf("failed to find a new snapshot: %s", err.Error()))
+		return
+	}
+
+	if err := api.WriteJSON(w, http.StatusOK, snapshot); err != nil {
+		api.SendError(w, r, err)
+		return
 	}
 }
 
@@ -221,6 +285,29 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 	if err := s.validator.ValidateCloneRequest(cloneRequest); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
+	}
+
+	if cloneRequest.Branch != "" {
+		fsm := s.pm.First()
+
+		if fsm == nil {
+			api.SendBadRequestError(w, r, "no available pools")
+			return
+		}
+
+		branches, err := fsm.ListBranches()
+		if err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+
+		snapshotID, ok := branches[cloneRequest.Branch]
+		if !ok {
+			api.SendBadRequestError(w, r, "branch not found")
+			return
+		}
+
+		cloneRequest.Snapshot = &types.SnapshotCloneFieldRequest{ID: snapshotID}
 	}
 
 	newClone, err := s.Cloning.CreateClone(cloneRequest)
