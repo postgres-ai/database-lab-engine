@@ -23,8 +23,8 @@ LDFLAGS = -ldflags "-s -w \
 GOBUILD = GO111MODULE=on CGO_ENABLED=0 GOARCH=${GOARCH} go build ${LDFLAGS}
 GOTEST = GO111MODULE=on go test -race
 
-CLIENT_PLATFORMS=darwin linux freebsd windows
-ARCHITECTURES=amd64
+CLIENT_PLATFORMS=darwin linux # freebsd windows
+ARCHITECTURES=amd64 arm64
 
 help: ## Display the help message
 	@echo "Please use \`make <target>\` where <target> is one of:"

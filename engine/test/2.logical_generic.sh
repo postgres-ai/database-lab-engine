@@ -79,10 +79,12 @@ source "${DIR}/_zfs.file.sh"
 
 configDir="$HOME/.dblab/engine/configs"
 metaDir="$HOME/.dblab/engine/meta"
+logsDir="$HOME/.dblab/engine/logs"
 
 # Copy the contents of configuration example 
 mkdir -p "${configDir}"
 mkdir -p "${metaDir}"
+mkdir -p "${logsDir}"
 
 curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG:-master}"/engine/configs/config.example.logical_generic.yml \
  --output "${configDir}/server.yml"
@@ -132,6 +134,7 @@ sudo docker run \
   --volume ${DLE_TEST_MOUNT_DIR}:${DLE_TEST_MOUNT_DIR}/:rshared \
   --volume "${configDir}":/home/dblab/configs \
   --volume "${metaDir}":/home/dblab/meta \
+  --volume "${logsDir}":/home/dblab/logs \
   --volume /sys/kernel/debug:/sys/kernel/debug:rw \
   --volume /lib/modules:/lib/modules:ro \
   --volume /proc:/host_proc:ro \

@@ -24,6 +24,7 @@ const (
 	FwLocalPortKey    = "forwarding-local-port"
 	IdentityFileKey   = "identity-file"
 	TZKey             = "tz"
+	CurrentBranch     = "current-branch"
 )
 
 // ClientByCLIContext creates a new Database Lab API client.

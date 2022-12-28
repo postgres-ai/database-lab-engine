@@ -8,6 +8,7 @@ package models
 type Clone struct {
 	ID        string        `json:"id"`
 	Snapshot  *Snapshot     `json:"snapshot"`
+	Branch    string        `json:"branch"`
 	Protected bool          `json:"protected"`
 	DeleteAt  *LocalTime    `json:"deleteAt"`
 	CreatedAt *LocalTime    `json:"createdAt"`

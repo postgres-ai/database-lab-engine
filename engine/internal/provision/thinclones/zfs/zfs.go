@@ -223,10 +223,14 @@ func (m *Manager) DestroyClone(cloneName string) error {
 	// this function to delete clones used during the preparation
 	// of baseline snapshots, we need to omit `-R`, to avoid
 	// unexpected deletion of users' clones.
-	cmd := fmt.Sprintf("zfs destroy -R %s/%s", m.config.Pool.Name, cloneName)
+	cmd := fmt.Sprintf("zfs destroy %s/%s", m.config.Pool.Name, cloneName)
 
 	if _, err = m.runner.Run(cmd); err != nil {
-		return errors.Wrap(err, "failed to run command")
+		if strings.Contains(cloneName, "clone_pre") {
+			return errors.Wrap(err, "failed to run command")
+		}
+
+		log.Dbg(err)
 	}
 
 	return nil
@@ -345,26 +349,69 @@ func getSnapshotName(pool, dataStateAt string) string {
 	return fmt.Sprintf("%s@snapshot_%s", pool, dataStateAt)
 }
 
-// RollbackSnapshot rollbacks ZFS snapshot.
-func RollbackSnapshot(r runners.Runner, pool string, snapshot string) error {
-	cmd := fmt.Sprintf("zfs rollback -f -r %s", snapshot)
-
-	if _, err := r.Run(cmd, true); err != nil {
-		return errors.Wrap(err, "failed to rollback a snapshot")
+// DestroySnapshot destroys the snapshot.
+func (m *Manager) DestroySnapshot(snapshotName string) error {
+	rel, err := m.detectBranching(snapshotName)
+	if err != nil {
+		return fmt.Errorf("failed to inspect snapshot properties: %w", err)
 	}
+
+	cmd := fmt.Sprintf("zfs destroy %s", snapshotName)
+
+	if _, err := m.runner.Run(cmd); err != nil {
+		return fmt.Errorf("failed to run command: %w", err)
+	}
+
+	if rel != nil {
+		if err := m.moveBranchPointer(rel, snapshotName); err != nil {
+			return err
+		}
+	}
+
+	m.removeSnapshotFromList(snapshotName)
 
 	return nil
 }
 
-// DestroySnapshot destroys the snapshot.
-func (m *Manager) DestroySnapshot(snapshotName string) error {
-	cmd := fmt.Sprintf("zfs destroy -R %s", snapshotName)
+type snapshotRelation struct {
+	parent string
+	branch string
+}
 
-	if _, err := m.runner.Run(cmd); err != nil {
-		return errors.Wrap(err, "failed to run command")
+func (m *Manager) detectBranching(snapshotName string) (*snapshotRelation, error) {
+	cmd := fmt.Sprintf("zfs list -H -o dle:parent,dle:branch %s", snapshotName)
+
+	out, err := m.runner.Run(cmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to run command")
 	}
 
-	m.removeSnapshotFromList(snapshotName)
+	response := strings.Fields(out)
+
+	const fieldsCounter = 2
+
+	if len(response) != fieldsCounter || response[0] == "-" || response[1] == "-" {
+		return nil, nil
+	}
+
+	return &snapshotRelation{
+		parent: response[0],
+		branch: response[1],
+	}, nil
+}
+
+func (m *Manager) moveBranchPointer(rel *snapshotRelation, snapshotName string) error {
+	if rel == nil {
+		return nil
+	}
+
+	if err := m.DeleteChildProp(snapshotName, rel.parent); err != nil {
+		return fmt.Errorf("failed to delete a child property from snapshot %s: %w", rel.parent, err)
+	}
+
+	if err := m.AddBranchProp(rel.branch, rel.parent); err != nil {
+		return fmt.Errorf("failed to set a branch property to snapshot %s: %w", rel.parent, err)
+	}
 
 	return nil
 }

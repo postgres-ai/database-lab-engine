@@ -11,6 +11,9 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands"
 )
 
+// DefaultBranch defines the name of data branch.
+const DefaultBranch = "main"
+
 // CLIConfig defines a format of CLI configuration.
 type CLIConfig struct {
 	CurrentEnvironment string                 `yaml:"current_environment" json:"current_environment"`
@@ -26,6 +29,7 @@ type Environment struct {
 	Insecure       bool       `yaml:"insecure" json:"insecure"`
 	RequestTimeout Duration   `yaml:"request_timeout,omitempty" json:"request_timeout,omitempty"`
 	Forwarding     Forwarding `yaml:"forwarding" json:"forwarding"`
+	Branching      Branching  `yaml:"branching" json:"branching"`
 }
 
 // Forwarding defines configuration for port forwarding.
@@ -38,6 +42,11 @@ type Forwarding struct {
 // Settings defines global CLI settings.
 type Settings struct {
 	TZ string `yaml:"tz" json:"tz"`
+}
+
+// Branching defines branching context.
+type Branching struct {
+	CurrentBranch string `yaml:"current_branch" json:"current_branch"`
 }
 
 // AddEnvironmentToConfig adds a new environment to CLIConfig.
@@ -60,6 +69,13 @@ func AddEnvironmentToConfig(c *cli.Context, cfg *CLIConfig, environmentID string
 			LocalPort:    c.String(commands.FwLocalPortKey),
 			IdentityFile: c.String(commands.IdentityFileKey),
 		},
+		Branching: Branching{
+			CurrentBranch: c.String(commands.CurrentBranch),
+		},
+	}
+
+	if env.Branching.CurrentBranch == "" {
+		env.Branching.CurrentBranch = DefaultBranch
 	}
 
 	if cfg.Environments == nil {
@@ -115,6 +131,10 @@ func updateEnvironmentInConfig(c *cli.Context, cfg *CLIConfig, environmentID str
 
 	if c.IsSet(commands.IdentityFileKey) {
 		newEnvironment.Forwarding.IdentityFile = c.String(commands.IdentityFileKey)
+	}
+
+	if c.IsSet(commands.CurrentBranch) {
+		newEnvironment.Branching.CurrentBranch = c.String(commands.CurrentBranch)
 	}
 
 	if newEnvironment == environment {

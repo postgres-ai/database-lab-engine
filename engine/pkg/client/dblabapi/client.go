@@ -18,8 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
@@ -136,7 +134,7 @@ func (c *Client) Do(ctx context.Context, request *http.Request) (response *http.
 
 		errModel := models.Error{}
 		if err = json.Unmarshal(b, &errModel); err != nil {
-			return response, errors.Wrapf(err, "failed to parse an error message: %s", (string(b)))
+			return response, fmt.Errorf("failed to parse an error message: %s, %w", string(b), err)
 		}
 
 		return response, errModel

@@ -70,9 +70,12 @@ sudo docker rm dblab_pg_initdb
 
 configDir="$HOME/.dblab/engine/configs"
 metaDir="$HOME/.dblab/engine/meta"
+logsDir="$HOME/.dblab/engine/logs"
 
 # Copy the contents of configuration example
 mkdir -p "${configDir}"
+mkdir -p "${metaDir}"
+mkdir -p "${logsDir}"
 
 curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG:-master}"/engine/configs/config.example.logical_generic.yml \
  --output "${configDir}/server.yml"
@@ -119,6 +122,7 @@ sudo docker run \
   --volume ${DLE_TEST_MOUNT_DIR}:${DLE_TEST_MOUNT_DIR}/:rshared \
   --volume "${configDir}":/home/dblab/configs \
   --volume "${metaDir}":/home/dblab/meta \
+  --volume "${logsDir}":/home/dblab/logs \
   --volume /sys/kernel/debug:/sys/kernel/debug:rw \
   --volume /lib/modules:/lib/modules:ro \
   --volume /proc:/host_proc:ro \
@@ -248,6 +252,36 @@ PGPASSWORD=secret_password psql \
 ### Step 5. Destroy clone
 dblab clone destroy testclone
 dblab clone list
+
+### Data branching.
+dblab branch || (echo "Failed when data branching is not initialized" && exit 1)
+dblab branch 001-branch || (echo "Failed to create a data branch" && exit 1)
+dblab branch
+
+dblab clone create \
+  --username john \
+  --password test \
+  --branch 001-branch \
+  --id branchclone001 || (echo "Failed to create a clone on branch" && exit 1)
+
+dblab commit --clone-id branchclone001 --message branchclone001 || (echo "Failed to create a snapshot" && exit 1)
+
+dblab clone create \
+  --username alice \
+  --password password \
+  --branch 001-branch \
+  --id branchclone002 || (echo "Failed to create a clone on branch" && exit 1)
+
+dblab commit --clone-id branchclone002 -m branchclone002 || (echo "Failed to create a snapshot" && exit 1)
+
+dblab log 001-branch || (echo "Failed to show branch history" && exit 1)
+
+dblab clone destroy branchclone001 || (echo "Failed to destroy clone" && exit 1)
+dblab clone destroy branchclone002 || (echo "Failed to destroy clone" && exit 1)
+
+dblab branch --delete 001-branch || (echo "Failed to delete data branch" && exit 1)
+
+dblab branch
 
 ## Stop DLE.
 sudo docker stop ${DLE_SERVER_NAME}

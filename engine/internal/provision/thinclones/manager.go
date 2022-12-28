@@ -9,6 +9,12 @@ import (
 	"fmt"
 )
 
+// ResetOptions defines reset options.
+type ResetOptions struct {
+	// -f
+	// -r
+}
+
 // SnapshotExistsError defines an error when snapshot already exists.
 type SnapshotExistsError struct {
 	name string

@@ -22,6 +22,9 @@ const (
 	RefreshingPool PoolStatus = "refreshing"
 	// EmptyPool defines the status of an inactive pool.
 	EmptyPool PoolStatus = "empty"
+
+	// branchDir defines branch directory in the pool.
+	branchDir = "branch"
 )
 
 // Pool describes a storage pool.
@@ -82,6 +85,16 @@ func (p *Pool) ClonePath(port uint) string {
 // SocketCloneDir returns a path to the socket clone directory.
 func (p *Pool) SocketCloneDir(name string) string {
 	return path.Join(p.SocketDir(), name)
+}
+
+// BranchDir returns a path to the branch directory of the storage pool.
+func (p *Pool) BranchDir() string {
+	return path.Join(p.MountDir, p.PoolDirName, branchDir)
+}
+
+// BranchPath returns a path to the specific branch in the storage pool.
+func (p *Pool) BranchPath(branchName string) string {
+	return path.Join(p.BranchDir(), branchName)
 }
 
 // Status gets the pool status.

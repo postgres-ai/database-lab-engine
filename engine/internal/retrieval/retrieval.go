@@ -348,6 +348,10 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 		r.State.cleanAlerts()
 	}
 
+	if err := fsm.InitBranching(); err != nil {
+		return fmt.Errorf("failed to init branching: %w", err)
+	}
+
 	return nil
 }
 

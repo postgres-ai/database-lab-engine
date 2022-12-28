@@ -64,6 +64,10 @@ func CommandList() []*cli.Command {
 						Name:  "snapshot-id",
 						Usage: "snapshot ID (optional)",
 					},
+					&cli.StringFlag{
+						Name:  "branch",
+						Usage: "branch name (optional)",
+					},
 					&cli.BoolFlag{
 						Name:    "protected",
 						Usage:   "mark instance as protected from deletion",

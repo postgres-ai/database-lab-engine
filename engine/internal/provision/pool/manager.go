@@ -13,6 +13,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/lvm"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/zfs"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
@@ -25,6 +26,7 @@ type FSManager interface {
 	Snapshotter
 	StateReporter
 	Pooler
+	Branching
 }
 
 // Cloner describes methods of clone management.
@@ -47,6 +49,28 @@ type Snapshotter interface {
 	CleanupSnapshots(retentionLimit int) ([]string, error)
 	SnapshotList() []resources.Snapshot
 	RefreshSnapshotList()
+}
+
+// Branching describes methods for data branching.
+type Branching interface {
+	InitBranching() error
+	VerifyBranchMetadata() error
+	CreateBranch(branchName, snapshotID string) error
+	ListBranches() (map[string]string, error)
+	GetRepo() (*models.Repo, error)
+	SetRelation(parent, snapshotName string) error
+	Snapshot(snapshotName string) error
+	SetMountpoint(path, branch string) error
+	Rename(oldName, branch string) error
+	AddBranchProp(branch, snapshotName string) error
+	DeleteBranchProp(branch, snapshotName string) error
+	DeleteChildProp(childSnapshot, snapshotName string) error
+	DeleteRootProp(branch, snapshotName string) error
+	DeleteBranch(branch string) error
+	SetRoot(branch, snapshotName string) error
+	SetDSA(dsa, snapshotName string) error
+	SetMessage(message, snapshotName string) error
+	Reset(snapshotID string, options thinclones.ResetOptions) error
 }
 
 // Pooler describes methods for Pool providing.
