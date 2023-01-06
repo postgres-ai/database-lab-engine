@@ -11,6 +11,7 @@
   border-radius: 4px;
   overflow: hidden;
   padding: 0.5rem 1rem;
+
   & > p {
     font-size: small;
     font-family: 'Fira Code', monospace;
@@ -30,8 +31,10 @@
   background-color: #fff2e5;
   color: #000;
   font-weight: 500;
+  font-size: 11px;
   padding: 6px 8px;
   border-radius: 4px;
   transition: all 40050ms ease;
   cursor: pointer;
+  z-index: 1;
 }
