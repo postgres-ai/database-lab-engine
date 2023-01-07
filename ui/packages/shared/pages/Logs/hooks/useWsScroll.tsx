@@ -7,6 +7,8 @@ export const useWsScroll = (isLoading: boolean) => {
 
   useEffect(() => {
     !isLoading && wsSnackbar(isAtBottom, isNewData)
+
+    const contentElement = document.getElementById('content-container')
     const targetNode = document.getElementById('logs-container')
 
     const clientAtBottom = (element: HTMLElement) =>
@@ -23,20 +25,21 @@ export const useWsScroll = (isLoading: boolean) => {
 
     const handleInsert = (e: Event | any) => {
       if (e.srcElement?.tagName !== 'DIV') {
-        isAtBottom &&
-          targetNode?.scroll({
-            top: targetNode.scrollHeight,
-          })
+        isAtBottom && targetNode?.scrollIntoView(false)
         setIsNewData(true)
       }
     }
 
-    targetNode?.addEventListener('scroll', handleScroll, false)
-    targetNode?.addEventListener('DOMNodeInserted', handleInsert, false)
+    contentElement?.addEventListener('scroll', handleScroll, false)
+    contentElement?.addEventListener('DOMNodeInserted', handleInsert, false)
 
     return () => {
-      targetNode?.removeEventListener('scroll', handleScroll, false)
-      targetNode?.removeEventListener('DOMNodeInserted', handleInsert, false)
+      contentElement?.removeEventListener('scroll', handleScroll, false)
+      contentElement?.removeEventListener(
+        'DOMNodeInserted',
+        handleInsert,
+        false,
+      )
     }
   }, [isAtBottom, isNewData, isLoading])
 }
