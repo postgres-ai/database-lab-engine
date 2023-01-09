@@ -24,30 +24,34 @@ import { Header } from './Header'
 
 const SHORT_LIST_SIZE = 3
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    width: 0,
-    flex: '1 1 100%',
-    marginRight: '40px',
+const useStyles = makeStyles(
+  (theme) => ({
+    root: {
+      width: 0,
+      flex: '1 1 100%',
+      marginRight: '40px',
+      height: "100%",
 
-    [theme.breakpoints.down('sm')]: {
-      width: '100%',
-      marginRight: 0,
+      [theme.breakpoints.down('sm')]: {
+        width: '100%',
+        marginRight: 0,
+      },
     },
-  },
-  tableTitle: {
-    marginTop: '5px',
-  },
-  listSizeButton: {
-    marginTop: '12px',
-  },
-  infoIcon: {
-    height: '12px',
-    width: '12px',
-    marginLeft: '8px',
-    color: '#808080',
-  },
-}))
+    tableTitle: {
+      marginTop: '5px',
+    },
+    listSizeButton: {
+      marginTop: '12px',
+    },
+    infoIcon: {
+      height: '12px',
+      width: '12px',
+      marginLeft: '8px',
+      color: '#808080',
+    },
+  }),
+  { index: 1 },
+)
 
 export const Clones = observer(() => {
   const classes = useStyles()

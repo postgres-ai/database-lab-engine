@@ -7,7 +7,6 @@
 
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import { withStyles } from '@material-ui/core/styles';
 import Grid from '@material-ui/core/Grid';
 
 import { TextField } from '@postgres.ai/shared/components/TextField';
@@ -15,32 +14,9 @@ import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner';
 
 import Store from 'stores/store';
 import Actions from 'actions/actions';
-import Error from 'components/Error';
+import { ErrorWrapper } from 'components/Error/ErrorWrapper';
 import ConsolePageTitle from 'components/ConsolePageTitle';
 import { Head, createTitle } from 'components/Head';
-
-
-const styles = theme => ({
-  root: {
-    // To be consistent with parent layout.
-    // TODO(anton): rewrite parent layout.
-    paddingBottom: 'inherit'
-  },
-  container: {
-    display: 'flex',
-    flexWrap: 'wrap'
-  },
-  textField: {
-    marginLeft: theme.spacing(1),
-    marginRight: theme.spacing(1)
-  },
-  dense: {
-    marginTop: 16
-  },
-  menu: {
-    width: 200
-  }
-});
 
 const PAGE_NAME = 'Profile';
 
@@ -87,7 +63,7 @@ class Profile extends Component {
 
           {pageTitle}
 
-          <Error/>
+          <ErrorWrapper/>
         </div>
       );
     }
@@ -148,7 +124,6 @@ class Profile extends Component {
 
 Profile.propTypes = {
   classes: PropTypes.object.isRequired,
-  theme: PropTypes.object.isRequired
 };
 
-export default withStyles(styles, { withTheme: true })(Profile);
+export default Profile

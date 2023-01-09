@@ -15,11 +15,19 @@ import arrowRightIconUrl from './icons/arrow-right.svg'
 import styles from './styles.module.scss'
 
 const LAPTOP_WIDTH_PX = 1024
+const SIDEBAR_COLLAPSED_PARAM = 'sidebarMenuCollapsed'
 
 export const Menu = observer(() => {
   const [isCollapsed, setIsCollapsed] = useState(
-    () => window.innerWidth < LAPTOP_WIDTH_PX,
+    () =>
+      window.innerWidth < LAPTOP_WIDTH_PX ||
+      localStorage.getItem(SIDEBAR_COLLAPSED_PARAM) === '1',
   )
+
+  const handleClick = () => {
+    setIsCollapsed(!isCollapsed)
+    localStorage.setItem(SIDEBAR_COLLAPSED_PARAM, isCollapsed ? '0' : '1')
+  }
 
   return (
     <div className={cn(styles.root, isCollapsed && styles.collapsed)}>
@@ -57,7 +65,7 @@ export const Menu = observer(() => {
 
         <Button
           className={styles.collapseBtn}
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={handleClick}
           isCollapsed={isCollapsed}
           icon={
             <img

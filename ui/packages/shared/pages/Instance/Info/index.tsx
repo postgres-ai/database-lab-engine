@@ -13,21 +13,24 @@ import { Connection } from './Connection'
 import { Disks } from './Disks'
 import { Snapshots } from './Snapshots'
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    flex: '0 0 437px',
-    minWidth: 0,
+const useStyles = makeStyles(
+  (theme) => ({
+    root: {
+      flex: '0 0 437px',
+      minWidth: 0,
 
-    [theme.breakpoints.down('md')]: {
-      flexBasis: '300px',
-    },
+      [theme.breakpoints.down('md')]: {
+        flexBasis: '300px',
+      },
 
-    [theme.breakpoints.down('sm')]: {
-      flex: '1 1 100%',
-      marginTop: '20px',
+      [theme.breakpoints.down('sm')]: {
+        flex: '1 1 100%',
+        marginTop: '20px',
+      },
     },
-  },
-}))
+  }),
+  { index: 1 },
+)
 
 export const Info = () => {
   const classes = useStyles()

@@ -14,11 +14,11 @@ import { emoji } from 'config/emoji';
 import { localStorage } from 'helpers/localStorage';
 
 import settings from '../utils/settings';
-import webSockets from '../utils/webSockets';
 import Actions from '../actions/actions';
 import format from '../utils/format';
 
 import { preformatJoeMessage } from './preformatJoeMessage';
+import { createWebSocket } from 'utils/webSockets';
 
 const WS_MAX_RETRY_CONNECTION_COUNT = 5;
 
@@ -1669,7 +1669,7 @@ const Store = Reflux.createStore({
   onInitJoeWebSocketConnection: function (instanceId, channelId, wsChannelId) {
     const that = this;
     const instance = this.getJoeInstance(instanceId);
-    let ws = webSockets.createWebSocket(settings.wsServer,
+    let ws = createWebSocket(settings.wsServer,
       wsChannelId + '/' + this.data.auth.token);
 
     instance.ws = ws;

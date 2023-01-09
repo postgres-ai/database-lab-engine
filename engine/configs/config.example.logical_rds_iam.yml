@@ -23,8 +23,8 @@ server:
   # HTTP server port. Default: 2345.
   port: 2345
 
-  # Allow modifying configuration via UI/API. Default: true.
-  allowModifyingConfig: true
+  # Disable modifying configuration via UI/API. Default: false.
+  disableConfigModification: false
 
 # Embedded UI. Controls the application to provide a user interface to DLE API.
 embeddedUI:
@@ -109,7 +109,7 @@ databaseContainer: &db_container
   # It is possible to choose any custom or official Docker image that runs Postgres. Our Dockerfile
   # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
   # is recommended in case if customization is needed.
-  dockerImage: "postgresai/extended-postgres:14"
+  dockerImage: "postgresai/extended-postgres:15"
 
   # Custom parameters for containers with PostgreSQL, see
   # https://docs.docker.com/engine/reference/run/#runtime-constraints-on-resources
@@ -252,6 +252,15 @@ retrieval:
         #   # Option to adjust PostgreSQL configuration for a logical dump job.
         #   # It's useful if a dumped database contains non-standard extensions.
         #   <<: *db_configs
+        #   # Custom options for pg_restore command.
+        #   customOptions:
+        #     - "--no-privileges"
+        #     - "--no-owner"
+        #     - "--exit-on-error"
+
+        # Custom options for pg_dump command.
+        customOptions:
+          - "--exclude-schema=rdsdms"
 
     # Restores PostgreSQL database from the provided dump. If you use this block, do not use
     # "restore" option in the "logicalDump" job.
@@ -305,6 +314,13 @@ retrieval:
 
           # Inline SQL. Queries run after scripts placed in 'queryPath'.
           inline: ""
+
+        # Custom options for pg_restore command.
+        customOptions:
+          - "--no-tablespaces"
+          - "--no-privileges"
+          - "--no-owner"
+          - "--exit-on-error"
 
     logicalSnapshot:
       options:

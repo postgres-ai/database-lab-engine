@@ -8,49 +8,52 @@
 import { makeStyles, Button } from '@material-ui/core'
 import { useHistory } from 'react-router-dom'
 
-import { colors } from '@postgres.ai/shared/styles/colors';
-import { icons } from '@postgres.ai/shared/styles/icons';
+import { colors } from '@postgres.ai/shared/styles/colors'
+import { icons } from '@postgres.ai/shared/styles/icons'
 
 import { ROUTES } from 'config/routes'
 
-const useStyles = makeStyles({
-  demoNoticeText: {
-    marginLeft: '0px',
-    display: 'inline-block',
-    position: 'relative',
-    backgroundColor: colors.blue,
-    color: colors.secondary2.darkDark,
-    width: '100%',
-    fontSize: '12px',
-    lineHeight: '24px',
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    paddingLeft: '10px',
-    paddingTop: '4px',
-    paddingBottom: '4px',
-    '& > svg': {
-      verticalAlign: 'baseline',
-      marginBottom: '-1px',
+const useStyles = makeStyles(
+  {
+    demoNoticeText: {
       marginLeft: '0px',
-      marginRight: '4px',
+      display: 'inline-block',
+      position: 'relative',
+      backgroundColor: colors.blue,
+      color: colors.secondary2.darkDark,
+      width: '100%',
+      fontSize: '12px',
+      lineHeight: '24px',
+      fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+      paddingLeft: '10px',
+      paddingTop: '4px',
+      paddingBottom: '4px',
+      '& > svg': {
+        verticalAlign: 'baseline',
+        marginBottom: '-1px',
+        marginLeft: '0px',
+        marginRight: '4px',
+      },
+    },
+    demoOrgNoticeButton: {
+      padding: '2px',
+      paddingLeft: '6px',
+      paddingRight: '6px',
+      borderRadius: '3px',
+      marginLeft: '5px',
+      marginTop: '-2px',
+      backgroundColor: colors.white,
+      height: '20px',
+      lineHeight: '20px',
+      fontSize: '12px',
+      fontWeight: 'bold',
+    },
+    noWrap: {
+      whiteSpace: 'nowrap',
     },
   },
-  demoOrgNoticeButton: {
-    padding: '2px',
-    paddingLeft: '6px',
-    paddingRight: '6px',
-    borderRadius: '3px',
-    marginLeft: '5px',
-    marginTop: '-2px',
-    backgroundColor: colors.white,
-    height: '20px',
-    lineHeight: '20px',
-    fontSize: '12px',
-    fontWeight: 'bold',
-  },
-  noWrap: {
-    whiteSpace: 'nowrap',
-  },
-})
+  { index: 1 },
+)
 
 export const DemoOrgNotice = () => {
   const classes = useStyles()

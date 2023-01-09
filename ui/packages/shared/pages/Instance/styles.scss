@@ -6,19 +6,32 @@
  */
 
 #logs-container {
-    margin: 1rem 0;
-    border: 1px solid #b4b4b4;
-    border-radius: 4px;
-    margin-top: 20px;
-    overflow: hidden;
-    padding: 0.5rem 1rem;
-    & > p {
-      font-size: medium;
-      font-family: 'Fira Code', monospace;   
-      padding: 4px 0;
-    }
+  margin: 20px 0 0 0;
+  border: 1px solid #b4b4b4;
+  border-radius: 4px;
+  overflow: hidden;
+  padding: 0.5rem 1rem;
+  & > p {
+    font-size: small;
+    font-family: 'Fira Code', monospace;
+    padding: 1px 0;
+  }
 }
 
 .error-log {
   color: red;
+}
+
+.snackbar-tag {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #fff2e5;
+  color: #000;
+  font-weight: 500;
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: all 40050ms ease;
+  cursor: pointer;
 }

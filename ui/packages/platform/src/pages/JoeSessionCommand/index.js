@@ -7,7 +7,6 @@
 
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import { withStyles } from '@material-ui/core/styles';
 import Dialog from '@material-ui/core/Dialog';
 import Button from '@material-ui/core/Button';
 import AppBar from '@material-ui/core/AppBar';
@@ -23,15 +22,14 @@ import { formatDistanceToNowStrict } from 'date-fns';
 import { FormattedText } from '@postgres.ai/shared/components/FormattedText';
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner';
 import { Spinner } from '@postgres.ai/shared/components/Spinner';
-import { styles } from '@postgres.ai/shared/styles/styles';
 
 import Store from 'stores/store';
 import Actions from 'actions/actions';
-import Error from 'components/Error';
-import ConsoleBreadcrumbs from 'components/ConsoleBreadcrumbs';
+import { ErrorWrapper } from 'components/Error/ErrorWrapper';
+import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper';
 import ConsolePageTitle from 'components/ConsolePageTitle';
 import FlameGraph from 'components/FlameGraph';
-import visualizeTypes from 'assets/visualizeTypes';
+import { visualizeTypes } from 'assets/visualizeTypes';
 import Urls from 'utils/urls';
 import Permissions from 'utils/permissions';
 import format from 'utils/format';
@@ -39,42 +37,6 @@ import format from 'utils/format';
 import { TabPanel } from './TabPanel';
 
 const hashLinkVisualizePrefix = 'visualize-';
-
-const getStyles = theme => ({
-  root: {
-    'display': 'flex',
-    'flex-direction': 'column',
-    'flex': '1 1 100%',
-
-    '& h4': {
-      marginTop: '2em',
-      marginBottom: '0.7em'
-    }
-  },
-  appBar: {
-    position: 'relative'
-  },
-  title: {
-    marginLeft: theme.spacing(2),
-    flex: 1,
-    fontSize: '16px'
-  },
-  actions: {
-    display: 'flex'
-  },
-  visFrame: {
-    height: '100%'
-  },
-  nextButton: {
-    marginLeft: '10px'
-  },
-  flameGraphContainer: {
-    padding: '20px'
-  },
-  bottomSpace: {
-    ...styles.bottomSpace
-  }
-});
 
 function a11yProps(index) {
   return {
@@ -252,21 +214,21 @@ class JoeSessionCommand extends Component {
     }
 
     const breadcrumbs = (
-      <ConsoleBreadcrumbs
+      <ConsoleBreadcrumbsWrapper
         {...this.props}
         breadcrumbs={[
           { name: 'SQL Optimization', url: null },
           { name: 'History', url: 'sessions' },
-          { name: 'Command #' + commandId }
+          { name: 'Command #' + commandId },
         ]}
       />
-    );
+    )
 
     if (this.state && this.state.data && this.state.data.command.error) {
       return (
         <div className={classes.root}>
           {breadcrumbs}
-          <Error
+          <ErrorWrapper
             message={this.state.data.command.errorMessage}
             code={this.state.data.command.errorCode}
           />
@@ -524,4 +486,4 @@ JoeSessionCommand.propTypes = {
   theme: PropTypes.object.isRequired
 };
 
-export default withStyles(getStyles, { withTheme: true })(JoeSessionCommand);
+export default JoeSessionCommand

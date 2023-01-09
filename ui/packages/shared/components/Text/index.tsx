@@ -9,19 +9,20 @@ import React from 'react'
 import { makeStyles } from '@material-ui/core'
 
 type Props = {
-  children: React.ReactNode,
+  children: React.ReactNode
 }
 
-const useStyles = makeStyles({
-  root: {
-    margin: 0,
-  }
-})
+const useStyles = makeStyles(
+  {
+    root: {
+      margin: 0,
+    },
+  },
+  { index: 1 },
+)
 
 export const Text = (props: Props) => {
   const classes = useStyles()
 
-  return <p className={classes.root}>
-    { props.children }
-  </p>
+  return <p className={classes.root}>{props.children}</p>
 }

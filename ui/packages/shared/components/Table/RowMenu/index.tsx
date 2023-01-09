@@ -30,20 +30,23 @@ export type Props = {
   direction?: 'left' | 'right'
 }
 
-const useStyles = makeStyles({
-  button: {
-    '&:disabled': {
-      cursor: 'not-allowed',
-      pointerEvents: 'all',
+const useStyles = makeStyles(
+  {
+    button: {
+      '&:disabled': {
+        cursor: 'not-allowed',
+        pointerEvents: 'all',
+      },
+    },
+    spinner: {
+      background: 'transparent',
+    },
+    hiddenIcon: {
+      visibility: 'hidden',
     },
   },
-  spinner: {
-    background: 'transparent',
-  },
-  hiddenIcon: {
-    visibility: 'hidden',
-  },
-})
+  { index: 1 },
+)
 
 export const RowMenu = (props: Props) => {
   const {
@@ -70,7 +73,9 @@ export const RowMenu = (props: Props) => {
         className={classes.button}
       >
         <MoreVert className={clsx(isLoading && classes.hiddenIcon)} />
-        {isLoading && <StubSpinner size="sm" mode="absolute" className={classes.spinner} />}
+        {isLoading && (
+          <StubSpinner size="sm" mode="absolute" className={classes.spinner} />
+        )}
       </IconButton>
       <Menu
         anchorOrigin={{

@@ -9,30 +9,39 @@ import React from 'react'
 import { makeStyles } from '@material-ui/core'
 import clsx from 'clsx'
 
-import { CloneDto, formatCloneDto } from '@postgres.ai/shared/types/api/entities/clone'
+import {
+  CloneDto,
+  formatCloneDto,
+} from '@postgres.ai/shared/types/api/entities/clone'
 import { Status as StatusBase } from '@postgres.ai/shared/components/Status'
 import { FormattedText } from '@postgres.ai/shared/components/FormattedText'
-import { getCloneStatusType, getCloneStatusText } from '@postgres.ai/shared/utils/clone'
+import {
+  getCloneStatusType,
+  getCloneStatusText,
+} from '@postgres.ai/shared/utils/clone'
 
 type Props = {
   rawClone: CloneDto
   className?: string
 }
 
-const useStyles = makeStyles({
-  root: {
-    marginTop: '2px',
+const useStyles = makeStyles(
+  {
+    root: {
+      marginTop: '2px',
+    },
+    status: {
+      fontWeight: 500,
+    },
+    message: {
+      margin: '4px 0 0 0',
+    },
+    errorMessage: {
+      marginTop: '8px',
+    },
   },
-  status: {
-    fontWeight: 500,
-  },
-  message: {
-    margin: '4px 0 0 0',
-  },
-  errorMessage: {
-    marginTop: '8px',
-  }
-})
+  { index: 1 },
+)
 
 export const Status = React.memo((props: Props) => {
   const { rawClone, className } = props
@@ -57,10 +66,7 @@ export const Status = React.memo((props: Props) => {
       {!isError && <p className={classes.message}>{message}</p>}
 
       {isError && (
-        <FormattedText
-          value={message}
-          className={classes.errorMessage}
-        />
+        <FormattedText value={message} className={classes.errorMessage} />
       )}
     </div>
   )

@@ -20,11 +20,14 @@ import { Property } from '../components/Property'
 import { getEdgeSnapshots } from './utils'
 import { Calendar } from './Calendar'
 
-const useStyles = makeStyles({
-  button: {
-    marginTop: '20px',
+const useStyles = makeStyles(
+  {
+    button: {
+      marginTop: '20px',
+    },
   },
-})
+  { index: 1 },
+)
 
 export const Snapshots = observer(() => {
   const stores = useStores()

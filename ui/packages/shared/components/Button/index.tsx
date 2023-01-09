@@ -21,29 +21,32 @@ type Props = Omit<
   isDisabled?: boolean
 }
 
-const useStyles = makeStyles({
-  root: {
-    whiteSpace: 'nowrap',
+const useStyles = makeStyles(
+  {
+    root: {
+      whiteSpace: 'nowrap',
 
-    '&.MuiButton-outlinedPrimary': {
-      background: colors.white,
-
-      '&:hover': {
-        background: '#f4f6f7',
-      },
-    },
-
-    '&:disabled': {
-      cursor: 'not-allowed',
-      pointerEvents: 'all',
-
-      '&.MuiButton-outlinedPrimary:hover': {
+      '&.MuiButton-outlinedPrimary': {
         background: colors.white,
-        border: '1px solid rgba(0, 0, 0, 0.12)',
+
+        '&:hover': {
+          background: '#f4f6f7',
+        },
+      },
+
+      '&:disabled': {
+        cursor: 'not-allowed',
+        pointerEvents: 'all',
+
+        '&.MuiButton-outlinedPrimary:hover': {
+          background: colors.white,
+          border: '1px solid rgba(0, 0, 0, 0.12)',
+        },
       },
     },
   },
-})
+  { index: 1 },
+)
 
 const VARIANT_MAP = {
   primary: 'contained' as const,

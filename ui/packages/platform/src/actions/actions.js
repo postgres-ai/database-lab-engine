@@ -13,7 +13,7 @@ import Api from '../api/api';
 import ExplainDepeszApi from '../api/explain/depesz';
 import ExplainPev2Api from '../api/explain/pev2';
 import settings from '../utils/settings';
-import visualizeTypes from '../assets/visualizeTypes';
+import { visualizeTypes } from '../assets/visualizeTypes';
 
 let api;
 let explainDepeszApi;
@@ -135,8 +135,8 @@ function timeoutPromise(ms, promise) {
 }
 
 function actionResult(promise, cb, errorCb) {
-  timeoutPromise(REQUEST_TIMEOUT, promise).
-    then(result => {
+  timeoutPromise(REQUEST_TIMEOUT, promise)
+    .then(result => {
       let count;
       try {
         let range = result.headers.get('content-range');
@@ -151,8 +151,8 @@ function actionResult(promise, cb, errorCb) {
         console.log('Range is empty');
       }
 
-      result.json().
-        then(json => {
+      result.json()
+        .then(json => {
           if (!json) {
             if (errorCb) {
               errorCb(new Error('wrong_reply'));
@@ -176,8 +176,8 @@ function actionResult(promise, cb, errorCb) {
             this.failed(new Error('wrong_reply'));
           }
         });
-    }).
-    catch(err => {
+    })
+    .catch(err => {
       console.error(err);
       let actionErr = new Error('wrong_reply');
 

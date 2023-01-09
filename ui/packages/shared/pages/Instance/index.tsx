@@ -11,59 +11,54 @@ import { observer } from 'mobx-react-lite'
 
 import { Button } from '@postgres.ai/shared/components/Button2'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
-import { Spinner } from '@postgres.ai/shared/components/Spinner';
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 
 import { Tabs } from './Tabs'
+import { Logs } from '../Logs'
 import { Clones } from './Clones'
 import { Info } from './Info'
-import { establishConnection } from './wsLogs'
 import { Configuration } from '../Configuration'
 import { ClonesModal } from './ClonesModal'
 import { SnapshotsModal } from './SnapshotsModal'
 import { Host, HostProvider, StoresProvider } from './context'
 
-import PropTypes from "prop-types";
-import Typography from "@material-ui/core/Typography";
-import Box from "@material-ui/core/Box";
-import Alert from '@material-ui/lab/Alert';
-import AlertTitle from '@material-ui/lab/AlertTitle';
+import PropTypes from 'prop-types'
+import Typography from '@material-ui/core/Typography'
+import Box from '@mui/material/Box'
 
 import { useCreatedStores } from './useCreatedStores'
 
-import './styles.scss';
+import './styles.scss'
 
 type Props = Host
 
-const useStyles = makeStyles((theme) => ({
-  title: {
-    marginTop: '8px',
-  },
-  reloadButton: {
-    flex: '0 0 auto',
-    alignSelf: 'flex-start',
-  },
-  errorStub: {
-    marginTop: '16px',
-  },
-  content: {
-    display: 'flex',
-    marginTop: '16px',
-    position: 'relative',
-    flex: '1 1 100%',
-
-    [theme.breakpoints.down('sm')]: {
-      flexDirection: 'column',
+const useStyles = makeStyles(
+  (theme) => ({
+    title: {
+      marginTop: '8px',
     },
-  },
-  spinnerContainer: {
-    display: "flex",
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center"
-  }
-}))
+    reloadButton: {
+      flex: '0 0 auto',
+      alignSelf: 'flex-start',
+    },
+    errorStub: {
+      marginTop: '16px',
+    },
+    content: {
+      display: 'flex',
+      marginTop: '16px',
+      position: 'relative',
+      flex: '1 1 100%',
+      height: '100%',
+
+      [theme.breakpoints.down('sm')]: {
+        flexDirection: 'column',
+      },
+    },
+  }),
+  { index: 1 },
+)
 
 export const Instance = observer((props: Props) => {
   const classes = useStyles()
@@ -95,25 +90,19 @@ export const Instance = observer((props: Props) => {
     }
   }, [instance])
 
-  const [activeTab, setActiveTab] = React.useState(0);
+  const [activeTab, setActiveTab] = React.useState(0)
 
-  const [isLogConnectionEnabled, enableLogConnection] = React.useState(false);
-
-  const switchTab = (_: React.ChangeEvent<{}>, tabID: number) => {
-    if (tabID == 1 && api.initWS != undefined && !isLogConnectionEnabled) {
-      establishConnection(api).then(() => {
-        enableLogConnection(true)
-      });
-    }
-
-    setActiveTab(tabID);
-  };
+  const switchTab = (_: React.ChangeEvent<{}> | null, tabID: number) => {
+    const contentElement = document.getElementById('content-container')
+    setActiveTab(tabID)
+    contentElement?.scroll(0, 0)
+  }
 
   return (
     <HostProvider value={props}>
       <StoresProvider value={stores}>
         <>
-          { props.elements.breadcrumbs }
+          {props.elements.breadcrumbs}
           <SectionTitle
             text={props.title}
             level={1}
@@ -130,9 +119,10 @@ export const Instance = observer((props: Props) => {
             }
           >
             <Tabs
-                value={activeTab}
-                handleChange={switchTab}
-                hasLogs={api.initWS != undefined}
+              value={activeTab}
+              handleChange={switchTab}
+              hasLogs={api.initWS != undefined}
+              hideInstanceTabs={props?.hideInstanceTabs}
             />
           </SectionTitle>
 
@@ -141,73 +131,70 @@ export const Instance = observer((props: Props) => {
           )}
 
           <TabPanel value={activeTab} index={0}>
-          {!instanceError && (
-            <div className={classes.content}>
-              {!instance || !instance?.state.retrieving?.status && <StubSpinner />}
+            {!instanceError && (
+              <div className={classes.content}>
+                {!instance ||
+                  (!instance?.state.retrieving?.status && <StubSpinner />)}
 
-              {instance && (
-                <>
-                  <Clones />
-                  <Info />
-                </>
-              )}
-            </div>
-          )}
+                {instance ? (
+                  <>
+                    <Clones />
+                    <Info />
+                  </>
+                ) : (
+                  <StubSpinner />
+                )}
+              </div>
+            )}
 
-          <ClonesModal />
+            <ClonesModal />
 
-          <SnapshotsModal />
+            <SnapshotsModal />
           </TabPanel>
 
           <TabPanel value={activeTab} index={1}>
-            <Alert severity="info">
-              <AlertTitle>Sensitive data are masked.</AlertTitle>
-              You can see the raw log data connecting to the machine and running the <strong>'docker logs'</strong> command.
-            </Alert>
-            <div id="logs-container">
-              {!isLogConnectionEnabled && (
-                <div className={classes.spinnerContainer}>
-                  <Spinner />
-                </div>
-              )}
-            </div>
+            {activeTab === 1 && <Logs api={api} />}
           </TabPanel>
         </>
 
         <TabPanel value={activeTab} index={2}>
-          <Configuration 
+          {activeTab === 2 && (
+            <Configuration
               isConfigurationActive={isConfigurationActive}
-              allowModifyingConfig={instance?.state.engine.allowModifyingConfig}
-              switchActiveTab={(id: number) => setActiveTab(id)} 
-              activeTab={activeTab} 
-              reload={() => stores.main.load(props.instanceId)} 
+              disableConfigModification={
+                instance?.state.engine.disableConfigModification
+              }
+              switchActiveTab={switchTab}
+              reload={() => stores.main.load(props.instanceId)}
             />
+          )}
         </TabPanel>
-
       </StoresProvider>
     </HostProvider>
   )
 })
 
 function TabPanel(props: PropTypes.InferProps<any>) {
-  const { children, value, index, ...other } = props;
+  const { children, value, index, ...other } = props
 
   return (
-      <Typography
-          component="div"
-          role="tabpanel"
-          hidden={value !== index}
-          id={`scrollable-auto-tabpanel-${index}`}
-          aria-labelledby={`scrollable-auto-tab-${index}`}
-          {...other}
-      >
-        <Box p={3}>{children}</Box>
-      </Typography>
-  );
+    <Typography
+      component="div"
+      role="tabpanel"
+      hidden={value !== index}
+      id={`scrollable-auto-tabpanel-${index}`}
+      aria-labelledby={`scrollable-auto-tab-${index}`}
+      {...other}
+    >
+      <Box p={3} sx={{ height: '100%' }}>
+        {children}
+      </Box>
+    </Typography>
+  )
 }
 
 TabPanel.propTypes = {
   children: PropTypes.node,
   index: PropTypes.any.isRequired,
-  value: PropTypes.any.isRequired
-};
+  value: PropTypes.any.isRequired,
+}

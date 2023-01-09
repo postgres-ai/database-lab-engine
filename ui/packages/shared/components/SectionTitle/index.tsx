@@ -31,20 +31,23 @@ const LEVEL_TO_BOTTOM_PADDING = {
   2: '8px',
 }
 
-const useStyles = makeStyles<DefaultTheme, { level: Props['level'] }>({
-  root: {
-    borderBottom: `1px solid ${colors.consoleStroke}`,
+const useStyles = makeStyles<DefaultTheme, { level: Props['level'] }>(
+  {
+    root: {
+      borderBottom: `1px solid ${colors.consoleStroke}`,
+    },
+    content: (props) => ({
+      display: 'flex',
+      alignItems: 'center',
+      paddingBottom: LEVEL_TO_BOTTOM_PADDING[props.level],
+    }),
+    text: (props) => ({
+      margin: '0 10px 0 0',
+      fontSize: LEVEL_TO_FONT_SIZE[props.level],
+    }),
   },
-  content: (props) => ({
-    display: 'flex',
-    alignItems: 'center',
-    paddingBottom: LEVEL_TO_BOTTOM_PADDING[props.level],
-  }),
-  text: (props) => ({
-    margin: '0 10px 0 0',
-    fontSize: LEVEL_TO_FONT_SIZE[props.level],
-  }),
-})
+  { index: 1 },
+)
 
 export const SectionTitle = (props: Props) => {
   const {

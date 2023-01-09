@@ -12,12 +12,15 @@ type Props = {
   children: React.ReactNode
 }
 
-const useStyles = makeStyles({
-  root: {
-    fontWeight: 'bold',
-    whiteSpace: 'nowrap',
+const useStyles = makeStyles(
+  {
+    root: {
+      fontWeight: 'bold',
+      whiteSpace: 'nowrap',
+    },
   },
-})
+  { index: 1 },
+)
 
 export const ImportantText = (props: Props) => {
   const classes = useStyles()

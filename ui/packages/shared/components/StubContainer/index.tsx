@@ -5,33 +5,37 @@
  *--------------------------------------------------------------------------
  */
 
-import React from 'react';
-import { Box, makeStyles } from '@material-ui/core';
-import clsx from 'clsx';
+import React from 'react'
+import { makeStyles } from '@material-ui/core'
+import Box from '@mui/material/Box'
+import clsx from 'clsx'
 
-const useStyles = makeStyles({
-  root: {
-    padding: '20px 0',
-    flex: '1 1 100%'
-  }
-});
+const useStyles = makeStyles(
+  {
+    root: {
+      padding: '20px 0',
+      flex: '1 1 100%',
+    },
+  },
+  { index: 1 },
+)
 
 type Props = {
-  className?: string,
+  className?: string
   children: React.ReactNode
 }
 
 export const StubContainer = (props: Props) => {
-  const classes = useStyles();
+  const classes = useStyles()
 
   return (
     <Box
-      display='flex'
-      justifyContent='center'
-      alignItems='center'
+      display="flex"
+      justifyContent="center"
+      alignItems="center"
       className={clsx(classes.root, props.className)}
     >
-      { props.children }
+      {props.children}
     </Box>
-  );
-};
+  )
+}

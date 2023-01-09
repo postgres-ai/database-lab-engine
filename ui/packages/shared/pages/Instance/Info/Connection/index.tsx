@@ -18,21 +18,24 @@ import { ValueStatus } from '../components/ValueStatus'
 
 import { ConnectModal } from './ConnectModal'
 
-const useStyles = makeStyles({
-  connectButton: {
-    marginTop: '10px',
+const useStyles = makeStyles(
+  {
+    connectButton: {
+      marginTop: '10px',
+    },
+    url: {
+      overflowWrap: 'break-word',
+    },
+    icon: {
+      top: 0,
+      left: 0,
+      position: 'absolute',
+      height: '100%',
+      width: '100%',
+    },
   },
-  url: {
-    overflowWrap: 'break-word',
-  },
-  icon: {
-    top: 0,
-    left: 0,
-    position: 'absolute',
-    height: '100%',
-    width: '100%',
-  },
-})
+  { index: 1 },
+)
 
 const checkIsSecureUrl = (urlStr: string) => {
   const url = new URL(urlStr)

@@ -11,6 +11,7 @@ import * as Yup from 'yup'
 export type FormValues = {
   debug: boolean
   dockerImage: string
+  dockerImageType: string
   sharedBuffers: string
   sharedPreloadLibraries: string
   timetable: string
@@ -20,8 +21,10 @@ export type FormValues = {
   username: string
   password: string
   databases: string
-  pg_dump: string
-  pg_restore: string
+  dumpParallelJobs: string
+  restoreParallelJobs: string
+  pgDumpCustomOptions: string
+  pgRestoreCustomOptions: string
 }
 
 const Schema = Yup.object().shape({
@@ -37,6 +40,7 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
     initialValues: {
       debug: false,
       dockerImage: '',
+      dockerImageType: '',
       sharedBuffers: '',
       sharedPreloadLibraries: '',
       timetable: '',
@@ -46,8 +50,10 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
       username: '',
       password: '',
       databases: '',
-      pg_dump: '',
-      pg_restore: '',
+      dumpParallelJobs: '',
+      restoreParallelJobs: '',
+      pgDumpCustomOptions: '',
+      pgRestoreCustomOptions: '',
     },
     validationSchema: Schema,
     onSubmit,
@@ -55,7 +61,7 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
     validateOnChange: false,
   })
 
-  const formatDatabaseArray = (database: any) => {
+  const formatDatabaseArray = (database: string) => {
     let databases = []
     const splitDatabaseArray = database.split(/[,(\s)(\n)(\r)(\t)(\r\n)]/)
 
@@ -74,7 +80,9 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
     username: formik.values.username,
     password: formik.values.password,
     dbname: formik.values.dbname,
-    ...(formik.values.databases && { db_list: formatDatabaseArray(formik.values.databases)}),
+    ...(formik.values.databases && {
+      db_list: formatDatabaseArray(formik.values.databases),
+    }),
   }
 
   const isConnectionDataValid =

@@ -4,26 +4,23 @@
  * Unauthorized copying of this file, via any medium is strictly prohibited
  *--------------------------------------------------------------------------
  */
+import Box from '@mui/material/Box'
+import { Typography, makeStyles } from '@material-ui/core'
+import { TabPanelProps } from '@postgres.ai/platform/src/components/types'
 
-import React from 'react'
-import { Typography, Box, makeStyles } from '@material-ui/core'
-
-type Props = {
-  children: React.ReactNode
-  index: number
-  value: number
-}
-
-const useStyles = makeStyles({
-  root: {
-    marginTop: 0,
+const useStyles = makeStyles(
+  {
+    root: {
+      marginTop: 0,
+    },
+    content: {
+      padding: '10px 0 0 0',
+    },
   },
-  content: {
-    padding: '10px 0 0 0',
-  },
-})
+  { index: 1 },
+)
 
-export const TabPanel = (props: Props) => {
+export const TabPanel = (props: TabPanelProps) => {
   const { children, value, index } = props
 
   const classes = useStyles()

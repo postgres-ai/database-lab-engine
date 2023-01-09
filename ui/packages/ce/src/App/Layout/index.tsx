@@ -9,7 +9,7 @@ export const Layout = (props: Props) => {
   return (
     <div className={styles.root}>
       <div className={styles.menu}>{props.menu}</div>
-      <div className={styles.content}>{props.children}</div>
+      <div id="content-container" className={styles.content}>{props.children}</div>
     </div>
   )
 }

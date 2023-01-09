@@ -16,11 +16,14 @@ import { ModalReloadButton } from '@postgres.ai/shared/pages/Instance/components
 
 import { getTags } from './utils'
 
-const useStyles = makeStyles({
-  root: {
-    marginTop: 0,
+const useStyles = makeStyles(
+  {
+    root: {
+      marginTop: 0,
+    },
   },
-})
+  { index: 1 },
+)
 
 export const ClonesModal = observer(() => {
   const classes = useStyles()

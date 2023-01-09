@@ -16,16 +16,19 @@ type Props = {
   rightContent?: React.ReactNode
 }
 
-const useStyles = makeStyles({
-  root: {
-    '& + $root': {
-      marginTop: '28px',
+const useStyles = makeStyles(
+  {
+    root: {
+      '& + $root': {
+        marginTop: '28px',
+      },
+    },
+    content: {
+      marginTop: '8px',
     },
   },
-  content: {
-    marginTop: '8px',
-  },
-})
+  { index: 1 },
+)
 
 export const Section = (props: Props) => {
   const { title, children, rightContent } = props

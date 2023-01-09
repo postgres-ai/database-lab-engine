@@ -19,48 +19,50 @@ import {
   getPrevMonthStartDate,
   getNextMonthStartDate,
   canGetNextMonthStartDate,
-
   getMonthStartDate,
   getCalendar,
 } from './utils'
 
-const useStyles = makeStyles({
-  root: {
-    marginTop: '8px',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: {
-    fontWeight: 700,
-    fontSize: '12px',
-  },
-  button: {
-    padding: '8px',
+const useStyles = makeStyles(
+  {
+    root: {
+      marginTop: '8px',
+    },
+    header: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    title: {
+      fontWeight: 700,
+      fontSize: '12px',
+    },
+    button: {
+      padding: '8px',
 
-    '&:disabled': {
-      pointerEvents: 'auto',
-      cursor: 'not-allowed',
+      '&:disabled': {
+        pointerEvents: 'auto',
+        cursor: 'not-allowed',
+      },
+    },
+    buttonIcon: {
+      fontSize: '20px',
+    },
+    days: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+    },
+    weekDay: {
+      fontSize: '12px',
+      flex: '0 0 24px',
+      textAlign: 'center',
+      color: colors.pgaiDarkGray,
+      marginTop: '12px',
     },
   },
-  buttonIcon: {
-    fontSize: '20px',
-  },
-  days: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  weekDay: {
-    fontSize: '12px',
-    flex: '0 0 24px',
-    textAlign: 'center',
-    color: colors.pgaiDarkGray,
-    marginTop: '12px'
-  }
-})
+  { index: 1 },
+)
 
 type Props = {
   snapshots: Snapshot[]
@@ -89,7 +91,9 @@ export const Calendar = (props: Props) => {
   return (
     <div className={classes.root}>
       <div className={classes.header}>
-        <span className={classes.title}>{formatUTC(monthStartDate, 'MMMM y')} UTC</span>
+        <span className={classes.title}>
+          {formatUTC(monthStartDate, 'MMMM y')} UTC
+        </span>
         <div>
           <IconButton onClick={prevMonth} className={classes.button}>
             <ArrowLeft className={classes.buttonIcon} />
@@ -104,11 +108,13 @@ export const Calendar = (props: Props) => {
         </div>
       </div>
       <div className={classes.days}>
-        { calendar.weekDays.map(weekDay => {
-          return <div key={weekDay} className={classes.weekDay}>
-            { weekDay }
-          </div>
-        }) }
+        {calendar.weekDays.map((weekDay) => {
+          return (
+            <div key={weekDay} className={classes.weekDay}>
+              {weekDay}
+            </div>
+          )
+        })}
       </div>
       <div className={classes.days}>
         {calendar.days.map((day) => (

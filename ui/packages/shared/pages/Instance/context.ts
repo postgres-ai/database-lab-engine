@@ -26,6 +26,7 @@ export type Host = {
     breadcrumbs: React.ReactNode
   },
   wsHost?: string
+  hideInstanceTabs?: boolean
 }
 
 // Host context.

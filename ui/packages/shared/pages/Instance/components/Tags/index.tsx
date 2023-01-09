@@ -14,13 +14,16 @@ export type TagsProps = {
   data: { name: string; value: string }[]
 }
 
-const useStyles = makeStyles({
-  root: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    marginRight: '-8px',
+const useStyles = makeStyles(
+  {
+    root: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      marginRight: '-8px',
+    },
   },
-})
+  { index: 1 },
+)
 
 export const Tags = (props: TagsProps) => {
   const classes = useStyles()

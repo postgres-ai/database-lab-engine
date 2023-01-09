@@ -686,7 +686,7 @@ definitions:
         format: "date-time"
       telemetry:
         type: boolean
-      allowModifyingConfig:
+      disableConfigModification:
         type: boolean
 
   PoolEntry:

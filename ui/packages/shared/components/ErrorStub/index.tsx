@@ -16,42 +16,45 @@ type Props = {
   size?: 'big' | 'normal'
 }
 
-const useStyles = makeStyles({
-  '*': {
-    margin: 0,
-  },
-  root: {
-    color: '#c00111',
-    overflowWrap: 'break-word',
-  },
-  rootBig: {
-    padding: '16px 24px',
+const useStyles = makeStyles(
+  {
+    '*': {
+      margin: 0,
+    },
+    root: {
+      color: '#c00111',
+      overflowWrap: 'break-word',
+    },
+    rootBig: {
+      padding: '16px 24px',
 
-    '& $title': {
-      fontSize: '16px',
+      '& $title': {
+        fontSize: '16px',
+      },
+      '& $message': {
+        marginTop: '16px',
+        fontSize: '14px',
+      },
     },
-    '& $message': {
-      marginTop: '16px',
-      fontSize: '14px',
-    },
-  },
-  rootNormal: {
-    padding: '8px 16px',
+    rootNormal: {
+      padding: '8px 16px',
 
-    '& $title': {
-      fontSize: '14px',
+      '& $title': {
+        fontSize: '14px',
+      },
+      '& $message': {
+        marginTop: '12px',
+        fontSize: '12px',
+      },
     },
-    '& $message': {
-      marginTop: '12px',
-      fontSize: '12px',
+    title: {
+      fontWeight: 700,
+      textTransform: 'uppercase',
     },
+    message: {},
   },
-  title: {
-    fontWeight: 700,
-    textTransform: 'uppercase',
-  },
-  message: {},
-})
+  { index: 1 },
+)
 
 export const ErrorStub = (props: Props) => {
   const { title = 'Error', message, className, size = 'big' } = props
@@ -59,12 +62,14 @@ export const ErrorStub = (props: Props) => {
   const classes = useStyles()
 
   return (
-    <Paper className={clsx(
-      classes.root,
-      size === 'big' && classes.rootBig,
-      size === 'normal' && classes.rootNormal,
-      className,
-    )}>
+    <Paper
+      className={clsx(
+        classes.root,
+        size === 'big' && classes.rootBig,
+        size === 'normal' && classes.rootNormal,
+        className,
+      )}
+    >
       <h2 className={classes.title}>{title}</h2>
       <p className={classes.message}>{message}</p>
     </Paper>

@@ -15,51 +15,54 @@ import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 
 const CELL_SIZE = 28
 
-const useStyles = makeStyles({
-  root: {
-    position: 'relative',
-    cursor: 'default',
-    flex: `0 0 ${CELL_SIZE}px`,
-    background: '#f4f4f4',
-    height: `${CELL_SIZE}px`,
-    display: 'flex',
-    borderRadius: `${CELL_SIZE/2}px`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: '16px',
-    fontSize: '12px',
-  },
-  rootHasSnapshots: {
-    background: colors.secondary2.lightLight,
-    cursor: 'pointer',
-  },
-  rootCurrent: {
-    border: `1px solid ${colors.secondary2.main}`,
-  },
-  rootDisabled: {
-    opacity: '0.25',
-    pointerEvents: 'none',
-  },
-  itemsCount: {
-    top: '-8px',
-    right: '-6px',
-    position: 'absolute',
-    fontSize: '8px',
-    backgroundColor: colors.white,
-    border: `1px solid ${colors.secondary2.lightLight}`,
-    borderRadius: '8px',
-    height: '16px',
-    padding: '2px',
-    minWidth: '16px',
+const useStyles = makeStyles(
+  {
+    root: {
+      position: 'relative',
+      cursor: 'default',
+      flex: `0 0 ${CELL_SIZE}px`,
+      background: '#f4f4f4',
+      height: `${CELL_SIZE}px`,
+      display: 'flex',
+      borderRadius: `${CELL_SIZE / 2}px`,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: '16px',
+      fontSize: '12px',
+    },
+    rootHasSnapshots: {
+      background: colors.secondary2.lightLight,
+      cursor: 'pointer',
+    },
+    rootCurrent: {
+      border: `1px solid ${colors.secondary2.main}`,
+    },
+    rootDisabled: {
+      opacity: '0.25',
+      pointerEvents: 'none',
+    },
+    itemsCount: {
+      top: '-8px',
+      right: '-6px',
+      position: 'absolute',
+      fontSize: '8px',
+      backgroundColor: colors.white,
+      border: `1px solid ${colors.secondary2.lightLight}`,
+      borderRadius: '8px',
+      height: '16px',
+      padding: '2px',
+      minWidth: '16px',
 
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    break: {
+      flex: '0 0 100%',
+    },
   },
-  break: {
-    flex: '0 0 100%',
-  },
-})
+  { index: 1 },
+)
 
 type Props = {
   date: Date
@@ -75,9 +78,7 @@ export const Day = (props: Props) => {
 
   const today = new Date()
 
-  const breakRendered = isBreak && (
-    <div className={classes.break} />
-  )
+  const breakRendered = isBreak && <div className={classes.break} />
 
   const dayRendered = (
     <div
@@ -85,13 +86,13 @@ export const Day = (props: Props) => {
         classes.root,
         snapshots.length && classes.rootHasSnapshots,
         isDisabled && classes.rootDisabled,
-        isSameDayUTC(today, date)  && classes.rootCurrent,
+        isSameDayUTC(today, date) && classes.rootCurrent,
       )}
       onClick={snapshots.length ? onClick : void 0}
     >
-      { !!snapshots.length && <div className={classes.itemsCount}>
-        { snapshots.length } 
-      </div> }
+      {!!snapshots.length && (
+        <div className={classes.itemsCount}>{snapshots.length}</div>
+      )}
       {formatUTC(date, 'd')}
     </div>
   )
@@ -107,7 +108,9 @@ export const Day = (props: Props) => {
 
     return (
       <>
-        <Tooltip content={contentRendered} disableTouchListener>{dayRendered}</Tooltip>
+        <Tooltip content={contentRendered} disableTouchListener>
+          {dayRendered}
+        </Tooltip>
         {breakRendered}
       </>
     )

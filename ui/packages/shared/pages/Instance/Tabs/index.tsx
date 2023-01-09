@@ -13,36 +13,43 @@ import {
 } from '@material-ui/core'
 import { colors } from '@postgres.ai/shared/styles/colors'
 
-const useStyles = makeStyles({
-  tabsRoot: {
-    minHeight: 0,
-    marginTop: '-8px',
-  },
-  tabsIndicator: {
-    height: '3px',
-  },
-  tabRoot: {
-    fontWeight: 400,
-    minWidth: 0,
-    minHeight: 0,
-    padding: '6px 16px',
-    borderBottom: `3px solid ${colors.consoleStroke}`,
-
-    '& + $tabRoot': {
-      marginLeft: '10px',
+const useStyles = makeStyles(
+  {
+    tabsRoot: {
+      minHeight: 0,
+      marginTop: '-8px',
     },
+    tabsIndicator: {
+      height: '3px',
+    },
+    tabRoot: {
+      fontWeight: 400,
+      minWidth: 0,
+      minHeight: 0,
+      padding: '6px 16px',
+      borderBottom: `3px solid ${colors.consoleStroke}`,
 
-    '&.Mui-disabled': {
-      opacity: 1,
-      color: colors.pgaiDarkGray,
+      '& + $tabRoot': {
+        marginLeft: '10px',
+      },
+
+      '&.Mui-disabled': {
+        opacity: 1,
+        color: colors.pgaiDarkGray,
+      },
+    },
+    tabHidden: {
+      display: 'none',
     },
   },
-})
+  { index: 1 },
+)
 
 type Props = {
   value: number
   handleChange: (event: React.ChangeEvent<{}>, newValue: number) => void
   hasLogs: boolean
+  hideInstanceTabs?: boolean
 }
 
 export const Tabs = (props: Props) => {
@@ -67,14 +74,14 @@ export const Tabs = (props: Props) => {
         label="Logs"
         disabled={!hasLogs}
         classes={{
-          root: classes.tabRoot,
+          root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
         }}
         value={1}
       />
       <TabComponent
         label="Configuration"
         classes={{
-          root: classes.tabRoot,
+          root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
         }}
         value={2}
       />

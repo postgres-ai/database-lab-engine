@@ -8,13 +8,16 @@ type Props = {
   className: string
 }
 
-const useStyles = makeStyles({
-  root: {
-    display: 'inline',
-    verticalAlign: 'middle',
-    width: '10px',
-  }
-})
+const useStyles = makeStyles(
+  {
+    root: {
+      display: 'inline',
+      verticalAlign: 'middle',
+      width: '10px',
+    },
+  },
+  { index: 1 },
+)
 
 export const Marker = (props: Props) => {
   const classes = useStyles()

@@ -6,7 +6,8 @@
  */
 
 import classNames from 'classnames'
-import { Link, Typography, Box } from '@material-ui/core'
+import { Link, Typography } from '@material-ui/core'
+import Box from '@mui/material/Box'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { ExternalIcon } from '@postgres.ai/shared/icons/External'
 

@@ -14,7 +14,7 @@ export const useCaret = (
     elementRef.current.selectionEnd = nextPosition
 
     setNextPosition(null)
-  }, [nextPosition])
+  }, [elementRef, nextPosition])
 
   return {
     setPosition: setNextPosition,
