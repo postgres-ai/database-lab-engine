@@ -192,10 +192,6 @@ func adminConfigYaml() ([]byte, error) {
 }
 
 func (s *Server) projectedAdminConfig() (interface{}, error) {
-	if s.Retrieval.State.Mode != models.Logical {
-		return nil, fmt.Errorf("config is only available in logical mode")
-	}
-
 	data, err := config.GetConfigBytes()
 	if err != nil {
 		return nil, err
