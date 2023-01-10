@@ -22,6 +22,7 @@ import { formatDistanceToNowStrict } from 'date-fns';
 import { FormattedText } from '@postgres.ai/shared/components/FormattedText';
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner';
 import { Spinner } from '@postgres.ai/shared/components/Spinner';
+import { isValidDate } from '@postgres.ai/shared/utils/date'
 
 import Store from 'stores/store';
 import Actions from 'actions/actions';
@@ -406,9 +407,13 @@ class JoeSessionCommand extends Component {
 
             <h4>Details:</h4>
             <Typography component='p'>
-              <span>Uploaded</span>:&nbsp;{
-                formatDistanceToNowStrict(new Date(data.createdAt), { addSuffix: true })
-              }&nbsp;
+              <span>Uploaded</span>:&nbsp;
+              {isValidDate(new Date(data.createdAt))
+                ? formatDistanceToNowStrict(new Date(data.createdAt), {
+                    addSuffix: true,
+                  })
+                : '-'}
+              &nbsp;
               ({ format.formatTimestampUtc(data.createdAt) })
             </Typography>
           </div>

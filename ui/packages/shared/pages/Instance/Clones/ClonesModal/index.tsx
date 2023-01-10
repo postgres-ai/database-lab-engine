@@ -10,7 +10,7 @@ import { observer } from 'mobx-react-lite'
 
 import { useStores } from '@postgres.ai/shared/pages/Instance/context'
 import { Modal } from '@postgres.ai/shared/components/Modal'
-import { ClonesList } from '@postgres.ai/shared/pages/Instance/components/ClonesList'
+import { ClonesList } from '@postgres.ai/shared/pages/Instance/Clones/ClonesList'
 import { Tags } from '@postgres.ai/shared/pages/Instance/components/Tags'
 import { ModalReloadButton } from '@postgres.ai/shared/pages/Instance/components/ModalReloadButton'
 

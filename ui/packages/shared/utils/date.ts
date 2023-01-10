@@ -81,3 +81,7 @@ export const formatDateStd = (
   `${formatUTC(date, 'yyyy-MM-dd HH:mm:ss')} UTC ${
     options?.withDistance ? `(${formatDistanceStd(date)})` : ''
   }`
+
+export const isValidDate = (dateObject: Date) => {
+  return new Date(dateObject).toString() !== 'Invalid Date'
+}

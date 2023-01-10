@@ -59,6 +59,9 @@ export const InputWithTooltip = ({
         error={Boolean(error)}
         onChange={onChange}
         disabled={disabled}
+        InputLabelProps={{
+          shrink: true,
+        }}
       />
       <Tooltip interactive content={<p>{tooltipText()}</p>}>
         <InfoIcon className={styles.infoIcon} />
@@ -82,7 +85,7 @@ export const InputWithChip = ({
   handleDeleteChip: (
     event: React.FormEvent<HTMLInputElement>,
     uniqueValue: string,
-    label: string
+    label: string,
   ) => void
   label: string
   id: string

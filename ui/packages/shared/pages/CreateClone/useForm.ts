@@ -2,6 +2,7 @@ import { useFormik } from 'formik'
 import * as Yup from 'yup'
 
 export type FormValues = {
+  branch: string
   cloneId: string
   snapshotId: string
   dbUser: string
@@ -20,6 +21,7 @@ const Schema = Yup.object().shape({
 export const useForm = (onSubmit: (values: FormValues) => void) => {
   const formik = useFormik<FormValues>({
     initialValues: {
+      branch: '',
       cloneId: '',
       snapshotId: '',
       dbUser: '',

@@ -32,6 +32,7 @@ import {
   getCloneStatusText,
 } from '@postgres.ai/shared/utils/clone'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
+import { isValidDate } from '@postgres.ai/shared/utils/date'
 
 import { MenuCell } from './MenuCell'
 import { ConnectionModal } from './ConnectionModal'
@@ -143,9 +144,11 @@ export const ClonesList = (props: Props) => {
                   </TableBodyCell>
                   <TableBodyCell>
                     {clone.createdAt} (
-                    {formatDistanceToNowStrict(clone.createdAtDate, {
-                      addSuffix: true,
-                    })}
+                    {isValidDate(clone.createdAtDate)
+                      ? formatDistanceToNowStrict(clone.createdAtDate, {
+                          addSuffix: true,
+                        })
+                      : '-'}
                     )
                   </TableBodyCell>
                   <TableBodyCell>{clone.db.port}</TableBodyCell>
@@ -158,12 +161,14 @@ export const ClonesList = (props: Props) => {
                     {clone.snapshot ? (
                       <>
                         {clone.snapshot.dataStateAt} (
-                        {formatDistanceToNowStrict(
-                          clone.snapshot.dataStateAtDate,
-                          {
-                            addSuffix: true,
-                          },
-                        )}
+                        {isValidDate(clone.snapshot.dataStateAtDate)
+                          ? formatDistanceToNowStrict(
+                              clone.snapshot.dataStateAtDate,
+                              {
+                                addSuffix: true,
+                              },
+                            )
+                          : '-'}
                         )
                       </>
                     ) : (

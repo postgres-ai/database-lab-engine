@@ -27,6 +27,7 @@ import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { isValidDate } from '@postgres.ai/shared/utils/date'
 
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
@@ -501,10 +502,11 @@ class DbLabSession extends Component<
 
           <Typography component="p">
             <span className={classes.paramTitle}>Created:</span>
-            {session &&
-              formatDistanceToNowStrict(new Date(session.started_at), {
-                addSuffix: true,
-              })}
+            {session && isValidDate(new Date(session.started_at))
+              ? formatDistanceToNowStrict(new Date(session.started_at), {
+                  addSuffix: true,
+                })
+              : '-'}
           </Typography>
 
           <div className={classes.summaryDivider} />

@@ -35,12 +35,13 @@ import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { styles } from '@postgres.ai/shared/styles/styles'
+import { CreateSnapshotModal } from '@postgres.ai/shared/pages/Instance/Snapshots/components/CreateSnapshotModal'
 
 import { Status } from './Status'
 import { useCreatedStores } from './useCreatedStores'
 import { Host } from './context'
 
-const textFieldWidth = 400
+const textFieldWidth = 575
 
 const useStyles = makeStyles(
   (theme) => ({
@@ -48,7 +49,7 @@ const useStyles = makeStyles(
       marginTop: '16px',
     },
     container: {
-      maxWidth: '425px',
+      maxWidth: textFieldWidth + 25,
       marginTop: '16px',
     },
     text: {
@@ -89,6 +90,8 @@ const useStyles = makeStyles(
     actions: {
       display: 'flex',
       marginRight: '-16px',
+      flexWrap: 'wrap',
+      rowGap: '16px',
     },
     actionButton: {
       marginRight: '16px',
@@ -164,6 +167,7 @@ export const Clone = observer((props: Props) => {
   const [isOpenRestrictionModal, setIsOpenRestrictionModal] = useState(false)
   const [isOpenDestroyModal, setIsOpenDestroyModal] = useState(false)
   const [isOpenResetModal, setIsOpenResetModal] = useState(false)
+  const [isCreateSnapshotOpen, setIsCreateSnapshotOpen] = useState(false)
 
   // Initial loading data.
   useEffect(() => {
@@ -172,6 +176,7 @@ export const Clone = observer((props: Props) => {
 
   const {
     instance,
+    snapshots,
     clone,
     isResettingClone,
     isDestroyingClone,
@@ -229,6 +234,8 @@ export const Clone = observer((props: Props) => {
       </>
     )
   }
+
+  const clonesList = instance?.state?.cloning.clones || []
 
   // Clone reset.
   const requestResetClone = () => setIsOpenResetModal(true)
@@ -312,6 +319,16 @@ export const Clone = observer((props: Props) => {
           >
             Reload info
             {isReloading && <Spinner size="sm" className={classes.spinner} />}
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => setIsCreateSnapshotOpen(true)}
+            disabled={isDisabledControls}
+            title={'Create snapshot from this clone'}
+            className={classes.actionButton}
+          >
+            Create snapshot
           </Button>
         </div>
 
@@ -623,9 +640,18 @@ export const Clone = observer((props: Props) => {
             isOpen={isOpenResetModal}
             onClose={() => setIsOpenResetModal(false)}
             clone={clone}
-            snapshots={stores.main.snapshots.data}
+            snapshots={snapshots.data}
             onResetClone={resetClone}
             version={instance.state.engine.version}
+          />
+
+          <CreateSnapshotModal
+            isOpen={isCreateSnapshotOpen}
+            onClose={() => setIsCreateSnapshotOpen(false)}
+            createSnapshot={snapshots.createSnapshot}
+            createSnapshotError={snapshots.snapshotDataError}
+            clones={clonesList}
+            currentClone={props.cloneId}
           />
         </>
       </div>

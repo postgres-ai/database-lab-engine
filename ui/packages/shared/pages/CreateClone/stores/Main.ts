@@ -5,6 +5,7 @@ import { Clone } from '@postgres.ai/shared/types/api/entities/clone'
 import { GetInstance } from '@postgres.ai/shared/types/api/endpoints/getInstance'
 import { CreateClone } from '@postgres.ai/shared/types/api/endpoints/createClone'
 import { GetClone } from '@postgres.ai/shared/types/api/endpoints/getClone'
+import { GetBranches } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 import {
   SnapshotsStore,
   SnapshotsApi,
@@ -20,11 +21,13 @@ export type MainStoreApi = SnapshotsApi & {
   getInstance: GetInstance
   createClone: CreateClone
   getClone: GetClone
+  getBranches?: GetBranches
 }
 
 export class MainStore {
   instance: Instance | null = null
   instanceError: string | null = null
+  getBranchesError: Error | null = null
 
   clone: Clone | null = null
   cloneError: string | null = null
@@ -34,7 +37,6 @@ export class MainStore {
   private readonly api: MainStoreApi
 
   readonly snapshots: SnapshotsStore
-
 
   constructor(api: MainStoreApi) {
     makeAutoObservable(this)
@@ -81,6 +83,15 @@ export class MainStore {
     if (error) this.cloneError = await getTextFromUnknownApiError(error)
 
     return Boolean(response)
+  }
+
+  getBranches = async () => {
+    if (!this.api.getBranches) return
+    const { response, error } = await this.api.getBranches()
+
+    if (error) this.getBranchesError = await error.json().then((err) => err)
+
+    return response
   }
 
   private updateCloneUntilStable = async (args: {

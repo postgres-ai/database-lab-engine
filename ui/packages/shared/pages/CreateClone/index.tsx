@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
 import { useTimer } from 'use-timer'
@@ -38,6 +38,7 @@ export const CreateClone = observer((props: Props) => {
   const history = useHistory()
   const stores = useCreatedStores(props.api)
   const timer = useTimer()
+  const [branchesList, setBranchesList] = useState<string[]>([])
 
   // Form.
   const onSubmit = async (values: FormValues) => {
@@ -56,6 +57,12 @@ export const CreateClone = observer((props: Props) => {
   // Initial loading data.
   useEffect(() => {
     stores.main.load(props.instanceId)
+
+    stores.main.getBranches().then((response) => {
+      if (response) {
+        setBranchesList(response.map((branch) => branch.name))
+      }
+    })
   }, [])
 
   // Redirect when clone is created and stable.
@@ -103,13 +110,17 @@ export const CreateClone = observer((props: Props) => {
       </>
     )
 
-  // Instance getting error.
-  if (stores.main.instanceError)
+  // Instance/branches getting error.
+  if (stores.main.instanceError || stores.main.getBranchesError)
     return (
       <>
         {headRendered}
 
-        <ErrorStub message={stores.main.instanceError} />
+        <ErrorStub
+          message={
+            stores.main.instanceError || stores.main.getBranchesError?.message
+          }
+        />
       </>
     )
 
@@ -134,6 +145,25 @@ export const CreateClone = observer((props: Props) => {
         )}
 
         <div className={styles.section}>
+          {branchesList && branchesList.length > 0 && (
+            <Select
+              fullWidth
+              label="Branch"
+              value={formik.values.branch}
+              disabled={!branchesList || isCreatingClone}
+              onChange={(e) => formik.setFieldValue('branch', e.target.value)}
+              error={Boolean(formik.errors.branch)}
+              items={
+                branchesList?.map((snapshot) => {
+                  return {
+                    value: snapshot,
+                    children: snapshot,
+                  }
+                }) ?? []
+              }
+            />
+          )}
+
           <TextField
             fullWidth
             label="Clone ID"

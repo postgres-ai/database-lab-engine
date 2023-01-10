@@ -31,6 +31,7 @@ import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { Link } from '@postgres.ai/shared/components/Link2'
 import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { isValidDate } from '@postgres.ai/shared/utils/date'
 
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
@@ -834,10 +835,14 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
                                   classes={{ tooltip: classes.toolTip }}
                                 >
                                   <span className={classes.timeLabel}>
-                                    {formatDistanceToNowStrict(
-                                      new Date(c.created_at),
-                                      { addSuffix: true },
-                                    )}
+                                    {isValidDate(new Date(c.created_at))
+                                      ? formatDistanceToNowStrict(
+                                          new Date(c.created_at),
+                                          {
+                                            addSuffix: true,
+                                          },
+                                        )
+                                      : '-'}
                                   </span>
                                 </Tooltip>
                               </div>

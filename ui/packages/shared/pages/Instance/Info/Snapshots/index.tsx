@@ -13,6 +13,7 @@ import { Button } from '@postgres.ai/shared/components/Button2'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 import { useStores } from '@postgres.ai/shared/pages/Instance/context'
+import { isValidDate } from '@postgres.ai/shared/utils/date'
 
 import { Section } from '../components/Section'
 import { Property } from '../components/Property'
@@ -57,9 +58,11 @@ export const Snapshots = observer(() => {
             {lastSnapshot && (
               <>
                 {lastSnapshot.dataStateAt} (
-                {formatDistanceToNowStrict(lastSnapshot.dataStateAtDate, {
-                  addSuffix: true,
-                })}
+                {isValidDate(lastSnapshot.dataStateAtDate)
+                  ? formatDistanceToNowStrict(lastSnapshot.dataStateAtDate, {
+                      addSuffix: true,
+                    })
+                  : '-'}
                 )
               </>
             )}
@@ -70,9 +73,11 @@ export const Snapshots = observer(() => {
             {firstSnapshot && (
               <>
                 {firstSnapshot.dataStateAt} (
-                {formatDistanceToNowStrict(firstSnapshot.dataStateAtDate, {
-                  addSuffix: true,
-                })}
+                {isValidDate(firstSnapshot.dataStateAtDate)
+                  ? formatDistanceToNowStrict(firstSnapshot.dataStateAtDate, {
+                      addSuffix: true,
+                    })
+                  : '-'}
                 )
               </>
             )}
