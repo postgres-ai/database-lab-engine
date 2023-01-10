@@ -8,6 +8,7 @@ import { getInstanceRetrieval } from 'api/instances/getInstanceRetrieval'
 import { getSnapshots } from 'api/snapshots/getSnapshots'
 import { createClone } from 'api/clones/createClone'
 import { getClone } from 'api/clones/getClone'
+import { getBranches } from 'api/branches/getBranches'
 
 export const CreateClone = () => {
   const routes = {
@@ -21,12 +22,17 @@ export const CreateClone = () => {
     getInstanceRetrieval,
     createClone,
     getClone,
+    getBranches,
   }
 
   const elements = {
     breadcrumbs: (
       <NavPath
-        routes={[ROUTES, ROUTES.INSTANCE, ROUTES.INSTANCE.CLONES.CREATE]}
+        routes={[
+          ROUTES,
+          ROUTES.INSTANCE.CLONES.CLONES,
+          ROUTES.INSTANCE.CLONES.CREATE,
+        ]}
       />
     ),
   }

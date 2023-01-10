@@ -23,6 +23,7 @@ import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { isValidDate } from '@postgres.ai/shared/utils/date'
 
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
@@ -344,10 +345,14 @@ class DbLabSessions extends Component<DbLabSessionsProps, DbLabSessionsState> {
                             </div>
                             <div>
                               {icons.calendar}&nbsp;created&nbsp;
-                              {formatDistanceToNowStrict(
-                                new Date(s.started_at),
-                                { addSuffix: true },
-                              )}
+                              {isValidDate(new Date(s.started_at))
+                                ? formatDistanceToNowStrict(
+                                    new Date(s.started_at),
+                                    {
+                                      addSuffix: true,
+                                    },
+                                  )
+                                : '-'}
                               {s.tags && s.tags.launched_by ? (
                                 <span> by {s.tags.launched_by}</span>
                               ) : (

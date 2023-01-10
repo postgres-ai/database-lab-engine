@@ -14,13 +14,15 @@ import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 
-import { Tabs } from './Tabs'
+import { TABS_INDEX, Tabs } from './Tabs'
 import { Logs } from '../Logs'
 import { Clones } from './Clones'
 import { Info } from './Info'
-import { Configuration } from '../Configuration'
-import { ClonesModal } from './ClonesModal'
-import { SnapshotsModal } from './SnapshotsModal'
+import { Configuration } from './Configuration'
+import { Branches } from '../Branches'
+import { Snapshots } from './Snapshots'
+import { SnapshotsModal } from './Snapshots/components/SnapshotsModal'
+import { ClonesModal } from './Clones/ClonesModal'
 import { Host, HostProvider, StoresProvider } from './context'
 
 import PropTypes from 'prop-types'
@@ -80,7 +82,7 @@ export const Instance = observer((props: Props) => {
       instance?.state.retrieving?.status === 'pending' &&
       isConfigurationActive
     ) {
-      setActiveTab(2)
+      setActiveTab(TABS_INDEX.CONFIGURATION)
     }
     if (instance && !instance?.state?.pools) {
       if (!props.callbacks) return
@@ -90,7 +92,9 @@ export const Instance = observer((props: Props) => {
     }
   }, [instance])
 
-  const [activeTab, setActiveTab] = React.useState(0)
+  const [activeTab, setActiveTab] = React.useState(
+    props?.renderCurrentTab || TABS_INDEX.OVERVIEW,
+  )
 
   const switchTab = (_: React.ChangeEvent<{}> | null, tabID: number) => {
     const contentElement = document.getElementById('content-container')
@@ -130,44 +134,53 @@ export const Instance = observer((props: Props) => {
             <ErrorStub {...instanceError} className={classes.errorStub} />
           )}
 
-          <TabPanel value={activeTab} index={0}>
-            {!instanceError && (
-              <div className={classes.content}>
-                {!instance ||
-                  (!instance?.state.retrieving?.status && <StubSpinner />)}
-
-                {instance ? (
+          <TabPanel value={activeTab} index={TABS_INDEX.OVERVIEW}>
+            <div className={classes.content}>
+              {!instanceError &&
+                (instance ? (
                   <>
                     <Clones />
                     <Info />
                   </>
                 ) : (
                   <StubSpinner />
-                )}
-              </div>
-            )}
+                ))}
+            </div>
 
             <ClonesModal />
 
             <SnapshotsModal />
           </TabPanel>
 
-          <TabPanel value={activeTab} index={1}>
-            {activeTab === 1 && <Logs api={api} />}
+          <TabPanel value={activeTab} index={TABS_INDEX.CLONES}>
+            {activeTab === TABS_INDEX.CLONES && (
+              <div className={classes.content}>
+                {!instanceError &&
+                  (instance ? <Clones onlyRenderList /> : <StubSpinner />)}
+              </div>
+            )}
+          </TabPanel>
+
+          <TabPanel value={activeTab} index={TABS_INDEX.LOGS}>
+            {activeTab === TABS_INDEX.LOGS && <Logs api={api} />}
           </TabPanel>
         </>
 
-        <TabPanel value={activeTab} index={2}>
-          {activeTab === 2 && (
+        <TabPanel value={activeTab} index={TABS_INDEX.CONFIGURATION}>
+          {activeTab === TABS_INDEX.CONFIGURATION && (
             <Configuration
-              isConfigurationActive={isConfigurationActive}
-              disableConfigModification={
-                instance?.state.engine.disableConfigModification
-              }
               switchActiveTab={switchTab}
+              isConfigurationActive={isConfigurationActive}
               reload={() => stores.main.load(props.instanceId)}
             />
           )}
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={TABS_INDEX.SNAPSHOTS}>
+          {activeTab === TABS_INDEX.SNAPSHOTS && <Snapshots />}
+        </TabPanel>
+        <TabPanel value={activeTab} index={TABS_INDEX.BRANCHES}>
+          {activeTab === TABS_INDEX.BRANCHES && <Branches />}
         </TabPanel>
       </StoresProvider>
     </HostProvider>
@@ -184,6 +197,7 @@ function TabPanel(props: PropTypes.InferProps<any>) {
       hidden={value !== index}
       id={`scrollable-auto-tabpanel-${index}`}
       aria-labelledby={`scrollable-auto-tab-${index}`}
+      style={{ height: '100%', position: 'relative' }}
       {...other}
     >
       <Box p={3} sx={{ height: '100%' }}>

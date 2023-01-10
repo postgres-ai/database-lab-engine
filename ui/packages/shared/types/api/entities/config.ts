@@ -2,7 +2,7 @@ import {
   formatDatabases,
   formatDumpCustomOptions,
   getImageType,
-} from '@postgres.ai/shared/pages/Configuration/utils'
+} from '@postgres.ai/shared/pages/Instance/Configuration/utils'
 
 export interface DatabaseType {
   [name: string]: string | Object

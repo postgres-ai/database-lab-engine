@@ -1,7 +1,7 @@
 import {
   postUniqueCustomOptions,
   postUniqueDatabases,
-} from '@postgres.ai/shared/pages/Configuration/utils'
+} from '@postgres.ai/shared/pages/Instance/Configuration/utils'
 import { Config } from '@postgres.ai/shared/types/api/entities/config'
 import { request } from 'helpers/request'
 

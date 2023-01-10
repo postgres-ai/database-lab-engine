@@ -24,9 +24,10 @@ export type Host = {
   }
   elements: {
     breadcrumbs: React.ReactNode
-  },
+  }
   wsHost?: string
   hideInstanceTabs?: boolean
+  renderCurrentTab?: number
 }
 
 // Host context.
