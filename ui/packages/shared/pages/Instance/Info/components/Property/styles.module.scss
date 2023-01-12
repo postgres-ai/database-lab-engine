@@ -7,6 +7,11 @@
 .name {
   flex: 0 0 134px;
   margin-right: 14px;
+
+  @media screen and (max-width: '600px') {
+    flex: 1 1 100%;
+    margin-right: 7px;
+  }
 }
 
 .content {
