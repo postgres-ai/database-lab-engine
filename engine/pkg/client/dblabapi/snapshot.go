@@ -98,6 +98,7 @@ func (c *Client) createRequest(ctx context.Context, snapshotRequest any, u *url.
 }
 
 // DeleteSnapshot deletes snapshot.
+//
 //nolint:dupl
 func (c *Client) DeleteSnapshot(ctx context.Context, snapshotRequest types.SnapshotDestroyRequest) error {
 	u := c.URL("/snapshot/delete")

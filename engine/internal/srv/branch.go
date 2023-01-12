@@ -102,6 +102,11 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if createRequest.BranchName == createRequest.BaseBranch {
+		api.SendBadRequestError(w, r, "new and base branches must have different names")
+		return
+	}
+
 	fsm := s.pm.First()
 
 	if fsm == nil {
@@ -109,18 +114,28 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	branches, err := fsm.ListBranches()
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if _, ok := branches[createRequest.BranchName]; ok {
+		api.SendBadRequestError(w, r, fmt.Sprintf("branch '%s' already exists", createRequest.BranchName))
+		return
+	}
+
 	snapshotID := createRequest.SnapshotID
 
 	if snapshotID == "" {
-		branches, err := fsm.ListBranches()
-		if err != nil {
-			api.SendBadRequestError(w, r, err.Error())
+		if createRequest.BaseBranch == "" {
+			api.SendBadRequestError(w, r, "either base branch name or base snapshot ID must be specified")
 			return
 		}
 
 		branchPointer, ok := branches[createRequest.BaseBranch]
 		if !ok {
-			api.SendBadRequestError(w, r, "branch not found")
+			api.SendBadRequestError(w, r, "base branch not found")
 			return
 		}
 
