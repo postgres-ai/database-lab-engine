@@ -146,6 +146,7 @@ func (c *Client) BranchLog(ctx context.Context, logRequest types.LogRequest) ([]
 }
 
 // DeleteBranch deletes data branch.
+//
 //nolint:dupl
 func (c *Client) DeleteBranch(ctx context.Context, r types.BranchDeleteRequest) error {
 	u := c.URL("/branch/delete")
