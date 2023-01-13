@@ -3,9 +3,9 @@ import cn from 'classnames'
 import { observer } from 'mobx-react-lite'
 
 import { linksConfig } from '@postgres.ai/shared/config/links'
+import { Button } from '@postgres.ai/shared/components/MenuButton'
 
 import { Header } from './Header'
-import { Button } from './components/Button'
 import githubIconUrl from './icons/github.svg'
 import docsIconUrl from './icons/docs.svg'
 import discussionIconUrl from './icons/discussion.svg'

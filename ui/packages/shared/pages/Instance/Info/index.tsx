@@ -9,7 +9,7 @@ import cn from 'classnames'
 import { useEffect, useState } from 'react'
 import { makeStyles } from '@material-ui/core'
 
-import { Button } from '@postgres.ai/ce/src/App/Menu/components/Button'
+import { Button } from '@postgres.ai/shared/components/MenuButton'
 import { useWindowDimensions } from '@postgres.ai/shared/hooks/useWindowDimensions'
 import { ReactComponent as ArrowRightIcon } from '@postgres.ai/ce/src/App/Menu/icons/arrow-right.svg'
 import { ReactComponent as ArrowLeftIcon } from '@postgres.ai/ce/src/App/Menu/icons/arrow-left.svg'
@@ -20,13 +20,21 @@ import { Connection } from './Connection'
 import { Disks } from './Disks'
 import { Snapshots } from './Snapshots'
 
-import styles from './styles.module.scss'
-
 const SIDEBAR_COLLAPSED_PARAM = 'overviewSidebarCollapsed'
 const SMALL_BREAKPOINT_PX = 937
 
 const useStyles = makeStyles(
   (theme) => ({
+    container: {
+      minHeight: 0,
+      minWidth: 0,
+      width: '437px',
+      transition: 'width 0.2s ease-out',
+
+      [theme.breakpoints.down('sm')]: {
+        width: '100%',
+      },
+    },
     root: {
       flex: '0 0 auto',
 
@@ -39,6 +47,10 @@ const useStyles = makeStyles(
         width: '100%',
         marginTop: '20px',
       },
+    },
+    collapsed: {
+      height: '100%',
+      width: '64px',
     },
     collapseBtn: {
       background: '#f9f9f9',
@@ -88,8 +100,8 @@ export const Info = () => {
   return (
     <div
       className={cn(
-        styles.root,
-        !isCollapsed ? classes.root : styles.collapsed,
+        classes.container,
+        !isCollapsed ? classes.root : classes.collapsed,
       )}
     >
       {!isMobileScreen && (

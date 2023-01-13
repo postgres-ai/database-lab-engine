@@ -3,7 +3,7 @@ import { observer } from 'mobx-react-lite'
 import { ROUTES } from 'config/routes'
 
 import { ReactComponent as PlusIcon } from './icons/plus.svg'
-import { Button } from '../components/Button'
+import { Button } from '@postgres.ai/shared/components/MenuButton'
 
 import styles from './styles.module.scss'
 
