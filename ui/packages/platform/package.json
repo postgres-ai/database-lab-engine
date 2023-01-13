@@ -18,6 +18,7 @@
     "@mui/material": "^5.10.12",
     "@postgres.ai/platform": "link:./",
     "@postgres.ai/shared": "link:../shared",
+    "@postgres.ai/ce": "link:../ce",
     "@sentry/react": "^6.11.0",
     "@sentry/tracing": "^6.11.0",
     "@stripe/react-stripe-js": "^1.1.2",

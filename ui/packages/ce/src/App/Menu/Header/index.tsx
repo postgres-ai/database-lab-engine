@@ -2,8 +2,8 @@ import cn from 'classnames'
 import { Link } from 'react-router-dom'
 
 import { linksConfig } from '@postgres.ai/shared/config/links'
+import { Button } from '@postgres.ai/shared/components/MenuButton'
 
-import { Button } from 'App/Menu/components/Button'
 import { ROUTES } from 'config/routes'
 
 import logoIconUrl from './icons/logo.svg'
