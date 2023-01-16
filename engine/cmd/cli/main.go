@@ -167,10 +167,14 @@ func loadEnvironmentParams(c *cli.Context) error {
 			}
 		}
 
-		if env.Branching.CurrentBranch == "" {
-			if err := c.Set(commands.CurrentBranch, config.DefaultBranch); err != nil {
-				return err
-			}
+		currentBranch := config.DefaultBranch
+
+		if env.Branching.CurrentBranch != "" {
+			currentBranch = env.Branching.CurrentBranch
+		}
+
+		if err := c.Set(commands.CurrentBranch, currentBranch); err != nil {
+			return err
 		}
 	}
 
