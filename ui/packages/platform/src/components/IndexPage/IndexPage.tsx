@@ -595,7 +595,7 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
     search,
     is_favorite,
   } = queryParams
-  const projectId = project && orgData.projects[project.toString()].id
+  const projectId = project && orgData.projects[project.toString()]?.id
 
   const customProps = {
     project,
