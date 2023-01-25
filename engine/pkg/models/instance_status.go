@@ -46,6 +46,7 @@ type Cloning struct {
 type Engine struct {
 	Version                   string     `json:"version"`
 	Edition                   string     `json:"edition"`
+	InstanceID                string     `json:"instanceID"`
 	StartedAt                 *LocalTime `json:"startedAt,omitempty"`
 	Telemetry                 *bool      `json:"telemetry,omitempty"`
 	DisableConfigModification *bool      `json:"disableConfigModification,omitempty"`

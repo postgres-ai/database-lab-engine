@@ -52,12 +52,12 @@ func health(cliCtx *cli.Context) error {
 		return err
 	}
 
-	list, err := dblabClient.Health(cliCtx.Context)
+	engineHealth, err := dblabClient.Health(cliCtx.Context)
 	if err != nil {
 		return err
 	}
 
-	commandResponse, err := json.MarshalIndent(list, "", "    ")
+	commandResponse, err := json.MarshalIndent(engineHealth, "", "    ")
 	if err != nil {
 		return err
 	}
