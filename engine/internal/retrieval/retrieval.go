@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -604,11 +603,7 @@ func (r *Retrieval) FullRefresh(ctx context.Context) error {
 		return errors.Wrap(err, "failed to get FSManager")
 	}
 
-	log.Msg("Pool to a full refresh: ", poolToUpdate.Pool())
-
-	if err := preparePoolToRefresh(poolToUpdate); err != nil {
-		return errors.Wrap(err, "failed to prepare the pool to a full refresh")
-	}
+	log.Msg("Pool selected to perform full refresh: ", poolToUpdate.Pool())
 
 	// Stop service containers: sync-instance, etc.
 	if cleanUpErr := cont.CleanUpControlContainers(runCtx, r.docker, r.engineProps.InstanceID); cleanUpErr != nil {
@@ -637,34 +632,6 @@ func (r *Retrieval) stopScheduler() {
 		r.Scheduler.Cron.Stop()
 		r.Scheduler.Spec = nil
 	}
-}
-
-func preparePoolToRefresh(poolToUpdate pool.FSManager) error {
-	cloneList, err := poolToUpdate.ListClonesNames()
-	if err != nil {
-		return errors.Wrap(err, "failed to check running clones")
-	}
-
-	if len(cloneList) > 0 {
-		return errors.Errorf("there are active clones in the requested pool: %s\nDestroy them to perform a full refresh",
-			strings.Join(cloneList, " "))
-	}
-
-	poolToUpdate.RefreshSnapshotList()
-
-	snapshots := poolToUpdate.SnapshotList()
-	if len(snapshots) == 0 {
-		log.Msg(fmt.Sprintf("no snapshots for pool %s", poolToUpdate.Pool().Name))
-		return nil
-	}
-
-	for _, snapshotEntry := range snapshots {
-		if err := poolToUpdate.DestroySnapshot(snapshotEntry.ID); err != nil {
-			return errors.Wrap(err, "failed to destroy existing snapshot")
-		}
-	}
-
-	return nil
 }
 
 // ReportState collects the current restore state.

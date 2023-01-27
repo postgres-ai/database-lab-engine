@@ -301,7 +301,7 @@ func (m *Manager) CreateSnapshot(poolSuffix, dataStateAt string) (string, error)
 		}
 	}
 
-	cmd := fmt.Sprintf("zfs snapshot -r %s", snapshotName)
+	cmd := fmt.Sprintf("zfs snapshot %s", snapshotName)
 
 	if _, err := m.runner.Run(cmd, true); err != nil {
 		return "", errors.Wrap(err, "failed to create snapshot")

@@ -29,17 +29,6 @@ const (
 
 // InitBranching inits data branching.
 func (m *Manager) InitBranching() error {
-	branches, err := m.ListBranches()
-	if err != nil {
-		return err
-	}
-
-	if len(branches) > 0 {
-		log.Dbg("data branching is already initialized")
-
-		return nil
-	}
-
 	snapshots := m.SnapshotList()
 
 	numberSnapshots := len(snapshots)
@@ -51,19 +40,66 @@ func (m *Manager) InitBranching() error {
 
 	latest := snapshots[0]
 
-	for i := numberSnapshots; i > 1; i-- {
-		if err := m.SetRelation(snapshots[i-1].ID, snapshots[i-2].ID); err != nil {
-			return fmt.Errorf("failed to set snapshot relations: %w", err)
+	if getPoolPrefix(latest.ID) != m.config.Pool.Name {
+		for _, s := range snapshots {
+			if s.Pool == m.config.Pool.Name {
+				latest = s
+				break
+			}
 		}
+	}
+
+	latestBranchProperty, err := m.getProperty(branchProp, latest.ID)
+	if err != nil {
+		return fmt.Errorf("failed to read snapshot property: %w", err)
+	}
+
+	if latestBranchProperty != "" && latestBranchProperty != "-" {
+		log.Dbg("data branching is already initialized")
+
+		return nil
 	}
 
 	if err := m.AddBranchProp(defaultBranch, latest.ID); err != nil {
 		return fmt.Errorf("failed to add branch property: %w", err)
 	}
 
+	leader := latest
+
+	for i := 1; i < numberSnapshots; i++ {
+		follower := snapshots[i]
+
+		if getPoolPrefix(leader.ID) != getPoolPrefix(follower.ID) {
+			continue
+		}
+
+		if err := m.SetRelation(leader.ID, follower.ID); err != nil {
+			return fmt.Errorf("failed to set snapshot relations: %w", err)
+		}
+
+		brProperty, err := m.getProperty(branchProp, follower.ID)
+		if err != nil {
+			return fmt.Errorf("failed to read branch property: %w", err)
+		}
+
+		if brProperty == defaultBranch {
+			if err := m.DeleteBranchProp(defaultBranch, follower.ID); err != nil {
+				return fmt.Errorf("failed to delete default branch property: %w", err)
+			}
+
+			break
+		}
+
+		leader = follower
+	}
+
 	log.Msg("data branching has been successfully initialized")
 
 	return nil
+}
+
+func getPoolPrefix(pool string) string {
+	return strings.Split(pool, "@")[0]
 }
 
 // VerifyBranchMetadata verifies data branching metadata.
