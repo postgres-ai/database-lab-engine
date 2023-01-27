@@ -356,12 +356,12 @@ func (s *Server) log(w http.ResponseWriter, r *http.Request) {
 
 	// Limit the number of iterations to the number of snapshots.
 	for i := len(repo.Snapshots); i > 1; i-- {
-		snapshotPointer = repo.Snapshots[snapshotPointer.Parent]
-		logList = append(logList, snapshotPointer)
-
 		if snapshotPointer.Parent == "-" || snapshotPointer.Parent == "" {
 			break
 		}
+
+		snapshotPointer = repo.Snapshots[snapshotPointer.Parent]
+		logList = append(logList, snapshotPointer)
 	}
 
 	if err := api.WriteJSON(w, http.StatusOK, logList); err != nil {
