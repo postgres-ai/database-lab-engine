@@ -13,11 +13,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/docker/docker/client"
+	"github.com/pbnjay/memory"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
@@ -159,9 +161,14 @@ func main() {
 
 	tm.SendEvent(ctx, telemetry.EngineStartedEvent, telemetry.EngineStarted{
 		EngineVersion: version.GetVersion(),
+		DBEngine:      cfg.Global.Engine,
 		DBVersion:     provisioner.DetectDBVersion(),
 		Pools:         pm.CollectPoolStat(),
 		Restore:       retrievalSvc.ReportState(),
+		System: telemetry.System{
+			CPU:         runtime.NumCPU(),
+			TotalMemory: memory.TotalMemory(),
+		},
 	})
 
 	embeddedUI := embeddedui.New(cfg.EmbeddedUI, engProps, runner, docker)
