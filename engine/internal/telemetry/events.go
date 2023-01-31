@@ -12,9 +12,11 @@ import (
 // EngineStarted describes the engine start event.
 type EngineStarted struct {
 	EngineVersion string   `json:"engine_version"`
+	DBEngine      string   `json:"db_engine"`
 	DBVersion     string   `json:"db_version"`
 	Pools         PoolStat `json:"pools"`
 	Restore       Restore  `json:"restore"`
+	System        System   `json:"system"`
 }
 
 // PoolStat describes the pool stat data.
@@ -30,6 +32,12 @@ type Restore struct {
 	Mode       models.RetrievalMode `json:"mode"`
 	Refreshing string               `json:"refreshing"`
 	Jobs       []string             `json:"jobs"`
+}
+
+// System describes system stats of the machine where the DLE instance runs.
+type System struct {
+	CPU         int    `json:"cpu"`
+	TotalMemory uint64 `json:"total_memory"`
 }
 
 // EngineStopped describes the engine stop event.
