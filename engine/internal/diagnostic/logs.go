@@ -36,37 +36,17 @@ type Cleaner struct {
 }
 
 const (
-	cleanInterval            = "0 * * * *"
-	timeFormat               = "20060102150405"
-	containerOutputFile      = "output.txt"
-	logsDir                  = "logs"
+	cleanInterval       = "0 * * * *"
+	timeFormat          = "20060102150405"
+	containerOutputFile = "output.txt"
+
 	defaultLogsRetentionDays = 7
 )
-
-// GetLogsRoot returns the root log directory.
-func GetLogsRoot() (string, error) {
-	dir, err := util.GetBinRootPath()
-	if err != nil {
-		return "", fmt.Errorf("failed to get root directory %w", err)
-	}
-
-	return path.Join(dir, logsDir), nil
-}
-
-// GetLogsPath returns the log directory path on a specific collection date.
-func GetLogsPath(name string) (string, error) {
-	dir, err := util.GetBinRootPath()
-	if err != nil {
-		return "", fmt.Errorf("failed to get root directory %w", err)
-	}
-
-	return path.Join(dir, logsDir, name), nil
-}
 
 // CollectDiagnostics collects container output and Postgres logs.
 func CollectDiagnostics(ctx context.Context, client *client.Client, filterArgs filters.Args,
 	postgresContainerName, dbDataDir string) error {
-	diagnosticsDir, err := GetLogsPath(time.Now().Format(timeFormat))
+	diagnosticsDir, err := util.GetLogsPath(time.Now().Format(timeFormat))
 
 	if err != nil {
 		return fmt.Errorf("failed to get logs diagnostics directory %w", err)
@@ -93,7 +73,7 @@ func CollectDiagnostics(ctx context.Context, client *client.Client, filterArgs f
 
 // CollectContainerDiagnostics collect specific container diagnostics information.
 func CollectContainerDiagnostics(ctx context.Context, client *client.Client, containerName string) {
-	diagnosticsDir, err := GetLogsPath(time.Now().Format(timeFormat))
+	diagnosticsDir, err := util.GetLogsPath(time.Now().Format(timeFormat))
 
 	if err != nil {
 		log.Warn("failed to get logs diagnostics directory %w", err)
@@ -264,7 +244,7 @@ func extractTar(dir string, reader *tar.Reader, header *tar.Header) error {
 
 func cleanLogsFunc(logRetentionDays int) func() {
 	return func() {
-		logsDir, err := GetLogsRoot()
+		logsDir, err := util.GetLogsRoot()
 
 		log.Dbg("Cleaning old logs", logsDir)
 
