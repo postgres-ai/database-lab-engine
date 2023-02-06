@@ -21,7 +21,7 @@ import {
   ExpansionPanelSummary,
   ExpansionPanelDetails,
 } from '@material-ui/core'
-import { Link } from '@postgres.ai/shared/components/Link2'
+import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore'
 
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
@@ -261,9 +261,9 @@ class Billing extends Component<BillingWithStylesProps, BillingState> {
                 always ignored. The logical size of the database also does not
                 factor into our calculation.
               </p>
-              <Link to="https://postgres.ai/docs/pricing" target="_blank">
+              <GatewayLink href="https://postgres.ai/pricing">
                 Learn more
-              </Link>
+              </GatewayLink>
             </ExpansionPanelDetails>
           </ExpansionPanel>
         </>

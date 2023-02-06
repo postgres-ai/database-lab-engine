@@ -31,7 +31,7 @@ import { ROUTES } from 'config/routes'
 import Actions from '../../actions/actions'
 import ConsolePageTitle from '../ConsolePageTitle'
 import { ErrorWrapper } from 'components/Error/ErrorWrapper'
-import { Link } from '@postgres.ai/shared/components/Link2'
+import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
 import { messages } from '../../assets/messages'
 import Store from '../../stores/store'
 import Urls from '../../utils/urls'
@@ -312,9 +312,9 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
             Clone multi-terabyte databases in seconds and use them to test your
             database migrations, optimize SQL, or deploy full-size staging apps.
             Start here to work with all Database Lab tools.
-            <Link to={settings.rootUrl + '/docs/database-lab'} target="_blank">
+            <GatewayLink href={settings.rootUrl + '/docs/database-lab'} target="_blank">
               Learn more
-            </Link>
+            </GatewayLink>
             .
           </p>
         </ProductCardWrapper>
@@ -333,9 +333,9 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
           <p>
             Automated routine checkup for your PostgreSQL databases. Configure
             Checkup agent to start collecting reports (
-            <Link to={settings.rootUrl + '/docs/checkup'} target="_blank">
+            <GatewayLink href={settings.rootUrl + '/docs/checkup'} target="_blank">
               Learn more
-            </Link>
+            </GatewayLink>
             ).
           </p>
         </ProductCardWrapper>
@@ -415,9 +415,9 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
                     a: (props) => {
                       const { href, target, children } = props
                       return (
-                        <Link to={String(href)} target={target}>
+                        <GatewayLink href={String(href)} target={target}>
                           {String(children)}
-                        </Link>
+                        </GatewayLink>
                       )
                     },
                   }}
@@ -438,9 +438,9 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
                     a: (props) => {
                       const { href, target, children } = props
                       return (
-                        <Link to={String(href)} target={target}>
+                        <GatewayLink href={String(href)} target={target}>
                           {String(children)}
-                        </Link>
+                        </GatewayLink>
                       )
                     },
                   }}

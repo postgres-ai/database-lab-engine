@@ -25,7 +25,7 @@ import { HorizontalScrollContainer } from '@postgres.ai/shared/components/Horizo
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { styles } from '@postgres.ai/shared/styles/styles'
-import { Link } from '@postgres.ai/shared/components/Link2'
+import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
 import { ClassesType } from '@postgres.ai/platform/src/components/types'
 import { theme } from '@postgres.ai/shared/styles/theme'
 
@@ -593,12 +593,12 @@ class OrgForm extends Component<OrgFormWithStylesProps, OrgFormState> {
                     helperText={
                       <span>
                         Format:&nbsp;
-                        <Link
-                          to={'https://commonmark.org/help'}
+                        <GatewayLink
+                          href={'https://commonmark.org/help'}
                           target={'_blank'}
                         >
                           Markdown
-                        </Link>
+                        </GatewayLink>
                       </span>
                     }
                     error={

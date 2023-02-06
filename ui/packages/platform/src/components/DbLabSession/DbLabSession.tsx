@@ -36,7 +36,7 @@ import { WarningWrapper } from 'components/Warning/WarningWrapper'
 import { messages } from '../../assets/messages'
 import format from '../../utils/format'
 import urls, { PropsType } from '../../utils/urls'
-import { Link } from '@postgres.ai/shared/components/Link2'
+import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
 import dblabutils from '../../utils/dblabutils'
 import { MomentInput } from 'moment'
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
@@ -515,9 +515,9 @@ class DbLabSession extends Component<
             session.tags &&
             session.tags.branch &&
             session.tags.branch_link ? (
-              <Link to={session.tags.branch_link} target="_blank">
+              <GatewayLink href={session.tags.branch_link} target="_blank">
                 {session.tags.branch}
-              </Link>
+              </GatewayLink>
             ) : (
               <span>
                 {session && session.tags && session.tags.branch
@@ -533,9 +533,9 @@ class DbLabSession extends Component<
             session.tags &&
             session.tags.revision &&
             session.tags.revision_link ? (
-              <Link to={session.tags.revision_link} target="_blank">
+              <GatewayLink href={session.tags.revision_link} target="_blank">
                 {session.tags.revision}
-              </Link>
+              </GatewayLink>
             ) : (
               <span>
                 {session && session.tags && session.tags.revision
@@ -551,12 +551,12 @@ class DbLabSession extends Component<
             session.tags &&
             session.tags.launched_by &&
             session.tags.username_link ? (
-              <Link to={session.tags.username_link} target="_blank">
+              <GatewayLink href={session.tags.username_link} target="_blank">
                 {session.tags.launched_by}
                 {session.tags.username_full
                   ? ' (' + session.tags.username_full + ')'
                   : ''}
-              </Link>
+              </GatewayLink>
             ) : (
               <span>
                 {session && session.tags && session.tags.launched_by
@@ -569,9 +569,9 @@ class DbLabSession extends Component<
           <Typography component="p">
             <span className={classes.paramTitle}>PR/MR:</span>
             {session && session.tags && session.tags.request_link ? (
-              <Link to={session.tags.request_link} target="_blank">
+              <GatewayLink href={session.tags.request_link} target="_blank">
                 {session.tags.request_link}
-              </Link>
+              </GatewayLink>
             ) : (
               '-'
             )}
@@ -580,9 +580,9 @@ class DbLabSession extends Component<
           <Typography component="p">
             <span className={classes.paramTitle}>Changes:</span>
             {session && session.tags && session.tags.request_link ? (
-              <Link to={session.tags.request_link} target="_blank">
+              <GatewayLink href={session.tags.request_link} target="_blank">
                 {session.tags.request_link}
-              </Link>
+              </GatewayLink>
             ) : (
               '-'
             )}
@@ -591,12 +591,12 @@ class DbLabSession extends Component<
           {false && (
             <Typography component="p" style={{ marginTop: 10 }}>
               Check documentation for the details about observed sessions:
-              <Link
-                to="https://postgres.ai/docs/guides/cloning/observe-sessions"
+              <GatewayLink
+                href="https://postgres.ai/docs/guides/cloning/observe-sessions"
                 target="_blank"
               >
                 Database Lab – CI Observer
-              </Link>
+              </GatewayLink>
             </Typography>
           )}
         </div>

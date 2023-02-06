@@ -7,7 +7,7 @@
 
 import PropTypes from 'prop-types';
 import Div100vh from 'react-div-100vh';
-import { Link } from '@postgres.ai/shared/components/Link2'
+import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink';
 
 import settings from 'utils/settings';
 
@@ -27,19 +27,19 @@ const SignIn = (props) => {
 
         <div>
           <a className={ classes.button } href={getAuthUrlFor('google')}>
-            <img width='18' src='/images/oauth-google-logo.png' />
+            <img width='18' src='/images/oauth-google-logo.png' alt="Google sign in" />
             <span className={ classes.buttonText }>Sign in with Google</span>
           </a>
           <a className={ classes.button } href={getAuthUrlFor('linkedin')}>
-            <img width='18' src='/images/oauth-linkedin-logo.png' />
+            <img width='18' src='/images/oauth-linkedin-logo.png' alt="LinkedIn sign in" />
             <span className={ classes.buttonText }>Sign in with LinkedIn</span>
           </a>
           <a className={ classes.button } href={getAuthUrlFor('github')}>
-            <img width='18' src='/images/oauth-github-logo.png' />
+            <img width='18' src='/images/oauth-github-logo.png' alt="Github sign in" />
             <span className={ classes.buttonText }>Sign in with GitHub</span>
           </a>
           <a className={ classes.button } href={getAuthUrlFor('gitlab')}>
-            <img width='18' src='/images/oauth-gitlab-logo.png' />
+            <img width='18' src='/images/oauth-gitlab-logo.png' alt="Gitlab sign in" />
             <span className={ classes.buttonText }>Sign in with GitLab</span>
           </a>
         </div>
@@ -48,13 +48,13 @@ const SignIn = (props) => {
           <small>
             Signing in signifies that you have read and agree to our
             <br />
-            <Link to={settings.rootUrl + '/tos'} target='_blank'>
+            <GatewayLink href={settings.rootUrl + '/tos'} target='_blank'>
               Terms&nbsp;of&nbsp;Service
-            </Link>
+            </GatewayLink>
             &nbsp;and&nbsp;
-            <Link to={settings.rootUrl + '/privacy'} target='_blank'>
+            <GatewayLink href={settings.rootUrl + '/privacy'} target='_blank'>
               Privacy&nbsp;Policy
-            </Link>.
+            </GatewayLink>.
           </small>
         </div>
       </div>

@@ -25,7 +25,7 @@ import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { icons } from '@postgres.ai/shared/styles/icons'
-import { Link } from '@postgres.ai/shared/components/Link2'
+import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
 import {
   ClassesType,
   ProjectProps,
@@ -410,9 +410,9 @@ class Reports extends Component<ReportsWithStylesProps, ReportsState> {
           <p>
             Automated routine checkup for your PostgreSQL databases. Configure
             Checkup agent to start collecting reports (
-            <Link to="https://postgres.ai/docs/checkup" target="_blank">
+            <GatewayLink href="https://postgres.ai/docs/checkup" target="_blank">
               Learn more
-            </Link>
+            </GatewayLink>
             ).
           </p>
         </ProductCardWrapper>

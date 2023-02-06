@@ -6,7 +6,7 @@
  */
 
 import { makeStyles } from '@material-ui/core'
-import { Link } from '@postgres.ai/shared/components/Link2'
+import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
 
 import settings from 'utils/settings'
 
@@ -65,33 +65,33 @@ export const Footer = () => {
         {new Date().getFullYear()} © Postgres.ai
       </div>
       <div className={classes.footerItem}>
-        <Link to={settings.rootUrl + '/docs'} target="_blank">
+        <GatewayLink href={settings.rootUrl + '/docs'}>
           Documentation
-        </Link>
+        </GatewayLink>
       </div>
       <div className={classes.footerItemSeparator}>|</div>
       <div className={classes.footerItem}>
-        <Link to={settings.rootUrl + '/blog'} target="_blank">
+        <GatewayLink href={settings.rootUrl + '/blog'}>
           News
-        </Link>
+        </GatewayLink>
       </div>
       <div className={classes.footerItemSeparator}>|</div>
       <div className={classes.footerItem}>
-        <Link to={settings.rootUrl + '/tos'} target="_blank">
+        <GatewayLink href={settings.rootUrl + '/tos'}>
           Terms of Service
-        </Link>
+        </GatewayLink>
       </div>
       <div className={classes.footerItemSeparator}>|</div>
       <div className={classes.footerItem}>
-        <Link to={settings.rootUrl + '/privacy'} target="_blank">
+        <GatewayLink href={settings.rootUrl + '/privacy'}>
           Privacy Policy
-        </Link>
+        </GatewayLink>
       </div>
       <div className={classes.footerItemSeparator}>|</div>
       <div className={classes.footerItem}>
-        <Link to={settings.rootUrl + '/contact'} target="_blank">
+        <GatewayLink href={settings.rootUrl + '/contact'}>
           Ask support
-        </Link>
+        </GatewayLink>
       </div>
     </div>
   )
