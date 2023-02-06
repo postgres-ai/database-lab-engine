@@ -29,7 +29,7 @@ import { StubContainer } from '@postgres.ai/shared/components/StubContainer'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { icons } from '@postgres.ai/shared/styles/icons'
-import { Link } from '@postgres.ai/shared/components/Link2'
+import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
 import { ClassesType } from '@postgres.ai/platform/src/components/types'
 
 import Store from '../../stores/store'
@@ -1027,9 +1027,9 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
                   provisioned and seconds, behaves as production (same execution
                   plans, same data volumes), writable and isolated for safe
                   "what if" experiments to check various optimization ideas (
-                  <Link to="https://postgres.ai/docs/joe" target="_blank">
+                  <GatewayLink href="https://postgres.ai/docs/joe" target="_blank">
                     Learn more
-                  </Link>
+                  </GatewayLink>
                   ).
                 </p>
               ) : (

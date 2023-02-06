@@ -26,7 +26,7 @@ import { HorizontalScrollContainer } from '@postgres.ai/shared/components/Horizo
 import { StubContainer } from '@postgres.ai/shared/components/StubContainer'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { icons } from '@postgres.ai/shared/styles/icons'
-import { Link } from '@postgres.ai/shared/components/Link2'
+import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
 import { ClassesType } from '@postgres.ai/platform/src/components/types'
 
 import Actions from '../../actions/actions'
@@ -356,9 +356,9 @@ class JoeInstances extends Component<
             Joe Bot is a virtual DBA for SQL Optimization. Joe helps engineers
             quickly troubleshoot and optimize SQL. Joe runs on top of the
             Database Lab Engine. (
-            <Link to="https://postgres.ai/docs/joe-bot" target="_blank">
+            <GatewayLink href="https://postgres.ai/docs/joe-bot" target="_blank">
               Learn more
-            </Link>
+            </GatewayLink>
             ).
           </p>
         </ProductCardWrapper>
