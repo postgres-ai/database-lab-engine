@@ -14,6 +14,11 @@ export const ROUTES = {
     SNAPSHOTS: {
       path: `/instance/snapshots`,
 
+      CREATE: {
+        name: 'Create snapshot',
+        path: `/instance/snapshots/create`,
+      },
+
       SNAPSHOTS: {
         name: 'Snapshots',
         path: `/instance/snapshots`,
@@ -27,6 +32,11 @@ export const ROUTES = {
     },
     BRANCHES: {
       path: `/instance/branches`,
+
+      CREATE: {
+        name: 'Create branch',
+        path: `/instance/branches/create`,
+      },
 
       BRANCHES: {
         name: 'Branches',

@@ -29,6 +29,7 @@ import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
 import { styles } from '@postgres.ai/shared/styles/styles'
+import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
 import {
   TableBodyCell,
   TableBodyCellMenu,
@@ -42,16 +43,37 @@ type Props = Host
 
 const useStyles = makeStyles(
   () => ({
+    wrapper: {
+      display: 'flex',
+      gap: '60px',
+      maxWidth: '1200px',
+      fontSize: '14px',
+      marginTop: '20px',
+
+      '@media (max-width: 1300px)': {
+        flexDirection: 'column',
+        gap: '20px',
+      },
+    },
     marginTop: {
       marginTop: '16px',
     },
     container: {
       maxWidth: '100%',
-      marginTop: '16px',
+      flex: '1 1 0',
+      minWidth: 0,
 
       '&  p,span': {
         fontSize: 14,
       },
+    },
+    snippetContainer: {
+      flex: '1 1 0',
+      minWidth: 0,
+      boxShadow: 'rgba(0, 0, 0, 0.1) 0px 4px 12px',
+      padding: '10px 20px 10px 20px',
+      height: 'max-content',
+      borderRadius: '4px',
     },
     actions: {
       display: 'flex',
@@ -69,6 +91,9 @@ const useStyles = makeStyles(
     text: {
       marginTop: '4px',
     },
+    cliText: {
+      marginTop: '8px',
+    },
     paramTitle: {
       display: 'inline-block',
       width: 200,
@@ -76,17 +101,17 @@ const useStyles = makeStyles(
     copyFieldContainer: {
       position: 'relative',
       display: 'block',
-      maxWidth: 400,
+      maxWidth: 525,
       width: '100%',
     },
     tableContainer: {
       position: 'relative',
-      maxWidth: 400,
+      maxWidth: 525,
       width: '100%',
     },
     textField: {
       ...styles.inputField,
-      'max-width': 400,
+      'max-width': 525,
       display: 'inline-block',
       '& .MuiOutlinedInput-input': {
         paddingRight: '32px!important',
@@ -166,82 +191,108 @@ export const SnapshotPage = observer((props: Props) => {
   return (
     <>
       <BranchHeader />
-      <div className={classes.container}>
-        <div className={classes.actions}>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => setIsOpenDestroyModal(true)}
-            title={'Destroy this snapshot'}
-            className={classes.actionButton}
-          >
-            Destroy snapshot
-          </Button>
-        </div>
-        <br />
-        <div>
-          <div>
-            <p>
-              <strong>Created</strong>
-            </p>
-            <p className={classes.text}>{snapshot?.createdAt}</p>
+      <div className={classes.wrapper}>
+        <div className={classes.container}>
+          <div className={classes.actions}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => setIsOpenDestroyModal(true)}
+              title={'Destroy this snapshot'}
+              className={classes.actionButton}
+            >
+              Destroy snapshot
+            </Button>
           </div>
           <br />
           <div>
-            <p>
-              <strong>Data state at</strong>&nbsp;
-              <Tooltip
-                content={
-                  <>
-                    <strong>Data state time</strong> is a time at which data
-                    is&nbsp; recovered for this snapshot.
-                  </>
-                }
-              >
-                {icons.infoIcon}
-              </Tooltip>
-            </p>
-            <p className={classes.text}>{snapshot?.dataStateAt || '-'}</p>
-          </div>
-          <div className={classes.summary}>
-            <p>
-              <strong>Summary</strong>&nbsp;
-            </p>
-            <p className={classes.text}>
-              <span className={classes.paramTitle}>Number of clones:</span>
-              {snapshot?.numClones}
-            </p>
-            <p className={classes.text}>
-              <span className={classes.paramTitle}>Logical data size:</span>
-              {snapshot?.logicalSize
-                ? formatBytesIEC(snapshot.logicalSize)
-                : '-'}
-            </p>
-            <p className={classes.text}>
-              <span className={classes.paramTitle}>
-                Physical data diff size:
-              </span>
-              {snapshot?.physicalSize
-                ? formatBytesIEC(snapshot.physicalSize)
-                : '-'}
-            </p>
-            {branchSnapshot?.message && (
-              <p className={classes.text}>
-                <span className={classes.paramTitle}>Message:</span>
-                {branchSnapshot.message}
+            <div>
+              <p>
+                <strong>Created</strong>
               </p>
+              <p className={classes.text}>{snapshot?.createdAt}</p>
+            </div>
+            <br />
+            <div>
+              <p>
+                <strong>Data state at</strong>&nbsp;
+                <Tooltip
+                  content={
+                    <>
+                      <strong>Data state time</strong> is a time at which data
+                      is&nbsp; recovered for this snapshot.
+                    </>
+                  }
+                >
+                  {icons.infoIcon}
+                </Tooltip>
+              </p>
+              <p className={classes.text}>{snapshot?.dataStateAt || '-'}</p>
+            </div>
+            <div className={classes.summary}>
+              <p>
+                <strong>Summary</strong>&nbsp;
+              </p>
+              <p className={classes.text}>
+                <span className={classes.paramTitle}>Number of clones:</span>
+                {snapshot?.numClones}
+              </p>
+              <p className={classes.text}>
+                <span className={classes.paramTitle}>Logical data size:</span>
+                {snapshot?.logicalSize
+                  ? formatBytesIEC(snapshot.logicalSize)
+                  : '-'}
+              </p>
+              <p className={classes.text}>
+                <span className={classes.paramTitle}>
+                  Physical data diff size:
+                </span>
+                {snapshot?.physicalSize
+                  ? formatBytesIEC(snapshot.physicalSize)
+                  : '-'}
+              </p>
+              {branchSnapshot?.message && (
+                <p className={classes.text}>
+                  <span className={classes.paramTitle}>Message:</span>
+                  {branchSnapshot.message}
+                </p>
+              )}
+            </div>
+            <br />
+            <p>
+              <strong>Snapshot info</strong>
+            </p>
+            {snapshot?.pool && (
+              <div className={classes.copyFieldContainer}>
+                <TextField
+                  variant="outlined"
+                  label="snapshot pool"
+                  value={snapshot.pool}
+                  className={classes.textField}
+                  margin="normal"
+                  fullWidth
+                  InputLabelProps={{
+                    shrink: true,
+                    style: styles.inputFieldLabel,
+                  }}
+                  FormHelperTextProps={{
+                    style: styles.inputFieldHelper,
+                  }}
+                />
+                <IconButton
+                  className={classes.copyButton}
+                  aria-label="Copy"
+                  onClick={() => copyToClipboard(snapshot.pool)}
+                >
+                  {icons.copyIcon}
+                </IconButton>
+              </div>
             )}
-          </div>
-          <br />
-          <p>
-            <strong>Snapshot info</strong>
-          </p>
-          {snapshot?.pool && (
             <div className={classes.copyFieldContainer}>
               <TextField
                 variant="outlined"
-                label="snapshot pool"
-                value={snapshot.pool}
+                label="snapshot ID"
+                value={snapshot?.id}
                 className={classes.textField}
                 margin="normal"
                 fullWidth
@@ -256,86 +307,95 @@ export const SnapshotPage = observer((props: Props) => {
               <IconButton
                 className={classes.copyButton}
                 aria-label="Copy"
-                onClick={() => copyToClipboard(snapshot.pool)}
+                onClick={() => copyToClipboard(String(snapshot?.id))}
               >
                 {icons.copyIcon}
               </IconButton>
             </div>
-          )}
-          <div className={classes.copyFieldContainer}>
-            <TextField
-              variant="outlined"
-              label="snapshot ID"
-              value={snapshot?.id}
-              className={classes.textField}
-              margin="normal"
-              fullWidth
-              InputLabelProps={{
-                shrink: true,
-                style: styles.inputFieldLabel,
-              }}
-              FormHelperTextProps={{
-                style: styles.inputFieldHelper,
-              }}
-            />
-            <IconButton
-              className={classes.copyButton}
-              aria-label="Copy"
-              onClick={() => copyToClipboard(String(snapshot?.id))}
-            >
-              {icons.copyIcon}
-            </IconButton>
-          </div>
-          <br />
-          {branchSnapshot?.branch && branchSnapshot.branch?.length > 0 && (
-            <>
-              <p>
-                <strong>
-                  Related branches ({branchSnapshot.branch.length})
-                </strong>
-                &nbsp;
-                <Tooltip
-                  content={
-                    <>List of branches pointing at the same snapshot. &nbsp;</>
-                  }
-                >
-                  {icons.infoIcon}
-                </Tooltip>
-              </p>
-              <HorizontalScrollContainer>
-                <Table className={classes.tableContainer}>
-                  <TableHead>
-                    <TableRow>
-                      <TableHeaderCell />
-                      <TableHeaderCell>Name</TableHeaderCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {branchSnapshot.branch.map((branch: string, id: number) => (
-                      <TableRow
-                        key={id}
-                        className={classes.pointerCursor}
-                        hover
-                        onClick={() =>
-                          history.push(`/instance/branches/${branch}`)
-                        }
-                      >
-                        <TableBodyCellMenu
-                          actions={[
-                            {
-                              name: 'Copy branch name',
-                              onClick: () => copyToClipboard(branch),
-                            },
-                          ]}
-                        />
-                        <TableBodyCell>{branch}</TableBodyCell>
+            <br />
+            {branchSnapshot?.branch && branchSnapshot.branch?.length > 0 && (
+              <>
+                <p>
+                  <strong>
+                    Related branches ({branchSnapshot.branch.length})
+                  </strong>
+                  &nbsp;
+                  <Tooltip
+                    content={
+                      <>
+                        List of branches pointing at the same snapshot. &nbsp;
+                      </>
+                    }
+                  >
+                    {icons.infoIcon}
+                  </Tooltip>
+                </p>
+                <HorizontalScrollContainer>
+                  <Table className={classes.tableContainer}>
+                    <TableHead>
+                      <TableRow>
+                        <TableHeaderCell />
+                        <TableHeaderCell>Name</TableHeaderCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </HorizontalScrollContainer>
-            </>
-          )}
+                    </TableHead>
+                    <TableBody>
+                      {branchSnapshot.branch.map(
+                        (branch: string, id: number) => (
+                          <TableRow
+                            key={id}
+                            className={classes.pointerCursor}
+                            hover
+                            onClick={() =>
+                              history.push(`/instance/branches/${branch}`)
+                            }
+                          >
+                            <TableBodyCellMenu
+                              actions={[
+                                {
+                                  name: 'Copy branch name',
+                                  onClick: () => copyToClipboard(branch),
+                                },
+                              ]}
+                            />
+                            <TableBodyCell>{branch}</TableBodyCell>
+                          </TableRow>
+                        ),
+                      )}
+                    </TableBody>
+                  </Table>
+                </HorizontalScrollContainer>
+              </>
+            )}
+          </div>
+        </div>
+        <div className={classes.snippetContainer}>
+          <SectionTitle
+            className={classes.marginTop}
+            tag="h2"
+            level={2}
+            text={'Delete snapshot using the CLI'}
+          />
+          <p className={classes.cliText}>
+            You can delete this snapshot using the CLI. To do this, run the
+            command below:
+          </p>
+          <SyntaxHighlight
+            content={
+              'dblab snapshot delete dblab_pool/dataset_2@snapshot_20230110074634dblab snapshot delete dblab_pool/dataset_2@snapshot_20230110074634'
+            }
+          />
+
+          <SectionTitle
+            className={classes.marginTop}
+            tag="h2"
+            level={2}
+            text={'Get snapshots using the CLI'}
+          />
+          <p className={classes.cliText}>
+            You can get a list of all snapshots using the CLI. To do this, run
+            the command below:
+          </p>
+          <SyntaxHighlight content={`dblab snapshot list`} />
         </div>
         <DestroySnapshotModal
           isOpen={isOpenDestroyModal}

@@ -25,6 +25,8 @@ import { getSnapshotList } from 'api/branches/getSnapshotList'
 export const Page = ({ renderCurrentTab }: { renderCurrentTab?: number }) => {
   const routes = {
     createClone: () => ROUTES.INSTANCE.CLONES.CREATE.path,
+    createBranch: () => ROUTES.INSTANCE.BRANCHES.CREATE.path,
+    createSnapshot: () => ROUTES.INSTANCE.SNAPSHOTS.CREATE.path,
     clone: (cloneId: string) =>
       ROUTES.INSTANCE.CLONES.CLONE.createPath(cloneId),
   }

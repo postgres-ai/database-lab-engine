@@ -160,7 +160,7 @@ export const ClonesList = (props: Props) => {
                   <TableBodyCell>
                     {clone.snapshot ? (
                       <>
-                        {clone.snapshot.dataStateAt} (
+                        {clone.snapshot.dataStateAt}
                         {isValidDate(clone.snapshot.dataStateAtDate)
                           ? formatDistanceToNowStrict(
                               clone.snapshot.dataStateAtDate,
@@ -169,7 +169,6 @@ export const ClonesList = (props: Props) => {
                               },
                             )
                           : '-'}
-                        )
                       </>
                     ) : (
                       '-'

@@ -6,17 +6,17 @@
  */
 
 import { observer } from 'mobx-react-lite'
+import { useHistory } from 'react-router'
 import { makeStyles } from '@material-ui/core'
 import React, { useEffect, useState } from 'react'
 
-import { useStores } from '@postgres.ai/shared/pages/Instance/context'
+import { useStores, useHost } from '@postgres.ai/shared/pages/Instance/context'
 import { Button } from '@postgres.ai/shared/components/Button2'
 import { GetBranchesResponseType } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 import { BranchesTable } from '@postgres.ai/shared/pages/Branches/components/BranchesTable'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
-import { CreateBranchModal } from '@postgres.ai/shared/pages/Branches/components/Modals/CreateBranchModal'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { InfoIcon } from '@postgres.ai/shared/icons/Info'
 
@@ -36,23 +36,18 @@ const useStyles = makeStyles(
 )
 
 export const Branches = observer((): React.ReactElement => {
+  const host = useHost()
   const stores = useStores()
   const classes = useStyles()
+  const history = useHistory()
   const [branchesList, setBranchesList] = useState<GetBranchesResponseType[]>(
     [],
   )
-  const [isCreateBranchOpen, setIsCreateBranchOpen] = useState(false)
 
-  const {
-    instance,
-    getBranches,
-    getSnapshotList,
-    snapshotListError,
-    isBranchesLoading,
-    getBranchesError,
-    createBranch,
-    createBranchError,
-  } = stores.main
+  const { instance, getBranches, isBranchesLoading, getBranchesError } =
+    stores.main
+
+  const goToBranchAddPage = () => history.push(host.routes.createBranch())
 
   useEffect(() => {
     getBranches().then((response) => {
@@ -83,7 +78,7 @@ export const Branches = observer((): React.ReactElement => {
             <Button
               theme="primary"
               isDisabled={!branchesList.length}
-              onClick={() => setIsCreateBranchOpen(true)}
+              onClick={goToBranchAddPage}
             >
               Create branch
             </Button>
@@ -99,15 +94,6 @@ export const Branches = observer((): React.ReactElement => {
       <BranchesTable
         branchesData={branchesList}
         emptyTableText="This instance has no active branches"
-      />
-      <CreateBranchModal
-        isOpen={isCreateBranchOpen}
-        onClose={() => setIsCreateBranchOpen(false)}
-        createBranch={createBranch}
-        createBranchError={createBranchError}
-        branchesList={branchesList}
-        getSnapshotList={getSnapshotList}
-        snapshotListError={snapshotListError}
       />
     </div>
   )

@@ -13,7 +13,7 @@ import { GetSnapshots } from '@postgres.ai/shared/types/api/endpoints/getSnapsho
 import { CreateSnapshot } from '@postgres.ai/shared/types/api/endpoints/createSnapshot'
 
 export type SnapshotsApi = {
-  getSnapshots: GetSnapshots
+  getSnapshots?: GetSnapshots
   createSnapshot?: CreateSnapshot
 }
 
@@ -64,6 +64,8 @@ export class SnapshotsStore {
   }
 
   private loadData = async (instanceId: string) => {
+    if (!this.api.getSnapshots) return
+
     this.isLoading = true
 
     const { response, error } = await this.api.getSnapshots({ instanceId })

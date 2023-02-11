@@ -14,7 +14,7 @@ export type FormValues = {
 }
 
 const Schema = Yup.object().shape({
-  cloneID: Yup.string().required('Branch name is required'),
+  cloneID: Yup.string().required('Clone ID is required'),
 })
 
 export const useForm = (onSubmit: (values: FormValues) => void) => {

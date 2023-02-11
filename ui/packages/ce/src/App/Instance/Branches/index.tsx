@@ -5,10 +5,14 @@ import { TABS_INDEX } from '@postgres.ai/shared/pages/Instance/Tabs'
 
 import { Page } from '../Page'
 import { Branch } from './Branch'
+import { CreateBranch } from './CreateBranch'
 
 export const Branches = () => {
   return (
     <Switch>
+      <Route exact path={ROUTES.INSTANCE.BRANCHES.CREATE.path}>
+        <CreateBranch />
+      </Route>
       <Route exact path={ROUTES.INSTANCE.BRANCHES.BRANCHES.path}>
         <Page renderCurrentTab={TABS_INDEX.BRANCHES} />
       </Route>
