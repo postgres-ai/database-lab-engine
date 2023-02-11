@@ -26,10 +26,6 @@ import { GetFullConfig } from '@postgres.ai/shared/types/api/endpoints/getFullCo
 import { GetInstanceRetrieval } from '@postgres.ai/shared/types/api/endpoints/getInstanceRetrieval'
 import { InstanceRetrievalType } from '@postgres.ai/shared/types/api/entities/instanceRetrieval'
 import { GetEngine } from '@postgres.ai/shared/types/api/endpoints/getEngine'
-import {
-  CreateBranch,
-  CreateBranchFormValues,
-} from '@postgres.ai/shared/types/api/endpoints/createBranch'
 import { GetSnapshotList } from '@postgres.ai/shared/types/api/endpoints/getSnapshotList'
 import { GetBranches } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 
@@ -39,12 +35,12 @@ const UNSTABLE_CLONE_STATUS_CODES = ['CREATING', 'RESETTING', 'DELETING']
 
 export type Api = {
   getInstance: GetInstance
-  getSnapshots: GetSnapshots
+  getSnapshots?: GetSnapshots
   createSnapshot?: CreateSnapshot
   refreshInstance?: RefreshInstance
-  destroyClone: DestroyClone
-  resetClone: ResetClone
-  getWSToken: GetWSToken
+  destroyClone?: DestroyClone
+  resetClone?: ResetClone
+  getWSToken?: GetWSToken
   initWS?: InitWS
   getConfig?: GetConfig
   updateConfig?: UpdateConfig
@@ -52,7 +48,6 @@ export type Api = {
   getFullConfig?: GetFullConfig
   getEngine?: GetEngine
   getInstanceRetrieval?: GetInstanceRetrieval
-  createBranch?: CreateBranch
   getBranches?: GetBranches
   getSnapshotList?: GetSnapshotList
 }
@@ -73,9 +68,7 @@ export class MainStore {
   configError: string | null = null
   dbSourceError: string | null = null
   getFullConfigError: string | null = null
-  createBranchError: string | null = null
   getBranchesError: Error | null = null
-  createSnapshotError: string | null = null
   snapshotListError: string | null = null
 
   unstableClones = new Set<string>()
@@ -261,7 +254,7 @@ export class MainStore {
   }
 
   resetClone = async (cloneId: string, snapshotId: string) => {
-    if (!this.instance) return
+    if (!this.instance || !this.api.resetClone) return
 
     this.unstableClones.add(cloneId)
 
@@ -278,7 +271,7 @@ export class MainStore {
   }
 
   destroyClone = async (cloneId: string) => {
-    if (!this.instance) return
+    if (!this.instance || !this.api.destroyClone) return
 
     this.unstableClones.add(cloneId)
 
@@ -318,19 +311,6 @@ export class MainStore {
     this.isReloadingClones = false
   }
 
-  createBranch = async (values: CreateBranchFormValues) => {
-    if (!this.api.createBranch) return
-
-    this.createBranchError = null
-
-    const { response, error } = await this.api.createBranch(values)
-
-    if (error)
-      this.createBranchError = await error.json().then((err) => err.message)
-
-    return response
-  }
-
   getBranches = async () => {
     if (!this.api.getBranches) return
     this.isBranchesLoading = true
@@ -354,19 +334,6 @@ export class MainStore {
     if (error) {
       this.snapshotListError = await error.json().then((err) => err.message)
     }
-
-    return response
-  }
-
-  createSnapshot = async (cloneID: string, message?: string) => {
-    if (!this.api.createSnapshot) return
-
-    this.createSnapshotError = null
-
-    const { response, error } = await this.api.createSnapshot(cloneID, message)
-
-    if (error)
-      this.createSnapshotError = await error.json().then((err) => err.message)
 
     return response
   }

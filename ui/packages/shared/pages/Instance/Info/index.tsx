@@ -26,6 +26,7 @@ const useStyles = makeStyles(
       [theme.breakpoints.down('sm')]: {
         flex: '1 1 100%',
         marginTop: '20px',
+        width: '100%',
       },
     },
   }),

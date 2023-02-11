@@ -5,18 +5,17 @@
  *--------------------------------------------------------------------------
  */
 
-import { useState } from 'react'
+import { useHistory } from 'react-router'
 import { observer } from 'mobx-react-lite'
 import { makeStyles } from '@material-ui/core'
 
-import { useStores } from '@postgres.ai/shared/pages/Instance/context'
+import { useStores, useHost } from '@postgres.ai/shared/pages/Instance/context'
 import { SnapshotsTable } from '@postgres.ai/shared/pages/Instance/Snapshots/components/SnapshotsTable'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { isSameDayUTC } from '@postgres.ai/shared/utils/date'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 import { Button } from '@postgres.ai/shared/components/Button2'
-import { CreateSnapshotModal } from '@postgres.ai/shared/pages/Instance/Snapshots/components/CreateSnapshotModal'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { InfoIcon } from '@postgres.ai/shared/icons/Info'
 
@@ -36,13 +35,12 @@ const useStyles = makeStyles(
 )
 
 export const Snapshots = observer(() => {
+  const host = useHost()
   const stores = useStores()
   const classes = useStyles()
+  const history = useHistory()
 
-  const [isCreateSnapshotOpen, setIsCreateSnapshotOpen] = useState(false)
-
-  const { snapshots, instance, createSnapshot, createSnapshotError } =
-    stores.main
+  const { snapshots, instance } = stores.main
 
   const filteredSnapshots =
     snapshots?.data &&
@@ -61,6 +59,7 @@ export const Snapshots = observer(() => {
   const clonesList = instance?.state?.cloning.clones || []
   const isEmpty = !filteredSnapshots?.length
   const hasClones = Boolean(clonesList?.length)
+  const goToSnapshotAddPage = () => history.push(host.routes.createSnapshot())
 
   if (!instance && !snapshots.isLoading) return <></>
 
@@ -84,7 +83,7 @@ export const Snapshots = observer(() => {
           <>
             <Button
               theme="primary"
-              onClick={() => setIsCreateSnapshotOpen(true)}
+              onClick={goToSnapshotAddPage}
               isDisabled={!hasClones}
             >
               Create snapshot
@@ -105,13 +104,6 @@ export const Snapshots = observer(() => {
           This instance has no active snapshots
         </p>
       )}
-      <CreateSnapshotModal
-        isOpen={isCreateSnapshotOpen}
-        onClose={() => setIsCreateSnapshotOpen(false)}
-        createSnapshot={createSnapshot}
-        createSnapshotError={createSnapshotError}
-        clones={clonesList}
-      />
     </div>
   )
 })

@@ -14,6 +14,8 @@ export type Host = {
   instanceId: string
   routes: {
     createClone: () => string
+    createBranch: () => string
+    createSnapshot: () => string
     clone: (cloneId: string) => string
   }
   api: Api

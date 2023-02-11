@@ -6,10 +6,14 @@ import { ROUTES } from 'config/routes'
 
 import { Page } from '../Page'
 import { Snapshot } from './Snapshot'
+import { CreateSnapshot } from './CreateSnapshot'
 
 export const Snapshots = () => {
   return (
     <Switch>
+      <Route exact path={ROUTES.INSTANCE.SNAPSHOTS.CREATE.path}>
+        <CreateSnapshot />
+      </Route>
       <Route exact path={ROUTES.INSTANCE.SNAPSHOTS.SNAPSHOTS.path}>
         <Page renderCurrentTab={TABS_INDEX.SNAPSHOTS} />
       </Route>

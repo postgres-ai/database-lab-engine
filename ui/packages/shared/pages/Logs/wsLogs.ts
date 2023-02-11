@@ -7,6 +7,8 @@ const LOGS_TIME_LIMIT = 20
 const LOGS_LINE_LIMIT = 1000
 
 export const establishConnection = async (api: Api) => {
+  if (!api.getWSToken) return
+
   const logElement = document.getElementById('logs-container')
 
   if (logElement === null) {
