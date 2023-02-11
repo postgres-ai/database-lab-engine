@@ -20,6 +20,7 @@ export const request = async (path: string, options?: RequestOptions) => {
 
   if (response.status === 401) {
     appStore.setIsInvalidAuthToken()
+    localStorage.removeAuthToken()
   } else {
     appStore.setIsValidAuthToken()
   }
