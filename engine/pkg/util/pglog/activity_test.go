@@ -21,6 +21,11 @@ func TestGetPostgresLastActivity(t *testing.T) {
 			timeActivity: pointer.ToTime(time.Date(2020, 1, 10, 11, 49, 14, 615000000, time.UTC)),
 		},
 		{
+			logTime:      "2020-01-10 11:49:14.615 CET",
+			logMessage:   "duration: 9.893 ms  statement: SELECT 1;",
+			timeActivity: pointer.ToTime(time.Date(2020, 1, 10, 11, 49, 14, 615000000, time.FixedZone("CET", 0))),
+		},
+		{
 			logTime:      "2020-01-11 13:10:58.503 UTC",
 			logMessage:   "duration: 0.077 ms  statement:",
 			timeActivity: pointer.ToTime(time.Date(2020, 1, 11, 13, 10, 58, 503000000, time.UTC)),
@@ -58,7 +63,7 @@ func TestGetPostgresLastActivityWhenFailedParseTime(t *testing.T) {
 		{
 			logTime:     "2020-01-10 11:49:14",
 			logMessage:  "duration: 9.893 ms  statement: SELECT 1;",
-			errorString: `failed to parse the last activity time: parsing time "2020-01-10 11:49:14" as "2006-01-02 15:04:05.000 UTC": cannot parse "" as ".000"`,
+			errorString: `failed to parse the last activity time: parsing time "2020-01-10 11:49:14" as "2006-01-02 15:04:05.000 MST": cannot parse "" as ".000"`,
 		},
 	}
 

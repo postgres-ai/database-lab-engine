@@ -129,7 +129,7 @@ func ParsePostgresLastActivity(logTime, text string) (*time.Time, error) {
 		return nil, nil
 	}
 
-	lastActivityTime, err := time.Parse("2006-01-02 15:04:05.000 UTC", logTime)
+	lastActivityTime, err := time.Parse("2006-01-02 15:04:05.000 MST", logTime)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to parse the last activity time")
 	}
