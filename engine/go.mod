@@ -6,7 +6,7 @@ require (
 	github.com/AlekSi/pointer v1.1.0
 	github.com/ahmetalpbalkan/dlog v0.0.0-20170105205344-4fb5f8204f26
 	github.com/araddon/dateparse v0.0.0-20210207001429-0eec95c9db7e
-	github.com/aws/aws-sdk-go v1.33.8
+	github.com/aws/aws-sdk-go v1.34.0
 	github.com/docker/cli v20.10.13+incompatible
 	github.com/docker/docker v20.10.13+incompatible
 	github.com/docker/go-connections v0.4.0
@@ -20,6 +20,7 @@ require (
 	github.com/jackc/pgtype v1.5.0
 	github.com/jackc/pgx/v4 v4.9.0
 	github.com/lib/pq v1.8.0
+	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/pkg/errors v0.9.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/xid v1.2.1
@@ -65,7 +66,6 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/opencontainers/runc v1.1.0 // indirect
-	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/russross/blackfriday/v2 v2.0.1 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
