@@ -35,7 +35,7 @@ import {
 import Actions from '../../actions/actions'
 import ConsolePageTitle from './../ConsolePageTitle'
 import { ErrorWrapper } from 'components/Error/ErrorWrapper'
-import { Link } from '@postgres.ai/shared/components/Link2'
+import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
 import { messages } from '../../assets/messages'
 import Store from '../../stores/store'
 import Urls from '../../utils/urls'
@@ -401,9 +401,9 @@ class DbLabInstances extends Component<
             Clone multi-terabyte databases in seconds and use them to test your
             database migrations, optimize SQL, or deploy full-size staging apps.
             Start here to work with all Database Lab tools. Setup
-            <Link to="https://postgres.ai/docs/database-lab" target="_blank">
+            <GatewayLink href="https://postgres.ai/docs/database-lab" target="_blank">
               documentation here
-            </Link>
+            </GatewayLink>
             .
           </p>
         </ProductCardWrapper>

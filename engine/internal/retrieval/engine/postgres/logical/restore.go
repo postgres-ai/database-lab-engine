@@ -519,12 +519,14 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 		Env: []string{"PGAPPNAME=" + dleRetrieval},
 	})
 
-	if output != "" {
-		log.Dbg("Output of the restore command: ", output)
+	if err != nil {
+		log.Err("Restore command failed: ", output)
+
+		return fmt.Errorf("failed to exec restore command: %w. Output: %s", err, output)
 	}
 
-	if err != nil {
-		return errors.Wrap(err, "failed to exec restore command")
+	if output != "" {
+		log.Dbg("Output of the restore command: ", output)
 	}
 
 	if err := r.defineDSA(ctx, dbDefinition, contID, dbName); err != nil {

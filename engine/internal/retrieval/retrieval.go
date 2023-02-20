@@ -223,10 +223,10 @@ func (r *Retrieval) Run(ctx context.Context) error {
 	}
 
 	if err := r.run(runCtx, fsManager); err != nil {
-		alert := telemetry.Alert{Level: models.RefreshFailed,
-			Message: fmt.Sprintf("Failed to perform initial data retrieving: %s", r.State.Mode)}
-		r.State.addAlert(alert)
-		r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
+		r.State.addAlert(telemetry.Alert{Level: models.RefreshFailed, Message: err.Error()})
+		// Build a generic message to avoid sending sensitive data.
+		r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{Level: models.RefreshFailed,
+			Message: fmt.Sprintf("Failed to perform initial data retrieving: %s", r.State.Mode)})
 
 		return err
 	}
@@ -387,6 +387,10 @@ func (r *Retrieval) RefreshData(ctx context.Context, poolName string) error {
 
 		if err != nil {
 			r.State.Status = models.Failed
+			r.State.addAlert(telemetry.Alert{
+				Level:   models.RefreshFailed,
+				Message: err.Error(),
+			})
 
 			fsm.Pool().SetStatus(resources.EmptyPool)
 		}
@@ -441,6 +445,10 @@ func (r *Retrieval) SnapshotData(ctx context.Context, poolName string) error {
 
 		if err != nil {
 			r.State.Status = models.Failed
+			r.State.addAlert(telemetry.Alert{
+				Level:   models.RefreshFailed,
+				Message: err.Error(),
+			})
 
 			fsm.Pool().SetStatus(resources.EmptyPool)
 		}
@@ -548,10 +556,10 @@ func (r *Retrieval) setupScheduler(ctx context.Context) {
 func (r *Retrieval) refreshFunc(ctx context.Context) func() {
 	return func() {
 		if err := r.FullRefresh(ctx); err != nil {
-			alert := telemetry.Alert{Level: models.RefreshFailed, Message: "Failed to run full-refresh"}
+			alert := telemetry.Alert{Level: models.RefreshFailed, Message: err.Error()}
 			r.State.addAlert(alert)
-			r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
-			log.Err(alert.Message, err)
+			r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{Level: models.RefreshFailed, Message: "Failed to run full-refresh"})
+			log.Err(alert.Message)
 		}
 	}
 }

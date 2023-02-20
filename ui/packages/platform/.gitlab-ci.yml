@@ -14,13 +14,15 @@
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       changes:
-        - ui/**/*
+        - ui/packages/platform/**/*
+        - ui/packages/shared/**/*
 
 .only_ui_feature: &only_ui_feature
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - ui/**/*
+        - ui/packages/platform/**/*
+        - ui/packages/shared/**/*
       when: manual
 
 .ui_cache: &ui_cache

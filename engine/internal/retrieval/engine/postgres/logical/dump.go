@@ -481,7 +481,7 @@ func (d *DumpJob) cleanupDumpLocation(ctx context.Context, dumpContID string, db
 		Tty: true,
 		Cmd: cleanupCmd,
 	}); err != nil {
-		log.Dbg(out)
+		log.Err(out)
 		return errors.Wrap(err, "failed to clean up dump location")
 	}
 
@@ -511,8 +511,9 @@ func (d *DumpJob) dumpDatabase(ctx context.Context, dumpContID, dbName string, d
 		Cmd: dumpCommand,
 		Env: d.getExecEnvironmentVariables(),
 	}); err != nil {
-		log.Dbg(output)
-		return errors.Wrap(err, "failed to dump a database")
+		log.Err("Dump command failed: ", output)
+
+		return fmt.Errorf("failed to dump a database: %w. Output: %s", err, output)
 	}
 
 	log.Msg(fmt.Sprintf("Dumping job for the database %q has been finished", dbName))

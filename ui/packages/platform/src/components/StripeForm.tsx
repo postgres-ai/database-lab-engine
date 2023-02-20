@@ -60,6 +60,8 @@ const stripeStyles = (
   font-weight: bold;
   letter-spacing: 0.025em;
   font-size: 12px;
+  margin-bottom: 10px;
+  display: block;
 }
 
 button {

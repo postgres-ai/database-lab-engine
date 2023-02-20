@@ -5,7 +5,14 @@
  *--------------------------------------------------------------------------
  */
 
+import cn from 'classnames'
+import { useEffect, useState } from 'react'
 import { makeStyles } from '@material-ui/core'
+
+import { Button } from '@postgres.ai/shared/components/MenuButton'
+import { useWindowDimensions } from '@postgres.ai/shared/hooks/useWindowDimensions'
+import { ReactComponent as ArrowRightIcon } from '@postgres.ai/ce/src/App/Menu/icons/arrow-right.svg'
+import { ReactComponent as ArrowLeftIcon } from '@postgres.ai/ce/src/App/Menu/icons/arrow-left.svg'
 
 import { Status } from './Status'
 import { Retrieval } from './Retrieval'
@@ -13,20 +20,58 @@ import { Connection } from './Connection'
 import { Disks } from './Disks'
 import { Snapshots } from './Snapshots'
 
+const SIDEBAR_COLLAPSED_PARAM = 'overviewSidebarCollapsed'
+const SMALL_BREAKPOINT_PX = 937
+
 const useStyles = makeStyles(
   (theme) => ({
-    root: {
-      flex: '0 0 437px',
+    container: {
+      minHeight: 0,
       minWidth: 0,
+      width: '437px',
+      transition: 'width 0.2s ease-out',
+
+      [theme.breakpoints.down('sm')]: {
+        width: '100%',
+      },
+    },
+    root: {
+      flex: '0 0 auto',
 
       [theme.breakpoints.down('md')]: {
-        flexBasis: '300px',
+        width: '300px',
       },
 
       [theme.breakpoints.down('sm')]: {
-        flex: '1 1 100%',
+        flex: '0 0 auto',
+        width: '100%',
         marginTop: '20px',
         width: '100%',
+      },
+    },
+    collapsed: {
+      height: '100%',
+      width: '64px',
+    },
+    collapseBtn: {
+      background: '#f9f9f9',
+      margin: '20px 0 10px 0',
+      fontWeight: 500,
+
+      '& svg': {
+        marginRight: '5px',
+      },
+
+      '&:hover': {
+        background: '#f1f1f1',
+      },
+    },
+    arrowImage: {
+      width: '16px',
+      height: '16px',
+
+      '& path': {
+        fill: '#000',
       },
     },
   }),
@@ -35,14 +80,57 @@ const useStyles = makeStyles(
 
 export const Info = () => {
   const classes = useStyles()
+  const width = useWindowDimensions()
+  const isMobileScreen = width <= SMALL_BREAKPOINT_PX
+
+  const [isCollapsed, setIsCollapsed] = useState(
+    () => localStorage.getItem(SIDEBAR_COLLAPSED_PARAM) === '1',
+  )
+
+  const handleClick = () => {
+    setIsCollapsed(!isCollapsed)
+    localStorage.setItem(SIDEBAR_COLLAPSED_PARAM, isCollapsed ? '0' : '1')
+  }
+
+  useEffect(() => {
+    if (isMobileScreen) {
+      setIsCollapsed(false)
+    }
+  }, [width])
 
   return (
-    <div className={classes.root}>
-      <Status />
-      <Retrieval />
-      <Connection />
-      <Disks />
-      <Snapshots />
+    <div
+      className={cn(
+        classes.container,
+        !isCollapsed ? classes.root : classes.collapsed,
+      )}
+    >
+      {!isMobileScreen && (
+        <Button
+          className={classes.collapseBtn}
+          onClick={handleClick}
+          isCollapsed={isCollapsed}
+          icon={
+            isCollapsed ? (
+              <ArrowLeftIcon className={classes.arrowImage} />
+            ) : (
+              <ArrowRightIcon className={classes.arrowImage} />
+            )
+          }
+        >
+          Collapse
+        </Button>
+      )}
+
+      {!isCollapsed && (
+        <div>
+          <Status />
+          <Retrieval />
+          <Connection />
+          <Disks />
+          <Snapshots />
+        </div>
+      )}
     </div>
   )
 }

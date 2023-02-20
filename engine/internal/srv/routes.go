@@ -785,8 +785,9 @@ func (s *Server) healthCheck(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", api.JSONContentType)
 
 	healthResponse := models.Engine{
-		Version: version.GetVersion(),
-		Edition: s.engProps.GetEdition(),
+		Version:    version.GetVersion(),
+		Edition:    s.engProps.GetEdition(),
+		InstanceID: s.engProps.InstanceID,
 	}
 
 	if err := json.NewEncoder(w).Encode(healthResponse); err != nil {

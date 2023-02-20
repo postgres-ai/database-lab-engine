@@ -6,6 +6,7 @@
 package util
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -19,6 +20,7 @@ const (
 	configDir    = "configs"
 	standardDir  = "standard"
 	metaDir      = "meta"
+	logsDir      = "logs"
 )
 
 // GetBinRootPath return path to root directory of the current binary module.
@@ -84,4 +86,24 @@ func GetMetaPath(name string) (string, error) {
 	}
 
 	return path.Join(dir, metaDir, name), nil
+}
+
+// GetLogsRoot returns the root log directory.
+func GetLogsRoot() (string, error) {
+	dir, err := GetBinRootPath()
+	if err != nil {
+		return "", fmt.Errorf("failed to get root directory %w", err)
+	}
+
+	return path.Join(dir, logsDir), nil
+}
+
+// GetLogsPath returns the log directory path on a specific collection date.
+func GetLogsPath(name string) (string, error) {
+	dir, err := GetBinRootPath()
+	if err != nil {
+		return "", fmt.Errorf("failed to get root directory %w", err)
+	}
+
+	return path.Join(dir, logsDir, name), nil
 }

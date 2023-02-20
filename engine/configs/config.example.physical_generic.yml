@@ -47,7 +47,7 @@ global:
 
   # Debugging, when enabled, allows seeing more in the Database Lab logs
   # (not PostgreSQL logs). Enable in the case of troubleshooting.
-  debug: false
+  debug: true
 
   # Contains default configuration options of the restored database.
   database:

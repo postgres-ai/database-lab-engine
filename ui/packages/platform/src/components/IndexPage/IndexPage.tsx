@@ -21,7 +21,7 @@ import qs from 'qs'
 
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
-import { Link } from '@postgres.ai/shared/components/Link2'
+import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
 import { Box } from '@mui/material'
 import {
   OrganizationWrapperProps,
@@ -595,7 +595,7 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
     search,
     is_favorite,
   } = queryParams
-  const projectId = project && orgData.projects[project.toString()].id
+  const projectId = project && orgData.projects[project.toString()]?.id
 
   const customProps = {
     project,
@@ -1050,13 +1050,13 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
               <p>
                 Please, read and agree to our updated
                 <br />
-                <Link to="https://postgres.ai/tos" target="_blank">
+                <GatewayLink href="https://postgres.ai/tos" target="_blank">
                   Terms of Service
-                </Link>
+                </GatewayLink>
                 &nbsp;and&nbsp;
-                <Link to="https://postgres.ai/privacy" target="_blank">
+                <GatewayLink href="https://postgres.ai/privacy" target="_blank">
                   Privacy Policy
-                </Link>
+                </GatewayLink>
               </p>
 
               <ConsoleButtonWrapper
@@ -1125,9 +1125,9 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
 
               <p>
                 If you haven't received the email,&nbsp;
-                <Link onClick={this.resendCode} to="#">
+                <GatewayLink onClick={this.resendCode} href="#">
                   click here
-                </Link>{' '}
+                </GatewayLink>
                 to resend it.
               </p>
             </div>

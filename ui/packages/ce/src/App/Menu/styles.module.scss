@@ -14,6 +14,10 @@
 
   @include touch-transition(width);
 
+  @media screen and (max-width: '600px') {
+    width: 100vw;
+  }
+
   &.collapsed {
     width: 64px;
   }
