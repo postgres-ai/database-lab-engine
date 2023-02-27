@@ -101,6 +101,7 @@ type RestoreOptions struct {
 	ContainerConfig    map[string]interface{}    `yaml:"containerConfig"`
 	Databases          map[string]DumpDefinition `yaml:"databases"`
 	ForceInit          bool                      `yaml:"forceInit"`
+	IgnoreErrors       bool                      `yaml:"ignoreErrors"`
 	ParallelJobs       int                       `yaml:"parallelJobs"`
 	Configs            map[string]string         `yaml:"configs"`
 	QueryPreprocessing query.PreprocessorCfg     `yaml:"queryPreprocessing"`
@@ -519,7 +520,7 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 		Env: []string{"PGAPPNAME=" + dleRetrieval},
 	})
 
-	if err != nil {
+	if err != nil && !r.RestoreOptions.IgnoreErrors {
 		log.Err("Restore command failed: ", output)
 
 		return fmt.Errorf("failed to exec restore command: %w. Output: %s", err, output)
