@@ -9,10 +9,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/client"
@@ -41,8 +39,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
-const minTokenLength = 8
-
 // Server defines an HTTP server of the Database Lab.
 type Server struct {
 	validator   validator.Service
@@ -61,7 +57,7 @@ type Server struct {
 	pm          *pool.Manager
 	tm          *telemetry.Agent
 	startedAt   *models.LocalTime
-	re          *regexp.Regexp
+	filtering   *log.Filtering
 	reloadFn    func(server *Server) error
 }
 
@@ -77,7 +73,7 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps global.
 	dockerClient *client.Client, cloning *cloning.Base, provisioner *provision.Provisioner,
 	retrievalSvc *retrieval.Retrieval, platform *platform.Service, observer *observer.Observer,
 	estimator *estimator.Estimator, pm *pool.Manager, tm *telemetry.Agent, tokenKeeper *ws.TokenKeeper,
-	uiManager *embeddedui.UIManager, reloadConfigFn func(server *Server) error) *Server {
+	filtering *log.Filtering, uiManager *embeddedui.UIManager, reloadConfigFn func(server *Server) error) *Server {
 	server := &Server{
 		Config:      cfg,
 		Global:      globalCfg,
@@ -96,10 +92,10 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps global.
 		docker:    dockerClient,
 		pm:        pm,
 		tm:        tm,
+		filtering: filtering,
 		startedAt: &models.LocalTime{Time: time.Now().Truncate(time.Second)},
 		reloadFn:  reloadConfigFn,
 	}
-	server.initLogRegExp()
 
 	return server
 }
@@ -185,7 +181,6 @@ func attachAPI(r *mux.Router) error {
 // Reload reloads server configuration.
 func (s *Server) Reload(cfg srvCfg.Config) {
 	*s.Config = cfg
-	s.initLogRegExp()
 }
 
 // InitHandlers initializes handler functions of the HTTP server.
@@ -266,31 +261,5 @@ func reportLaunching(cfg *srvCfg.Config) {
 }
 
 func (s *Server) initLogRegExp() {
-	secretPatterns := []string{
-		"password:\\s?(\\S+)",
-		"POSTGRES_PASSWORD=(\\S+)",
-		"PGPASSWORD=(\\S+)",
-		"accessToken:\\s?(\\S+)",
-		"ACCESS_KEY(_ID)?:\\s?(\\S+)",
-	}
-
-	if len(s.Config.VerificationToken) >= minTokenLength && !containsSpace(s.Config.VerificationToken) {
-		secretPatterns = append(secretPatterns, s.Config.VerificationToken)
-	}
-
-	if accessToken := s.Platform.AccessToken(); len(accessToken) >= minTokenLength && !containsSpace(accessToken) {
-		secretPatterns = append(secretPatterns, accessToken)
-	}
-
-	s.re = regexp.MustCompile("(?i)" + strings.Join(secretPatterns, "|"))
-}
-
-func containsSpace(s string) bool {
-	for _, v := range s {
-		if unicode.IsSpace(v) {
-			return true
-		}
-	}
-
-	return false
+	s.filtering.ReloadLogRegExp([]string{s.Config.VerificationToken, s.Platform.AccessToken()})
 }
