@@ -287,7 +287,7 @@ export const Configuration = observer(
           <Box>
             <Header retrievalMode="logical" setOpen={handleModalClick} />
             <Box>
-              <Box mb={2}>
+              <Box>
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -415,7 +415,7 @@ export const Configuration = observer(
                   }
                 />
               </Box>
-              <Box mb={3}>
+              <Box mb={1}>
                 <ConfigSectionTitle tag="retrieval" />
                 <Box mt={1}>
                   <Typography className={styles.subsection}>
@@ -472,18 +472,20 @@ export const Configuration = observer(
                       formik.setFieldValue('dbname', e.target.value)
                     }
                   />
-                  <InputWithChip
-                    value={formik.values.databases}
-                    label="Databases"
-                    id="databases"
-                    tooltipText={tooltipText.databases}
-                    handleDeleteChip={handleDeleteChip}
-                    disabled={isConfigurationDisabled}
-                    onChange={(e) =>
-                      formik.setFieldValue('databases', e.target.value)
-                    }
-                  />
                   <Box mt={2}>
+                    <InputWithChip
+                      value={formik.values.databases}
+                      label="Databases"
+                      id="databases"
+                      tooltipText={tooltipText.databases}
+                      handleDeleteChip={handleDeleteChip}
+                      disabled={isConfigurationDisabled}
+                      onChange={(e) =>
+                        formik.setFieldValue('databases', e.target.value)
+                      }
+                    />
+                  </Box>
+                  <Box mt={2} mb={3}>
                     <Button
                       variant="primary"
                       size="medium"
@@ -498,6 +500,51 @@ export const Configuration = observer(
                       )}
                     </Button>
                   </Box>
+                  <InputWithTooltip
+                    label="pg_dump jobs"
+                    value={formik.values.dumpParallelJobs}
+                    tooltipText={tooltipText.dumpParallelJobs}
+                    disabled={isConfigurationDisabled}
+                    onChange={(e) =>
+                      formik.setFieldValue('dumpParallelJobs', e.target.value)
+                    }
+                  />
+                  {dleEdition !== 'community' && (
+                    <InputWithChip
+                      value={formik.values.pgDumpCustomOptions}
+                      label="pg_dump customOptions"
+                      id="pgDumpCustomOptions"
+                      tooltipText={tooltipText.pgDumpCustomOptions}
+                      handleDeleteChip={handleDeleteChip}
+                      disabled={isConfigurationDisabled}
+                      onChange={(e) =>
+                        formik.setFieldValue(
+                          'pgDumpCustomOptions',
+                          e.target.value,
+                        )
+                      }
+                    />
+                  )}
+                  <FormControlLabel
+                    style={{ maxWidth: 'max-content' }}
+                    control={
+                      <Checkbox
+                        name="dumpIgnoreErrors"
+                        checked={formik.values.dumpIgnoreErrors}
+                        disabled={isConfigurationDisabled}
+                        onChange={(e) =>
+                          formik.setFieldValue(
+                            'dumpIgnoreErrors',
+                            e.target.checked,
+                          )
+                        }
+                        classes={{
+                          root: classes.checkboxRoot,
+                        }}
+                      />
+                    }
+                    label={'Ignore errors during logical data dump'}
+                  />
                   {(connectionStatus && connectionRes) || dbSourceError ? (
                     <ResponseMessage
                       type={dbSourceError ? 'error' : connectionStatus}
@@ -506,40 +553,23 @@ export const Configuration = observer(
                   ) : null}
                 </Box>
               </Box>
-              <InputWithTooltip
-                label="pg_dump jobs"
-                value={formik.values.dumpParallelJobs}
-                tooltipText={tooltipText.dumpParallelJobs}
-                disabled={isConfigurationDisabled}
-                onChange={(e) =>
-                  formik.setFieldValue('dumpParallelJobs', e.target.value)
-                }
-              />
-              <InputWithTooltip
-                label="pg_restore jobs"
-                value={formik.values.restoreParallelJobs}
-                tooltipText={tooltipText.restoreParallelJobs}
-                disabled={isConfigurationDisabled}
-                onChange={(e) =>
-                  formik.setFieldValue('restoreParallelJobs', e.target.value)
-                }
-              />
-              {dleEdition !== 'community' && (
-                <>
-                  <InputWithChip
-                    value={formik.values.pgDumpCustomOptions}
-                    label="pg_dump customOptions"
-                    id="pgDumpCustomOptions"
-                    tooltipText={tooltipText.pgDumpCustomOptions}
-                    handleDeleteChip={handleDeleteChip}
-                    disabled={isConfigurationDisabled}
-                    onChange={(e) =>
-                      formik.setFieldValue(
-                        'pgDumpCustomOptions',
-                        e.target.value,
-                      )
-                    }
-                  />
+              <Box>
+                <Box>
+                  <Typography className={styles.subsection}>
+                    Subsection "retrieval.spec.logicalRestore"
+                  </Typography>
+                  <span className={classes.grayText}>Restoring options.</span>
+                </Box>
+                <InputWithTooltip
+                  label="pg_restore jobs"
+                  value={formik.values.restoreParallelJobs}
+                  tooltipText={tooltipText.restoreParallelJobs}
+                  disabled={isConfigurationDisabled}
+                  onChange={(e) =>
+                    formik.setFieldValue('restoreParallelJobs', e.target.value)
+                  }
+                />
+                {dleEdition !== 'community' && (
                   <InputWithChip
                     value={formik.values.pgRestoreCustomOptions}
                     label="pg_restore customOptions"
@@ -554,9 +584,29 @@ export const Configuration = observer(
                       )
                     }
                   />
-                </>
-              )}
-              <Box>
+                )}
+                <FormControlLabel
+                  style={{ maxWidth: 'max-content' }}
+                  control={
+                    <Checkbox
+                      name="restoreIgnoreErrors"
+                      checked={formik.values.restoreIgnoreErrors}
+                      disabled={isConfigurationDisabled}
+                      onChange={(e) =>
+                        formik.setFieldValue(
+                          'restoreIgnoreErrors',
+                          e.target.checked,
+                        )
+                      }
+                      classes={{
+                        root: classes.checkboxRoot,
+                      }}
+                    />
+                  }
+                  label={'Ignore errors during logical data restore'}
+                />
+              </Box>
+              <Box mt={1}>
                 <Typography className={styles.subsection}>
                   Subsection "retrieval.refresh"
                 </Typography>

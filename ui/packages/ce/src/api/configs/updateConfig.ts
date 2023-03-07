@@ -31,6 +31,7 @@ export const updateConfig = async (req: Config) => {
               databases: postUniqueDatabases(req.databases),
               customOptions: postUniqueCustomOptions(req.pgDumpCustomOptions),
               parallelJobs: req.dumpParallelJobs,
+              ignoreErrors: req.dumpIgnoreErrors,
               source: {
                 connection: {
                   dbname: req.dbname,
@@ -48,6 +49,7 @@ export const updateConfig = async (req: Config) => {
                 req.pgRestoreCustomOptions,
               ),
               parallelJobs: req.restoreParallelJobs,
+              ignoreErrors: req.restoreIgnoreErrors,
             },
           },
         },
