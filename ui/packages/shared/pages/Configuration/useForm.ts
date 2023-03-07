@@ -22,7 +22,9 @@ export type FormValues = {
   password: string
   databases: string
   dumpParallelJobs: string
+  dumpIgnoreErrors: boolean
   restoreParallelJobs: string
+  restoreIgnoreErrors: boolean
   pgDumpCustomOptions: string
   pgRestoreCustomOptions: string
 }
@@ -54,6 +56,8 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
       restoreParallelJobs: '',
       pgDumpCustomOptions: '',
       pgRestoreCustomOptions: '',
+      dumpIgnoreErrors: false,
+      restoreIgnoreErrors: false,
     },
     validationSchema: Schema,
     onSubmit,

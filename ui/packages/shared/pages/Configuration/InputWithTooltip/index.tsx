@@ -59,6 +59,9 @@ export const InputWithTooltip = ({
         error={Boolean(error)}
         onChange={onChange}
         disabled={disabled}
+        InputLabelProps={{
+          shrink: true,
+        }}
       />
       <Tooltip interactive content={<p>{tooltipText()}</p>}>
         <InfoIcon className={styles.infoIcon} />
@@ -82,7 +85,7 @@ export const InputWithChip = ({
   handleDeleteChip: (
     event: React.FormEvent<HTMLInputElement>,
     uniqueValue: string,
-    label: string
+    label: string,
   ) => void
   label: string
   id: string
@@ -91,7 +94,7 @@ export const InputWithChip = ({
   const classes = useStyles()
 
   return (
-    <Box mt={2} mb={2}>
+    <Box mt={2} mb={1}>
       <Box display="flex" alignItems="center">
         <TextField
           className={classNames(
