@@ -25,6 +25,7 @@ import { GetFullConfig } from '@postgres.ai/shared/types/api/endpoints/getFullCo
 import { GetInstanceRetrieval } from '@postgres.ai/shared/types/api/endpoints/getInstanceRetrieval'
 import { InstanceRetrievalType } from '@postgres.ai/shared/types/api/entities/instanceRetrieval'
 import { GetEngine } from '@postgres.ai/shared/types/api/endpoints/getEngine'
+import { isRetrievalUnknown } from '@postgres.ai/shared/pages/Configuration/utils'
 
 const POLLING_TIME = 2000
 
@@ -67,6 +68,7 @@ export class MainStore {
   readonly snapshots: SnapshotsStore
 
   isReloadingClones = false
+  isConfigurationLoading = false
   isReloadingInstance = false
   isReloadingInstanceRetrieval = false
 
@@ -89,8 +91,7 @@ export class MainStore {
     this.isReloadingInstance = true
     this.loadInstance(instanceId)
     this.loadInstanceRetrieval(instanceId).then(() => {
-    this.isReloadingInstance = false
-      if (this.instanceRetrieval?.mode !== 'physical') {
+      if (!isRetrievalUnknown(this.instanceRetrieval?.mode)) {
         this.getConfig()
       }
     })
@@ -170,7 +171,11 @@ export class MainStore {
   getConfig = async () => {
     if (!this.api.getConfig) return
 
+    this.isConfigurationLoading = true
+
     const { response, error } = await this.api.getConfig()
+
+    this.isConfigurationLoading = false
 
     if (response) {
       this.config = response
