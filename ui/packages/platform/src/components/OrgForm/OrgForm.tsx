@@ -59,6 +59,10 @@ interface OrgFormState {
   domain: string
   orgChanged: boolean
   usersAutojoin: boolean
+  oauthAllowGoogle: boolean
+  oauthAllowLinkedin: boolean
+  oauthAllowGitlab: boolean
+  oauthAllowGithub: boolean
   data: {
     auth: {
       token: string | null
@@ -104,6 +108,10 @@ class OrgForm extends Component<OrgFormWithStylesProps, OrgFormState> {
     domain: '',
     orgChanged: true,
     usersAutojoin: false,
+    oauthAllowGoogle: false,
+    oauthAllowLinkedin: false,
+    oauthAllowGitlab: false,
+    oauthAllowGithub: false,
     data: {
       auth: {
         token: null,
@@ -175,6 +183,10 @@ class OrgForm extends Component<OrgFormWithStylesProps, OrgFormState> {
             name: orgProfile.data.updateName,
             alias: orgProfile.data.updateAlias,
             usersAutojoin: orgProfile.data.updateUsersAutojoin,
+            oauthAllowGoogle: orgProfile.data['oauth_allow_google'],
+            oauthAllowLinkedin: orgProfile.data['oauth_allow_linkedin'],
+            oauthAllowGitlab: orgProfile.data['oauth_allow_gitlab'],
+            oauthAllowGithub: orgProfile.data['oauth_allow_github'],
             onboardingText: orgProfile.data['onboarding_text'],
             orgChanged: false,
           })
@@ -192,6 +204,10 @@ class OrgForm extends Component<OrgFormWithStylesProps, OrgFormState> {
             name: orgProfile.data.name,
             alias: orgProfile.data.alias,
             usersAutojoin: orgProfile.data['users_autojoin'],
+            oauthAllowGoogle: orgProfile.data['oauth_allow_google'],
+            oauthAllowLinkedin: orgProfile.data['oauth_allow_linkedin'],
+            oauthAllowGitlab: orgProfile.data['oauth_allow_gitlab'],
+            oauthAllowGithub: orgProfile.data['oauth_allow_github'],
             onboardingText: orgProfile.data['onboarding_text'],
             orgChanged: false,
           })
@@ -230,6 +246,10 @@ class OrgForm extends Component<OrgFormWithStylesProps, OrgFormState> {
           name: this.state.name,
           alias: this.state.alias,
           users_autojoin: this.state.usersAutojoin,
+          oauth_allow_google: this.state.oauthAllowGoogle,
+          oauth_allow_linkedin: this.state.oauthAllowLinkedin,
+          oauth_allow_gitlab: this.state.oauthAllowGitlab,
+          oauth_allow_github: this.state.oauthAllowGithub,
           onboarding_text: this.state.onboardingText,
         })
       }
@@ -366,6 +386,93 @@ class OrgForm extends Component<OrgFormWithStylesProps, OrgFormState> {
           </Button>
         ) : null}
       </div>
+    )
+
+    const hasConfirmedDomains =
+      data?.data &&
+      data.data?.domains &&
+      Object.keys(data?.data?.domains as unknown as DomainsType).some(
+        (key) => (data?.data?.domains as unknown as DomainsType)[key].confirmed,
+      )
+
+    let authCheckboxes = (
+      <>
+        {this.state.usersAutojoin && hasConfirmedDomains && (
+          <>
+            <div className={classes.checkboxContainer}>
+              <FormControlLabel
+                className={classes.autoJoinCheckbox}
+                control={
+                  <Checkbox
+                    checked={this.state.oauthAllowGoogle}
+                    onChange={(e) => {
+                      this.setState({
+                        orgChanged: true,
+                        oauthAllowGoogle: e.target.checked,
+                      })
+                    }}
+                    disabled={data?.isUpdating}
+                    name="oauthAllowGoogle"
+                  />
+                }
+                label="Allow Google login"
+              />
+              <FormControlLabel
+                className={classes.autoJoinCheckbox}
+                control={
+                  <Checkbox
+                    checked={this.state.oauthAllowLinkedin}
+                    onChange={(e) => {
+                      this.setState({
+                        orgChanged: true,
+                        oauthAllowLinkedin: e.target.checked,
+                      })
+                    }}
+                    disabled={data?.isUpdating}
+                    name="oauthAllowLinkedin"
+                  />
+                }
+                label="Allow LinkedIn login"
+              />
+              <FormControlLabel
+                className={classes.autoJoinCheckbox}
+                control={
+                  <Checkbox
+                    checked={this.state.oauthAllowGitlab}
+                    onChange={(e) => {
+                      this.setState({
+                        orgChanged: true,
+                        oauthAllowGitlab: e.target.checked,
+                      })
+                    }}
+                    disabled={data?.isUpdating}
+                    name="oauthAllowGitlab"
+                  />
+                }
+                label="Allow GitLab login"
+              />
+              <FormControlLabel
+                className={classes.autoJoinCheckbox}
+                control={
+                  <Checkbox
+                    checked={this.state.oauthAllowGithub}
+                    onChange={(e) => {
+                      this.setState({
+                        orgChanged: true,
+                        oauthAllowGithub: e.target.checked,
+                      })
+                    }}
+                    disabled={data?.isUpdating}
+                    name="oauthAllowGithub"
+                  />
+                }
+                label="Allow GitHub login"
+              />
+            </div>
+            <br />
+          </>
+        )}
+      </>
     )
 
     let buttonTitle = 'Save'
@@ -661,6 +768,8 @@ class OrgForm extends Component<OrgFormWithStylesProps, OrgFormState> {
                     {domainField}
 
                     <br />
+
+                    {authCheckboxes}
                   </div>
                 </Grid>
               </Grid>
