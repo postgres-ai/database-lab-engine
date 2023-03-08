@@ -1,5 +1,4 @@
-const LOGS_NEW_DATA_MESSAGE =
-  'New data arrived below - scroll down to see it 👇🏻'
+import { LOGS_NEW_DATA_MESSAGE } from '@postgres.ai/shared/pages/Logs/constants'
 
 export const wsSnackbar = (clientAtBottom: boolean, isNewData: boolean) => {
   const targetNode = document.getElementById('logs-container')
@@ -9,14 +8,16 @@ export const wsSnackbar = (clientAtBottom: boolean, isNewData: boolean) => {
     if (!targetNode?.querySelector('.snackbar-tag')) {
       targetNode?.appendChild(snackbarTag)
       snackbarTag.classList.add('snackbar-tag')
-      if (snackbarTag.childNodes.length === 0) {
+      if (
+        snackbarTag.childNodes.length === 0 &&
+        targetNode?.querySelector('p')?.textContent !== 'Not authorized'
+      ) {
         snackbarTag.appendChild(document.createTextNode(LOGS_NEW_DATA_MESSAGE))
       }
       snackbarTag.onclick = () => {
-        targetNode?.scrollIntoView({
+        targetNode?.scroll({
+          top: targetNode.scrollHeight,
           behavior: 'smooth',
-          block: 'end',
-          inline: 'end',
         })
       }
     }
