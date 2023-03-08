@@ -67,6 +67,7 @@ export class MainStore {
   readonly snapshots: SnapshotsStore
 
   isReloadingClones = false
+  isReloadingInstance = false
   isReloadingInstanceRetrieval = false
 
   private readonly api: Api
@@ -85,8 +86,10 @@ export class MainStore {
 
   load = (instanceId: string) => {
     this.instance = null
+    this.isReloadingInstance = true
     this.loadInstance(instanceId)
     this.loadInstanceRetrieval(instanceId).then(() => {
+    this.isReloadingInstance = false
       if (this.instanceRetrieval?.mode !== 'physical') {
         this.getConfig()
       }

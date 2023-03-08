@@ -306,7 +306,7 @@ export const Clone = observer((props: Props) => {
             variant="outlined"
             color="secondary"
             onClick={reloadClone}
-            disabled={isDisabledControls}
+            disabled={isDisabledControls || isReloading}
             title={'Refresh clone information'}
             className={classes.actionButton}
           >

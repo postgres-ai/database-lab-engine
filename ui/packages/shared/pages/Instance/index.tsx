@@ -66,13 +66,18 @@ export const Instance = observer((props: Props) => {
   const { instanceId, api } = props
 
   const stores = useCreatedStores(props)
+  const {
+    instance,
+    instanceError,
+    instanceRetrieval,
+    load,
+    isReloadingInstance,
+  } = stores.main
+  const isConfigurationActive = instanceRetrieval?.mode !== 'physical'
 
   useEffect(() => {
-    stores.main.load(instanceId)
+    load(instanceId)
   }, [instanceId])
-
-  const { instance, instanceError, instanceRetrieval } = stores.main
-  const isConfigurationActive = instanceRetrieval?.mode !== 'physical'
 
   useEffect(() => {
     if (
@@ -110,8 +115,10 @@ export const Instance = observer((props: Props) => {
             className={classes.title}
             rightContent={
               <Button
-                onClick={() => stores.main.load(props.instanceId)}
-                isDisabled={!instance && !instanceError}
+                onClick={() => load(props.instanceId)}
+                isDisabled={
+                  (!instance && !instanceError) || isReloadingInstance
+                }
                 className={classes.reloadButton}
               >
                 Reload info
@@ -165,7 +172,7 @@ export const Instance = observer((props: Props) => {
                 instance?.state.engine.disableConfigModification
               }
               switchActiveTab={switchTab}
-              reload={() => stores.main.load(props.instanceId)}
+              reload={() => load(props.instanceId)}
             />
           )}
         </TabPanel>
