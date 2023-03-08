@@ -1,5 +1,5 @@
 .textField {
-  width: 350px;
+  width: 400px;
   max-width: 100%;
 
   input,
@@ -15,6 +15,10 @@
   :disabled {
     cursor: not-allowed;
     color: rgba(0, 0, 0, 0.38);
+  }
+
+  @media (max-width: 600px) {
+    width: 100%;
   }
 }
 

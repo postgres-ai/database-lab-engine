@@ -14,12 +14,12 @@ import {
   Typography,
   Snackbar,
   makeStyles,
+  Button,
 } from '@material-ui/core'
 import Box from '@mui/material/Box'
 
 import { Modal } from '@postgres.ai/shared/components/Modal'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
-import { Button } from '@postgres.ai/shared/components/Button'
 import { ExternalIcon } from '@postgres.ai/shared/icons/External'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { useStores } from '@postgres.ai/shared/pages/Instance/context'
@@ -130,11 +130,26 @@ export const Configuration = observer(
     const [{ formik, connectionData, isConnectionDataValid }] =
       useForm(onSubmit)
 
+    const scrollToField = () => {
+      const errorElement = document.querySelector('.Mui-error')
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        const inputElement = errorElement.querySelector('input')
+        if (inputElement) {
+          setTimeout(() => {
+            inputElement.focus()
+          }, 1000)
+        }
+      }
+    }
+
     const onTestConnectionClick = async () => {
       setConnectionRes(null)
       Object.keys(connectionData).map(function (key: string) {
         if (key !== 'password' && key !== 'db_list') {
-          formik.validateField(key)
+          formik.validateField(key).then(() => {
+            scrollToField()
+          })
         }
       })
       if (isConnectionDataValid) {
@@ -305,11 +320,11 @@ export const Configuration = observer(
                   label={'Debug mode'}
                 />
               </Box>
-              <Box mb={2}>
+              <Box mb={2} mt={1}>
                 <ConfigSectionTitle tag="databaseContainer" />
                 <span
                   className={classes.grayText}
-                  style={{ marginTop: '0.5rem', display: 'block' }}
+                  style={{ margin: '0.5rem 0 1rem 0', display: 'block' }}
                 >
                   DLE manages various database containers, such as clones. This
                   section defines default container settings.
@@ -317,7 +332,7 @@ export const Configuration = observer(
                 {dleEdition !== 'community' ? (
                   <div>
                     <SelectWithTooltip
-                      label="dockerImage - choose from the list"
+                      label="dockerImage - choose from the list *"
                       value={formik.values.dockerImageType}
                       error={Boolean(formik.errors.dockerImageType)}
                       tooltipText={tooltipText.dockerImageType}
@@ -332,7 +347,7 @@ export const Configuration = observer(
                     />
                     {formik.values.dockerImageType === 'custom' ? (
                       <InputWithTooltip
-                        label="dockerImage"
+                        label="dockerImage *"
                         value={formik.values.dockerImage}
                         error={formik.errors.dockerImage}
                         tooltipText={tooltipText.dockerImage}
@@ -343,7 +358,7 @@ export const Configuration = observer(
                       />
                     ) : (
                       <SelectWithTooltip
-                        label="dockerImage - Postgres major version"
+                        label="dockerImage - Postgres major version *"
                         value={formik.values.dockerImage}
                         error={Boolean(formik.errors.dockerImage)}
                         tooltipText={tooltipText.dockerImage}
@@ -425,7 +440,7 @@ export const Configuration = observer(
                     Source database credentials and dumping options.
                   </span>
                   <InputWithTooltip
-                    label="source.connection.host"
+                    label="source.connection.host *"
                     value={formik.values.host}
                     error={formik.errors.host}
                     tooltipText={tooltipText.host}
@@ -435,7 +450,7 @@ export const Configuration = observer(
                     }
                   />
                   <InputWithTooltip
-                    label="source.connection.port"
+                    label="source.connection.port *"
                     value={formik.values.port}
                     error={formik.errors.port}
                     tooltipText={tooltipText.port}
@@ -445,7 +460,7 @@ export const Configuration = observer(
                     }
                   />
                   <InputWithTooltip
-                    label="source.connection.username"
+                    label="source.connection.username *"
                     value={formik.values.username}
                     error={formik.errors.username}
                     tooltipText={tooltipText.username}
@@ -463,13 +478,24 @@ export const Configuration = observer(
                     }
                   />
                   <InputWithTooltip
-                    label="source.connection.dbname"
+                    label="source.connection.dbname *"
                     value={formik.values.dbname}
                     error={formik.errors.dbname}
                     tooltipText={tooltipText.dbname}
                     disabled={isConfigurationDisabled}
                     onChange={(e) =>
                       formik.setFieldValue('dbname', e.target.value)
+                    }
+                  />
+                  <InputWithChip
+                    id="databases"
+                    value={formik.values.databases}
+                    label="Databases"
+                    tooltipText={tooltipText.databases}
+                    handleDeleteChip={handleDeleteChip}
+                    disabled={isConfigurationDisabled}
+                    onChange={(e) =>
+                      formik.setFieldValue('databases', e.target.value)
                     }
                   />
                   <Box mt={2}>
@@ -485,14 +511,12 @@ export const Configuration = observer(
                       }
                     />
                   </Box>
-                  <Box mt={2} mb={3}>
+                  <Box mt={3} mb={3}>
                     <Button
-                      variant="primary"
-                      size="medium"
+                      variant="contained"
+                      color="secondary"
                       onClick={onTestConnectionClick}
-                      isDisabled={
-                        isConnectionLoading || isConfigurationDisabled
-                      }
+                      disabled={isConnectionLoading || isConfigurationDisabled}
                     >
                       Test connection
                       {isConnectionLoading && (
@@ -644,10 +668,14 @@ export const Configuration = observer(
               }}
             >
               <Button
-                variant="primary"
-                size="medium"
-                onClick={formik.submitForm}
-                isDisabled={formik.isSubmitting || isConfigurationDisabled}
+                variant="contained"
+                color="secondary"
+                onClick={() => {
+                  formik.submitForm().then(() => {
+                    scrollToField()
+                  })
+                }}
+                disabled={formik.isSubmitting || isConfigurationDisabled}
               >
                 Apply changes
                 {formik.isSubmitting && (
@@ -656,8 +684,8 @@ export const Configuration = observer(
               </Button>
               <Box sx={{ px: 2 }}>
                 <Button
-                  variant="secondary"
-                  size="medium"
+                  variant="outlined"
+                  color="secondary"
                   onClick={() => switchActiveTab(null, 0)}
                 >
                   Cancel
