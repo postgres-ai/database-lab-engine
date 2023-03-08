@@ -17,7 +17,7 @@ function encodeData(data) {
 class Api {
   constructor(setting) {
     this.server = setting.server;
-    this.apiServer = setting.apiServer;
+    this.apiServer = setting.apiServer
   }
 
   get(url, query, options) {
@@ -382,6 +382,22 @@ class Api {
       params.onboarding_text = orgData.onboarding_text;
     }
 
+    if (typeof orgData.oauth_allow_google !== 'undefined') {
+      params.oauth_allow_google = orgData.oauth_allow_google;
+    }
+
+    if (typeof orgData.oauth_allow_linkedin !== 'undefined') {
+      params.oauth_allow_linkedin = orgData.oauth_allow_linkedin;
+    }
+
+    if (typeof orgData.oauth_allow_github !== 'undefined') {
+      params.oauth_allow_github = orgData.oauth_allow_github;
+    }
+
+    if (typeof orgData.oauth_allow_gitlab !== 'undefined') {
+      params.oauth_allow_gitlab = orgData.oauth_allow_gitlab;
+    }
+
     return this.patch(`${this.apiServer}/orgs?id=eq.` + orgId, params, {
       headers: headers
     });
@@ -488,6 +504,7 @@ class Api {
       org_id: instanceData.orgId,
       token: instanceData.instanceToken,
       project: instanceData.project,
+      project_label: instanceData.projectLabel,
       use_tunnel: instanceData.useTunnel,
       ssh_server_url: instanceData.sshServerUrl
     };
@@ -495,6 +512,24 @@ class Api {
     return this.post(`${this.apiServer}/rpc/dblab_instance_create`, params, {
       headers: headers
     });
+  }
+
+  editDbLabInstance(token, instanceData) {
+    let headers = {
+      Authorization: 'Bearer ' + token,
+    }
+    let params = {
+      instance_id: Number(instanceData.instanceId),
+      project_name: instanceData.project,
+      project_label: instanceData.projectLabel,
+      use_tunnel: instanceData.useTunnel,
+      ssh_server_url: instanceData.sshServerUrl,
+      verify_token: instanceData.instanceToken,
+    }
+
+    return this.post(`${this.apiServer}/rpc/dblab_instance_edit`, params, {
+      headers: headers,
+    })
   }
 
   destroyDbLabInstance(token, instanceId) {
