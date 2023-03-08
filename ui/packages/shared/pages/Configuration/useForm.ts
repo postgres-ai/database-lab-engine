@@ -87,13 +87,18 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
     ...(formik.values.databases && {
       db_list: formatDatabaseArray(formik.values.databases),
     }),
+    ...(formik.values.dockerImageType === 'custom' && {
+      dockerImage: formik.values.dockerImage,
+    }),
   }
 
   const isConnectionDataValid =
     formik.values.host &&
     formik.values.port &&
     formik.values.username &&
-    formik.values.dbname
+    formik.values.dbname &&
+    formik.values.dockerImageType === 'custom' &&
+    formik.values.dockerImage
 
   return [{ formik, connectionData, isConnectionDataValid }]
 }
