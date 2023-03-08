@@ -81,6 +81,7 @@ export const Configuration = observer(
     const stores = useStores()
     const {
       config,
+      isConfigurationLoading,
       updateConfig,
       getFullConfig,
       fullConfig,
@@ -294,7 +295,7 @@ export const Configuration = observer(
           }
           className={styles.snackbar}
         />
-        {!config || !dleEdition ? (
+        {!config && isConfigurationLoading ? (
           <div className={styles.spinnerContainer}>
             <Spinner size="lg" className={styles.spinner} />
           </div>
