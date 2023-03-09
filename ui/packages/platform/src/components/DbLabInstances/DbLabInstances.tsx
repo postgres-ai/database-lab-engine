@@ -68,6 +68,7 @@ interface DbLabInstancesState {
       orgId: number
       data: {
         [org: string]: {
+          project_label_or_name: string
           project_name: string
           project_label: string
           url: string
@@ -332,7 +333,7 @@ class DbLabInstances extends Component<
             {projects.data.map((p) => {
               return (
                 <MenuItem value={p.id} key={p.id}>
-                  {p?.label || p.name}
+                  {p?.project_label_or_name || p.name}
                 </MenuItem>
               )
             })}
@@ -451,7 +452,7 @@ class DbLabInstances extends Component<
                     style={{ cursor: 'pointer' }}
                   >
                     <TableCell className={classes.cell}>
-                      {data.data[index].project_label ||
+                      {data.data[index].project_label_or_name ||
                         data.data[index].project_name}
                     </TableCell>
 

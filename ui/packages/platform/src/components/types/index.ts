@@ -159,7 +159,7 @@ export interface ProjectProps {
   data: {
     name: string
     id: number
-    label?: string
+    project_label_or_name: string
   }[]
 }
 

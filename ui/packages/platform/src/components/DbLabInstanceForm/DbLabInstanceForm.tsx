@@ -134,7 +134,7 @@ class DbLabInstanceForm extends Component<
 
       if (dbLabInstances.data) {
         that.setState({
-          project_label: dbLabInstances.data[instanceID]?.project_label,
+          project_label: dbLabInstances.data[instanceID]?.project_label_or_name,
           token: dbLabInstances.data[instanceID]?.verify_token,
           useTunnel: dbLabInstances.data[instanceID]?.use_tunnel,
           url: dbLabInstances.data[instanceID]?.url,
@@ -291,6 +291,7 @@ class DbLabInstanceForm extends Component<
     )
 
     const permitted = !orgPermissions || orgPermissions.dblabInstanceCreate
+    const disabledOnEdit = this.props.edit
     const instancesLoaded = dbLabInstances && dbLabInstances.data
 
     if (!projects || !projects.data || !instancesLoaded) {
@@ -405,7 +406,8 @@ class DbLabInstanceForm extends Component<
 
           <div className={classes.fieldBlock}>
             <TextField
-              disabled={!permitted}
+              disabled={!permitted || disabledOnEdit}
+              type={disabledOnEdit ? 'password' : 'text'}
               variant="outlined"
               id="token"
               label="Verification token"
@@ -438,7 +440,7 @@ class DbLabInstanceForm extends Component<
               <Button
                 variant="contained"
                 color="primary"
-                disabled={isDataUpdating || !permitted}
+                disabled={isDataUpdating || !permitted || disabledOnEdit}
                 onClick={this.generateTokenHandler}
               >
                 Generate
