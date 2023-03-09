@@ -9,13 +9,18 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/config"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 func TestLogLineFiltering(t *testing.T) {
 	pl, err := platform.New(context.Background(), platform.Config{AccessToken: "platformAccessToken"})
 	require.NoError(t, err)
 
-	s := Server{Config: &config.Config{VerificationToken: "secretToken"}, Platform: pl}
+	s := Server{
+		Config:    &config.Config{VerificationToken: "secretToken"},
+		Platform:  pl,
+		filtering: log.GetFilter(),
+	}
 	s.initLogRegExp()
 
 	testCases := []struct {
