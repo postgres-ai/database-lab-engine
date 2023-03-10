@@ -327,12 +327,15 @@ class DbLabInstanceForm extends Component<
           </WarningWrapper>
         )}
 
-        <span>
-          Database Lab provisioning is currently semi-automated.
-          <br />
-          First, you need to prepare a Database Lab instance on a separate&nbsp;
-          machine. Once the instance is ready, register it here.
-        </span>
+        {!disabledOnEdit && (
+          <span>
+            Database Lab provisioning is currently semi-automated.
+            <br />
+            First, you need to prepare a Database Lab instance on a
+            separate&nbsp; machine. Once the instance is ready, register it
+            here.
+          </span>
+        )}
 
         <div className={classes.errorMessage}>
           {data?.errorMessage ? data.errorMessage : null}
@@ -404,51 +407,55 @@ class DbLabInstanceForm extends Component<
             />
           </div>
 
-          <div className={classes.fieldBlock}>
-            <TextField
-              disabled={!permitted || disabledOnEdit}
-              type={disabledOnEdit ? 'password' : 'text'}
-              variant="outlined"
-              id="token"
-              label="Verification token"
-              value={this.state.token}
-              required
-              className={classes.textField}
-              onChange={(e) => {
-                this.setState({
-                  token: e.target.value,
-                })
-                Actions.resetNewDbLabInstance()
-              }}
-              margin="normal"
-              error={this.state.errorFields.indexOf('token') !== -1}
-              fullWidth
-              inputProps={{
-                name: 'token',
-                id: 'token',
-                shrink: true,
-              }}
-              InputLabelProps={{
-                shrink: true,
-                style: styles.inputFieldLabel,
-              }}
-              FormHelperTextProps={{
-                style: styles.inputFieldHelper,
-              }}
-            />
-            <div>
-              <Button
-                variant="contained"
-                color="primary"
-                disabled={isDataUpdating || !permitted || disabledOnEdit}
-                onClick={this.generateTokenHandler}
-              >
-                Generate
-              </Button>
+          {!disabledOnEdit && (
+            <div className={classes.fieldBlock}>
+              <TextField
+                disabled={!permitted}
+                variant="outlined"
+                id="token"
+                label="Verification token"
+                value={this.state.token}
+                required
+                className={classes.textField}
+                onChange={(e) => {
+                  this.setState({
+                    token: e.target.value,
+                  })
+                  Actions.resetNewDbLabInstance()
+                }}
+                margin="normal"
+                error={this.state.errorFields.indexOf('token') !== -1}
+                fullWidth
+                inputProps={{
+                  name: 'token',
+                  id: 'token',
+                  shrink: true,
+                }}
+                InputLabelProps={{
+                  shrink: true,
+                  style: styles.inputFieldLabel,
+                }}
+                FormHelperTextProps={{
+                  style: styles.inputFieldHelper,
+                }}
+              />
+              <div>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  disabled={isDataUpdating || !permitted || disabledOnEdit}
+                  onClick={this.generateTokenHandler}
+                >
+                  Generate
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className={classes.fieldBlock} style={{ marginTop: 10 }}>
+          <div
+            className={classes.fieldBlock}
+            style={{ marginTop: !disabledOnEdit ? 10 : 0 }}
+          >
             <TextField
               disabled={!permitted}
               variant="outlined"
