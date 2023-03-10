@@ -524,7 +524,6 @@ class Api {
       project_label: instanceData.projectLabel,
       use_tunnel: instanceData.useTunnel,
       ssh_server_url: instanceData.sshServerUrl,
-      verify_token: instanceData.instanceToken,
     }
 
     return this.post(`${this.apiServer}/rpc/dblab_instance_edit`, params, {
