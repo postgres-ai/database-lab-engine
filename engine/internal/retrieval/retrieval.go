@@ -190,6 +190,13 @@ func (r *Retrieval) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to collect content lists from the foundation Docker image of the logicalDump job: %w", err)
 	}
 
+	if r.cfg.Refresh != nil && r.cfg.Refresh.SkipStartRefresh {
+		log.Msg("Continue without performing initial data refresh because the `skipStartRefresh` option is enabled")
+		r.setupScheduler(ctx)
+
+		return nil
+	}
+
 	fsManager, err := r.getNextPoolToDataRetrieving()
 	if err != nil {
 		var skipError *SkipRefreshingError
@@ -393,6 +400,12 @@ func (r *Retrieval) RefreshData(ctx context.Context, poolName string) error {
 		r.State.CurrentJob = nil
 	}()
 
+	if r.State.Mode == models.Logical {
+		if err := preparePoolToRefresh(fsm, r.runner); err != nil {
+			return fmt.Errorf("failed to prepare pool for initial refresh: %w", err)
+		}
+	}
+
 	for _, j := range jobs {
 		r.State.CurrentJob = j
 
@@ -530,7 +543,7 @@ func (r *Retrieval) defineRetrievalMode() {
 func (r *Retrieval) setupScheduler(ctx context.Context) {
 	r.stopScheduler()
 
-	if r.cfg.Refresh.Timetable == "" {
+	if r.cfg.Refresh == nil || r.cfg.Refresh.Timetable == "" {
 		return
 	}
 
@@ -608,10 +621,6 @@ func (r *Retrieval) FullRefresh(ctx context.Context) error {
 
 	log.Msg("Pool to a full refresh: ", poolToUpdate.Pool())
 
-	if err := preparePoolToRefresh(poolToUpdate); err != nil {
-		return errors.Wrap(err, "failed to prepare the pool to a full refresh")
-	}
-
 	// Stop service containers: sync-instance, etc.
 	if cleanUpErr := cont.CleanUpControlContainers(runCtx, r.docker, r.engineProps.InstanceID); cleanUpErr != nil {
 		log.Err("Failed to clean up service containers:", cleanUpErr)
@@ -641,7 +650,7 @@ func (r *Retrieval) stopScheduler() {
 	}
 }
 
-func preparePoolToRefresh(poolToUpdate pool.FSManager) error {
+func preparePoolToRefresh(poolToUpdate pool.FSManager, runner runners.Runner) error {
 	cloneList, err := poolToUpdate.ListClonesNames()
 	if err != nil {
 		return errors.Wrap(err, "failed to check running clones")
@@ -652,6 +661,12 @@ func preparePoolToRefresh(poolToUpdate pool.FSManager) error {
 			strings.Join(cloneList, " "))
 	}
 
+	if _, err := runner.Run(fmt.Sprintf("rm -rf %s %s",
+		filepath.Join(poolToUpdate.Pool().DataDir(), "*"),
+		filepath.Join(poolToUpdate.Pool().DataDir(), dbmarker.ConfigDir))); err != nil {
+		return errors.Wrap(err, "failed to clean unix socket directory")
+	}
+
 	poolToUpdate.RefreshSnapshotList()
 
 	snapshots := poolToUpdate.SnapshotList()
@@ -660,7 +675,11 @@ func preparePoolToRefresh(poolToUpdate pool.FSManager) error {
 		return nil
 	}
 
+	log.Msg("Preparing pool for full data refresh; existing snapshots are to be destroyed")
+
 	for _, snapshotEntry := range snapshots {
+		log.Msg("Destroying snapshot:", snapshotEntry.ID)
+
 		if err := poolToUpdate.DestroySnapshot(snapshotEntry.ID); err != nil {
 			return errors.Wrap(err, "failed to destroy the existing snapshot")
 		}
@@ -671,9 +690,15 @@ func preparePoolToRefresh(poolToUpdate pool.FSManager) error {
 
 // ReportState collects the current restore state.
 func (r *Retrieval) ReportState() telemetry.Restore {
+	var refreshingTimetable string
+
+	if r.cfg.Refresh != nil {
+		refreshingTimetable = r.cfg.Refresh.Timetable
+	}
+
 	return telemetry.Restore{
 		Mode:       r.State.Mode,
-		Refreshing: r.cfg.Refresh.Timetable,
+		Refreshing: refreshingTimetable,
 		Jobs:       r.cfg.Jobs,
 	}
 }

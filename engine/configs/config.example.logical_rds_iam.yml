@@ -185,6 +185,9 @@ retrieval:
     # Timetable is to be defined in crontab format: https://en.wikipedia.org/wiki/Cron#Overview
     timetable: "0 0 * * 1"
 
+    # Skip data refresh while the retrieval starts.
+    skipStartRefresh: false
+
   # The jobs section must not contain physical and logical restore jobs simultaneously.
   jobs:
     - logicalDump
@@ -249,9 +252,6 @@ retrieval:
         # immediateRestore:
         #   # Enable immediate restore.
         #   enabled: true
-        #   # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
-        #   # Note the existing data will be overwritten.
-        #   forceInit: false
         #   # Option to adjust PostgreSQL configuration for a logical dump job.
         #   # It's useful if a dumped database contains non-standard extensions.
         #   <<: *db_configs
@@ -276,10 +276,6 @@ retrieval:
         # Use parallel jobs to restore faster.
         # If your machine with DLE has 4 vCPUs or less, and you don't want to saturate them, use 2 or 1.
         parallelJobs: 4
-
-        # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
-        # Note the existing data will be overwritten.
-        forceInit: false
 
         # Ignore errors that occurred during logical data restore. Do not ignore by default.
         ignoreErrors: false
