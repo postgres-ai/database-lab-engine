@@ -32,7 +32,8 @@ type Config struct {
 }
 
 const (
-	configDir      = ".dblab"
+	// ConfigDir defines the name of the dbMarker configuration directory.
+	ConfigDir      = ".dblab"
 	configFilename = "dbmarker"
 
 	// LogicalDataType defines a logical data type.
@@ -44,7 +45,7 @@ const (
 
 // Init inits DB marker for the data directory.
 func (m *Marker) initDBLabDirectory() error {
-	dirname := path.Join(m.dataPath, configDir)
+	dirname := path.Join(m.dataPath, ConfigDir)
 	if err := os.MkdirAll(dirname, 0755); err != nil {
 		return errors.Wrapf(err, "cannot create a DBMarker directory %s", dirname)
 	}
@@ -104,5 +105,5 @@ func (m *Marker) SaveConfig(cfg *Config) error {
 
 // buildFileName builds a DBMarker config filename.
 func (m *Marker) buildFileName() string {
-	return path.Join(m.dataPath, configDir, configFilename)
+	return path.Join(m.dataPath, ConfigDir, configFilename)
 }
