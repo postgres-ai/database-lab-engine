@@ -67,7 +67,7 @@ type SnapshotInfo struct {
 
 // Init inits DB marker for the data directory.
 func (m *Marker) initDBLabDirectory() error {
-	dirname := path.Join(m.dataPath, configDir)
+	dirname := path.Join(m.dataPath, ConfigDir)
 	if err := os.MkdirAll(dirname, 0755); err != nil {
 		return errors.Wrapf(err, "cannot create a DBMarker directory %s", dirname)
 	}

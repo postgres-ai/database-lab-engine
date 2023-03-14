@@ -320,7 +320,7 @@ export const CreateClone = observer((props: Props) => {
             Alternatively, you can create a new clone using the CLI. Fill the
             form, copy the command below and paste it into your terminal.
           </p>
-          <SyntaxHighlight content={getCliCreateCloneCommand(formik.values)} />
+          <SyntaxHighlight content={getCliCreateCloneCommand(formik.values)}  wrapLines/>
 
           <SectionTitle
             className={styles.title}

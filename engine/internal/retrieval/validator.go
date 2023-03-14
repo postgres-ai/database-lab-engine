@@ -70,7 +70,7 @@ func validateStructure(r *config.Config) error {
 }
 
 func validateRefreshTimetable(r *config.Config) error {
-	if r.Refresh.Timetable == "" {
+	if r.Refresh == nil || r.Refresh.Timetable == "" {
 		return nil
 	}
 

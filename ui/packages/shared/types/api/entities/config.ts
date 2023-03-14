@@ -31,6 +31,7 @@ export type configTypes = {
           customOptions?: string[]
           databases?: DatabaseType | null
           parallelJobs?: string | number
+          ignoreErrors?: boolean
           source?: {
             connection?: {
               dbname?: string
@@ -46,6 +47,7 @@ export type configTypes = {
         options?: {
           customOptions?: string[]
           parallelJobs?: string | number
+          ignoreErrors?: boolean
         }
       }
     }
@@ -81,8 +83,12 @@ export const formatConfig = (config: configTypes) => {
     ),
     dumpParallelJobs:
       config.retrieval?.spec?.logicalDump?.options?.parallelJobs,
+    dumpIgnoreErrors:
+      config.retrieval?.spec?.logicalDump?.options?.ignoreErrors,
     restoreParallelJobs:
       config.retrieval?.spec?.logicalRestore?.options?.parallelJobs,
+    restoreIgnoreErrors:
+      config.retrieval?.spec?.logicalRestore?.options?.ignoreErrors,
     pgDumpCustomOptions: formatDumpCustomOptions(
       (config.retrieval?.spec?.logicalDump?.options
         ?.customOptions as string[]) || null,

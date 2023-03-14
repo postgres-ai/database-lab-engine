@@ -13,6 +13,7 @@ import { Button } from '@postgres.ai/shared/components/Button2'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
+import { isRetrievalUnknown } from '@postgres.ai/shared/pages/Instance/Configuration/utils'
 
 import { TABS_INDEX, Tabs } from './Tabs'
 import { Logs } from '../Logs'
@@ -25,7 +26,6 @@ import { SnapshotsModal } from './Snapshots/components/SnapshotsModal'
 import { ClonesModal } from './Clones/ClonesModal'
 import { Host, HostProvider, StoresProvider } from './context'
 
-import PropTypes from 'prop-types'
 import Typography from '@material-ui/core/Typography'
 import Box from '@mui/material/Box'
 
@@ -68,13 +68,21 @@ export const Instance = observer((props: Props) => {
   const { instanceId, api } = props
 
   const stores = useCreatedStores(props)
+  const {
+    instance,
+    instanceError,
+    instanceRetrieval,
+    load,
+    isReloadingInstance,
+  } = stores.main
 
   useEffect(() => {
-    stores.main.load(instanceId)
+    load(instanceId)
   }, [instanceId])
 
-  const { instance, instanceError, instanceRetrieval } = stores.main
-  const isConfigurationActive = instanceRetrieval?.mode !== 'physical'
+  const isConfigurationActive =
+    !isRetrievalUnknown(instanceRetrieval?.mode) &&
+    instanceRetrieval?.mode !== 'physical'
 
   useEffect(() => {
     if (
@@ -114,8 +122,10 @@ export const Instance = observer((props: Props) => {
             className={classes.title}
             rightContent={
               <Button
-                onClick={() => stores.main.load(props.instanceId)}
-                isDisabled={!instance && !instanceError}
+                onClick={() => load(props.instanceId)}
+                isDisabled={
+                  (!instance && !instanceError) || isReloadingInstance
+                }
                 className={classes.reloadButton}
               >
                 Reload info
@@ -127,6 +137,7 @@ export const Instance = observer((props: Props) => {
               handleChange={switchTab}
               hasLogs={api.initWS != undefined}
               hideInstanceTabs={props?.hideInstanceTabs}
+              isConfigActive={!isRetrievalUnknown(instanceRetrieval?.mode)}
             />
           </SectionTitle>
 
@@ -187,7 +198,11 @@ export const Instance = observer((props: Props) => {
   )
 })
 
-function TabPanel(props: PropTypes.InferProps<any>) {
+function TabPanel(props: {
+  children?: React.ReactNode
+  index: number
+  value: number
+}) {
   const { children, value, index, ...other } = props
 
   return (
@@ -205,10 +220,4 @@ function TabPanel(props: PropTypes.InferProps<any>) {
       </Box>
     </Typography>
   )
-}
-
-TabPanel.propTypes = {
-  children: PropTypes.node,
-  index: PropTypes.any.isRequired,
-  value: PropTypes.any.isRequired,
 }

@@ -56,6 +56,9 @@ func main() {
 		log.Fatal(errors.WithMessage(err, "failed to parse config"))
 	}
 
+	logFilter := log.GetFilter()
+	logFilter.ReloadLogRegExp([]string{cfg.Server.VerificationToken, cfg.Platform.AccessToken})
+
 	config.ApplyGlobals(cfg)
 
 	docker, err := client.NewClientWithOpts(client.FromEnv)
@@ -188,14 +191,16 @@ func main() {
 			embeddedUI,
 			server,
 			logCleaner,
+			logFilter,
 		)
 	}
 
 	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc,
-		obs, est, pm, tm, tokenHolder, embeddedUI, reloadConfigFn)
+		obs, est, pm, tm, tokenHolder, logFilter, embeddedUI, reloadConfigFn)
 	shutdownCh := setShutdownListener()
 
-	go setReloadListener(ctx, provisioner, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server, logCleaner)
+	go setReloadListener(ctx, provisioner, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server,
+		logCleaner, logFilter)
 
 	server.InitHandlers()
 
@@ -276,12 +281,14 @@ func getEngineProperties(ctx context.Context, dockerCLI *client.Client, cfg *con
 
 func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent,
 	retrievalSvc *retrieval.Retrieval, pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service,
-	est *estimator.Estimator, embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner) error {
+	est *estimator.Estimator, embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner,
+	filtering *log.Filtering) error {
 	cfg, err := config.LoadConfiguration()
 	if err != nil {
 		return err
 	}
 
+	filtering.ReloadLogRegExp([]string{cfg.Server.VerificationToken, cfg.Platform.AccessToken})
 	config.ApplyGlobals(cfg)
 
 	if err := provision.IsValidConfig(cfg.Provision); err != nil {
@@ -328,14 +335,16 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 
 func setReloadListener(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent,
 	retrievalSvc *retrieval.Retrieval, pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service,
-	est *estimator.Estimator, embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner) {
+	est *estimator.Estimator, embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner,
+	logFilter *log.Filtering) {
 	reloadCh := make(chan os.Signal, 1)
 	signal.Notify(reloadCh, syscall.SIGHUP)
 
 	for range reloadCh {
 		log.Msg("Reloading configuration")
 
-		if err := reloadConfig(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server, cleaner); err != nil {
+		if err := reloadConfig(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server,
+			cleaner, logFilter); err != nil {
 			log.Err("Failed to reload configuration", err)
 		}
 

@@ -87,6 +87,7 @@ type DumpOptions struct {
 	Source          Source                    `yaml:"source"`
 	Databases       map[string]DumpDefinition `yaml:"databases"`
 	ParallelJobs    int                       `yaml:"parallelJobs"`
+	IgnoreErrors    bool                      `yaml:"ignoreErrors"`
 	Restore         ImmediateRestore          `yaml:"immediateRestore"`
 	CustomOptions   []string                  `yaml:"customOptions"`
 }
@@ -135,7 +136,6 @@ type Connection struct {
 // ImmediateRestore contains options for direct data restore without saving the dump file on disk.
 type ImmediateRestore struct {
 	Enabled       bool              `yaml:"enabled"`
-	ForceInit     bool              `yaml:"forceInit"`
 	Configs       map[string]string `yaml:"configs"`
 	CustomOptions []string          `yaml:"customOptions"`
 }
@@ -279,11 +279,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 	}
 
 	if d.DumpOptions.Restore.Enabled && !isEmpty {
-		if !d.DumpOptions.Restore.ForceInit {
-			return errors.New("the data directory is not empty. Use 'forceInit' or empty the data directory")
-		}
-
-		log.Msg("The data directory is not empty. Existing data may be overwritten.")
+		log.Warn("The data directory is not empty. Existing data will be overwritten.")
 
 		if err := updateConfigs(dataDir, d.DumpOptions.Restore.Configs); err != nil {
 			return fmt.Errorf("failed to update configs: %w", err)
@@ -513,7 +509,9 @@ func (d *DumpJob) dumpDatabase(ctx context.Context, dumpContID, dbName string, d
 	}); err != nil {
 		log.Err("Dump command failed: ", output)
 
-		return fmt.Errorf("failed to dump a database: %w. Output: %s", err, output)
+		if !d.DumpOptions.IgnoreErrors {
+			return fmt.Errorf("failed to dump a database: %w. Output: %s", err, output)
+		}
 	}
 
 	log.Msg(fmt.Sprintf("Dumping job for the database %q has been finished", dbName))
@@ -721,10 +719,6 @@ func (d *DumpJob) buildLogicalRestoreCommand(dbName string) []string {
 	if dbName != defaults.DBName {
 		// To avoid recreating of the default database.
 		restoreCmd = append(restoreCmd, "--create")
-	}
-
-	if d.Restore.ForceInit {
-		restoreCmd = append(restoreCmd, "--clean", "--if-exists")
 	}
 
 	restoreCmd = append(restoreCmd, d.DumpOptions.Restore.CustomOptions...)

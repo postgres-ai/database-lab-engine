@@ -114,3 +114,7 @@ export const postUniqueCustomOptions = (options: string) => {
   )
   return uniqueOptions
 }
+
+export const isRetrievalUnknown = (mode: string | undefined) => {
+  return mode === 'unknown' || mode === ''
+}

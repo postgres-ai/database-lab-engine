@@ -65,7 +65,9 @@ interface DbLabInstanceFormState {
   url: string
   token: string | null
   useTunnel: boolean
+  instanceID: string
   project: string
+  project_label: string
   errorFields: string[]
   sshServerUrl: string
 }
@@ -78,7 +80,9 @@ class DbLabInstanceForm extends Component<
     url: 'https://',
     token: null,
     useTunnel: false,
+    instanceID: '',
     project: this.props.project ? this.props.project : '',
+    project_label: '',
     errorFields: [''],
     sshServerUrl: '',
     data: {
@@ -116,14 +120,27 @@ class DbLabInstanceForm extends Component<
   componentDidMount() {
     const that = this
     const { orgId } = this.props
+    const url = window.location.href.split('/')
+    const instanceID = url[url.length - 1]
 
     this.unsubscribe = Store.listen(function () {
-      that.setState({ data: this.data })
+      that.setState({ data: this.data, instanceID: instanceID })
+
       const auth = this.data && this.data.auth ? this.data.auth : null
       const projects =
         this.data && this.data.projects ? this.data.projects : null
       const dbLabInstances =
         this.data && this.data.dbLabInstances ? this.data.dbLabInstances : null
+
+      if (dbLabInstances.data) {
+        that.setState({
+          project_label: dbLabInstances.data[instanceID]?.project_label_or_name,
+          token: dbLabInstances.data[instanceID]?.verify_token,
+          useTunnel: dbLabInstances.data[instanceID]?.use_tunnel,
+          url: dbLabInstances.data[instanceID]?.url,
+          sshServerUrl: dbLabInstances.data[instanceID]?.ssh_server_url,
+        })
+      }
 
       if (
         auth &&
@@ -188,9 +205,11 @@ class DbLabInstanceForm extends Component<
       this.state.token &&
       this.state.project
     ) {
-      Actions.addDbLabInstance(auth.token, {
+      Actions[`${this.props.edit ? 'edit' : 'add'}DbLabInstance`](auth.token, {
         orgId: orgId,
         project: this.state.project,
+        instanceId: this.props.edit ? this.state.instanceID : null,
+        projectLabel: this.state.project_label,
         url: this.state.url,
         instanceToken: this.state.token,
         useTunnel: this.state.useTunnel,
@@ -260,15 +279,19 @@ class DbLabInstanceForm extends Component<
         {...this.props}
         breadcrumbs={[
           { name: 'Database Lab Instances', url: 'instances' },
-          { name: 'Add instance' },
+          { name: this.props.edit ? 'Edit instance' : 'Add instance' },
         ]}
       />
     )
 
-    const pageTitle = <ConsolePageTitle title="Add instance" />
+    const pageTitle = (
+      <ConsolePageTitle
+        title={this.props.edit ? 'Edit instance' : 'Add instance'}
+      />
+    )
 
     const permitted = !orgPermissions || orgPermissions.dblabInstanceCreate
-
+    const disabledOnEdit = this.props.edit
     const instancesLoaded = dbLabInstances && dbLabInstances.data
 
     if (!projects || !projects.data || !instancesLoaded) {
@@ -299,16 +322,20 @@ class DbLabInstanceForm extends Component<
 
         {!permitted && (
           <WarningWrapper>
-            You do not have permission to add Database Lab instances.
+            You do not have permission to {this.props.edit ? 'edit' : 'add'}{' '}
+            Database Lab instances.
           </WarningWrapper>
         )}
 
-        <span>
-          Database Lab provisioning is currently semi-automated.
-          <br />
-          First, you need to prepare a Database Lab instance on a separate&nbsp;
-          machine. Once the instance is ready, register it here.
-        </span>
+        {!disabledOnEdit && (
+          <span>
+            Database Lab provisioning is currently semi-automated.
+            <br />
+            First, you need to prepare a Database Lab instance on a
+            separate&nbsp; machine. Once the instance is ready, register it
+            here.
+          </span>
+        )}
 
         <div className={classes.errorMessage}>
           {data?.errorMessage ? data.errorMessage : null}
@@ -352,23 +379,22 @@ class DbLabInstanceForm extends Component<
             <TextField
               disabled={!permitted}
               variant="outlined"
-              id="token"
-              label="Verification token"
-              value={this.state.token}
-              required
+              id="project_label"
+              label="Project label"
+              value={this.state.project_label}
               className={classes.textField}
               onChange={(e) => {
                 this.setState({
-                  token: e.target.value,
+                  project_label: e.target.value,
                 })
                 Actions.resetNewDbLabInstance()
               }}
               margin="normal"
-              error={this.state.errorFields.indexOf('token') !== -1}
+              error={this.state.errorFields.indexOf('project_label') !== -1}
               fullWidth
               inputProps={{
-                name: 'token',
-                id: 'token',
+                name: 'project_label',
+                id: 'project_label',
                 shrink: true,
               }}
               InputLabelProps={{
@@ -379,19 +405,57 @@ class DbLabInstanceForm extends Component<
                 style: styles.inputFieldHelper,
               }}
             />
-            <div>
-              <Button
-                variant="contained"
-                color="primary"
-                disabled={isDataUpdating || !permitted}
-                onClick={this.generateTokenHandler}
-              >
-                Generate
-              </Button>
-            </div>
           </div>
 
-          <div className={classes.fieldBlock} style={{ marginTop: 10 }}>
+          {!disabledOnEdit && (
+            <div className={classes.fieldBlock}>
+              <TextField
+                disabled={!permitted}
+                variant="outlined"
+                id="token"
+                label="Verification token"
+                value={this.state.token}
+                required
+                className={classes.textField}
+                onChange={(e) => {
+                  this.setState({
+                    token: e.target.value,
+                  })
+                  Actions.resetNewDbLabInstance()
+                }}
+                margin="normal"
+                error={this.state.errorFields.indexOf('token') !== -1}
+                fullWidth
+                inputProps={{
+                  name: 'token',
+                  id: 'token',
+                  shrink: true,
+                }}
+                InputLabelProps={{
+                  shrink: true,
+                  style: styles.inputFieldLabel,
+                }}
+                FormHelperTextProps={{
+                  style: styles.inputFieldHelper,
+                }}
+              />
+              <div>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  disabled={isDataUpdating || !permitted || disabledOnEdit}
+                  onClick={this.generateTokenHandler}
+                >
+                  Generate
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <div
+            className={classes.fieldBlock}
+            style={{ marginTop: !disabledOnEdit ? 10 : 0 }}
+          >
             <TextField
               disabled={!permitted}
               variant="outlined"
@@ -458,6 +522,7 @@ class DbLabInstanceForm extends Component<
               <TextField
                 variant="outlined"
                 id="token"
+                disabled={!permitted}
                 label="SSH server URL"
                 value={this.state.sshServerUrl}
                 className={classes.textField}
@@ -528,7 +593,7 @@ class DbLabInstanceForm extends Component<
               disabled={isDataUpdating || !permitted}
               onClick={this.buttonHandler}
             >
-              Add
+              {this.props.edit ? 'Update' : 'Add'}
             </Button>
             &nbsp;&nbsp;
             <Button
