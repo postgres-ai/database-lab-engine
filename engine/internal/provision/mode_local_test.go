@@ -190,3 +190,53 @@ func TestParsingDockerImage(t *testing.T) {
 		}
 	})
 }
+
+func TestLatestSnapshot(t *testing.T) {
+	t.Run("Test selecting the latest snapshot ID", func(t *testing.T) {
+		dateTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+
+		testCases := []struct {
+			snapshots  []resources.Snapshot
+			expectedID string
+			err        error
+		}{
+			{
+				err: errors.New("no snapshots available"),
+			},
+			{
+				snapshots: []resources.Snapshot{
+					{ID: "test1", CreatedAt: dateTime},
+					{ID: "test2", CreatedAt: dateTime.Add(time.Hour)},
+					{ID: "test3", CreatedAt: dateTime.Add(-time.Hour)},
+				},
+				expectedID: "test2",
+			},
+			{
+				snapshots: []resources.Snapshot{
+					{ID: "test1", DataStateAt: dateTime},
+					{ID: "test2", DataStateAt: dateTime.Add(time.Hour)},
+					{ID: "test3", DataStateAt: dateTime.Add(2 * time.Hour)},
+				},
+				expectedID: "test3",
+			},
+			{
+				snapshots: []resources.Snapshot{
+					{ID: "test1", CreatedAt: dateTime, DataStateAt: dateTime},
+					{ID: "test2", CreatedAt: dateTime.Add(time.Hour), DataStateAt: dateTime.Add(time.Hour)},
+					{ID: "test3", CreatedAt: dateTime.Add(-time.Hour), DataStateAt: dateTime.Add(2 * time.Hour)},
+				},
+				expectedID: "test3",
+			},
+		}
+
+		for _, tc := range testCases {
+			latest, err := getLatestSnapshot(tc.snapshots)
+			if err != nil {
+				assert.EqualError(t, err, tc.err.Error())
+				continue
+			}
+
+			assert.Equal(t, tc.expectedID, latest.ID)
+		}
+	})
+}
