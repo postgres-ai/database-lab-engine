@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -408,6 +409,22 @@ func (p *Provisioner) getSnapshot(snapshotID string) (*resources.Snapshot, error
 
 		return nil, errors.Errorf("snapshot %q not found", snapshotID)
 	}
+
+	return getLatestSnapshot(snapshots)
+}
+
+func getLatestSnapshot(snapshots []resources.Snapshot) (*resources.Snapshot, error) {
+	if len(snapshots) == 0 {
+		return nil, errors.New("no snapshots available")
+	}
+
+	sort.Slice(snapshots, func(i, j int) bool {
+		if !snapshots[i].DataStateAt.IsZero() && !snapshots[j].DataStateAt.IsZero() {
+			return snapshots[i].DataStateAt.After(snapshots[j].DataStateAt)
+		}
+
+		return snapshots[i].CreatedAt.After(snapshots[j].CreatedAt)
+	})
 
 	return &snapshots[0], nil
 }
