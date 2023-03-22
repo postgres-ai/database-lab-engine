@@ -18,6 +18,7 @@ import BlockIcon from '@material-ui/icons/Block'
 import WarningIcon from '@material-ui/icons/Warning'
 
 import { styles } from '@postgres.ai/shared/styles/styles'
+import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import {
   ClassesType,
@@ -594,6 +595,9 @@ class DbLabInstanceForm extends Component<
               onClick={this.buttonHandler}
             >
               {this.props.edit ? 'Update' : 'Add'}
+              {isDataUpdating && (
+                <Spinner size="sm" className={classes.spinner} />
+              )}
             </Button>
             &nbsp;&nbsp;
             <Button
