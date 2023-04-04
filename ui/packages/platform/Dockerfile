@@ -6,7 +6,7 @@
 #--------------------------------------------------------------------------
 
 # Build phase.
-FROM node:16.13.0-alpine as build
+FROM node:16.14-alpine as build
 
 WORKDIR /app
 
@@ -45,7 +45,7 @@ ARG ARG_REACT_APP_SENTRY_DSN
 ENV REACT_APP_SENTRY_DSN=$ARG_REACT_APP_SENTRY_DSN
 
 RUN apk add --no-cache --update git && \
-    npm i -g pnpm; \
+    npm i -g pnpm@7.30.5; \
     pnpm config set store-dir /app/.pnpm-store; \
     pnpm set verify-store-integrity false; \
     pnpm --filter @postgres.ai/platform i; \
