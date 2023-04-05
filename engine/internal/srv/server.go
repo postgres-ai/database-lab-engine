@@ -20,7 +20,6 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/embeddedui"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
@@ -50,7 +49,6 @@ type Server struct {
 	Retrieval   *retrieval.Retrieval
 	Platform    *platform.Service
 	Observer    *observer.Observer
-	Estimator   *estimator.Estimator
 	wsService   WSService
 	httpSrv     *http.Server
 	docker      *client.Client
@@ -72,7 +70,7 @@ type WSService struct {
 func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps global.EngineProps,
 	dockerClient *client.Client, cloning *cloning.Base, provisioner *provision.Provisioner,
 	retrievalSvc *retrieval.Retrieval, platform *platform.Service, observer *observer.Observer,
-	estimator *estimator.Estimator, pm *pool.Manager, tm *telemetry.Agent, tokenKeeper *ws.TokenKeeper,
+	pm *pool.Manager, tm *telemetry.Agent, tokenKeeper *ws.TokenKeeper,
 	filtering *log.Filtering, uiManager *embeddedui.UIManager, reloadConfigFn func(server *Server) error) *Server {
 	server := &Server{
 		Config:      cfg,
@@ -83,7 +81,6 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps global.
 		Retrieval:   retrievalSvc,
 		Platform:    platform,
 		Observer:    observer,
-		Estimator:   estimator,
 		wsService: WSService{
 			upgrader:    websocket.Upgrader{},
 			tokenKeeper: tokenKeeper,
@@ -200,7 +197,6 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/observation/stop", authMW.Authorized(s.stopObservation)).Methods(http.MethodPost)
 	r.HandleFunc("/observation/summary/{clone_id}/{session_id}", authMW.Authorized(s.sessionSummaryObservation)).Methods(http.MethodGet)
 	r.HandleFunc("/observation/download", authMW.Authorized(s.downloadArtifact)).Methods(http.MethodGet)
-	r.HandleFunc("/estimate", s.startEstimator).Methods(http.MethodGet)
 	r.HandleFunc("/instance/retrieval", authMW.Authorized(s.retrievalState)).Methods(http.MethodGet)
 
 	// Sub-route /admin

@@ -25,7 +25,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/diagnostic"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/embeddedui"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
@@ -158,7 +157,6 @@ func main() {
 	}
 
 	obs := observer.NewObserver(docker, &cfg.Observer, pm)
-	est := estimator.NewEstimator(&cfg.Estimator)
 
 	go removeObservingClones(observingChan, obs)
 
@@ -187,7 +185,6 @@ func main() {
 			pm,
 			cloningSvc,
 			platformSvc,
-			est,
 			embeddedUI,
 			server,
 			logCleaner,
@@ -196,10 +193,10 @@ func main() {
 	}
 
 	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc,
-		obs, est, pm, tm, tokenHolder, logFilter, embeddedUI, reloadConfigFn)
+		obs, pm, tm, tokenHolder, logFilter, embeddedUI, reloadConfigFn)
 	shutdownCh := setShutdownListener()
 
-	go setReloadListener(ctx, provisioner, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server,
+	go setReloadListener(ctx, provisioner, tm, retrievalSvc, pm, cloningSvc, platformSvc, embeddedUI, server,
 		logCleaner, logFilter)
 
 	server.InitHandlers()
@@ -281,8 +278,7 @@ func getEngineProperties(ctx context.Context, dockerCLI *client.Client, cfg *con
 
 func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent,
 	retrievalSvc *retrieval.Retrieval, pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service,
-	est *estimator.Estimator, embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner,
-	filtering *log.Filtering) error {
+	embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner, filtering *log.Filtering) error {
 	cfg, err := config.LoadConfiguration()
 	if err != nil {
 		return err
@@ -327,7 +323,6 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 	retrievalSvc.Reload(ctx, newRetrievalConfig)
 	cloningSvc.Reload(cfg.Cloning)
 	platformSvc.Reload(newPlatformSvc)
-	est.Reload(cfg.Estimator)
 	server.Reload(cfg.Server)
 
 	return nil
@@ -335,15 +330,14 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 
 func setReloadListener(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent,
 	retrievalSvc *retrieval.Retrieval, pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service,
-	est *estimator.Estimator, embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner,
-	logFilter *log.Filtering) {
+	embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner, logFilter *log.Filtering) {
 	reloadCh := make(chan os.Signal, 1)
 	signal.Notify(reloadCh, syscall.SIGHUP)
 
 	for range reloadCh {
 		log.Msg("Reloading configuration")
 
-		if err := reloadConfig(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server,
+		if err := reloadConfig(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, embeddedUI, server,
 			cleaner, logFilter); err != nil {
 			log.Err("Failed to reload configuration", err)
 		}

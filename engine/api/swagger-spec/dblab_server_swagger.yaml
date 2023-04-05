@@ -419,48 +419,6 @@ paths:
           schema:
             $ref: "#/definitions/Error"
 
-  /estimate:
-    get:
-      tags:
-        - "observation"
-      summary: "Run clone estimator"
-      description: ""
-      operationId: "runEstimator"
-      consumes:
-        - "application/json"
-      produces:
-        - "application/json"
-      parameters:
-        - in: header
-          name: Verification-Token
-          type: string
-          required: true
-        - in: path
-          required: true
-          name: "clone_id"
-          type: "string"
-          description: "Clone ID"
-        - in: path
-          required: true
-          name: "pid"
-          type: "string"
-          description: "Process ID"
-      responses:
-        200:
-          description: "The estimation session has been finished successfully."
-        400:
-          description: "Bad request"
-          schema:
-            $ref: "#/definitions/Error"
-        404:
-          description: "Not found"
-          schema:
-            $ref: "#/definitions/Error"
-        500:
-          description: "Internal server error"
-          schema:
-            $ref: "#/definitions/Error"
-
   /instance/retrieval:
     get:
       tags:
