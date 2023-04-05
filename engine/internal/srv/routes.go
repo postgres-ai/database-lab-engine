@@ -10,15 +10,11 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
-	"github.com/jackc/pgtype/pgxtype"
 	"github.com/pkg/errors"
 
-	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
-	wsPackage "gitlab.com/postgres-ai/database-lab/v3/internal/srv/ws"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
@@ -245,126 +241,6 @@ func (s *Server) resetClone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Dbg(fmt.Sprintf("Clone ID=%s is being reset", cloneID))
-}
-
-func (s *Server) startEstimator(w http.ResponseWriter, r *http.Request) {
-	values := r.URL.Query()
-	cloneID := values.Get("clone_id")
-
-	pid, err := strconv.Atoi(values.Get("pid"))
-	if err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	clone, err := s.Cloning.GetClone(cloneID)
-	if err != nil {
-		api.SendNotFoundError(w, r)
-		return
-	}
-
-	ctx := context.Background()
-
-	cloneContainer, err := s.docker.ContainerInspect(ctx, util.GetCloneNameStr(clone.DB.Port))
-	if err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	db, err := s.Cloning.ConnectToClone(ctx, cloneID)
-	if err != nil {
-		api.SendError(w, r, err)
-		return
-	}
-
-	ws, err := s.wsService.upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		api.SendError(w, r, err)
-		return
-	}
-
-	defer func() {
-		if err := ws.Close(); err != nil {
-			log.Err(err)
-		}
-	}()
-
-	done := make(chan struct{})
-
-	go wsPackage.Ping(ws, done)
-
-	if err := s.runEstimator(ctx, ws, db, pid, cloneContainer.ID, done); err != nil {
-		api.SendError(w, r, err)
-		return
-	}
-
-	<-done
-}
-
-func (s *Server) runEstimator(ctx context.Context, ws *websocket.Conn, db pgxtype.Querier, pid int, containerID string,
-	done chan struct{}) error {
-	defer close(done)
-
-	estCfg := s.Estimator.Config()
-
-	profiler := estimator.NewProfiler(db, estimator.TraceOptions{
-		Pid:             pid,
-		Interval:        estCfg.ProfilingInterval,
-		SampleThreshold: estCfg.SampleThreshold,
-		ReadRatio:       estCfg.ReadRatio,
-		WriteRatio:      estCfg.WriteRatio,
-	})
-
-	// Start profiling.
-	s.Estimator.Run(ctx, profiler)
-
-	readyEventData, err := json.Marshal(estimator.Event{EventType: estimator.ReadyEventType})
-	if err != nil {
-		return err
-	}
-
-	if err := ws.WriteMessage(websocket.TextMessage, readyEventData); err != nil {
-		return errors.Wrap(err, "failed to write message with the ready event")
-	}
-
-	monitor := estimator.NewMonitor(pid, containerID, profiler)
-
-	go func() {
-		if err := monitor.InspectIOBlocks(ctx); err != nil {
-			log.Err(err)
-		}
-	}()
-
-	// Wait for profiling results.
-	<-profiler.Finish()
-
-	estTime, err := profiler.EstimateTime(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to estimate time")
-	}
-
-	resultEvent := estimator.ResultEvent{
-		EventType: estimator.ResultEventType,
-		Payload: estimator.Result{
-			IsEnoughStat:    profiler.IsEnoughSamples(),
-			SampleCounter:   profiler.CountSamples(),
-			TotalTime:       profiler.TotalTime(),
-			EstTime:         estTime,
-			RenderedStat:    profiler.RenderStat(),
-			WaitEventsRatio: profiler.WaitEventsRatio(),
-		},
-	}
-
-	resultEventData, err := json.Marshal(resultEvent)
-	if err != nil {
-		return err
-	}
-
-	if err := ws.WriteMessage(websocket.TextMessage, resultEventData); err != nil {
-		return errors.Wrap(err, "failed to write message with the ready event")
-	}
-
-	return nil
 }
 
 func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
