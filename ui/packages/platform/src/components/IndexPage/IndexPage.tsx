@@ -1134,7 +1134,7 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
                 <GatewayLink onClick={this.resendCode} href="#">
                   click here
                 </GatewayLink>
-                to resend it.
+                &nbsp;to resend it.
               </p>
             </div>
             <NotificationWrapper />
