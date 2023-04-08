@@ -37,6 +37,7 @@ func (f *Filtering) ReloadLogRegExp(secretStings []string) {
 		"POSTGRES_PASSWORD=(\\S+)",
 		"PGPASSWORD=(\\S+)",
 		"accessToken:\\s?(\\S+)",
+		"orgKey:\\s?(\\S+)",
 		"ACCESS_KEY(_ID)?:\\s?(\\S+)",
 	}
 

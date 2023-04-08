@@ -70,7 +70,7 @@ type DumpJob struct {
 	dockerClient *client.Client
 	fsPool       *resources.Pool
 	globalCfg    *global.Config
-	engineProps  global.EngineProps
+	engineProps  *global.EngineProps
 	config       dumpJobConfig
 	dumper       dumper
 	dbMarker     *dbmarker.Marker
@@ -141,7 +141,7 @@ type ImmediateRestore struct {
 }
 
 // NewDumpJob creates a new DumpJob.
-func NewDumpJob(jobCfg config.JobConfig, global *global.Config, engineProps global.EngineProps) (*DumpJob, error) {
+func NewDumpJob(jobCfg config.JobConfig, global *global.Config, engineProps *global.EngineProps) (*DumpJob, error) {
 	dumpJob := &DumpJob{
 		name:         jobCfg.Spec.Name,
 		dockerClient: jobCfg.Docker,

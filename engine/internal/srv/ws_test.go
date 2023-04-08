@@ -13,7 +13,7 @@ import (
 )
 
 func TestLogLineFiltering(t *testing.T) {
-	pl, err := platform.New(context.Background(), platform.Config{AccessToken: "platformAccessToken"})
+	pl, err := platform.New(context.Background(), platform.Config{}, "instanceID")
 	require.NoError(t, err)
 
 	s := Server{
@@ -60,16 +60,20 @@ func TestLogLineFiltering(t *testing.T) {
 			output: []byte(`********`),
 		},
 		{
+			input:  []byte(`orgKey:org_key`),
+			output: []byte(`********`),
+		},
+		{
+			input:  []byte(`orgKey: "org_key"`),
+			output: []byte(`********`),
+		},
+		{
 			input:  []byte(`AWS_SECRET_ACCESS_KEY:password`),
 			output: []byte(`AWS_SECRET_********`),
 		},
 		{
 			input:  []byte(`AWS_ACCESS_KEY_ID:password`),
 			output: []byte(`AWS_********`),
-		},
-		{
-			input:  []byte(`platform: "platformAccessToken"`),
-			output: []byte(`platform: "********"`),
 		},
 	}
 

@@ -6,15 +6,16 @@
 package global
 
 import (
+	"github.com/pkg/errors"
+
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
 )
 
 // Config contains global Database Lab configurations.
 type Config struct {
-	Database  Database  `yaml:"database"`
-	Engine    string    `yaml:"engine"`
-	Debug     bool      `yaml:"debug"`
-	Telemetry Telemetry `yaml:"telemetry"`
+	Database Database `yaml:"database"`
+	Engine   string   `yaml:"engine"`
+	Debug    bool     `yaml:"debug"`
 }
 
 // Database contains default configurations of the managed database.
@@ -41,17 +42,12 @@ func (d *Database) Name() string {
 	return defaults.DBName
 }
 
-// Telemetry contains configuration of Database Lab Engine telemetry.
-type Telemetry struct {
-	Enabled bool   `yaml:"enabled"`
-	URL     string `yaml:"url"`
-}
-
 // EngineProps contains internal Database Lab Engine properties.
 type EngineProps struct {
 	InstanceID     string
 	ContainerName  string
 	Infrastructure string
+	BillingActive  bool
 	EnginePort     uint
 }
 
@@ -59,15 +55,39 @@ const (
 	// LocalInfra defines a local infra.
 	LocalInfra = "local"
 
-	communityEdition = "community"
-	standardEdition  = "standard"
+	// CommunityEdition defines the community edition.
+	CommunityEdition = "community"
+
+	// StandardEdition defines the community edition.
+	StandardEdition = "standard"
+
+	// AWSInfrastructure marks instances running from AWS Marketplace.
+	AWSInfrastructure = "AWS"
 )
 
 // GetEdition provides the DLE edition.
 func (p *EngineProps) GetEdition() string {
 	if p.Infrastructure != LocalInfra {
-		return standardEdition
+		return StandardEdition
 	}
 
-	return communityEdition
+	return CommunityEdition
+}
+
+// UpdateBilling sets actual state of the billing activity.
+func (p *EngineProps) UpdateBilling(activity bool) {
+	p.BillingActive = activity
+}
+
+// CheckBilling checks the billing of the DLE instance is active.
+func (p *EngineProps) CheckBilling() error {
+	if p.Infrastructure == AWSInfrastructure {
+		return nil
+	}
+
+	if !p.BillingActive {
+		return errors.Errorf("billing is not active")
+	}
+
+	return nil
 }

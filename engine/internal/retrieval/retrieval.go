@@ -60,7 +60,7 @@ type Retrieval struct {
 	imageState   *db.ImageContent
 	cfg          *config.Config
 	global       *global.Config
-	engineProps  global.EngineProps
+	engineProps  *global.EngineProps
 	docker       *client.Client
 	poolManager  *pool.Manager
 	tm           *telemetry.Agent
@@ -76,7 +76,7 @@ type Scheduler struct {
 }
 
 // New creates a new data retrieval.
-func New(cfg *dblabCfg.Config, engineProps global.EngineProps, docker *client.Client, pm *pool.Manager, tm *telemetry.Agent,
+func New(cfg *dblabCfg.Config, engineProps *global.EngineProps, docker *client.Client, pm *pool.Manager, tm *telemetry.Agent,
 	runner runners.Runner) (*Retrieval, error) {
 	r := &Retrieval{
 		global:      &cfg.Global,
@@ -89,7 +89,7 @@ func New(cfg *dblabCfg.Config, engineProps global.EngineProps, docker *client.Cl
 			Status: models.Inactive,
 			alerts: make(map[models.AlertType]models.Alert),
 		},
-		imageState: db.NewImageContent(engineProps),
+		imageState: db.NewImageContent(*engineProps),
 	}
 
 	retrievalCfg, err := ValidateConfig(&cfg.Retrieval)
@@ -324,6 +324,12 @@ func (r *Retrieval) getNextPoolToDataRetrieving() (pool.FSManager, error) {
 }
 
 func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
+	if r.engineProps.GetEdition() == global.StandardEdition {
+		if err := r.engineProps.CheckBilling(); err != nil {
+			return fmt.Errorf("skip snapshotting: %w", err)
+		}
+	}
+
 	// Check the pool aliveness.
 	if _, err := fsm.GetFilesystemState(); err != nil {
 		return errors.Wrap(errors.Unwrap(err), "filesystem manager is not ready")
