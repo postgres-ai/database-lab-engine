@@ -28,12 +28,12 @@ const (
 type JobBuilder struct {
 	cloneManager pool.FSManager
 	globalCfg    *global.Config
-	engineProps  global.EngineProps
+	engineProps  *global.EngineProps
 	tm           *telemetry.Agent
 }
 
 // NewJobBuilder create a new job builder.
-func NewJobBuilder(global *global.Config, engineProps global.EngineProps, cm pool.FSManager, tm *telemetry.Agent) *JobBuilder {
+func NewJobBuilder(global *global.Config, engineProps *global.EngineProps, cm pool.FSManager, tm *telemetry.Agent) *JobBuilder {
 	return &JobBuilder{
 		globalCfg:    global,
 		engineProps:  engineProps,

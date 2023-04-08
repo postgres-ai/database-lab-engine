@@ -8,10 +8,22 @@ package platform
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+)
+
+const (
+	// PersonalType defines personal type of the Platform token.
+	PersonalType = "personal"
+
+	// AdminType defines administrative type of the Platform token.
+	AdminType = "admin"
+
+	// HashType defines hash type of the Platform token.
+	HashType = "hash"
 )
 
 // TokenCheckRequest represents a token checking request.
@@ -22,8 +34,10 @@ type TokenCheckRequest struct {
 // TokenCheckResponse represents response of a token checking request.
 type TokenCheckResponse struct {
 	APIResponse
-	OrganizationID uint `json:"org_id"`
-	Personal       bool `json:"is_personal"`
+	OrganizationID uint       `json:"org_id"`
+	Personal       bool       `json:"is_personal"`
+	TokenType      string     `json:"token_type"`
+	ValidUntil     *time.Time `json:"valid_until"`
 }
 
 // CheckPlatformToken makes an HTTP request to check the Platform Access Token.

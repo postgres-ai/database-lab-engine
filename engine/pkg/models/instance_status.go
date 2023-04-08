@@ -46,6 +46,7 @@ type Cloning struct {
 type Engine struct {
 	Version                   string     `json:"version"`
 	Edition                   string     `json:"edition"`
+	BillingActive             *bool      `json:"billingActive,omitempty"`
 	InstanceID                string     `json:"instanceID"`
 	StartedAt                 *LocalTime `json:"startedAt,omitempty"`
 	Telemetry                 *bool      `json:"telemetry,omitempty"`
@@ -82,4 +83,11 @@ type PoolEntryView struct {
 // WSToken represents web-socket token response.
 type WSToken struct {
 	Token string `json:"token"`
+}
+
+// System describes system stats of the machine where the DLE instance runs.
+type System struct {
+	CPU         int    `json:"cpu"`
+	TotalMemory uint64 `json:"total_memory"`
+	DataUsed    uint64 `json:"data_used"`
 }

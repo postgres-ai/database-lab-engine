@@ -7,9 +7,10 @@ package platform
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/url"
-
-	"github.com/pkg/errors"
+	"time"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
@@ -24,50 +25,69 @@ type PersonalTokenVerifier interface {
 // Config provides configuration for the Platform service.
 type Config struct {
 	URL                 string `yaml:"url"`
+	OrgKey              string `yaml:"orgKey"`
+	ProjectName         string `yaml:"projectName"`
 	AccessToken         string `yaml:"accessToken"`
 	EnablePersonalToken bool   `yaml:"enablePersonalTokens"`
+	EnableTelemetry     bool   `yaml:"enableTelemetry"`
 }
 
 // Service defines a Platform service.
 type Service struct {
-	Client         *platform.Client
-	cfg            Config
-	organizationID uint
+	Client *platform.Client
+	cfg    Config
+	token  Token
+}
+
+// Token defines verified Platform Token.
+type Token struct {
+	OrganizationID uint
+	TokenType      string
+	ValidUntil     *time.Time
 }
 
 // New creates a new platform service.
-func New(ctx context.Context, cfg Config) (*Service, error) {
+func New(ctx context.Context, cfg Config, instanceID string) (*Service, error) {
 	s := &Service{cfg: cfg}
 
 	client, err := platform.NewClient(platform.ClientConfig{
 		URL:         s.cfg.URL,
+		OrgKey:      s.cfg.OrgKey,
+		ProjectName: s.cfg.ProjectName,
 		AccessToken: s.cfg.AccessToken,
+		InstanceID:  instanceID,
 	})
 	if err != nil {
-		if _, ok := err.(platform.ConfigValidationError); ok {
+		var cvWarning *platform.ConfigValidationWarning
+		if errors.As(err, &cvWarning) {
 			log.Warn(err)
+
+			s.Client = client
+
 			return s, nil
 		}
 
-		return nil, errors.Wrap(err, "failed to create a new Platform Client")
+		return nil, fmt.Errorf("failed to create new Platform Client: %w", err)
 	}
 
 	s.Client = client
 
-	if !s.IsPersonalTokenEnabled() {
-		return s, nil
-	}
+	if s.cfg.AccessToken != "" {
+		platformToken, err := client.CheckPlatformToken(ctx, platform.TokenCheckRequest{Token: s.cfg.AccessToken})
+		if err != nil {
+			return nil, err
+		}
 
-	platformToken, err := client.CheckPlatformToken(ctx, platform.TokenCheckRequest{Token: s.cfg.AccessToken})
-	if err != nil {
-		return nil, err
-	}
+		if platformToken.OrganizationID == 0 {
+			return nil, errors.New("invalid organization ID associated with the given Platform Access Token")
+		}
 
-	if platformToken.OrganizationID == 0 {
-		return nil, errors.New("invalid organization ID associated with the given Platform Access Token")
+		s.token = Token{
+			OrganizationID: platformToken.OrganizationID,
+			TokenType:      platformToken.TokenType,
+			ValidUntil:     platformToken.ValidUntil,
+		}
 	}
-
-	s.organizationID = platformToken.OrganizationID
 
 	return s, nil
 }
@@ -88,6 +108,12 @@ func (s *Service) IsAllowedToken(ctx context.Context, personalToken string) bool
 		return false
 	}
 
+	if platformToken.TokenType != platform.PersonalType {
+		log.Dbg(fmt.Sprintf("Non-personal token given: %s", platformToken.TokenType))
+
+		return false
+	}
+
 	return s.isAllowedOrganization(platformToken.OrganizationID)
 }
 
@@ -98,7 +124,12 @@ func (s *Service) IsPersonalTokenEnabled() bool {
 
 // isAllowedOrganization checks if organization is associated to the current Platform service.
 func (s *Service) isAllowedOrganization(organizationID uint) bool {
-	return organizationID != 0 && organizationID == s.organizationID
+	return organizationID != 0 && organizationID == s.token.OrganizationID
+}
+
+// IsTelemetryEnabled checks if the Platform Telemetry is enabled.
+func (s *Service) IsTelemetryEnabled() bool {
+	return s.cfg.EnableTelemetry
 }
 
 // OriginURL reports the origin Platform hostname.
@@ -116,4 +147,14 @@ func (s *Service) OriginURL() string {
 // AccessToken returns Platform AccessToken.
 func (s *Service) AccessToken() string {
 	return s.cfg.AccessToken
+}
+
+// Token returns verified Platform Token.
+func (s *Service) Token() Token {
+	return s.token
+}
+
+// OrgKey returns the organization key of the instance.
+func (s *Service) OrgKey() string {
+	return s.cfg.OrgKey
 }
