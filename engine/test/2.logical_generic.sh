@@ -90,7 +90,7 @@ curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG:-master}"/engine/c
 # Edit the following options
 yq eval -i '
   .global.debug = true |
-  .global.telemetry.enabled = false |
+  .platform.enableTelemetry = false |
   .embeddedUI.enabled = false |
   .server.port = env(DLE_SERVER_PORT) |
   .poolManager.mountDir = env(DLE_TEST_MOUNT_DIR) |
@@ -132,9 +132,6 @@ sudo docker run \
   --volume ${DLE_TEST_MOUNT_DIR}:${DLE_TEST_MOUNT_DIR}/:rshared \
   --volume "${configDir}":/home/dblab/configs \
   --volume "${metaDir}":/home/dblab/meta \
-  --volume /sys/kernel/debug:/sys/kernel/debug:rw \
-  --volume /lib/modules:/lib/modules:ro \
-  --volume /proc:/host_proc:ro \
   --env DOCKER_API_VERSION=1.39 \
   --detach \
   "${IMAGE2TEST}"

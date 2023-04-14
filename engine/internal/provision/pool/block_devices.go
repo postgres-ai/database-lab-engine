@@ -7,11 +7,13 @@ package pool
 
 import (
 	"encoding/json"
+	"fmt"
 	"os/exec"
 
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/lvm"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
 type blockDeviceList struct {
@@ -27,7 +29,8 @@ type blockDevice struct {
 func getBlockDeviceTypes() (map[string]string, error) {
 	output, err := exec.Command("lsblk", "--json", "--output", "type,mountpoint").Output()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to run command")
+		log.Err(output)
+		return nil, fmt.Errorf("failed to run command: %w", err)
 	}
 
 	var blockDevices blockDeviceList
