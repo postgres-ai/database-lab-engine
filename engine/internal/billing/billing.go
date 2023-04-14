@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/pbnjay/memory"
@@ -17,16 +18,56 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
+const errorsSoftLimit = 2
+
 // Billing manages the billing data.
 type Billing struct {
-	platform *platform.Client
-	props    *global.EngineProps
-	pm       *pool.Manager
+	platform  *platform.Client
+	props     *global.EngineProps
+	pm        *pool.Manager
+	mu        *sync.Mutex
+	softFails int
 }
 
 // New creates a new Billing struct.
 func New(platform *platform.Client, props *global.EngineProps, pm *pool.Manager) *Billing {
-	return &Billing{platform: platform, props: props, pm: pm}
+	return &Billing{platform: platform, props: props, pm: pm, mu: &sync.Mutex{}}
+}
+
+// Reload updates platform client.
+func (b *Billing) Reload(platformSvc *platform.Client) {
+	b.platform = platformSvc
+}
+
+func (b *Billing) increaseFailureCounter() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.softFails++
+
+	return b.softFails
+}
+
+func (b *Billing) softLimitCounter() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return b.softFails
+}
+
+func (b *Billing) isSoftLimitExceeded() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return b.softFails > errorsSoftLimit
+}
+
+func (b *Billing) resetSoftFailureCounter() {
+	b.mu.Lock()
+
+	b.softFails = 0
+
+	b.mu.Unlock()
 }
 
 // RegisterInstance registers instance on the Platform.
@@ -44,14 +85,9 @@ func (b *Billing) RegisterInstance(ctx context.Context, systemMetrics models.Sys
 		return fmt.Errorf("cannot register instance: %w", err)
 	}
 
-	if _, err := b.platform.SendUsage(ctx, b.props, platform.InstanceUsage{
-		InstanceID: b.props.InstanceID,
-		EventData: platform.DataUsage{
-			CPU:         systemMetrics.CPU,
-			TotalMemory: systemMetrics.TotalMemory,
-			DataSize:    systemMetrics.DataUsed,
-		}}); err != nil {
-		return fmt.Errorf("cannot send the initial usage event: %w", err)
+	// To check billing state immediately.
+	if err := b.SendUsage(ctx, systemMetrics); err != nil {
+		return err
 	}
 
 	return nil
@@ -74,18 +110,49 @@ func (b *Billing) CollectUsage(ctx context.Context, system models.System) {
 		case <-ticker.C:
 			poolStat := b.pm.CollectPoolStat()
 
-			if _, err := b.platform.SendUsage(ctx, b.props, platform.InstanceUsage{
-				InstanceID: b.props.InstanceID,
-				EventData: platform.DataUsage{
-					CPU:         system.CPU,
-					TotalMemory: system.TotalMemory,
-					DataSize:    poolStat.TotalUsed,
-				},
+			if err := b.SendUsage(ctx, models.System{
+				CPU:         system.CPU,
+				TotalMemory: system.TotalMemory,
+				DataUsed:    poolStat.TotalUsed,
 			}); err != nil {
-				log.Err("failed to send usage event:", err)
+				log.Err("collecting usage:", err)
 			}
 		}
 	}
+}
+
+// SendUsage sends usage events.
+func (b *Billing) SendUsage(ctx context.Context, systemMetrics models.System) error {
+	respData, err := b.platform.SendUsage(ctx, b.props, platform.InstanceUsage{
+		InstanceID: b.props.InstanceID,
+		EventData: platform.DataUsage{
+			CPU:         systemMetrics.CPU,
+			TotalMemory: systemMetrics.TotalMemory,
+			DataSize:    systemMetrics.DataUsed,
+		}})
+
+	if err != nil {
+		b.increaseFailureCounter()
+
+		if b.isSoftLimitExceeded() {
+			log.Msg("Billing error threshold surpassed. Certain features have been temporarily disabled.")
+			b.props.UpdateBilling(false)
+		}
+
+		return fmt.Errorf("cannot send usage event: %w. Attempts: %d", err, b.softLimitCounter())
+	}
+
+	if b.props.BillingActive != respData.BillingActive {
+		b.props.UpdateBilling(respData.BillingActive)
+
+		log.Dbg("Instance state updated. Billing is active:", respData.BillingActive)
+	}
+
+	if b.props.BillingActive {
+		b.resetSoftFailureCounter()
+	}
+
+	return nil
 }
 
 func (b *Billing) shouldSendPlatformRequests() error {

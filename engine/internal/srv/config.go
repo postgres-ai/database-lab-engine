@@ -8,24 +8,20 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/api/types"
 	yamlv2 "gopkg.in/yaml.v2"
 	"gopkg.in/yaml.v3"
 
-	"gitlab.com/postgres-ai/database-lab/v3/internal/billing"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/logical"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/db"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
-	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/projection"
 	yamlUtils "gitlab.com/postgres-ai/database-lab/v3/pkg/util/yaml"
-	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
 const (
@@ -385,59 +381,4 @@ func validateCustomOptions(customOptions []interface{}) error {
 	}
 
 	return nil
-}
-
-func (s *Server) billingStatus(w http.ResponseWriter, r *http.Request) {
-	systemMetrics := billing.GetSystemMetrics(s.pm)
-
-	instanceUsage := platform.InstanceUsage{
-		InstanceID: s.engProps.InstanceID,
-		EventData: platform.DataUsage{
-			CPU:         systemMetrics.CPU,
-			TotalMemory: systemMetrics.TotalMemory,
-			DataSize:    systemMetrics.DataUsed,
-		},
-	}
-
-	usageResponse, err := s.Platform.Client.SendUsage(r.Context(), s.engProps, instanceUsage)
-	if err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	if usageResponse.Code != "" {
-		api.SendBadRequestError(w, r, fmt.Sprintf("Error code %s, message: %s", usageResponse.Code, usageResponse.Message))
-		return
-	}
-
-	if err := api.WriteJSON(w, http.StatusOK, usageResponse.BillingResponse); err != nil {
-		api.SendError(w, r, err)
-		return
-	}
-}
-
-func (s *Server) activate(w http.ResponseWriter, r *http.Request) {
-	systemMetrics := billing.GetSystemMetrics(s.pm)
-
-	if err := s.billingSvc.RegisterInstance(r.Context(), systemMetrics); err != nil {
-		log.Msg("cannot register instance:", err)
-		api.SendBadRequestError(w, r, err.Error())
-
-		return
-	}
-
-	engine := models.Engine{
-		Version:                   version.GetVersion(),
-		Edition:                   s.engProps.GetEdition(),
-		BillingActive:             pointer.ToBool(s.engProps.BillingActive),
-		InstanceID:                s.engProps.InstanceID,
-		StartedAt:                 s.startedAt,
-		Telemetry:                 pointer.ToBool(s.Platform.IsTelemetryEnabled()),
-		DisableConfigModification: pointer.ToBool(s.Config.DisableConfigModification),
-	}
-
-	if err := api.WriteJSON(w, http.StatusOK, engine); err != nil {
-		api.SendError(w, r, err)
-		return
-	}
 }

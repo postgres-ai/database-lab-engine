@@ -58,8 +58,11 @@ const (
 	// CommunityEdition defines the community edition.
 	CommunityEdition = "community"
 
-	// StandardEdition defines the community edition.
+	// StandardEdition defines the standard edition.
 	StandardEdition = "standard"
+
+	// EnterpriseEdition defines the enterprise edition.
+	EnterpriseEdition = "enterprise"
 
 	// AWSInfrastructure marks instances running from AWS Marketplace.
 	AWSInfrastructure = "AWS"
