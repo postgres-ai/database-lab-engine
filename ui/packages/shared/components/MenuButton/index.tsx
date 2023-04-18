@@ -15,6 +15,7 @@ type BaseProps = {
 type ButtonProps = BaseProps & {
   type?: 'button' | 'submit'
   onClick?: React.MouseEventHandler<HTMLButtonElement>
+  disabled?: boolean
 }
 
 type LinkProps = BaseProps & {
@@ -52,7 +53,7 @@ export const Button = (props: Props) => {
 
   if (!props.type || props.type === 'button' || props.type === 'submit')
     return (
-      <button className={className} onClick={props.onClick}>
+      <button className={className} onClick={props.onClick} disabled={props.disabled}>
         {children}
       </button>
     )
