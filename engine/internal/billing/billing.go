@@ -72,7 +72,7 @@ func (b *Billing) resetSoftFailureCounter() {
 
 // RegisterInstance registers instance on the Platform.
 func (b *Billing) RegisterInstance(ctx context.Context, systemMetrics models.System) error {
-	if b.props.Infrastructure == global.AWSInfrastructure {
+	if b.props.IsAWS() {
 		// Because billing goes through AWS Marketplace.
 		b.props.UpdateBilling(true)
 	}
@@ -156,7 +156,7 @@ func (b *Billing) SendUsage(ctx context.Context, systemMetrics models.System) er
 }
 
 func (b *Billing) shouldSendPlatformRequests() error {
-	if b.props.Infrastructure == global.AWSInfrastructure {
+	if b.props.IsAWS() {
 		return errors.New("DLE infrastructure is AWS Marketplace")
 	}
 

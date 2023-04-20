@@ -15,6 +15,18 @@ import (
 )
 
 func (s *Server) billingStatus(w http.ResponseWriter, r *http.Request) {
+	if s.engProps.IsAWS() {
+		if err := api.WriteJSON(w, http.StatusOK, platform.BillingResponse{
+			Result:        "OK",
+			BillingActive: true,
+		}); err != nil {
+			api.SendError(w, r, err)
+			return
+		}
+
+		return
+	}
+
 	usageResponse, err := s.billingUsage(r.Context())
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())

@@ -84,7 +84,7 @@ func (p *EngineProps) UpdateBilling(activity bool) {
 
 // CheckBilling checks the billing of the DLE instance is active.
 func (p *EngineProps) CheckBilling() error {
-	if p.Infrastructure == AWSInfrastructure {
+	if p.IsAWS() {
 		return nil
 	}
 
@@ -93,4 +93,9 @@ func (p *EngineProps) CheckBilling() error {
 	}
 
 	return nil
+}
+
+// IsAWS checks if the instance is running on AWS Marketplace.
+func (p *EngineProps) IsAWS() bool {
+	return p.Infrastructure == AWSInfrastructure
 }
