@@ -183,6 +183,7 @@ func main() {
 			ctx,
 			engProps,
 			provisioner,
+			billingSvc,
 			retrievalSvc,
 			pm,
 			cloningSvc,
@@ -198,7 +199,7 @@ func main() {
 		billingSvc, obs, pm, tm, tokenHolder, logFilter, embeddedUI, reloadConfigFn)
 	shutdownCh := setShutdownListener()
 
-	go setReloadListener(ctx, engProps, provisioner,
+	go setReloadListener(ctx, engProps, provisioner, billingSvc,
 		retrievalSvc, pm, cloningSvc, platformSvc,
 		embeddedUI, server,
 		logCleaner, logFilter)
@@ -282,7 +283,7 @@ func getEngineProperties(ctx context.Context, docker *client.Client, cfg *config
 	return engProps, nil
 }
 
-func reloadConfig(ctx context.Context, engProp global.EngineProps, provisionSvc *provision.Provisioner,
+func reloadConfig(ctx context.Context, engProp global.EngineProps, provisionSvc *provision.Provisioner, billingSvc *billing.Billing,
 	retrievalSvc *retrieval.Retrieval, pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service,
 	embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner, filtering *log.Filtering) error {
 	cfg, err := config.LoadConfiguration()
@@ -328,12 +329,13 @@ func reloadConfig(ctx context.Context, engProp global.EngineProps, provisionSvc 
 	retrievalSvc.Reload(ctx, newRetrievalConfig)
 	cloningSvc.Reload(cfg.Cloning)
 	platformSvc.Reload(newPlatformSvc)
+	billingSvc.Reload(newPlatformSvc.Client)
 	server.Reload(cfg.Server)
 
 	return nil
 }
 
-func setReloadListener(ctx context.Context, engProp global.EngineProps, provisionSvc *provision.Provisioner,
+func setReloadListener(ctx context.Context, engProp global.EngineProps, provisionSvc *provision.Provisioner, billingSvc *billing.Billing,
 	retrievalSvc *retrieval.Retrieval, pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service,
 	embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner, logFilter *log.Filtering) {
 	reloadCh := make(chan os.Signal, 1)
@@ -343,12 +345,14 @@ func setReloadListener(ctx context.Context, engProp global.EngineProps, provisio
 		log.Msg("Reloading configuration")
 
 		if err := reloadConfig(ctx, engProp,
-			provisionSvc, retrievalSvc,
+			provisionSvc, billingSvc, retrievalSvc,
 			pm, cloningSvc,
 			platformSvc,
 			embeddedUI, server,
 			cleaner, logFilter); err != nil {
-			log.Err("Failed to reload configuration", err)
+			log.Err("Failed to reload configuration:", err)
+
+			continue
 		}
 
 		log.Msg("Configuration has been reloaded")
