@@ -6,7 +6,7 @@ require (
 	github.com/AlekSi/pointer v1.1.0
 	github.com/ahmetalpbalkan/dlog v0.0.0-20170105205344-4fb5f8204f26
 	github.com/araddon/dateparse v0.0.0-20210207001429-0eec95c9db7e
-	github.com/aws/aws-sdk-go v1.33.8
+	github.com/aws/aws-sdk-go v1.34.0
 	github.com/docker/cli v20.10.13+incompatible
 	github.com/docker/docker v20.10.13+incompatible
 	github.com/docker/go-connections v0.4.0
