@@ -109,6 +109,7 @@ func (s *Server) instanceStatus() *models.InstanceStatus {
 		Engine: models.Engine{
 			Version:                   version.GetVersion(),
 			Edition:                   s.engProps.GetEdition(),
+			InstanceID:                s.engProps.InstanceID,
 			BillingActive:             pointer.ToBool(s.engProps.BillingActive),
 			StartedAt:                 s.startedAt,
 			Telemetry:                 pointer.ToBool(s.Platform.IsTelemetryEnabled()),

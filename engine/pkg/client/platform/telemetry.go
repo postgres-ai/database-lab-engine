@@ -85,7 +85,7 @@ type EditionResponse struct {
 type BillingResponse struct {
 	Result        string `json:"result"`
 	BillingActive bool   `json:"billing_active"`
-	Org           Org    `json:"recognized_org"`
+	Org           *Org   `json:"recognized_org,omitempty"`
 }
 
 // Org contains organization details.
