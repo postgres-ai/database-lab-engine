@@ -58,15 +58,6 @@ global:
     # Default database name.
     dbname: postgres
 
-  # Telemetry: anonymous statistics sent to Postgres.ai.
-  # Used to analyze DLE usage, it helps the DLE maintainers make decisions on product development.
-  # Please leave it enabled if possible – this will contribute to DLE development.
-  # The full list of data points being collected: https://postgres.ai/docs/database-lab/telemetry
-  telemetry:
-    enabled: true
-    # Telemetry API URL. To send anonymous telemetry data, keep it default ("https://postgres.ai/api/general").
-    url: "https://postgres.ai/api/general"
-
 # Manages filesystem pools (in the case of ZFS) or volume groups.
 poolManager:
   # The full path which contains the pool mount directories. mountDir can contain multiple pool directories.
@@ -312,10 +303,21 @@ diagnostic:
 # Postgres.ai Platform integration (provides GUI) – extends the open source offering.
 # Uncomment the following lines if you need GUI, personal tokens, audit logs, more.
 #
-#platform:
-#  # Platform API URL. To work with Postgres.ai SaaS, keep it default
-#  # ("https://postgres.ai/api/general").
-#  url: "https://postgres.ai/api/general"
+platform:
+  # Platform API URL. To work with Postgres.ai SaaS, keep it default
+  # ("https://postgres.ai/api/general").
+  url: "https://postgres.ai/api/general"
+  # Telemetry: anonymous statistics sent to Postgres.ai.
+  # Used to analyze DLE usage, it helps the DLE maintainers make decisions on product development.
+  # Please leave it enabled if possible – this will contribute to DLE development.
+  # The full list of data points being collected: https://postgres.ai/docs/database-lab/telemetry
+  enableTelemetry: true
+#
+#  # Project name
+#  projectName: "project_name"
+#
+#  # Organization key
+#  orgKey: "org_key"
 #
 #  # Token for authorization in Platform API. This token can be obtained on
 #  # the Postgres.ai Console: https://postgres.ai/console/YOUR_ORG_NAME/tokens
@@ -323,8 +325,8 @@ diagnostic:
 #  accessToken: "platform_access_token"
 #
 #  # Enable authorization with personal tokens of the organization's members.
-#  # If false: all users must use "accessToken" value for any API request
-#  # If true: "accessToken" is known only to admin, users use their own tokens,
+#  # If false: all users must use "verificationToken" value for any API request
+#  # If true: "verificationToken" is known only to admin, users use their own tokens,
 #  #          and any token can be revoked not affecting others
 #  enablePersonalTokens: true
 #
