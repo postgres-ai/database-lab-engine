@@ -44,6 +44,7 @@ export const InputWithTooltip = ({
   onChange,
   tooltipText,
   disabled,
+  type,
 }: {
   value?: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
@@ -51,6 +52,7 @@ export const InputWithTooltip = ({
   label: string
   error?: string
   disabled: boolean | undefined
+  type?: string
 }) => {
   const classes = useStyles()
 
@@ -69,6 +71,7 @@ export const InputWithTooltip = ({
       </label>
       <Box display="flex" alignItems="center" width="100%">
         <TextField
+          type={type || 'text'}
           className={classNames(
             !disabled && classes.textField,
             styles.textField,

@@ -93,7 +93,7 @@ export const StickyTopBar = () => {
     activateBilling()
       .then((res) => {
         setIsLoading(false)
-        if (res.response) {
+        if (res.response?.billing_active) {
           handleReset()
           setSnackbarState({
             isOpen: true,
@@ -103,7 +103,7 @@ export const StickyTopBar = () => {
         } else {
           setSnackbarState({
             isOpen: true,
-            message: capitalizeFirstLetter(res.error.message),
+            message: capitalizeFirstLetter(res?.error?.message),
             type: 'error',
           })
         }
@@ -196,7 +196,7 @@ export const StickyTopBar = () => {
         </div>
       )}
       <Snackbar
-        open={snackbarState.isOpen}
+        open={snackbarState.isOpen && !!snackbarState.message}
         className={
           snackbarState.type === 'error'
             ? classes.errorNotification

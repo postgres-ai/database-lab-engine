@@ -97,7 +97,6 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
     formik.values.port &&
     formik.values.username &&
     formik.values.dbname &&
-    formik.values.dockerImageType === 'custom' &&
     formik.values.dockerImage
 
   return [{ formik, connectionData, isConnectionDataValid }]

@@ -122,19 +122,19 @@ export const Logs = ({ api }: { api: Api }) => {
     '[INFO]': !isEmpty(logsFilterState) ? logsFilterState?.['[INFO]'] : true,
     '[ERROR]': !isEmpty(logsFilterState) ? logsFilterState?.['[ERROR]'] : true,
     '[base.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['base.go']
+      ? logsFilterState?.['[base.go]']
       : true,
     '[runners.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['runners.go']
+      ? logsFilterState?.['[runners.go]']
       : true,
     '[snapshots.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['snapshots.go']
+      ? logsFilterState?.['[snapshots.go]']
       : true,
     '[util.go]': !isEmpty(logsFilterState)
       ? logsFilterState?.['[util.go]']
       : true,
     '[logging.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['logging.go']
+      ? logsFilterState?.['[logging.go]']
       : false,
     '[ws.go]': !isEmpty(logsFilterState) ? logsFilterState?.['[ws.go]'] : false,
     '[other]': !isEmpty(logsFilterState) ? logsFilterState?.['[other]'] : true,
