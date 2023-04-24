@@ -30,15 +30,13 @@ func (c *Base) fetchSnapshots() error {
 	var latestSnapshot *models.Snapshot
 
 	snapshots := make(map[string]*models.Snapshot, len(entries))
+	cloneCounter := c.cloneCounter()
 
 	for _, entry := range entries {
 		numClones := 0
 
-		for cloneName := range c.clones {
-			if c.clones[cloneName] != nil && c.clones[cloneName].Clone.Snapshot != nil &&
-				c.clones[cloneName].Clone.Snapshot.ID == entry.ID {
-				numClones++
-			}
+		if num, ok := cloneCounter[entry.ID]; ok {
+			numClones = num
 		}
 
 		currentSnapshot := &models.Snapshot{
@@ -61,6 +59,23 @@ func (c *Base) fetchSnapshots() error {
 
 	return nil
 }
+
+func (c *Base) cloneCounter() map[string]int {
+	cloneCounter := make(map[string]int)
+
+	c.cloneMutex.RLock()
+
+	for cloneName := range c.clones {
+		if c.clones[cloneName] != nil && c.clones[cloneName].Clone.Snapshot != nil {
+			cloneCounter[c.clones[cloneName].Clone.Snapshot.ID]++
+		}
+	}
+
+	c.cloneMutex.RUnlock()
+
+	return cloneCounter
+}
+
 func (c *Base) resetSnapshots(snapshotMap map[string]*models.Snapshot, latestSnapshot *models.Snapshot) {
 	c.snapshotBox.snapshotMutex.Lock()
 
