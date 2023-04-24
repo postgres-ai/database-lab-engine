@@ -471,6 +471,7 @@ export const Configuration = observer(
                     }
                   />
                   <InputWithTooltip
+                    type="password"
                     label="source.connection.password"
                     tooltipText={tooltipText.password}
                     disabled={isConfigurationDisabled}
@@ -499,19 +500,6 @@ export const Configuration = observer(
                       formik.setFieldValue('databases', e.target.value)
                     }
                   />
-                  <Box mt={2}>
-                    <InputWithChip
-                      value={formik.values.databases}
-                      label="Databases"
-                      id="databases"
-                      tooltipText={tooltipText.databases}
-                      handleDeleteChip={handleDeleteChip}
-                      disabled={isConfigurationDisabled}
-                      onChange={(e) =>
-                        formik.setFieldValue('databases', e.target.value)
-                      }
-                    />
-                  </Box>
                   <Box mt={3} mb={3}>
                     <Button
                       variant="contained"
@@ -524,6 +512,12 @@ export const Configuration = observer(
                         <Spinner size="sm" className={styles.spinner} />
                       )}
                     </Button>
+                    {(connectionStatus && connectionRes) || dbSourceError ? (
+                      <ResponseMessage
+                        type={dbSourceError ? 'error' : connectionStatus}
+                        message={dbSourceError || connectionRes}
+                      />
+                    ) : null}
                   </Box>
                   <InputWithTooltip
                     label="pg_dump jobs"
@@ -570,12 +564,6 @@ export const Configuration = observer(
                     }
                     label={'Ignore errors during logical data dump'}
                   />
-                  {(connectionStatus && connectionRes) || dbSourceError ? (
-                    <ResponseMessage
-                      type={dbSourceError ? 'error' : connectionStatus}
-                      message={dbSourceError || connectionRes}
-                    />
-                  ) : null}
                 </Box>
               </Box>
               <Box>

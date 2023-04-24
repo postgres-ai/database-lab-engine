@@ -67,13 +67,7 @@ export const Instance = observer((props: Props) => {
   const { instanceId, api } = props
 
   const stores = useCreatedStores(props)
-  const {
-    instance,
-    instanceError,
-    instanceRetrieval,
-    load,
-    isReloadingInstance,
-  } = stores.main
+  const { instance, instanceError, instanceRetrieval, load } = stores.main
 
   useEffect(() => {
     load(instanceId)
@@ -120,9 +114,7 @@ export const Instance = observer((props: Props) => {
             rightContent={
               <Button
                 onClick={() => load(props.instanceId)}
-                isDisabled={
-                  (!instance && !instanceError) || isReloadingInstance
-                }
+                isDisabled={!instance && !instanceError}
                 className={classes.reloadButton}
               >
                 Reload info
