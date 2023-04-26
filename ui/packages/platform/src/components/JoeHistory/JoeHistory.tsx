@@ -81,6 +81,8 @@ interface CommandDataProps {
   username: string
   useremail: string
   project_name: string
+  project_label: string
+  project_label_or_name: string
   joe_session_id: number
   id: number
 }
@@ -500,7 +502,11 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
   }
 
   getProject(command: CommandDataProps) {
-    return command['project_name']
+    return (
+      command['project_label_or_name'] ||
+      command['project_label'] ||
+      command['project_name']
+    )
   }
 
   getChannel(command: CommandDataProps) {
@@ -1032,7 +1038,10 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
                   provisioned and seconds, behaves as production (same execution
                   plans, same data volumes), writable and isolated for safe
                   "what if" experiments to check various optimization ideas (
-                  <GatewayLink href="https://postgres.ai/docs/joe" target="_blank">
+                  <GatewayLink
+                    href="https://postgres.ai/docs/joe"
+                    target="_blank"
+                  >
                     Learn more
                   </GatewayLink>
                   ).

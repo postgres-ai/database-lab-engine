@@ -22,7 +22,7 @@ type Props = {
   onSend: (value: string) => void
 }
 
-const LABEL_FONT_SIZE = '18px'
+const LABEL_FONT_SIZE = '14px'
 
 const useStyles = makeStyles(
   {

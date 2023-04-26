@@ -60,6 +60,8 @@ interface ReportsType {
     project_id: string
     created_formatted: string
     project_name: string
+    project_label_or_name: string
+    project_label: string
     epoch: string
   }[]
 }
@@ -342,13 +344,20 @@ class Reports extends Component<ReportsWithStylesProps, ReportsState> {
           >
             <MenuItem value={0}>All</MenuItem>
 
-            {projects.data.map((p: { id: number; name: string }) => {
-              return (
-                <MenuItem value={p.id} key={p.id}>
-                  {p.name}
-                </MenuItem>
-              )
-            })}
+            {projects.data.map(
+              (p: {
+                id: number
+                name: string
+                label: string
+                project_label_or_name: string
+              }) => {
+                return (
+                  <MenuItem value={p.id} key={p.id}>
+                    {p.project_label_or_name || p.label || p.name}
+                  </MenuItem>
+                )
+              },
+            )}
           </TextField>
         </div>
       )
@@ -410,7 +419,10 @@ class Reports extends Component<ReportsWithStylesProps, ReportsState> {
           <p>
             Automated routine checkup for your PostgreSQL databases. Configure
             Checkup agent to start collecting reports (
-            <GatewayLink href="https://postgres.ai/docs/checkup" target="_blank">
+            <GatewayLink
+              href="https://postgres.ai/docs/checkup"
+              target="_blank"
+            >
               Learn more
             </GatewayLink>
             ).
@@ -496,6 +508,8 @@ class Reports extends Component<ReportsWithStylesProps, ReportsState> {
                     created_formatted: string
                     project_name: string
                     epoch: string
+                    project_label_or_name: string
+                    project_label: string
                   }) => {
                     return (
                       <TableRow
@@ -533,7 +547,9 @@ class Reports extends Component<ReportsWithStylesProps, ReportsState> {
                           </NavLink>
                         </TableCell>
                         <TableCell className={classes.cell}>
-                          {r.project_name}
+                          {r.project_label_or_name ||
+                            r.project_label ||
+                            r.project_name}
                         </TableCell>
                         <TableCell className={classes.cell}>
                           {r.created_formatted}
