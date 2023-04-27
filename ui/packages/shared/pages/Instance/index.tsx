@@ -13,6 +13,7 @@ import { Button } from '@postgres.ai/shared/components/Button2'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
+import { isRetrievalUnknown } from '@postgres.ai/shared/pages/Configuration/utils'
 
 import { TABS_INDEX, Tabs } from './Tabs'
 import { Logs } from '../Logs'
@@ -71,11 +72,12 @@ export const Instance = observer((props: Props) => {
   const { instance, instanceError, instanceRetrieval, load } = stores.main
 
   useEffect(() => {
-    stores.main.load(instanceId)
+    load(instanceId)
   }, [instanceId])
 
-  const { instance, instanceError, instanceRetrieval } = stores.main
-  const isConfigurationActive = instanceRetrieval?.mode !== 'physical'
+  const isConfigurationActive =
+    !isRetrievalUnknown(instanceRetrieval?.mode) &&
+    instanceRetrieval?.mode !== 'physical'
 
   useEffect(() => {
     if (
@@ -93,9 +95,7 @@ export const Instance = observer((props: Props) => {
     }
   }, [instance])
 
-  const [activeTab, setActiveTab] = React.useState(
-    props?.renderCurrentTab || TABS_INDEX.OVERVIEW,
-  )
+  const [activeTab, setActiveTab] = React.useState(0)
 
   const switchTab = (_: React.ChangeEvent<{}> | null, tabID: number) => {
     const contentElement = document.getElementById('content-container')
@@ -128,6 +128,7 @@ export const Instance = observer((props: Props) => {
               handleChange={switchTab}
               hasLogs={api.initWS != undefined}
               hideInstanceTabs={props?.hideInstanceTabs}
+              isConfigActive={!isRetrievalUnknown(instanceRetrieval?.mode)}
             />
           </SectionTitle>
 

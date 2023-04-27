@@ -26,6 +26,7 @@ import { GetFullConfig } from '@postgres.ai/shared/types/api/endpoints/getFullCo
 import { GetInstanceRetrieval } from '@postgres.ai/shared/types/api/endpoints/getInstanceRetrieval'
 import { InstanceRetrievalType } from '@postgres.ai/shared/types/api/entities/instanceRetrieval'
 import { GetEngine } from '@postgres.ai/shared/types/api/endpoints/getEngine'
+import { isRetrievalUnknown } from '@postgres.ai/shared/pages/Configuration/utils'
 import { GetSnapshotList } from '@postgres.ai/shared/types/api/endpoints/getSnapshotList'
 import { GetBranches } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 
@@ -77,6 +78,7 @@ export class MainStore {
   readonly snapshots: SnapshotsStore
 
   isReloadingClones = false
+  isConfigurationLoading = false
   isReloadingInstanceRetrieval = false
   isBranchesLoading = false
   isConfigLoading = false
@@ -100,7 +102,7 @@ export class MainStore {
     this.loadInstance(instanceId)
     this.getBranches()
     this.loadInstanceRetrieval(instanceId).then(() => {
-      if (this.instanceRetrieval?.mode !== 'physical') {
+      if (!isRetrievalUnknown(this.instanceRetrieval?.mode)) {
         this.getConfig().then((res) => {
           if (res) {
             this.getEngine()
@@ -184,10 +186,12 @@ export class MainStore {
   getConfig = async () => {
     if (!this.api.getConfig) return
 
+    this.isConfigurationLoading = true
     this.isConfigLoading = true
 
     const { response, error } = await this.api.getConfig()
 
+    this.isConfigurationLoading = false
     this.isConfigLoading = false
 
     if (response) {
