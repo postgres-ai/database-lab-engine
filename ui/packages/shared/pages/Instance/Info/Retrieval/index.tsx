@@ -9,7 +9,7 @@ import { formatDateStd } from '@postgres.ai/shared/utils/date'
 import { Button } from '@postgres.ai/shared/components/Button2'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { InfoIcon } from '@postgres.ai/shared/icons/Info'
-import { isRetrievalUnknown } from '@postgres.ai/shared/pages/Configuration/utils'
+import { isRetrievalUnknown } from '@postgres.ai/shared/pages/Configuration/index'
 
 import { Section } from '../components/Section'
 import { Property } from '../components/Property'

@@ -26,7 +26,7 @@ import { GetFullConfig } from '@postgres.ai/shared/types/api/endpoints/getFullCo
 import { GetInstanceRetrieval } from '@postgres.ai/shared/types/api/endpoints/getInstanceRetrieval'
 import { InstanceRetrievalType } from '@postgres.ai/shared/types/api/entities/instanceRetrieval'
 import { GetEngine } from '@postgres.ai/shared/types/api/endpoints/getEngine'
-import { isRetrievalUnknown } from '@postgres.ai/shared/pages/Configuration/utils'
+import { isRetrievalUnknown } from '@postgres.ai/shared/pages/Configuration/index'
 import { GetSnapshotList } from '@postgres.ai/shared/types/api/endpoints/getSnapshotList'
 import { GetBranches } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 

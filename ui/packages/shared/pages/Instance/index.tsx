@@ -13,7 +13,7 @@ import { Button } from '@postgres.ai/shared/components/Button2'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
-import { isRetrievalUnknown } from '@postgres.ai/shared/pages/Configuration/utils'
+import { isRetrievalUnknown } from '@postgres.ai/shared/pages/Configuration/index'
 
 import { TABS_INDEX, Tabs } from './Tabs'
 import { Logs } from '../Logs'

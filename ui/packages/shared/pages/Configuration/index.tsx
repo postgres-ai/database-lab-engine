@@ -25,23 +25,23 @@ import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { useStores } from '@postgres.ai/shared/pages/Instance/context'
 import { MainStore } from '@postgres.ai/shared/pages/Instance/stores/Main'
 
-import { tooltipText } from './tooltipText'
-import { FormValues, useForm } from './useForm'
-import { ResponseMessage } from './ResponseMessage'
-import { ConfigSectionTitle, Header, ModalTitle } from './Header'
+import { tooltipText } from '../Instance/Configuration/tooltipText'
+import { FormValues, useForm } from '../Instance/Configuration/useForm'
+import { ResponseMessage } from '../Instance/Configuration/ResponseMessage'
+import { ConfigSectionTitle, Header, ModalTitle } from '../Instance/Configuration/Header'
 import {
   dockerImageOptions,
   defaultPgDumpOptions,
   defaultPgRestoreOptions,
-} from './configOptions'
-import { formatDockerImageArray, FormValuesKey, uniqueChipValue } from './utils'
+} from '../Instance/Configuration/configOptions'
+import { formatDockerImageArray, FormValuesKey, uniqueChipValue } from '../Instance/Configuration/utils'
 import {
   SelectWithTooltip,
   InputWithChip,
   InputWithTooltip,
-} from './InputWithTooltip'
+} from '../Instance/Configuration/InputWithTooltip'
 
-import styles from './styles.module.scss'
+import styles from '../Instance/Configuration/styles.module.scss'
 
 type PgOptionsType = {
   optionType: string
