@@ -61,7 +61,6 @@ const Actions = Reflux.createActions([{
   refresh: {},
   getDbLabInstances: ASYNC_ACTION,
   addDbLabInstance: ASYNC_ACTION,
-  editDbLabInstance: ASYNC_ACTION,
   destroyDbLabInstance: ASYNC_ACTION,
   resetNewDbLabInstance: {},
   getDbLabInstanceStatus: ASYNC_ACTION,
@@ -748,43 +747,6 @@ Actions.addDbLabInstance.listen(function (token, instanceData) {
   action.progressed();
 
   timeoutPromise(REQUEST_TIMEOUT, api.addDbLabInstance(token, instanceData))
-    .then(result => {
-      result.json()
-        .then(json => {
-          if (json) {
-            action.completed(
-              { data: json, orgId: instanceData.orgId, project: instanceData.project });
-          } else {
-            action.failed(new Error('wrong_reply'));
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          action.failed(new Error('wrong_reply'));
-        });
-    })
-    .catch(err => {
-      console.error(err);
-      if (err && err.message && err.message === 'timeout') {
-        action.failed(new Error('failed_fetch'));
-      } else {
-        action.failed(new Error('wrong_reply'));
-      }
-    });
-});
-
-Actions.editDbLabInstance.listen(function (token, instanceData) {
-  let action = this;
-
-  if (!api) {
-    settings.init(function () {
-      api = new Api(settings);
-    });
-  }
-
-  action.progressed();
-
-  timeoutPromise(REQUEST_TIMEOUT, api.editDbLabInstance(token, instanceData))
     .then(result => {
       result.json()
         .then(json => {

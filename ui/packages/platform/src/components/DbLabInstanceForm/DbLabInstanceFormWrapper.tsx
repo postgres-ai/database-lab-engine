@@ -4,7 +4,6 @@ import DbLabInstanceForm from 'components/DbLabInstanceForm/DbLabInstanceForm'
 import { RouteComponentProps } from 'react-router'
 
 export interface DbLabInstanceFormProps {
-  edit?: boolean
   orgId: number
   project: string | undefined
   history: RouteComponentProps['history']

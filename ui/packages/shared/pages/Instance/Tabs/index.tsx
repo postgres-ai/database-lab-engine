@@ -76,14 +76,12 @@ type Props = {
   handleChange: (event: React.ChangeEvent<{}>, newValue: number) => void
   hasLogs: boolean
   hideInstanceTabs?: boolean
-  isConfigActive?: boolean
 }
 
 export const Tabs = (props: Props) => {
   const classes = useStyles()
 
-  const { value, handleChange, hasLogs, isConfigActive, hideInstanceTabs } =
-    props
+  const { value, handleChange, hasLogs } = props
 
   return (
     <TabsComponent
@@ -119,7 +117,7 @@ export const Tabs = (props: Props) => {
           </div>
         }
         classes={{
-          root: hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
+          root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
         }}
         value={TABS_INDEX.CLONES}
       />
@@ -127,10 +125,7 @@ export const Tabs = (props: Props) => {
         label="📓 Logs"
         disabled={!hasLogs}
         classes={{
-          root:
-            props.hideInstanceTabs || !isConfigActive
-              ? classes.tabHidden
-              : classes.tabRoot,
+          root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
         }}
         value={TABS_INDEX.LOGS}
       />

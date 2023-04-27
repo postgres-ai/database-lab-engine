@@ -100,7 +100,7 @@ type RestoreOptions struct {
 	DockerImage        string                    `yaml:"dockerImage"`
 	ContainerConfig    map[string]interface{}    `yaml:"containerConfig"`
 	Databases          map[string]DumpDefinition `yaml:"databases"`
-	IgnoreErrors       bool                      `yaml:"ignoreErrors"`
+	ForceInit          bool                      `yaml:"forceInit"`
 	ParallelJobs       int                       `yaml:"parallelJobs"`
 	Configs            map[string]string         `yaml:"configs"`
 	QueryPreprocessing query.PreprocessorCfg     `yaml:"queryPreprocessing"`
@@ -197,7 +197,16 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	}
 
 	if !isEmpty {
-		log.Warn(fmt.Sprintf("The data directory %q is not empty. Existing data will be overwritten.", dataDir))
+		if !r.ForceInit {
+			return fmt.Errorf("the data directory %q is not empty. Use 'forceInit' or empty the data directory: %w",
+				dataDir, err)
+		}
+
+		log.Msg(fmt.Sprintf("The data directory %q is not empty. Existing data may be overwritten.", dataDir))
+
+		if err := updateConfigs(dataDir, r.RestoreOptions.Configs); err != nil {
+			return fmt.Errorf("failed to update configuration: %w", err)
+		}
 	}
 
 	if err := tools.PullImage(ctx, r.dockerClient, r.RestoreOptions.DockerImage); err != nil {
@@ -510,7 +519,7 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 		Env: []string{"PGAPPNAME=" + dleRetrieval},
 	})
 
-	if err != nil && !r.RestoreOptions.IgnoreErrors {
+	if err != nil {
 		log.Err("Restore command failed: ", output)
 
 		return fmt.Errorf("failed to exec restore command: %w. Output: %s", err, output)
@@ -730,12 +739,15 @@ func (r *RestoreJob) buildPlainTextCommand(dumpName string, definition DumpDefin
 }
 
 func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DumpDefinition) []string {
-	// Using the default database name because the database for connection must exist.
 	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName}
 
 	if definition.dbName != defaults.DBName {
 		// To avoid recreating of the default database.
 		restoreCmd = append(restoreCmd, "--create")
+	}
+
+	if r.ForceInit {
+		restoreCmd = append(restoreCmd, "--clean", "--if-exists")
 	}
 
 	restoreCmd = append(restoreCmd, "--jobs", strconv.Itoa(r.ParallelJobs))

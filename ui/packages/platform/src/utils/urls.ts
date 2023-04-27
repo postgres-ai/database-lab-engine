@@ -100,13 +100,6 @@ export default {
     return basePath + '/instances/' + instanceId + '/clones/add'
   },
 
-  linkDbLabInstanceEditProject: function (props: PropsType, instanceId: string) {
-    const basePath = this.getBasePath(props)
-
-    return `${basePath}/instances/edit/${instanceId}`
-  },
-
-
   linkReport: function (props: PropsType, reportId: string, type?: string) {
     const basePath = this.getBasePath(props)
     let url = basePath + '/reports/' + reportId

@@ -1,5 +1,3 @@
-import { useEffect } from 'react'
-
 import { Modal } from '@postgres.ai/shared/components/Modal'
 import { useStores } from '@postgres.ai/shared/pages/Instance/context'
 import { ModalReloadButton } from '@postgres.ai/shared/pages/Instance/components/ModalReloadButton'
@@ -22,10 +20,6 @@ export const RetrievalModal = ({
 }) => {
   const stores = useStores()
   const { isReloadingInstanceRetrieval, reloadInstanceRetrieval } = stores.main
-
-  useEffect(() => {
-    reloadInstanceRetrieval()
-  },[])
 
   return (
     <Modal

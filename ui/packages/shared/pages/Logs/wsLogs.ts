@@ -1,15 +1,10 @@
-import moment from 'moment'
+import moment from 'moment';
+import { Api } from '../Instance/stores/Main';
 
-import {
-  LOGS_ENDPOINT,
-  LOGS_LINE_LIMIT,
-  LOGS_TIME_LIMIT,
-} from '@postgres.ai/shared/pages/Logs/constants'
-import { Api } from '@postgres.ai/shared/pages/Instance/stores/Main'
-import {
-  stringWithoutBrackets,
-  stringContainsPattern,
-} from '@postgres.ai/shared/pages/Logs/utils'
+const logsEndpoint = '/instance/logs';
+
+const LOGS_TIME_LIMIT = 20
+const LOGS_LINE_LIMIT = 1000
 
 export const establishConnection = async (api: Api) => {
   if (!api.getWSToken) return
@@ -23,38 +18,13 @@ export const establishConnection = async (api: Api) => {
 
   const appendLogElement = (logEntry: string, logType?: string) => {
     const tag = document.createElement('p')
-    const logLevel = logEntry.split(' ')[3]
-    const logInitiator = logEntry.split(' ')[2]
-    const logsFilterState = JSON.parse(localStorage.getItem('logsFilter') || '')
-
-    const filterInitiators = Object.keys(logsFilterState).some((state) => {
-      if (logsFilterState[state]) {
-        if (state === '[other]') {
-          return !stringContainsPattern(logInitiator)
-        }
-        return logInitiator.includes(stringWithoutBrackets(state))
-      }
-    })
-
-    if (
-      filterInitiators &&
-      (logsFilterState[logInitiator] || logsFilterState[logLevel])
-    ) {
-      tag.appendChild(document.createTextNode(logEntry))
-      logElement.appendChild(tag)
-    }
-
-    // we need to check both second and third element of logEntry,
-    // since the pattern of the response returned isn't always consistent
-    if (logInitiator === '[ERROR]' || logLevel === '[ERROR]') {
-      tag.classList.add('error-log')
-    }
+    tag.appendChild(document.createTextNode(logEntry))
+    logElement.appendChild(tag)
 
     if (logType === 'message') {
-      const logEntryTime = logElement.children[1]?.innerHTML
-        .split(' ')
-        .slice(0, 2)
-        .join(' ')
+      const logEntryTime = moment.utc(
+        logElement.children[0].innerHTML.split(' ').slice(0, 2).join(' '),
+      )
 
       const timeDifference =
         moment(logEntryTime).isValid() &&
@@ -64,8 +34,15 @@ export const establishConnection = async (api: Api) => {
         logElement.childElementCount > LOGS_LINE_LIMIT &&
         timeDifference > LOGS_TIME_LIMIT
       ) {
-        logElement.removeChild(logElement.children[1])
+        logElement.removeChild(logElement.children[0])
       }
+    }
+
+    if (
+      logEntry.split(' ')[2] === '[ERROR]' ||
+      logEntry.split(' ')[3] === '[ERROR]'
+    ) {
+      tag.classList.add('error-log')
     }
   }
 
@@ -85,7 +62,7 @@ export const establishConnection = async (api: Api) => {
     return
   }
 
-  const socket = api.initWS(LOGS_ENDPOINT, response.token)
+  const socket = api.initWS(logsEndpoint, response.token)
 
   socket.onopen = () => {
     console.log('Successfully Connected');

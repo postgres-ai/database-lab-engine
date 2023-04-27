@@ -114,11 +114,6 @@ export const OrgFormWrapper = (props: OrgFormProps) => {
       bottomSpace: {
         ...styles.bottomSpace,
       },
-      checkboxContainer: {
-        '& > label': {
-          marginBottom: 0,
-        },
-      },
     },
     { index: 1 },
   )

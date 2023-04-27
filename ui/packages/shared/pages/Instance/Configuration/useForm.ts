@@ -22,9 +22,7 @@ export type FormValues = {
   password: string
   databases: string
   dumpParallelJobs: string
-  dumpIgnoreErrors: boolean
   restoreParallelJobs: string
-  restoreIgnoreErrors: boolean
   pgDumpCustomOptions: string
   pgRestoreCustomOptions: string
 }
@@ -56,8 +54,6 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
       restoreParallelJobs: '',
       pgDumpCustomOptions: '',
       pgRestoreCustomOptions: '',
-      dumpIgnoreErrors: false,
-      restoreIgnoreErrors: false,
     },
     validationSchema: Schema,
     onSubmit,
@@ -87,18 +83,13 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
     ...(formik.values.databases && {
       db_list: formatDatabaseArray(formik.values.databases),
     }),
-    ...(formik.values.dockerImageType === 'custom' && {
-      dockerImage: formik.values.dockerImage,
-    }),
   }
 
   const isConnectionDataValid =
     formik.values.host &&
     formik.values.port &&
     formik.values.username &&
-    formik.values.dbname &&
-    formik.values.dockerImageType === 'custom' &&
-    formik.values.dockerImage
+    formik.values.dbname
 
   return [{ formik, connectionData, isConnectionDataValid }]
 }

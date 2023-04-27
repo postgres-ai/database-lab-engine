@@ -150,12 +150,6 @@ function ProjectWrapper(parentProps: Omit<ProjectWrapperProps, 'classes'>) {
         )}
       />
       <Route
-        path="/:org/:project/instances/edit/:instanceId"
-        render={(props) => (
-          <DbLabInstanceFormWrapper edit {...props} {...customProps} />
-        )}
-      />
-      <Route
         exact
         path={ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.CLONES.ADD.createPath()}
       >

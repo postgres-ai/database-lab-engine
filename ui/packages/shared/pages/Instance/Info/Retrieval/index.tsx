@@ -9,7 +9,6 @@ import { formatDateStd } from '@postgres.ai/shared/utils/date'
 import { Button } from '@postgres.ai/shared/components/Button2'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { InfoIcon } from '@postgres.ai/shared/icons/Info'
-import { isRetrievalUnknown } from '@postgres.ai/shared/pages/Instance/Configuration/utils'
 
 import { Section } from '../components/Section'
 import { Property } from '../components/Property'
@@ -47,7 +46,7 @@ export const Retrieval = observer(() => {
 
   if (!instanceRetrieval) return null
   const { mode, status, activity } = instanceRetrieval
-  const isVisible = mode !== 'physical' && !isRetrievalUnknown(mode)
+  const isVisible = mode !== 'physical'
   const isActive = mode === 'logical' && status === 'refreshing'
 
   return (

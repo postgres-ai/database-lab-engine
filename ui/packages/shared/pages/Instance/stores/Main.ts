@@ -77,8 +77,6 @@ export class MainStore {
   readonly snapshots: SnapshotsStore
 
   isReloadingClones = false
-  isConfigurationLoading = false
-  isReloadingInstance = false
   isReloadingInstanceRetrieval = false
   isBranchesLoading = false
   isConfigLoading = false
@@ -99,7 +97,6 @@ export class MainStore {
 
   load = (instanceId: string) => {
     this.instance = null
-    this.isReloadingInstance = true
     this.loadInstance(instanceId)
     this.getBranches()
     this.loadInstanceRetrieval(instanceId).then(() => {
@@ -188,12 +185,10 @@ export class MainStore {
     if (!this.api.getConfig) return
 
     this.isConfigLoading = true
-    this.isConfigurationLoading = true
 
     const { response, error } = await this.api.getConfig()
 
     this.isConfigLoading = false
-    this.isConfigurationLoading = false
 
     if (response) {
       this.config = response
