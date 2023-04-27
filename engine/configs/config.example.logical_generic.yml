@@ -20,6 +20,7 @@ server:
   # In this case, the DLE API and the UI application will not require any credentials.
   verificationToken: "secret_token"
 
+
   # HTTP server port. Default: 2345.
   port: 2345
 
@@ -57,15 +58,6 @@ global:
 
     # Default database name.
     dbname: postgres
-
-  # Telemetry: anonymous statistics sent to Postgres.ai.
-  # Used to analyze DLE usage, it helps the DLE maintainers make decisions on product development.
-  # Please leave it enabled if possible – this will contribute to DLE development.
-  # The full list of data points being collected: https://postgres.ai/docs/database-lab/telemetry
-  telemetry:
-    enabled: true
-    # Telemetry API URL. To send anonymous telemetry data, keep it default ("https://postgres.ai/api/general").
-    url: "https://postgres.ai/api/general"
 
 # Manages filesystem pools (in the case of ZFS) or volume groups.
 poolManager:
@@ -366,10 +358,21 @@ diagnostic:
 # Postgres.ai Platform integration (provides GUI) – extends the open source offering.
 # Uncomment the following lines if you need GUI, personal tokens, audit logs, more.
 #
-#platform:
-#  # Platform API URL. To work with Postgres.ai SaaS, keep it default
-#  # ("https://postgres.ai/api/general").
-#  url: "https://postgres.ai/api/general"
+platform:
+  # Platform API URL. To work with Postgres.ai SaaS, keep it default
+  # ("https://postgres.ai/api/general").
+  url: "https://postgres.ai/api/general"
+  # Telemetry: anonymous statistics sent to Postgres.ai.
+  # Used to analyze DLE usage, it helps the DLE maintainers make decisions on product development.
+  # Please leave it enabled if possible – this will contribute to DLE development.
+  # The full list of data points being collected: https://postgres.ai/docs/database-lab/telemetry
+  enableTelemetry: true
+#
+#  # Project name
+#  projectName: "project_name"
+#
+#  # Organization key
+#  orgKey: "org_key"
 #
 #  # Token for authorization in Platform API. This token can be obtained on
 #  # the Postgres.ai Console: https://postgres.ai/console/YOUR_ORG_NAME/tokens
@@ -392,16 +395,3 @@ diagnostic:
 #    "select \\d+": "***"
 #    "[a-z0-9._%+\\-]+(@[a-z0-9.\\-]+\\.[a-z]{2,4})": "***$1"
 #
-# Tool to calculate timing difference between Database Lab and production environments.
-#estimator:
-#  # The ratio evaluating the timing difference for operations involving IO Read between Database Lab and production environments.
-#  readRatio: 1
-#
-#  # The ratio evaluating the timing difference for operations involving IO Write between Database Lab and production environments.
-#  writeRatio: 1
-#
-#  # Time interval of samples taken by the profiler.
-#  profilingInterval: 10ms
-#
-#  # The minimum number of samples sufficient to display the estimation results.
-#  sampleThreshold: 20

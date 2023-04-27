@@ -1193,6 +1193,47 @@ const Store = Reflux.createStore({
     this.trigger(this.data);
   },
 
+  onEditDbLabInstanceFailed: function (error) {
+    this.data.newDbLabInstance.isUpdating = false;
+    this.data.newDbLabInstance.isProcessed = false;
+    this.data.newDbLabInstance.updateError = true;
+    this.data.newDbLabInstance.updateErrorMessage = error.message;
+    this.trigger(this.data);
+  },
+
+  onEditDbLabInstanceProgressed: function (data) {
+    this.data.newDbLabInstance.updateErrorFields = null
+    this.data.newDbLabInstance.isUpdating = true
+    this.data.newDbLabInstance.data = {}
+
+    if (data && data.email) {
+      this.data.newDbLabInstance.data.email = data.email
+    }
+      
+    this.trigger(this.data)
+  },
+
+  onEditDbLabInstanceCompleted: function (data) {
+    this.data.newDbLabInstance.isUpdating = false;
+    this.data.newDbLabInstance.errorMessage = this.getError(data.data);
+    this.data.newDbLabInstance.error = !!this.data.newDbLabInstance.errorMessage;
+
+    if (!this.data.newDbLabInstance.error && data.data) {
+      this.data.newDbLabInstance.data = data.data;
+      this.data.newDbLabInstance.isProcessed = true;
+      // Update orgs and projects.
+      Actions.getUserProfile(this.data.auth.token);
+      Actions.getDbLabInstances(this.data.auth.token, data.orgId, data.data
+        .project_id);
+      
+      if (window.location.href.indexOf('edit') > -1) {
+        let url = window.location.href.split('/edit')[0]
+        window.location.href = url
+      }
+    }
+    this.trigger(this.data);
+  },
+
 
   onCheckDbLabInstanceUrlFailed: function (error) {
     this.data.newDbLabInstance.isChecked = false;

@@ -13,19 +13,17 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/docker/docker/client"
-	"github.com/pbnjay/memory"
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/billing"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/diagnostic"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/embeddedui"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
@@ -56,6 +54,9 @@ func main() {
 		log.Fatal(errors.WithMessage(err, "failed to parse config"))
 	}
 
+	logFilter := log.GetFilter()
+	logFilter.ReloadLogRegExp([]string{cfg.Server.VerificationToken, cfg.Platform.AccessToken, cfg.Platform.OrgKey})
+
 	config.ApplyGlobals(cfg)
 
 	docker, err := client.NewClientWithOpts(client.FromEnv)
@@ -81,6 +82,13 @@ func main() {
 	log.Msg("Database Lab Instance ID:", engProps.InstanceID)
 	log.Msg("Database Lab Engine version:", version.GetVersion())
 
+	// Create a platform service to make requests to Platform.
+	platformSvc, err := platform.New(ctx, cfg.Platform, engProps.InstanceID)
+	if err != nil {
+		log.Errf(err.Error())
+		return
+	}
+
 	if cfg.Server.VerificationToken == "" {
 		log.Warn("Verification Token is empty. Database Lab Engine is insecure")
 	}
@@ -95,23 +103,12 @@ func main() {
 
 	defer networks.Stop(docker, internalNetworkID, engProps.ContainerName)
 
-	// Create a platform service to make requests to Platform.
-	platformSvc, err := platform.New(ctx, cfg.Platform)
-	if err != nil {
-		log.Errf(errors.WithMessage(err, "failed to create a new platform service").Error())
-		return
-	}
-
 	dbCfg := &resources.DB{
 		Username: cfg.Global.Database.User(),
 		DBName:   cfg.Global.Database.Name(),
 	}
 
-	tm, err := telemetry.New(cfg.Global, engProps)
-	if err != nil {
-		log.Errf(errors.WithMessage(err, "failed to initialize a telemetry service").Error())
-		return
-	}
+	tm := telemetry.New(platformSvc, engProps.InstanceID)
 
 	pm := pool.NewPoolManager(&cfg.PoolManager, runner)
 	if err = pm.ReloadPools(); err != nil {
@@ -119,9 +116,9 @@ func main() {
 	}
 
 	// Create a new retrieval service to prepare a data directory and start snapshotting.
-	retrievalSvc, err := retrieval.New(cfg, engProps, docker, pm, tm, runner)
+	retrievalSvc, err := retrieval.New(cfg, &engProps, docker, pm, tm, runner)
 	if err != nil {
-		log.Errf(errors.WithMessage(err, `error in the "retrieval" section of the config`).Error())
+		log.Errf(errors.WithMessage(err, `error in the "retrieval" section of config`).Error())
 		return
 	}
 
@@ -155,9 +152,10 @@ func main() {
 	}
 
 	obs := observer.NewObserver(docker, &cfg.Observer, pm)
-	est := estimator.NewEstimator(&cfg.Estimator)
 
 	go removeObservingClones(observingChan, obs)
+
+	systemMetrics := billing.GetSystemMetrics(pm)
 
 	tm.SendEvent(ctx, telemetry.EngineStartedEvent, telemetry.EngineStarted{
 		EngineVersion: version.GetVersion(),
@@ -165,11 +163,16 @@ func main() {
 		DBVersion:     provisioner.DetectDBVersion(),
 		Pools:         pm.CollectPoolStat(),
 		Restore:       retrievalSvc.ReportState(),
-		System: telemetry.System{
-			CPU:         runtime.NumCPU(),
-			TotalMemory: memory.TotalMemory(),
-		},
+		System:        systemMetrics,
 	})
+
+	billingSvc := billing.New(platformSvc.Client, &engProps, pm)
+
+	if err := billingSvc.RegisterInstance(ctx, systemMetrics); err != nil {
+		log.Msg("Skip registering instance:", err)
+	}
+
+	log.Msg("DLE Edition:", engProps.GetEdition())
 
 	embeddedUI := embeddedui.New(cfg.EmbeddedUI, engProps, runner, docker)
 
@@ -178,24 +181,28 @@ func main() {
 	reloadConfigFn := func(server *srv.Server) error {
 		return reloadConfig(
 			ctx,
+			engProps,
 			provisioner,
-			tm,
+			billingSvc,
 			retrievalSvc,
 			pm,
 			cloningSvc,
 			platformSvc,
-			est,
 			embeddedUI,
 			server,
 			logCleaner,
+			logFilter,
 		)
 	}
 
-	server := srv.NewServer(&cfg.Server, &cfg.Global, engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc,
-		obs, est, pm, tm, tokenHolder, embeddedUI, reloadConfigFn)
+	server := srv.NewServer(&cfg.Server, &cfg.Global, &engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc,
+		billingSvc, obs, pm, tm, tokenHolder, logFilter, embeddedUI, reloadConfigFn)
 	shutdownCh := setShutdownListener()
 
-	go setReloadListener(ctx, provisioner, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server, logCleaner)
+	go setReloadListener(ctx, engProps, provisioner, billingSvc,
+		retrievalSvc, pm, cloningSvc, platformSvc,
+		embeddedUI, server,
+		logCleaner, logFilter)
 
 	server.InitHandlers()
 
@@ -204,6 +211,8 @@ func main() {
 			log.Msg(err)
 		}
 	}()
+
+	go billingSvc.CollectUsage(ctx, systemMetrics)
 
 	if cfg.EmbeddedUI.Enabled {
 		go func() {
@@ -243,13 +252,13 @@ func main() {
 	tm.SendEvent(ctxBackground, telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
 }
 
-func getEngineProperties(ctx context.Context, dockerCLI *client.Client, cfg *config.Config) (global.EngineProps, error) {
+func getEngineProperties(ctx context.Context, docker *client.Client, cfg *config.Config) (global.EngineProps, error) {
 	hostname := os.Getenv("HOSTNAME")
 	if hostname == "" {
 		return global.EngineProps{}, errors.New("hostname is empty")
 	}
 
-	dleContainer, err := dockerCLI.ContainerInspect(ctx, hostname)
+	dleContainer, err := docker.ContainerInspect(ctx, hostname)
 	if err != nil {
 		return global.EngineProps{}, fmt.Errorf("failed to inspect DLE container: %w", err)
 	}
@@ -274,14 +283,15 @@ func getEngineProperties(ctx context.Context, dockerCLI *client.Client, cfg *con
 	return engProps, nil
 }
 
-func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent,
+func reloadConfig(ctx context.Context, engProp global.EngineProps, provisionSvc *provision.Provisioner, billingSvc *billing.Billing,
 	retrievalSvc *retrieval.Retrieval, pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service,
-	est *estimator.Estimator, embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner) error {
+	embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner, filtering *log.Filtering) error {
 	cfg, err := config.LoadConfiguration()
 	if err != nil {
 		return err
 	}
 
+	filtering.ReloadLogRegExp([]string{cfg.Server.VerificationToken, cfg.Platform.AccessToken, cfg.Platform.OrgKey})
 	config.ApplyGlobals(cfg)
 
 	if err := provision.IsValidConfig(cfg.Provision); err != nil {
@@ -293,7 +303,7 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 		return err
 	}
 
-	newPlatformSvc, err := platform.New(ctx, cfg.Platform)
+	newPlatformSvc, err := platform.New(ctx, cfg.Platform, engProp.InstanceID)
 	if err != nil {
 		return err
 	}
@@ -316,27 +326,33 @@ func reloadConfig(ctx context.Context, provisionSvc *provision.Provisioner, tm *
 	}
 
 	provisionSvc.Reload(cfg.Provision, dbCfg)
-	tm.Reload(cfg.Global)
 	retrievalSvc.Reload(ctx, newRetrievalConfig)
 	cloningSvc.Reload(cfg.Cloning)
 	platformSvc.Reload(newPlatformSvc)
-	est.Reload(cfg.Estimator)
+	billingSvc.Reload(newPlatformSvc.Client)
 	server.Reload(cfg.Server)
 
 	return nil
 }
 
-func setReloadListener(ctx context.Context, provisionSvc *provision.Provisioner, tm *telemetry.Agent,
+func setReloadListener(ctx context.Context, engProp global.EngineProps, provisionSvc *provision.Provisioner, billingSvc *billing.Billing,
 	retrievalSvc *retrieval.Retrieval, pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service,
-	est *estimator.Estimator, embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner) {
+	embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner, logFilter *log.Filtering) {
 	reloadCh := make(chan os.Signal, 1)
 	signal.Notify(reloadCh, syscall.SIGHUP)
 
 	for range reloadCh {
 		log.Msg("Reloading configuration")
 
-		if err := reloadConfig(ctx, provisionSvc, tm, retrievalSvc, pm, cloningSvc, platformSvc, est, embeddedUI, server, cleaner); err != nil {
-			log.Err("Failed to reload configuration", err)
+		if err := reloadConfig(ctx, engProp,
+			provisionSvc, billingSvc, retrievalSvc,
+			pm, cloningSvc,
+			platformSvc,
+			embeddedUI, server,
+			cleaner, logFilter); err != nil {
+			log.Err("Failed to reload configuration:", err)
+
+			continue
 		}
 
 		log.Msg("Configuration has been reloaded")

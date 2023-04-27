@@ -40,7 +40,7 @@ func TestStartExisingDumpContainer(t *testing.T) {
 	source := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(source)
 
-	engProps := global.EngineProps{
+	engProps := &global.EngineProps{
 		InstanceID: fmt.Sprintf("dumpjob-%d", random.Intn(10000)),
 	}
 

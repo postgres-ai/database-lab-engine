@@ -86,7 +86,7 @@ type RestoreJob struct {
 	dockerClient      *client.Client
 	fsPool            *resources.Pool
 	globalCfg         *global.Config
-	engineProps       global.EngineProps
+	engineProps       *global.EngineProps
 	dbMarker          *dbmarker.Marker
 	dbMark            *dbmarker.Config
 	queryProcessor    *query.Processor
@@ -113,7 +113,7 @@ type Partial struct {
 }
 
 // NewJob create a new logical restore job.
-func NewJob(cfg config.JobConfig, global *global.Config, engineProps global.EngineProps) (*RestoreJob, error) {
+func NewJob(cfg config.JobConfig, global *global.Config, engineProps *global.EngineProps) (*RestoreJob, error) {
 	restoreJob := &RestoreJob{
 		name:         cfg.Spec.Name,
 		dockerClient: cfg.Docker,

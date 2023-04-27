@@ -109,5 +109,5 @@ func (s *Server) instanceLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) filterLogLine(inputLine []byte) []byte {
-	return s.re.ReplaceAll(inputLine, []byte("********"))
+	return s.filtering.ReplaceAll(inputLine)
 }

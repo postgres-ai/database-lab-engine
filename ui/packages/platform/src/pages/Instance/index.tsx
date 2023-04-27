@@ -67,7 +67,12 @@ export const Instance = () => {
         project={params.project}
         breadcrumbs={[
           { name: 'Database Lab Instances', url: 'instances' },
-          { name: 'Instance #' + params.instanceId, url: null },
+          {
+            name: `Instance #${params.instanceId} ${
+              params.project ? `(${params.project})` : ''
+            }`,
+            url: null,
+          },
         ]}
       />
     ),
@@ -75,7 +80,9 @@ export const Instance = () => {
 
   return (
     <InstancePage
-      title={`Database Lab instance #${params.instanceId}`}
+      title={`Database Lab instance #${params.instanceId} ${
+        params.project ? `(${params.project})` : ''
+      }`}
       instanceId={params.instanceId}
       hideInstanceTabs
       routes={routes}

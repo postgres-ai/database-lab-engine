@@ -38,6 +38,7 @@ export const InputWithTooltip = ({
   onChange,
   tooltipText,
   disabled,
+  type,
 }: {
   value?: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
@@ -45,27 +46,41 @@ export const InputWithTooltip = ({
   label: string
   error?: string
   disabled: boolean | undefined
+  type?: string
 }) => {
   const classes = useStyles()
 
   return (
-    <Box mt={2} mb={2} display="flex" alignItems="center">
-      <TextField
-        className={classNames(!disabled && classes.textField, styles.textField)}
-        label={label}
-        variant="outlined"
-        size="small"
-        value={value}
-        error={Boolean(error)}
-        onChange={onChange}
-        disabled={disabled}
-        InputLabelProps={{
-          shrink: true,
-        }}
-      />
-      <Tooltip interactive content={<p>{tooltipText()}</p>}>
-        <InfoIcon className={styles.infoIcon} />
-      </Tooltip>
+    <Box
+      mt={2}
+      mb={2}
+      display="flex"
+      flexDirection="column"
+      justifyContent="flex-start"
+      alignItems="flex-start"
+      gap="5px"
+    >
+      <label className={classNames(error && classes.error, classes.label)}>
+        {label}
+      </label>
+      <Box display="flex" alignItems="center" width="100%">
+        <TextField
+          type={type || 'text'}
+          className={classNames(
+            !disabled && classes.textField,
+            styles.textField,
+          )}
+          variant="outlined"
+          size="small"
+          value={value}
+          error={Boolean(error)}
+          onChange={onChange}
+          disabled={disabled}
+        />
+        <Tooltip interactive content={<p>{tooltipText()}</p>}>
+          <InfoIcon className={styles.infoIcon} />
+        </Tooltip>
+      </Box>
     </Box>
   )
 }

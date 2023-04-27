@@ -62,6 +62,8 @@ interface JoeInstancesState {
         [instance: string]: {
           id: number
           project_name: string
+          project_label: string
+          project_label_or_name: string
           url: string
           use_tunnel: boolean
         }
@@ -79,6 +81,8 @@ interface JoeInstancesState {
       data: {
         id: number
         name: string
+        label: string
+        project_label_or_name: string
       }[]
     } | null
   } | null
@@ -274,7 +278,7 @@ class JoeInstances extends Component<
             {projects.data.map((p) => {
               return (
                 <MenuItem value={p.id} key={p.id}>
-                  {p.name}
+                  {p.project_label_or_name || p.label || p.name}
                 </MenuItem>
               )
             })}
@@ -356,7 +360,10 @@ class JoeInstances extends Component<
             Joe Bot is a virtual DBA for SQL Optimization. Joe helps engineers
             quickly troubleshoot and optimize SQL. Joe runs on top of the
             Database Lab Engine. (
-            <GatewayLink href="https://postgres.ai/docs/joe-bot" target="_blank">
+            <GatewayLink
+              href="https://postgres.ai/docs/joe-bot"
+              target="_blank"
+            >
               Learn more
             </GatewayLink>
             ).
@@ -390,7 +397,9 @@ class JoeInstances extends Component<
                     style={{ cursor: 'pointer' }}
                   >
                     <TableCell className={classes.cell}>
-                      {data.data[i].project_name}
+                      {data.data[i].project_label_or_name ||
+                        data.data[i].project_label ||
+                        data.data[i].project_name}
                     </TableCell>
 
                     <TableCell className={classes.cell}>

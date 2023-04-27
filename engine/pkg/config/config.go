@@ -9,7 +9,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/diagnostic"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/embeddedui"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
@@ -33,7 +32,6 @@ type Config struct {
 	Global      global.Config     `yaml:"global"`
 	Retrieval   retConfig.Config  `yaml:"retrieval"`
 	Observer    observer.Config   `yaml:"observer"`
-	Estimator   estimator.Config  `yaml:"estimator"`
 	PoolManager pool.Config       `yaml:"poolManager"`
 	EmbeddedUI  embeddedui.Config `yaml:"embeddedUI"`
 	Diagnostic  diagnostic.Config `yaml:"diagnostic"`

@@ -9,10 +9,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/AlekSi/pointer"
 	"github.com/docker/docker/client"
@@ -20,9 +18,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/billing"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/embeddedui"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/estimator"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
@@ -41,8 +39,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
-const minTokenLength = 8
-
 // Server defines an HTTP server of the Database Lab.
 type Server struct {
 	validator   validator.Service
@@ -50,18 +46,18 @@ type Server struct {
 	provisioner *provision.Provisioner
 	Config      *srvCfg.Config
 	Global      *global.Config
-	engProps    global.EngineProps
+	engProps    *global.EngineProps
 	Retrieval   *retrieval.Retrieval
 	Platform    *platform.Service
 	Observer    *observer.Observer
-	Estimator   *estimator.Estimator
+	billingSvc  *billing.Billing
 	wsService   WSService
 	httpSrv     *http.Server
 	docker      *client.Client
 	pm          *pool.Manager
 	tm          *telemetry.Agent
 	startedAt   *models.LocalTime
-	re          *regexp.Regexp
+	filtering   *log.Filtering
 	reloadFn    func(server *Server) error
 }
 
@@ -73,11 +69,11 @@ type WSService struct {
 }
 
 // NewServer initializes a new Server instance with provided configuration.
-func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps global.EngineProps,
+func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps *global.EngineProps,
 	dockerClient *client.Client, cloning *cloning.Base, provisioner *provision.Provisioner,
-	retrievalSvc *retrieval.Retrieval, platform *platform.Service, observer *observer.Observer,
-	estimator *estimator.Estimator, pm *pool.Manager, tm *telemetry.Agent, tokenKeeper *ws.TokenKeeper,
-	uiManager *embeddedui.UIManager, reloadConfigFn func(server *Server) error) *Server {
+	retrievalSvc *retrieval.Retrieval, platform *platform.Service, billingSvc *billing.Billing, observer *observer.Observer,
+	pm *pool.Manager, tm *telemetry.Agent, tokenKeeper *ws.TokenKeeper,
+	filtering *log.Filtering, uiManager *embeddedui.UIManager, reloadConfigFn func(server *Server) error) *Server {
 	server := &Server{
 		Config:      cfg,
 		Global:      globalCfg,
@@ -87,19 +83,19 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps global.
 		Retrieval:   retrievalSvc,
 		Platform:    platform,
 		Observer:    observer,
-		Estimator:   estimator,
 		wsService: WSService{
 			upgrader:    websocket.Upgrader{},
 			tokenKeeper: tokenKeeper,
 			uiManager:   uiManager,
 		},
-		docker:    dockerClient,
-		pm:        pm,
-		tm:        tm,
-		startedAt: &models.LocalTime{Time: time.Now().Truncate(time.Second)},
-		reloadFn:  reloadConfigFn,
+		docker:     dockerClient,
+		pm:         pm,
+		tm:         tm,
+		billingSvc: billingSvc,
+		filtering:  filtering,
+		startedAt:  &models.LocalTime{Time: time.Now().Truncate(time.Second)},
+		reloadFn:   reloadConfigFn,
 	}
-	server.initLogRegExp()
 
 	return server
 }
@@ -113,8 +109,10 @@ func (s *Server) instanceStatus() *models.InstanceStatus {
 		Engine: models.Engine{
 			Version:                   version.GetVersion(),
 			Edition:                   s.engProps.GetEdition(),
+			InstanceID:                s.engProps.InstanceID,
+			BillingActive:             pointer.ToBool(s.engProps.BillingActive),
 			StartedAt:                 s.startedAt,
-			Telemetry:                 pointer.ToBool(s.tm.IsEnabled()),
+			Telemetry:                 pointer.ToBool(s.Platform.IsTelemetryEnabled()),
 			DisableConfigModification: pointer.ToBool(s.Config.DisableConfigModification),
 		},
 		Pools:       s.provisioner.GetPoolEntryList(),
@@ -209,7 +207,6 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/observation/stop", authMW.Authorized(s.stopObservation)).Methods(http.MethodPost)
 	r.HandleFunc("/observation/summary/{clone_id}/{session_id}", authMW.Authorized(s.sessionSummaryObservation)).Methods(http.MethodGet)
 	r.HandleFunc("/observation/download", authMW.Authorized(s.downloadArtifact)).Methods(http.MethodGet)
-	r.HandleFunc("/estimate", s.startEstimator).Methods(http.MethodGet)
 	r.HandleFunc("/instance/retrieval", authMW.Authorized(s.retrievalState)).Methods(http.MethodGet)
 
 	r.HandleFunc("/branch/list", authMW.Authorized(s.listBranches)).Methods(http.MethodGet)
@@ -227,6 +224,8 @@ func (s *Server) InitHandlers() {
 	adminR.HandleFunc("/config.yaml", s.getAdminConfigYaml).Methods(http.MethodGet)
 	adminR.HandleFunc("/config", s.setProjectedAdminConfig).Methods(http.MethodPost)
 	adminR.HandleFunc("/test-db-source", s.testDBSource).Methods(http.MethodPost)
+	adminR.HandleFunc("/billing-status", s.billingStatus).Methods(http.MethodGet)
+	adminR.HandleFunc("/activate", s.activate).Methods(http.MethodPost)
 
 	r.HandleFunc("/instance/logs", authMW.WebSocketsMW(s.wsService.tokenKeeper, s.instanceLogs))
 
@@ -277,31 +276,5 @@ func reportLaunching(cfg *srvCfg.Config) {
 }
 
 func (s *Server) initLogRegExp() {
-	secretPatterns := []string{
-		"password:\\s?(\\S+)",
-		"POSTGRES_PASSWORD=(\\S+)",
-		"PGPASSWORD=(\\S+)",
-		"accessToken:\\s?(\\S+)",
-		"ACCESS_KEY(_ID)?:\\s?(\\S+)",
-	}
-
-	if len(s.Config.VerificationToken) >= minTokenLength && !containsSpace(s.Config.VerificationToken) {
-		secretPatterns = append(secretPatterns, s.Config.VerificationToken)
-	}
-
-	if accessToken := s.Platform.AccessToken(); len(accessToken) >= minTokenLength && !containsSpace(accessToken) {
-		secretPatterns = append(secretPatterns, accessToken)
-	}
-
-	s.re = regexp.MustCompile("(?i)" + strings.Join(secretPatterns, "|"))
-}
-
-func containsSpace(s string) bool {
-	for _, v := range s {
-		if unicode.IsSpace(v) {
-			return true
-		}
-	}
-
-	return false
+	s.filtering.ReloadLogRegExp([]string{s.Config.VerificationToken, s.Platform.AccessToken(), s.Platform.OrgKey()})
 }

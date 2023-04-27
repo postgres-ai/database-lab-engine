@@ -17,7 +17,7 @@ import (
 )
 
 // JobBuilder provides a new job builder.
-func JobBuilder(globalCfg *global.Config, engineProps global.EngineProps, cloneManager pool.FSManager,
+func JobBuilder(globalCfg *global.Config, engineProps *global.EngineProps, cloneManager pool.FSManager,
 	tm *telemetry.Agent) (components.JobBuilder, error) {
 	switch globalCfg.Engine {
 	case postgres.EngineType:

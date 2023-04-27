@@ -51,6 +51,10 @@ export const DbLabInstanceFormWrapper = (props: DbLabInstanceFormProps) => {
         position: 'relative',
         marginBottom: -3,
       },
+      spinner: {
+        marginLeft: 8,
+        color: 'inherit',
+      },
     },
     { index: 1 },
   )

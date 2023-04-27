@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,13 +56,12 @@ func TestClientURL(t *testing.T) {
 	assert.Equal(t, "https://example.com/test-url", c.buildURL("test-url").String())
 }
 
-func TestClientWithEmptyConfig(t *testing.T) {
+func TestClientWithEmptyConfigURL(t *testing.T) {
 	testCases := []struct {
 		url   string
 		token string
 	}{
 		{url: "", token: ""},
-		{url: "non-empty", token: ""},
 		{url: "", token: "non-empty"},
 	}
 
@@ -71,7 +71,27 @@ func TestClientWithEmptyConfig(t *testing.T) {
 			AccessToken: tc.token,
 		})
 
-		require.Nil(t, platformClient)
+		require.NotNil(t, platformClient)
+		require.NotNil(t, err)
+		require.Error(t, err, "invalid config of Platform Client given: URL and AccessToken must not be empty")
+	}
+}
+
+func TestClientWithEmptyConfigKeys(t *testing.T) {
+	testCases := []struct {
+		url   string
+		token string
+	}{
+		{url: "non-empty", token: ""},
+	}
+
+	for _, tc := range testCases {
+		platformClient, err := NewClient(ClientConfig{
+			URL:         tc.url,
+			AccessToken: tc.token,
+		})
+
+		require.NotNil(t, platformClient)
 		require.NotNil(t, err)
 		require.Error(t, err, "invalid config of Platform Client given: URL and AccessToken must not be empty")
 	}
@@ -105,6 +125,42 @@ func TestClientChecksPlatformToken(t *testing.T) {
 
 	assert.Equal(t, expectedResponse.OrganizationID, platformToken.OrganizationID)
 	assert.Equal(t, expectedResponse.Personal, platformToken.Personal)
+}
+
+func TestClientChecksPlatformSEToken(t *testing.T) {
+	validDateTime, err := time.Parse(time.RFC3339, "2006-01-02T15:04:05-07:00")
+	require.NoError(t, err)
+
+	expectedResponse := TokenCheckResponse{
+		OrganizationID: 2,
+		TokenType:      HashType,
+		ValidUntil:     &validDateTime,
+	}
+
+	testClient := NewTestClient(func(req *http.Request) *http.Response {
+		body, err := json.Marshal(expectedResponse)
+		require.NoError(t, err)
+
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewBuffer(body)),
+		}
+	})
+
+	platformClient, err := NewClient(ClientConfig{
+		URL:         "https://example.com/",
+		AccessToken: "testVerify",
+	})
+	require.NoError(t, err)
+	platformClient.client = testClient
+
+	platformToken, err := platformClient.CheckPlatformToken(context.Background(), TokenCheckRequest{Token: "PersonalToken"})
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedResponse.OrganizationID, platformToken.OrganizationID)
+	assert.Equal(t, expectedResponse.ValidUntil, platformToken.ValidUntil)
+	assert.Equal(t, expectedResponse.TokenType, platformToken.TokenType)
+	assert.False(t, platformToken.Personal)
 }
 
 func TestClientChecksPlatformTokenFailed(t *testing.T) {

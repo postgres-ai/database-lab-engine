@@ -68,6 +68,7 @@ export const Instance = observer((props: Props) => {
   const { instanceId, api } = props
 
   const stores = useCreatedStores(props)
+  const { instance, instanceError, instanceRetrieval, load } = stores.main
 
   useEffect(() => {
     stores.main.load(instanceId)

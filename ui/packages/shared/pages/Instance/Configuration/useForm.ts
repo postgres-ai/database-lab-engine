@@ -89,7 +89,8 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
     formik.values.host &&
     formik.values.port &&
     formik.values.username &&
-    formik.values.dbname
+    formik.values.dbname &&
+    formik.values.dockerImage
 
   return [{ formik, connectionData, isConnectionDataValid }]
 }
