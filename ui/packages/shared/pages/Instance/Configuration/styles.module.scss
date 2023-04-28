@@ -1,5 +1,5 @@
 .textField {
-  width: 400px;
+  width: 350px;
   max-width: 100%;
 
   input,
@@ -16,16 +16,12 @@
     cursor: not-allowed;
     color: rgba(0, 0, 0, 0.38);
   }
-
-  @media (max-width: 600px) {
-    width: 100%;
-  }
 }
 
 .chipContainer {
   width: 350px;
   max-width: 100%;
-  margin-bottom: 0;
+  margin-bottom: 1.25rem;
 }
 
 .databasesContainer {

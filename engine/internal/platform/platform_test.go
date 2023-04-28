@@ -22,7 +22,7 @@ func TestIfOrganizationIsAllowed(t *testing.T) {
 	s := Service{}
 	assert.Equal(t, s.isAllowedOrganization(0), false)
 
-	s.organizationID = 1
+	s.token.OrganizationID = 1
 	assert.Equal(t, s.isAllowedOrganization(0), false)
 	assert.Equal(t, s.isAllowedOrganization(1), true)
 }

@@ -54,7 +54,7 @@ type LogicalInitial struct {
 	dockerClient   *client.Client
 	options        LogicalOptions
 	globalCfg      *global.Config
-	engineProps    global.EngineProps
+	engineProps    *global.EngineProps
 	dbMarker       *dbmarker.Marker
 	queryProcessor *query.Processor
 }
@@ -75,7 +75,7 @@ type DataPatching struct {
 }
 
 // NewLogicalInitialJob creates a new logical initial job.
-func NewLogicalInitialJob(cfg config.JobConfig, global *global.Config, engineProps global.EngineProps, cloneManager pool.FSManager,
+func NewLogicalInitialJob(cfg config.JobConfig, global *global.Config, engineProps *global.EngineProps, cloneManager pool.FSManager,
 	tm *telemetry.Agent) (*LogicalInitial, error) {
 	li := &LogicalInitial{
 		name:         cfg.Spec.Name,

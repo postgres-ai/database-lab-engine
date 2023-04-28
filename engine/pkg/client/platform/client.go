@@ -22,11 +22,25 @@ import (
 )
 
 const (
-	accessToken = "Access-Token"
+	accessToken   = "Access-Token"
+	orgKey        = "Org-Key"
+	instanceIDKey = "Selfassigned-Instance-ID"
 )
 
-// ConfigValidationError represents a config validation error.
-type ConfigValidationError error
+// ConfigValidationWarning represents a config validation warning.
+type ConfigValidationWarning struct {
+	Message string
+}
+
+// NewConfigValidationWarning creates a new ConfigValidationWarning.
+func NewConfigValidationWarning(message string) *ConfigValidationWarning {
+	return &ConfigValidationWarning{Message: message}
+}
+
+// Error returns the warning message.
+func (c *ConfigValidationWarning) Error() string {
+	return c.Message
+}
 
 // APIResponse represents common fields of an API response.
 type APIResponse struct {
@@ -39,43 +53,64 @@ type APIResponse struct {
 // Client provides the Platform API client.
 type Client struct {
 	url         *url.URL
+	orgKey      string
+	projectName string
 	accessToken string
+	instanceID  string
 	client      *http.Client
 }
 
 // ClientConfig describes configuration parameters of Postgres.ai Platform client.
 type ClientConfig struct {
 	URL         string
+	OrgKey      string
+	ProjectName string
 	AccessToken string
+	InstanceID  string
 }
 
 // NewClient creates a new Platform API client.
 func NewClient(platformCfg ClientConfig) (*Client, error) {
-	if err := validateConfig(platformCfg); err != nil {
-		return nil, err
-	}
-
-	u, err := url.Parse(platformCfg.URL)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse the platform host")
-	}
-
-	u.Path = strings.TrimRight(u.Path, "/")
-
 	p := Client{
-		url:         u,
+		orgKey:      platformCfg.OrgKey,
+		projectName: platformCfg.ProjectName,
 		accessToken: platformCfg.AccessToken,
+		instanceID:  platformCfg.InstanceID,
 		client: &http.Client{
 			Transport: &http.Transport{},
 		},
 	}
 
-	return &p, nil
+	if err := validateConfig(platformCfg); err != nil {
+		return &p, err
+	}
+
+	u, err := url.Parse(platformCfg.URL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse platform URL: %w", err)
+	}
+
+	u.Path = strings.TrimRight(u.Path, "/")
+	p.url = u
+
+	return &p, checkConfigTokens(platformCfg)
 }
 
 func validateConfig(config ClientConfig) error {
-	if config.URL == "" || config.AccessToken == "" {
-		return ConfigValidationError(errors.New("invalid config of Platform Client given: URL and AccessToken must not be empty"))
+	if config.URL == "" {
+		if config.OrgKey != "" || config.AccessToken != "" {
+			return errors.New("platform.url in config must not be empty")
+		}
+
+		return NewConfigValidationWarning("Platform URL is empty")
+	}
+
+	return nil
+}
+
+func checkConfigTokens(config ClientConfig) error {
+	if config.AccessToken == "" && config.OrgKey == "" {
+		return NewConfigValidationWarning("Both accessToken and orgKey are empty; at least one must be specified")
 	}
 
 	return nil
@@ -100,7 +135,16 @@ func newUploadParser(v interface{}) responseParser {
 }
 
 func (p *Client) doRequest(ctx context.Context, request *http.Request, parser responseParser) error {
-	request.Header.Add(accessToken, p.accessToken)
+	if p.accessToken != "" {
+		request.Header.Add(accessToken, p.accessToken)
+	}
+
+	if p.orgKey != "" {
+		request.Header.Add(orgKey, p.orgKey)
+	}
+
+	request.Header.Add(instanceIDKey, p.instanceID)
+
 	request = request.WithContext(ctx)
 
 	response, err := p.client.Do(request)

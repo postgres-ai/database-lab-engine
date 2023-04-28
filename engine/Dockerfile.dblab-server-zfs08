@@ -1,6 +1,6 @@
 # See Guides to learn how to start a container: https://postgres.ai/docs/how-to-guides/administration/engine-manage
 
-FROM docker:20.10.12
+FROM docker:20.10.24
 
 # Install dependencies.
 RUN apk update && apk add zfs=0.8.4-r0 --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/v3.12/main \

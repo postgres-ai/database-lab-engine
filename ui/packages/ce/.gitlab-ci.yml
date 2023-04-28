@@ -63,5 +63,5 @@ ui_build_ce_image_dev:
     REGISTRY_USER: "${CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
-    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/ce-ui"
+    DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/ce-ui"
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"

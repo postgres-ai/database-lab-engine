@@ -91,7 +91,7 @@ type PhysicalInitial struct {
 	fsPool         *resources.Pool
 	options        PhysicalOptions
 	globalCfg      *global.Config
-	engineProps    global.EngineProps
+	engineProps    *global.EngineProps
 	dbMarker       *dbmarker.Marker
 	dbMark         *dbmarker.Config
 	dockerClient   *client.Client
@@ -156,7 +156,7 @@ type syncState struct {
 
 // NewPhysicalInitialJob creates a new physical initial job.
 func NewPhysicalInitialJob(
-	cfg config.JobConfig, global *global.Config, engineProps global.EngineProps, cloneManager pool.FSManager,
+	cfg config.JobConfig, global *global.Config, engineProps *global.EngineProps, cloneManager pool.FSManager,
 	tm *telemetry.Agent,
 ) (*PhysicalInitial, error) {
 	p := &PhysicalInitial{

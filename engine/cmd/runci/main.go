@@ -65,7 +65,8 @@ func main() {
 	}
 
 	// Create a platform service to make requests to Platform.
-	platformSvc, err := platform.New(ctx, cfg.Platform)
+	// Instance ID is not defined for the Run CI service.
+	platformSvc, err := platform.New(ctx, cfg.Platform, "")
 	if err != nil {
 		log.Errf(errors.WithMessage(err, "failed to create a new platform service").Error())
 		return

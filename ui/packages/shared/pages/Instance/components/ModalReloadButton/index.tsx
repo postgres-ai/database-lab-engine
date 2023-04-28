@@ -35,7 +35,6 @@ export const ModalReloadButton = (props: Props) => {
       onClick={props.onReload}
       className={classes.content}
       isLoading={props.isReloading}
-      isDisabled={props.isReloading}
     >
       Reload info
     </Button>

@@ -20,6 +20,7 @@ server:
   # In this case, the DLE API and the UI application will not require any credentials.
   verificationToken: "secret_token"
 
+
   # HTTP server port. Default: 2345.
   port: 2345
 
@@ -57,15 +58,6 @@ global:
 
     # Default database name.
     dbname: postgres
-
-  # Telemetry: anonymous statistics sent to Postgres.ai.
-  # Used to analyze DLE usage, it helps the DLE maintainers make decisions on product development.
-  # Please leave it enabled if possible – this will contribute to DLE development.
-  # The full list of data points being collected: https://postgres.ai/docs/database-lab/telemetry
-  telemetry:
-    enabled: true
-    # Telemetry API URL. To send anonymous telemetry data, keep it default ("https://postgres.ai/api/general").
-    url: "https://postgres.ai/api/general"
 
 # Manages filesystem pools (in the case of ZFS) or volume groups.
 poolManager:
@@ -185,9 +177,6 @@ retrieval:
     # Timetable is to be defined in crontab format: https://en.wikipedia.org/wiki/Cron#Overview
     timetable: "0 0 * * 1"
 
-    # Skip data refresh while the retrieval starts.
-    skipStartRefresh: false
-
   # The jobs section must not contain physical and logical restore jobs simultaneously.
   jobs:
     - logicalDump
@@ -244,9 +233,6 @@ retrieval:
         # If your source database has 4 vCPUs or less, and you don't want to saturate them, use 2 or 1.
         parallelJobs: 4
 
-        # Ignore errors that occurred during logical data dump. Do not ignore by default.
-        ignoreErrors: false
-
         # Options for direct restore to Database Lab Engine instance.
         # Uncomment this if you prefer restoring from the dump on the fly. In this case,
         # you do not need to use "logicalRestore" job. Keep in mind that unlike "logicalRestore",
@@ -255,6 +241,9 @@ retrieval:
         # immediateRestore:
         #   # Enable immediate restore.
         #   enabled: true
+        #   # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
+        #   # Note the existing data will be overwritten.
+        #   forceInit: false
         #   # Option to adjust PostgreSQL configuration for a logical dump job.
         #   # It's useful if a dumped database contains non-standard extensions.
         #   <<: *db_configs
@@ -281,8 +270,10 @@ retrieval:
         # If your machine with DLE has 4 vCPUs or less, and you don't want to saturate them, use 2 or 1.
         parallelJobs: 4
 
-        # Ignore errors that occurred during logical data restore. Do not ignore by default.
-        ignoreErrors: false
+
+        # Restore data even if the Postgres directory (`global.dataDir`) is not empty.
+        # Note the existing data will be overwritten.
+        forceInit: false
 
         # Option to adjust PostgreSQL configuration for a logical restore job
         # It's useful if a restored database contains non-standard extensions.
@@ -367,10 +358,21 @@ diagnostic:
 # Postgres.ai Platform integration (provides GUI) – extends the open source offering.
 # Uncomment the following lines if you need GUI, personal tokens, audit logs, more.
 #
-#platform:
-#  # Platform API URL. To work with Postgres.ai SaaS, keep it default
-#  # ("https://postgres.ai/api/general").
-#  url: "https://postgres.ai/api/general"
+platform:
+  # Platform API URL. To work with Postgres.ai SaaS, keep it default
+  # ("https://postgres.ai/api/general").
+  url: "https://postgres.ai/api/general"
+  # Telemetry: anonymous statistics sent to Postgres.ai.
+  # Used to analyze DLE usage, it helps the DLE maintainers make decisions on product development.
+  # Please leave it enabled if possible – this will contribute to DLE development.
+  # The full list of data points being collected: https://postgres.ai/docs/database-lab/telemetry
+  enableTelemetry: true
+#
+#  # Project name
+#  projectName: "project_name"
+#
+#  # Organization key
+#  orgKey: "org_key"
 #
 #  # Token for authorization in Platform API. This token can be obtained on
 #  # the Postgres.ai Console: https://postgres.ai/console/YOUR_ORG_NAME/tokens

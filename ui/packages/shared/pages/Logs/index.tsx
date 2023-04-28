@@ -1,14 +1,11 @@
-import classNames from 'classnames'
-import { makeStyles } from '@material-ui/core'
+import React, { useEffect } from 'react'
 import { Alert, AlertTitle } from '@material-ui/lab'
-import React, { useEffect, useReducer } from 'react'
-
+import { makeStyles } from '@material-ui/core'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
+
 import { Api } from '@postgres.ai/shared/pages/Instance/stores/Main'
 import { establishConnection } from '@postgres.ai/shared/pages/Logs/wsLogs'
 import { useWsScroll } from '@postgres.ai/shared/pages/Logs/hooks/useWsScroll'
-import { LAPTOP_WIDTH_PX } from '@postgres.ai/shared/pages/Logs/constants'
-import { PlusIcon } from './Icons/PlusIcon'
 
 const useStyles = makeStyles(
   () => ({
@@ -18,84 +15,6 @@ const useStyles = makeStyles(
       alignItems: 'center',
       justifyContent: 'center',
     },
-    filterSection: {
-      marginTop: '10px',
-      display: 'flex',
-      flexDirection: 'row',
-      gap: 10,
-
-      '&  > span': {
-        display: 'flex',
-        flexDirection: 'row',
-        gap: '5px',
-        alignItems: 'center',
-        border: '1px solid #898E9A',
-        padding: '3px 8px',
-        borderRadius: 5,
-        fontSize: '13px',
-        textTransform: 'capitalize',
-        cursor: 'pointer',
-      },
-
-      '&  > span > button': {
-        background: 'none',
-        outline: 'none',
-        border: 0,
-        width: '18px',
-        height: '18px',
-        cursor: 'pointer',
-      },
-    },
-    //  we need important since id has higher priority than class
-    logsContainer: {
-      overflow: 'auto !important',
-      margin: '10px 0 0 0 !important',
-      maxHeight: 'calc(100vh - 360px)',
-      position: 'relative',
-
-      '& p': {
-        fontSize: '10px !important',
-        maxWidth: 'calc(100% - 25px)',
-
-        '@media (max-width: 982px)': {
-          maxWidth: '100%',
-        },
-      },
-    },
-    activeButton: {
-      border: '1px solid #3F51B5 !important',
-      color: '#3F51B5 !important',
-
-      '& svg': {
-        '& path': {
-          fill: '#3F51B5 !important',
-        },
-      },
-    },
-    passiveButton: {
-      '& svg': {
-        transform: 'rotate(45deg) scale(0.75)',
-      },
-    },
-    activeError: {
-      border: '1px solid #F44336 !important',
-      color: '#F44336 !important',
-
-      '& svg': {
-        '& path': {
-          fill: '#F44336 !important',
-        },
-      },
-    },
-    utilFilter: {
-      '& > span': {
-        textTransform: 'lowercase',
-      },
-
-      '& > span:last-child': {
-        textTransform: 'capitalize',
-      },
-    },
   }),
   { index: 1 },
 )
@@ -103,7 +22,6 @@ const useStyles = makeStyles(
 export const Logs = ({ api }: { api: Api }) => {
   const classes = useStyles()
   const [isLoading, setIsLoading] = React.useState(true)
-  const targetNode = document.getElementById('logs-container')
   useWsScroll(isLoading)
 
   const logsFilterState =
@@ -122,19 +40,19 @@ export const Logs = ({ api }: { api: Api }) => {
     '[INFO]': !isEmpty(logsFilterState) ? logsFilterState?.['[INFO]'] : true,
     '[ERROR]': !isEmpty(logsFilterState) ? logsFilterState?.['[ERROR]'] : true,
     '[base.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['base.go']
+      ? logsFilterState?.['[base.go]']
       : true,
     '[runners.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['runners.go']
+      ? logsFilterState?.['[runners.go]']
       : true,
     '[snapshots.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['snapshots.go']
+      ? logsFilterState?.['[snapshots.go]']
       : true,
     '[util.go]': !isEmpty(logsFilterState)
       ? logsFilterState?.['[util.go]']
       : true,
     '[logging.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['logging.go']
+      ? logsFilterState?.['[logging.go]']
       : false,
     '[ws.go]': !isEmpty(logsFilterState) ? logsFilterState?.['[ws.go]'] : false,
     '[other]': !isEmpty(logsFilterState) ? logsFilterState?.['[other]'] : true,
@@ -200,11 +118,8 @@ export const Logs = ({ api }: { api: Api }) => {
   }, [api])
 
   useEffect(() => {
-    localStorage.setItem('logsFilter', JSON.stringify(state))
-  }, [state])
-
-  useEffect(() => {
     const config = { attributes: false, childList: true, subtree: true }
+    const targetNode = document.getElementById('logs-container') as HTMLElement
 
     if (isLoading && targetNode?.querySelectorAll('p').length === 1) {
       setIsLoading(false)
@@ -220,47 +135,21 @@ export const Logs = ({ api }: { api: Api }) => {
 
     const observer = new MutationObserver(callback)
     targetNode && observer.observe(targetNode, config)
-  }, [isLoading, targetNode])
+  }, [isLoading])
 
   return (
     <>
       <Alert severity="info">
-        <AlertTitle>Sensitive values are masked.</AlertTitle>
-        You can see the raw log data connecting to the machine and running{' '}
-        <strong>'docker logs --since 5m -f dblab_server'</strong>.
+        <AlertTitle>Sensitive data are masked.</AlertTitle>
+        You can see the raw log data connecting to the machine and running the{' '}
+        <strong>'docker logs'</strong> command.
       </Alert>
-      {window.innerWidth > LAPTOP_WIDTH_PX && (
-        <>
-          <section className={classes.filterSection}>
-            {Object.keys(state)
-              .slice(0, 3)
-              .map((key) => (
-                <FormCheckbox
-                  key={key}
-                  type={key.replace('[', '').replace(']', '')}
-                />
-              ))}
-          </section>
-          <section
-            className={classNames(classes.filterSection, classes.utilFilter)}
-          >
-            {Object.keys(state)
-              .slice(3, 10)
-              .map((key) => (
-                <FormCheckbox
-                  key={key}
-                  type={key.replace('[', '').replace(']', '')}
-                />
-              ))}
-          </section>
-        </>
-      )}
-      <div id="logs-container" className={classes.logsContainer}>
-        {isLoading ? (
+      <div id="logs-container">
+        {isLoading && (
           <div className={classes.spinnerContainer}>
             <Spinner />
           </div>
-        ) : null}
+        )}
       </div>
     </>
   )

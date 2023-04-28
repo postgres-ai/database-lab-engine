@@ -63,7 +63,7 @@ type RestoreJob struct {
 	dockerClient *client.Client
 	fsPool       *resources.Pool
 	globalCfg    *global.Config
-	engineProps  global.EngineProps
+	engineProps  *global.EngineProps
 	dbMarker     *dbmarker.Marker
 	restorer     restorer
 	CopyOptions
@@ -109,7 +109,7 @@ type restorer interface {
 }
 
 // NewJob creates a new physical restore job.
-func NewJob(cfg config.JobConfig, global *global.Config, engineProps global.EngineProps) (*RestoreJob, error) {
+func NewJob(cfg config.JobConfig, global *global.Config, engineProps *global.EngineProps) (*RestoreJob, error) {
 	physicalJob := &RestoreJob{
 		name:         cfg.Spec.Name,
 		dockerClient: cfg.Docker,

@@ -26,6 +26,7 @@ import { SnapshotsModal } from './Snapshots/components/SnapshotsModal'
 import { ClonesModal } from './Clones/ClonesModal'
 import { Host, HostProvider, StoresProvider } from './context'
 
+import PropTypes from 'prop-types'
 import Typography from '@material-ui/core/Typography'
 import Box from '@mui/material/Box'
 
@@ -68,13 +69,7 @@ export const Instance = observer((props: Props) => {
   const { instanceId, api } = props
 
   const stores = useCreatedStores(props)
-  const {
-    instance,
-    instanceError,
-    instanceRetrieval,
-    load,
-    isReloadingInstance,
-  } = stores.main
+  const { instance, instanceError, instanceRetrieval, load } = stores.main
 
   useEffect(() => {
     load(instanceId)
@@ -100,9 +95,7 @@ export const Instance = observer((props: Props) => {
     }
   }, [instance])
 
-  const [activeTab, setActiveTab] = React.useState(
-    props?.renderCurrentTab || TABS_INDEX.OVERVIEW,
-  )
+  const [activeTab, setActiveTab] = React.useState(0)
 
   const switchTab = (_: React.ChangeEvent<{}> | null, tabID: number) => {
     const contentElement = document.getElementById('content-container')
@@ -122,10 +115,8 @@ export const Instance = observer((props: Props) => {
             className={classes.title}
             rightContent={
               <Button
-                onClick={() => load(props.instanceId)}
-                isDisabled={
-                  (!instance && !instanceError) || isReloadingInstance
-                }
+                onClick={() => stores.main.load(props.instanceId)}
+                isDisabled={!instance && !instanceError}
                 className={classes.reloadButton}
               >
                 Reload info
@@ -198,11 +189,7 @@ export const Instance = observer((props: Props) => {
   )
 })
 
-function TabPanel(props: {
-  children?: React.ReactNode
-  index: number
-  value: number
-}) {
+function TabPanel(props: PropTypes.InferProps<any>) {
   const { children, value, index, ...other } = props
 
   return (
@@ -220,4 +207,10 @@ function TabPanel(props: {
       </Box>
     </Typography>
   )
+}
+
+TabPanel.propTypes = {
+  children: PropTypes.node,
+  index: PropTypes.any.isRequired,
+  value: PropTypes.any.isRequired,
 }

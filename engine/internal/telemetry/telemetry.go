@@ -7,10 +7,9 @@ package telemetry
 
 import (
 	"context"
-	"fmt"
 
+	platformSvc "gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/platform"
-	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
@@ -40,44 +39,24 @@ const (
 // Agent represent a telemetry agent to collect engine data.
 type Agent struct {
 	instanceID string
-	cfg        global.Telemetry
-	platform   *platform.Client
+	platform   *platformSvc.Service
 }
 
 // New creates a new agent.
-func New(cfg global.Config, engineProps global.EngineProps) (*Agent, error) {
-	platformClient, err := platform.NewClient(platform.ClientConfig{
-		URL:         cfg.Telemetry.URL,
-		AccessToken: engineProps.InstanceID, // Use the instance ID as a token to keep events anonymous and protect API from random bots.
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create a new telemetry client: %w", err)
-	}
-
+func New(platformSvc *platformSvc.Service, instanceID string) *Agent {
 	return &Agent{
-		instanceID: engineProps.InstanceID,
-		cfg:        cfg.Telemetry,
-		platform:   platformClient,
-	}, nil
-}
-
-// Reload reloads configuration of the telemetry agent.
-func (a *Agent) Reload(cfg global.Config) {
-	a.cfg = cfg.Telemetry
-}
-
-// IsEnabled checks if telemetry is enabled.
-func (a *Agent) IsEnabled() bool {
-	return a.cfg.Enabled
+		instanceID: instanceID,
+		platform:   platformSvc,
+	}
 }
 
 // SendEvent sends a telemetry event.
 func (a *Agent) SendEvent(ctx context.Context, eventType string, payload interface{}) {
-	if !a.IsEnabled() {
+	if !a.platform.IsTelemetryEnabled() {
 		return
 	}
 
-	_, err := a.platform.SendTelemetryEvent(ctx, platform.TelemetryEvent{
+	_, err := a.platform.Client.SendTelemetryEvent(ctx, platform.TelemetryEvent{
 		InstanceID: a.instanceID,
 		EventType:  eventType,
 		Payload:    payload,

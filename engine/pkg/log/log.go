@@ -70,7 +70,7 @@ func prepareMessage(v ...interface{}) string {
 	builder := strings.Builder{}
 
 	for _, value := range v {
-		builder.WriteString(" " + filter.re.ReplaceAllString(toString(value), replacingMask))
+		builder.WriteString(" " + toString(value))
 	}
 
 	return builder.String()

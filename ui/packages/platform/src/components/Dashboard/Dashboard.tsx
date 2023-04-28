@@ -56,8 +56,6 @@ interface DashboardState {
       isProcessing: boolean
       orgId: number
       data: {
-        label: string
-        project_label_or_name: string
         id: number
         name: string
         alias: string
@@ -314,10 +312,7 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
             Clone multi-terabyte databases in seconds and use them to test your
             database migrations, optimize SQL, or deploy full-size staging apps.
             Start here to work with all Database Lab tools.
-            <GatewayLink
-              href={settings.rootUrl + '/docs/database-lab'}
-              target="_blank"
-            >
+            <GatewayLink href={settings.rootUrl + '/docs/database-lab'} target="_blank">
               Learn more
             </GatewayLink>
             .
@@ -338,10 +333,7 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
           <p>
             Automated routine checkup for your PostgreSQL databases. Configure
             Checkup agent to start collecting reports (
-            <GatewayLink
-              href={settings.rootUrl + '/docs/checkup'}
-              target="_blank"
-            >
+            <GatewayLink href={settings.rootUrl + '/docs/checkup'} target="_blank">
               Learn more
             </GatewayLink>
             ).
@@ -364,9 +356,7 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
               {projects.map((p) => {
                 return (
                   <TableRow hover className={classes.row} key={p.id}>
-                    <TableCell className={classes.cell}>
-                      {p.project_label_or_name || p.label || p.name}
-                    </TableCell>
+                    <TableCell className={classes.cell}>{p.name}</TableCell>
                     <TableCell className={classes.cell}>
                       <Button
                         variant="outlined"

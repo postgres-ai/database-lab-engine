@@ -14,7 +14,7 @@ const useStyles = makeStyles(
   {
     textField: {
       '& .MuiOutlinedInput-notchedOutline': {
-        borderColor: '#000',
+        borderColor: '#000 !important',
       },
     },
     selectField: {
@@ -27,12 +27,6 @@ const useStyles = makeStyles(
         backgroundColor: 'inherit',
       },
     },
-    label: {
-      display: 'block',
-    },
-    error: {
-      color: '#f44336',
-    },
   },
   { index: 1 },
 )
@@ -44,6 +38,7 @@ export const InputWithTooltip = ({
   onChange,
   tooltipText,
   disabled,
+  type,
 }: {
   value?: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
@@ -51,6 +46,7 @@ export const InputWithTooltip = ({
   label: string
   error?: string
   disabled: boolean | undefined
+  type?: string
 }) => {
   const classes = useStyles()
 
@@ -69,6 +65,7 @@ export const InputWithTooltip = ({
       </label>
       <Box display="flex" alignItems="center" width="100%">
         <TextField
+          type={type || 'text'}
           className={classNames(
             !disabled && classes.textField,
             styles.textField,
@@ -112,17 +109,8 @@ export const InputWithChip = ({
   const classes = useStyles()
 
   return (
-    <Box
-      mt={2}
-      mb={1}
-      display="flex"
-      flexDirection="column"
-      justifyContent="flex-start"
-      alignItems="flex-start"
-      gap="5px"
-    >
-      <label className={classes.label}>{label}</label>
-      <Box display="flex" alignItems="center" width="100%">
+    <Box mt={2} mb={2}>
+      <Box display="flex" alignItems="center">
         <TextField
           className={classNames(
             !disabled && classes.textField,
@@ -133,6 +121,7 @@ export const InputWithChip = ({
           value={value}
           multiline
           disabled={disabled}
+          label={label}
           inputProps={{
             name: id,
             id: id,
@@ -145,9 +134,9 @@ export const InputWithChip = ({
           <InfoIcon className={styles.infoIcon} />
         </Tooltip>
       </Box>
-      {value && (
-        <div className={styles.chipContainer}>
-          {uniqueChipValue(value)
+      <div className={styles.chipContainer}>
+        {value &&
+          uniqueChipValue(value)
             .split(' ')
             .map((uniqueValue, index) => {
               if (uniqueValue !== '') {
@@ -165,8 +154,7 @@ export const InputWithChip = ({
                 )
               }
             })}
-        </div>
-      )}
+      </div>
     </Box>
   )
 }
@@ -191,25 +179,15 @@ export const SelectWithTooltip = ({
   const classes = useStyles()
 
   return (
-    <Box
-      mt={1}
-      display="flex"
-      flexDirection="column"
-      justifyContent="flex-start"
-      alignItems="flex-start"
-      gap="5px"
-    >
-      <label className={classNames(error && classes.error, classes.label)}>
-        {label}
-      </label>
-      <Box display="flex" alignItems="center" width="100%">
+    <Box mt={2} mb={2}>
+      <Box mb={1} display="flex" alignItems="center">
         <Select
           className={classNames(
             classes.selectField,
             !disabled && classes.textField,
             styles.textField,
           )}
-          label=""
+          label={label}
           error={error}
           value={value}
           disabled={disabled}

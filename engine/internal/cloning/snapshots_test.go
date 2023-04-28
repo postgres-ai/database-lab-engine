@@ -121,6 +121,50 @@ func TestCloneCounter(t *testing.T) {
 	require.Equal(t, 0, snapshot.NumClones)
 }
 
+func TestInitialCloneCounter(t *testing.T) {
+	c := &Base{}
+	c.clones = make(map[string]*CloneWrapper)
+
+	snapshot := &models.Snapshot{
+		ID: "testSnapshotID",
+	}
+
+	snapshot2 := &models.Snapshot{
+		ID: "testSnapshotID2",
+	}
+
+	cloneWrapper01 := &CloneWrapper{
+		Clone: &models.Clone{
+			ID:       "test_clone001",
+			Snapshot: snapshot,
+		},
+	}
+
+	cloneWrapper02 := &CloneWrapper{
+		Clone: &models.Clone{
+			ID:       "test_clone002",
+			Snapshot: snapshot,
+		},
+	}
+
+	cloneWrapper03 := &CloneWrapper{
+		Clone: &models.Clone{
+			ID:       "test_clone003",
+			Snapshot: snapshot2,
+		},
+	}
+
+	c.clones["test_clone001"] = cloneWrapper01
+	c.clones["test_clone002"] = cloneWrapper02
+	c.clones["test_clone003"] = cloneWrapper03
+
+	counters := c.cloneCounter()
+
+	require.Equal(t, 2, len(counters))
+	require.Equal(t, 2, counters["testSnapshotID"])
+	require.Equal(t, 1, counters["testSnapshotID2"])
+}
+
 func TestLatestSnapshots(t *testing.T) {
 	baseSnapshot := &models.Snapshot{
 		DataStateAt: &models.LocalTime{Time: time.Date(2020, 02, 19, 0, 0, 0, 0, time.UTC)},

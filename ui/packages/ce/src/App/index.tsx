@@ -22,7 +22,10 @@ export const App = observer(() => {
 
   return (
     <BrowserRouter>
-      <Layout menu={<Menu isValidToken={appStore.isValidAuthToken} />}>
+      <Layout
+        isTokenValid={appStore.isValidAuthToken && !appStore.engine.isLoading}
+        menu={<Menu isValidToken={appStore.isValidAuthToken} />}
+      >
         {appStore.isValidAuthToken ? (
           <Switch>
             <Route path={ROUTES.INSTANCE.path}>

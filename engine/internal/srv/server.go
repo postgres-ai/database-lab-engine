@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/billing"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/embeddedui"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
@@ -45,10 +46,11 @@ type Server struct {
 	provisioner *provision.Provisioner
 	Config      *srvCfg.Config
 	Global      *global.Config
-	engProps    global.EngineProps
+	engProps    *global.EngineProps
 	Retrieval   *retrieval.Retrieval
 	Platform    *platform.Service
 	Observer    *observer.Observer
+	billingSvc  *billing.Billing
 	wsService   WSService
 	httpSrv     *http.Server
 	docker      *client.Client
@@ -67,9 +69,9 @@ type WSService struct {
 }
 
 // NewServer initializes a new Server instance with provided configuration.
-func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps global.EngineProps,
+func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps *global.EngineProps,
 	dockerClient *client.Client, cloning *cloning.Base, provisioner *provision.Provisioner,
-	retrievalSvc *retrieval.Retrieval, platform *platform.Service, observer *observer.Observer,
+	retrievalSvc *retrieval.Retrieval, platform *platform.Service, billingSvc *billing.Billing, observer *observer.Observer,
 	pm *pool.Manager, tm *telemetry.Agent, tokenKeeper *ws.TokenKeeper,
 	filtering *log.Filtering, uiManager *embeddedui.UIManager, reloadConfigFn func(server *Server) error) *Server {
 	server := &Server{
@@ -86,12 +88,13 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps global.
 			tokenKeeper: tokenKeeper,
 			uiManager:   uiManager,
 		},
-		docker:    dockerClient,
-		pm:        pm,
-		tm:        tm,
-		filtering: filtering,
-		startedAt: &models.LocalTime{Time: time.Now().Truncate(time.Second)},
-		reloadFn:  reloadConfigFn,
+		docker:     dockerClient,
+		pm:         pm,
+		tm:         tm,
+		billingSvc: billingSvc,
+		filtering:  filtering,
+		startedAt:  &models.LocalTime{Time: time.Now().Truncate(time.Second)},
+		reloadFn:   reloadConfigFn,
 	}
 
 	return server
@@ -106,8 +109,10 @@ func (s *Server) instanceStatus() *models.InstanceStatus {
 		Engine: models.Engine{
 			Version:                   version.GetVersion(),
 			Edition:                   s.engProps.GetEdition(),
+			InstanceID:                s.engProps.InstanceID,
+			BillingActive:             pointer.ToBool(s.engProps.BillingActive),
 			StartedAt:                 s.startedAt,
-			Telemetry:                 pointer.ToBool(s.tm.IsEnabled()),
+			Telemetry:                 pointer.ToBool(s.Platform.IsTelemetryEnabled()),
 			DisableConfigModification: pointer.ToBool(s.Config.DisableConfigModification),
 		},
 		Pools:       s.provisioner.GetPoolEntryList(),
@@ -178,6 +183,7 @@ func attachAPI(r *mux.Router) error {
 // Reload reloads server configuration.
 func (s *Server) Reload(cfg srvCfg.Config) {
 	*s.Config = cfg
+	s.initLogRegExp()
 }
 
 // InitHandlers initializes handler functions of the HTTP server.
@@ -218,6 +224,8 @@ func (s *Server) InitHandlers() {
 	adminR.HandleFunc("/config.yaml", s.getAdminConfigYaml).Methods(http.MethodGet)
 	adminR.HandleFunc("/config", s.setProjectedAdminConfig).Methods(http.MethodPost)
 	adminR.HandleFunc("/test-db-source", s.testDBSource).Methods(http.MethodPost)
+	adminR.HandleFunc("/billing-status", s.billingStatus).Methods(http.MethodGet)
+	adminR.HandleFunc("/activate", s.activate).Methods(http.MethodPost)
 
 	r.HandleFunc("/instance/logs", authMW.WebSocketsMW(s.wsService.tokenKeeper, s.instanceLogs))
 
@@ -268,5 +276,5 @@ func reportLaunching(cfg *srvCfg.Config) {
 }
 
 func (s *Server) initLogRegExp() {
-	s.filtering.ReloadLogRegExp([]string{s.Config.VerificationToken, s.Platform.AccessToken()})
+	s.filtering.ReloadLogRegExp([]string{s.Config.VerificationToken, s.Platform.AccessToken(), s.Platform.OrgKey()})
 }

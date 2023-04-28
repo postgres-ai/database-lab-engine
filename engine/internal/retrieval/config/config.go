@@ -14,15 +14,14 @@ import (
 
 // Config describes of data retrieval jobs.
 type Config struct {
-	Refresh  *Refresh           `yaml:"refresh"`
+	Refresh  Refresh            `yaml:"refresh"`
 	Jobs     []string           `yaml:"jobs,flow"`
 	JobsSpec map[string]JobSpec `yaml:"spec"`
 }
 
 // Refresh describes full-refresh options.
 type Refresh struct {
-	Timetable        string `yaml:"timetable"`
-	SkipStartRefresh bool   `yaml:"skipStartRefresh"`
+	Timetable string `yaml:"timetable"`
 }
 
 // JobSpec contains details about a job.

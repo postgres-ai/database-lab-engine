@@ -61,7 +61,7 @@ type Retrieval struct {
 	imageState   *db.ImageContent
 	cfg          *config.Config
 	global       *global.Config
-	engineProps  global.EngineProps
+	engineProps  *global.EngineProps
 	docker       *client.Client
 	poolManager  *pool.Manager
 	tm           *telemetry.Agent
@@ -77,7 +77,7 @@ type Scheduler struct {
 }
 
 // New creates a new data retrieval.
-func New(cfg *dblabCfg.Config, engineProps global.EngineProps, docker *client.Client, pm *pool.Manager, tm *telemetry.Agent,
+func New(cfg *dblabCfg.Config, engineProps *global.EngineProps, docker *client.Client, pm *pool.Manager, tm *telemetry.Agent,
 	runner runners.Runner) (*Retrieval, error) {
 	r := &Retrieval{
 		global:      &cfg.Global,
@@ -90,7 +90,7 @@ func New(cfg *dblabCfg.Config, engineProps global.EngineProps, docker *client.Cl
 			Status: models.Inactive,
 			alerts: make(map[models.AlertType]models.Alert),
 		},
-		imageState: db.NewImageContent(engineProps),
+		imageState: db.NewImageContent(*engineProps),
 	}
 
 	retrievalCfg, err := ValidateConfig(&cfg.Retrieval)
@@ -189,13 +189,6 @@ func (r *Retrieval) Run(ctx context.Context) error {
 
 	if err := r.collectFoundationImageContent(); err != nil {
 		return fmt.Errorf("failed to collect content lists from the foundation Docker image of the logicalDump job: %w", err)
-	}
-
-	if r.cfg.Refresh != nil && r.cfg.Refresh.SkipStartRefresh {
-		log.Msg("Continue without performing initial data refresh because the `skipStartRefresh` option is enabled")
-		r.setupScheduler(ctx)
-
-		return nil
 	}
 
 	fsManager, err := r.getNextPoolToDataRetrieving()
@@ -325,6 +318,12 @@ func (r *Retrieval) getNextPoolToDataRetrieving() (pool.FSManager, error) {
 }
 
 func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
+	if r.engineProps.GetEdition() == global.StandardEdition {
+		if err := r.engineProps.CheckBilling(); err != nil {
+			return fmt.Errorf("skip snapshotting: %w", err)
+		}
+	}
+
 	// Check the pool aliveness.
 	if _, err := fsm.GetFilesystemState(); err != nil {
 		return errors.Wrap(errors.Unwrap(err), "filesystem manager is not ready")
@@ -404,12 +403,6 @@ func (r *Retrieval) RefreshData(ctx context.Context, poolName string) error {
 
 		r.State.CurrentJob = nil
 	}()
-
-	if r.State.Mode == models.Logical {
-		if err := preparePoolToRefresh(fsm, r.runner); err != nil {
-			return fmt.Errorf("failed to prepare pool for initial refresh: %w", err)
-		}
-	}
 
 	for _, j := range jobs {
 		r.State.CurrentJob = j
@@ -548,7 +541,7 @@ func (r *Retrieval) defineRetrievalMode() {
 func (r *Retrieval) setupScheduler(ctx context.Context) {
 	r.stopScheduler()
 
-	if r.cfg.Refresh == nil || r.cfg.Refresh.Timetable == "" {
+	if r.cfg.Refresh.Timetable == "" {
 		return
 	}
 
@@ -657,15 +650,9 @@ func (r *Retrieval) stopScheduler() {
 
 // ReportState collects the current restore state.
 func (r *Retrieval) ReportState() telemetry.Restore {
-	var refreshingTimetable string
-
-	if r.cfg.Refresh != nil {
-		refreshingTimetable = r.cfg.Refresh.Timetable
-	}
-
 	return telemetry.Restore{
 		Mode:       r.State.Mode,
-		Refreshing: refreshingTimetable,
+		Refreshing: r.cfg.Refresh.Timetable,
 		Jobs:       r.cfg.Jobs,
 	}
 }
