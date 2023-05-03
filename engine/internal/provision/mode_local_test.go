@@ -2,6 +2,8 @@ package provision
 
 import (
 	"context"
+	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -239,4 +241,88 @@ func TestLatestSnapshot(t *testing.T) {
 			assert.Equal(t, tc.expectedID, latest.ID)
 		}
 	})
+}
+
+func TestDetectLogsTimeZone(t *testing.T) {
+	tempDir := path.Join(os.TempDir(), "dle_logs_tz")
+	defer os.RemoveAll(tempDir)
+
+	const (
+		layout         = "2006-01-02 15:04:05.000 MST"
+		datetime       = "2023-04-28 12:50:10.779 CEST"
+		emptyContent   = `# PostgreSQL configuration file`
+		invalidContent = `# PostgreSQL configuration file
+# TimeZone setting
+log_timezone = 'America/Stockholm'
+`
+		validContent = `# PostgreSQL configuration file
+# TimeZone setting
+log_timezone = 'Europe/Stockholm'
+`
+	)
+
+	tests := []struct {
+		name        string
+		dataDir     string
+		fileName    string
+		content     string
+		expectedLoc *time.Location
+	}{
+		{
+			name:        "no config file",
+			dataDir:     "/path/to/missing/config",
+			fileName:    "missing_config",
+			expectedLoc: time.UTC,
+		},
+		{
+			name:        "config file without timezone",
+			dataDir:     "empty_config",
+			fileName:    "postgresql.dblab.user_defined.conf",
+			content:     emptyContent,
+			expectedLoc: time.UTC,
+		},
+		{
+			name:        "config file with invalid timezone",
+			dataDir:     "invalid_dir",
+			fileName:    "postgresql.dblab.user_defined.conf",
+			content:     invalidContent,
+			expectedLoc: time.UTC,
+		},
+		{
+			name:        "config file with valid timezone",
+			dataDir:     "valid_dir",
+			fileName:    "postgresql.dblab.user_defined.conf",
+			content:     validContent,
+			expectedLoc: time.FixedZone("CEST", 2*60*60), // CEST (+2)
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testCaseDir := path.Join(tempDir, tt.dataDir)
+			err := createTempConfigFile(testCaseDir, tt.fileName, tt.content)
+			require.NoError(t, err)
+
+			loc := detectLogsTimeZone(testCaseDir)
+
+			expectedTime, err := time.ParseInLocation(layout, datetime, tt.expectedLoc)
+			require.NoError(t, err)
+
+			locationTime, err := time.ParseInLocation(layout, datetime, loc)
+			require.NoError(t, err)
+
+			require.Truef(t, locationTime.UTC().Equal(expectedTime.UTC()), "detectLogsTimeZone(%s) returned unexpected location time. Expected %s, but got %s.", tt.dataDir, expectedTime, locationTime)
+		})
+	}
+}
+
+func createTempConfigFile(testCaseDir, fileName string, content string) error {
+	err := os.MkdirAll(testCaseDir, 0777)
+	if err != nil {
+		return err
+	}
+
+	fn := path.Join(testCaseDir, fileName)
+
+	return os.WriteFile(fn, []byte(content), 0666)
 }
