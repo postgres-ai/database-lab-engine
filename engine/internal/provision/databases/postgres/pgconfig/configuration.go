@@ -224,7 +224,7 @@ func (m *Manager) adjustHBAConf() error {
 }
 
 // adjustGeneralConfigs corrects general PostgreSQL parameters with Database Lab configs.
-func (m Manager) adjustGeneralConfigs() error {
+func (m *Manager) adjustGeneralConfigs() error {
 	log.Dbg("Configuring Postgres...")
 
 	pgConfSrc, err := util.GetStandardConfigPath(path.Join(pgCfgDir, pgControlDir, PgConfName))
@@ -439,16 +439,16 @@ func (m *Manager) ApplyUserConfig(cfg map[string]string) error {
 
 // getConfigPath builds a path of the Database Lab config file.
 func (m *Manager) getConfigPath(configName string) string {
-	return path.Join(m.dataDir, configPrefix+configName)
+	return GetConfigPath(m.dataDir, configName)
 }
 
 // recoveryPath returns the path of the recovery configuration file.
-func (m Manager) recoveryPath() string {
+func (m *Manager) recoveryPath() string {
 	return path.Join(m.dataDir, m.recoveryFilename())
 }
 
 // recoveryFilename returns the name of the recovery configuration file.
-func (m Manager) recoveryFilename() string {
+func (m *Manager) recoveryFilename() string {
 	if m.pgVersion >= defaults.PGVersion12 {
 		return configPrefix + recoveryConfName
 	}
@@ -457,12 +457,12 @@ func (m Manager) recoveryFilename() string {
 }
 
 // recoverySignalPath returns the path of the recovery signal file.
-func (m Manager) recoverySignalPath() string {
+func (m *Manager) recoverySignalPath() string {
 	return path.Join(m.dataDir, recoverySignal)
 }
 
 // standbySignalPath returns the path of the standby signal file.
-func (m Manager) standbySignalPath() string {
+func (m *Manager) standbySignalPath() string {
 	return path.Join(m.dataDir, standbySignal)
 }
 
@@ -507,6 +507,16 @@ func appendExtraConf(configFile string, extraConfig map[string]string) error {
 // truncateConfig truncates a configuration file.
 func (m *Manager) truncateConfig(pgConf string) error {
 	return os.WriteFile(pgConf, []byte{}, 0644)
+}
+
+// ReadUserConfig reads user configuration file.
+func ReadUserConfig(dataDir string) (map[string]string, error) {
+	return readConfig(GetConfigPath(dataDir, userConfigName))
+}
+
+// GetConfigPath returns configuration path.
+func GetConfigPath(dataDir, configName string) string {
+	return path.Join(dataDir, configPrefix+configName)
 }
 
 // readConfig reads a configuration file.

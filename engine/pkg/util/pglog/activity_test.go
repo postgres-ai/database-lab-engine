@@ -14,20 +14,24 @@ func TestGetPostgresLastActivity(t *testing.T) {
 		logTime      string
 		logMessage   string
 		timeActivity *time.Time
+		loc          *time.Location
 	}{
 		{
 			logTime:      "2020-01-10 11:49:14.615 UTC",
 			logMessage:   "duration: 9.893 ms  statement: SELECT 1;",
+			loc:          time.UTC,
 			timeActivity: pointer.ToTime(time.Date(2020, 1, 10, 11, 49, 14, 615000000, time.UTC)),
 		},
 		{
 			logTime:      "2020-01-10 11:49:14.615 CET",
 			logMessage:   "duration: 9.893 ms  statement: SELECT 1;",
-			timeActivity: pointer.ToTime(time.Date(2020, 1, 10, 11, 49, 14, 615000000, time.FixedZone("CET", 0))),
+			loc:          time.FixedZone("CET", 3600),
+			timeActivity: pointer.ToTime(time.Date(2020, 1, 10, 11, 49, 14, 615000000, time.FixedZone("CET", 3600))),
 		},
 		{
 			logTime:      "2020-01-11 13:10:58.503 UTC",
 			logMessage:   "duration: 0.077 ms  statement:",
+			loc:          time.UTC,
 			timeActivity: pointer.ToTime(time.Date(2020, 1, 11, 13, 10, 58, 503000000, time.UTC)),
 		},
 		{
@@ -48,7 +52,7 @@ func TestGetPostgresLastActivity(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		lastActivity, err := ParsePostgresLastActivity(tc.logTime, tc.logMessage)
+		lastActivity, err := ParsePostgresLastActivity(tc.logTime, tc.logMessage, tc.loc)
 		require.NoError(t, err)
 		assert.Equal(t, tc.timeActivity, lastActivity)
 	}
@@ -68,7 +72,7 @@ func TestGetPostgresLastActivityWhenFailedParseTime(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		lastActivity, err := ParsePostgresLastActivity(tc.logTime, tc.logMessage)
+		lastActivity, err := ParsePostgresLastActivity(tc.logTime, tc.logMessage, time.UTC)
 		require.Nil(t, lastActivity)
 		assert.EqualError(t, err, tc.errorString)
 	}

@@ -124,12 +124,12 @@ func (s *Selector) FilterOldFilesInList() {
 }
 
 // ParsePostgresLastActivity extracts the time of last session activity.
-func ParsePostgresLastActivity(logTime, text string) (*time.Time, error) {
+func ParsePostgresLastActivity(logTime, text string, loc *time.Location) (*time.Time, error) {
 	if logTime == "" || !(strings.Contains(text, "statement:") || strings.Contains(text, "duration:")) {
 		return nil, nil
 	}
 
-	lastActivityTime, err := time.Parse("2006-01-02 15:04:05.000 MST", logTime)
+	lastActivityTime, err := time.ParseInLocation("2006-01-02 15:04:05.000 MST", logTime, loc)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to parse the last activity time")
 	}
