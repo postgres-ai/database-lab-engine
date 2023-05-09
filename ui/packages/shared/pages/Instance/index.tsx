@@ -19,14 +19,13 @@ import { TABS_INDEX, Tabs } from './Tabs'
 import { Logs } from '../Logs'
 import { Clones } from './Clones'
 import { Info } from './Info'
-import { Configuration } from './Configuration'
-import { Branches } from '../Branches'
 import { Snapshots } from './Snapshots'
-import { SnapshotsModal } from './Snapshots/components/SnapshotsModal'
+import { Branches } from '../Branches'
+import { Configuration } from '../Configuration'
 import { ClonesModal } from './Clones/ClonesModal'
+import { SnapshotsModal } from './Snapshots/components/SnapshotsModal'
 import { Host, HostProvider, StoresProvider } from './context'
 
-import PropTypes from 'prop-types'
 import Typography from '@material-ui/core/Typography'
 import Box from '@mui/material/Box'
 
@@ -115,7 +114,7 @@ export const Instance = observer((props: Props) => {
             className={classes.title}
             rightContent={
               <Button
-                onClick={() => stores.main.load(props.instanceId)}
+                onClick={() => load(props.instanceId)}
                 isDisabled={!instance && !instanceError}
                 className={classes.reloadButton}
               >
@@ -137,17 +136,21 @@ export const Instance = observer((props: Props) => {
           )}
 
           <TabPanel value={activeTab} index={TABS_INDEX.OVERVIEW}>
-            <div className={classes.content}>
-              {!instanceError &&
-                (instance ? (
+            {!instanceError && (
+              <div className={classes.content}>
+                {!instance ||
+                  (!instance?.state.retrieving?.status && <StubSpinner />)}
+
+                {instance ? (
                   <>
                     <Clones />
                     <Info />
                   </>
                 ) : (
                   <StubSpinner />
-                ))}
-            </div>
+                )}
+              </div>
+            )}
 
             <ClonesModal />
 
@@ -173,11 +176,13 @@ export const Instance = observer((props: Props) => {
             <Configuration
               switchActiveTab={switchTab}
               isConfigurationActive={isConfigurationActive}
-              reload={() => stores.main.load(props.instanceId)}
+              reload={() => load(props.instanceId)}
+              disableConfigModification={
+                instance?.state.engine.disableConfigModification
+              }
             />
           )}
         </TabPanel>
-
         <TabPanel value={activeTab} index={TABS_INDEX.SNAPSHOTS}>
           {activeTab === TABS_INDEX.SNAPSHOTS && <Snapshots />}
         </TabPanel>
@@ -189,7 +194,7 @@ export const Instance = observer((props: Props) => {
   )
 })
 
-function TabPanel(props: PropTypes.InferProps<any>) {
+function TabPanel(props: any) {
   const { children, value, index, ...other } = props
 
   return (
@@ -199,7 +204,6 @@ function TabPanel(props: PropTypes.InferProps<any>) {
       hidden={value !== index}
       id={`scrollable-auto-tabpanel-${index}`}
       aria-labelledby={`scrollable-auto-tab-${index}`}
-      style={{ height: '100%', position: 'relative' }}
       {...other}
     >
       <Box p={3} sx={{ height: '100%' }}>
@@ -207,10 +211,4 @@ function TabPanel(props: PropTypes.InferProps<any>) {
       </Box>
     </Typography>
   )
-}
-
-TabPanel.propTypes = {
-  children: PropTypes.node,
-  index: PropTypes.any.isRequired,
-  value: PropTypes.any.isRequired,
 }

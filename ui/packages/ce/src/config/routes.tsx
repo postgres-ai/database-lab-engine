@@ -11,6 +11,16 @@ export const ROUTES = {
     path: `/instance`,
     name: 'Instance',
 
+    CONFIGURATION: {
+      name: 'Configuration',
+      path: `/instance/configuration`,
+    },
+
+    LOGS: {
+      name: 'Logs',
+      path: `/instance/logs`,
+    },
+    
     SNAPSHOTS: {
       path: `/instance/snapshots`,
 
