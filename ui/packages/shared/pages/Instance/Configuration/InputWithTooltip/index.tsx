@@ -27,6 +27,12 @@ const useStyles = makeStyles(
         backgroundColor: 'inherit',
       },
     },
+    label: {
+      display: 'block',
+    },
+    error: {
+      color: '#f44336',
+    },
   },
   { index: 1 },
 )

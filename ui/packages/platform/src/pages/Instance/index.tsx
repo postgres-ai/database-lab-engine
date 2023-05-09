@@ -22,6 +22,8 @@ export const Instance = () => {
   const params = useParams<Params>()
 
   const routes = {
+    createBranch: () => '',
+    createSnapshot: () => '',
     createClone: () =>
       params.project
         ? ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.CLONES.ADD.createPath({

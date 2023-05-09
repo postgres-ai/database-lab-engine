@@ -68,7 +68,9 @@ interface DbLabInstancesState {
       orgId: number
       data: {
         [org: string]: {
+          project_label_or_name: string
           project_name: string
+          project_label: string
           url: string
           use_tunnel: boolean
           isProcessing: boolean
@@ -207,7 +209,7 @@ class DbLabInstances extends Component<
           : null
 
       if (anchorEl) {
-        const instanceId = anchorEl.getAttribute('instanceid')
+        const instanceId = anchorEl.getAttribute('aria-label')
         if (!instanceId) {
           return
         }
@@ -236,8 +238,7 @@ class DbLabInstances extends Component<
             /* eslint no-alert: 0 */
             if (
               window.confirm(
-                'Are you sure you want to remove this' +
-                  ' Database Lab instance?',
+                'Are you sure you want to remove this Database Lab instance?',
               ) === true
             ) {
               Actions.destroyDbLabInstance(auth?.token, instanceId)
@@ -247,6 +248,16 @@ class DbLabInstances extends Component<
 
           case 'refresh':
             Actions.getDbLabInstanceStatus(auth?.token, instanceId)
+
+            break
+
+          case 'editProject':
+            this.props.history.push(
+              Urls.linkDbLabInstanceEditProject(
+                { org: this.props.org, project: project },
+                instanceId,
+              ),
+            )
 
             break
 
@@ -322,7 +333,7 @@ class DbLabInstances extends Component<
             {projects.data.map((p) => {
               return (
                 <MenuItem value={p.id} key={p.id}>
-                  {p.name}
+                  {p?.project_label_or_name || p.name}
                 </MenuItem>
               )
             })}
@@ -401,7 +412,10 @@ class DbLabInstances extends Component<
             Clone multi-terabyte databases in seconds and use them to test your
             database migrations, optimize SQL, or deploy full-size staging apps.
             Start here to work with all Database Lab tools. Setup
-            <GatewayLink href="https://postgres.ai/docs/database-lab" target="_blank">
+            <GatewayLink
+              href="https://postgres.ai/docs/database-lab"
+              target="_blank"
+            >
               documentation here
             </GatewayLink>
             .
@@ -438,7 +452,8 @@ class DbLabInstances extends Component<
                     style={{ cursor: 'pointer' }}
                   >
                     <TableCell className={classes.cell}>
-                      {data.data[index].project_name}
+                      {data.data[index].project_label_or_name ||
+                        data.data[index].project_name}
                     </TableCell>
 
                     <TableCell className={classes.cell}>
@@ -478,7 +493,7 @@ class DbLabInstances extends Component<
                         <Spinner className={classes.inTableProgress} />
                       ) : null}
                       <IconButton
-                        aria-label="more"
+                        aria-label={data.data[index].id}
                         aria-controls="instance-menu"
                         aria-haspopup="true"
                         onClick={this.openMenu}
@@ -509,19 +524,26 @@ class DbLabInstances extends Component<
         >
           <MenuItem
             key={1}
+            onClick={(event) => this.menuHandler(event, 'editProject')}
+            disabled={!addPermitted}
+          >
+            Edit
+          </MenuItem>
+          <MenuItem
+            key={2}
             onClick={(event) => this.menuHandler(event, 'addclone')}
           >
             Create clone
           </MenuItem>
           <MenuItem
-            key={2}
+            key={3}
             onClick={(event) => this.menuHandler(event, 'refresh')}
           >
             Refresh
           </MenuItem>
           <MenuItem
             disabled={!deletePermitted}
-            key={3}
+            key={4}
             onClick={(event) => this.menuHandler(event, 'destroy')}
           >
             Remove
