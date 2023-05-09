@@ -201,7 +201,7 @@ export const CreateSnapshotPage = observer(
           <div className={classes.snippetContainer}>
             <SectionTitle tag="h1" level={1} text="The same using CLI" />
             <p className={classes.marginTop}>
-              Alternatively, you can create a new snapshot using the CLI. Fill
+              Alternatively, you can create a new snapshot using CLI. Fill
               the form, copy the command below and paste it into your terminal.
             </p>
             <SyntaxHighlight

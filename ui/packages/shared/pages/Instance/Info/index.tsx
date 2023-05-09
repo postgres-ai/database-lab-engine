@@ -46,7 +46,6 @@ const useStyles = makeStyles(
         flex: '0 0 auto',
         width: '100%',
         marginTop: '20px',
-        width: '100%',
       },
     },
     collapsed: {
@@ -81,6 +80,7 @@ const useStyles = makeStyles(
 export const Info = () => {
   const classes = useStyles()
   const width = useWindowDimensions()
+  const [onHover, setOnHover] = useState(false)
   const isMobileScreen = width <= SMALL_BREAKPOINT_PX
 
   const [isCollapsed, setIsCollapsed] = useState(
@@ -107,9 +107,12 @@ export const Info = () => {
     >
       {!isMobileScreen && (
         <Button
+          onMouseEnter={() => setOnHover(true)}
+          onMouseLeave={() => setOnHover(false)}
           className={classes.collapseBtn}
           onClick={handleClick}
           isCollapsed={isCollapsed}
+          type="button"
           icon={
             isCollapsed ? (
               <ArrowLeftIcon className={classes.arrowImage} />
@@ -118,7 +121,7 @@ export const Info = () => {
             )
           }
         >
-          Collapse
+          {onHover && 'Collapse'}
         </Button>
       )}
 

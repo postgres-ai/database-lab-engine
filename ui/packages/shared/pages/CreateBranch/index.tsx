@@ -248,7 +248,7 @@ export const CreateBranchPage = observer(
           <div className={classes.snippetContainer}>
             <SectionTitle tag="h1" level={1} text="The same using CLI" />
             <p className={classes.marginTop}>
-              Alternatively, you can create a new branch using the CLI. Fill the
+              Alternatively, you can create a new branch using CLI. Fill the
               form, copy the command below and paste it into your terminal.
             </p>
             <SyntaxHighlight
@@ -258,10 +258,10 @@ export const CreateBranchPage = observer(
               className={classes.marginTop}
               tag="h2"
               level={2}
-              text={'Get branches using the CLI'}
+              text={'Get branches using CLI'}
             />
             <p className={classes.marginTop}>
-              You can get a list of all branches using the CLI. Copy the command
+              You can get a list of all branches using CLI. Copy the command
               below and paste it into your terminal.
             </p>
             <SyntaxHighlight content={getCliBranchListCommand()} />

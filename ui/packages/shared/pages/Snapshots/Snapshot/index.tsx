@@ -373,10 +373,10 @@ export const SnapshotPage = observer((props: Props) => {
             className={classes.marginTop}
             tag="h2"
             level={2}
-            text={'Delete snapshot using the CLI'}
+            text={'Delete snapshot using CLI'}
           />
           <p className={classes.cliText}>
-            You can delete this snapshot using the CLI. To do this, run the
+            You can delete this snapshot using CLI. To do this, run the
             command below:
           </p>
           <SyntaxHighlight
@@ -389,10 +389,10 @@ export const SnapshotPage = observer((props: Props) => {
             className={classes.marginTop}
             tag="h2"
             level={2}
-            text={'Get snapshots using the CLI'}
+            text={'Get snapshots using CLI'}
           />
           <p className={classes.cliText}>
-            You can get a list of all snapshots using the CLI. To do this, run
+            You can get a list of all snapshots using CLI. To do this, run
             the command below:
           </p>
           <SyntaxHighlight content={`dblab snapshot list`} />

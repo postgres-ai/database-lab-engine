@@ -359,10 +359,10 @@ export const BranchesPage = observer((props: Props) => {
             className={classes.marginTop}
             tag="h2"
             level={2}
-            text={'Delete branch using the CLI'}
+            text={'Delete branch using CLI'}
           />
           <p className={classes.cliText}>
-            You can delete this branch using the CLI. To do this, run the
+            You can delete this branch using CLI. To do this, run the
             command below:
           </p>
           <SyntaxHighlight content={`dblab branch delete ${props.branchId}`} />
@@ -371,10 +371,10 @@ export const BranchesPage = observer((props: Props) => {
             className={classes.marginTop}
             tag="h2"
             level={2}
-            text={'Get branches using the CLI'}
+            text={'Get branches using CLI'}
           />
           <p className={classes.marginTop}>
-            You can get a list of all branches using the CLI. Copy the command
+            You can get a list of all branches using CLI. Copy the command
             below and paste it into your terminal.
           </p>
           <SyntaxHighlight content={getCliBranchListCommand()} />
@@ -383,10 +383,10 @@ export const BranchesPage = observer((props: Props) => {
             className={classes.marginTop}
             tag="h2"
             level={2}
-            text={'Get snapshots for this branch using the CLI'}
+            text={'Get snapshots for this branch using CLI'}
           />
           <p className={classes.cliText}>
-            You can get a list of snapshots for this branch using the CLI. To do
+            You can get a list of snapshots for this branch using CLI. To do
             this, run the command below:
           </p>
           <SyntaxHighlight content={`dblab branch log ${props.branchId}`} />

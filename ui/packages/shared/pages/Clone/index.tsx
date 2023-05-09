@@ -627,9 +627,9 @@ export const Clone = observer((props: Props) => {
         </div>
 
         <div className={classes.snippetContainer}>
-          <SectionTitle tag="h2" level={2} text={'Reset clone using the CLI'} />
+          <SectionTitle tag="h2" level={2} text={'Reset clone using CLI'} />
           <p className={classes.tooltip}>
-            You can reset the clone using the CLI using the following command:
+            You can reset the clone using CLI using the following command:
           </p>
           <SyntaxHighlight content={getCliResetCloneCommand(props.cloneId)} />
 
@@ -637,10 +637,10 @@ export const Clone = observer((props: Props) => {
             className={classes.title}
             tag="h2"
             level={2}
-            text={'Destroy clone using the CLI'}
+            text={'Destroy clone using CLI'}
           />
           <p className={classes.tooltip}>
-            You can destroy the clone using the CLI using the following command:
+            You can destroy the clone using CLI using the following command:
           </p>
           <SyntaxHighlight content={getCliDestroyCloneCommand(props.cloneId)} />
 
@@ -648,10 +648,10 @@ export const Clone = observer((props: Props) => {
             className={classes.title}
             tag="h2"
             level={2}
-            text={'Toggle deletion protection using the CLI'}
+            text={'Toggle deletion protection using CLI'}
           />
           <p className={classes.tooltip}>
-            You can toggle deletion protection using the CLI for this clone
+            You can toggle deletion protection using CLI for this clone
             using the following command:
           </p>
           <SyntaxHighlight content={getCliProtectedCloneCommand(true)} />
@@ -662,10 +662,10 @@ export const Clone = observer((props: Props) => {
             className={classes.title}
             tag="h2"
             level={2}
-            text={'Create snapshot for this clone using the CLI'}
+            text={'Create snapshot for this clone using CLI'}
           />
           <p className={classes.tooltip}>
-            You can create a snapshot for this clone using the CLI using the
+            You can create a snapshot for this clone using CLI using the
             following command:
           </p>
           <SyntaxHighlight content={getCreateSnapshotCommand(props.cloneId)} />

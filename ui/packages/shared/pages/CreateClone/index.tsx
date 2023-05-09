@@ -317,7 +317,7 @@ export const CreateClone = observer((props: Props) => {
             text="The same using CLI"
           />
           <p className={styles.text}>
-            Alternatively, you can create a new clone using the CLI. Fill the
+            Alternatively, you can create a new clone using CLI. Fill the
             form, copy the command below and paste it into your terminal.
           </p>
           <SyntaxHighlight content={getCliCreateCloneCommand(formik.values)} />

@@ -7,7 +7,7 @@ export const getCliCreateCloneCommand = (values: FormValues) => {
 
   --username ${dbUser ? dbUser : `<USERNAME>`} \
 
-  --password ${dbPassword ? dbPassword : `<PASSWORD>`} \
+  --password ${dbPassword ? dbPassword.replace(/./g, '*') : `<PASSWORD>`} \
 
   ${branch ? `--branch ${branch}` : ``} \
 
