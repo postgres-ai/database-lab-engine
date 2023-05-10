@@ -13,7 +13,7 @@ import React, { useEffect, useState } from 'react'
 import { useStores, useHost } from '@postgres.ai/shared/pages/Instance/context'
 import { Button } from '@postgres.ai/shared/components/Button2'
 import { GetBranchesResponseType } from '@postgres.ai/shared/types/api/endpoints/getBranches'
-import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
+import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 import { BranchesTable } from '@postgres.ai/shared/pages/Branches/components/BranchesTable'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
@@ -30,6 +30,11 @@ const useStyles = makeStyles(
       width: '12px',
       marginLeft: '8px',
       color: '#808080',
+    },
+    spinner: {
+      position: 'absolute',
+      right: '50%',
+      transform: 'translate(-50%, -50%)',
     },
   },
   { index: 1 },
@@ -65,36 +70,40 @@ export const Branches = observer((): React.ReactElement => {
       />
     )
 
-  if (isBranchesLoading) return <StubSpinner />
-
   return (
     <div className={classes.container}>
-      <SectionTitle
-        level={2}
-        tag="h2"
-        text={`Branches (${branchesList?.length || 0})`}
-        rightContent={
-          <>
-            <Button
-              theme="primary"
-              isDisabled={!branchesList.length}
-              onClick={goToBranchAddPage}
-            >
-              Create branch
-            </Button>
+      {isBranchesLoading ? (
+        <Spinner size="lg" className={classes.spinner} />
+      ) : (
+        <>
+          <SectionTitle
+            level={2}
+            tag="h2"
+            text={`Branches (${branchesList?.length || 0})`}
+            rightContent={
+              <>
+                <Button
+                  theme="primary"
+                  isDisabled={!branchesList.length}
+                  onClick={goToBranchAddPage}
+                >
+                  Create branch
+                </Button>
 
-            {!branchesList.length && (
-              <Tooltip content="No existing branch">
-                <InfoIcon className={classes.infoIcon} />
-              </Tooltip>
-            )}
-          </>
-        }
-      />
-      <BranchesTable
-        branchesData={branchesList}
-        emptyTableText="This instance has no active branches"
-      />
+                {!branchesList.length && (
+                  <Tooltip content="No existing branch">
+                    <InfoIcon className={classes.infoIcon} />
+                  </Tooltip>
+                )}
+              </>
+            }
+          />
+          <BranchesTable
+            branchesData={branchesList}
+            emptyTableText="This instance has no active branches"
+          />
+        </>
+      )}
     </div>
   )
 })
