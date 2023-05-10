@@ -43,7 +43,7 @@ ui_build_ce_image_release:
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_NAME: "postgresai/ce-ui"
   before_script:
-    - export UI_VERSION=$(echo ${CI_COMMIT_TAG#"ui/"})
+    - export UI_VERSION=$(echo ${CI_COMMIT_TAG#"v"})
     - export TAGS="${DOCKER_NAME}:${UI_VERSION},${DOCKER_NAME}:latest"
 
 ui_build_ce_image_master:
