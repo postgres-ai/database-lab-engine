@@ -6,6 +6,7 @@ import { ROUTES } from 'config/routes'
 import logoIconUrl from './icons/logo.svg'
 
 import styles from './styles.module.scss'
+import { DLEEdition } from 'helpers/edition'
 
 type Props = {
   isCollapsed: boolean
