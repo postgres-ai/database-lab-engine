@@ -3,5 +3,5 @@ export const getCliCreateBranchCommand = (branchName: string) => {
 }
 
 export const getCliBranchListCommand = () => {
-  return `dblab branch list`
+  return `dblab branch`
 }
