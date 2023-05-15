@@ -271,6 +271,15 @@ func (s *Server) createSnapshotClone(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) clones(w http.ResponseWriter, r *http.Request) {
+	cloningState := s.Cloning.GetCloningState()
+
+	if err := api.WriteJSON(w, http.StatusOK, cloningState.Clones); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
+}
+
 func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 	if s.engProps.GetEdition() == global.StandardEdition {
 		if err := s.engProps.CheckBilling(); err != nil {

@@ -198,6 +198,7 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/snapshot/create", authMW.Authorized(s.createSnapshot)).Methods(http.MethodPost)
 	r.HandleFunc("/snapshot/delete", authMW.Authorized(s.deleteSnapshot)).Methods(http.MethodPost)
 	r.HandleFunc("/snapshot/clone", authMW.Authorized(s.createSnapshotClone)).Methods(http.MethodPost)
+	r.HandleFunc("/clones", authMW.Authorized(s.clones)).Methods(http.MethodGet)
 	r.HandleFunc("/clone", authMW.Authorized(s.createClone)).Methods(http.MethodPost)
 	r.HandleFunc("/clone/{id}", authMW.Authorized(s.destroyClone)).Methods(http.MethodDelete)
 	r.HandleFunc("/clone/{id}", authMW.Authorized(s.patchClone)).Methods(http.MethodPatch)
@@ -209,7 +210,7 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/observation/download", authMW.Authorized(s.downloadArtifact)).Methods(http.MethodGet)
 	r.HandleFunc("/instance/retrieval", authMW.Authorized(s.retrievalState)).Methods(http.MethodGet)
 
-	r.HandleFunc("/branch/list", authMW.Authorized(s.listBranches)).Methods(http.MethodGet)
+	r.HandleFunc("/branches", authMW.Authorized(s.listBranches)).Methods(http.MethodGet)
 	r.HandleFunc("/branch/snapshot/{id:.*}", authMW.Authorized(s.getCommit)).Methods(http.MethodGet)
 	r.HandleFunc("/branch/create", authMW.Authorized(s.createBranch)).Methods(http.MethodPost)
 	r.HandleFunc("/branch/snapshot", authMW.Authorized(s.snapshot)).Methods(http.MethodPost)
