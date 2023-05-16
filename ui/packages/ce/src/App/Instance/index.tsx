@@ -2,10 +2,12 @@ import { Switch, Route, Redirect } from 'react-router-dom'
 
 import { ROUTES } from 'config/routes'
 
+import { Logs } from './Logs'
 import { Page } from './Page'
 import { Clones } from './Clones'
-import { Snapshots } from './Snapshots'
 import { Branches } from './Branches'
+import { Snapshots } from './Snapshots'
+import { Configuration } from './Configuration'
 
 export const Instance = () => {
   return (
@@ -21,6 +23,12 @@ export const Instance = () => {
       </Route>
       <Route path={ROUTES.INSTANCE.BRANCHES.path}>
         <Branches />
+      </Route>
+      <Route path={ROUTES.INSTANCE.LOGS.path}>
+        <Logs />
+      </Route>
+      <Route path={ROUTES.INSTANCE.CONFIGURATION.path}>
+        <Configuration />
       </Route>
       <Redirect to={ROUTES.path} />
     </Switch>

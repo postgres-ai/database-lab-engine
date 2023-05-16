@@ -6,6 +6,7 @@
  */
 
 import React from 'react'
+import { Link } from 'react-router-dom'
 import {
   makeStyles,
   Tab as TabComponent,
@@ -37,6 +38,10 @@ const useStyles = makeStyles(
       '& .postgres-logo': {
         width: '18px',
         height: '18px',
+      },
+
+      '& a': {
+        color: colors.black,
       },
     },
 
@@ -91,56 +96,68 @@ export const Tabs = (props: Props) => {
       onChange={handleChange}
       classes={{ root: classes.tabsRoot, indicator: classes.tabsIndicator }}
     >
-      <TabComponent
-        label="👁️ Overview"
-        classes={{
-          root: classes.tabRoot,
-        }}
-        value={TABS_INDEX.OVERVIEW}
-      />
-      <TabComponent
-        label="🖖 Branches"
-        classes={{
-          root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
-        }}
-        value={TABS_INDEX.BRANCHES}
-      />
-      <TabComponent
-        label="⚡ Snapshots"
-        classes={{
-          root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
-        }}
-        value={TABS_INDEX.SNAPSHOTS}
-      />
-      <TabComponent
-        label={
-          <div className={classes.flexRow}>
-            <PostgresSQL /> Clones
-          </div>
-        }
-        classes={{
-            root: hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
-        }}
-        value={TABS_INDEX.CLONES}
-      />
-      <TabComponent
-        label="📓 Logs"
-        disabled={!hasLogs}
-        classes={{
-            root:
-                props.hideInstanceTabs || !isConfigActive
-                    ? classes.tabHidden
-                    : classes.tabRoot,
-        }}
-        value={TABS_INDEX.LOGS}
-      />
-      <TabComponent
-        label="🛠️ Configuration"
-        classes={{
+      <Link to="/instance">
+        <TabComponent
+          label="👁️ Overview"
+          classes={{
+            root: classes.tabRoot,
+          }}
+          value={TABS_INDEX.OVERVIEW}
+        />
+      </Link>
+      <Link to="/instance/branches">
+        <TabComponent
+          label="🖖 Branches"
+          classes={{
             root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
-        }}
-        value={TABS_INDEX.CONFIGURATION}
-      />
+          }}
+          value={TABS_INDEX.BRANCHES}
+        />
+      </Link>
+      <Link to="/instance/snapshots">
+        <TabComponent
+          label="⚡ Snapshots"
+          classes={{
+            root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
+          }}
+          value={TABS_INDEX.SNAPSHOTS}
+        />
+      </Link>
+      <Link to="/instance/clones">
+        <TabComponent
+          label={
+            <div className={classes.flexRow}>
+              <PostgresSQL /> Clones
+            </div>
+          }
+          classes={{
+            root: hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
+          }}
+          value={TABS_INDEX.CLONES}
+        />
+      </Link>
+      <Link to="/instance/logs">
+        <TabComponent
+          label="📓 Logs"
+          disabled={!hasLogs}
+          classes={{
+            root:
+              props.hideInstanceTabs || !isConfigActive
+                ? classes.tabHidden
+                : classes.tabRoot,
+          }}
+          value={TABS_INDEX.LOGS}
+        />
+      </Link>
+      <Link to="/instance/configuration">
+        <TabComponent
+          label="🛠️ Configuration"
+          classes={{
+            root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
+          }}
+          value={TABS_INDEX.CONFIGURATION}
+        />
+      </Link>
     </TabsComponent>
   )
 }

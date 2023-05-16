@@ -5,7 +5,10 @@ import React, { useEffect, useReducer } from 'react'
 
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { Api } from '@postgres.ai/shared/pages/Instance/stores/Main'
-import { establishConnection } from '@postgres.ai/shared/pages/Logs/wsLogs'
+import {
+  establishConnection,
+  restartConnection,
+} from '@postgres.ai/shared/pages/Logs/wsLogs'
 import { useWsScroll } from '@postgres.ai/shared/pages/Logs/hooks/useWsScroll'
 
 import { LAPTOP_WIDTH_PX } from './constants'
@@ -24,6 +27,7 @@ const useStyles = makeStyles(
       display: 'flex',
       flexDirection: 'row',
       gap: 10,
+      flexWrap: 'wrap',
 
       '&  > span': {
         display: 'flex',
@@ -118,27 +122,26 @@ export const Logs = ({ api }: { api: Api }) => {
     return true
   }
 
-  const initialState = {
-    '[DEBUG]': !isEmpty(logsFilterState) ? logsFilterState?.['[DEBUG]'] : true,
-    '[INFO]': !isEmpty(logsFilterState) ? logsFilterState?.['[INFO]'] : true,
-    '[ERROR]': !isEmpty(logsFilterState) ? logsFilterState?.['[ERROR]'] : true,
-    '[base.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['[base.go]']
-      : true,
-    '[runners.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['[runners.go]']
-      : true,
-    '[snapshots.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['[snapshots.go]']
-      : true,
-    '[util.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['[util.go]']
-      : true,
-    '[logging.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['[logging.go]']
-      : false,
-    '[ws.go]': !isEmpty(logsFilterState) ? logsFilterState?.['[ws.go]'] : false,
-    '[other]': !isEmpty(logsFilterState) ? logsFilterState?.['[other]'] : true,
+  const initialState = (obj: Record<string, boolean>) => {
+    const filters = {
+      '[DEBUG]': true,
+      '[INFO]': true,
+      '[ERROR]': true,
+      '[base.go]': true,
+      '[runners.go]': true,
+      '[snapshots.go]': true,
+      '[util.go]': true,
+      '[logging.go]': false,
+      '[ws.go]': false,
+      '[other]': true,
+    }
+
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        filters[key as keyof typeof filters] = obj[key]
+      }
+    }
+    return filters
   }
 
   const reducer = (
@@ -171,13 +174,16 @@ export const Logs = ({ api }: { api: Api }) => {
     }
   }
 
-  const [state, dispatch] = useReducer(reducer, initialState)
+  const [state, dispatch] = useReducer(reducer, initialState(logsFilterState))
 
   const FormCheckbox = ({ type }: { type: string }) => {
     const filterType = (state as Record<string, boolean>)[`[${type}]`]
     return (
       <span
-        onClick={() => dispatch({ type })}
+        onClick={() => {
+          dispatch({ type })
+          restartConnection(api)
+        }}
         className={
           filterType && type !== 'ERROR'
             ? classes.activeButton

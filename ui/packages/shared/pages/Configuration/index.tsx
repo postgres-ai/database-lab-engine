@@ -28,13 +28,21 @@ import { MainStore } from '@postgres.ai/shared/pages/Instance/stores/Main'
 import { tooltipText } from '../Instance/Configuration/tooltipText'
 import { FormValues, useForm } from '../Instance/Configuration/useForm'
 import { ResponseMessage } from '../Instance/Configuration/ResponseMessage'
-import { ConfigSectionTitle, Header, ModalTitle } from '../Instance/Configuration/Header'
+import {
+  ConfigSectionTitle,
+  Header,
+  ModalTitle,
+} from '../Instance/Configuration/Header'
 import {
   dockerImageOptions,
   defaultPgDumpOptions,
   defaultPgRestoreOptions,
 } from '../Instance/Configuration/configOptions'
-import { formatDockerImageArray, FormValuesKey, uniqueChipValue } from '../Instance/Configuration/utils'
+import {
+  formatDockerImageArray,
+  FormValuesKey,
+  uniqueChipValue,
+} from '../Instance/Configuration/utils'
 import {
   SelectWithTooltip,
   InputWithChip,
@@ -295,7 +303,7 @@ export const Configuration = observer(
           }
           className={styles.snackbar}
         />
-        {!config && isConfigurationLoading ? (
+        {!config || isConfigurationLoading ? (
           <div className={styles.spinnerContainer}>
             <Spinner size="lg" className={styles.spinner} />
           </div>

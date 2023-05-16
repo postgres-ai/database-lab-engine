@@ -12,7 +12,7 @@ export const establishConnection = async (api: Api) => {
   const logElement = document.getElementById('logs-container')
 
   if (logElement === null) {
-    console.log('Not found container element');
+    console.log('Not found container element')
     return
   }
 
@@ -51,9 +51,9 @@ export const establishConnection = async (api: Api) => {
   })
 
   if (error || response == null) {
-    console.log('Not authorized:', error);
+    console.log('Not authorized:', error)
     appendLogElement('Not authorized')
-    return;
+    return
   }
 
   if (api.initWS == null) {
@@ -65,17 +65,17 @@ export const establishConnection = async (api: Api) => {
   const socket = api.initWS(logsEndpoint, response.token)
 
   socket.onopen = () => {
-    console.log('Successfully Connected');
+    console.log('Successfully Connected')
   }
 
   socket.onclose = (event) => {
-    console.log('Socket Closed Connection: ', event);
+    console.log('Socket Closed Connection: ', event)
     socket.send('Client Closed')
     appendLogElement('DLE Connection Closed')
   }
 
   socket.onerror = (error) => {
-    console.log('Socket Error: ', error);
+    console.log('Socket Error: ', error)
 
     appendLogElement('Connection Error')
   }
@@ -84,4 +84,16 @@ export const establishConnection = async (api: Api) => {
     const logEntry = decodeURIComponent(atob(event.data))
     appendLogElement(logEntry, 'message')
   }
+}
+
+export const restartConnection = (api: Api) => {
+  const logElement = document.getElementById('logs-container')
+
+  if (logElement && logElement.childElementCount > 1) {
+    while (logElement.firstChild) {
+      logElement.removeChild(logElement.firstChild)
+    }
+  }
+
+  establishConnection(api)
 }

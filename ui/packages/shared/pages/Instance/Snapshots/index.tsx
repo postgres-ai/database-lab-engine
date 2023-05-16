@@ -13,7 +13,7 @@ import { useStores, useHost } from '@postgres.ai/shared/pages/Instance/context'
 import { SnapshotsTable } from '@postgres.ai/shared/pages/Instance/Snapshots/components/SnapshotsTable'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { isSameDayUTC } from '@postgres.ai/shared/utils/date'
-import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
+import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 import { Button } from '@postgres.ai/shared/components/Button2'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
@@ -29,6 +29,11 @@ const useStyles = makeStyles(
       width: '12px',
       marginLeft: '8px',
       color: '#808080',
+    },
+    spinner: {
+      position: 'absolute',
+      right: '50%',
+      transform: 'translate(-50%, -50%)',
     },
   },
   { index: 1 },
@@ -71,38 +76,42 @@ export const Snapshots = observer(() => {
       />
     )
 
-  if (snapshots.isLoading) return <StubSpinner />
-
   return (
     <div className={classes.marginTop}>
-      <SectionTitle
-        level={2}
-        tag="h2"
-        text={`Snapshots (${filteredSnapshots?.length || 0})`}
-        rightContent={
-          <>
-            <Button
-              theme="primary"
-              onClick={goToSnapshotAddPage}
-              isDisabled={!hasClones}
-            >
-              Create snapshot
-            </Button>
-
-            {!hasClones && (
-              <Tooltip content="No clones">
-                <InfoIcon className={classes.infoIcon} />
-              </Tooltip>
-            )}
-          </>
-        }
-      />
-      {!isEmpty ? (
-        <SnapshotsTable />
+      {snapshots.isLoading ? (
+        <Spinner size="lg" className={classes.spinner} />
       ) : (
-        <p className={classes.marginTop}>
-          This instance has no active snapshots
-        </p>
+        <>
+          <SectionTitle
+            level={2}
+            tag="h2"
+            text={`Snapshots (${filteredSnapshots?.length || 0})`}
+            rightContent={
+              <>
+                <Button
+                  theme="primary"
+                  onClick={goToSnapshotAddPage}
+                  isDisabled={!hasClones}
+                >
+                  Create snapshot
+                </Button>
+
+                {!hasClones && (
+                  <Tooltip content="No clones">
+                    <InfoIcon className={classes.infoIcon} />
+                  </Tooltip>
+                )}
+              </>
+            }
+          />
+          {!isEmpty ? (
+            <SnapshotsTable />
+          ) : (
+            <p className={classes.marginTop}>
+              This instance has no active snapshots
+            </p>
+          )}
+        </>
       )}
     </div>
   )
