@@ -20,10 +20,15 @@ export const App = observer(() => {
   if (appStore.engine.isLoading || appStore.engine.data === undefined)
     return <StubSpinner />
 
+  const displayStickyBanner =
+    appStore.isValidAuthToken &&
+    !appStore.engine.isLoading &&
+    appStore.engine.data?.edition === 'standard'
+
   return (
     <BrowserRouter>
       <Layout
-        isTokenValid={appStore.isValidAuthToken && !appStore.engine.isLoading}
+        displayStickyBanner={displayStickyBanner}
         menu={<Menu isValidToken={appStore.isValidAuthToken} />}
       >
         {appStore.isValidAuthToken ? (
