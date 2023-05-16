@@ -394,7 +394,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
 
-  /observation/download:
+  /observation/download/{artifact_type}/{clone_id}/{session_id}:
     get:
       tags:
         - "observation"
@@ -570,7 +570,7 @@ paths:
         - "config"
       summary: "Test source database"
       description: ""
-      operationId: "testDBConnection"
+      operationId: "testDBConnection1"
       consumes:
         - "application/json"
       parameters:
@@ -598,7 +598,7 @@ paths:
         - "config"
       summary: "Test source database"
       description: ""
-      operationId: "testDBConnection"
+      operationId: "testDBConnection2"
       consumes:
         - "application/json"
       parameters:
@@ -788,7 +788,7 @@ paths:
           required: true
         - name: body
           in: body
-          description: "Parameters required to access the log of the given branch: `branchName` – the name of the branch
+          description: "Parameters required to access the log of the given branch: `branchName` – the name of the branch"
           required: false
           schema:
             type: object
