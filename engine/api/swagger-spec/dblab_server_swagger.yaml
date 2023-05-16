@@ -755,7 +755,7 @@ paths:
           required: true
         - name: body
           in: body
-          description: "Parameters required for branch deletion: `branchName` – the name of the branch to be deleted
+          description: "Parameters required for branch deletion: `branchName` – the name of the branch to be deleted"
           required: true
           schema:
             type: object
