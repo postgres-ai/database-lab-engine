@@ -8,7 +8,7 @@
 import { request } from 'helpers/request'
 
 export const getBranches = async () => {
-  const response = await request(`/branch/list`)
+  const response = await request(`/branches`)
 
   return {
     response: response.ok ? await response.json() : null,

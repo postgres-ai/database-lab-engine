@@ -1,8 +1,8 @@
 swagger: "2.0"
 info:
-  description: "This is a Database Lab Engine sample server."
-  version: "3.2.0"
-  title: "Database Lab Engine API"
+  description: "This page provides the OpenAPI specification for the Database Lab (DBLab) API, previously recognized as the DLE API (Database Lab Engine API)."
+  version: "4.0.0-alpha.3"
+  title: "DBLab API"
   contact:
     email: "team@postgres.ai"
   license:
@@ -73,6 +73,24 @@ paths:
           description: "Internal server error"
           schema:
             $ref: "#/definitions/Error"
+
+  /clones:
+    get:
+      tags:
+        - "clone"
+      description: Retrieve a list of clones
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Clone"
 
   /clone:
     post:
@@ -598,6 +616,193 @@ paths:
           schema:
             $ref: "#/definitions/Error"
 
+  /branches:
+    get:
+      tags:
+        - "branch"
+      description: Retrieve a list of branches
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Branch"
+
+  /branch/snapshot/{id}:
+    get:
+      description: Retrieves information about the specified branch
+      parameters:
+        - name: id
+          in: path
+          description: ID of the branch snapshot
+          required: true
+          type: string
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: "#/definitions/SnapshotDetails"
+        400:
+          description: "Bad request"
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /branch/create:
+    post:
+      tags:
+        - "branch"
+      description: Create a new branch
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - name: body
+          in: body
+          description: "Parameters required for branch creation: `branchName` – the name of the new branch; `baseBranch` –  the name of the parent branch used for branch creation, or `snapshotID` – the snapshot ID used for branch creation"
+          required: true
+          schema:
+            type: object
+            properties:
+              branchName:
+                type: string
+              baseBranch:
+                type: string
+              snapshotID:
+                type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+        400:
+          description: "Bad request"
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /branch/snapshot:
+    post:
+      tags:
+        - "branch"
+      description: Create a new snapshot for the specified clone
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - name: body
+          in: body
+          description: "Parameters necessary for snapshot creation: `cloneID` – the ID of the clone, `message` – description of the snapshot
+          required: true
+          schema:
+            type: object
+            properties:
+              cloneID:
+                type: string
+              message:
+                type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              snapshotID:
+                type: string
+        400:
+          description: "Bad request"
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /branch/delete:
+    post:
+      tags:
+        - "branch"
+      description: Delete the specified branch
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - name: body
+          in: body
+          description: "Parameters required for branch deletion: `branchName` – the name of the branch to be deleted
+          required: true
+          schema:
+            type: object
+            properties:
+              branchName:
+                type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: "#/definitions/ResponseStatus"
+        400:
+          description: "Bad request"
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /branch/log:
+    post:
+      tags:
+        - "branch"
+      description: Retrieve a log of a given branch
+      parameters:
+        - in: header
+          name: Verification-Token
+          type: string
+          required: true
+        - name: body
+          in: body
+          description: "Parameters required to access the log of the given branch: `branchName` – the name of the branch
+          required: false
+          schema:
+            type: object
+            properties:
+              branchName:
+                type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/SnapshotDetails"
+
 definitions:
   Instance:
     type: "object"
@@ -1042,6 +1247,14 @@ definitions:
       hint:
         type: "string"
 
+  ResponseStatus:
+    type: "object"
+    properties:
+      status:
+        type: "string"
+      message:
+        type: "string"
+
   Config:
     type: object
 
@@ -1070,7 +1283,41 @@ definitions:
         type: "string"
         description: "WebSocket token"
 
+  Branch:
+    type: object
+    properties:
+      name:
+        type: string
+      parent:
+        type: string
+      dataStateAt:
+        type: string
+        format: date-time
+      snapshotID:
+        type: string
+
+  SnapshotDetails:
+    type: object
+    properties:
+      id:
+        type: string
+      parent:
+        type: string
+      child:
+        type: string
+      branch:
+        type: array
+        items:
+          type: string
+      root:
+        type: string
+      dataStateAt:
+        type: string
+        format: date-time
+      message:
+        type: string
+
 
 externalDocs:
-  description: "Database Lab Docs"
+  description: "DBLab Docs"
   url: "https://gitlab.com/postgres-ai/docs/tree/master/docs/database-lab"
