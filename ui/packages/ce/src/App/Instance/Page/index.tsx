@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 
 import { Instance } from '@postgres.ai/shared/pages/Instance'
 
@@ -53,10 +52,6 @@ export const Page = ({ renderCurrentTab }: { renderCurrentTab?: number }) => {
   const elements = {
     breadcrumbs: <NavPath routes={[ROUTES, ROUTES.INSTANCE]} />,
   }
-
-  useEffect(() => {
-    window.history.replaceState({}, document.title, ROUTES.INSTANCE.path)
-  }, [])
 
   return (
     <PageContainer>
