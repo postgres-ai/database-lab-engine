@@ -2,7 +2,7 @@ swagger: "2.0"
 info:
   description: "This page provides the OpenAPI specification for the Database Lab (DBLab) API, previously recognized as the DLE API (Database Lab Engine API)."
   version: "4.0.0-alpha.5"
-  title: "DBLab API v4.0"
+  title: "DBLab API"
   contact:
     email: "team@postgres.ai"
   license:
@@ -23,8 +23,8 @@ paths:
   /status:
     get:
       tags:
-        - "instance"
-      summary: "Get the status of the instance"
+        - "Instance"
+      summary: "Get instance status"
       description: ""
       operationId: "getInstanceStatus"
       consumes:
@@ -41,15 +41,11 @@ paths:
           description: "Successful operation"
           schema:
             $ref: "#/definitions/Instance"
-        500:
-          description: "Internal server error"
-          schema:
-            $ref: "#/definitions/Error"
 
   /snapshots:
     get:
       tags:
-        - "instance"
+        - "Snapshots"
       summary: "Retrieve a list of snapshots"
       description: ""
       operationId: "getSnapshots"
@@ -69,15 +65,11 @@ paths:
             type: "array"
             items:
               $ref: "#/definitions/Snapshot"
-        500:
-          description: "Internal server error"
-          schema:
-            $ref: "#/definitions/Error"
 
   /clones:
     get:
       tags:
-        - "clone"
+        - "Clones"
       description: Retrieve a list of clones
       parameters:
         - in: header
@@ -95,7 +87,7 @@ paths:
   /clone:
     post:
       tags:
-        - "clone"
+        - "Clones"
       summary: "Create a clone"
       description: ""
       operationId: "createClone"
@@ -131,7 +123,7 @@ paths:
   /clone/{id}:
     get:
       tags:
-        - "clone"
+        - "Clones"
       summary: "Get a clone status"
       description: ""
       operationId: "getClone"
@@ -165,7 +157,7 @@ paths:
 
     patch:
       tags:
-        - "clone"
+        - "Clones"
       summary: "Update a clone"
       description: ""
       operationId: "patchClone"
@@ -205,7 +197,7 @@ paths:
 
     delete:
       tags:
-        - "clone"
+        - "Clones"
       summary: "Delete a clone"
       description: ""
       operationId: "destroyClone"
@@ -236,7 +228,7 @@ paths:
   /clone/{id}/reset:
     post:
       tags:
-        - "clone"
+        - "Clones"
       summary: "Reset a clone"
       description: ""
       operationId: "resetClone"
@@ -273,7 +265,7 @@ paths:
   /observation/start:
     post:
       tags:
-        - "observation"
+        - "Observation"
       summary: "Start an observation session"
       description: ""
       operationId: "startObservation"
@@ -313,7 +305,7 @@ paths:
   /observation/stop:
     post:
       tags:
-        - "observation"
+        - "Observation"
       summary: "Stop the observation session"
       description: ""
       operationId: "stopObservation"
@@ -353,7 +345,7 @@ paths:
   /observation/summary/{clone_id}/{session_id}:
     get:
       tags:
-        - "observation"
+        - "Observation"
       summary: "Get the observation summary info"
       description: ""
       operationId: "summaryObservation"
@@ -397,7 +389,7 @@ paths:
   /observation/download/{artifact_type}/{clone_id}/{session_id}:
     get:
       tags:
-        - "observation"
+        - "Observation"
       summary: "Download the observation artifact"
       description: ""
       operationId: "downloadObservationArtifact"
@@ -440,7 +432,7 @@ paths:
   /instance/retrieval:
     get:
       tags:
-        - "instance"
+        - "Instance"
       summary: "Report state of retrieval subsystem"
       description: ""
       operationId: "instanceRetrieval"
@@ -464,7 +456,7 @@ paths:
   /healthz:
     get:
       tags:
-        - "instance"
+        - "Instance"
       summary: "Get the state of the instance we are working with"
       description: ""
       operationId: "healthCheck"
@@ -489,7 +481,7 @@ paths:
   /admin/config:
     post:
       tags:
-        - "config"
+        - "Config"
       summary: "Set instance configuration"
       description: ""
       operationId: "setConfig"
@@ -519,7 +511,7 @@ paths:
             $ref: "#/definitions/Error"
     get:
       tags:
-        - "config"
+        - "Config"
       summary: "Get instance configuration"
       description: ""
       operationId: "getConfig"
@@ -543,7 +535,7 @@ paths:
   /admin/config.yaml:
     get:
       tags:
-        - "config"
+        - "Config"
       summary: "Get the config of the instance"
       description: ""
       operationId: "getConfigYaml"
@@ -567,7 +559,7 @@ paths:
   /admin/test-db-source:
     post:
       tags:
-        - "config"
+        - "Config"
       summary: "Test source database"
       description: ""
       operationId: "testDBConnection1"
@@ -595,7 +587,7 @@ paths:
   /admin/ws-auth:
     post:
       tags:
-        - "config"
+        - "Config"
       summary: "Test source database"
       description: ""
       operationId: "testDBConnection2"
@@ -619,7 +611,7 @@ paths:
   /branches:
     get:
       tags:
-        - "branch"
+        - "Branches"
       description: Retrieve a list of branches
       parameters:
         - in: header
@@ -636,7 +628,9 @@ paths:
 
   /branch/snapshot/{id}:
     get:
-      description: Retrieves information about the specified branch
+      tags:
+        - "Branches"
+      description: Retrieves information about the specified snapshot
       parameters:
         - name: id
           in: path
@@ -668,7 +662,7 @@ paths:
   /branch/create:
     post:
       tags:
-        - "branch"
+        - "Branches"
       description: Create a new branch
       parameters:
         - in: header
@@ -708,7 +702,7 @@ paths:
   /branch/snapshot:
     post:
       tags:
-        - "branch"
+        - "Branches"
       description: Create a new snapshot for the specified clone
       parameters:
         - in: header
@@ -746,7 +740,7 @@ paths:
   /branch/delete:
     post:
       tags:
-        - "branch"
+        - "Branches"
       description: Delete the specified branch
       parameters:
         - in: header
@@ -779,7 +773,7 @@ paths:
   /branch/log:
     post:
       tags:
-        - "branch"
+        - "Branches"
       description: Retrieve a log of a given branch
       parameters:
         - in: header
