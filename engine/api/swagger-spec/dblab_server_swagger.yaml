@@ -1,19 +1,19 @@
 swagger: "2.0"
 info:
   description: "This page provides the OpenAPI specification for the Database Lab (DBLab) API, previously recognized as the DLE API (Database Lab Engine API)."
-  version: "4.0.0-alpha.3"
-  title: "DBLab API"
+  version: "4.0.0-alpha.5"
+  title: "DBLab API v4.0"
   contact:
     email: "team@postgres.ai"
   license:
-    name: "Database Lab License"
-    url: "https://gitlab.com/postgres-ai/database-lab/blob/master/LICENSE"
+    name: "DBLab v4.0 uses Apache Licence Version 2.0"
+    url: "https://gitlab.com/postgres-ai/database-lab/blob/dle-4-0/LICENSE"
 basePath: "/"
 tags:
-  - name: "Database Lab Engine"
-    description: "API Reference"
+  - name: "DBLab"
+    description: "DBLab API Reference"
     externalDocs:
-      description: "Database Lab Engine Docs"
+      description: "DBLab Docs"
       url: "https://postgres.ai/docs/database-lab"
 schemes:
   - "https"
@@ -24,7 +24,7 @@ paths:
     get:
       tags:
         - "instance"
-      summary: "Get the status of the instance we are working with"
+      summary: "Get the status of the instance"
       description: ""
       operationId: "getInstanceStatus"
       consumes:
@@ -50,7 +50,7 @@ paths:
     get:
       tags:
         - "instance"
-      summary: "Get the list of snapshots"
+      summary: "Retrieve a list of snapshots"
       description: ""
       operationId: "getSnapshots"
       consumes:
@@ -717,7 +717,7 @@ paths:
           required: true
         - name: body
           in: body
-          description: "Parameters necessary for snapshot creation: `cloneID` – the ID of the clone, `message` – description of the snapshot
+          description: "Parameters necessary for snapshot creation: `cloneID` – the ID of the clone, `message` – description of the snapshot"
           required: true
           schema:
             type: object
