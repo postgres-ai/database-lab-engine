@@ -1,3 +1,3 @@
 export const getCliCreateSnapshotCommand = (cloneID: string) => {
-  return `dblab branch create ${cloneID ? cloneID : `<CLONE_ID>`}`
+  return `dblab snapshot create ${cloneID ? cloneID : `<CLONE_ID>`}`
 }
