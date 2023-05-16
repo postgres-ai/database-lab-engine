@@ -8,3 +8,7 @@ export const getTypeByStatus = (
   if (status === 'failed') return 'error'
   return 'unknown'
 }
+
+export const isRetrievalUnknown = (mode: string | undefined) => {
+  return mode === 'unknown' || mode === ''
+}
