@@ -18,7 +18,7 @@ import (
 
 // ListBranches returns branches list.
 func (c *Client) ListBranches(ctx context.Context) ([]string, error) {
-	u := c.URL("/branch/list")
+	u := c.URL("/branches")
 
 	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
