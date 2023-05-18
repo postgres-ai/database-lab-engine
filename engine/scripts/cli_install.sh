@@ -1,6 +1,15 @@
 #!/bin/bash
+################################################
+# Welcome to DBLab 🖖
+# This script downloads DBLab CLI (`dblab`).
+# 🌠 Contribute to DBLab: https://dblab.dev
+# 📚 DBLab Docs: https://docs.dblab.dev
+# 💻 CLI reference: https://cli-docs.dblab.dev/
+# 👨‍💻 API reference: https://api.dblab.dev
+################################################
 
 cli_version=${DBLAB_CLI_VERSION:-"master"}
+cli_version=${cli_version#v}
 
 mkdir -p ~/.dblab
 
@@ -24,8 +33,9 @@ esac
 
 echo "Detected OS: $os, architecture: $arch"
 
-curl --fail -Ss --output ~/.dblab/dblab \
-  https://storage.googleapis.com/database-lab-cli/${cli_version}/dblab-${os}-${arch} \
+url="https://storage.googleapis.com/database-lab-cli/${cli_version}/dblab-${os}-${arch}"
+
+curl --fail -Ss --output ~/.dblab/dblab $url \
   && chmod a+x ~/.dblab/dblab
 
 if [ $? -eq 0 ]; then
@@ -41,16 +51,18 @@ Y88b 888 888 d88P 888 888  888 888 d88P
 '
 
   echo "::::::::::::::::::::::::::::::::::::::::"
-
-  echo 'SUCCESS! DLE CLI ("dblab") downloaded to:'
-
+  ~/.dblab/dblab --version
+  echo "::::::::::::::::::::::::::::::::::::::::"
+  echo "Installed to:"
   {
     rm -f /usr/local/bin/dblab 2> /dev/null \
       && mv ~/.dblab/dblab /usr/local/bin/dblab 2> /dev/null \
-      && echo 'Done!'
+      && echo '    /usr/local/bin/dblab'
   } || {
     echo '    ~/.dblab/dblab'
-    echo 'Add it to $PATH or move manually:'
+    echo 'Add it to $PATH:'
+    echo '    export PATH=$PATH:~/.dblab/dblab'
+    echo 'or move:'
     echo '    sudo mv ~/.dblab/dblab /usr/local/bin/dblab'
   }
 
@@ -59,5 +71,5 @@ Y88b 888 888 d88P 888 888  888 888 d88P
   echo '    dblab init'
   echo
 else
-  >&2 echo "dblab setup failure – cannot download binaries"
+  >&2 echo "dblab setup failure – cannot download binaries from $url"
 fi
