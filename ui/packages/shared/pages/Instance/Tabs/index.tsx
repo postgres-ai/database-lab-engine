@@ -81,14 +81,13 @@ type Props = {
   handleChange: (event: React.ChangeEvent<{}>, newValue: number) => void
   hasLogs: boolean
   hideInstanceTabs?: boolean
-  isConfigActive?: boolean
 }
 
 export const Tabs = (props: Props) => {
   const classes = useStyles()
 
-    const { value, handleChange, hasLogs, isConfigActive, hideInstanceTabs } =
-        props
+  const { value, handleChange, hasLogs, isConfigActive, hideInstanceTabs } =
+    props
 
   return (
     <TabsComponent

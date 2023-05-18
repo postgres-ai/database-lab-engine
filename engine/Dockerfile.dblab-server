@@ -4,7 +4,7 @@ FROM docker:20.10.24
 
 # Install dependencies
 RUN apk update \
-  && apk add --no-cache zfs lvm2 bash util-linux
+  && apk add --no-cache zfs lvm2 bash util-linux tzdata
 
 WORKDIR /home/dblab
 

@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/databases/postgres"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/docker"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
@@ -620,11 +621,14 @@ func (p *Provisioner) LastSessionActivity(session *resources.Session, minimumTim
 	ctx, cancel := context.WithCancel(p.ctx)
 	defer cancel()
 
-	fileSelector := pglog.NewSelector(fsm.Pool().ClonePath(session.Port))
+	clonePath := fsm.Pool().ClonePath(session.Port)
+	fileSelector := pglog.NewSelector(clonePath)
 
 	if err := fileSelector.DiscoverLogDir(); err != nil {
 		return nil, errors.Wrap(err, "failed to init file selector")
 	}
+
+	location := detectLogsTimeZone(clonePath)
 
 	fileSelector.SetMinimumTime(minimumTime)
 	fileSelector.FilterOldFilesInList()
@@ -639,7 +643,7 @@ func (p *Provisioner) LastSessionActivity(session *resources.Session, minimumTim
 			return nil, errors.Wrap(err, "failed get CSV log filenames")
 		}
 
-		activity, err := p.scanCSVLogFile(ctx, filename, minimumTime)
+		activity, err := p.scanCSVLogFile(ctx, filename, minimumTime, location)
 		if err == io.EOF {
 			continue
 		}
@@ -650,12 +654,39 @@ func (p *Provisioner) LastSessionActivity(session *resources.Session, minimumTim
 	return nil, pglog.ErrNotFound
 }
 
-const csvMessageLogFieldsLength = 14
+const (
+	csvMessageLogFieldsLength = 14
+	logTZ                     = "log_timezone"
+)
 
-func (p *Provisioner) scanCSVLogFile(ctx context.Context, filename string, availableTime time.Time) (*time.Time, error) {
+func detectLogsTimeZone(dataDir string) *time.Location {
+	userCfg, err := pgconfig.ReadUserConfig(dataDir)
+	if err != nil {
+		log.Msg("unable to read user-defined config of clone:", err.Error())
+
+		return time.UTC
+	}
+
+	if tz, ok := userCfg[logTZ]; ok {
+		location, err := time.LoadLocation(tz)
+
+		if err != nil {
+			log.Msg(fmt.Sprintf("unable to load location (%q) defined in config: %s", tz, err.Error()))
+
+			return time.UTC
+		}
+
+		return location
+	}
+
+	return time.UTC
+}
+
+func (p *Provisioner) scanCSVLogFile(ctx context.Context, filename string, availableTime time.Time,
+	location *time.Location) (*time.Time, error) {
 	csvFile, err := os.Open(filename)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to open a CSV log file")
+		return nil, errors.Wrap(err, "failed to open CSV log file")
 	}
 
 	defer func() {
@@ -683,13 +714,13 @@ func (p *Provisioner) scanCSVLogFile(ctx context.Context, filename string, avail
 		logTime := entry[0]
 		logMessage := entry[13]
 
-		lastActivity, err := pglog.ParsePostgresLastActivity(logTime, logMessage)
+		lastActivity, err := pglog.ParsePostgresLastActivity(logTime, logMessage, location)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get the time of last activity")
+			return nil, errors.Wrapf(err, "failed to determine last activity timestamp")
 		}
 
 		// Filter invalid and non-recent activity.
-		if lastActivity == nil || lastActivity.Before(availableTime) {
+		if lastActivity == nil || lastActivity.In(time.UTC).Before(availableTime) {
 			continue
 		}
 

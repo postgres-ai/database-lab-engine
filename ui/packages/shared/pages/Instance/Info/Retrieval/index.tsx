@@ -9,14 +9,13 @@ import { formatDateStd } from '@postgres.ai/shared/utils/date'
 import { Button } from '@postgres.ai/shared/components/Button2'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { InfoIcon } from '@postgres.ai/shared/icons/Info'
-import { isRetrievalUnknown } from '@postgres.ai/shared/pages/Instance/Configuration/utils'
 
 import { Section } from '../components/Section'
 import { Property } from '../components/Property'
 
 import { RefreshFailedAlert } from './RefreshFailedAlert'
 
-import { getTypeByStatus } from './utils'
+import { getTypeByStatus, isRetrievalUnknown } from './utils'
 import { RetrievalModal } from './RetrievalModal'
 
 const useStyles = makeStyles(

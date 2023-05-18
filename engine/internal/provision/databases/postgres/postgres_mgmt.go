@@ -183,7 +183,7 @@ begin
     from pg_type t
     join pg_namespace n on
       n.oid = t.typnamespace
-      and not n.nspname in ('pg_catalog', 'information_schema')
+      and not n.nspname in ('pg_catalog', 'information_schema', '_timescaledb_internal')
       and t.typtype in ('d', 'e', 'r', 'm')
     order by t.typname
   loop
@@ -217,7 +217,7 @@ begin
           from pg_class c
           join pg_namespace n on
             n.oid = c.relnamespace
-            and not n.nspname in ('pg_catalog', 'information_schema')
+            and not n.nspname in ('pg_catalog', 'information_schema', '_timescaledb_internal')
             and c.relkind = %L
           order by c.relname
         $sql$,
@@ -245,7 +245,7 @@ begin
       pg_catalog.pg_get_function_identity_arguments(p.oid) as args
     from pg_catalog.pg_namespace as n
     join pg_catalog.pg_proc as p on p.pronamespace = n.oid
-    where not n.nspname in ('pg_catalog', 'information_schema')
+    where not n.nspname in ('pg_catalog', 'information_schema', '_timescaledb_internal')
     and p.proname not ilike 'dblink%' -- We do not want dblink to be involved (exclusion)
     and p.prokind in ('f', 'p', 'a', 'w')
   loop
@@ -273,7 +273,7 @@ begin
     select * 
     from pg_catalog.pg_namespace n
     join pg_catalog.pg_ts_dict d on d.dictnamespace = n.oid
-    where not n.nspname in ('pg_catalog', 'information_schema')
+    where not n.nspname in ('pg_catalog', 'information_schema', '_timescaledb_internal')
   loop
     raise debug 'Changing ownership of text search dictionary %.% to %', 
                  r.nspname, r.dictname, new_owner;
@@ -290,7 +290,7 @@ begin
      select typname, nspname
      from pg_catalog.pg_type
      join pg_catalog.pg_namespace on pg_namespace.oid = pg_type.typnamespace
-     where typtype = 'd' and not nspname in ('pg_catalog', 'information_schema')
+     where typtype = 'd' and not nspname in ('pg_catalog', 'information_schema', '_timescaledb_internal')
   loop
     raise debug 'Changing ownership of domain %.% to %', 
                  r.nspname, r.typname, new_owner;

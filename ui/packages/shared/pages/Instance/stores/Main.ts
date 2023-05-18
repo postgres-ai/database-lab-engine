@@ -26,7 +26,6 @@ import { GetFullConfig } from '@postgres.ai/shared/types/api/endpoints/getFullCo
 import { GetInstanceRetrieval } from '@postgres.ai/shared/types/api/endpoints/getInstanceRetrieval'
 import { InstanceRetrievalType } from '@postgres.ai/shared/types/api/entities/instanceRetrieval'
 import { GetEngine } from '@postgres.ai/shared/types/api/endpoints/getEngine'
-import { isRetrievalUnknown } from '@postgres.ai/shared/pages/Instance/Configuration/utils'
 import { GetSnapshotList } from '@postgres.ai/shared/types/api/endpoints/getSnapshotList'
 import { GetBranches } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 
@@ -102,13 +101,11 @@ export class MainStore {
     this.loadInstance(instanceId)
     this.getBranches()
     this.loadInstanceRetrieval(instanceId).then(() => {
-      if (!isRetrievalUnknown(this.instanceRetrieval?.mode)) {
-        this.getConfig().then((res) => {
-          if (res) {
-            this.getEngine()
-          }
-        })
-      }
+      this.getConfig().then((res) => {
+        if (res) {
+          this.getEngine()
+        }
+      })
     })
     this.snapshots.load(instanceId)
   }

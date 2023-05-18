@@ -17,7 +17,7 @@ FROM docker:20.10.12
 # Install dependencies
 RUN apk update \
   && apk add zfs=2.1.4-r0 --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main \
-  && apk add --no-cache lvm2 bash util-linux
+  && apk add --no-cache lvm2 bash util-linux tzdata
 
 WORKDIR /home/dblab
 

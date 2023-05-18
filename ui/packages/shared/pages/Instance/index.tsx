@@ -13,7 +13,6 @@ import { Button } from '@postgres.ai/shared/components/Button2'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
-import { isRetrievalUnknown } from '@postgres.ai/shared/pages/Instance/Configuration/utils'
 
 import { TABS_INDEX, Tabs } from './Tabs'
 import { Logs } from '../Logs'
@@ -74,9 +73,7 @@ export const Instance = observer((props: Props) => {
     load(instanceId)
   }, [instanceId])
 
-  const isConfigurationActive =
-    !isRetrievalUnknown(instanceRetrieval?.mode) &&
-    instanceRetrieval?.mode !== 'physical'
+  const isConfigurationActive = instanceRetrieval?.mode !== 'physical'
 
   useEffect(() => {
     if (
@@ -129,7 +126,6 @@ export const Instance = observer((props: Props) => {
               handleChange={switchTab}
               hasLogs={api.initWS != undefined}
               hideInstanceTabs={props?.hideInstanceTabs}
-              isConfigActive={!isRetrievalUnknown(instanceRetrieval?.mode)}
             />
           </SectionTitle>
 

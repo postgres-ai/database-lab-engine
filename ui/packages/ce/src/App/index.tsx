@@ -23,12 +23,12 @@ export const App = observer(() => {
   const displayStickyBanner =
     appStore.isValidAuthToken &&
     !appStore.engine.isLoading &&
-    appStore.engine.data?.edition !== 'community'
+    appStore.engine.data?.edition === 'standard'
 
   return (
     <BrowserRouter>
       <Layout
-        isTokenValid={displayStickyBanner}
+        displayStickyBanner={displayStickyBanner}
         menu={<Menu isValidToken={appStore.isValidAuthToken} />}
       >
         {appStore.isValidAuthToken ? (

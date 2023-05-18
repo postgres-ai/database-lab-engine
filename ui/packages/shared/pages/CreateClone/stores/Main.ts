@@ -80,7 +80,8 @@ export class MainStore {
       })
     }
 
-    if (error) this.cloneError = await getTextFromUnknownApiError(error)
+    if (error)
+      this.cloneError = await error.json().then((err) => err?.message || err)
 
     return Boolean(response)
   }
@@ -112,6 +113,7 @@ export class MainStore {
         )
     }
 
-    if (error) this.cloneError = await getTextFromUnknownApiError(error)
+    if (error)
+      this.cloneError = await error.json().then((err) => err?.message || err)
   }
 }
