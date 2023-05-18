@@ -1,5 +1,7 @@
 {
-  "url": "https://gitlab.com/postgres-ai/database-lab/-/raw/dle-4-0/engine/api/swagger-spec/dblab_openapi.yaml",
+  "baseUrL": "http://branching.aws.postgres.ai:446/api",
+  "verificationToken": "demo-token",
+  "local": "engine/api/swagger-spec/dblab_openapi.yaml",
   "output": "engine/api/postman/output.json",
   "envFile": "engine/api/postman/portman.env",
   "includeTests": true,
