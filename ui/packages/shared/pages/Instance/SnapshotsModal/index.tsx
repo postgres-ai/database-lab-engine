@@ -36,6 +36,7 @@ const useStyles = makeStyles(
     root: {
       fontSize: '14px',
       marginTop: 0,
+      display: 'block',
     },
     container: {
       maxHeight: '400px',
