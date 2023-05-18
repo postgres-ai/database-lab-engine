@@ -1,0 +1,3930 @@
+{
+	"info": {
+		"_postman_id": "e064b320-9989-468d-8438-39e5a83bea1c",
+		"name": "DBLab API 4.0.0-alpha.5",
+		"description": "This page provides the OpenAPI specification for the Database Lab (DBLab) API, previously recognized as the DLE API (Database Lab Engine API).\n\nContact Support:\n Name: DBLab API Support\n Email: api@postgres.ai",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "23678518"
+	},
+	"item": [
+		{
+			"name": "Instance",
+			"item": [
+				{
+					"name": "DBLab instance status and detailed information",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[GET]::/status - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[GET]::/status - Content-Type is application/json\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// Validate if response has JSON Body ",
+									"pm.test(\"[GET]::/status - Response has JSON Body\", function () {",
+									"    pm.response.to.have.jsonBody();",
+									"});",
+									"",
+									"// Response Validation",
+									"const schema = {\"type\":\"object\",\"properties\":{\"status\":{\"required\":[\"code\",\"message\"],\"type\":\"object\",\"properties\":{\"code\":{\"type\":\"string\",\"description\":\"Status code\"},\"message\":{\"type\":\"string\",\"description\":\"Status description\"}}},\"engine\":{\"type\":\"object\",\"properties\":{\"version\":{\"type\":\"string\"},\"edition\":{\"type\":\"string\"},\"billingActive\":{\"type\":\"string\"},\"instanceID\":{\"type\":\"string\"},\"startedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"telemetry\":{\"type\":\"boolean\"},\"disableConfigModification\":{\"type\":\"boolean\"}}},\"pools\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"mode\":{\"type\":\"string\"},\"dataStateAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"status\":{\"type\":\"string\"},\"cloneList\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"fileSystem\":{\"type\":\"object\",\"properties\":{\"mode\":{\"type\":\"string\"},\"free\":{\"type\":\"integer\",\"format\":\"int64\"},\"size\":{\"type\":\"integer\",\"format\":\"int64\"},\"used\":{\"type\":\"integer\",\"format\":\"int64\"},\"dataSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"usedBySnapshots\":{\"type\":\"integer\",\"format\":\"int64\"},\"usedByClones\":{\"type\":\"integer\",\"format\":\"int64\"},\"compressRatio\":{\"type\":\"integer\",\"format\":\"float64\"}}}}}},\"cloning\":{\"type\":\"object\",\"properties\":{\"expectedCloningTime\":{\"type\":\"integer\",\"format\":\"float64\"},\"numClones\":{\"type\":\"integer\",\"format\":\"int64\"},\"clones\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"snapshot\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"dataStateAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"physicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"logicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"pool\":{\"type\":\"string\"},\"numClones\":{\"type\":\"integer\",\"format\":\"int\"}}},\"protected\":{\"type\":\"boolean\",\"default\":false},\"deleteAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"status\":{\"required\":[\"code\",\"message\"],\"type\":\"object\",\"properties\":{\"code\":{\"type\":\"string\",\"description\":\"Status code\"},\"message\":{\"type\":\"string\",\"description\":\"Status description\"}}},\"db\":{\"type\":\"object\",\"properties\":{\"connStr\":{\"type\":\"string\"},\"host\":{\"type\":\"string\"},\"port\":{\"type\":\"string\"},\"username\":{\"type\":\"string\"},\"password\":{\"type\":\"string\"}}},\"metadata\":{\"type\":\"object\",\"properties\":{\"cloneDiffSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"logicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"cloningTime\":{\"type\":\"integer\",\"format\":\"float64\"},\"maxIdleMinutes\":{\"type\":\"integer\",\"format\":\"int64\"}}}}}}}},\"retrieving\":{\"type\":\"object\",\"properties\":{\"mode\":{\"type\":\"string\"},\"status\":{\"type\":\"string\"},\"lastRefresh\":{\"type\":\"string\",\"format\":\"date-time\"},\"nextRefresh\":{\"type\":\"string\",\"format\":\"date-time\"},\"alerts\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"activity\":{\"type\":\"object\",\"properties\":{\"source\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"user\":{\"type\":\"string\"},\"query\":{\"type\":\"string\"},\"duration\":{\"type\":\"number\"},\"waitEventType\":{\"type\":\"string\"},\"waitEvent\":{\"type\":\"string\"}}}},\"target\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"user\":{\"type\":\"string\"},\"query\":{\"type\":\"string\"},\"duration\":{\"type\":\"number\"},\"waitEventType\":{\"type\":\"string\"},\"waitEvent\":{\"type\":\"string\"}}}}}}}},\"provisioner\":{\"type\":\"object\",\"properties\":{\"dockerImage\":{\"type\":\"string\"},\"containerConfig\":{\"type\":\"object\",\"properties\":{}}}},\"synchronization\":{\"type\":\"object\",\"properties\":{\"status\":{\"required\":[\"code\",\"message\"],\"type\":\"object\",\"properties\":{\"code\":{\"type\":\"string\",\"description\":\"Status code\"},\"message\":{\"type\":\"string\",\"description\":\"Status description\"}}},\"startedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"lastReplayedLsn\":{\"type\":\"string\"},\"lastReplayedLsnAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"replicationLag\":{\"type\":\"string\"},\"replicationUptime\":{\"type\":\"integer\"}}}}}",
+									"",
+									"// Validate if response matches JSON schema ",
+									"pm.test(\"[GET]::/status - Schema is valid\", function() {",
+									"    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"status"
+							]
+						},
+						"description": "Retrieves detailed information about the DBLab instance: status, version, clones, snapshots, etc."
+					},
+					"response": [
+						{
+							"name": "Returned detailed information about the DBLab instance",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/status",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"status"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"status\": {\n    \"code\": \"OK\",\n    \"message\": \"Instance is ready\"\n  },\n  \"engine\": {\n    \"version\": \"v4.0.0-alpha.5-20230516-0224\",\n    \"edition\": \"standard\",\n    \"billingActive\": true,\n    \"instanceID\": \"chhfqfcnvrvc73d0lij0\",\n    \"startedAt\": \"2023-05-16T03:50:19Z\",\n    \"telemetry\": true,\n    \"disableConfigModification\": false\n  },\n  \"pools\": [\n    {\n      \"name\": \"dblab_pool/dataset_1\",\n      \"mode\": \"zfs\",\n      \"dataStateAt\": \"\",\n      \"status\": \"empty\",\n      \"cloneList\": [],\n      \"fileSystem\": {\n        \"mode\": \"zfs\",\n        \"size\": 30685528064,\n        \"free\": 30685282816,\n        \"used\": 245248,\n        \"dataSize\": 12288,\n        \"usedBySnapshots\": 0,\n        \"usedByClones\": 219648,\n        \"compressRatio\": 1\n      }\n    },\n    {\n      \"name\": \"dblab_pool/dataset_2\",\n      \"mode\": \"zfs\",\n      \"dataStateAt\": \"\",\n      \"status\": \"empty\",\n      \"cloneList\": [],\n      \"fileSystem\": {\n        \"mode\": \"zfs\",\n        \"size\": 30685528064,\n        \"free\": 30685282816,\n        \"used\": 245248,\n        \"dataSize\": 12288,\n        \"usedBySnapshots\": 0,\n        \"usedByClones\": 219648,\n        \"compressRatio\": 1\n      }\n    },\n    {\n      \"name\": \"dblab_pool/dataset_3\",\n      \"mode\": \"zfs\",\n      \"dataStateAt\": \"\",\n      \"status\": \"empty\",\n      \"cloneList\": [],\n      \"fileSystem\": {\n        \"mode\": \"zfs\",\n        \"size\": 30685528064,\n        \"free\": 30685282816,\n        \"used\": 245248,\n        \"dataSize\": 12288,\n        \"usedBySnapshots\": 0,\n        \"usedByClones\": 219648,\n        \"compressRatio\": 1\n      }\n    }\n  ],\n  \"cloning\": {\n    \"expectedCloningTime\": 0,\n    \"numClones\": 0,\n    \"clones\": []\n  },\n  \"retrieving\": {\n    \"mode\": \"logical\",\n    \"status\": \"pending\",\n    \"lastRefresh\": null,\n    \"nextRefresh\": null,\n    \"alerts\": {},\n    \"activity\": null\n  },\n  \"provisioner\": {\n    \"dockerImage\": \"postgresai/extended-postgres:15\",\n    \"containerConfig\": {\n      \"shm-size\": \"1gb\"\n    }\n  },\n  \"synchronization\": {\n    \"status\": {\n      \"code\": \"Not available\",\n      \"message\": \"\"\n    },\n    \"lastReplayedLsn\": \"\",\n    \"lastReplayedLsnAt\": \"\",\n    \"replicationLag\": 0,\n    \"replicationUptime\": 0\n  }\n}"
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/status",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"status"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Data refresh status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[GET]::/instance/retrieval - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[GET]::/instance/retrieval - Content-Type is application/json\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// Validate if response has JSON Body ",
+									"pm.test(\"[GET]::/instance/retrieval - Response has JSON Body\", function () {",
+									"    pm.response.to.have.jsonBody();",
+									"});",
+									"",
+									"// Response Validation",
+									"const schema = {\"type\":\"object\",\"properties\":{\"mode\":{\"type\":\"string\"},\"status\":{\"type\":\"string\"},\"lastRefresh\":{\"type\":\"string\",\"format\":\"date-time\"},\"nextRefresh\":{\"type\":\"string\",\"format\":\"date-time\"},\"alerts\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"activity\":{\"type\":\"object\",\"properties\":{\"source\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"user\":{\"type\":\"string\"},\"query\":{\"type\":\"string\"},\"duration\":{\"type\":\"number\"},\"waitEventType\":{\"type\":\"string\"},\"waitEvent\":{\"type\":\"string\"}}}},\"target\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"user\":{\"type\":\"string\"},\"query\":{\"type\":\"string\"},\"duration\":{\"type\":\"number\"},\"waitEventType\":{\"type\":\"string\"},\"waitEvent\":{\"type\":\"string\"}}}}}}}}",
+									"",
+									"// Validate if response matches JSON schema ",
+									"pm.test(\"[GET]::/instance/retrieval - Schema is valid\", function() {",
+									"    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/instance/retrieval",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"instance",
+								"retrieval"
+							]
+						},
+						"description": "Report a status of the data refresh subsystem (also known as \"data retrieval\"): timestamps of the previous and next refresh runs, status, messages."
+					},
+					"response": [
+						{
+							"name": "Reported a status of the data retrieval subsystem",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/instance/retrieval",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"instance",
+										"retrieval"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"mode\": \"logical\",\n  \"status\": \"pending\",\n  \"lastRefresh\": null,\n  \"nextRefresh\": null,\n  \"alerts\": {},\n  \"activity\": null\n}"
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/instance/retrieval",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"instance",
+										"retrieval"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Service health check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate status 2xx \npm.test(\"[GET]::/healthz - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n",
+									"// Validate if response header has matching content-type\npm.test(\"[GET]::/healthz - Content-Type is application/json\", function () {\n   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\n});\n",
+									"// Validate if response has JSON Body \npm.test(\"[GET]::/healthz - Response has JSON Body\", function () {\n    pm.response.to.have.jsonBody();\n});\n",
+									"// Response Validation\nconst schema = {\"type\":\"object\",\"properties\":{\"version\":{\"type\":\"string\"},\"edition\":{\"type\":\"string\"},\"billingActive\":{\"type\":\"string\"},\"instanceID\":{\"type\":\"string\"},\"startedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"telemetry\":{\"type\":\"boolean\"},\"disableConfigModification\":{\"type\":\"boolean\"}}}\n\n// Validate if response matches JSON schema \npm.test(\"[GET]::/healthz - Schema is valid\", function() {\n    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});\n});\n"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/healthz",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"healthz"
+							]
+						},
+						"description": "Check the overall health and availability of the API system. This endpoint does not require the 'Verification-Token' header."
+					},
+					"response": [
+						{
+							"name": "Successful operation",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/healthz",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"healthz"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"version\": \"v4.0.0-alpha.5-20230516-0224\",\n  \"edition\": \"standard\",\n  \"instanceID\": \"chhfqfcnvrvc73d0lij0\"\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Snapshots",
+			"item": [
+				{
+					"name": "List all snapshots",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[GET]::/snapshots - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[GET]::/snapshots - Content-Type is application/json\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// Validate if response has JSON Body ",
+									"pm.test(\"[GET]::/snapshots - Response has JSON Body\", function () {",
+									"    pm.response.to.have.jsonBody();",
+									"});",
+									"",
+									"// Response Validation",
+									"const schema = {\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"dataStateAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"physicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"logicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"pool\":{\"type\":\"string\"},\"numClones\":{\"type\":\"integer\",\"format\":\"int\"}}}}",
+									"",
+									"// Validate if response matches JSON schema ",
+									"pm.test(\"[GET]::/snapshots - Schema is valid\", function() {",
+									"    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/snapshots",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"snapshots"
+							]
+						},
+						"description": "Return a list of all available snapshots."
+					},
+					"response": [
+						{
+							"name": "Returned a list of snapshots",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/snapshots",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"snapshots"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "[\n  {\n    \"id\": \"dblab_pool/dataset_2/nik-test-branch/20230509212711@20230509212711\",\n    \"createdAt\": \"2023-05-09T21:27:11Z\",\n    \"dataStateAt\": \"2023-05-09T21:27:11Z\",\n    \"physicalSize\": 0,\n    \"logicalSize\": 11518021632,\n    \"pool\": \"dblab_pool/dataset_2\",\n    \"numClones\": 1\n  },\n  {\n    \"id\": \"dblab_pool/dataset_2/nik-test-branch/20230307171959@20230307171959\",\n    \"createdAt\": \"2023-03-07T17:19:59Z\",\n    \"dataStateAt\": \"2023-03-07T17:19:59Z\",\n    \"physicalSize\": 151552,\n    \"logicalSize\": 11518015488,\n    \"pool\": \"dblab_pool/dataset_2\",\n    \"numClones\": 1\n  }\n]"
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/snapshots",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"snapshots"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Create a snapshot",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[POST]::/branch/snapshot - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[POST]::/branch/snapshot - Content-Type is */*\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"*/*\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "*/*"
+							},
+							{
+								"key": "Accept",
+								"value": "*/*"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"cloneID\": \"aliquip sit nisi\",\n  \"message\": \"do\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/branch/snapshot",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"branch",
+								"snapshot"
+							]
+						},
+						"description": "Create a new snapshot using the specified clone. After a snapshot has been created, the original clone can be deleted in order to free up compute resources, if necessary.  The snapshot created by this endpoint can be used later to create one or more new clones."
+					},
+					"response": [
+						{
+							"name": "OK",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "*/*"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"cloneID\": \"aliquip sit nisi\",\n  \"message\": \"do\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/branch/snapshot",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"branch",
+										"snapshot"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "*/*"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"snapshotID\": \"voluptate\"\n}"
+						},
+						{
+							"name": "Bad request",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "*/*"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"cloneID\": \"aliquip sit nisi\",\n  \"message\": \"do\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/branch/snapshot",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"branch",
+										"snapshot"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "*/*"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"incididunt minim nulla\",\n  \"message\": \"qui fugiat\",\n  \"detail\": \"occaecat\",\n  \"hint\": \"anim\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Retrieve a snapshot",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[GET]::/branch/snapshot/:id - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[GET]::/branch/snapshot/:id - Content-Type is */*\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"*/*\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Accept",
+								"value": "*/*"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/branch/snapshot/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"branch",
+								"snapshot",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "Ut magna qui deserunt",
+									"description": "(Required) ID of the branch snapshot"
+								}
+							]
+						},
+						"description": "Retrieves the information for the specified snapshot."
+					},
+					"response": [
+						{
+							"name": "OK",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "*/*"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/branch/snapshot/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"branch",
+										"snapshot",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) ID of the branch snapshot"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "*/*"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"id\": \"nostrud exercitation id velit\",\n  \"parent\": \"exercitation sunt do anim\",\n  \"child\": \"cillum incididunt voluptate veniam\",\n  \"branch\": [\n    \"cillum\",\n    \"Excepteur ut ut occaecat eu\"\n  ],\n  \"root\": \"mollit culpa enim nostrud\",\n  \"dataStateAt\": \"2008-01-19T00:42:22.510Z\",\n  \"message\": \"irure qui \"\n}"
+						},
+						{
+							"name": "Bad request",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "*/*"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/branch/snapshot/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"branch",
+										"snapshot",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) ID of the branch snapshot"
+										}
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "*/*"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"incididunt minim nulla\",\n  \"message\": \"qui fugiat\",\n  \"detail\": \"occaecat\",\n  \"hint\": \"anim\"\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Clones",
+			"item": [
+				{
+					"name": "List all clones",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[GET]::/clones - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[GET]::/clones - Content-Type is application/json\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// Validate if response has JSON Body ",
+									"pm.test(\"[GET]::/clones - Response has JSON Body\", function () {",
+									"    pm.response.to.have.jsonBody();",
+									"});",
+									"",
+									"// Response Validation",
+									"const schema = {\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"snapshot\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"dataStateAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"physicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"logicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"pool\":{\"type\":\"string\"},\"numClones\":{\"type\":\"integer\",\"format\":\"int\"}}},\"protected\":{\"type\":\"boolean\",\"default\":false},\"deleteAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"status\":{\"required\":[\"code\",\"message\"],\"type\":\"object\",\"properties\":{\"code\":{\"type\":\"string\",\"description\":\"Status code\"},\"message\":{\"type\":\"string\",\"description\":\"Status description\"}}},\"db\":{\"type\":\"object\",\"properties\":{\"connStr\":{\"type\":\"string\"},\"host\":{\"type\":\"string\"},\"port\":{\"type\":\"string\"},\"username\":{\"type\":\"string\"},\"password\":{\"type\":\"string\"}}},\"metadata\":{\"type\":\"object\",\"properties\":{\"cloneDiffSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"logicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"cloningTime\":{\"type\":\"integer\",\"format\":\"float64\"},\"maxIdleMinutes\":{\"type\":\"integer\",\"format\":\"int64\"}}}}}}",
+									"",
+									"// Validate if response matches JSON schema ",
+									"pm.test(\"[GET]::/clones - Schema is valid\", function() {",
+									"    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/clones",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"clones"
+							]
+						},
+						"description": "Return a list of all available clones (database endpoints)."
+					},
+					"response": [
+						{
+							"name": "Returned a list of all available clones",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/clones",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clones"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "[\n  {\n    \"id\": \"test-clone-2\",\n    \"snapshot\": {\n      \"id\": \"dblab_pool/dataset_2/nik-test-branch/20230509212711@20230509212711\",\n      \"createdAt\": \"2023-05-09T21:27:11Z\",\n      \"dataStateAt\": \"2023-05-09T21:27:11Z\",\n      \"physicalSize\": 120832,\n      \"logicalSize\": 11518021632,\n      \"pool\": \"dblab_pool/dataset_2\",\n      \"numClones\": 3\n    },\n    \"branch\": \"\",\n    \"protected\": false,\n    \"deleteAt\": null,\n    \"createdAt\": \"2023-05-16T06:12:52Z\",\n    \"status\": {\n      \"code\": \"OK\",\n      \"message\": \"Clone is ready to accept Postgres connections.\"\n    },\n    \"db\": {\n      \"connStr\": \"host=branching.aws.postgres.ai port=6005 user=tester dbname=postgres\",\n      \"host\": \"branching.aws.postgres.ai\",\n      \"port\": \"6005\",\n      \"username\": \"tester\",\n      \"password\": \"\",\n      \"dbName\": \"postgres\"\n    },\n    \"metadata\": {\n      \"cloneDiffSize\": 484352,\n      \"logicalSize\": 11518029312,\n      \"cloningTime\": 1.5250661829999999,\n      \"maxIdleMinutes\": 120\n    }\n  },\n  {\n    \"id\": \"test-clone\",\n    \"snapshot\": {\n      \"id\": \"dblab_pool/dataset_2/nik-test-branch/20230509212711@20230509212711\",\n      \"createdAt\": \"2023-05-09T21:27:11Z\",\n      \"dataStateAt\": \"2023-05-09T21:27:11Z\",\n      \"physicalSize\": 120832,\n      \"logicalSize\": 11518021632,\n      \"pool\": \"dblab_pool/dataset_2\",\n      \"numClones\": 3\n    },\n    \"branch\": \"\",\n    \"protected\": false,\n    \"deleteAt\": null,\n    \"createdAt\": \"2023-05-16T06:12:30Z\",\n    \"status\": {\n      \"code\": \"OK\",\n      \"message\": \"Clone is ready to accept Postgres connections.\"\n    },\n    \"db\": {\n      \"connStr\": \"host=branching.aws.postgres.ai port=6004 user=tester dbname=postgres\",\n      \"host\": \"branching.aws.postgres.ai\",\n      \"port\": \"6004\",\n      \"username\": \"tester\",\n      \"password\": \"\",\n      \"dbName\": \"postgres\"\n    },\n    \"metadata\": {\n      \"cloneDiffSize\": 486400,\n      \"logicalSize\": 11518030336,\n      \"cloningTime\": 1.57552338,\n      \"maxIdleMinutes\": 120\n    }\n  }\n]"
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/clones",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clones"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Create a clone",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[POST]::/clone - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[POST]::/clone - Content-Type is application/json\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// Validate if response has JSON Body ",
+									"pm.test(\"[POST]::/clone - Response has JSON Body\", function () {",
+									"    pm.response.to.have.jsonBody();",
+									"});",
+									"",
+									"// Response Validation",
+									"const schema = {\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"snapshot\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"dataStateAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"physicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"logicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"pool\":{\"type\":\"string\"},\"numClones\":{\"type\":\"integer\",\"format\":\"int\"}}},\"protected\":{\"type\":\"boolean\",\"default\":false},\"deleteAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"status\":{\"required\":[\"code\",\"message\"],\"type\":\"object\",\"properties\":{\"code\":{\"type\":\"string\",\"description\":\"Status code\"},\"message\":{\"type\":\"string\",\"description\":\"Status description\"}}},\"db\":{\"type\":\"object\",\"properties\":{\"connStr\":{\"type\":\"string\"},\"host\":{\"type\":\"string\"},\"port\":{\"type\":\"string\"},\"username\":{\"type\":\"string\"},\"password\":{\"type\":\"string\"}}},\"metadata\":{\"type\":\"object\",\"properties\":{\"cloneDiffSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"logicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"cloningTime\":{\"type\":\"integer\",\"format\":\"float64\"},\"maxIdleMinutes\":{\"type\":\"integer\",\"format\":\"int64\"}}}}}",
+									"",
+									"// Validate if response matches JSON schema ",
+									"pm.test(\"[POST]::/clone - Schema is valid\", function() {",
+									"    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id\": \"magna cupidatat\",\n  \"snapshot\": {\n    \"id\": \"veniam\"\n  },\n  \"branch\": \"incididunt aliquip\",\n  \"protected\": null,\n  \"db\": {\n    \"username\": \"Duis Lorem\",\n    \"password\": \"culpa non velit ut\",\n    \"restricted\": null,\n    \"db_name\": \"dolore qui ut\"\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/clone",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"clone"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "Created a new clone",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"id\": \"magna cupidatat\",\n  \"snapshot\": {\n    \"id\": \"veniam\"\n  },\n  \"branch\": \"incididunt aliquip\",\n  \"protected\": null,\n  \"db\": {\n    \"username\": \"Duis Lorem\",\n    \"password\": \"culpa non velit ut\",\n    \"restricted\": null,\n    \"db_name\": \"dolore qui ut\"\n  }\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/clone",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clone"
+									]
+								}
+							},
+							"status": "Created",
+							"code": 201,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"id\": \"test-clone-2\",\n  \"snapshot\": {\n    \"id\": \"dblab_pool/dataset_2/nik-test-branch/20230509212711@20230509212711\",\n    \"createdAt\": \"2023-05-09T21:27:11Z\",\n    \"dataStateAt\": \"2023-05-09T21:27:11Z\",\n    \"physicalSize\": 120832,\n    \"logicalSize\": 11518021632,\n    \"pool\": \"dblab_pool/dataset_2\",\n    \"numClones\": 3\n  },\n  \"branch\": \"\",\n  \"protected\": false,\n  \"deleteAt\": null,\n  \"createdAt\": \"2023-05-16T06:12:52Z\",\n  \"status\": {\n    \"code\": \"CREATING\",\n    \"message\": \"Clone is being created.\"\n  },\n  \"db\": {\n    \"connStr\": \"\",\n    \"host\": \"\",\n    \"port\": \"\",\n    \"username\": \"tester\",\n    \"password\": \"\",\n    \"dbName\": \"postgres\"\n  },\n  \"metadata\": {\n    \"cloneDiffSize\": 0,\n    \"logicalSize\": 0,\n    \"cloningTime\": 0,\n    \"maxIdleMinutes\": 0\n  }\n}"
+						},
+						{
+							"name": "Returned an error caused by invalid request",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"id\": \"magna cupidatat\",\n  \"snapshot\": {\n    \"id\": \"veniam\"\n  },\n  \"branch\": \"incididunt aliquip\",\n  \"protected\": null,\n  \"db\": {\n    \"username\": \"Duis Lorem\",\n    \"password\": \"culpa non velit ut\",\n    \"restricted\": null,\n    \"db_name\": \"dolore qui ut\"\n  }\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/clone",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clone"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"BAD_REQUEST\",\n  \"message\": \"clone with such ID already exists\"\n}"
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"id\": \"magna cupidatat\",\n  \"snapshot\": {\n    \"id\": \"veniam\"\n  },\n  \"branch\": \"incididunt aliquip\",\n  \"protected\": null,\n  \"db\": {\n    \"username\": \"Duis Lorem\",\n    \"password\": \"culpa non velit ut\",\n    \"restricted\": null,\n    \"db_name\": \"dolore qui ut\"\n  }\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/clone",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clone"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Retrieve a clone",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[GET]::/clone/:id - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[GET]::/clone/:id - Content-Type is application/json\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// Validate if response has JSON Body ",
+									"pm.test(\"[GET]::/clone/:id - Response has JSON Body\", function () {",
+									"    pm.response.to.have.jsonBody();",
+									"});",
+									"",
+									"// Response Validation",
+									"const schema = {\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"snapshot\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"dataStateAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"physicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"logicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"pool\":{\"type\":\"string\"},\"numClones\":{\"type\":\"integer\",\"format\":\"int\"}}},\"protected\":{\"type\":\"boolean\",\"default\":false},\"deleteAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"status\":{\"required\":[\"code\",\"message\"],\"type\":\"object\",\"properties\":{\"code\":{\"type\":\"string\",\"description\":\"Status code\"},\"message\":{\"type\":\"string\",\"description\":\"Status description\"}}},\"db\":{\"type\":\"object\",\"properties\":{\"connStr\":{\"type\":\"string\"},\"host\":{\"type\":\"string\"},\"port\":{\"type\":\"string\"},\"username\":{\"type\":\"string\"},\"password\":{\"type\":\"string\"}}},\"metadata\":{\"type\":\"object\",\"properties\":{\"cloneDiffSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"logicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"cloningTime\":{\"type\":\"integer\",\"format\":\"float64\"},\"maxIdleMinutes\":{\"type\":\"integer\",\"format\":\"int64\"}}}}}",
+									"",
+									"// Validate if response matches JSON schema ",
+									"pm.test(\"[GET]::/clone/:id - Schema is valid\", function() {",
+									"    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/clone/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"clone",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "Ut magna qui deserunt",
+									"description": "(Required) Clone ID"
+								}
+							]
+						},
+						"description": "Retrieves the information for the specified clone."
+					},
+					"response": [
+						{
+							"name": "Returned detailed information for the specified clone",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/clone/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clone",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Clone ID"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"id\": \"test-clone\",\n  \"snapshot\": {\n    \"id\": \"dblab_pool/dataset_2/nik-test-branch/20230509212711@20230509212711\",\n    \"createdAt\": \"2023-05-09T21:27:11Z\",\n    \"dataStateAt\": \"2023-05-09T21:27:11Z\",\n    \"physicalSize\": 120832,\n    \"logicalSize\": 11518021632,\n    \"pool\": \"dblab_pool/dataset_2\",\n    \"numClones\": 3\n  },\n  \"branch\": \"\",\n  \"protected\": false,\n  \"deleteAt\": null,\n  \"createdAt\": \"2023-05-16T06:12:30Z\",\n  \"status\": {\n    \"code\": \"OK\",\n    \"message\": \"Clone is ready to accept Postgres connections.\"\n  },\n  \"db\": {\n    \"connStr\": \"host=branching.aws.postgres.ai port=6004 user=tester dbname=postgres\",\n    \"host\": \"branching.aws.postgres.ai\",\n    \"port\": \"6004\",\n    \"username\": \"tester\",\n    \"password\": \"\",\n    \"dbName\": \"postgres\"\n  },\n  \"metadata\": {\n    \"cloneDiffSize\": 486400,\n    \"logicalSize\": 11518030336,\n    \"cloningTime\": 1.57552338,\n    \"maxIdleMinutes\": 120\n  }\n}"
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/clone/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clone",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Clone ID"
+										}
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						},
+						{
+							"name": "Not found",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/clone/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clone",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Clone ID"
+										}
+									]
+								}
+							},
+							"status": "Not Found",
+							"code": 404,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"NOT_FOUND\",\n  \"message\": \"Requested object does not exist. Specify your request.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Delete a clone",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[DELETE]::/clone/:id - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[DELETE]::/clone/:id - Content-Type is application/json\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// Validate if response has JSON Body ",
+									"pm.test(\"[DELETE]::/clone/:id - Response has JSON Body\", function () {",
+									"    pm.response.to.have.jsonBody();",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/clone/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"clone",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "Ut magna qui deserunt",
+									"description": "(Required) Clone ID"
+								}
+							]
+						},
+						"description": "Permanently delete the specified clone. It cannot be undone."
+					},
+					"response": [
+						{
+							"name": "Successfully deleted the specified clone",
+							"originalRequest": {
+								"method": "DELETE",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/clone/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clone",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Clone ID"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "\"OK\""
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "DELETE",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/clone/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clone",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Clone ID"
+										}
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						},
+						{
+							"name": "Not found",
+							"originalRequest": {
+								"method": "DELETE",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/clone/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clone",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Clone ID"
+										}
+									]
+								}
+							},
+							"status": "Not Found",
+							"code": 404,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"NOT_FOUND\",\n  \"message\": \"Requested object does not exist. Specify your request.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Update a clone",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[PATCH]::/clone/:id - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[PATCH]::/clone/:id - Content-Type is application/json\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// Validate if response has JSON Body ",
+									"pm.test(\"[PATCH]::/clone/:id - Response has JSON Body\", function () {",
+									"    pm.response.to.have.jsonBody();",
+									"});",
+									"",
+									"// Response Validation",
+									"const schema = {\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"snapshot\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"dataStateAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"physicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"logicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"pool\":{\"type\":\"string\"},\"numClones\":{\"type\":\"integer\",\"format\":\"int\"}}},\"protected\":{\"type\":\"boolean\",\"default\":false},\"deleteAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"status\":{\"required\":[\"code\",\"message\"],\"type\":\"object\",\"properties\":{\"code\":{\"type\":\"string\",\"description\":\"Status code\"},\"message\":{\"type\":\"string\",\"description\":\"Status description\"}}},\"db\":{\"type\":\"object\",\"properties\":{\"connStr\":{\"type\":\"string\"},\"host\":{\"type\":\"string\"},\"port\":{\"type\":\"string\"},\"username\":{\"type\":\"string\"},\"password\":{\"type\":\"string\"}}},\"metadata\":{\"type\":\"object\",\"properties\":{\"cloneDiffSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"logicalSize\":{\"type\":\"integer\",\"format\":\"int64\"},\"cloningTime\":{\"type\":\"integer\",\"format\":\"float64\"},\"maxIdleMinutes\":{\"type\":\"integer\",\"format\":\"int64\"}}}}}",
+									"",
+									"// Validate if response matches JSON schema ",
+									"pm.test(\"[PATCH]::/clone/:id - Schema is valid\", function() {",
+									"    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"protected\": false\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/clone/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"clone",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "Ut magna qui deserunt",
+									"description": "(Required) Clone ID"
+								}
+							]
+						},
+						"description": "Updates the specified clone by setting the values of the parameters passed. Currently, only one paramater is supported: 'protected'."
+					},
+					"response": [
+						{
+							"name": "Successfully updated the specified clone",
+							"originalRequest": {
+								"method": "PATCH",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"protected\": false\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/clone/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clone",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Clone ID"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"id\": \"test-clone-2\",\n  \"snapshot\": {\n    \"id\": \"dblab_pool/dataset_2/nik-test-branch/20230509212711@20230509212711\",\n    \"createdAt\": \"2023-05-09T21:27:11Z\",\n    \"dataStateAt\": \"2023-05-09T21:27:11Z\",\n    \"physicalSize\": 120832,\n    \"logicalSize\": 11518021632,\n    \"pool\": \"dblab_pool/dataset_2\",\n    \"numClones\": 2\n  },\n  \"branch\": \"\",\n  \"protected\": true,\n  \"deleteAt\": null,\n  \"createdAt\": \"2023-05-16T06:12:52Z\",\n  \"status\": {\n    \"code\": \"OK\",\n    \"message\": \"Clone is ready to accept Postgres connections.\"\n  },\n  \"db\": {\n    \"connStr\": \"host=branching.aws.postgres.ai port=6005 user=tester dbname=postgres\",\n    \"host\": \"branching.aws.postgres.ai\",\n    \"port\": \"6005\",\n    \"username\": \"tester\",\n    \"password\": \"\",\n    \"dbName\": \"postgres\"\n  },\n  \"metadata\": {\n    \"cloneDiffSize\": 561664,\n    \"logicalSize\": 11518030336,\n    \"cloningTime\": 1.5250661829999999,\n    \"maxIdleMinutes\": 120\n  }\n}"
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "PATCH",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"protected\": false\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/clone/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clone",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Clone ID"
+										}
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Reset a clone",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[POST]::/clone/:id/reset - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[POST]::/clone/:id/reset - Content-Type is application/json\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// Validate if response has JSON Body ",
+									"pm.test(\"[POST]::/clone/:id/reset - Response has JSON Body\", function () {",
+									"    pm.response.to.have.jsonBody();",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"snapshotID\": \"ut nulla Duis in in\",\n  \"latest\": false\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/clone/:id/reset",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"clone",
+								":id",
+								"reset"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "Ut magna qui deserunt",
+									"description": "(Required) Clone ID"
+								}
+							]
+						},
+						"description": "Reset the specified clone to a previously stored state. This can be done by specifying a particular snapshot ID or using the 'latest' flag. All changes made after the snapshot are discarded during the reset, unless those changes were preserved in a snapshot. All database connections will be reset, requiring users and applications to reconnect. The duration of the reset operation is comparable to the creation of a new clone. However, unlike creating a new clone, the reset operation retains the database credentials and does not change the port. Consequently, users and applications can continue to use the same database credentials post-reset, though reconnection will be necessary. Please note that any unsaved changes will be irretrievably lost during this operation, so ensure necessary data is backed up in a snapshot prior to resetting the clone."
+					},
+					"response": [
+						{
+							"name": "Successfully reset the state of the specified clone",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"snapshotID\": \"ut nulla Duis in in\",\n  \"latest\": false\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/clone/:id/reset",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clone",
+										":id",
+										"reset"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Clone ID"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "\"OK\""
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"snapshotID\": \"ut nulla Duis in in\",\n  \"latest\": false\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/clone/:id/reset",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"clone",
+										":id",
+										"reset"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Clone ID"
+										}
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Branches",
+			"item": [
+				{
+					"name": "List all branches",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[GET]::/branches - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[GET]::/branches - Content-Type is */*\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"*/*\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Accept",
+								"value": "*/*"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/branches",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"branches"
+							]
+						},
+						"description": "Return a list of all available branches (named pointers to snapshots)."
+					},
+					"response": [
+						{
+							"name": "Returned a list of all available branches",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "*/*"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/branches",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"branches"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "*/*"
+								}
+							],
+							"cookie": [],
+							"body": "[\n  {\n    \"name\": \"my-1\",\n    \"parent\": \"main\",\n    \"dataStateAt\": \"20230224202652\",\n    \"snapshotID\": \"dblab_pool/dataset_2/main/20230224202652@20230224202652\"\n  },\n  {\n    \"name\": \"nik-test-branch\",\n    \"parent\": \"-\",\n    \"dataStateAt\": \"20230509212711\",\n    \"snapshotID\": \"dblab_pool/dataset_2/nik-test-branch/20230509212711@20230509212711\"\n  },\n  {\n    \"name\": \"main\",\n    \"parent\": \"-\",\n    \"dataStateAt\": \"20230224202652\",\n    \"snapshotID\": \"dblab_pool/dataset_2/main/20230224202652@20230224202652\"\n  }\n]"
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/branches",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"branches"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Create a branch",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[POST]::/branch/create - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[POST]::/branch/create - Content-Type is */*\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"*/*\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "*/*"
+							},
+							{
+								"key": "Accept",
+								"value": "*/*"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"branchName\": \"aute do laborum\",\n  \"baseBranch\": \"tempor aliqua consectetur\",\n  \"snapshotID\": \"mollit velit\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/branch/create",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"branch",
+								"create"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "OK",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "*/*"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"branchName\": \"aute do laborum\",\n  \"baseBranch\": \"tempor aliqua consectetur\",\n  \"snapshotID\": \"mollit velit\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/branch/create",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"branch",
+										"create"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "*/*"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"name\": \"cillum in laborum\"\n}"
+						},
+						{
+							"name": "Bad request",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "*/*"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"branchName\": \"aute do laborum\",\n  \"baseBranch\": \"tempor aliqua consectetur\",\n  \"snapshotID\": \"mollit velit\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/branch/create",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"branch",
+										"create"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "*/*"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"incididunt minim nulla\",\n  \"message\": \"qui fugiat\",\n  \"detail\": \"occaecat\",\n  \"hint\": \"anim\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Delete a branch",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[POST]::/branch/delete - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[POST]::/branch/delete - Content-Type is */*\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"*/*\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "*/*"
+							},
+							{
+								"key": "Accept",
+								"value": "*/*"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"branchName\": \"dolore aliqua laboris offi\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/branch/delete",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"branch",
+								"delete"
+							]
+						},
+						"description": "Permanently delete the specified branch. It cannot be undone."
+					},
+					"response": [
+						{
+							"name": "OK",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "*/*"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"branchName\": \"dolore aliqua laboris offi\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/branch/delete",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"branch",
+										"delete"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "*/*"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"status\": \"irure pariatur Excepteur occaecat ullamco\",\n  \"message\": \"in enim tempor\"\n}"
+						},
+						{
+							"name": "Bad request",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "*/*"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"branchName\": \"dolore aliqua laboris offi\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/branch/delete",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"branch",
+										"delete"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "*/*"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"incididunt minim nulla\",\n  \"message\": \"qui fugiat\",\n  \"detail\": \"occaecat\",\n  \"hint\": \"anim\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Retrieve a branch log",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[POST]::/branch/log - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[POST]::/branch/log - Content-Type is */*\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"*/*\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "*/*"
+							},
+							{
+								"key": "Accept",
+								"value": "*/*"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"branchName\": \"in exercitation eiusmod voluptate eu\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/branch/log",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"branch",
+								"log"
+							]
+						},
+						"description": "Retrieve a log of the specified branch (history of snapshots)."
+					},
+					"response": [
+						{
+							"name": "OK",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "*/*"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"branchName\": \"in exercitation eiusmod voluptate eu\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/branch/log",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"branch",
+										"log"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "*/*"
+								}
+							],
+							"cookie": [],
+							"body": "[\n  {\n    \"id\": \"commodo enim\",\n    \"parent\": \"laboris anim labore adipisi\",\n    \"child\": \"consequat\",\n    \"branch\": [\n      \"ullamco ad cillum proident\",\n      \"ea elit tempor nostrud\"\n    ],\n    \"root\": \"sunt\",\n    \"dataStateAt\": \"2013-09-01T22:20:46.803Z\",\n    \"message\": \"et sit\"\n  },\n  {\n    \"id\": \"nisi cillum est deserunt\",\n    \"parent\": \"pariatur Lorem\",\n    \"child\": \"eu labore do deserunt\",\n    \"branch\": [\n      \"officia dolor\",\n      \"dolor cillum eu culpa ut\"\n    ],\n    \"root\": \"exercitation aute\",\n    \"dataStateAt\": \"1963-05-08T18:09:20.040Z\",\n    \"message\": \"est Excepteur mollit nostrud\"\n  }\n]"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Admin",
+			"item": [
+				{
+					"name": "Get config",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[GET]::/admin/config - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[GET]::/admin/config - Content-Type is application/json\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// Validate if response has JSON Body ",
+									"pm.test(\"[GET]::/admin/config - Response has JSON Body\", function () {",
+									"    pm.response.to.have.jsonBody();",
+									"});",
+									"",
+									"// Response Validation",
+									"const schema = {\"type\":\"object\"}",
+									"",
+									"// Validate if response matches JSON schema ",
+									"pm.test(\"[GET]::/admin/config - Schema is valid\", function() {",
+									"    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/admin/config",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"config"
+							]
+						},
+						"description": "Retrieve the DBLab configuration. All sensitive values are masked. Only limited set of configuration parameters is returned – only those that can be changed via API (unless reconfiguration via API is disabled by admin). The result is provided in JSON format."
+					},
+					"response": [
+						{
+							"name": "Returned configuration",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/admin/config",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"config"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"databaseConfigs\": {\n    \"configs\": {\n      \"shared_buffers\": \"1GB\",\n      \"shared_preload_libraries\": \"pg_stat_statements, pg_stat_kcache, auto_explain, logerrors\"\n    }\n  },\n  \"databaseContainer\": {\n    \"dockerImage\": \"registry.gitlab.com/postgres-ai/se-images/supabase:15\"\n  },\n  \"global\": {\n    \"debug\": true\n  },\n  \"retrieval\": {\n    \"refresh\": {\n      \"timetable\": \"0 1 * * 0\"\n    },\n    \"spec\": {\n      \"logicalDump\": {\n        \"options\": {\n          \"customOptions\": [],\n          \"databases\": {\n            \"test_small\": {}\n          },\n          \"parallelJobs\": 4,\n          \"source\": {\n            \"connection\": {\n              \"dbname\": \"test_small\",\n              \"host\": \"dev1.postgres.ai\",\n              \"port\": 6666,\n              \"username\": \"john\"\n            }\n          }\n        }\n      },\n      \"logicalRestore\": {\n        \"options\": {\n          \"customOptions\": [\n            \"--no-tablespaces\",\n            \"--no-privileges\",\n            \"--no-owner\",\n            \"--exit-on-error\"\n          ],\n          \"parallelJobs\": 4\n        }\n      }\n    }\n  }\n}"
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/admin/config",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"config"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Set config",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[POST]::/admin/config - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[POST]::/admin/config - Content-Type is application/json\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// Validate if response has JSON Body ",
+									"pm.test(\"[POST]::/admin/config - Response has JSON Body\", function () {",
+									"    pm.response.to.have.jsonBody();",
+									"});",
+									"",
+									"// Response Validation",
+									"const schema = {\"type\":\"object\"}",
+									"",
+									"// Validate if response matches JSON schema ",
+									"pm.test(\"[POST]::/admin/config - Schema is valid\", function() {",
+									"    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/config",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"config"
+							]
+						},
+						"description": "Set specific configurations for the DBLab instance using this endpoint. The returned configuration parameters are limited to those that can be modified via the API (unless the API-based reconfiguration has been disabled by an administrator). The result will be provided in JSON format."
+					},
+					"response": [
+						{
+							"name": "Successfully saved configuration parameters",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/admin/config",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"config"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{}"
+						},
+						{
+							"name": "Bad request",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/admin/config",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"config"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"BAD_REQUEST\",\n  \"message\": \"configuration management via UI/API disabled by admin\"\n}"
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/admin/config",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"config"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Get full config (YAML)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[GET]::/admin/config.yaml - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[GET]::/admin/config.yaml - Content-Type is application/yaml\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/yaml\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/yaml"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/admin/config.yaml",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"config.yaml"
+							]
+						},
+						"description": "Retrieve the DBLab configuration in YAML format. All sensitive values are masked. This method allows seeing the entire configuration file and can be helpful for reviewing configuration and setting up workflows to automate DBLab provisioning and configuration."
+					},
+					"response": [
+						{
+							"name": "Returned configuration (YAML)",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/yaml"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/admin/config.yaml",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"config.yaml"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "text",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/yaml"
+								}
+							],
+							"cookie": [],
+							"body": ""
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/admin/config.yaml",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"config.yaml"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Test source database",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[POST]::/admin/test-db-source - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"host\": \"veniam\",\n  \"port\": \"tempor\",\n  \"dbname\": \"et tempor in\",\n  \"username\": \"minim ir\",\n  \"password\": \"nisi ut incididunt in mollit\",\n  \"db_list\": [\n    \"veniam exercitation dolore\",\n    \"do nisi in occaecat\"\n  ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/test-db-source",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"test-db-source"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "Successful operation",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"host\": \"adipisicing dolor\",\n  \"port\": \"elit\",\n  \"dbname\": \"cupidatat in veniam laborum dolore\",\n  \"username\": \"sint\",\n  \"password\": \"cillum nisi consectetur\",\n  \"db_list\": [\n    \"ad quis\",\n    \"aliqua nisi\"\n  ]\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/admin/test-db-source",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"test-db-source"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "text",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "text/plain"
+								}
+							],
+							"cookie": [],
+							"body": ""
+						},
+						{
+							"name": "Bad request",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"host\": \"adipisicing dolor\",\n  \"port\": \"elit\",\n  \"dbname\": \"cupidatat in veniam laborum dolore\",\n  \"username\": \"sint\",\n  \"password\": \"cillum nisi consectetur\",\n  \"db_list\": [\n    \"ad quis\",\n    \"aliqua nisi\"\n  ]\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/admin/test-db-source",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"test-db-source"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"BAD_REQUEST\",\n  \"message\": \"configuration management via UI/API disabled by admin\"\n}"
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"host\": \"adipisicing dolor\",\n  \"port\": \"elit\",\n  \"dbname\": \"cupidatat in veniam laborum dolore\",\n  \"username\": \"sint\",\n  \"password\": \"cillum nisi consectetur\",\n  \"db_list\": [\n    \"ad quis\",\n    \"aliqua nisi\"\n  ]\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/admin/test-db-source",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"test-db-source"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Test source database",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Validate status 2xx ",
+									"pm.test(\"[POST]::/admin/ws-auth - Status code is 2xx\", function () {",
+									"   pm.response.to.be.success;",
+									"});",
+									"",
+									"// Validate if response header has matching content-type",
+									"pm.test(\"[POST]::/admin/ws-auth - Content-Type is */*\", function () {",
+									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"*/*\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}"
+							},
+							{
+								"key": "Accept",
+								"value": "*/*"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/admin/ws-auth",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"ws-auth"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "Successful operation",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "*/*"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/admin/ws-auth",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"ws-auth"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "*/*"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"token\": \"velit ut minim\"\n}"
+						},
+						{
+							"name": "Bad request",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/admin/ws-auth",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"ws-auth"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"BAD_REQUEST\",\n  \"message\": \"configuration management via UI/API disabled by admin\"\n}"
+						},
+						{
+							"name": "Unauthorized access",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/admin/ws-auth",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"ws-auth"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Check your verification token.\"\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Observation",
+			"item": [
+				{
+					"name": "Start observing",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate status 2xx \npm.test(\"[POST]::/observation/start - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n",
+									"// Validate if response header has matching content-type\npm.test(\"[POST]::/observation/start - Content-Type is application/json\", function () {\n   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\n});\n",
+									"// Validate if response has JSON Body \npm.test(\"[POST]::/observation/start - Response has JSON Body\", function () {\n    pm.response.to.have.jsonBody();\n});\n",
+									"// Response Validation\nconst schema = {\"type\":\"object\",\"properties\":{\"session_id\":{\"type\":\"integer\",\"format\":\"int64\"},\"started_at\":{\"type\":\"string\",\"format\":\"date-time\"},\"finished_at\":{\"type\":\"string\",\"format\":\"date-time\"},\"config\":{\"type\":\"object\",\"properties\":{\"observation_interval\":{\"type\":\"integer\",\"format\":\"int64\"},\"max_lock_duration\":{\"type\":\"integer\",\"format\":\"int64\"},\"max_duration\":{\"type\":\"integer\",\"format\":\"int64\"}}},\"tags\":{\"type\":\"object\",\"properties\":{}},\"artifacts\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"result\":{\"type\":\"object\",\"properties\":{\"status\":{\"type\":\"string\"},\"intervals\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"started_at\":{\"type\":\"string\",\"format\":\"date-time\"},\"duration\":{\"type\":\"integer\",\"format\":\"int64\"},\"warning\":{\"type\":\"string\"}}}},\"summary\":{\"type\":\"object\",\"properties\":{\"total_duration\":{\"type\":\"integer\",\"format\":\"float64\"},\"total_intervals\":{\"type\":\"integer\",\"format\":\"int\"},\"warning_intervals\":{\"type\":\"integer\",\"format\":\"int\"},\"checklist\":{\"type\":\"object\",\"properties\":{\"overall_success\":{\"type\":\"boolean\"},\"session_duration_acceptable\":{\"type\":\"boolean\"},\"no_long_dangerous_locks\":{\"type\":\"boolean\"}}}}}}}}}\n\n// Validate if response matches JSON schema \npm.test(\"[POST]::/observation/start - Schema is valid\", function() {\n    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});\n});\n"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "Ut magna qui deserunt"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"clone_id\": \"ut sit irure\",\n  \"config\": {\n    \"observation_interval\": 33950905,\n    \"max_lock_duration\": 82462220,\n    \"max_duration\": 54143470\n  },\n  \"tags\": {},\n  \"db_name\": \"magna esse dolore\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/observation/start",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"observation",
+								"start"
+							]
+						},
+						"description": "[EXPERIMENTAL] Start an observation session for the specified clone. Observation sessions help detect dangerous (long-lasting, exclusive) locks in CI/CD pipelines. One of common scenarios is using observation sessions to test schema changes (DB migrations)."
+					},
+					"response": [
+						{
+							"name": "Successful operation",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"clone_id\": \"ut sit irure\",\n  \"config\": {\n    \"observation_interval\": 33950905,\n    \"max_lock_duration\": 82462220,\n    \"max_duration\": 54143470\n  },\n  \"tags\": {},\n  \"db_name\": \"magna esse dolore\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/observation/start",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"observation",
+										"start"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"session_id\": -41566390,\n  \"started_at\": \"1991-02-14T03:01:06.417Z\",\n  \"finished_at\": \"2018-05-30T06:18:09.119Z\",\n  \"config\": {\n    \"observation_interval\": 76803835,\n    \"max_lock_duration\": -6633155,\n    \"max_duration\": -968293\n  },\n  \"tags\": {},\n  \"artifacts\": [\n    \"aliqua do\",\n    \"consectetur amet tempor eiusmod\"\n  ],\n  \"result\": {\n    \"status\": \"qui adipisicing velit aute\",\n    \"intervals\": [\n      {\n        \"started_at\": \"2008-06-20T07:35:49.463Z\",\n        \"duration\": 34650553,\n        \"warning\": \"velit nulla ex\"\n      },\n      {\n        \"started_at\": \"1994-03-12T02:59:52.189Z\",\n        \"duration\": 10020998,\n        \"warning\": \"ipsum laborum\"\n      }\n    ],\n    \"summary\": {\n      \"total_duration\": -51894451,\n      \"total_intervals\": -93757197,\n      \"warning_intervals\": 95087393,\n      \"checklist\": {\n        \"overall_success\": false,\n        \"session_duration_acceptable\": true,\n        \"no_long_dangerous_locks\": false\n      }\n    }\n  }\n}"
+						},
+						{
+							"name": "Not found",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"clone_id\": \"ut sit irure\",\n  \"config\": {\n    \"observation_interval\": 33950905,\n    \"max_lock_duration\": 82462220,\n    \"max_duration\": 54143470\n  },\n  \"tags\": {},\n  \"db_name\": \"magna esse dolore\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/observation/start",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"observation",
+										"start"
+									]
+								}
+							},
+							"status": "Not Found",
+							"code": 404,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"NOT_FOUND\",\n  \"message\": \"Requested object does not exist. Specify your request.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Stop observing",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate status 2xx \npm.test(\"[POST]::/observation/stop - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n",
+									"// Validate if response header has matching content-type\npm.test(\"[POST]::/observation/stop - Content-Type is application/json\", function () {\n   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\n});\n",
+									"// Validate if response has JSON Body \npm.test(\"[POST]::/observation/stop - Response has JSON Body\", function () {\n    pm.response.to.have.jsonBody();\n});\n",
+									"// Response Validation\nconst schema = {\"type\":\"object\",\"properties\":{\"session_id\":{\"type\":\"integer\",\"format\":\"int64\"},\"started_at\":{\"type\":\"string\",\"format\":\"date-time\"},\"finished_at\":{\"type\":\"string\",\"format\":\"date-time\"},\"config\":{\"type\":\"object\",\"properties\":{\"observation_interval\":{\"type\":\"integer\",\"format\":\"int64\"},\"max_lock_duration\":{\"type\":\"integer\",\"format\":\"int64\"},\"max_duration\":{\"type\":\"integer\",\"format\":\"int64\"}}},\"tags\":{\"type\":\"object\",\"properties\":{}},\"artifacts\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"result\":{\"type\":\"object\",\"properties\":{\"status\":{\"type\":\"string\"},\"intervals\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"started_at\":{\"type\":\"string\",\"format\":\"date-time\"},\"duration\":{\"type\":\"integer\",\"format\":\"int64\"},\"warning\":{\"type\":\"string\"}}}},\"summary\":{\"type\":\"object\",\"properties\":{\"total_duration\":{\"type\":\"integer\",\"format\":\"float64\"},\"total_intervals\":{\"type\":\"integer\",\"format\":\"int\"},\"warning_intervals\":{\"type\":\"integer\",\"format\":\"int\"},\"checklist\":{\"type\":\"object\",\"properties\":{\"overall_success\":{\"type\":\"boolean\"},\"session_duration_acceptable\":{\"type\":\"boolean\"},\"no_long_dangerous_locks\":{\"type\":\"boolean\"}}}}}}}}}\n\n// Validate if response matches JSON schema \npm.test(\"[POST]::/observation/stop - Schema is valid\", function() {\n    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});\n});\n"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "Ut magna qui deserunt"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"clone_id\": \"proident cillum nostrud officia\",\n  \"overall_error\": false\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/observation/stop",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"observation",
+								"stop"
+							]
+						},
+						"description": "[EXPERIMENTAL] Stop the previously started observation session."
+					},
+					"response": [
+						{
+							"name": "Successful operation",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"clone_id\": \"proident cillum nostrud officia\",\n  \"overall_error\": false\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/observation/stop",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"observation",
+										"stop"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"session_id\": 9614128,\n  \"started_at\": \"1993-11-12T01:24:57.933Z\",\n  \"finished_at\": \"1953-01-01T04:06:59.652Z\",\n  \"config\": {\n    \"observation_interval\": -46635741,\n    \"max_lock_duration\": -53938384,\n    \"max_duration\": 85779944\n  },\n  \"tags\": {},\n  \"artifacts\": [\n    \"deseru\",\n    \"in ullamco veniam\"\n  ],\n  \"result\": {\n    \"status\": \"ut ea l\",\n    \"intervals\": [\n      {\n        \"started_at\": \"1943-07-24T05:03:49.697Z\",\n        \"duration\": -45788381,\n        \"warning\": \"Ut qui occaecat\"\n      },\n      {\n        \"started_at\": \"1973-02-08T19:49:36.906Z\",\n        \"duration\": 78310177,\n        \"warning\": \"dolore amet mollit velit\"\n      }\n    ],\n    \"summary\": {\n      \"total_duration\": 89098265,\n      \"total_intervals\": -25796081,\n      \"warning_intervals\": -74609996,\n      \"checklist\": {\n        \"overall_success\": false,\n        \"session_duration_acceptable\": true,\n        \"no_long_dangerous_locks\": false\n      }\n    }\n  }\n}"
+						},
+						{
+							"name": "Bad request",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"clone_id\": \"proident cillum nostrud officia\",\n  \"overall_error\": false\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/observation/stop",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"observation",
+										"stop"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"incididunt minim nulla\",\n  \"message\": \"qui fugiat\",\n  \"detail\": \"occaecat\",\n  \"hint\": \"anim\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Get observation summary",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate status 2xx \npm.test(\"[GET]::/observation/summary/:clone_id/:session_id - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n",
+									"// Validate if response header has matching content-type\npm.test(\"[GET]::/observation/summary/:clone_id/:session_id - Content-Type is application/json\", function () {\n   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\n});\n",
+									"// Validate if response has JSON Body \npm.test(\"[GET]::/observation/summary/:clone_id/:session_id - Response has JSON Body\", function () {\n    pm.response.to.have.jsonBody();\n});\n",
+									"// Response Validation\nconst schema = {\"type\":\"object\",\"properties\":{\"session_id\":{\"type\":\"integer\",\"format\":\"int64\"},\"clone_id\":{\"type\":\"string\"},\"duration\":{\"type\":\"object\",\"properties\":{}},\"db_size\":{\"type\":\"object\",\"properties\":{}},\"locks\":{\"type\":\"object\",\"properties\":{}},\"log_errors\":{\"type\":\"object\",\"properties\":{}},\"artifact_types\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}}}\n\n// Validate if response matches JSON schema \npm.test(\"[GET]::/observation/summary/:clone_id/:session_id - Schema is valid\", function() {\n    pm.response.to.have.jsonSchema(schema,{unknownFormats: [\"int32\", \"int64\", \"float\", \"double\"]});\n});\n"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "Ut magna qui deserunt"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/observation/summary/:clone_id/:session_id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"observation",
+								"summary",
+								":clone_id",
+								":session_id"
+							],
+							"variable": [
+								{
+									"key": "clone_id",
+									"value": "Ut magna qui deserunt",
+									"description": "(Required) Clone ID"
+								},
+								{
+									"key": "session_id",
+									"value": "Ut magna qui deserunt",
+									"description": "(Required) Session ID"
+								}
+							]
+						},
+						"description": "[EXPERIMENTAL] Collect the observation summary info."
+					},
+					"response": [
+						{
+							"name": "Successful operation",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/observation/summary/:clone_id/:session_id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"observation",
+										"summary",
+										":clone_id",
+										":session_id"
+									],
+									"variable": [
+										{
+											"key": "clone_id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Clone ID"
+										},
+										{
+											"key": "session_id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Session ID"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"session_id\": 55155718,\n  \"clone_id\": \"cupidatat laborum consequat Lorem officia\",\n  \"duration\": {},\n  \"db_size\": {},\n  \"locks\": {},\n  \"log_errors\": {},\n  \"artifact_types\": [\n    \"laboris anim Ut enim\",\n    \"ullamco in esse nostrud Exc\"\n  ]\n}"
+						},
+						{
+							"name": "Bad request",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/observation/summary/:clone_id/:session_id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"observation",
+										"summary",
+										":clone_id",
+										":session_id"
+									],
+									"variable": [
+										{
+											"key": "clone_id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Clone ID"
+										},
+										{
+											"key": "session_id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Session ID"
+										}
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"incididunt minim nulla\",\n  \"message\": \"qui fugiat\",\n  \"detail\": \"occaecat\",\n  \"hint\": \"anim\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Download an observation artifact",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate status 2xx \npm.test(\"[GET]::/observation/download/:artifact_type/:clone_id/:session_id - Status code is 2xx\", function () {\n   pm.response.to.be.success;\n});\n"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "(Required) ",
+								"key": "Verification-Token",
+								"value": "Ut magna qui deserunt"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/observation/download/:artifact_type/:clone_id/:session_id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"observation",
+								"download",
+								":artifact_type",
+								":clone_id",
+								":session_id"
+							],
+							"variable": [
+								{
+									"key": "artifact_type",
+									"value": "Ut magna qui deserunt",
+									"description": "(Required) Type of the requested artifact"
+								},
+								{
+									"key": "clone_id",
+									"value": "Ut magna qui deserunt",
+									"description": "(Required) Clone ID"
+								},
+								{
+									"key": "session_id",
+									"value": "Ut magna qui deserunt",
+									"description": "(Required) Session ID"
+								}
+							]
+						},
+						"description": "[EXPERIMENTAL] Download an artifact for the specified clone and observation session."
+					},
+					"response": [
+						{
+							"name": "Successful operation",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/observation/download/:artifact_type/:clone_id/:session_id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"observation",
+										"download",
+										":artifact_type",
+										":clone_id",
+										":session_id"
+									],
+									"variable": [
+										{
+											"key": "artifact_type",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Type of the requested artifact"
+										},
+										{
+											"key": "clone_id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Clone ID"
+										},
+										{
+											"key": "session_id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Session ID"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "text",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "text/plain"
+								}
+							],
+							"cookie": [],
+							"body": ""
+						},
+						{
+							"name": "Bad request",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"description": "(Required) ",
+										"key": "Verification-Token",
+										"value": "Ut magna qui deserunt"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/observation/download/:artifact_type/:clone_id/:session_id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"observation",
+										"download",
+										":artifact_type",
+										":clone_id",
+										":session_id"
+									],
+									"variable": [
+										{
+											"key": "artifact_type",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Type of the requested artifact"
+										},
+										{
+											"key": "clone_id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Clone ID"
+										},
+										{
+											"key": "session_id",
+											"value": "Ut magna qui deserunt",
+											"description": "(Required) Session ID"
+										}
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": \"incididunt minim nulla\",\n  \"message\": \"qui fugiat\",\n  \"detail\": \"occaecat\",\n  \"hint\": \"anim\"\n}"
+						}
+					]
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://branching.aws.postgres.ai:446/api",
+			"type": "string"
+		}
+	]
+}

@@ -1,0 +1,8 @@
+{
+  "url": "https://gitlab.com/postgres-ai/database-lab/-/raw/dle-4-0/engine/api/swagger-spec/dblab_openapi.yaml",
+  "output": "engine/api/postman/output.json",
+  "envFile": "engine/api/postman/portman.env",
+  "includeTests": true,
+  "syncPostman": true,
+  "runNewman": false
+}
