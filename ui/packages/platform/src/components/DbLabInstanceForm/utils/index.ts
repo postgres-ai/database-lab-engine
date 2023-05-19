@@ -28,7 +28,7 @@ export const getPlaybookCommand = (
   orgKey: string,
 ) =>
   `${dockerRunCommand(state.provider)} \\\r
-  postgresai/dle-se-ansible:v3.4.0-rc.4.1 \\\r
+  postgresai/dle-se-ansible:v3.4.0-rc.5.3 \\\r
     ansible-playbook deploy_dle.yml --extra-vars \\\r
     "provision='${state.provider}' \\\r
     server_name='${state.name}' \\\r
