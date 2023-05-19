@@ -2,7 +2,11 @@
 ################################################
 # Welcome to DBLab 🖖
 # This script downloads DBLab CLI (`dblab`).
-# 🌠 Contribute to DBLab: https://dblab.dev
+#
+# To install it on macOS/Linux/Windows:
+#      curl -sSL dblab.sh | bash
+#
+# ⭐️ Contribute to DBLab: https://dblab.dev
 # 📚 DBLab Docs: https://docs.dblab.dev
 # 💻 CLI reference: https://cli-docs.dblab.dev/
 # 👨‍💻 API reference: https://api.dblab.dev
