@@ -30,7 +30,7 @@ const useStyles = makeStyles(
       width: 0,
       flex: '1 1 100%',
       marginRight: '40px',
-      height: "100%",
+      height: '100%',
 
       [theme.breakpoints.down('sm')]: {
         width: '100%',
@@ -71,7 +71,7 @@ export const Clones = observer(() => {
   const goToCloneAddPage = () => history.push(host.routes.createClone())
 
   const showListSizeButton =
-    instance.state.cloning.clones.length > SHORT_LIST_SIZE && isMobile
+    instance.state.cloning.clones?.length > SHORT_LIST_SIZE && isMobile
 
   const isLoadingSnapshots = stores.main.snapshots.isLoading
   const hasSnapshots = Boolean(stores.main.snapshots.data?.length)

@@ -49,13 +49,13 @@ type Props = {
   value: number
   handleChange: (event: React.ChangeEvent<{}>, newValue: number) => void
   hasLogs: boolean
-  hideInstanceTabs?: boolean
+  isPlatform?: boolean
 }
 
 export const Tabs = (props: Props) => {
   const classes = useStyles()
 
-  const { value, handleChange, hasLogs, hideInstanceTabs } = props
+  const { value, handleChange, hasLogs } = props
 
   return (
     <TabsComponent
@@ -74,14 +74,14 @@ export const Tabs = (props: Props) => {
         label="Logs"
         disabled={!hasLogs}
         classes={{
-          root: classes.tabRoot,
+          root: props.isPlatform ? classes.tabHidden : classes.tabRoot,
         }}
         value={1}
       />
       <TabComponent
         label="Configuration"
         classes={{
-          root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
+          root: props.isPlatform ? classes.tabHidden : classes.tabRoot,
         }}
         value={2}
       />

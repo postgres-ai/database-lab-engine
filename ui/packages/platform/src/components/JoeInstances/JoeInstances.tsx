@@ -404,7 +404,8 @@ class JoeInstances extends Component<
 
                     <TableCell className={classes.cell}>
                       {data.data[i].url ? data.data[i].url : ''}
-                      {!isHttps(data.data[i].url) &&
+                      {data.data[i].url &&
+                      !isHttps(data.data[i].url) &&
                       !data.data[i].use_tunnel ? (
                         <Tooltip
                           title="The connection to Joe Bot API is not secure"
@@ -413,7 +414,9 @@ class JoeInstances extends Component<
                         >
                           <WarningIcon className={classes.warningIcon} />
                         </Tooltip>
-                      ) : null}
+                      ) : (
+                        'N/A'
+                      )}
                     </TableCell>
 
                     <TableCell align={'right'}>

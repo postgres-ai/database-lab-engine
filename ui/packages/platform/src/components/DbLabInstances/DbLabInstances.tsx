@@ -471,6 +471,7 @@ class DbLabInstances extends Component<
                         ? data.data[index].url
                         : ''}
                       {!isHttps(data.data[index].url) &&
+                      data.data[index].url &&
                       !data.data[index].use_tunnel ? (
                         <Tooltip
                           title="The connection to Database Lab API is not secure"
@@ -479,7 +480,9 @@ class DbLabInstances extends Component<
                         >
                           <WarningIcon className={classes.warningIcon} />
                         </Tooltip>
-                      ) : null}
+                      ) : (
+                        'N/A'
+                      )}
                     </TableCell>
                     <TableCell className={classes.cell}>
                       {data.data[index]?.state?.cloning?.numClones ??
