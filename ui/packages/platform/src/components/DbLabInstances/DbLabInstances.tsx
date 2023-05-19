@@ -6,6 +6,7 @@
  */
 
 import { Component, MouseEvent } from 'react'
+import { formatDistanceToNowStrict } from 'date-fns'
 import {
   Table,
   TableBody,
@@ -22,11 +23,10 @@ import MoreVertIcon from '@material-ui/icons/MoreVert'
 import WarningIcon from '@material-ui/icons/Warning'
 
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
-import { StubContainer } from '@postgres.ai/shared/components/StubContainer'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
+import { Modal } from '@postgres.ai/shared/components/Modal'
 import { styles } from '@postgres.ai/shared/styles/styles'
-import { icons } from '@postgres.ai/shared/styles/icons'
 import {
   ClassesType,
   ProjectProps,
@@ -35,26 +35,27 @@ import {
 import Actions from '../../actions/actions'
 import ConsolePageTitle from './../ConsolePageTitle'
 import { ErrorWrapper } from 'components/Error/ErrorWrapper'
-import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
 import { messages } from '../../assets/messages'
 import Store from '../../stores/store'
 import Urls from '../../utils/urls'
+import format from '../../utils/format'
 import { isHttps } from '../../utils/utils'
 import { WarningWrapper } from 'components/Warning/WarningWrapper'
 import { ProjectDataType, getProjectAliasById } from 'utils/aliases'
 import { InstanceStateDto } from '@postgres.ai/shared/types/api/entities/instanceState'
 import { InstanceDto } from '@postgres.ai/shared/types/api/entities/instance'
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
-import { ConsoleButtonWrapper } from 'components/ConsoleButton/ConsoleButtonWrapper'
-import { ProductCardWrapper } from 'components/ProductCard/ProductCardWrapper'
 import { DbLabStatusWrapper } from 'components/DbLabStatus/DbLabStatusWrapper'
 import { DbLabInstancesProps } from 'components/DbLabInstances/DbLabInstancesWrapper'
+import { CreatedDbLabCards } from 'components/CreateDbLabCards/CreateDbLabCards'
+import { ConsoleButtonWrapper } from 'components/ConsoleButton/ConsoleButtonWrapper'
 
 interface DbLabInstancesWithStylesProps extends DbLabInstancesProps {
   classes: ClassesType
 }
 
 interface DbLabInstancesState {
+  modalOpen: boolean
   data: {
     auth: {
       token: string
@@ -68,7 +69,9 @@ interface DbLabInstancesState {
       orgId: number
       data: {
         [org: string]: {
+          created_at: string
           project_label_or_name: string
+          plan: string
           project_name: string
           project_label: string
           url: string
@@ -182,8 +185,8 @@ class DbLabInstances extends Component<
     this.props.history.push(Urls.linkDbLabInstances(props))
   }
 
-  registerButtonHandler = () => {
-    this.props.history.push(Urls.linkDbLabInstanceAdd(this.props))
+  registerButtonHandler = (provider: string) => {
+    this.props.history.push(Urls.linkDbLabInstanceAdd(this.props, provider))
   }
 
   openMenu = (event: MouseEvent<HTMLButtonElement>) => {
@@ -285,24 +288,40 @@ class DbLabInstances extends Component<
     const deletePermitted =
       !orgPermissions || orgPermissions.dblabInstanceDelete
 
+    const getVersionDigits = (str: string) => {
+      if (!str) {
+        return 'N/A'
+      }
+
+      const digits = str.match(/\d+/g)
+
+      if (digits && digits.length > 0) {
+        return `${digits[0]}.${digits[1]}.${digits[2]}`
+      }
+      return ''
+    }
+
     const addInstanceButton = (
       <ConsoleButtonWrapper
         disabled={!addPermitted}
         variant="contained"
         color="primary"
         key="add_dblab_instance"
-        onClick={this.registerButtonHandler}
-        title={
-          addPermitted
-            ? 'Add a new Database Lab instance'
-            : messages.noPermission
-        }
+        onClick={() => this.setState({ modalOpen: true })}
+        title={addPermitted ? 'Create new DLE' : messages.noPermission}
       >
-        Add instance
+        New DLE
       </ConsoleButtonWrapper>
     )
     const pageTitle = (
-      <ConsolePageTitle title={title} actions={[addInstanceButton]} />
+      <ConsolePageTitle
+        title={title}
+        actions={
+          data?.data && Object.keys(data.data).length > 0
+            ? [addInstanceButton]
+            : []
+        }
+      />
     )
 
     let projectFilter = null
@@ -391,37 +410,21 @@ class DbLabInstances extends Component<
       )
     }
 
-    const emptyListTitle = projectId
-      ? 'There are no Database Lab instances in this project yet'
-      : 'There are no Database Lab instances yet'
+    const CardsModal = () => (
+      <Modal
+        size="md"
+        isOpen={this.state.modalOpen}
+        title="Choose the location for your DLE SE installation"
+        onClose={() => this.setState({ modalOpen: false })}
+        aria-labelledby="simple-modal-title"
+        aria-describedby="simple-modal-description"
+      >
+        <CreatedDbLabCards props={this.props} dblabPermitted={addPermitted} />
+      </Modal>
+    )
 
     let table = (
-      <StubContainer className={classes.stubContainer}>
-        <ProductCardWrapper
-          inline
-          title={emptyListTitle}
-          actions={[
-            {
-              id: 'addInstanceButton',
-              content: addInstanceButton,
-            },
-          ]}
-          icon={icons.databaseLabLogo}
-        >
-          <p>
-            Clone multi-terabyte databases in seconds and use them to test your
-            database migrations, optimize SQL, or deploy full-size staging apps.
-            Start here to work with all Database Lab tools. Setup
-            <GatewayLink
-              href="https://postgres.ai/docs/database-lab"
-              target="_blank"
-            >
-              documentation here
-            </GatewayLink>
-            .
-          </p>
-        </ProductCardWrapper>
-      </StubContainer>
+      <CreatedDbLabCards props={this.props} dblabPermitted={addPermitted} />
     )
 
     let menu = null
@@ -432,9 +435,13 @@ class DbLabInstances extends Component<
             <TableHead>
               <TableRow className={classes.row}>
                 <TableCell>Project</TableCell>
+                <TableCell>Instance ID</TableCell>
                 <TableCell>URL</TableCell>
-                <TableCell>Status</TableCell>
                 <TableCell>Clones</TableCell>
+                <TableCell>Plan</TableCell>
+                <TableCell>Version</TableCell>
+                <TableCell>State</TableCell>
+                <TableCell>Created at</TableCell>
                 <TableCell>&nbsp;</TableCell>
               </TableRow>
             </TableHead>
@@ -457,6 +464,9 @@ class DbLabInstances extends Component<
                     </TableCell>
 
                     <TableCell className={classes.cell}>
+                      {data.data[index].id}
+                    </TableCell>
+                    <TableCell className={classes.cell}>
                       {data.data[index].state && data.data[index].url
                         ? data.data[index].url
                         : ''}
@@ -471,20 +481,52 @@ class DbLabInstances extends Component<
                         </Tooltip>
                       ) : null}
                     </TableCell>
-
-                    <TableCell className={classes.cell}>
-                      <DbLabStatusWrapper
-                        instance={data.data[index]}
-                        onlyText={false}
-                      />
-                    </TableCell>
-
                     <TableCell className={classes.cell}>
                       {data.data[index]?.state?.cloning?.numClones ??
                         data.data[index]?.state?.clones?.length ??
-                        ''}
+                        'N/A'}
                     </TableCell>
-
+                    <TableCell>
+                      {data.data[index] &&
+                        (data.data[index]?.plan === 'EE'
+                          ? 'Enterprise'
+                          : data.data[index]?.plan === 'SE'
+                          ? 'Standard'
+                          : data.data[index]?.plan)}
+                    </TableCell>
+                    <TableCell>
+                      {getVersionDigits(
+                        data.data[index] &&
+                          (data.data[index].state?.engine?.version as string),
+                      )}
+                    </TableCell>
+                    <TableCell className={classes.cell}>
+                      {data.data[index].state && data.data[index].url ? (
+                        <DbLabStatusWrapper
+                          instance={data.data[index]}
+                          onlyText={false}
+                        />
+                      ) : (
+                        'N/A'
+                      )}
+                    </TableCell>
+                    <TableCell className={classes.cell}>
+                      <Tooltip
+                        title={formatDistanceToNowStrict(
+                          new Date(data.data[index].created_at),
+                          {
+                            addSuffix: true,
+                          },
+                        )}
+                        classes={{ tooltip: classes.timeLabel }}
+                      >
+                        <span>
+                          {format.formatTimestampUtc(
+                            data.data[index].created_at,
+                          ) ?? ''}
+                        </span>
+                      </Tooltip>
+                    </TableCell>
                     <TableCell align={'right'}>
                       {data.data[index].isProcessing ||
                       (this.state.data?.dbLabInstanceStatus.instanceId ===
@@ -509,6 +551,12 @@ class DbLabInstances extends Component<
         </HorizontalScrollContainer>
       )
 
+      const selectedInstance = Object.values(data.data).filter((item) => {
+        const anchorElLabel = this.state.anchorEl?.getAttribute('aria-label')
+        // eslint-disable-next-line eqeqeq
+        return anchorElLabel && item.id == anchorElLabel
+      })[0]
+
       menu = (
         <Menu
           id="instance-menu"
@@ -525,19 +573,21 @@ class DbLabInstances extends Component<
           <MenuItem
             key={1}
             onClick={(event) => this.menuHandler(event, 'editProject')}
-            disabled={!addPermitted}
+            disabled={!addPermitted || selectedInstance?.plan === 'SE'}
           >
             Edit
           </MenuItem>
           <MenuItem
             key={2}
             onClick={(event) => this.menuHandler(event, 'addclone')}
+            disabled={selectedInstance?.plan === 'SE'}
           >
             Create clone
           </MenuItem>
           <MenuItem
             key={3}
             onClick={(event) => this.menuHandler(event, 'refresh')}
+            disabled={selectedInstance?.plan === 'SE'}
           >
             Refresh
           </MenuItem>
@@ -563,6 +613,8 @@ class DbLabInstances extends Component<
         {table}
 
         {menu}
+
+        <CardsModal />
       </div>
     )
   }
