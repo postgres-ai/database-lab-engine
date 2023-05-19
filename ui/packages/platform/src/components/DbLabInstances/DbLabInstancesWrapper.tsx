@@ -30,9 +30,6 @@ export const DbLabInstancesWrapper = (props: DbLabInstancesProps) => {
         display: 'flex',
         flexDirection: 'column',
       },
-      stubContainer: {
-        marginTop: '10px',
-      },
       filterSelect: {
         ...styles.inputField,
         width: 150,
@@ -59,6 +56,39 @@ export const DbLabInstancesWrapper = (props: DbLabInstancesProps) => {
       },
       tooltip: {
         fontSize: '10px!important',
+      },
+      timeLabel: {
+        lineHeight: '16px',
+        fontSize: 12,
+        cursor: 'pointer',
+      },
+      flexContainer: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        height: '100%',
+        gap: 40,
+        marginTop: '20px',
+
+        '& > div': {
+          maxWidth: '300px',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          border: '1px solid #e0e0e0',
+          padding: '20px',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          fontSize: '15px',
+          transition: 'border 0.3s ease-in-out',
+
+          '&:hover': {
+            border: '1px solid #FF6212',
+          },
+        },
       },
     },
     { index: 1 },

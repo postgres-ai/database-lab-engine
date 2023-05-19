@@ -1,6 +1,13 @@
-import { Engine } from '@postgres.ai/ce/src/types/api/entities/engine'
+export type EngineDto = {
+  version: string
+  edition?: string
+}
 
 export type GetEngine = () => Promise<{
-  response: Engine | null
+  response: EngineType | null
   error: Response | null
 }>
+
+export const formatEngineDto = (dto: EngineDto) => dto
+
+export type EngineType = ReturnType<typeof formatEngineDto>

@@ -43,7 +43,9 @@ import { SideNav } from 'components/SideNav'
 import { ContentLayout } from 'components/ContentLayout'
 import { ConsoleButtonWrapper } from 'components/ConsoleButton/ConsoleButtonWrapper'
 import { DbLabInstanceFormWrapper } from 'components/DbLabInstanceForm/DbLabInstanceFormWrapper'
+import { AddDbLabInstanceFormWrapper } from 'components/AddDbLabInstanceFormWrapper/AddDbLabInstanceFormWrapper'
 import { DbLabInstancesWrapper } from 'components/DbLabInstances/DbLabInstancesWrapper'
+import { DbLabInstanceFormInstallWrapper } from 'components/DbLabInstanceInstallForm/DbLabInstanceInstallFormWrapper'
 import { DbLabSessionWrapper } from 'components/DbLabSession/DbLabSessionWrapper'
 import { DbLabSessionsWrapper } from 'components/DbLabSessions/DbLabSessionsWrapper'
 import { JoeInstanceFormWrapper } from 'components/JoeInstanceForm/JoeInstanceFormWrapper'
@@ -146,7 +148,19 @@ function ProjectWrapper(parentProps: Omit<ProjectWrapperProps, 'classes'>) {
       <Route
         path="/:org/:project/instances/add"
         render={(props) => (
+          <AddDbLabInstanceFormWrapper {...props} {...customProps} />
+        )}
+      />
+      <Route
+        path="/:org/:project/instances/create"
+        render={(props) => (
           <DbLabInstanceFormWrapper {...props} {...customProps} />
+        )}
+      />
+      <Route
+        path="/:org/:project/instances/install"
+        render={(props) => (
+          <DbLabInstanceFormInstallWrapper {...props} {...customProps} />
         )}
       />
       <Route
@@ -270,7 +284,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
     }
 
     return (
-      <div>
+      <div style={{ height: '100%' }}>
         <div>
           <div className={parentProps.classes.orgHeaderContainer}>
             <span className={parentProps.classes.orgHeader}>Organization</span>
@@ -660,7 +674,27 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
       <Route
         path="/:org/instances/add"
         render={(props) => (
+          <AddDbLabInstanceFormWrapper
+            {...props}
+            {...customProps}
+            {...queryProps}
+          />
+        )}
+      />
+      <Route
+        path="/:org/instances/create"
+        render={(props) => (
           <DbLabInstanceFormWrapper
+            {...props}
+            {...customProps}
+            {...queryProps}
+          />
+        )}
+      />
+      <Route
+        path="/:org/instances/install"
+        render={(props) => (
+          <DbLabInstanceFormInstallWrapper
             {...props}
             {...customProps}
             {...queryProps}
@@ -1173,7 +1207,7 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
     }
 
     const drawer = (
-      <div onClick={this.handleDrawerToggle} className="menu-pointer">
+      <div onClick={this.handleDrawerToggle} className={classes.menuPointer}>
         <Divider />
         <Switch>
           <Route exact path={[ROUTES.ROOT.path, ROUTES.PROFILE.path]}>

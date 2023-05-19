@@ -30,6 +30,7 @@ export const IndexPageWrapper = (props: IndexPageProps) => {
           paddingTop: '40px',
         },
         position: 'absolute',
+        overflow: 'hidden',
         width: drawerWidth,
         'background-color': colors.consoleMenuBackground,
         'border-right-color': colors.consoleStroke,
@@ -229,9 +230,13 @@ export const IndexPageWrapper = (props: IndexPageProps) => {
         paddingLeft: '15px',
         color: '#000000',
       },
+      menuPointer: {
+        height: '100%',
+      },
       navMenu: {
         padding: '0px',
-        marginBottom: '85px',
+        height: 'calc(100% - 160px)',
+        overflowY: 'auto',
       },
       menuSectionHeaderIcon: {
         marginRight: '13px',

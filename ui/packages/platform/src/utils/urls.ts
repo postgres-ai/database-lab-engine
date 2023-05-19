@@ -72,10 +72,12 @@ export default {
     return basePath + '/instances/' + instanceId
   },
 
-  linkDbLabInstanceAdd: function (props: PropsType) {
+  linkDbLabInstanceAdd: function (props: PropsType, creationType?: string) {
     const basePath = this.getBasePath(props)
 
-    return basePath + '/instances/add'
+    return (
+      basePath + '/instances' + (creationType ? '/' + creationType : '')
+    )
   },
 
   linkDbLabClone: function (

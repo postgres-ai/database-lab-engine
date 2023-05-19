@@ -74,7 +74,7 @@ export const Tabs = (props: Props) => {
         label="Logs"
         disabled={!hasLogs}
         classes={{
-          root: hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
+          root: classes.tabRoot,
         }}
         value={1}
       />
