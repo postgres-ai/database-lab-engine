@@ -92,6 +92,7 @@ export const Instance = () => {
 
   return (
     <InstancePage
+      isPlatform
       title={`Database Lab instance #${params.instanceId} ${
         params.project ? `(${params.project})` : ''
       }`}

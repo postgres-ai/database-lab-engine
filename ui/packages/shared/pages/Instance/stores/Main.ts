@@ -91,7 +91,9 @@ export class MainStore {
     this.isReloadingInstance = true
     this.loadInstance(instanceId)
     this.loadInstanceRetrieval(instanceId).then(() => {
-      this.getConfig()
+      if (this.instanceRetrieval) {
+        this.getConfig()
+      }
     })
     this.snapshots.load(instanceId)
   }
