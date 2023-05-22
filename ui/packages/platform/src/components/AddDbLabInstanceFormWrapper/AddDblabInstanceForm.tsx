@@ -134,11 +134,16 @@ class DbLabInstanceForm extends Component<
 
       if (dbLabInstances.data) {
         that.setState({
-          project_label: dbLabInstances.data[instanceID]?.project_label_or_name,
+          project_label:
+            that.state.project_label ||
+            dbLabInstances.data[instanceID]?.project_label_or_name,
           token: dbLabInstances.data[instanceID]?.verify_token,
-          useTunnel: dbLabInstances.data[instanceID]?.use_tunnel,
-          url: dbLabInstances.data[instanceID]?.url,
-          sshServerUrl: dbLabInstances.data[instanceID]?.ssh_server_url,
+          useTunnel:
+            that.state.useTunnel || dbLabInstances.data[instanceID]?.use_tunnel,
+          url: that.state.url || dbLabInstances.data[instanceID]?.url,
+          sshServerUrl:
+            that.state.sshServerUrl ||
+            dbLabInstances.data[instanceID]?.ssh_server_url,
         })
       }
 
@@ -336,10 +341,6 @@ class DbLabInstanceForm extends Component<
             here.
           </span>
         )}
-
-        <div className={classes.errorMessage}>
-          {data?.errorMessage ? data.errorMessage : null}
-        </div>
 
         <Grid container>
           <div className={classes.fieldBlock}>
@@ -562,30 +563,32 @@ class DbLabInstanceForm extends Component<
               Verify URL
             </Button>
 
-            {data?.isCheckProcessed &&
-            data?.isChecked &&
-            (isHttps(this.state.url) || this.state.useTunnel) ? (
-              <span className={classes.urlOk}>
-                <CheckCircleOutlineIcon className={classes.urlOkIcon} />{' '}
-                Verified
-              </span>
-            ) : null}
+            <div className={classes.urlTextMargin}>
+              {data?.isCheckProcessed &&
+              data?.isChecked &&
+              (isHttps(this.state.url) || this.state.useTunnel) ? (
+                <span className={classes.urlOk}>
+                  <CheckCircleOutlineIcon className={classes.urlOkIcon} />{' '}
+                  Verified
+                </span>
+              ) : null}
 
-            {data?.isCheckProcessed &&
-            data?.isChecked &&
-            !isHttps(this.state.url) &&
-            !this.state.useTunnel ? (
-              <span className={classes.urlFail}>
-                <BlockIcon className={classes.urlFailIcon} /> Verified but is
-                not secure
-              </span>
-            ) : null}
+              {data?.isCheckProcessed &&
+              data?.isChecked &&
+              !isHttps(this.state.url) &&
+              !this.state.useTunnel ? (
+                <span className={classes.urlFail}>
+                  <BlockIcon className={classes.urlFailIcon} /> Verified but is
+                  not secure
+                </span>
+              ) : null}
 
-            {data?.isCheckProcessed && !data?.isChecked ? (
-              <span className={classes.urlFail}>
-                <BlockIcon className={classes.urlFailIcon} /> Not available
-              </span>
-            ) : null}
+              {data?.isCheckProcessed && !data?.isChecked ? (
+                <span className={classes.urlFail}>
+                  <BlockIcon className={classes.urlFailIcon} /> Not available
+                </span>
+              ) : null}
+            </div>
           </div>
 
           <div className={classes.fieldBlock} style={{ marginTop: 40 }}>
@@ -606,6 +609,9 @@ class DbLabInstanceForm extends Component<
             >
               Cancel
             </Button>
+          </div>
+          <div className={classes.errorMessage}>
+            {data?.errorMessage ? data.errorMessage : null}
           </div>
         </Grid>
       </div>

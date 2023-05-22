@@ -469,7 +469,7 @@ class DbLabInstances extends Component<
                     <TableCell className={classes.cell}>
                       {data.data[index].state && data.data[index].url
                         ? data.data[index].url
-                        : ''}
+                        : 'N/A'}
                       {!isHttps(data.data[index].url) &&
                       data.data[index].url &&
                       !data.data[index].use_tunnel ? (
@@ -480,9 +480,7 @@ class DbLabInstances extends Component<
                         >
                           <WarningIcon className={classes.warningIcon} />
                         </Tooltip>
-                      ) : (
-                        'N/A'
-                      )}
+                      ) : null}
                     </TableCell>
                     <TableCell className={classes.cell}>
                       {data.data[index]?.state?.cloning?.numClones ??

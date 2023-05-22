@@ -166,7 +166,7 @@ function ProjectWrapper(parentProps: Omit<ProjectWrapperProps, 'classes'>) {
       <Route
         path="/:org/:project/instances/edit/:instanceId"
         render={(props) => (
-          <DbLabInstanceFormWrapper edit {...props} {...customProps} />
+          <AddDbLabInstanceFormWrapper edit {...props} {...customProps} />
         )}
       />
       <Route
@@ -921,14 +921,14 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
         env.data &&
         env.data.orgs[orgProfile.data.alias]
       ) {
-        that.props.history.push('/' + orgProfile.data.alias + '/settings')
+        window.location.href = '/' + orgProfile.data.alias + '/settings'
       }
 
       if (
         (env.isConfirmProcessed || (env.data && env.data.info.is_active)) &&
         Urls.isRequestedPath('confirm')
       ) {
-        that.props.history.push(ROUTES.ROOT.path)
+        window.location.href = ROUTES.ROOT.path
       }
     })
 
