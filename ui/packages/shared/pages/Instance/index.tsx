@@ -64,6 +64,7 @@ export const Instance = observer((props: Props) => {
   const classes = useStyles()
 
   const { instanceId, api } = props
+  const [activeTab, setActiveTab] = React.useState(0)
 
   const stores = useCreatedStores(props)
   const {
@@ -74,11 +75,25 @@ export const Instance = observer((props: Props) => {
     load,
   } = stores.main
 
+  const switchTab = (_: React.ChangeEvent<{}> | null, tabID: number) => {
+    const contentElement = document.getElementById('content-container')
+    setActiveTab(tabID)
+
+    if (tabID === 0) {
+      load(props.instanceId)
+    }
+    contentElement?.scroll(0, 0)
+  }
+
+  const isInstanceIntegrated =
+    instanceRetrieval ||
+    (!isLoadingInstance && instance && instance?.url && !instanceError)
+
+  const isConfigurationActive = instanceRetrieval?.mode !== 'physical'
+
   useEffect(() => {
     load(instanceId)
   }, [instanceId])
-
-  const isConfigurationActive = instanceRetrieval?.mode !== 'physical'
 
   useEffect(() => {
     if (
@@ -93,17 +108,6 @@ export const Instance = observer((props: Props) => {
       if (!props.callbacks) return
     }
   }, [instance])
-
-  const [activeTab, setActiveTab] = React.useState(0)
-
-  const switchTab = (_: React.ChangeEvent<{}> | null, tabID: number) => {
-    const contentElement = document.getElementById('content-container')
-    setActiveTab(tabID)
-    contentElement?.scroll(0, 0)
-  }
-
-  const isInstanceIntegrated =
-    !isLoadingInstance && instance && instance?.url && !instanceError
 
   return (
     <HostProvider value={props}>
