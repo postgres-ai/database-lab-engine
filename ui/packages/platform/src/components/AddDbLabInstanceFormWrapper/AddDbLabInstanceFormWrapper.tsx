@@ -21,25 +21,26 @@ export const AddDbLabInstanceFormWrapper = (props: DbLabInstanceFormProps) => {
         maxWidth: 400,
       },
       errorMessage: {
+        marginTop: 10,
         color: 'red',
       },
       fieldBlock: {
         width: '100%',
       },
       urlOkIcon: {
-        marginBottom: -5,
-        marginLeft: 10,
         color: 'green',
       },
-      urlOk: {
-        color: 'green',
+      urlOk: { display: 'flex', gap: 5, alignItems: 'center', color: 'green' },
+      urlTextMargin: {
+        marginTop: 10,
       },
       urlFailIcon: {
-        marginBottom: -5,
-        marginLeft: 10,
         color: 'red',
       },
       urlFail: {
+        display: 'flex',
+        gap: 5,
+        alignItems: 'center',
         color: 'red',
       },
       warning: {

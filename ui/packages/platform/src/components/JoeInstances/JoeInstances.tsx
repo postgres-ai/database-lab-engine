@@ -403,7 +403,7 @@ class JoeInstances extends Component<
                     </TableCell>
 
                     <TableCell className={classes.cell}>
-                      {data.data[i].url ? data.data[i].url : ''}
+                      {data.data[i].url ? data.data[i].url : 'N/A'}
                       {data.data[i].url &&
                       !isHttps(data.data[i].url) &&
                       !data.data[i].use_tunnel ? (
@@ -414,9 +414,7 @@ class JoeInstances extends Component<
                         >
                           <WarningIcon className={classes.warningIcon} />
                         </Tooltip>
-                      ) : (
-                        'N/A'
-                      )}
+                      ) : null}
                     </TableCell>
 
                     <TableCell align={'right'}>

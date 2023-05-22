@@ -58,7 +58,7 @@ class InviteForm extends Component<InviteFormWithStylesProps, InviteFormState> {
       that.setState({ data: this.data })
 
       if (this.data.inviteUser.isProcessed && !this.data.inviteUser.error) {
-        that.props.history.push('/' + org + '/members')
+        window.location.href = '/' + org + '/members'
       }
 
       const auth: InviteFormState['data']['auth'] =
