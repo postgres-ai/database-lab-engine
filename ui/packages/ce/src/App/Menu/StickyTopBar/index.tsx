@@ -93,7 +93,7 @@ export const StickyTopBar = () => {
     activateBilling()
       .then((res) => {
         setIsLoading(false)
-        if (res.response?.billing_active) {
+        if (res.response?.billing_active || res.response?.billingActive) {
           handleReset()
           setSnackbarState({
             isOpen: true,
