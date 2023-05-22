@@ -388,8 +388,8 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
         : null
 
     const filteredItems =
-      profile &&
-      Object.keys(profile?.data?.orgs).filter(
+      profile?.data?.orgs &&
+      Object.keys(profile?.data?.orgs)?.filter(
         (org) =>
           org
             ?.toLowerCase()
