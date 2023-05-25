@@ -1,7 +1,7 @@
 import { initialState } from '../reducer'
+import { DEBUG_API_SERVER } from 'components/DbLabInstanceForm/utils'
 
 const API_SERVER = process.env.REACT_APP_API_SERVER
-const DEBUG_API_SERVER = 'https://v2.postgres.ai/api/general'
 
 export const getPlaybookCommand = (
   state: typeof initialState,

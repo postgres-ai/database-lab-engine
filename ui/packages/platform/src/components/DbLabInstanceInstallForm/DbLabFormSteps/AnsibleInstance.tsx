@@ -1,55 +1,24 @@
 import { Box } from '@mui/material'
 import { useEffect, useState } from 'react'
-import { makeStyles, Button } from '@material-ui/core'
+import { Button } from '@material-ui/core'
 
-import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
-
-import { initialState } from '../reducer'
-import { DblabInstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/DbLabInstanceFormCreation'
-import { getOrgKeys } from 'api/cloud/getOrgKeys'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
+import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
+
+import { getOrgKeys } from 'api/cloud/getOrgKeys'
+
+import { formStyles } from 'components/DbLabInstanceForm/DbLabFormSteps/AnsibleInstance'
+import { InstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/InstanceFormCreation'
 import {
   cloneRepositoryCommand,
   getAnsibleInstallationCommand,
   getAnsiblePlaybookCommand,
 } from 'components/DbLabInstanceInstallForm/utils'
 
-const useStyles = makeStyles({
-  marginTop: {
-    marginTop: '20px',
-  },
-  marginBottom: {
-    marginBottom: '10px',
-    display: 'block',
-  },
-  spinner: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100%',
-  },
-  title: {
-    fontWeight: 600,
-    fontSize: '15px',
-    margin: '10px 0',
-  },
-  code: {
-    backgroundColor: '#eee',
-    borderRadius: '3px',
-    padding: '0 3px',
-    marginLeft: '0.25em',
-  },
-  ul: {
-    paddingInlineStart: '30px',
-  },
-  important: {
-    fontWeight: 600,
-    margin: 0,
-  },
-})
+import { initialState } from '../reducer'
 
-export const DblabInstanceSnippet = ({
+export const AnsibleInstance = ({
   state,
   orgId,
   goBack,
@@ -64,7 +33,7 @@ export const DblabInstanceSnippet = ({
   formStep: string
   setFormStep: (step: string) => void
 }) => {
-  const classes = useStyles()
+  const classes = formStyles()
   const [orgKey, setOrgKey] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [orgKeyError, setOrgKeyError] = useState(false)
@@ -85,7 +54,7 @@ export const DblabInstanceSnippet = ({
   }, [orgId])
 
   return (
-    <DblabInstanceFormCreation formStep={formStep} setFormStep={setFormStep}>
+    <InstanceFormCreation formStep={formStep} setFormStep={setFormStep}>
       {isLoading ? (
         <span className={classes.spinner}>
           <Spinner />
@@ -189,6 +158,6 @@ export const DblabInstanceSnippet = ({
           )}
         </>
       )}
-    </DblabInstanceFormCreation>
+    </InstanceFormCreation>
   )
 }

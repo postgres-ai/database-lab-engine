@@ -35,10 +35,10 @@ import { Select } from '@postgres.ai/shared/components/Select'
 import { generateToken } from 'utils/utils'
 import urls from 'utils/urls'
 
-import { DblabInstanceSnippet } from 'components/DbLabInstanceForm/DbLabFormSteps/DbLabInstanceSnippet'
+import { AnsibleInstance } from 'components/DbLabInstanceForm/DbLabFormSteps/AnsibleInstance'
 import { CloudRegion, getCloudRegions } from 'api/cloud/getCloudRegions'
 import { CloudInstance, getCloudInstances } from 'api/cloud/getCloudInstances'
-import { DblabInstanceDocker } from './DbLabFormSteps/DbLabInstanceDocker'
+import { DockerInstance } from './DbLabFormSteps/DockerInstance'
 import { availableTags } from 'components/DbLabInstanceForm/utils'
 
 interface DbLabInstanceFormWithStylesProps extends DbLabInstanceFormProps {
@@ -528,9 +528,7 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
                       Generate random
                     </Button>
                   </div>
-                  <p className={classes.sectionTitle}>
-                    7. Choose DLE version
-                  </p>
+                  <p className={classes.sectionTitle}>7. Choose DLE version</p>
                   <Select
                     label="Select tag"
                     items={
@@ -601,7 +599,7 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
             />
           </>
         ) : state.formStep === 'ansible' && permitted ? (
-          <DblabInstanceSnippet
+          <AnsibleInstance
             state={state}
             orgId={props.orgId}
             formStep={state.formStep}
@@ -610,7 +608,7 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
             goBackToForm={handleReturnToForm}
           />
         ) : state.formStep === 'docker' && permitted ? (
-          <DblabInstanceDocker
+          <DockerInstance
             state={state}
             orgId={props.orgId}
             formStep={state.formStep}
@@ -618,11 +616,7 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
             goBack={handleReturnToList}
             goBackToForm={handleReturnToForm}
           />
-        ) : (
-          <div>
-            404 step <strong>{state.formStep}</strong> not found
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   )

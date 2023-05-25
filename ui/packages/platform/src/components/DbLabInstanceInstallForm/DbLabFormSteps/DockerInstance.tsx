@@ -1,47 +1,20 @@
 import { Box } from '@mui/material'
 import { useEffect, useState } from 'react'
-import { makeStyles, Button } from '@material-ui/core'
+import { Button } from '@material-ui/core'
 
-import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
+import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
+import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
+
+import { getOrgKeys } from 'api/cloud/getOrgKeys'
+
+import { InstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/InstanceFormCreation'
+import { getPlaybookCommand } from 'components/DbLabInstanceInstallForm/utils'
+import { formStyles } from 'components/DbLabInstanceForm/DbLabFormSteps/AnsibleInstance'
 
 import { initialState } from '../reducer'
-import { DblabInstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/DbLabInstanceFormCreation'
-import { getOrgKeys } from 'api/cloud/getOrgKeys'
-import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
-import { getPlaybookCommand } from 'components/DbLabInstanceInstallForm/utils'
 
-const useStyles = makeStyles({
-  marginTop: {
-    marginTop: '20px',
-  },
-  spinner: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100%',
-  },
-  title: {
-    fontWeight: 600,
-    fontSize: '15px',
-    margin: '10px 0',
-  },
-  code: {
-    backgroundColor: '#eee',
-    borderRadius: '3px',
-    padding: '0 3px',
-    marginLeft: '0.25em',
-  },
-  ul: {
-    paddingInlineStart: '30px',
-  },
-  important: {
-    fontWeight: 600,
-    margin: 0,
-  },
-})
-
-export const DblabInstanceDocker = ({
+export const DockerInstance = ({
   state,
   orgId,
   goBack,
@@ -56,7 +29,7 @@ export const DblabInstanceDocker = ({
   formStep: string
   setFormStep: (step: string) => void
 }) => {
-  const classes = useStyles()
+  const classes = formStyles()
   const [orgKey, setOrgKey] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [orgKeyError, setOrgKeyError] = useState(false)
@@ -77,7 +50,7 @@ export const DblabInstanceDocker = ({
   }, [orgId])
 
   return (
-    <DblabInstanceFormCreation formStep={formStep} setFormStep={setFormStep}>
+    <InstanceFormCreation formStep={formStep} setFormStep={setFormStep}>
       {isLoading ? (
         <span className={classes.spinner}>
           <Spinner />
@@ -155,6 +128,6 @@ export const DblabInstanceDocker = ({
           )}
         </>
       )}
-    </DblabInstanceFormCreation>
+    </InstanceFormCreation>
   )
 }

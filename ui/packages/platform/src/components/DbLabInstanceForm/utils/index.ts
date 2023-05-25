@@ -2,7 +2,7 @@ import { CloudImage } from 'api/cloud/getCloudImages'
 import { initialState } from '../reducer'
 
 const API_SERVER = process.env.REACT_APP_API_SERVER
-const DEBUG_API_SERVER = 'https://v2.postgres.ai/api/general'
+export const DEBUG_API_SERVER = 'https://v2.postgres.ai/api/general'
 
 export const availableTags = ['3.4.0-rc.5', '4.0.0-alpha.5']
 

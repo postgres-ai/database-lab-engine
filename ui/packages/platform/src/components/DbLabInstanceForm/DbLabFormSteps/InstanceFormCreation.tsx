@@ -1,7 +1,5 @@
 import { makeStyles } from '@material-ui/core'
 
-import { initialState } from '../reducer'
-
 const useStyles = makeStyles((theme) => ({
   snippetContainer: {
     width: '100%',
@@ -58,7 +56,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }))
 
-export const DblabInstanceFormCreation = ({
+export const InstanceFormCreation = ({
   formStep,
   setFormStep,
   children,
@@ -96,18 +94,6 @@ export const DblabInstanceFormCreation = ({
           />
           Ansible
         </span>
-        {/* <span
-          className={formStep === 'browser' ? classes.active : ''}
-          onClick={() => setFormStep('browser')}
-        >
-          <img
-            src={`/images/globe.svg`}
-            width={30}
-            height="auto"
-            alt={'simple setup'}
-          />
-          Simple setup
-        </span> */}
       </div>
       <div className={classes.form}>{children}</div>
     </div>
