@@ -16,8 +16,8 @@ import { DbLabInstanceFormProps } from 'components/DbLabInstanceForm/DbLabInstan
 import { initialState, reducer } from 'components/DbLabInstanceForm/reducer'
 import { DbLabInstanceFormInstallSidebar } from 'components/DbLabInstanceInstallForm/DbLabInstanceInstallFormSidebar'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinnerFlex'
-import { DblabInstanceSnippet } from 'components/DbLabInstanceInstallForm/DbLabFormSteps/DbLabInstanceSnippet'
-import { DblabInstanceDocker } from 'components/DbLabInstanceInstallForm/DbLabFormSteps/DbLabInstanceDocker'
+import { AnsibleInstance } from 'components/DbLabInstanceInstallForm/DbLabFormSteps/AnsibleInstance'
+import { DockerInstance } from 'components/DbLabInstanceInstallForm/DbLabFormSteps/DockerInstance'
 import { availableTags } from 'components/DbLabInstanceForm/utils'
 import { Select } from '@postgres.ai/shared/components/Select'
 
@@ -196,7 +196,7 @@ const DbLabInstanceInstallForm = (props: DbLabInstanceFormWithStylesProps) => {
             />
           </>
         ) : state.formStep === 'ansible' && permitted ? (
-          <DblabInstanceSnippet
+          <AnsibleInstance
             state={state}
             orgId={props.orgId}
             formStep={state.formStep}
@@ -205,7 +205,7 @@ const DbLabInstanceInstallForm = (props: DbLabInstanceFormWithStylesProps) => {
             goBackToForm={handleReturnToForm}
           />
         ) : state.formStep === 'docker' && permitted ? (
-          <DblabInstanceDocker
+          <DockerInstance
             state={state}
             orgId={props.orgId}
             formStep={state.formStep}
@@ -213,11 +213,7 @@ const DbLabInstanceInstallForm = (props: DbLabInstanceFormWithStylesProps) => {
             goBack={handleReturnToList}
             goBackToForm={handleReturnToForm}
           />
-        ) : (
-          <div>
-            404 step <strong>{state.formStep}</strong> not found
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   )
