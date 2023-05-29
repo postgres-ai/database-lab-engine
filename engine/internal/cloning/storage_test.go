@@ -122,7 +122,7 @@ func TestSavingSessionState(t *testing.T) {
 		prov, err := newProvisioner()
 		assert.NoError(t, err)
 
-		s := NewBase(nil, prov, &telemetry.Agent{}, nil)
+		s := NewBase(nil, nil, prov, &telemetry.Agent{}, nil, nil)
 		err = s.saveClonesState(f.Name())
 		assert.NoError(t, err)
 
@@ -166,7 +166,7 @@ func TestFilter(t *testing.T) {
 				assert.NoError(t, err)
 				defer func() { _ = os.Remove(filepath) }()
 
-				s := NewBase(nil, prov, &telemetry.Agent{}, nil)
+				s := NewBase(nil, nil, prov, &telemetry.Agent{}, nil, nil)
 
 				s.filterRunningClones(context.Background())
 				assert.Equal(t, 0, len(s.clones))

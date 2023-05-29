@@ -231,7 +231,7 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/instance/logs", authMW.WebSocketsMW(s.wsService.tokenKeeper, s.instanceLogs))
 
 	// Health check.
-	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet)
+	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet, http.MethodPost)
 
 	// Show Swagger UI on index page.
 	if err := attachAPI(r); err != nil {
@@ -274,8 +274,4 @@ func (s *Server) Uptime() float64 {
 // reportLaunching reports the launch of the HTTP server.
 func reportLaunching(cfg *srvCfg.Config) {
 	log.Msg(fmt.Sprintf("API server started listening on %s:%d.", cfg.Host, cfg.Port))
-}
-
-func (s *Server) initLogRegExp() {
-	s.filtering.ReloadLogRegExp([]string{s.Config.VerificationToken, s.Platform.AccessToken(), s.Platform.OrgKey()})
 }

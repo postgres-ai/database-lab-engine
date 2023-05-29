@@ -35,6 +35,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/ws"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
@@ -55,7 +56,7 @@ func main() {
 	}
 
 	logFilter := log.GetFilter()
-	logFilter.ReloadLogRegExp([]string{cfg.Server.VerificationToken, cfg.Platform.AccessToken, cfg.Platform.OrgKey})
+	logFilter.ReloadLogRegExp(maskedSecrets(cfg))
 
 	config.ApplyGlobals(cfg)
 
@@ -110,6 +111,11 @@ func main() {
 
 	tm := telemetry.New(platformSvc, engProps.InstanceID)
 
+	webhookChan := make(chan webhooks.EventTyper, 1)
+	whs := webhooks.NewService(&cfg.Webhooks, webhookChan)
+
+	go whs.Run(ctx)
+
 	pm := pool.NewPoolManager(&cfg.PoolManager, runner)
 	if err = pm.ReloadPools(); err != nil {
 		log.Err(err.Error())
@@ -143,7 +149,7 @@ func main() {
 		shutdownDatabaseLabEngine(context.Background(), docker, &cfg.Global.Database, engProps.InstanceID, pm.First())
 	}
 
-	cloningSvc := cloning.NewBase(&cfg.Cloning, provisioner, tm, observingChan)
+	cloningSvc := cloning.NewBase(&cfg.Cloning, &cfg.Global, provisioner, tm, observingChan, webhookChan)
 	if err = cloningSvc.Run(ctx); err != nil {
 		log.Err(err)
 		emergencyShutdown()
@@ -192,6 +198,7 @@ func main() {
 			server,
 			logCleaner,
 			logFilter,
+			whs,
 		)
 	}
 
@@ -202,7 +209,7 @@ func main() {
 	go setReloadListener(ctx, engProps, provisioner, billingSvc,
 		retrievalSvc, pm, cloningSvc, platformSvc,
 		embeddedUI, server,
-		logCleaner, logFilter)
+		logCleaner, logFilter, whs)
 
 	server.InitHandlers()
 
@@ -285,13 +292,14 @@ func getEngineProperties(ctx context.Context, docker *client.Client, cfg *config
 
 func reloadConfig(ctx context.Context, engProp global.EngineProps, provisionSvc *provision.Provisioner, billingSvc *billing.Billing,
 	retrievalSvc *retrieval.Retrieval, pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service,
-	embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner, filtering *log.Filtering) error {
+	embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner, filtering *log.Filtering,
+	whs *webhooks.Service) error {
 	cfg, err := config.LoadConfiguration()
 	if err != nil {
 		return err
 	}
 
-	filtering.ReloadLogRegExp([]string{cfg.Server.VerificationToken, cfg.Platform.AccessToken, cfg.Platform.OrgKey})
+	filtering.ReloadLogRegExp(maskedSecrets(cfg))
 	config.ApplyGlobals(cfg)
 
 	if err := provision.IsValidConfig(cfg.Provision); err != nil {
@@ -327,17 +335,19 @@ func reloadConfig(ctx context.Context, engProp global.EngineProps, provisionSvc 
 
 	provisionSvc.Reload(cfg.Provision, dbCfg)
 	retrievalSvc.Reload(ctx, newRetrievalConfig)
-	cloningSvc.Reload(cfg.Cloning)
+	cloningSvc.Reload(cfg.Cloning, cfg.Global)
 	platformSvc.Reload(newPlatformSvc)
 	billingSvc.Reload(newPlatformSvc.Client)
 	server.Reload(cfg.Server)
+	whs.Reload(&cfg.Webhooks)
 
 	return nil
 }
 
 func setReloadListener(ctx context.Context, engProp global.EngineProps, provisionSvc *provision.Provisioner, billingSvc *billing.Billing,
 	retrievalSvc *retrieval.Retrieval, pm *pool.Manager, cloningSvc *cloning.Base, platformSvc *platform.Service,
-	embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner, logFilter *log.Filtering) {
+	embeddedUI *embeddedui.UIManager, server *srv.Server, cleaner *diagnostic.Cleaner, logFilter *log.Filtering,
+	whs *webhooks.Service) {
 	reloadCh := make(chan os.Signal, 1)
 	signal.Notify(reloadCh, syscall.SIGHUP)
 
@@ -349,7 +359,7 @@ func setReloadListener(ctx context.Context, engProp global.EngineProps, provisio
 			pm, cloningSvc,
 			platformSvc,
 			embeddedUI, server,
-			cleaner, logFilter); err != nil {
+			cleaner, logFilter, whs); err != nil {
 			log.Err("Failed to reload configuration:", err)
 
 			continue
@@ -384,4 +394,20 @@ func removeObservingClones(obsCh chan string, obs *observer.Observer) {
 	for cloneID := range obsCh {
 		obs.RemoveObservingClone(cloneID)
 	}
+}
+
+func maskedSecrets(cfg *config.Config) []string {
+	maskedSecrets := []string{
+		cfg.Server.VerificationToken,
+		cfg.Platform.AccessToken,
+		cfg.Platform.OrgKey,
+	}
+
+	for _, webhookCfg := range cfg.Webhooks.Hooks {
+		if webhookCfg.Secret != "" {
+			maskedSecrets = append(maskedSecrets, webhookCfg.Secret)
+		}
+	}
+
+	return maskedSecrets
 }

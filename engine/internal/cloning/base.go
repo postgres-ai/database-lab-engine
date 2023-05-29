@@ -23,7 +23,9 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
@@ -32,8 +34,6 @@ import (
 
 const (
 	idleCheckDuration = 5 * time.Minute
-
-	defaultDatabaseName = "postgres"
 )
 
 // Config contains a cloning configuration.
@@ -45,22 +45,27 @@ type Config struct {
 // Base provides cloning service.
 type Base struct {
 	config      *Config
+	global      *global.Config
 	cloneMutex  sync.RWMutex
 	clones      map[string]*CloneWrapper
 	snapshotBox SnapshotBox
 	provision   *provision.Provisioner
 	tm          *telemetry.Agent
 	observingCh chan string
+	webhookCh   chan webhooks.EventTyper
 }
 
 // NewBase instances a new Base service.
-func NewBase(cfg *Config, provision *provision.Provisioner, tm *telemetry.Agent, observingCh chan string) *Base {
+func NewBase(cfg *Config, global *global.Config, provision *provision.Provisioner, tm *telemetry.Agent,
+	observingCh chan string, whCh chan webhooks.EventTyper) *Base {
 	return &Base{
 		config:      cfg,
+		global:      global,
 		clones:      make(map[string]*CloneWrapper),
 		provision:   provision,
 		tm:          tm,
 		observingCh: observingCh,
+		webhookCh:   whCh,
 		snapshotBox: SnapshotBox{
 			items: make(map[string]*models.Snapshot),
 		},
@@ -68,8 +73,9 @@ func NewBase(cfg *Config, provision *provision.Provisioner, tm *telemetry.Agent,
 }
 
 // Reload reloads base cloning configuration.
-func (c *Base) Reload(cfg Config) {
+func (c *Base) Reload(cfg Config, global global.Config) {
 	*c.config = cfg
+	*c.global = global
 }
 
 // Run initializes and runs cloning component.
@@ -212,6 +218,17 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 
 		c.fillCloneSession(cloneID, session)
 		c.SaveClonesState()
+
+		c.webhookCh <- webhooks.CloneEvent{
+			BasicEvent: webhooks.BasicEvent{
+				EventType: webhooks.CloneCreatedEvent,
+				EntityID:  cloneID,
+			},
+			Host:     c.config.AccessHost,
+			Port:     session.Port,
+			Username: clone.DB.Username,
+			DBName:   clone.DB.DBName,
+		}
 	}()
 
 	return clone, nil
@@ -236,15 +253,14 @@ func (c *Base) fillCloneSession(cloneID string, session *resources.Session) {
 		Message: models.CloneMessageOK,
 	}
 
-	dbName := clone.DB.DBName
-	if dbName == "" {
-		dbName = defaultDatabaseName
+	if dbName := clone.DB.DBName; dbName == "" {
+		clone.DB.DBName = c.global.Database.Name()
 	}
 
 	clone.DB.Port = strconv.FormatUint(uint64(session.Port), 10)
 	clone.DB.Host = c.config.AccessHost
 	clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s user=%s dbname=%s",
-		clone.DB.Host, clone.DB.Port, clone.DB.Username, dbName)
+		clone.DB.Host, clone.DB.Port, clone.DB.Username, clone.DB.DBName)
 
 	clone.Metadata = models.CloneMetadata{
 		CloningTime:    w.TimeStartedAt.Sub(w.TimeCreatedAt).Seconds(),
@@ -329,6 +345,11 @@ func (c *Base) DestroyClone(cloneID string) error {
 		c.observingCh <- cloneID
 
 		c.SaveClonesState()
+
+		c.webhookCh <- webhooks.BasicEvent{
+			EventType: webhooks.CloneDeleteEvent,
+			EntityID:  cloneID,
+		}
 	}()
 
 	return nil
@@ -483,6 +504,17 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 		}
 
 		c.SaveClonesState()
+
+		c.webhookCh <- webhooks.CloneEvent{
+			BasicEvent: webhooks.BasicEvent{
+				EventType: webhooks.CloneResetEvent,
+				EntityID:  cloneID,
+			},
+			Host:     c.config.AccessHost,
+			Port:     w.Session.Port,
+			Username: w.Clone.DB.Username,
+			DBName:   w.Clone.DB.DBName,
+		}
 
 		c.tm.SendEvent(context.Background(), telemetry.CloneResetEvent, telemetry.CloneCreated{
 			ID:          util.HashID(w.Clone.ID),
