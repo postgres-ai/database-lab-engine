@@ -203,7 +203,7 @@ func main() {
 	}
 
 	server := srv.NewServer(&cfg.Server, &cfg.Global, &engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc,
-		billingSvc, obs, pm, tm, tokenHolder, logFilter, embeddedUI, reloadConfigFn)
+		billingSvc, obs, pm, tm, tokenHolder, logFilter, embeddedUI, reloadConfigFn, webhookChan)
 	shutdownCh := setShutdownListener()
 
 	go setReloadListener(ctx, engProps, provisioner, billingSvc,

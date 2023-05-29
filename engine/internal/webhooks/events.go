@@ -7,6 +7,18 @@ const (
 	CloneResetEvent = "clone_reset"
 	// CloneDeleteEvent defines the clone delete event type.
 	CloneDeleteEvent = "clone_delete"
+
+	// SnapshotCreateEvent defines the snapshot create event type.
+	SnapshotCreateEvent = "snapshot_create"
+
+	// SnapshotDeleteEvent defines the snapshot delete event type.
+	SnapshotDeleteEvent = "snapshot_delete"
+
+	// BranchCreateEvent defines the branch create event type.
+	BranchCreateEvent = "branch_create"
+
+	// BranchDeleteEvent defines the branch delete event type.
+	BranchDeleteEvent = "branch_delete"
 )
 
 // EventTyper unifies webhook events.
