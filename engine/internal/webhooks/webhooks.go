@@ -15,7 +15,7 @@ import (
 
 const (
 	// DLEWebhookTokenHeader defines the HTTP header name to send secret with the webhook request.
-	DLEWebhookTokenHeader = "DLE-Webhook-Token"
+	DLEWebhookTokenHeader = "DBLab-Webhook-Token"
 )
 
 // Config defines webhooks configuration.

@@ -370,7 +370,7 @@ platform:
 #webhooks:
 #  hooks:
 #    - url: ""
-#      secret: "" # (optional) Sent with the request in the `DLE-Token` HTTP header.
+#      secret: "" # (optional) Sent with the request in the `DBLab-Webhook-Token` HTTP header.
 #      trigger:
 #        - clone_create
 #        - clone_reset
