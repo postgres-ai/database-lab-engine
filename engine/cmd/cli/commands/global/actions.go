@@ -77,9 +77,5 @@ func forward(cliCtx *cli.Context) error {
 
 	log.Msg(fmt.Sprintf("The connection is available by address: %s", tunnel.Endpoints.Local))
 
-	if err := tunnel.Listen(cliCtx.Context); err != nil {
-		return err
-	}
-
-	return nil
+	return tunnel.Listen(cliCtx.Context)
 }

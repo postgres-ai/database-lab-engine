@@ -86,11 +86,7 @@ func (b *Billing) RegisterInstance(ctx context.Context, systemMetrics models.Sys
 	}
 
 	// To check billing state immediately.
-	if err := b.SendUsage(ctx, systemMetrics); err != nil {
-		return err
-	}
-
-	return nil
+	return b.SendUsage(ctx, systemMetrics)
 }
 
 // CollectUsage periodically collects usage statistics of the instance.

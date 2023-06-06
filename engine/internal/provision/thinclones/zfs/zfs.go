@@ -346,7 +346,7 @@ func getSnapshotName(pool, dataStateAt string) string {
 }
 
 // RollbackSnapshot rollbacks ZFS snapshot.
-func RollbackSnapshot(r runners.Runner, pool string, snapshot string) error {
+func RollbackSnapshot(r runners.Runner, _ string, snapshot string) error {
 	cmd := fmt.Sprintf("zfs rollback -f -r %s", snapshot)
 
 	if _, err := r.Run(cmd, true); err != nil {

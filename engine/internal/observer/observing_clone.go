@@ -393,7 +393,7 @@ func (c *ObservingClone) storeArtifacts() error {
 	}
 
 	if err := c.collectCurrentState(ctx); err != nil {
-		return err
+		return errors.Wrap(err, "failed to collect current state")
 	}
 
 	return nil
@@ -412,11 +412,7 @@ func (c *ObservingClone) collectCurrentState(ctx context.Context) error {
 		return err
 	}
 
-	if err := c.countLogErrors(ctx, &c.session.state.LogErrors); err != nil {
-		return err
-	}
-
-	return nil
+	return c.countLogErrors(ctx, &c.session.state.LogErrors)
 }
 
 func (c *ObservingClone) discoverLogFields(ctx context.Context) error {
