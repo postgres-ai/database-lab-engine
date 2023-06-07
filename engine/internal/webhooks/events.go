@@ -40,8 +40,9 @@ func (e BasicEvent) GetType() string {
 // CloneEvent defines clone webhook events payload.
 type CloneEvent struct {
 	BasicEvent
-	Host     string `json:"host,omitempty"`
-	Port     uint   `json:"port,omitempty"`
-	Username string `json:"username,omitempty"`
-	DBName   string `json:"dbname,omitempty"`
+	Host          string `json:"host,omitempty"`
+	Port          uint   `json:"port,omitempty"`
+	Username      string `json:"username,omitempty"`
+	DBName        string `json:"dbname,omitempty"`
+	ContainerName string `json:"container_name,omitempty"`
 }

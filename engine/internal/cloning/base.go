@@ -224,10 +224,11 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 				EventType: webhooks.CloneCreatedEvent,
 				EntityID:  cloneID,
 			},
-			Host:     c.config.AccessHost,
-			Port:     session.Port,
-			Username: clone.DB.Username,
-			DBName:   clone.DB.DBName,
+			Host:          c.config.AccessHost,
+			Port:          session.Port,
+			Username:      clone.DB.Username,
+			DBName:        clone.DB.DBName,
+			ContainerName: util.GetCloneName(session.Port),
 		}
 	}()
 
@@ -346,9 +347,16 @@ func (c *Base) DestroyClone(cloneID string) error {
 
 		c.SaveClonesState()
 
-		c.webhookCh <- webhooks.BasicEvent{
-			EventType: webhooks.CloneDeleteEvent,
-			EntityID:  cloneID,
+		c.webhookCh <- webhooks.CloneEvent{
+			BasicEvent: webhooks.BasicEvent{
+				EventType: webhooks.CloneDeleteEvent,
+				EntityID:  cloneID,
+			},
+			Host:          c.config.AccessHost,
+			Port:          w.Session.Port,
+			Username:      w.Clone.DB.Username,
+			DBName:        w.Clone.DB.DBName,
+			ContainerName: util.GetCloneName(w.Session.Port),
 		}
 	}()
 
@@ -510,10 +518,11 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 				EventType: webhooks.CloneResetEvent,
 				EntityID:  cloneID,
 			},
-			Host:     c.config.AccessHost,
-			Port:     w.Session.Port,
-			Username: w.Clone.DB.Username,
-			DBName:   w.Clone.DB.DBName,
+			Host:          c.config.AccessHost,
+			Port:          w.Session.Port,
+			Username:      w.Clone.DB.Username,
+			DBName:        w.Clone.DB.DBName,
+			ContainerName: util.GetCloneName(w.Session.Port),
 		}
 
 		c.tm.SendEvent(context.Background(), telemetry.CloneResetEvent, telemetry.CloneCreated{
