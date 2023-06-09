@@ -118,9 +118,7 @@ func (m *Marker) SaveConfig(cfg *Config) error {
 		return err
 	}
 
-	return os.WriteFile(m.buildFileName(configFilename), configData, 0600);
-
-	return nil
+	return os.WriteFile(m.buildFileName(configFilename), configData, 0600)
 }
 
 // buildFileName builds a DBMarker filename.
@@ -288,7 +286,9 @@ func (m *Marker) SaveSnapshotRef(branch, snapshotID string) error {
 
 	h.Ref = buildSnapshotRef(snapshotID)
 
-	m.writeBranchHead(h, branch);
+	if err := m.writeBranchHead(h, branch); err != nil {
+		return "", fmt.Errorf("cannot write branch head: %w", err)
+	}
 
 	return nil
 }
