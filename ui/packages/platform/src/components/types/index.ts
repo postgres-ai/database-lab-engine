@@ -26,10 +26,12 @@ export interface MatchParams {
 
 export interface Orgs {
   [project: string]: {
+    alias: string
     is_blocked: boolean
     is_priveleged: boolean
     new_subscription: boolean
     is_blocked_on_creation: boolean
+    stripe_payment_method_primary: string
     stripe_subscription_id: number
     priveleged_until: Date
     role: { id: number; permissions: string[] }

@@ -5,8 +5,13 @@
  *--------------------------------------------------------------------------
  */
 
-import { makeStyles } from '@material-ui/core'
-import Tooltip from '@material-ui/core/Tooltip'
+import {
+  makeStyles,
+  Tooltip,
+  TextField,
+  InputAdornment,
+} from '@material-ui/core'
+import SearchIcon from '@material-ui/icons/Search'
 
 import { colors } from '@postgres.ai/shared/styles/colors'
 import { icons } from '@postgres.ai/shared/styles/icons'
@@ -17,6 +22,11 @@ interface ConsolePageTitleProps {
   label?: string
   actions?: JSX.Element[] | string[]
   top?: boolean
+  filterProps?: {
+    filterValue: string
+    filterHandler: (event: React.ChangeEvent<HTMLInputElement>) => void
+    placeholder: string
+  } | null
 }
 
 const useStyles = makeStyles(
@@ -87,6 +97,7 @@ const ConsolePageTitle = ({
   label,
   actions,
   top,
+  filterProps,
 }: ConsolePageTitleProps) => {
   const classes = useStyles()
 
@@ -107,9 +118,28 @@ const ConsolePageTitle = ({
         </Tooltip>
       ) : null}
       {label ? <span className={classes.label}>{label}</span> : null}
-      {actions && actions?.length > 0 ? (
+      {(actions && actions?.length > 0) || filterProps ? (
         <span className={classes.pageTitleActions}>
-          {actions.map((a, index) => {
+          {filterProps ? (
+            <TextField
+              id="filterOrgsInput"
+              variant="outlined"
+              size="small"
+              style={{ minWidth: '260px', height: '30px' }}
+              className="filterOrgsInput"
+              placeholder={filterProps.placeholder}
+              value={filterProps.filterValue}
+              onChange={filterProps.filterHandler}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          ) : null}
+          {actions?.map((a, index) => {
             return (
               <span key={index} className={classes.pageTitleActionContainer}>
                 {a}

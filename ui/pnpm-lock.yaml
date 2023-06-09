@@ -144,6 +144,8 @@ importers:
       '@postgres.ai/ce': link:../ce
       '@postgres.ai/platform': link:./
       '@postgres.ai/shared': link:../shared
+      '@sentry/react': ^6.11.0
+      '@sentry/tracing': ^6.11.0
       '@stripe/react-stripe-js': ^1.1.2
       '@stripe/stripe-js': ^1.9.0
       '@tsconfig/recommended': ^1.0.1
@@ -155,6 +157,7 @@ importers:
       '@types/react-dom': ^17.0.3
       '@types/react-router': ^5.1.17
       '@types/react-router-dom': ^5.1.7
+      '@types/react-syntax-highlighter': ^15.5.6
       '@typescript-eslint/eslint-plugin': ^5.6.0
       '@typescript-eslint/parser': ^5.6.0
       bootstrap: ^4.3.1
@@ -225,6 +228,8 @@ importers:
       '@postgres.ai/ce': link:../ce
       '@postgres.ai/platform': 'link:'
       '@postgres.ai/shared': link:../shared
+      '@sentry/react': 6.19.7_react@17.0.2
+      '@sentry/tracing': 6.19.7
       '@stripe/react-stripe-js': 1.6.0_hkj6yydrkt2pne2rq73lc3qjom
       '@stripe/stripe-js': 1.20.3
       '@types/d3': 7.4.0
@@ -235,6 +240,7 @@ importers:
       '@types/react-dom': 17.0.11
       '@types/react-router': 5.1.17
       '@types/react-router-dom': 5.3.1
+      '@types/react-syntax-highlighter': 15.5.6
       bootstrap: 4.6.0_47tpum6wtjtozdoo6t4hr5iro4
       byte-size: 7.0.1
       classnames: 2.3.1
@@ -4205,6 +4211,84 @@ packages:
 
   /@rushstack/eslint-patch/1.1.4:
     resolution: {integrity: sha512-LwzQKA4vzIct1zNZzBmRKI9QuNpLgTQMEjsQLf3BXuGYb3QPTP4Yjf6mkdX+X1mYttZ808QpOwAzZjv28kq7DA==}
+    dev: false
+
+  /@sentry/browser/6.19.7:
+    resolution: {integrity: sha512-oDbklp4O3MtAM4mtuwyZLrgO1qDVYIujzNJQzXmi9YzymJCuzMLSRDvhY83NNDCRxf0pds4DShgYeZdbSyKraA==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@sentry/core': 6.19.7
+      '@sentry/types': 6.19.7
+      '@sentry/utils': 6.19.7
+      tslib: 1.14.1
+    dev: false
+
+  /@sentry/core/6.19.7:
+    resolution: {integrity: sha512-tOfZ/umqB2AcHPGbIrsFLcvApdTm9ggpi/kQZFkej7kMphjT+SGBiQfYtjyg9jcRW+ilAR4JXC9BGKsdEQ+8Vw==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@sentry/hub': 6.19.7
+      '@sentry/minimal': 6.19.7
+      '@sentry/types': 6.19.7
+      '@sentry/utils': 6.19.7
+      tslib: 1.14.1
+    dev: false
+
+  /@sentry/hub/6.19.7:
+    resolution: {integrity: sha512-y3OtbYFAqKHCWezF0EGGr5lcyI2KbaXW2Ik7Xp8Mu9TxbSTuwTe4rTntwg8ngPjUQU3SUHzgjqVB8qjiGqFXCA==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@sentry/types': 6.19.7
+      '@sentry/utils': 6.19.7
+      tslib: 1.14.1
+    dev: false
+
+  /@sentry/minimal/6.19.7:
+    resolution: {integrity: sha512-wcYmSJOdvk6VAPx8IcmZgN08XTXRwRtB1aOLZm+MVHjIZIhHoBGZJYTVQS/BWjldsamj2cX3YGbGXNunaCfYJQ==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@sentry/hub': 6.19.7
+      '@sentry/types': 6.19.7
+      tslib: 1.14.1
+    dev: false
+
+  /@sentry/react/6.19.7_react@17.0.2:
+    resolution: {integrity: sha512-VzJeBg/v41jfxUYPkH2WYrKjWc4YiMLzDX0f4Zf6WkJ4v3IlDDSkX6DfmWekjTKBho6wiMkSNy2hJ1dHfGZ9jA==}
+    engines: {node: '>=6'}
+    peerDependencies:
+      react: 15.x || 16.x || 17.x || 18.x
+    dependencies:
+      '@sentry/browser': 6.19.7
+      '@sentry/minimal': 6.19.7
+      '@sentry/types': 6.19.7
+      '@sentry/utils': 6.19.7
+      hoist-non-react-statics: 3.3.2
+      react: 17.0.2
+      tslib: 1.14.1
+    dev: false
+
+  /@sentry/tracing/6.19.7:
+    resolution: {integrity: sha512-ol4TupNnv9Zd+bZei7B6Ygnr9N3Gp1PUrNI761QSlHtPC25xXC5ssSD3GMhBgyQrcvpuRcCFHVNNM97tN5cZiA==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@sentry/hub': 6.19.7
+      '@sentry/minimal': 6.19.7
+      '@sentry/types': 6.19.7
+      '@sentry/utils': 6.19.7
+      tslib: 1.14.1
+    dev: false
+
+  /@sentry/types/6.19.7:
+    resolution: {integrity: sha512-jH84pDYE+hHIbVnab3Hr+ZXr1v8QABfhx39KknxqKWr2l0oEItzepV0URvbEhB446lk/S/59230dlUUIBGsXbg==}
+    engines: {node: '>=6'}
+    dev: false
+
+  /@sentry/utils/6.19.7:
+    resolution: {integrity: sha512-z95ECmE3i9pbWoXQrD/7PgkBAzJYR+iXtPuTkpBjDKs86O3mT+PXOT3BAn79w2wkn7/i3vOGD2xVr1uiMl26dA==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@sentry/types': 6.19.7
+      tslib: 1.14.1
     dev: false
 
   /@sinclair/typebox/0.24.39:

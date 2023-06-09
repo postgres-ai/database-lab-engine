@@ -131,11 +131,7 @@ func (o *Observer) processCSVLogFile(ctx context.Context, buf io.Writer, filenam
 		}
 	}()
 
-	if err := o.scanCSVLogFile(ctx, logFile, buf, obsClone); err != nil {
-		return err
-	}
-
-	return nil
+	return o.scanCSVLogFile(ctx, logFile, buf, obsClone)
 }
 
 func (o *Observer) scanCSVLogFile(ctx context.Context, reader io.Reader, writer io.Writer, obsClone *ObservingClone) error {

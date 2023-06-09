@@ -37,19 +37,35 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
-export const SyntaxHighlight = ({ content }: { content: string }) => {
+export const SyntaxHighlight = ({
+  content,
+  wrapLines,
+}: {
+  content: string
+  wrapLines?: boolean
+}) => {
   const classes = useStyles()
+
+  const copyContent = () => {
+    copyToClipboard(content.replace(/^\s*[\r\n]/gm, ''))
+  }
 
   return (
     <div className={classes.copyFieldContainer}>
       <SyntaxHighlighter
-        language="javascript"
+        language="bash"
+        wrapLines={wrapLines}
         style={oneLight}
-        wrapLongLines
-        customStyle={{ borderRadius: 4, margin: '12px 0' }}
+        customStyle={{ borderRadius: 4, margin: '12px 0', fontSize: '14px' }}
+        codeTagProps={{
+          style: {
+            fontSize: '14px',
+          },
+        }}
         lineProps={{
           style: {
             display: 'flex',
+            fontSize: '14px',
           },
         }}
       >
@@ -58,7 +74,7 @@ export const SyntaxHighlight = ({ content }: { content: string }) => {
       <IconButton
         className={classes.copyButton}
         aria-label="Copy"
-        onClick={() => copyToClipboard(content)}
+        onClick={copyContent}
       >
         <Tooltip content={'Copy'}>{icons.copyIcon}</Tooltip>
       </IconButton>

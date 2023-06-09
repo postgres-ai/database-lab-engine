@@ -41,6 +41,7 @@ export const AccessTokensWrapper = (props: AccessTokensProps) => {
         marginTop: 15,
         height: '33px',
         marginBottom: 10,
+        maxWidth: 'max-content',
       },
       revokeButton: {
         paddingRight: 5,

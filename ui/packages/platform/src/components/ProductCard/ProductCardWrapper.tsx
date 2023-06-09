@@ -26,7 +26,7 @@ export const ProductCardWrapper = (props: ProductCardProps) => {
           margin: '0',
         },
         [muiTheme.breakpoints.down('xs')]: {
-          height: '350px',
+          height: '100%',
         },
         fontFamily: theme.typography.fontFamily,
         fontSize: '14px',
