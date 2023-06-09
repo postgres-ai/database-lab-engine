@@ -295,11 +295,7 @@ func (m *Manager) adjustGeneralConfigs() error {
 
 // AppendGeneralConfig appends configuration parameters to a general configuration file.
 func (m *Manager) AppendGeneralConfig(cfg map[string]string) error {
-	if err := appendExtraConf(m.getConfigPath(PgConfName), cfg); err != nil {
-		return err
-	}
-
-	return nil
+	return appendExtraConf(m.getConfigPath(PgConfName), cfg)
 }
 
 // AdjustRecoveryFiles adjusts a recovery files.
@@ -332,11 +328,7 @@ func (m *Manager) ApplyRecovery(cfg map[string]string) error {
 		return err
 	}
 
-	if err := appendExtraConf(m.recoveryPath(), cfg); err != nil {
-		return err
-	}
-
-	return nil
+	return appendExtraConf(m.recoveryPath(), cfg)
 }
 
 // ReadRecoveryConfig reads a recovery configuration file.
@@ -363,11 +355,7 @@ func (m *Manager) RemoveRecoveryConfig() error {
 		return err
 	}
 
-	if err := m.removeOptionally(m.recoverySignalPath()); err != nil {
-		return err
-	}
-
-	return nil
+	return m.removeOptionally(m.recoverySignalPath())
 }
 
 func (m *Manager) removeOptionally(filepath string) error {
@@ -384,20 +372,12 @@ func (m *Manager) removeOptionally(filepath string) error {
 // ApplyPgControl applies significant configuration parameters extracted by the pg_control tool.
 func (m *Manager) ApplyPgControl(pgControl map[string]string) error {
 	// TODO (akartasov): add a label check to skip an already initialized pg_control config.
-	if err := m.rewriteConfig(m.getConfigPath(pgControlName), pgControl); err != nil {
-		return err
-	}
-
-	return nil
+	return m.rewriteConfig(m.getConfigPath(pgControlName), pgControl)
 }
 
 // ApplySync applies configuration parameters for sync instance.
 func (m *Manager) ApplySync(cfg map[string]string) error {
-	if err := m.rewriteConfig(m.getConfigPath(syncConfigName), cfg); err != nil {
-		return err
-	}
-
-	return nil
+	return m.rewriteConfig(m.getConfigPath(syncConfigName), cfg)
 }
 
 // TruncateSyncConfig truncates a sync configuration file.
@@ -407,11 +387,7 @@ func (m *Manager) TruncateSyncConfig() error {
 
 // ApplyPromotion applies promotion configuration parameters.
 func (m *Manager) ApplyPromotion(cfg map[string]string) error {
-	if err := m.rewriteConfig(m.getConfigPath(promotionConfigName), cfg); err != nil {
-		return err
-	}
-
-	return nil
+	return m.rewriteConfig(m.getConfigPath(promotionConfigName), cfg)
 }
 
 // TruncatePromotionConfig truncates a promotion configuration file.
@@ -421,20 +397,12 @@ func (m *Manager) TruncatePromotionConfig() error {
 
 // ApplySnapshot applies snapshot configuration parameters.
 func (m *Manager) ApplySnapshot(cfg map[string]string) error {
-	if err := m.rewriteConfig(m.getConfigPath(snapshotConfigName), cfg); err != nil {
-		return err
-	}
-
-	return nil
+	return m.rewriteConfig(m.getConfigPath(snapshotConfigName), cfg)
 }
 
 // ApplyUserConfig applies user-defined configuration.
 func (m *Manager) ApplyUserConfig(cfg map[string]string) error {
-	if err := m.rewriteConfig(m.getConfigPath(userConfigName), cfg); err != nil {
-		return err
-	}
-
-	return nil
+	return m.rewriteConfig(m.getConfigPath(userConfigName), cfg)
 }
 
 // getConfigPath builds a path of the Database Lab config file.

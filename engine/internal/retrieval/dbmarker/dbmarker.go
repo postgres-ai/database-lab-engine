@@ -96,11 +96,7 @@ func (m *Marker) SaveConfig(cfg *Config) error {
 		return err
 	}
 
-	if err := os.WriteFile(m.buildFileName(), configData, 0600); err != nil {
-		return err
-	}
-
-	return nil
+	return os.WriteFile(m.buildFileName(), configData, 0600)
 }
 
 // buildFileName builds a DBMarker config filename.

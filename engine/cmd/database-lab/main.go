@@ -6,6 +6,7 @@
 // - Validate configs in all components.
 // - Tests.
 
+// Package main contains the starting point of the DLE server.
 package main
 
 import (

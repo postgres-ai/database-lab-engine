@@ -210,11 +210,7 @@ func (p *PhysicalInitial) validateConfig() error {
 			strings.Join(notSupportedSysctls, ", "))
 	}
 
-	if err := p.validateScheduler(); err != nil {
-		return err
-	}
-
-	return nil
+	return p.validateScheduler()
 }
 
 func (p *PhysicalInitial) hasSchedulingOptions() bool {

@@ -402,11 +402,7 @@ func forward(cliCtx *cli.Context) error {
 
 	log.Msg(fmt.Sprintf("The clone is available by address: %s", tunnel.Endpoints.Local))
 
-	if err := tunnel.Listen(cliCtx.Context); err != nil {
-		return err
-	}
-
-	return nil
+	return tunnel.Listen(cliCtx.Context)
 }
 
 func retrieveClonePort(cliCtx *cli.Context, wg *sync.WaitGroup, remoteHost *url.URL) (string, error) {
