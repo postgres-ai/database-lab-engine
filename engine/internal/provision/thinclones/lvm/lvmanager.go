@@ -234,14 +234,14 @@ func (m *LVManager) GetRepo() (*models.Repo, error) {
 }
 
 // SetDSA sets value of DataStateAt to snapshot.
-func (m *LVManager) SetDSA(dsa, snapshotName string) error {
+func (m *LVManager) SetDSA(_, snapshotName string) error {
 	log.Msg("SetDSA is not supported for LVM. Skip the operation")
 
 	return nil
 }
 
 // SetMessage sets commit message to snapshot.
-func (m *LVManager) SetMessage(message, snapshotName string) error {
+func (m *LVManager) SetMessage(_, snapshotName string) error {
 	log.Msg("SetMessage is not supported for LVM. Skip the operation")
 
 	return nil

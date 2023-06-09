@@ -118,9 +118,7 @@ func (m *Marker) SaveConfig(cfg *Config) error {
 		return err
 	}
 
-	if err := os.WriteFile(m.buildFileName(configFilename), configData, 0600); err != nil {
-		return err
-	}
+	return os.WriteFile(m.buildFileName(configFilename), configData, 0600);
 
 	return nil
 }
@@ -290,9 +288,7 @@ func (m *Marker) SaveSnapshotRef(branch, snapshotID string) error {
 
 	h.Ref = buildSnapshotRef(snapshotID)
 
-	if err := m.writeBranchHead(h, branch); err != nil {
-		return err
-	}
+	m.writeBranchHead(h, branch);
 
 	return nil
 }
