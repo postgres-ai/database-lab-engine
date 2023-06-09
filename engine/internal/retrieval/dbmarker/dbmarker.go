@@ -287,7 +287,7 @@ func (m *Marker) SaveSnapshotRef(branch, snapshotID string) error {
 	h.Ref = buildSnapshotRef(snapshotID)
 
 	if err := m.writeBranchHead(h, branch); err != nil {
-		return "", fmt.Errorf("cannot write branch head: %w", err)
+		return fmt.Errorf("cannot write branch head: %w", err)
 	}
 
 	return nil
