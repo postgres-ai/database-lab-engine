@@ -342,11 +342,7 @@ func (m *Manager) SetRelation(parent, snapshotName string) error {
 		return err
 	}
 
-	if err := m.addChild(parent, snapshotName); err != nil {
-		return err
-	}
-
-	return nil
+	return m.addChild(parent, snapshotName);
 }
 
 // DeleteChildProp deletes child from snapshot property.

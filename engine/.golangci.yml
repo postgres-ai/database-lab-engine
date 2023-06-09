@@ -72,7 +72,6 @@ linters:
     - gochecknoinits
     - goconst
     - gocritic
-    - goimports
     - gomnd
     - gosimple
     - govet
@@ -92,6 +91,7 @@ linters:
     - gosec
     - interfacer
     - gocyclo # currently unmaintained
+    - goimports # TODO: move it back to "enable" (Nik 2023-06-09)
   presets:
   fast: false
 
