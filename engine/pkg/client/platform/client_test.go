@@ -11,7 +11,6 @@ import (
 	"io"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -128,13 +127,8 @@ func TestClientChecksPlatformToken(t *testing.T) {
 }
 
 func TestClientChecksPlatformSEToken(t *testing.T) {
-	validDateTime, err := time.Parse(time.RFC3339, "2006-01-02T15:04:05-07:00")
-	require.NoError(t, err)
-
 	expectedResponse := TokenCheckResponse{
 		OrganizationID: 2,
-		TokenType:      HashType,
-		ValidUntil:     &validDateTime,
 	}
 
 	testClient := NewTestClient(func(req *http.Request) *http.Response {
@@ -158,8 +152,6 @@ func TestClientChecksPlatformSEToken(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResponse.OrganizationID, platformToken.OrganizationID)
-	assert.Equal(t, expectedResponse.ValidUntil, platformToken.ValidUntil)
-	assert.Equal(t, expectedResponse.TokenType, platformToken.TokenType)
 	assert.False(t, platformToken.Personal)
 }
 

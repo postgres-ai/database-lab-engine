@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"time"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
@@ -42,8 +41,6 @@ type Service struct {
 // Token defines verified Platform Token.
 type Token struct {
 	OrganizationID uint
-	TokenType      string
-	ValidUntil     *time.Time
 }
 
 // New creates a new platform service.
@@ -84,8 +81,6 @@ func New(ctx context.Context, cfg Config, instanceID string) (*Service, error) {
 
 		s.token = Token{
 			OrganizationID: platformToken.OrganizationID,
-			TokenType:      platformToken.TokenType,
-			ValidUntil:     platformToken.ValidUntil,
 		}
 	}
 
@@ -100,7 +95,7 @@ func (s *Service) Reload(newService *Service) {
 // IsAllowedToken checks if the Platform Personal Token is allowed.
 func (s *Service) IsAllowedToken(ctx context.Context, personalToken string) bool {
 	if !s.IsPersonalTokenEnabled() {
-		return true
+		return false
 	}
 
 	platformToken, err := s.Client.CheckPlatformToken(ctx, platform.TokenCheckRequest{Token: personalToken})
@@ -108,8 +103,8 @@ func (s *Service) IsAllowedToken(ctx context.Context, personalToken string) bool
 		return false
 	}
 
-	if platformToken.TokenType != platform.PersonalType {
-		log.Dbg(fmt.Sprintf("Non-personal token given: %s", platformToken.TokenType))
+	if !platformToken.Personal {
+		log.Dbg("Non-personal token given")
 
 		return false
 	}
