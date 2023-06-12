@@ -116,7 +116,7 @@ func TestRestoreCommandBuilding(t *testing.T) {
 		logicalJob.RestoreOptions = tc.copyOptions
 		logicalJob.isDumpLocationDir = tc.isDumpLocationDir
 		for dbName, definition := range tc.copyOptions.Databases {
-			restoreCommand := logicalJob.buildLogicalRestoreCommand(dbName, definition)
+			restoreCommand := logicalJob.buildLogicalRestoreCommand(dbName, definition, nil)
 			assert.Equal(t, restoreCommand, tc.command)
 		}
 	}
