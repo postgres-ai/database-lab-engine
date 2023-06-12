@@ -105,6 +105,7 @@ type RestoreOptions struct {
 	Configs            map[string]string         `yaml:"configs"`
 	QueryPreprocessing query.PreprocessorCfg     `yaml:"queryPreprocessing"`
 	CustomOptions      []string                  `yaml:"customOptions"`
+	SkipPolicies       bool                      `yaml:"skipPolicies"`
 }
 
 // Partial defines tables and rules for a partial logical restore.
@@ -501,7 +502,48 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 		}
 	}
 
-	restoreCommand := r.buildLogicalRestoreCommand(dbName, dbDefinition)
+	var (
+		tmpListFile *os.File
+		err         error
+	)
+
+	if r.RestoreOptions.SkipPolicies {
+		tmpListFile, err = os.CreateTemp(r.getDumpLocation(dbDefinition.Format, dbDefinition.dbName), dbName+"-list-file*")
+		if err != nil {
+			return fmt.Errorf("failed to create temporary list file: %w", err)
+		}
+
+		defer func() {
+			if err := os.Remove(tmpListFile.Name()); err != nil {
+				log.Dbg("Cannot remove temporary file:", err)
+			}
+		}()
+		defer func() { _ = tmpListFile.Close() }()
+
+		dumpLocation := r.getDumpLocation(dbDefinition.Format, dbDefinition.dbName)
+
+		if dbDefinition.Format != directoryFormat {
+			dumpLocation = r.RestoreOptions.DumpLocation
+		}
+
+		preCmd := []string{"bash", "-c", `pg_restore -l ` + dumpLocation + " | grep -v POLICY > " + tmpListFile.Name()}
+
+		log.Msg("Running preparatory command to create list file for "+dbName, preCmd)
+
+		output, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
+			Tty: true,
+			Cmd: preCmd,
+			Env: []string{"PGAPPNAME=" + dleRetrieval},
+		})
+
+		if err != nil {
+			log.Dbg(output)
+
+			return fmt.Errorf("failed to perform preparatory command: %w", err)
+		}
+	}
+
+	restoreCommand := r.buildLogicalRestoreCommand(dbName, dbDefinition, tmpListFile)
 	log.Msg("Running restore command for "+dbName, restoreCommand)
 
 	output, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
@@ -699,12 +741,12 @@ func (r *RestoreJob) updateDataStateAt() {
 	r.fsPool.SetDSA(dsaTime)
 }
 
-func (r *RestoreJob) buildLogicalRestoreCommand(dumpName string, definition DumpDefinition) []string {
+func (r *RestoreJob) buildLogicalRestoreCommand(dumpName string, definition DumpDefinition, listFile *os.File) []string {
 	if definition.Format == plainFormat {
 		return r.buildPlainTextCommand(dumpName, definition)
 	}
 
-	return r.buildPGRestoreCommand(dumpName, definition)
+	return r.buildPGRestoreCommand(dumpName, definition, listFile)
 }
 
 func (r *RestoreJob) buildPlainTextCommand(dumpName string, definition DumpDefinition) []string {
@@ -729,7 +771,7 @@ func (r *RestoreJob) buildPlainTextCommand(dumpName string, definition DumpDefin
 	}
 }
 
-func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DumpDefinition) []string {
+func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DumpDefinition, listFile *os.File) []string {
 	// Using the default database name because the database for connection must exist.
 	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName}
 
@@ -750,7 +792,25 @@ func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DumpDefin
 
 	restoreCmd = append(restoreCmd, r.getDumpLocation(definition.Format, dumpName))
 
-	restoreCmd = append(restoreCmd, r.RestoreOptions.CustomOptions...)
+	customOptions := r.RestoreOptions.CustomOptions
+
+	// Skip policies: https://gitlab.com/postgres-ai/database-lab/-/merge_requests/769
+	if listFile != nil {
+		restoreCmd = append(restoreCmd, fmt.Sprintf("--use-list=%s", listFile.Name()))
+
+		customOptions = []string{}
+
+		for _, customOption := range r.RestoreOptions.CustomOptions {
+			// Exclude -L (--use-list) in customOptions to avoid conflicts if skipping policies is enabled.
+			if strings.HasPrefix(customOption, "-L") || strings.HasPrefix(customOption, "--use-list") {
+				continue
+			}
+
+			customOptions = append(customOptions, customOption)
+		}
+	}
+
+	restoreCmd = append(restoreCmd, customOptions...)
 
 	return restoreCmd
 }

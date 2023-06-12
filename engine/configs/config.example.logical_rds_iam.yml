@@ -315,6 +315,9 @@ retrieval:
           - "--no-owner"
           - "--exit-on-error"
 
+        # Option to skip policies during restore.
+        skipPolicies: true
+
     logicalSnapshot:
       options:
         # Adjust PostgreSQL configuration
