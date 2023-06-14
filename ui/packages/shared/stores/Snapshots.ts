@@ -8,20 +8,14 @@
 import { makeAutoObservable } from 'mobx'
 
 import { Snapshot } from '@postgres.ai/shared/types/api/entities/snapshot'
-import { getTextFromUnknownApiError } from '@postgres.ai/shared/utils/api'
 import { GetSnapshots } from '@postgres.ai/shared/types/api/endpoints/getSnapshots'
 
 export type SnapshotsApi = {
   getSnapshots: GetSnapshots
 }
-
-type Error = {
-  title?: string
-  message: string
-}
 export class SnapshotsStore {
   data: Snapshot[] | null = null
-  error: Error | null = null
+  error: string | null = null
   isLoading = false
 
   private readonly api: SnapshotsApi
@@ -49,7 +43,11 @@ export class SnapshotsStore {
 
     if (response) this.data = response
 
-    if (error) this.error = { message: await getTextFromUnknownApiError(error) }
+    if (error) {
+      this.error = await error
+        .json()
+        .then((error) => error.details?.split('"message": "')[1]?.split('"')[0])
+    }
 
     return !!response
   }
