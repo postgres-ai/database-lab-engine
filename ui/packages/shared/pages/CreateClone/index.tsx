@@ -115,7 +115,7 @@ export const CreateClone = observer((props: Props) => {
 
   // Snapshots getting error.
   if (stores.main.snapshots.error)
-    return <ErrorStub {...stores.main.snapshots.error} />
+    return <ErrorStub message={stores.main.snapshots.error} />
 
   const isCloneUnstable = Boolean(
     stores.main.clone && !stores.main.isCloneStable,
