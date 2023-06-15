@@ -12,7 +12,6 @@ import { Config } from '@postgres.ai/shared/types/api/entities/config'
 import { GetConfig } from '@postgres.ai/shared/types/api/endpoints/getConfig'
 import { UpdateConfig } from '@postgres.ai/shared/types/api/endpoints/updateConfig'
 import { TestDbSource } from '@postgres.ai/shared/types/api/endpoints/testDbSource'
-import { RefreshInstance } from '@postgres.ai/shared/types/api/endpoints/refreshInstance'
 import { DestroyClone } from '@postgres.ai/shared/types/api/endpoints/destroyClone'
 import { ResetClone } from '@postgres.ai/shared/types/api/endpoints/resetClone'
 import { GetWSToken } from '@postgres.ai/shared/types/api/endpoints/getWSToken'
@@ -26,14 +25,11 @@ import { GetInstanceRetrieval } from '@postgres.ai/shared/types/api/endpoints/ge
 import { InstanceRetrievalType } from '@postgres.ai/shared/types/api/entities/instanceRetrieval'
 import { GetEngine } from '@postgres.ai/shared/types/api/endpoints/getEngine'
 
-const POLLING_TIME = 2000
-
 const UNSTABLE_CLONE_STATUS_CODES = ['CREATING', 'RESETTING', 'DELETING']
 
 export type Api = {
   getInstance: GetInstance
   getSnapshots: GetSnapshots
-  refreshInstance?: RefreshInstance
   destroyClone: DestroyClone
   resetClone: ResetClone
   getWSToken: GetWSToken
@@ -62,7 +58,6 @@ export class MainStore {
   getFullConfigError: string | null = null
 
   unstableClones = new Set<string>()
-  private updateInstanceTimeoutId: number | null = null
 
   readonly snapshots: SnapshotsStore
 
@@ -125,15 +120,9 @@ export class MainStore {
     return !!response
   }
 
-  private loadInstance = async (
-    instanceId: string,
-    updateUnstableClones = true,
-  ) => {
+  private loadInstance = async (instanceId: string) => {
     this.instanceError = null
     this.isLoadingInstance = true
-
-    if (this.api.refreshInstance)
-      await this.api.refreshInstance({ instanceId: instanceId })
 
     const { response, error } = await this.api.getInstance({
       instanceId: instanceId,
@@ -160,9 +149,6 @@ export class MainStore {
       })
 
       this.unstableClones = unstableClones
-
-      if (this.unstableClones.size && updateUnstableClones)
-        this.liveUpdateInstance()
     }
 
     if (error)
@@ -273,20 +259,13 @@ export class MainStore {
   }
 
   private liveUpdateInstance = async () => {
-    if (this.updateInstanceTimeoutId)
-      window.clearTimeout(this.updateInstanceTimeoutId)
     if (!this.unstableClones.size) return
     if (!this.instance) return
 
-    await this.loadInstance(this.instance.id, true)
+    await this.loadInstance(this.instance.id)
     await this.loadInstanceRetrieval(this.instance.id)
 
     if (!this.unstableClones.size) return
-
-    this.updateInstanceTimeoutId = window.setTimeout(
-      this.liveUpdateInstance,
-      POLLING_TIME,
-    )
   }
 
   reloadClones = async () => {
