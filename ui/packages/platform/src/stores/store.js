@@ -1314,7 +1314,7 @@ const Store = Reflux.createStore({
     };
   },
 
-  onGetDbLabInstanceStatusFailed: function (data, error) {
+  onReloadDblabInstanceFailed: function (data, error) {
     this.data.dbLabInstanceStatus.isProcessing = false;
     this.data.dbLabInstanceStatus.isProcessed = true;
     this.data.dbLabInstanceStatus.error = true;
@@ -1336,7 +1336,7 @@ const Store = Reflux.createStore({
     this.trigger(this.data);
   },
 
-  onGetDbLabInstanceStatusProgressed: function (data) {
+  onReloadDblabInstanceProgressed: function (data) {
     this.data.dbLabInstanceStatus.isProcessing = true;
     this.data.dbLabInstanceStatus.isProcessed = false;
     this.data.dbLabInstanceStatus.error = false;
@@ -1358,7 +1358,7 @@ const Store = Reflux.createStore({
     this.trigger(this.data);
   },
 
-  onGetDbLabInstanceStatusCompleted: function (data) {
+  onReloadDblabInstanceCompleted: function (data) {
     this.data.dbLabInstanceStatus.isProcessing = false;
     this.data.dbLabInstanceStatus.errorMessage = this.getError(data.data);
     this.data.dbLabInstanceStatus.error = !!this.data.dbLabInstanceStatus

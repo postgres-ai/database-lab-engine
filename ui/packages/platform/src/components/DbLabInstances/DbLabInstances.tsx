@@ -250,7 +250,7 @@ class DbLabInstances extends Component<
             break
 
           case 'refresh':
-            Actions.getDbLabInstanceStatus(auth?.token, instanceId)
+            Actions.reloadDblabInstance(auth?.token, instanceId)
 
             break
 

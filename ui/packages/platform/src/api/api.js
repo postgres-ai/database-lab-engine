@@ -544,16 +544,16 @@ class Api {
     });
   }
 
-  getDbLabInstanceStatus(token, instanceId) {
+  getInstance(token, orgId) {
     let headers = {
       Authorization: 'Bearer ' + token
     };
 
-    return this.post(`${this.apiServer}/rpc/dblab_instance_status_refresh`, {
-      instance_id: instanceId
+    return this.get(`${this.apiServer}/dblab_instances`,{
+      id: `eq.${orgId}`
     }, {
-      headers: headers
-    });
+      headers: headers,
+    })
   }
 
   checkDbLabInstanceUrl(token, url, verifyToken, useTunnel) {
