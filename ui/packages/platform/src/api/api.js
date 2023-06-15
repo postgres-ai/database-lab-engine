@@ -16,7 +16,7 @@ function encodeData(data) {
 
 class Api {
   constructor(setting) {
-    this.server = setting.server;
+    this.server = setting.server
     this.apiServer = setting.apiServer
   }
 
@@ -544,16 +544,16 @@ class Api {
     });
   }
 
-  getInstance(token, orgId) {
+  getDbLabInstanceStatus(token, instanceId) {
     let headers = {
       Authorization: 'Bearer ' + token
     };
 
-    return this.get(`${this.apiServer}/dblab_instances`,{
-      id: `eq.${orgId}`
+    return this.post(`${this.apiServer}/rpc/dblab_instance_status_refresh`, {
+      instance_id: instanceId
     }, {
-      headers: headers,
-    })
+      headers: headers
+    });
   }
 
   checkDbLabInstanceUrl(token, url, verifyToken, useTunnel) {

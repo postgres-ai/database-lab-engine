@@ -12,6 +12,7 @@ import { Config } from '@postgres.ai/shared/types/api/entities/config'
 import { GetConfig } from '@postgres.ai/shared/types/api/endpoints/getConfig'
 import { UpdateConfig } from '@postgres.ai/shared/types/api/endpoints/updateConfig'
 import { TestDbSource } from '@postgres.ai/shared/types/api/endpoints/testDbSource'
+import { RefreshInstance } from '@postgres.ai/shared/types/api/endpoints/refreshInstance'
 import { DestroyClone } from '@postgres.ai/shared/types/api/endpoints/destroyClone'
 import { ResetClone } from '@postgres.ai/shared/types/api/endpoints/resetClone'
 import { GetWSToken } from '@postgres.ai/shared/types/api/endpoints/getWSToken'
@@ -30,6 +31,7 @@ const UNSTABLE_CLONE_STATUS_CODES = ['CREATING', 'RESETTING', 'DELETING']
 export type Api = {
   getInstance: GetInstance
   getSnapshots: GetSnapshots
+  refreshInstance?: RefreshInstance
   destroyClone: DestroyClone
   resetClone: ResetClone
   getWSToken: GetWSToken
@@ -84,6 +86,18 @@ export class MainStore {
   load = (instanceId: string) => {
     this.instance = null
     this.isReloadingInstance = true
+    this.loadInstance(instanceId, false)
+    this.loadInstanceRetrieval(instanceId).then(() => {
+      if (this.instanceRetrieval) {
+        this.getConfig()
+      }
+    })
+    this.snapshots.load(instanceId)
+  }
+
+  reload = (instanceId: string) => {
+    this.instance = null
+    this.isReloadingInstance = true
     this.loadInstance(instanceId)
     this.loadInstanceRetrieval(instanceId).then(() => {
       if (this.instanceRetrieval) {
@@ -120,9 +134,15 @@ export class MainStore {
     return !!response
   }
 
-  private loadInstance = async (instanceId: string) => {
+  private loadInstance = async (
+    instanceId: string,
+    refresh: boolean = true,
+  ) => {
     this.instanceError = null
     this.isLoadingInstance = true
+
+    if (this.api.refreshInstance && refresh)
+      await this.api.refreshInstance({ instanceId: instanceId })
 
     const { response, error } = await this.api.getInstance({
       instanceId: instanceId,
