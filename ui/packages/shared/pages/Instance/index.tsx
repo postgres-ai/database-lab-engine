@@ -73,6 +73,7 @@ export const Instance = observer((props: Props) => {
     instanceRetrieval,
     isLoadingInstance,
     load,
+    reload,
   } = stores.main
 
   const switchTab = (_: React.ChangeEvent<{}> | null, tabID: number) => {
@@ -120,7 +121,7 @@ export const Instance = observer((props: Props) => {
           className={classes.title}
           rightContent={
             <Button
-              onClick={() => load(props.instanceId)}
+              onClick={() => reload(props.instanceId)}
               isDisabled={!instance && !instanceError}
               className={classes.reloadButton}
             >

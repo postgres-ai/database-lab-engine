@@ -64,7 +64,7 @@ const Actions = Reflux.createActions([{
   editDbLabInstance: ASYNC_ACTION,
   destroyDbLabInstance: ASYNC_ACTION,
   resetNewDbLabInstance: {},
-  reloadDblabInstance: ASYNC_ACTION,
+  getDbLabInstanceStatus: ASYNC_ACTION,
   checkDbLabInstanceUrl: ASYNC_ACTION,
   downloadReportJsonFiles: ASYNC_ACTION,
   addOrgDomain: ASYNC_ACTION,
@@ -846,7 +846,7 @@ Actions.destroyDbLabInstance.listen(function (token, instanceId) {
     });
 });
 
-Actions.reloadDblabInstance.listen(function (token, instanceId) {
+Actions.getDbLabInstanceStatus.listen(function (token, instanceId) {
   let action = this;
 
   if (!api) {
@@ -857,12 +857,12 @@ Actions.reloadDblabInstance.listen(function (token, instanceId) {
 
   action.progressed({ instanceId: instanceId });
 
-  timeoutPromise(REQUEST_TIMEOUT, api.getInstance(token, instanceId))
+  timeoutPromise(REQUEST_TIMEOUT, api.getDbLabInstanceStatus(token, instanceId))
     .then(result => {
       result.json()
         .then(json => {
           if (json) {
-            action.completed({ data: json[0], instanceId: instanceId });
+            action.completed({ data: json, instanceId: instanceId });
           } else {
             action.failed({ instanceId: instanceId }, new Error(
               'wrong_reply'));

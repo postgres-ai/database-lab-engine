@@ -5,6 +5,7 @@ import { Instance as InstancePage } from '@postgres.ai/shared/pages/Instance'
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
 import { ROUTES } from 'config/routes'
 import { getInstance } from 'api/instances/getInstance'
+import { refreshInstance } from 'api/instances/refreshInstance'
 import { getSnapshots } from 'api/snapshots/getSnapshots'
 import { destroyClone } from 'api/clones/destroyClone'
 import { resetClone } from 'api/clones/resetClone'
@@ -54,6 +55,7 @@ export const Instance = () => {
     getInstance,
     getSnapshots,
     destroyClone,
+    refreshInstance,
     resetClone,
     getWSToken,
     getConfig,
