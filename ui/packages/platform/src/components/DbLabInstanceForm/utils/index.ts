@@ -4,7 +4,7 @@ import { initialState } from '../reducer'
 const API_SERVER = process.env.REACT_APP_API_SERVER
 export const DEBUG_API_SERVER = 'https://v2.postgres.ai/api/general'
 
-export const availableTags = ['3.4.0-rc.5', '4.0.0-alpha.5']
+export const availableTags = ['3.4.0-rc.6', '4.0.0-alpha.6']
 
 export const dockerRunCommand = (provider: string) => {
   /* eslint-disable no-template-curly-in-string */
