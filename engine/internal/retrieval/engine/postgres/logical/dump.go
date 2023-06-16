@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/jackc/pgx/v4"
 	"github.com/pkg/errors"
@@ -630,6 +631,21 @@ func (d *DumpJob) buildHostConfig(ctx context.Context) (*container.HostConfig, e
 	hostConfig, err := cont.BuildHostConfig(ctx, d.dockerClient, d.fsPool.DataDir(), d.DumpOptions.ContainerConfig)
 	if err != nil {
 		return nil, err
+	}
+
+	if d.DumpOptions.DumpLocation != "" && !isAlreadyMounted(hostConfig.Mounts, d.DumpOptions.DumpLocation) {
+		hostConfig.Mounts = append(hostConfig.Mounts,
+			mount.Mount{
+				Type:   mount.TypeBind,
+				Source: d.DumpOptions.DumpLocation,
+				Target: d.DumpOptions.DumpLocation,
+				BindOptions: &mount.BindOptions{
+					Propagation: mount.PropagationRShared,
+				},
+			},
+		)
+
+		log.Dbg("Mount dump location", d.DumpOptions.DumpLocation)
 	}
 
 	hostConfig.NetworkMode = d.getContainerNetworkMode()

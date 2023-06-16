@@ -147,8 +147,6 @@ func AddVolumesToHostConfig(ctx context.Context, docker *client.Client, hostConf
 		}
 
 		hostConfig.Mounts = GetMountsFromMountPoints(dataDir, inspection.Mounts)
-
-		log.Dbg(hostConfig.Mounts)
 	} else {
 		hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
 			Type:   mount.TypeBind,
@@ -156,6 +154,8 @@ func AddVolumesToHostConfig(ctx context.Context, docker *client.Client, hostConf
 			Target: dataDir,
 		})
 	}
+
+	log.Dbg(hostConfig.Mounts)
 
 	return nil
 }
