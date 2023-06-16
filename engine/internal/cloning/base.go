@@ -294,7 +294,7 @@ func (c *Base) DestroyClone(cloneID string) error {
 
 	go func() {
 		if err := c.provision.StopSession(w.Session); err != nil {
-			log.Errf("Failed to delete a clone: %+v.", err)
+			log.Errf("Failed to delete a clone: %v.", err)
 
 			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
@@ -603,7 +603,7 @@ func (c *Base) destroyIdleClones(ctx context.Context) {
 				log.Msg(fmt.Sprintf("Idle clone %q is going to be removed.", cloneWrapper.Clone.ID))
 
 				if err = c.DestroyClone(cloneWrapper.Clone.ID); err != nil {
-					log.Errf("Failed to destroy clone: %+v.", err)
+					log.Errf("Failed to destroy clone: %v.", err)
 					continue
 				}
 			}
