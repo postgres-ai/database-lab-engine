@@ -20,6 +20,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/pkg/errors"
@@ -126,7 +127,7 @@ func NewJob(cfg config.JobConfig, global *global.Config, engineProps *global.Eng
 	}
 
 	if err := restoreJob.Reload(cfg.Spec.Options); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
+		return nil, errors.Wrap(err, "failed to load configuration options")
 	}
 
 	restoreJob.setDefaults()
@@ -205,7 +206,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to scan image pulling response")
 	}
 
-	hostConfig, err := cont.BuildHostConfig(ctx, r.dockerClient, r.fsPool.DataDir(), r.RestoreOptions.ContainerConfig)
+	hostConfig, err := r.buildHostConfig(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to build container host config")
 	}
@@ -291,6 +292,30 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Msg("Restoring job has been finished")
 
 	return nil
+}
+
+func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
+	hostConfig, err := cont.BuildHostConfig(ctx, r.dockerClient, r.fsPool.DataDir(), r.RestoreOptions.ContainerConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build container host config: %w", err)
+	}
+
+	if r.RestoreOptions.DumpLocation != "" && !isAlreadyMounted(hostConfig.Mounts, r.RestoreOptions.DumpLocation) {
+		hostConfig.Mounts = append(hostConfig.Mounts,
+			mount.Mount{
+				Type:   mount.TypeBind,
+				Source: r.RestoreOptions.DumpLocation,
+				Target: r.RestoreOptions.DumpLocation,
+				BindOptions: &mount.BindOptions{
+					Propagation: mount.PropagationRShared,
+				},
+			},
+		)
+
+		log.Dbg("Mount dump location", r.RestoreOptions.DumpLocation)
+	}
+
+	return hostConfig, nil
 }
 
 func (r *RestoreJob) getDBList(ctx context.Context, contID string) (map[string]DumpDefinition, error) {
