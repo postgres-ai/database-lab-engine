@@ -902,8 +902,10 @@ func (p *PhysicalInitial) checkRecovery(ctx context.Context, containerID string)
 
 	log.Msg("Check recovery command", checkRecoveryCmd)
 
-	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
-		Cmd: checkRecoveryCmd,
+	output, err := tools.ExecCommandWithResponse(ctx, p.dockerClient, containerID, types.ExecConfig{
+		Cmd:          checkRecoveryCmd,
+		AttachStderr: false,
+		AttachStdout: true,
 	})
 
 	return output, err
