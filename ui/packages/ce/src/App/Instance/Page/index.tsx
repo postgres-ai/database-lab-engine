@@ -20,6 +20,7 @@ import { getEngine } from 'api/engine/getEngine'
 import { createBranch } from 'api/branches/createBranch'
 import { getBranches } from 'api/branches/getBranches'
 import { getSnapshotList } from 'api/branches/getSnapshotList'
+import { deleteBranch } from 'api/branches/deleteBranch'
 
 export const Page = ({ renderCurrentTab }: { renderCurrentTab?: number }) => {
   const routes = {
@@ -47,6 +48,7 @@ export const Page = ({ renderCurrentTab }: { renderCurrentTab?: number }) => {
     createBranch,
     getBranches,
     getSnapshotList,
+    deleteBranch
   }
 
   const elements = {

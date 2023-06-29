@@ -14,7 +14,7 @@ import { SimpleModalControls } from '@postgres.ai/shared/components/SimpleModalC
 import { ImportantText } from '@postgres.ai/shared/components/ImportantText'
 import { Text } from '@postgres.ai/shared/components/Text'
 interface DeleteBranchModalProps extends ModalProps {
-  deleteBranchError: { title?: string; message: string } | null
+  deleteBranchError: { title?: string; message?: string } | null
   deleteBranch: (branchName: string) => void
   branchName: string
 }
