@@ -42,6 +42,7 @@ const useStyles = makeStyles(
 
       '& a': {
         color: colors.black,
+        textDecoration: 'none',
       },
     },
 
@@ -86,8 +87,7 @@ type Props = {
 export const Tabs = (props: Props) => {
   const classes = useStyles()
 
-  const { value, handleChange, hasLogs, isConfigActive, hideInstanceTabs } =
-    props
+  const { value, handleChange, hasLogs, hideInstanceTabs } = props
 
   return (
     <TabsComponent
@@ -140,10 +140,7 @@ export const Tabs = (props: Props) => {
           label="📓 Logs"
           disabled={!hasLogs}
           classes={{
-            root:
-              props.hideInstanceTabs || !isConfigActive
-                ? classes.tabHidden
-                : classes.tabRoot,
+            root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
           }}
           value={TABS_INDEX.LOGS}
         />

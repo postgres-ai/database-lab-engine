@@ -5,6 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
+import { useState } from 'react'
 import copy from 'copy-to-clipboard'
 import { makeStyles } from '@material-ui/core'
 import { useHistory } from 'react-router-dom'
@@ -20,6 +21,8 @@ import {
   TableBodyCell,
   TableBodyCellMenu,
 } from '@postgres.ai/shared/components/Table'
+
+import { DeleteBranchModal } from '../Modals/DeleteBranchModal'
 
 const useStyles = makeStyles(
   {
@@ -44,12 +47,19 @@ const useStyles = makeStyles(
 export const BranchesTable = ({
   branchesData,
   emptyTableText,
+  deleteBranch,
+  deleteBranchError,
 }: {
   branchesData: GetBranchesResponseType[]
   emptyTableText: string
+  deleteBranch: (branchId: string) => void
+  deleteBranchError: { title?: string; message?: string } | null
 }) => {
   const history = useHistory()
   const classes = useStyles()
+
+  const [branchId, setBranchId] = useState('')
+  const [isOpenDestroyModal, setIsOpenDestroyModal] = useState(false)
 
   if (!branchesData.length) {
     return <p className={classes.marginTop}>{emptyTableText}</p>
@@ -81,6 +91,13 @@ export const BranchesTable = ({
                     name: 'Copy snapshot ID',
                     onClick: () => copy(branch.snapshotID),
                   },
+                  {
+                    name: 'Delete branch',
+                    onClick: () => {
+                      setBranchId(branch.name)
+                      setIsOpenDestroyModal(true)
+                    },
+                  },
                 ]}
               />
 
@@ -91,6 +108,16 @@ export const BranchesTable = ({
             </TableRow>
           ))}
         </TableBody>
+        <DeleteBranchModal
+          isOpen={isOpenDestroyModal}
+          onClose={() => {
+            setIsOpenDestroyModal(false)
+            setBranchId('')
+          }}
+          deleteBranchError={deleteBranchError}
+          deleteBranch={deleteBranch}
+          branchName={branchId}
+        />
       </Table>
     </HorizontalScrollContainer>
   )

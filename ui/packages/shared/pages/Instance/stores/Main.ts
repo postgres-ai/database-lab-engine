@@ -28,6 +28,7 @@ import { InstanceRetrievalType } from '@postgres.ai/shared/types/api/entities/in
 import { GetEngine } from '@postgres.ai/shared/types/api/endpoints/getEngine'
 import { GetSnapshotList } from '@postgres.ai/shared/types/api/endpoints/getSnapshotList'
 import { GetBranches } from '@postgres.ai/shared/types/api/endpoints/getBranches'
+import { DeleteBranch } from '@postgres.ai/shared/types/api/endpoints/deleteBranch'
 
 const POLLING_TIME = 2000
 
@@ -50,6 +51,7 @@ export type Api = {
   getInstanceRetrieval?: GetInstanceRetrieval
   getBranches?: GetBranches
   getSnapshotList?: GetSnapshotList
+  deleteBranch?: DeleteBranch
 }
 
 type Error = {
@@ -70,6 +72,7 @@ export class MainStore {
   getFullConfigError: string | null = null
   getBranchesError: Error | null = null
   snapshotListError: string | null = null
+  deleteBranchError: Error | null = null
 
   unstableClones = new Set<string>()
   private updateInstanceTimeoutId: number | null = null
@@ -321,6 +324,20 @@ export class MainStore {
     this.isBranchesLoading = false
 
     if (error) this.getBranchesError = await error.json().then((err) => err)
+
+    return response
+  }
+
+  deleteBranch = async (branchName: string) => {
+    if (!branchName || !this.api.deleteBranch) return
+
+    this.deleteBranchError = null
+
+    const { response, error } = await this.api.deleteBranch(branchName)
+
+    if (error) {
+      this.deleteBranchError = await error.json().then((err) => err)
+    }
 
     return response
   }

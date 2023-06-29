@@ -48,11 +48,21 @@ export const Branches = observer((): React.ReactElement => {
   const [branchesList, setBranchesList] = useState<GetBranchesResponseType[]>(
     [],
   )
-
-  const { instance, getBranches, isBranchesLoading, getBranchesError } =
-    stores.main
+  const {
+    instance,
+    getBranches,
+    isBranchesLoading,
+    getBranchesError,
+    deleteBranchError,
+    deleteBranch,
+  } = stores.main
 
   const goToBranchAddPage = () => history.push(host.routes.createBranch())
+
+  const handleDestroyBranch = async (branchId: string) => {
+    const isSuccess = await deleteBranch(branchId)
+    if (isSuccess) history.push('/instance/branches')
+  }
 
   useEffect(() => {
     getBranches().then((response) => {
@@ -100,6 +110,8 @@ export const Branches = observer((): React.ReactElement => {
           />
           <BranchesTable
             branchesData={branchesList}
+            deleteBranch={handleDestroyBranch}
+            deleteBranchError={deleteBranchError}
             emptyTableText="This instance has no active branches"
           />
         </>
