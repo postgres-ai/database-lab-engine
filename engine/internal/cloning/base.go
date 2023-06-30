@@ -128,7 +128,7 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 	cloneRequest.ID = strings.TrimSpace(cloneRequest.ID)
 
 	if _, ok := c.findWrapper(cloneRequest.ID); ok {
-		return nil, models.New(models.ErrCodeBadRequest, "clone with such ID already exists")
+		return nil, models.New(models.ErrCodeBadRequest, fmt.Sprintf("clone with ID %q already exists", cloneRequest.ID))
 	}
 
 	if cloneRequest.ID == "" {
