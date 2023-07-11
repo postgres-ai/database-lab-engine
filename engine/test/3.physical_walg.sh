@@ -52,7 +52,7 @@ yq eval -i '
   .poolManager.mountDir = env(DLE_TEST_MOUNT_DIR) |
   .provision.portPool.from = env(DLE_PORT_POOL_FROM) |
   .provision.portPool.to = env(DLE_PORT_POOL_TO) |
-  .databaseContainer.dockerImage = "postgresai/extended-postgres:" + strenv(POSTGRES_VERSION) |
+  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION) |
   .retrieval.spec.physicalRestore.options.walg.backupName = strenv(WALG_BACKUP_NAME) |
   .retrieval.spec.physicalRestore.options.sync.configs.shared_buffers = "512MB" |
   .retrieval.spec.physicalSnapshot.options.skipStartSnapshot = true

@@ -48,7 +48,7 @@ yq eval -i '
   .poolManager.mountDir = env(DLE_TEST_MOUNT_DIR) |
   .provision.portPool.from = env(DLE_PORT_POOL_FROM) |
   .provision.portPool.to = env(DLE_PORT_POOL_TO) |
-  .databaseContainer.dockerImage = "postgresai/extended-postgres:" + strenv(POSTGRES_VERSION) |
+  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION) |
   .retrieval.spec.logicalDump.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump" |
   .retrieval.spec.logicalDump.options.source.connection.dbname = strenv(SOURCE_DBNAME) |
   .retrieval.spec.logicalDump.options.source.connection.username = strenv(SOURCE_USERNAME) |

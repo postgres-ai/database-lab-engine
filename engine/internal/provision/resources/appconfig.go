@@ -28,6 +28,12 @@ type DB struct {
 	DBName   string
 }
 
+// CloneDir returns the path of the clone directory.
+func (c *AppConfig) CloneDir() string {
+	// TODO(akartasov): Move to pool.
+	return path.Join(c.Pool.ClonesDir(), c.CloneName)
+}
+
 // DataDir returns the path of clone data.
 func (c *AppConfig) DataDir() string {
 	// TODO(akartasov): Move to pool.
