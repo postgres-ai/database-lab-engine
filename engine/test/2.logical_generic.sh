@@ -98,7 +98,7 @@ yq eval -i '
   .provision.portPool.to = env(DLE_PORT_POOL_TO) |
   .retrieval.spec.logicalDump.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump" |
   .retrieval.spec.logicalRestore.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump" |
-  .databaseContainer.dockerImage = "postgresai/extended-postgres:" + strenv(POSTGRES_VERSION)
+  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION)
 ' "${configDir}/server.yml"
 
 SHARED_PRELOAD_LIBRARIES="pg_stat_statements, auto_explain, pgaudit, logerrors, pg_stat_kcache"
@@ -112,8 +112,8 @@ if [ "${POSTGRES_VERSION}" = "9.6" ]; then
   SHARED_PRELOAD_LIBRARIES="pg_stat_statements, auto_explain"
 fi
 
-# Edit the following options for PostgreSQL 15beta4
-if [ "${POSTGRES_VERSION}" = "15beta4" ]; then
+# Edit the following options for PostgreSQL 15
+if [ "${POSTGRES_VERSION}" = "15" ]; then
   SHARED_PRELOAD_LIBRARIES="pg_stat_statements, auto_explain, logerrors, pg_stat_kcache"
 fi
 
@@ -175,7 +175,7 @@ PATCH_CONFIG_DATA=$(jq -n -c \
   --arg username "$SOURCE_USERNAME" \
   --arg password "$SOURCE_PASSWORD" \
   --arg spl "$SHARED_PRELOAD_LIBRARIES" \
-  --arg dockerImage "postgresai/extended-postgres:${POSTGRES_VERSION}" \
+  --arg dockerImage "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:${POSTGRES_VERSION}" \
 '{
   "global": {
     "debug": true
@@ -245,7 +245,7 @@ if [[ $(yq eval '.retrieval.spec.logicalDump.options.source.connection.dbname' $
       $(yq eval '.retrieval.spec.logicalDump.options.source.connection.username' ${configDir}/server.yml) != "$SOURCE_USERNAME" ||
       $(yq eval '.retrieval.spec.logicalDump.options.source.connection.password' ${configDir}/server.yml) != "$SOURCE_PASSWORD" ||
       $(yq eval '.retrieval.refresh.timetable' ${configDir}/server.yml) != "5 0 * * 1" ||
-      $(yq eval '.databaseContainer.dockerImage' ${configDir}/server.yml) != "postgresai/extended-postgres:${POSTGRES_VERSION}" ||
+      $(yq eval '.databaseContainer.dockerImage' ${configDir}/server.yml) != "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:${POSTGRES_VERSION}" ||
       $(yq eval '.databaseConfigs.configs.shared_buffers' ${configDir}/server.yml) != "256MB" ]] ; then
   echo "Configuration has not been updated properly"
   exit 1

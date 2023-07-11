@@ -61,7 +61,7 @@ func TestVolumesBuilding(t *testing.T) {
 			},
 			expectedVolumes: []string{
 				"--volume /var/lib/dblab/dblab_pool/sockets/dblab_clone_6000:/var/lib/dblab/dblab_pool/sockets/dblab_clone_6000:rshared",
-				"--volume /var/lib/dblab/dblab_pool/clones/dblab_clone_6000/data:/var/lib/dblab/dblab_pool/clones/dblab_clone_6000/data:rshared",
+				"--volume /var/lib/dblab/dblab_pool/clones/dblab_clone_6000:/var/lib/dblab/dblab_pool/clones/dblab_clone_6000:rshared",
 			},
 		},
 	}

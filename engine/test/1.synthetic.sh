@@ -77,6 +77,7 @@ mkdir -p "${configDir}"
 curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG:-master}"/engine/configs/config.example.logical_generic.yml \
  --output "${configDir}/server.yml"
 
+# TODO: replace the dockerImage tag back to 'postgresai/extended-postgres' after releasing a new version with custom port and unix socket dir.
 # Edit the following options
 yq eval -i '
   .global.debug = true |
@@ -88,7 +89,7 @@ yq eval -i '
   .poolManager.mountDir = env(DLE_TEST_MOUNT_DIR) |
   del(.retrieval.jobs[] | select(. == "logicalDump")) |
   del(.retrieval.jobs[] | select(. == "logicalRestore")) |
-  .databaseContainer.dockerImage = "postgresai/extended-postgres:" + strenv(POSTGRES_VERSION)
+  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION)
 ' "${configDir}/server.yml"
 
 # Edit the following options for PostgreSQL 9.6
@@ -99,8 +100,8 @@ if [ "${POSTGRES_VERSION}" = "9.6" ]; then
   ' "${configDir}/server.yml"
 fi
 
-# Edit the following options for PostgreSQL 15beta4
-if [ "${POSTGRES_VERSION}" = "15beta4" ]; then
+# Edit the following options for PostgreSQL 15
+if [ "${POSTGRES_VERSION}" = "15" ]; then
   yq eval -i '
   .databaseConfigs.configs.shared_preload_libraries = "pg_stat_statements, auto_explain, logerrors, pg_stat_kcache" |
   .databaseConfigs.configs.log_directory = "log"
