@@ -243,11 +243,11 @@ export const AnsibleInstance = ({
               margin: '20px 0',
             }}
           >
-            <Button variant="contained" color="primary" onClick={goBack}>
-              See list of instances
-            </Button>
             <Button variant="outlined" color="secondary" onClick={goBackToForm}>
               Back to form
+            </Button>
+            <Button variant="contained" color="primary" onClick={goBack}>
+              See list of instances
             </Button>
           </Box>
         </>

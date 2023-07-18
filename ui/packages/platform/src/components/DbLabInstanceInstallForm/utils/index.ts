@@ -7,7 +7,7 @@ export const getPlaybookCommand = (
   state: typeof initialState,
   orgKey: string,
 ) =>
-  `docker run --rm -it postgresai/dle-se-ansible:v1.0-rc.1 \\\r
+  `docker run --rm -it -v $HOME/.ssh:/root/.ssh:ro -e ANSIBLE_SSH_ARGS="-F none" postgresai/dle-se-ansible:v1.0-rc.3 \\\r
   ansible-playbook deploy_dle.yml --extra-vars \\\r
     "dle_host='user@server-ip-address' \\\r
     dle_platform_project_name='${state.name}' \\\r
