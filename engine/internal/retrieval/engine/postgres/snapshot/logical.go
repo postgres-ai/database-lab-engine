@@ -263,6 +263,10 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 		return errors.Wrap(err, "failed to run preprocessing queries")
 	}
 
+	if err := tools.RunCheckpoint(ctx, s.dockerClient, containerID, s.globalCfg.Database.User(), s.globalCfg.Database.Name()); err != nil {
+		return errors.Wrap(err, "failed to run checkpoint before stop")
+	}
+
 	return nil
 }
 
