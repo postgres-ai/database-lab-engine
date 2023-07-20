@@ -9,7 +9,7 @@ DLE_SERVER_NAME="dblab_server_test"
 export POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
 export DLE_SERVER_PORT=${DLE_SERVER_PORT:-12345}
 export DLE_PORT_POOL_FROM=${DLE_PORT_POOL_FROM:-9000}
-export DLE_PORT_POOL_TO=${DLE_PORT_POOL_TO:-9100}
+export DLE_PORT_POOL_TO=${DLE_PORT_POOL_TO:-9099}
 export DLE_TEST_MOUNT_DIR="/var/lib/test/dblab_mount"
 export DLE_TEST_POOL_NAME="test_dblab_pool"
 

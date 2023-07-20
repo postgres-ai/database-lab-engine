@@ -127,10 +127,10 @@ databaseConfigs: &db_configs
 provision:
   <<: *db_container
   # Pool of ports for Postgres clones. Ports will be allocated sequentially,
-  # starting from the lowest value. The "from" value must be less than "to".
+  # starting from the lowest value. The "from" value must be less than or equal to "to".
   portPool:
     from: 6000
-    to: 6100
+    to: 6099
 
   # Use sudo for ZFS/LVM and Docker commands if Database Lab server running
   # outside a container. Keep it "false" (default) when running in a container.
