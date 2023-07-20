@@ -40,6 +40,10 @@ func TestPortAllocation(t *testing.T) {
 	_, err = p.allocatePort()
 	require.NoError(t, err)
 
+	// Allocate one more port.
+	_, err = p.allocatePort()
+	require.NoError(t, err)
+
 	// Impossible allocate a new port.
 	_, err = p.allocatePort()
 	assert.IsType(t, errors.Cause(err), &NoRoomError{})

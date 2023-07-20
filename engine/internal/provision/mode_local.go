@@ -92,7 +92,7 @@ func New(ctx context.Context, cfg *Config, dbCfg *resources.DB, docker *client.C
 		pm:           pm,
 		networkID:    networkID,
 		instanceID:   instanceID,
-		ports:        make([]bool, cfg.PortPool.To-cfg.PortPool.From),
+		ports:        make([]bool, cfg.PortPool.To-cfg.PortPool.From+1),
 	}
 
 	return p, nil
@@ -114,7 +114,7 @@ func isValidConfigModeLocal(config Config) error {
 		return errors.New(`"portPool.to" must be defined and be greater than 0`)
 	}
 
-	if portPool.To <= portPool.From {
+	if portPool.To < portPool.From {
 		return errors.New(`"portPool" must include at least one port`)
 	}
 
@@ -444,7 +444,7 @@ func (p *Provisioner) RevisePortPool() error {
 
 	availablePorts := 0
 
-	for port := p.config.PortPool.From; port < p.config.PortPool.To; port++ {
+	for port := p.config.PortPool.From; port <= p.config.PortPool.To; port++ {
 		if err := p.portChecker.checkPortAvailability(host, port); err != nil {
 			log.Msg(fmt.Sprintf("port %d is not available, marking as busy", port))
 
@@ -533,7 +533,7 @@ func (p *Provisioner) FreePort(port uint) error {
 func (p *Provisioner) setPortStatus(port uint, bind bool) error {
 	portOpts := p.config.PortPool
 
-	if port < portOpts.From || port >= portOpts.To {
+	if port < portOpts.From || port > portOpts.To {
 		return errors.Errorf("port %d is out of bounds of the port pool", port)
 	}
 

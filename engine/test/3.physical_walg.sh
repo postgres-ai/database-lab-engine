@@ -12,7 +12,7 @@ export DLE_TEST_MOUNT_DIR="/var/lib/test/dblab_mount"
 export DLE_TEST_POOL_NAME="test_dblab_pool"
 export DLE_SERVER_PORT=${DLE_SERVER_PORT:-12345}
 export DLE_PORT_POOL_FROM=${DLE_PORT_POOL_FROM:-9000}
-export DLE_PORT_POOL_TO=${DLE_PORT_POOL_TO:-9100}
+export DLE_PORT_POOL_TO=${DLE_PORT_POOL_TO:-9099}
 ## AWS
 set +euxo pipefail # ---- do not display secrets
 export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-""}"
