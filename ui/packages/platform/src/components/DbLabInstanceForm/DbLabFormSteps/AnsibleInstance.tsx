@@ -11,6 +11,7 @@ import { getCloudImages } from 'api/cloud/getCloudImages'
 
 import {
   getGcpAccountContents,
+  getNetworkSubnet,
   getPlaybookCommandWithoutDocker,
 } from 'components/DbLabInstanceForm/utils'
 import {
@@ -53,6 +54,12 @@ export const formStyles = makeStyles({
     fontWeight: 600,
     margin: 0,
   },
+  containerMargin: {
+    margin: '20px 0',
+  },
+  smallMarginTop: {
+    marginBottom: '10px',
+  }
 })
 
 export const InstanceDocumentation = ({
@@ -232,6 +239,7 @@ export const AnsibleInstance = ({
               orgKey,
             )}
           />
+          {getNetworkSubnet(state.provider, classes)}
           <p className={classes.title}>
             7. After the code snippet runs successfully, follow the directions
             displayed in the resulting output to start using DLE AUI/API/CLI.

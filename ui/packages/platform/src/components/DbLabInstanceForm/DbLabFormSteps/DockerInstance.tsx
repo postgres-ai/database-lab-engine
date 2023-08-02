@@ -10,6 +10,7 @@ import { getOrgKeys } from 'api/cloud/getOrgKeys'
 import { getCloudImages } from 'api/cloud/getCloudImages'
 
 import {
+  getNetworkSubnet,
   getGcpAccountContents,
   getPlaybookCommand,
 } from 'components/DbLabInstanceForm/utils'
@@ -143,6 +144,7 @@ export const DockerInstance = ({
           <SyntaxHighlight
             content={getPlaybookCommand(state, cloudImages[0], orgKey)}
           />
+          {getNetworkSubnet(state.provider, classes)}
           <p className={classes.title}>
             4. After the code snippet runs successfully, follow the directions
             displayed in the resulting output to start using DLE UI/API/CLI.
