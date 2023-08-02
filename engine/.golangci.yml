@@ -66,7 +66,6 @@ linters-settings:
 
 linters:
   enable:
-    - depguard
     - dupl
     - errcheck
     - gochecknoinits
@@ -89,6 +88,7 @@ linters:
     - wsl
   enable-all: false
   disable:
+    - depguard
     - gosec
     - interfacer
     - gocyclo # currently unmaintained

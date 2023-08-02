@@ -8,7 +8,6 @@ package cont
 import (
 	"context"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -27,11 +26,11 @@ import (
 const (
 	labelFilter = "label"
 
-	// StopTimeout defines a container stop timeout.
-	StopTimeout = 30 * time.Second
+	// StopTimeout defines a container stop timeout in seconds.
+	StopTimeout = 30
 
-	// StopPhysicalTimeout defines stop timeout for a physical container.
-	StopPhysicalTimeout = 5 * time.Second
+	// StopPhysicalTimeout defines stop timeout for a physical container in seconds.
+	StopPhysicalTimeout = 5
 
 	// SyncInstanceContainerPrefix defines a sync container name.
 	SyncInstanceContainerPrefix = "dblab_sync_"

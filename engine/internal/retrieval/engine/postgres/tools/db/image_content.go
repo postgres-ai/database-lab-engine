@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -124,7 +123,7 @@ func (i *ImageContent) collectImageContent(ctx context.Context, docker *client.C
 		return fmt.Errorf("failed to create a Docker container: %w", err)
 	}
 
-	defer tools.RemoveContainer(ctx, docker, containerID, time.Millisecond)
+	defer tools.RemoveContainer(ctx, docker, containerID, 0)
 
 	if err := i.collectExtensions(ctx, i.engineProps.InstanceID); err != nil {
 		return fmt.Errorf("failed to collect extensions from the image %s: %w", dockerImage, err)

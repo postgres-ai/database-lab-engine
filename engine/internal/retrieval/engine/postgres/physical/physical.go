@@ -185,7 +185,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 						return
 					}
 
-					tools.StopContainer(ctx, r.dockerClient, r.syncInstanceName(), time.Second)
+					tools.StopContainer(ctx, r.dockerClient, r.syncInstanceName(), 1)
 				}
 			}()
 		}
