@@ -69,7 +69,7 @@ func TestStartExisingDumpContainer(t *testing.T) {
 	assert.NoError(t, err)
 
 	// clean container in case of any error
-	defer tools.RemoveContainer(ctx, docker, container.ID, 10*time.Second)
+	defer tools.RemoveContainer(ctx, docker, container.ID, 10)
 
 	job.Run(ctx)
 

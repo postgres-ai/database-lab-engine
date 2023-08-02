@@ -440,10 +440,10 @@ func PrintLastPostgresLogs(ctx context.Context, dockerClient *client.Client, con
 }
 
 // StopContainer stops container.
-func StopContainer(ctx context.Context, dockerClient *client.Client, containerID string, stopTimeout time.Duration) {
+func StopContainer(ctx context.Context, dockerClient *client.Client, containerID string, stopTimeout int) {
 	log.Msg(fmt.Sprintf("Stopping container ID: %v", containerID))
 
-	if err := dockerClient.ContainerStop(ctx, containerID, pointer.ToDuration(stopTimeout)); err != nil {
+	if err := dockerClient.ContainerStop(ctx, containerID, container.StopOptions{Timeout: pointer.ToInt(stopTimeout)}); err != nil {
 		log.Err("Failed to stop container: ", err)
 	}
 
@@ -451,10 +451,10 @@ func StopContainer(ctx context.Context, dockerClient *client.Client, containerID
 }
 
 // RemoveContainer stops and removes container.
-func RemoveContainer(ctx context.Context, dockerClient *client.Client, containerID string, stopTimeout time.Duration) {
+func RemoveContainer(ctx context.Context, dockerClient *client.Client, containerID string, stopTimeout int) {
 	log.Msg(fmt.Sprintf("Removing container ID: %v", containerID))
 
-	if err := dockerClient.ContainerStop(ctx, containerID, pointer.ToDuration(stopTimeout)); err != nil {
+	if err := dockerClient.ContainerStop(ctx, containerID, container.StopOptions{Timeout: pointer.ToInt(stopTimeout)}); err != nil {
 		log.Err("Failed to stop container: ", err)
 	}
 
