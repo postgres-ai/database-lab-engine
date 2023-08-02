@@ -1040,6 +1040,7 @@ const Store = Reflux.createStore({
         recommends: data.recommendations,
         stats: data.stats,
         error: data.error,
+        queryLocks: data.query_locks || '',
         slackUid: data.slack_uid,
         slackUsername: data.slack_username,
         slackChannel: data.slack_channel,
