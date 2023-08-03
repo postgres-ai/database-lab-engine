@@ -7,6 +7,8 @@ export const DEBUG_API_SERVER = 'https://v2.postgres.ai/api/general'
 
 export const availableTags = ['3.4.0-rc.7', '4.0.0-alpha.6']
 
+export const sePackageTag = 'v1.0-rc.5'
+
 export const dockerRunCommand = (provider: string) => {
   /* eslint-disable no-template-curly-in-string */
   switch (provider) {
@@ -29,7 +31,7 @@ export const getPlaybookCommand = (
   orgKey: string,
 ) =>
   `${dockerRunCommand(state.provider)} \\\r
-  postgresai/dle-se-ansible:v1.0-rc.4 \\\r
+  postgresai/dle-se-ansible:${sePackageTag} \\\r
     ansible-playbook deploy_dle.yml --extra-vars \\\r
     "provision='${state.provider}' \\\r
     server_name='${state.name}' \\\r
