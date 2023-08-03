@@ -13,12 +13,13 @@ export const updateConfig = async (req: Config) => {
         debug: req.debug,
       },
       databaseContainer: {
-        dockerImage: req.dockerImage,
+        dockerImage: req.dockerPath,
       },
       databaseConfigs: {
         configs: {
           shared_buffers: req.sharedBuffers,
           shared_preload_libraries: req.sharedPreloadLibraries,
+          ...(req.tuningParams as unknown as { [key: string]: string }),
         },
       },
       retrieval: {

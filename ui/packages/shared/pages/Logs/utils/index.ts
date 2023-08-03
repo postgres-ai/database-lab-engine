@@ -14,7 +14,7 @@ export const stringContainsPattern = (
 ) => {
   let value: number = 0
   pattern.forEach(function (word) {
-    value = value + Number(target.includes(word))
+    value = value + Number(target?.includes(word))
   })
   return value === 1
 }

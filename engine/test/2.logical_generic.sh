@@ -183,7 +183,8 @@ PATCH_CONFIG_DATA=$(jq -n -c \
   "databaseConfigs": {
       "configs": {
         "shared_buffers": "256MB",
-        "shared_preload_libraries": $spl
+        "shared_preload_libraries": $spl,
+        "log_directory": "log"
       }
   },
   "databaseContainer": {

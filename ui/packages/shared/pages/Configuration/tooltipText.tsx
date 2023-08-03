@@ -1,6 +1,12 @@
 import styles from './styles.module.scss'
 
 export const tooltipText = {
+  dockerTag: () => (
+    <div>
+      Docker image version - latest ones listed first. If unsure, pick the top
+      one
+    </div>
+  ),
   dockerImage: () => (
     <div>
       Major PostgreSQL version (e.g., "9.6", "15"). For logical provisioning
@@ -147,4 +153,5 @@ export const tooltipText = {
       .
     </div>
   ),
+  tuningParams: () => <div>Test</div>,
 }

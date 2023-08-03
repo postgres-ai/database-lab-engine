@@ -12,6 +12,7 @@ import { getWSToken } from 'api/engine/getWSToken'
 import { initWS } from 'api/engine/initWS'
 import { getConfig } from 'api/configs/getConfig'
 import { getFullConfig } from 'api/configs/getFullConfig'
+import { getSeImages } from 'api/configs/getSeImages'
 import { updateConfig } from 'api/configs/updateConfig'
 import { testDbSource } from 'api/configs/testDbSource'
 import { getEngine } from 'api/engine/getEngine'
@@ -32,6 +33,7 @@ export const Page = () => {
     getWSToken,
     getConfig,
     getFullConfig,
+    getSeImages,
     updateConfig,
     testDbSource,
     initWS,

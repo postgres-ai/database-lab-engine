@@ -37,7 +37,9 @@ const (
 
 // TestConnection represents the response of the test connection request.
 type TestConnection struct {
-	Status  string `json:"status"`
-	Result  string `json:"result"`
-	Message string `json:"message"`
+	Status       string            `json:"status"`
+	Result       string            `json:"result"`
+	Message      string            `json:"message"`
+	DBVersion    int               `json:"dbVersion,omitempty"`
+	TuningParams map[string]string `json:"tuningParams"`
 }

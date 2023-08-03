@@ -25,6 +25,7 @@ import { GetFullConfig } from '@postgres.ai/shared/types/api/endpoints/getFullCo
 import { GetInstanceRetrieval } from '@postgres.ai/shared/types/api/endpoints/getInstanceRetrieval'
 import { InstanceRetrievalType } from '@postgres.ai/shared/types/api/entities/instanceRetrieval'
 import { GetEngine } from '@postgres.ai/shared/types/api/endpoints/getEngine'
+import { GetSeImages } from '@postgres.ai/shared/types/api/endpoints/getSeImages'
 
 const UNSTABLE_CLONE_STATUS_CODES = ['CREATING', 'RESETTING', 'DELETING']
 
@@ -40,6 +41,7 @@ export type Api = {
   updateConfig?: UpdateConfig
   testDbSource?: TestDbSource
   getFullConfig?: GetFullConfig
+  getSeImages?: GetSeImages
   getEngine?: GetEngine
   getInstanceRetrieval?: GetInstanceRetrieval
 }
@@ -54,10 +56,11 @@ export class MainStore {
   instanceRetrieval: InstanceRetrievalType | null = null
   config: Config | null = null
   fullConfig?: string
+  platformUrl?: string
   instanceError: Error | null = null
   configError: string | null = null
-  dbSourceError: string | null = null
   getFullConfigError: string | null = null
+  seImagesError: string | undefined | null = null
 
   unstableClones = new Set<string>()
 
@@ -102,6 +105,7 @@ export class MainStore {
     this.loadInstanceRetrieval(instanceId).then(() => {
       if (this.instanceRetrieval) {
         this.getConfig()
+        this.getFullConfig()
       }
     })
     this.snapshots.load(instanceId)
@@ -189,7 +193,6 @@ export class MainStore {
     if (response) {
       this.config = response
       this.configError = null
-      this.dbSourceError = null
     }
 
     if (error) {
@@ -215,6 +218,9 @@ export class MainStore {
     const { response, error } = await this.api.getFullConfig()
     if (response) {
       this.fullConfig = response
+
+      const splitYML = this.fullConfig.split('---')
+      this.platformUrl = splitYML[0]?.split('url: ')[1]?.split('\n')[0]
     }
 
     if (error)
@@ -225,8 +231,29 @@ export class MainStore {
     return response
   }
 
+  getSeImages = async (values: { packageGroup: string }) => {
+    if (!this.api.getSeImages || !this.platformUrl) return
+
+    const { response, error } = await this.api.getSeImages({
+      packageGroup: values.packageGroup,
+      platformUrl: this.platformUrl,
+    })
+
+    if (response) {
+      this.seImagesError = null
+    }
+
+    if (error) {
+      this.seImagesError = await error.json().then((err: Error) => err.message)
+    }
+
+    return response
+  }
+
   getEngine = async () => {
     if (!this.api.getEngine) return
+
+    this.configError = null
 
     const { response, error } = await this.api.getEngine()
 
@@ -239,10 +266,10 @@ export class MainStore {
 
     const { response, error } = await this.api.testDbSource(values)
 
-    if (error)
-      this.dbSourceError = await error.json().then((err) => err.message)
-
-    return response
+    return {
+      response,
+      error
+    }
   }
 
   resetClone = async (cloneId: string, snapshotId: string) => {

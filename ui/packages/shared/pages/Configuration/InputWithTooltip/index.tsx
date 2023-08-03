@@ -5,6 +5,7 @@ import { TextField, Chip, makeStyles } from '@material-ui/core'
 import { Select } from '@postgres.ai/shared/components/Select'
 import { InfoIcon } from '@postgres.ai/shared/icons/Info'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
+import { Spinner } from '@postgres.ai/shared/components/Spinner'
 
 import { uniqueChipValue } from '../utils'
 
@@ -32,6 +33,11 @@ const useStyles = makeStyles(
     },
     error: {
       color: '#f44336',
+    },
+    absoluteSpinner: {
+      position: 'absolute',
+      left: 'calc(50% - 40px)',
+      top: 'calc(50% - 5px)',
     },
   },
   { index: 1 },
@@ -82,6 +88,8 @@ export const InputWithTooltip = ({
           error={Boolean(error)}
           onChange={onChange}
           disabled={disabled}
+          multiline={type === 'textarea'}
+          spellCheck={false}
         />
         <Tooltip interactive content={<p>{tooltipText()}</p>}>
           <InfoIcon className={styles.infoIcon} />
@@ -181,6 +189,7 @@ export const SelectWithTooltip = ({
   onChange,
   tooltipText,
   disabled,
+  loading,
   items,
 }: {
   value: string
@@ -189,6 +198,7 @@ export const SelectWithTooltip = ({
   label: string
   error?: boolean
   disabled: boolean | undefined
+  loading?: boolean
   items: { value: string; children: React.ReactNode }[]
 }) => {
   const classes = useStyles()
@@ -200,12 +210,14 @@ export const SelectWithTooltip = ({
       flexDirection="column"
       justifyContent="flex-start"
       alignItems="flex-start"
+      position="relative"
       gap="5px"
     >
       <label className={classNames(error && classes.error, classes.label)}>
         {label}
       </label>
       <Box display="flex" alignItems="center" width="100%">
+        {loading && <Spinner className={classes.absoluteSpinner} />}
         <Select
           className={classNames(
             classes.selectField,

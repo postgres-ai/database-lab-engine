@@ -30,13 +30,15 @@ export const establishConnection = async (api: Api) => {
         if (state === '[other]') {
           return !stringContainsPattern(logInitiator)
         }
-        return logInitiator.includes(stringWithoutBrackets(state))
+        return logInitiator?.includes(stringWithoutBrackets(state))
       }
     })
 
     if (
       filterInitiators &&
-      (logsFilterState[logInitiator] || logsFilterState[logLevel])
+      (logsFilterState[logInitiator] ||
+        logsFilterState[logLevel] ||
+        logEntry === 'Connection Error')
     ) {
       tag.appendChild(document.createTextNode(logEntry))
       logElement.appendChild(tag)

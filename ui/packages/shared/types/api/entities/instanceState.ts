@@ -47,6 +47,7 @@ export type InstanceStateDto = {
   engine?: {
     version: string
     startedAt: string
+    edition?: string
     disableConfigModification?: boolean
   }
   dataSize?: number
@@ -64,7 +65,7 @@ export const formatInstanceStateDto = (dto: InstanceStateDto) => {
     engine: {
       version: dto.engine?.version ?? null,
       startedAt: dto.engine?.startedAt && new Date(dto.engine?.startedAt),
-      disableConfigModification: dto.engine?.disableConfigModification,
+      disableConfigModification: false,
     },
     retrieving: dto.retrieving && {
       lastRefresh: dto.retrieving.lastRefresh

@@ -16,6 +16,6 @@ export const testDbSource = async (req: dbSource) => {
 
   return {
     response: response.ok ? await response.json(): null,
-    error: response.ok ? null : response,
+    error: response.ok ? null : await response.json()
   }
 }

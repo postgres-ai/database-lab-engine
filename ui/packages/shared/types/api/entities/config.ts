@@ -1,8 +1,11 @@
 import {
   formatDatabases,
   formatDumpCustomOptions,
+  getImageMajorVersion,
   getImageType,
+  isSeDockerImage,
 } from '@postgres.ai/shared/pages/Configuration/utils'
+import { formatTuningParams } from '../endpoints/testDbSource'
 
 export interface DatabaseType {
   [name: string]: string | Object
@@ -14,11 +17,11 @@ export type configTypes = {
   }
   databaseContainer?: {
     dockerImage?: string
+    dockerPath?: string
   }
   databaseConfigs?: {
     configs?: {
-      shared_buffers?: string
-      shared_preload_libraries?: string
+      [key: string]: string
     }
   }
   retrieval?: {
@@ -55,12 +58,20 @@ export type configTypes = {
 }
 
 export const formatConfig = (config: configTypes) => {
+  const dockerImage = config.databaseContainer?.dockerImage
   return {
     debug: config.global?.debug,
-    dockerImage: config.databaseContainer?.dockerImage,
-    ...(config.databaseContainer?.dockerImage && {
-      dockerImageType: getImageType(config.databaseContainer?.dockerImage),
+    dockerImage: isSeDockerImage(dockerImage)
+      ? getImageMajorVersion(dockerImage)
+      : dockerImage,
+    ...(dockerImage && {
+      dockerImageType: getImageType(dockerImage),
     }),
+    ...(isSeDockerImage(dockerImage) && {
+      dockerTag: dockerImage?.split(':')[1],
+    }),
+    dockerPath: dockerImage,
+    tuningParams: formatTuningParams(config.databaseConfigs?.configs),
     sharedBuffers: config.databaseConfigs?.configs?.shared_buffers,
     sharedPreloadLibraries:
       config.databaseConfigs?.configs?.shared_preload_libraries,
