@@ -140,6 +140,12 @@ provision:
   # existing users to log in with old passwords.
   keepUserPasswords: false
 
+  # IP addresses that can be used to access clones.
+  # By default, using a loop-back to accept only local connections.
+  # The empty string means "all available addresses".
+  # The option supports multiple IPs (using comma-separated format) and IPv6 addresses (for example, [::1])
+  cloneAccessAddresses: "127.0.0.1"
+
 # Data retrieval flow. This section defines both initial retrieval, and rules
 # to keep the data directory in a synchronized state with the source. Both are optional:
 # you may already have the data directory, so neither initial retrieval nor

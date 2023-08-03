@@ -51,11 +51,12 @@ type PortPool struct {
 
 // Config defines configuration for provisioning.
 type Config struct {
-	PortPool          PortPool          `yaml:"portPool"`
-	DockerImage       string            `yaml:"dockerImage"`
-	UseSudo           bool              `yaml:"useSudo"`
-	KeepUserPasswords bool              `yaml:"keepUserPasswords"`
-	ContainerConfig   map[string]string `yaml:"containerConfig"`
+	PortPool             PortPool          `yaml:"portPool"`
+	DockerImage          string            `yaml:"dockerImage"`
+	UseSudo              bool              `yaml:"useSudo"`
+	KeepUserPasswords    bool              `yaml:"keepUserPasswords"`
+	ContainerConfig      map[string]string `yaml:"containerConfig"`
+	CloneAccessAddresses string            `yaml:"cloneAccessAddresses"`
 }
 
 // Provisioner describes a struct for ports and clones management.
@@ -598,14 +599,15 @@ func (p *Provisioner) stopPoolSessions(fsm pool.FSManager, exceptClones map[stri
 
 func (p *Provisioner) getAppConfig(pool *resources.Pool, name string, port uint) *resources.AppConfig {
 	appConfig := &resources.AppConfig{
-		CloneName:     name,
-		DockerImage:   p.config.DockerImage,
-		Host:          pool.SocketCloneDir(name),
-		Port:          port,
-		DB:            p.dbCfg,
-		Pool:          pool,
-		ContainerConf: p.config.ContainerConfig,
-		NetworkID:     p.networkID,
+		CloneName:      name,
+		DockerImage:    p.config.DockerImage,
+		Host:           pool.SocketCloneDir(name),
+		Port:           port,
+		DB:             p.dbCfg,
+		Pool:           pool,
+		ContainerConf:  p.config.ContainerConfig,
+		NetworkID:      p.networkID,
+		ProvisionHosts: p.config.CloneAccessAddresses,
 	}
 
 	return appConfig

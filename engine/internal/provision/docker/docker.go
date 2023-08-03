@@ -78,7 +78,7 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 		"docker run",
 		"--name", c.CloneName,
 		"--detach",
-		"--publish", fmt.Sprintf("%[1]s:%[1]s", instancePort),
+		publishPorts(c.ProvisionHosts, instancePort),
 		"--env", "PGDATA=" + c.DataDir(),
 		"--env", "PG_UNIX_SOCKET_DIR=" + unixSocketCloneDir,
 		"--env", "PG_SERVER_PORT=" + instancePort,
@@ -99,6 +99,20 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 	}
 
 	return nil
+}
+
+func publishPorts(provisionHosts string, instancePort string) string {
+	if provisionHosts == "" {
+		return fmt.Sprintf("--publish %[1]s:%[1]s", instancePort)
+	}
+
+	pub := []string{}
+
+	for _, s := range strings.Split(provisionHosts, ",") {
+		pub = append(pub, "--publish", fmt.Sprintf("%[1]s:%[2]s:%[2]s", s, instancePort))
+	}
+
+	return strings.Join(pub, " ")
 }
 
 func createDefaultVolumes(c *resources.AppConfig) (string, []string) {
