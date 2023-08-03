@@ -123,10 +123,13 @@ export const StickyTopBar = () => {
           message:
             'No active payment methods are found for your organization on the Postgres.ai Platform; please, visit the',
         })
-      } else if (!res.response?.recognized_org) {
+      } else if (
+        !res.response?.billing_active &&
+        !res.response?.recognized_org
+      ) {
         setState({
           type: 'missingOrgKey',
-          message: capitalizeFirstLetter(res.error.message),
+          message: capitalizeFirstLetter(res.error?.message),
         })
       }
     })

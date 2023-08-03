@@ -54,8 +54,9 @@ export interface ProjectWrapperProps {
   location: RouteComponentProps['location']
   match: {
     params: {
-      org: string
-      project: string
+      org?: string
+      project?: string
+      projectId?: string
     }
   }
   raw?: boolean
@@ -87,7 +88,7 @@ export interface ProjectWrapperProps {
 
 export interface OrganizationWrapperProps {
   classes: ClassesType
-  match: { params: { org: string | undefined } }
+  match: { params: { org?: string, projectId?: number, project?: string } }
   location: RouteComponentProps['location']
   env: {
     data: {
@@ -115,7 +116,9 @@ export interface OrganizationMenuProps {
   location: RouteComponentProps['location']
   match: {
     params: {
-      org: string
+      org?: string
+      project?: string
+      projectId?: string
     }
   }
   env: {
