@@ -10,13 +10,14 @@ import (
 
 // AppConfig currently stores Postgres configuration (other application in the future too).
 type AppConfig struct {
-	CloneName   string
-	DockerImage string
-	Pool        *Pool
-	Host        string
-	Port        uint
-	DB          *DB
-	NetworkID   string
+	CloneName      string
+	DockerImage    string
+	Pool           *Pool
+	Host           string
+	Port           uint
+	DB             *DB
+	NetworkID      string
+	ProvisionHosts string
 
 	ContainerConf map[string]string
 	pgExtraConf   map[string]string
