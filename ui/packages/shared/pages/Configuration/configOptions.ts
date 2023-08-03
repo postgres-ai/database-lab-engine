@@ -8,59 +8,53 @@ export const dockerImageOptions = [
   { name: 'Amazon RDS Aurora for Postgres', type: 'aurora' },
   { name: 'Heroku Postgres', type: 'heroku' },
   { name: 'Supabase Postgres', type: 'supabase' },
+  { name: 'Google Cloud SQL for PostgreSQL', type: 'google-cloud-sql' },
+  {
+    name: 'Timescale Cloud',
+    type: 'timescale-cloud',
+  },
   { name: 'Custom image', type: 'custom' },
 ]
 
-export const defaultPgDumpOptions = [
+export const imagePgOptions = [
   {
     optionType: 'Generic Postgres',
-    addDefaultOptions: [],
+    pgDumpOptions: [],
+    pgRestoreOptions: [],
   },
   {
     optionType: 'postgis',
-    addDefaultOptions: [],
+    pgDumpOptions: [],
+    pgRestoreOptions: [],
   },
   {
     optionType: 'rds',
-    addDefaultOptions: ['--exclude-schema=awsdms'],
+    pgDumpOptions: ['--exclude-schema=awsdms'],
+    pgRestoreOptions: [],
   },
   {
     optionType: 'aurora',
-    addDefaultOptions: ['--exclude-schema=awsdms'],
+    pgDumpOptions: ['--exclude-schema=awsdms'],
+    pgRestoreOptions: [],
   },
   {
     optionType: 'heroku',
-    addDefaultOptions: [],
+    pgDumpOptions: [],
+    pgRestoreOptions: [],
   },
   {
     optionType: 'supabase',
-    addDefaultOptions: [],
-  },
-]
-
-export const defaultPgRestoreOptions = [
-  {
-    optionType: 'Generic Postgres',
-    addDefaultOptions: [],
+    pgDumpOptions: [],
+    pgRestoreOptions: [],
   },
   {
-    optionType: 'postgis',
-    addDefaultOptions: [],
+    optionType: 'google-cloud-sql',
+    pgDumpOptions: [],
+    pgRestoreOptions: [],
   },
   {
-    optionType: 'rds',
-    addDefaultOptions: [],
-  },
-  {
-    optionType: 'aurora',
-    addDefaultOptions: [],
-  },
-  {
-    optionType: 'heroku',
-    addDefaultOptions: [],
-  },
-  {
-    optionType: 'supabase',
-    addDefaultOptions: [],
+    optionType: 'timescale-cloud',
+    pgDumpOptions: [],
+    pgRestoreOptions: [],
   },
 ]

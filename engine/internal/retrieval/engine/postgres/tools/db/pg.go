@@ -27,6 +27,20 @@ const (
 	availableDBsTemplate = `select datname from pg_catalog.pg_database 
 	where not datistemplate and has_database_privilege('%s', datname, 'CONNECT')`
 
+	dbVersionQuery = `select setting::integer/10000 from pg_settings where name = 'server_version_num'`
+
+	tuningParamsQuery = `select 
+  name, setting
+from
+  pg_settings
+where
+  source <> 'default'
+  and (
+    name ~ '(work_mem$|^enable_|_cost$|scan_size$|effective_cache_size|^jit)'
+    or name ~ '(^geqo|default_statistics_target|constraint_exclusion|cursor_tuple_fraction)'
+    or name ~ '(collapse_limit$|parallel|plan_cache_mode)'
+  )`
+
 	// maxNumberVerifiedDBs defines the maximum number of databases to verify availability as a database source.
 	// The DB source instance can contain a large number of databases, so the verification will take a long time.
 	// Therefore, we introduced a limit on the maximum number of databases to check for suitability as a source.
@@ -48,6 +62,11 @@ type locale struct {
 	name    string
 	collate string
 	ctype   string
+}
+
+type tuningParam struct {
+	name    string
+	setting string
 }
 
 // ConnectionString builds PostgreSQL connection string.
@@ -114,10 +133,22 @@ func CheckSource(ctx context.Context, conf *models.ConnectionTest, imageContent 
 		return tcResponse, nil
 	}
 
+	dbVersion, err := getMajorVersion(ctx, conn)
+	if err != nil {
+		return nil, err
+	}
+
+	tuningParameters, err := getTuningParameters(ctx, conn)
+	if err != nil {
+		return nil, err
+	}
+
 	return &models.TestConnection{
-		Status:  models.TCStatusOK,
-		Result:  models.TCResultOK,
-		Message: models.TCMessageOK,
+		Status:       models.TCStatusOK,
+		Result:       models.TCResultOK,
+		Message:      models.TCMessageOK,
+		DBVersion:    dbVersion,
+		TuningParams: tuningParameters,
 	}, nil
 }
 
@@ -351,4 +382,37 @@ func buildLocalesWarningMessage(dbName string, missingLocales []locale) string {
 	}
 
 	return sb.String()
+}
+
+func getMajorVersion(ctx context.Context, conn *pgx.Conn) (int, error) {
+	var majorVersion int
+
+	row := conn.QueryRow(ctx, dbVersionQuery)
+
+	if err := row.Scan(&majorVersion); err != nil {
+		return 0, fmt.Errorf("failed to perform query detecting major version: %w", err)
+	}
+
+	return majorVersion, nil
+}
+
+func getTuningParameters(ctx context.Context, conn *pgx.Conn) (map[string]string, error) {
+	rows, err := conn.Query(ctx, tuningParamsQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to perform query detecting query tuning params: %w", err)
+	}
+
+	var tuningParams = make(map[string]string)
+
+	for rows.Next() {
+		var param tuningParam
+
+		if err := rows.Scan(&param.name, &param.setting); err != nil {
+			return nil, fmt.Errorf("failed to scan query tuning params: %w", err)
+		}
+
+		tuningParams[param.name] = param.setting
+	}
+
+	return tuningParams, nil
 }

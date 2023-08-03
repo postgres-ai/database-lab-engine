@@ -6,7 +6,7 @@
  */
 
 import cn from 'classnames'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { makeStyles } from '@material-ui/core'
 
 import { Button } from '@postgres.ai/shared/components/MenuButton'
@@ -83,19 +83,14 @@ export const Info = () => {
   const isMobileScreen = width <= SMALL_BREAKPOINT_PX
 
   const [isCollapsed, setIsCollapsed] = useState(
-    () => localStorage.getItem(SIDEBAR_COLLAPSED_PARAM) === '1',
+    () =>
+      localStorage.getItem(SIDEBAR_COLLAPSED_PARAM) === '1' && !isMobileScreen,
   )
 
   const handleClick = () => {
     setIsCollapsed(!isCollapsed)
     localStorage.setItem(SIDEBAR_COLLAPSED_PARAM, isCollapsed ? '0' : '1')
   }
-
-  useEffect(() => {
-    if (isMobileScreen) {
-      setIsCollapsed(false)
-    }
-  }, [width])
 
   return (
     <div

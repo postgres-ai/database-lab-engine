@@ -720,6 +720,10 @@ paths:
       responses:
         200:
           description: "Successful operation"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestConnectionResponse"
         400:
           description: Bad request
           content:
@@ -1228,6 +1232,23 @@ components:
         db_list:
           type: "array"
           items:
+            type: "string"
+
+    TestConnectionResponse:
+      type: "object"
+      properties:
+        status:
+          type: "string"
+        result:
+          type: "string"
+        message:
+          type: "string"
+        dbVersion:
+          type: "integer"
+          required: false
+        tuningParams:
+          type: "object"
+          additionalProperties:
             type: "string"
 
     WSToken:

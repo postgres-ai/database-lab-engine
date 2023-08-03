@@ -29,12 +29,13 @@ import { tooltipText } from './tooltipText'
 import { FormValues, useForm } from './useForm'
 import { ResponseMessage } from './ResponseMessage'
 import { ConfigSectionTitle, Header, ModalTitle } from './Header'
+import { dockerImageOptions, imagePgOptions } from './configOptions'
 import {
-  dockerImageOptions,
-  defaultPgDumpOptions,
-  defaultPgRestoreOptions,
-} from './configOptions'
-import { formatDockerImageArray, FormValuesKey, uniqueChipValue } from './utils'
+  FormValuesKey,
+  uniqueChipValue,
+  customOrGenericImage,
+  genericDockerImages,
+} from './utils'
 import {
   SelectWithTooltip,
   InputWithChip,
@@ -42,10 +43,16 @@ import {
 } from './InputWithTooltip'
 
 import styles from './styles.module.scss'
+import { SeImages } from 'types/api/endpoints/getSeImages'
+import {
+  formatTuningParams,
+  formatTuningParamsToObj,
+} from '@postgres.ai/shared/types/api/endpoints/testDbSource'
 
 type PgOptionsType = {
   optionType: string
-  addDefaultOptions: string[]
+  pgDumpOptions: string[]
+  pgRestoreOptions: string[]
 }
 
 const NON_LOGICAL_RETRIEVAL_MESSAGE =
@@ -83,28 +90,69 @@ export const Configuration = observer(
       config,
       isConfigurationLoading,
       updateConfig,
-      getFullConfig,
+      getSeImages,
       fullConfig,
       testDbSource,
       configError,
-      dbSourceError,
+      getFullConfig,
       getFullConfigError,
       getEngine,
     } = stores.main
+
     const configData: MainStore['config'] =
       config && JSON.parse(JSON.stringify(config))
     const isConfigurationDisabled =
       !isConfigurationActive || disableConfigModification
-    const [submitMessage, setSubmitMessage] = useState<
-      string | React.ReactNode | null
-    >('')
+
     const [dleEdition, setDledition] = useState('')
-    const [submitStatus, setSubmitStatus] = useState('')
-    const [connectionStatus, setConnectionStatus] = useState('')
+    const isCeEdition = dleEdition === 'community'
+    const filteredDockerImageOptions = isCeEdition
+      ? dockerImageOptions.filter(
+          (option) =>
+            option.type === 'custom' || option.type === 'Generic Postgres',
+        )
+      : dockerImageOptions
+
     const [isModalOpen, setIsModalOpen] = useState(false)
-    const [isConnectionLoading, setIsConnectionLoading] = useState(false)
-    const [connectionRes, setConnectionRes] = useState<string | null>(null)
-    const [dockerImages, setDockerImages] = useState<string[]>([])
+    const [submitState, setSubmitState] = useState({
+      status: '',
+      response: '' as string | React.ReactNode,
+    })
+    const [dockerState, setDockerState] = useState({
+      loading: false,
+      error: '',
+      tags: [] as string[],
+      locations: [] as string[],
+      images: [] as string[],
+      preloadLibraries: '' as string | undefined,
+      data: [] as SeImages[],
+    })
+    const [testConnectionState, setTestConnectionState] = useState({
+      default: {
+        loading: false,
+        error: '',
+        message: {
+          status: '',
+          message: '',
+        },
+      },
+      dockerImage: {
+        loading: false,
+        error: '',
+        message: {
+          status: '',
+          message: '',
+        },
+      },
+      fetchTuning: {
+        loading: false,
+        error: '',
+        message: {
+          status: '',
+          message: '',
+        },
+      },
+    })
 
     const switchTab = async () => {
       reload()
@@ -112,19 +160,29 @@ export const Configuration = observer(
     }
 
     const onSubmit = async (values: FormValues) => {
-      setSubmitMessage(null)
-      await updateConfig(values).then((response) => {
+      setSubmitState({
+        ...submitState,
+        response: '',
+      })
+      await updateConfig({
+        ...values,
+        tuningParams: formatTuningParamsToObj(
+          values.tuningParams,
+        ) as unknown as string,
+      }).then((response) => {
         if (response?.ok) {
-          setSubmitStatus('success')
-          setSubmitMessage(
-            <p>
-              Changes applied.{' '}
-              <span className={styles.underline} onClick={switchTab}>
-                Switch to Overview
-              </span>{' '}
-              to see details and to work with clones
-            </p>,
-          )
+          setSubmitState({
+            status: 'success',
+            response: (
+              <p>
+                Changes applied.{' '}
+                <span className={styles.underline} onClick={switchTab}>
+                  Switch to Overview
+                </span>{' '}
+                to see details and to work with clones
+              </p>
+            ),
+          })
         }
       })
     }
@@ -144,8 +202,11 @@ export const Configuration = observer(
       }
     }
 
-    const onTestConnectionClick = async () => {
-      setConnectionRes(null)
+    const onTestConnectionClick = async ({
+      type,
+    }: {
+      type: 'default' | 'dockerImage' | 'fetchTuning'
+    }) => {
       Object.keys(connectionData).map(function (key: string) {
         if (key !== 'password' && key !== 'db_list') {
           formik.validateField(key).then(() => {
@@ -154,17 +215,91 @@ export const Configuration = observer(
         }
       })
       if (isConnectionDataValid) {
-        setIsConnectionLoading(true)
+        setTestConnectionState({
+          ...testConnectionState,
+          [type]: {
+            ...testConnectionState[type as keyof typeof testConnectionState],
+            loading: true,
+            error: '',
+            message: {
+              status: '',
+              message: '',
+            },
+          },
+        })
         testDbSource(connectionData)
-          .then((response) => {
-            if (response) {
-              setConnectionStatus(response.status)
-              setConnectionRes(response.message)
-              setIsConnectionLoading(false)
+          .then((res) => {
+            if (res?.response) {
+              setTestConnectionState({
+                ...testConnectionState,
+                [type]: {
+                  ...testConnectionState[
+                    type as keyof typeof testConnectionState
+                  ],
+                  message: {
+                    status: res.response.status,
+                    message: res.response.message,
+                  },
+                },
+              })
+
+              if (type === 'fetchTuning') {
+                formik.setFieldValue(
+                  'tuningParams',
+                  formatTuningParams(res.response.tuningParams),
+                )
+              }
+
+              if (type === 'dockerImage' && res.response?.dbVersion) {
+                const currentDockerImage = dockerState.data.find(
+                  (image) =>
+                    Number(image.pg_major_version) === res.response?.dbVersion,
+                )
+
+                if (currentDockerImage) {
+                  formik.setValues({
+                    ...formik.values,
+                    dockerImage: currentDockerImage.pg_major_version,
+                    dockerPath: currentDockerImage.location,
+                    dockerTag: currentDockerImage.tag,
+                  })
+
+                  setDockerState({
+                    ...dockerState,
+                    tags: dockerState.data
+                      .map((image) => image.tag)
+                      .filter((tag) =>
+                        tag.startsWith(currentDockerImage.pg_major_version),
+                      ),
+                  })
+                }
+              }
+            } else if (res?.error) {
+              setTestConnectionState({
+                ...testConnectionState,
+                [type]: {
+                  ...testConnectionState[
+                    type as keyof typeof testConnectionState
+                  ],
+                  message: {
+                    status: 'error',
+                    message: res.error.message,
+                  },
+                },
+              })
             }
           })
-          .finally(() => {
-            setIsConnectionLoading(false)
+          .catch((err) => {
+            setTestConnectionState({
+              ...testConnectionState,
+              [type]: {
+                ...testConnectionState[
+                  type as keyof typeof testConnectionState
+                ],
+                error: err.message,
+                loading: false,
+              },
+            })
           })
       }
     }
@@ -203,60 +338,193 @@ export const Configuration = observer(
     const handleSelectPgOptions = (
       e: React.ChangeEvent<HTMLInputElement>,
       formikName: string,
-      formikValue: string,
-      initialValue: string | undefined,
-      pgOptions: PgOptionsType[],
     ) => {
-      let pgValue = formikValue
-      // set initial value on change
-      formik.setFieldValue(formikName, initialValue)
-
-      const selectedPgOptions = pgOptions.filter(
+      let pgValue = formik.values[formikName as FormValuesKey]
+      formik.setFieldValue(
+        formikName,
+        configData && configData[formikName as FormValuesKey],
+      )
+      const selectedPgOptions = imagePgOptions.filter(
         (pg) => e.target.value === pg.optionType,
       )
 
-      // add options to formik field
-      selectedPgOptions.forEach((pg) => {
-        pg.addDefaultOptions.forEach((addOption) => {
-          if (!pgValue?.includes(addOption)) {
-            const addOptionWithSpace = addOption + ' '
-            formik.setFieldValue(formikName, (pgValue += addOptionWithSpace))
-          }
+      const setFormikPgValue = (name: string) => {
+        if (selectedPgOptions.length === 0) {
+          formik.setFieldValue(formikName, '')
+        }
+
+        selectedPgOptions.forEach((pg: PgOptionsType) => {
+          return (pg[name as keyof PgOptionsType] as string[]).forEach(
+            (addOption) => {
+              if (!String(pgValue)?.includes(addOption)) {
+                const addOptionWithSpace = addOption + ' '
+                formik.setFieldValue(
+                  formikName,
+                  (pgValue += addOptionWithSpace),
+                )
+              }
+            },
+          )
         })
+      }
+
+      if (formikName === 'pgRestoreCustomOptions') {
+        setFormikPgValue('pgRestoreOptions')
+      } else {
+        setFormikPgValue('pgDumpOptions')
+      }
+    }
+
+    const fetchSeImages = async ({
+      dockerTag,
+      packageGroup,
+      initialRender,
+    }: {
+      dockerTag?: string
+      packageGroup: string
+      initialRender?: boolean
+    }) => {
+      setDockerState({
+        ...dockerState,
+        loading: true,
+      })
+      await getSeImages({
+        packageGroup,
+      }).then((data) => {
+        if (data) {
+          const seImagesMajorVersions = data
+            .map((image) => image.pg_major_version)
+            .filter((value, index, self) => self.indexOf(value) === index)
+            .sort((a, b) => Number(a) - Number(b))
+          const currentDockerImage = initialRender
+            ? formik.values.dockerImage
+            : seImagesMajorVersions.slice(-1)[0]
+
+          const currentPreloadLibraries =
+            data.find((image) => image.tag === dockerTag)?.pg_config_presets
+              ?.shared_preload_libraries ||
+            data[0]?.pg_config_presets?.shared_preload_libraries
+
+          setDockerState({
+            ...(initialRender
+              ? { images: seImagesMajorVersions }
+              : {
+                  ...dockerState,
+                }),
+            error: '',
+            tags: data
+              .map((image) => image.tag)
+              .filter((tag) => tag.startsWith(currentDockerImage)),
+            locations: data
+              .map((image) => image.location)
+              .filter((location) => location?.includes(currentDockerImage)),
+            loading: false,
+            preloadLibraries: currentPreloadLibraries,
+            images: seImagesMajorVersions,
+            data,
+          })
+
+          formik.setValues({
+            ...formik.values,
+            dockerImage: currentDockerImage,
+            dockerImageType: packageGroup,
+            dockerTag: dockerTag
+              ? dockerTag
+              : data.map((image) => image.tag)[0],
+            dockerPath: initialRender
+              ? formik.values.dockerPath
+              : data.map((image) => image.location)[0],
+            sharedPreloadLibraries: currentPreloadLibraries || '',
+          })
+        } else {
+          setDockerState({
+            ...dockerState,
+            loading: false,
+          })
+        }
       })
     }
 
     const handleDockerImageSelect = (
       e: React.ChangeEvent<HTMLInputElement>,
     ) => {
-      const newDockerImages = formatDockerImageArray(e.target.value)
-      setDockerImages(newDockerImages)
-      handleSelectPgOptions(
-        e,
-        'pgDumpCustomOptions',
-        formik.values.pgDumpCustomOptions,
-        configData?.pgDumpCustomOptions,
-        defaultPgDumpOptions,
-      )
-      handleSelectPgOptions(
-        e,
-        'pgRestoreCustomOptions',
-        formik.values.pgRestoreCustomOptions,
-        configData?.pgRestoreCustomOptions,
-        defaultPgRestoreOptions,
-      )
-      formik.setFieldValue('dockerImageType', e.target.value)
+      if (e.target.value === 'Generic Postgres') {
+        const currentDockerImage =
+          genericDockerImages[genericDockerImages.length - 1]
+        setDockerState({
+          ...dockerState,
+          images: genericDockerImages.map((image) => image.pg_major_version),
+          tags: genericDockerImages
+            .filter((image) =>
+              image.tag.startsWith(currentDockerImage.pg_major_version),
+            )
+            .map((image) => image.tag),
+          data: genericDockerImages,
+        })
 
-      // select latest Postgres version on dockerImage change
-      if (
-        configData?.dockerImageType !== e.target.value &&
-        e.target.value !== 'custom'
-      ) {
-        formik.setFieldValue('dockerImage', newDockerImages.slice(-1)[0])
+        formik.setValues({
+          ...formik.values,
+          dockerImage: currentDockerImage.pg_major_version,
+          dockerPath: currentDockerImage.location,
+          dockerImageType: e.target.value,
+          dockerTag: genericDockerImages.filter((image) =>
+            image.tag.startsWith(currentDockerImage.pg_major_version),
+          )[0].tag,
+          sharedPreloadLibraries:
+            'pg_stat_statements,pg_stat_kcache,pg_cron,pgaudit,anon',
+        })
       } else if (e.target.value === 'custom') {
-        formik.setFieldValue('dockerImage', '')
+        formik.setValues({
+          ...formik.values,
+          dockerImage: '',
+          dockerPath: '',
+          dockerTag: '',
+          sharedPreloadLibraries: '',
+          dockerImageType: e.target.value,
+        })
       } else {
-        formik.setFieldValue('dockerImage', configData?.dockerImage)
+        formik.setValues({
+          ...formik.values,
+          dockerImageType: e.target.value,
+        })
+        fetchSeImages({
+          packageGroup: e.target.value,
+        })
+      }
+
+      handleSelectPgOptions(e, 'pgDumpCustomOptions')
+      handleSelectPgOptions(e, 'pgRestoreCustomOptions')
+    }
+
+    const handleDockerVersionSelect = (
+      e: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+      if (formik.values.dockerImageType !== 'custom') {
+        const updatedDockerTags = dockerState.data
+          .map((image) => image.tag)
+          .filter((tag) => tag.startsWith(e.target.value))
+
+        setDockerState({
+          ...dockerState,
+          tags: updatedDockerTags,
+        })
+
+        const currentLocation = dockerState.data.find(
+          (image) => image.tag === updatedDockerTags[0],
+        )?.location as string
+
+        formik.setValues({
+          ...formik.values,
+          dockerTag: updatedDockerTags[0],
+          dockerImage: e.target.value,
+          dockerPath: currentLocation,
+        })
+      } else {
+        formik.setValues({
+          ...formik.values,
+          dockerImage: e.target.value,
+          dockerPath: e.target.value,
+        })
       }
     }
 
@@ -267,29 +535,72 @@ export const Configuration = observer(
           if (key !== 'password') {
             formik.setFieldValue(key, value)
           }
-          setDockerImages(
-            formatDockerImageArray(configData?.dockerImageType || ''),
-          )
+
+          if (key === 'tuningParams') {
+            formik.setFieldValue(key, value)
+          }
+
+          if (customOrGenericImage(configData?.dockerImageType)) {
+            const dockerObject = genericDockerImages.filter(
+              (image) => image.location === configData.dockerPath,
+            )[0]
+
+            setDockerState({
+              ...dockerState,
+              images: genericDockerImages.map(
+                (image) => image.pg_major_version,
+              ),
+              tags: genericDockerImages
+                .filter((image) =>
+                  image.tag.startsWith(dockerObject?.pg_major_version),
+                )
+                .map((image) => image.tag),
+              data: genericDockerImages,
+            })
+
+            formik.setFieldValue('dockerTag', dockerObject?.tag)
+            formik.setFieldValue('dockerImage', dockerObject?.pg_major_version)
+          }
         }
       }
     }, [config])
 
     useEffect(() => {
-      // Clear response message on tab change and set dockerImageType
-      setConnectionRes(null)
-      setSubmitMessage(null)
       getEngine().then((res) => {
         setDledition(String(res?.edition))
       })
     }, [])
 
+    useEffect(() => {
+      if (formik.dirty && !customOrGenericImage(configData?.dockerImageType)) {
+        fetchSeImages({
+          packageGroup: formik.values.dockerImageType,
+          dockerTag: formik.values.dockerTag,
+          initialRender: true,
+        })
+      }
+    }, [formik.dirty])
+
     return (
       <div className={styles.root}>
         <Snackbar
+          onClick={() => {
+            Boolean(dockerState.error)
+              ? setDockerState({
+                  ...dockerState,
+                  error: '',
+                })
+              : undefined
+          }}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          open={isConfigurationDisabled && !isModalOpen}
+          open={
+            (isConfigurationDisabled || Boolean(dockerState.error)) &&
+            !isModalOpen
+          }
           message={
-            disableConfigModification
+            Boolean(dockerState.error)
+              ? dockerState.error
+              : disableConfigModification
               ? PREVENT_MODIFYING_MESSAGE
               : NON_LOGICAL_RETRIEVAL_MESSAGE
           }
@@ -321,117 +632,7 @@ export const Configuration = observer(
                   label={'Debug mode'}
                 />
               </Box>
-              <Box mb={2} mt={1}>
-                <ConfigSectionTitle tag="databaseContainer" />
-                <span
-                  className={classes.grayText}
-                  style={{ margin: '0.5rem 0 1rem 0', display: 'block' }}
-                >
-                  DLE manages various database containers, such as clones. This
-                  section defines default container settings.
-                </span>
-                {dleEdition !== 'community' ? (
-                  <div>
-                    <SelectWithTooltip
-                      label="dockerImage - choose from the list *"
-                      value={formik.values.dockerImageType}
-                      error={Boolean(formik.errors.dockerImageType)}
-                      tooltipText={tooltipText.dockerImageType}
-                      disabled={isConfigurationDisabled}
-                      items={dockerImageOptions.map((image) => {
-                        return {
-                          value: image.type,
-                          children: image.name,
-                        }
-                      })}
-                      onChange={handleDockerImageSelect}
-                    />
-                    {formik.values.dockerImageType === 'custom' ? (
-                      <InputWithTooltip
-                        label="dockerImage *"
-                        value={formik.values.dockerImage}
-                        error={formik.errors.dockerImage}
-                        tooltipText={tooltipText.dockerImage}
-                        disabled={isConfigurationDisabled}
-                        onChange={(e) =>
-                          formik.setFieldValue('dockerImage', e.target.value)
-                        }
-                      />
-                    ) : (
-                      <SelectWithTooltip
-                        label="dockerImage - Postgres major version *"
-                        value={formik.values.dockerImage}
-                        error={Boolean(formik.errors.dockerImage)}
-                        tooltipText={tooltipText.dockerImage}
-                        disabled={isConfigurationDisabled}
-                        items={dockerImages.map((image) => {
-                          return {
-                            value: image,
-                            children: image.split(':')[1],
-                          }
-                        })}
-                        onChange={(e) =>
-                          formik.setFieldValue('dockerImage', e.target.value)
-                        }
-                      />
-                    )}
-                    <Typography paragraph>
-                      Haven't found the image you need? Contact support:{' '}
-                      <a
-                        href={'https://postgres.ai/contact'}
-                        target="_blank"
-                        className={styles.externalLink}
-                      >
-                        https://postgres.ai/contact
-                        <ExternalIcon className={styles.externalIcon} />
-                      </a>
-                    </Typography>
-                  </div>
-                ) : (
-                  <InputWithTooltip
-                    label="dockerImage"
-                    value={formik.values.dockerImage}
-                    error={formik.errors.dockerImage}
-                    tooltipText={tooltipText.dockerImage}
-                    disabled={isConfigurationDisabled}
-                    onChange={(e) =>
-                      formik.setFieldValue('dockerImage', e.target.value)
-                    }
-                  />
-                )}
-              </Box>
-              <Box mb={3}>
-                <ConfigSectionTitle tag="databaseConfigs" />
-                <span
-                  className={classes.grayText}
-                  style={{ marginTop: '0.5rem', display: 'block' }}
-                >
-                  Default Postgres configuration used for all Postgres instances
-                  running in containers managed by DLE.
-                </span>
-                <InputWithTooltip
-                  label="configs.shared_buffers"
-                  value={formik.values.sharedBuffers}
-                  tooltipText={tooltipText.sharedBuffers}
-                  disabled={isConfigurationDisabled}
-                  onChange={(e) =>
-                    formik.setFieldValue('sharedBuffers', e.target.value)
-                  }
-                />
-                <InputWithTooltip
-                  label="configs.shared_preload_libraries"
-                  value={formik.values.sharedPreloadLibraries}
-                  tooltipText={tooltipText.sharedPreloadLibraries}
-                  disabled={isConfigurationDisabled}
-                  onChange={(e) =>
-                    formik.setFieldValue(
-                      'sharedPreloadLibraries',
-                      e.target.value,
-                    )
-                  }
-                />
-              </Box>
-              <Box mb={1}>
+              <Box mb={1} mt={1}>
                 <ConfigSectionTitle tag="retrieval" />
                 <Box mt={1}>
                   <Typography className={styles.subsection}>
@@ -472,6 +673,7 @@ export const Configuration = observer(
                   />
                   <InputWithTooltip
                     type="password"
+                    value={formik.values.password}
                     label="source.connection.password"
                     tooltipText={tooltipText.password}
                     disabled={isConfigurationDisabled}
@@ -502,20 +704,37 @@ export const Configuration = observer(
                   />
                   <Box mt={3} mb={3}>
                     <Button
-                      variant="contained"
+                      variant="outlined"
                       color="secondary"
-                      onClick={onTestConnectionClick}
-                      disabled={isConnectionLoading || isConfigurationDisabled}
+                      onClick={() => {
+                        onTestConnectionClick({
+                          type: 'default',
+                        })
+                      }}
+                      disabled={
+                        testConnectionState.default.loading ||
+                        isConfigurationDisabled
+                      }
                     >
                       Test connection
-                      {isConnectionLoading && (
+                      {testConnectionState.default.loading && (
                         <Spinner size="sm" className={styles.spinner} />
                       )}
                     </Button>
-                    {(connectionStatus && connectionRes) || dbSourceError ? (
+                    {testConnectionState.default.message.status ||
+                    testConnectionState.default.error ? (
                       <ResponseMessage
-                        type={dbSourceError ? 'error' : connectionStatus}
-                        message={dbSourceError || connectionRes}
+                        type={
+                          testConnectionState.default.error
+                            ? 'error'
+                            : testConnectionState.default.message.status
+                            ? testConnectionState.default.message.status
+                            : ''
+                        }
+                        message={
+                          testConnectionState.default.error ||
+                          testConnectionState.default.message.message
+                        }
                       />
                     ) : null}
                   </Box>
@@ -528,7 +747,7 @@ export const Configuration = observer(
                       formik.setFieldValue('dumpParallelJobs', e.target.value)
                     }
                   />
-                  {dleEdition !== 'community' && (
+                  {!isCeEdition && (
                     <InputWithChip
                       value={formik.values.pgDumpCustomOptions}
                       label="pg_dump customOptions"
@@ -566,6 +785,245 @@ export const Configuration = observer(
                   />
                 </Box>
               </Box>
+              <Box mb={2} mt={1}>
+                <ConfigSectionTitle tag="databaseContainer" />
+                <span
+                  className={classes.grayText}
+                  style={{ margin: '0.5rem 0 1rem 0', display: 'block' }}
+                >
+                  DLE manages various database containers, such as clones. This
+                  section defines default container settings.
+                </span>
+                {!isCeEdition ? (
+                  <div>
+                    <SelectWithTooltip
+                      label="dockerImage - choose from the list *"
+                      value={formik.values.dockerImageType}
+                      error={Boolean(formik.errors.dockerImageType)}
+                      tooltipText={tooltipText.dockerImageType}
+                      disabled={isConfigurationDisabled || dockerState.loading}
+                      items={filteredDockerImageOptions.map((image) => {
+                        return {
+                          value: image.type,
+                          children: image.name,
+                        }
+                      })}
+                      onChange={handleDockerImageSelect}
+                    />
+                    {formik.values.dockerImageType === 'custom' ? (
+                      <InputWithTooltip
+                        label="dockerImage *"
+                        value={formik.values.dockerImage}
+                        error={formik.errors.dockerImage}
+                        tooltipText={tooltipText.dockerImage}
+                        disabled={isConfigurationDisabled}
+                        onChange={(e) => {
+                          formik.setValues({
+                            ...formik.values,
+                            dockerImage: e.target.value,
+                            dockerPath: e.target.value,
+                          })
+                        }}
+                      />
+                    ) : (
+                      <>
+                        <SelectWithTooltip
+                          label="dockerImage - Postgres major version *"
+                          value={formik.values.dockerImage}
+                          error={Boolean(formik.errors.dockerImage)}
+                          tooltipText={tooltipText.dockerImage}
+                          disabled={
+                            isConfigurationDisabled ||
+                            dockerState.loading ||
+                            !dockerState.images.length
+                          }
+                          loading={dockerState.loading}
+                          items={dockerState.images
+                            .slice()
+                            .reverse()
+                            .map((image) => {
+                              return {
+                                value: image,
+                                children: image,
+                              }
+                            })}
+                          onChange={handleDockerVersionSelect}
+                        />
+                        <Box mt={0.5} mb={2}>
+                          <Button
+                            variant="outlined"
+                            color="secondary"
+                            onClick={() => {
+                              onTestConnectionClick({
+                                type: 'dockerImage',
+                              })
+                            }}
+                            disabled={
+                              testConnectionState.dockerImage.loading ||
+                              isConfigurationDisabled
+                            }
+                          >
+                            Get version from source
+                            {testConnectionState.dockerImage.loading && (
+                              <Spinner size="sm" className={styles.spinner} />
+                            )}
+                          </Button>
+                          {testConnectionState.dockerImage.message.status ===
+                            'error' || testConnectionState.dockerImage.error ? (
+                            <ResponseMessage
+                              type={
+                                testConnectionState.dockerImage.error ||
+                                testConnectionState.dockerImage.message
+                                  ? 'error'
+                                  : ''
+                              }
+                              message={
+                                testConnectionState.dockerImage.error ||
+                                testConnectionState.dockerImage.message.message
+                              }
+                            />
+                          ) : null}
+                        </Box>
+                        <SelectWithTooltip
+                          label="dockerImage - tag *"
+                          value={formik.values.dockerTag}
+                          error={Boolean(formik.errors.dockerTag)}
+                          tooltipText={tooltipText.dockerTag}
+                          disabled={
+                            isConfigurationDisabled ||
+                            dockerState.loading ||
+                            !dockerState.tags.length
+                          }
+                          loading={dockerState.loading}
+                          onChange={(e) => {
+                            const currentLocation = dockerState.data.find(
+                              (image) => image.tag === e.target.value,
+                            )?.location as string
+
+                            formik.setValues({
+                              ...formik.values,
+                              dockerTag: e.target.value,
+                              dockerPath: currentLocation,
+                            })
+                          }}
+                          items={dockerState.tags.map((image) => {
+                            return {
+                              value: image,
+                              children: image,
+                            }
+                          })}
+                        />
+                      </>
+                    )}
+                    <Typography paragraph>
+                      Haven't found the image you need? Contact support:{' '}
+                      <a
+                        href={'https://postgres.ai/contact'}
+                        target="_blank"
+                        className={styles.externalLink}
+                      >
+                        https://postgres.ai/contact
+                        <ExternalIcon className={styles.externalIcon} />
+                      </a>
+                    </Typography>
+                  </div>
+                ) : (
+                  <InputWithTooltip
+                    label="dockerImage"
+                    value={formik.values.dockerImage}
+                    error={formik.errors.dockerImage}
+                    tooltipText={tooltipText.dockerImage}
+                    disabled={isConfigurationDisabled}
+                    onChange={(e) =>
+                      formik.setFieldValue('dockerImage', e.target.value)
+                    }
+                  />
+                )}
+              </Box>
+              <Box mb={3}>
+                <ConfigSectionTitle tag="databaseConfigs" />
+                <span
+                  className={classes.grayText}
+                  style={{ marginTop: '0.5rem', display: 'block' }}
+                >
+                  Default Postgres configuration used for all Postgres instances
+                  running in containers managed by DLE.
+                </span>
+                <InputWithTooltip
+                  type="textarea"
+                  label="shared_buffers parameter"
+                  value={formik.values.sharedBuffers}
+                  tooltipText={tooltipText.sharedBuffers}
+                  disabled={isConfigurationDisabled}
+                  onChange={(e) =>
+                    formik.setFieldValue('sharedBuffers', e.target.value)
+                  }
+                />
+                <InputWithTooltip
+                  type="textarea"
+                  label="shared_preload_libraries"
+                  value={formik.values.sharedPreloadLibraries}
+                  tooltipText={tooltipText.sharedPreloadLibraries}
+                  disabled={isConfigurationDisabled}
+                  onChange={(e) =>
+                    formik.setFieldValue(
+                      'sharedPreloadLibraries',
+                      e.target.value,
+                    )
+                  }
+                />
+                <InputWithTooltip
+                  type="textarea"
+                  label="Query tuning parameters"
+                  value={
+                    typeof formik.values.tuningParams === 'object'
+                      ? Object.entries(
+                          formik.values.tuningParams as Record<string, string>,
+                        )
+                          .map(([key, value]) => `${key}=${value}`)
+                          .join('\n')
+                      : formik.values.tuningParams
+                  }
+                  tooltipText={tooltipText.tuningParams}
+                  disabled={isConfigurationDisabled}
+                  onChange={(e) =>
+                    formik.setFieldValue('tuningParams', e.target.value)
+                  }
+                />
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => {
+                    onTestConnectionClick({
+                      type: 'fetchTuning',
+                    })
+                  }}
+                  disabled={
+                    testConnectionState.fetchTuning.loading ||
+                    isConfigurationDisabled
+                  }
+                >
+                  Get from source database
+                  {testConnectionState.fetchTuning.loading && (
+                    <Spinner size="sm" className={styles.spinner} />
+                  )}
+                </Button>
+                {testConnectionState.fetchTuning.message.status === 'error' ||
+                testConnectionState.fetchTuning.error ? (
+                  <ResponseMessage
+                    type={
+                      testConnectionState.fetchTuning.error ||
+                      testConnectionState.fetchTuning.message
+                        ? 'error'
+                        : ''
+                    }
+                    message={
+                      testConnectionState.fetchTuning.error ||
+                      testConnectionState.fetchTuning.message.message
+                    }
+                  />
+                ) : null}
+              </Box>
               <Box>
                 <Box>
                   <Typography className={styles.subsection}>
@@ -582,7 +1040,7 @@ export const Configuration = observer(
                     formik.setFieldValue('restoreParallelJobs', e.target.value)
                   }
                 />
-                {dleEdition !== 'community' && (
+                {!isCeEdition && (
                   <InputWithChip
                     value={formik.values.pgRestoreCustomOptions}
                     label="pg_restore customOptions"
@@ -681,10 +1139,10 @@ export const Configuration = observer(
                 </Button>
               </Box>
             </Box>
-            {(submitStatus && submitMessage) || configError ? (
+            {(submitState.status && submitState.response) || configError ? (
               <ResponseMessage
-                type={configError ? 'error' : submitStatus}
-                message={configError || submitMessage}
+                type={configError ? 'error' : submitState.status}
+                message={configError || submitState.response}
               />
             ) : null}
           </Box>
@@ -699,7 +1157,19 @@ export const Configuration = observer(
             height="70vh"
             width="100%"
             defaultLanguage="yaml"
-            value={getFullConfigError ? getFullConfigError : fullConfig}
+            value={
+              getFullConfigError
+                ? getFullConfigError
+                : fullConfig
+                    ?.replace(
+                      /postgresai\/extended-postgres:\d{1,2}/g,
+                      (match) => `${match}-0.2.1`,
+                    )
+                    .replace(
+                      /registry.gitlab.com\/postgres-ai\/se-images\/rds:\d{1,2}/g,
+                      (match) => `${match}-0.3.0`,
+                    )
+            }
             loading={<StubSpinner />}
             theme="vs-light"
             options={{ domReadOnly: true, readOnly: true }}

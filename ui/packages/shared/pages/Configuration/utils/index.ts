@@ -4,8 +4,7 @@ import { dockerImageOptions } from '../configOptions'
 import { FormValues } from '../useForm'
 
 const seContainerRegistry = 'se-images'
-// used for creating an array for postgresImages, should be incremented if a new version comes out
-const versionArrayLength = 7
+const genericImagePrefix = 'postgresai/extended-postgres'
 
 export type FormValuesKey = keyof FormValues
 
@@ -40,24 +39,57 @@ export const postUniqueDatabases = (values: string) => {
   return values.length !== 0 ? nonEmptyDatabase : null
 }
 
-export const formatDockerImageArray = (type: string) => {
-  let images: string[] = []
-  const versions = Array.from({ length: versionArrayLength }, (_, i) =>
-    i === 0 ? i + 9.6 : Math.floor(i + 9.6),
-  )
+export const genericDockerImages = [
+  {
+    package_group: 'postgresai',
+    pg_major_version: '9.6',
+    tag: '9.6-0.3.0',
+    location: `${genericImagePrefix}:9.6-0.3.0`,
+  },
+  {
+    package_group: 'postgresai',
+    pg_major_version: '10',
+    tag: '10-0.3.0',
+    location: `${genericImagePrefix}:10-0.3.0`,
+  },
+  {
+    package_group: 'postgresai',
+    pg_major_version: '11',
+    tag: '11-0.3.0',
+    location: `${genericImagePrefix}:11-0.3.0`,
+  },
+  {
+    package_group: 'postgresai',
+    pg_major_version: '12',
+    tag: '12-0.3.0',
+    location: `${genericImagePrefix}:12-0.3.0`,
+  },
+  {
+    package_group: 'postgresai',
+    pg_major_version: '13',
+    tag: '13-0.3.0',
+    location: `${genericImagePrefix}:13-0.3.0`,
+  },
+  {
+    package_group: 'postgresai',
+    pg_major_version: '14',
+    tag: '14-0.3.0',
+    location: `${genericImagePrefix}:14-0.3.0`,
+  },
+  {
+    package_group: 'postgresai',
+    pg_major_version: '15',
+    tag: '15-0.3.0',
+    location: `${genericImagePrefix}:15-0.3.0`,
+  },
+]
 
-  if (type === 'Generic Postgres') {
-    images = versions.map(
-      (version) => `postgresai/extended-postgres:${version}`,
-    )
-  } else {
-    images = versions.map(
-      (version) =>
-        `registry.gitlab.com/postgres-ai/${seContainerRegistry}/${type}:${version}`,
-    )
-  }
+export const isSeDockerImage = (dockerImage: string | undefined) => {
+  const dockerImageType =
+    dockerImage?.includes(seContainerRegistry) &&
+    dockerImage.split(`${seContainerRegistry}/`)[1]?.split(':')[0]
 
-  return images
+  return dockerImageOptions.some((element) => element.type === dockerImageType)
 }
 
 export const getImageType = (imageUrl: string) => {
@@ -65,22 +97,21 @@ export const getImageType = (imageUrl: string) => {
     imageUrl.includes(seContainerRegistry) &&
     imageUrl.split(`${seContainerRegistry}/`)[1]?.split(':')[0]
 
-  const formattedDockerImageArray = formatDockerImageArray(
-    postgresCustomImageType || '',
-  )
-
-  const satisfiesDockerTypeAndImage =
-    dockerImageOptions.some(
-      (element) => element.type === postgresCustomImageType,
-    ) && formattedDockerImageArray.some((image) => image === imageUrl)
-
-  if (imageUrl.includes('postgresai/extended-postgres')) {
+  if (imageUrl.includes(genericImagePrefix)) {
     return 'Generic Postgres'
-  } else if (postgresCustomImageType && satisfiesDockerTypeAndImage) {
+  } else if (postgresCustomImageType && isSeDockerImage(imageUrl)) {
     return postgresCustomImageType
   } else {
     return 'custom'
   }
+}
+
+export const getImageMajorVersion = (pgImage: string | undefined) => {
+  const pgImageVersion = pgImage?.split(':')[1]
+  const pgServerVersion = pgImageVersion?.split('-')[0]
+  return pgServerVersion?.includes('.')
+    ? pgServerVersion?.split('.')[0]
+    : pgServerVersion
 }
 
 export const formatDatabases = (databases: DatabaseType | null) => {
@@ -114,3 +145,6 @@ export const postUniqueCustomOptions = (options: string) => {
   )
   return uniqueOptions
 }
+
+export const customOrGenericImage = (dockerImage: string | undefined) =>
+  dockerImage === 'Generic Postgres' || dockerImage === 'custom'
