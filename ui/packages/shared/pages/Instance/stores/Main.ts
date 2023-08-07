@@ -93,6 +93,7 @@ export class MainStore {
     this.loadInstanceRetrieval(instanceId).then(() => {
       if (this.instanceRetrieval) {
         this.getConfig()
+        this.getFullConfig()
       }
     })
     this.snapshots.load(instanceId)
