@@ -5,21 +5,30 @@ import { initialState } from '../reducer'
 const API_SERVER = process.env.REACT_APP_API_SERVER
 export const DEBUG_API_SERVER = 'https://v2.postgres.ai/api/general'
 
-export const availableTags = ['3.4.0-rc.7', '4.0.0-alpha.6']
+export const availableTags = ['3.4.0-rc.8', '4.0.0-alpha.6']
 
-export const sePackageTag = 'v1.0-rc.5'
+export const sePackageTag = 'v1.0-rc.6'
 
 export const dockerRunCommand = (provider: string) => {
   /* eslint-disable no-template-curly-in-string */
   switch (provider) {
     case 'aws':
-      return 'docker run --rm -it --env AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} --env AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}'
+      return `docker run --rm -it \\\r
+  --env AWS_ACCESS_KEY_ID=\${AWS_ACCESS_KEY_ID} \\\r
+  --env AWS_SECRET_ACCESS_KEY=\${AWS_SECRET_ACCESS_KEY}`
+
     case 'gcp':
-      return 'docker run --rm -it --env GCP_SERVICE_ACCOUNT_CONTENTS=${GCP_SERVICE_ACCOUNT_CONTENTS}'
+      return `docker run --rm -it \\\r
+  --env GCP_SERVICE_ACCOUNT_CONTENTS=\${GCP_SERVICE_ACCOUNT_CONTENTS}`
+
     case 'hetzner':
-      return 'docker run --rm -it --env HCLOUD_API_TOKEN=${HCLOUD_API_TOKEN}'
+      return `docker run --rm -it \\\r
+  --env HCLOUD_API_TOKEN=\${HCLOUD_API_TOKEN}`
+
     case 'digitalocean':
-      return 'docker run --rm -it --env DO_API_TOKEN=${DO_API_TOKEN}'
+      return `docker run --rm -it \\\r
+  --env DO_API_TOKEN=\${DO_API_TOKEN}`
+
     default:
       throw new Error('Provider is not supported')
   }
@@ -33,27 +42,19 @@ export const getPlaybookCommand = (
   `${dockerRunCommand(state.provider)} \\\r
   postgresai/dle-se-ansible:${sePackageTag} \\\r
     ansible-playbook deploy_dle.yml --extra-vars \\\r
-    "provision='${state.provider}' \\\r
-    server_name='${state.name}' \\\r
-    server_type='${state.instanceType.native_name}' \\\r
-    server_image='${cloudImages?.native_os_image}' \\\r
-    server_location='${state.location.native_code}' \\\r
-    volume_size='${state.storage}' \\\r
-    dle_verification_token='${state.verificationToken}' \\\r
-    dle_version='${state.tag}' \\\r
-    ${
-      state.snapshots > 1
-        ? `zpool_datasets_number='${state.snapshots}' \\\r`
-        : ``
-    }
-    ${orgKey ? `dle_platform_org_key='${orgKey}' \\\r` : ``}
-    ${
-      API_SERVER === DEBUG_API_SERVER
-        ? `dle_platform_url='${DEBUG_API_SERVER}' \\\r`
-        : ``
-    }
-    ${state.publicKeys ? `ssh_public_keys='${state.publicKeys}' \\\r` : ``}
-    dle_platform_project_name='${state.name}'"`
+      "provision='${state.provider}' \\\r
+      server_name='${state.name}' \\\r
+      server_type='${state.instanceType.native_name}' \\\r
+      server_image='${cloudImages?.native_os_image}' \\\r
+      server_location='${state.location.native_code}' \\\r
+      volume_size='${state.storage}' \\\r
+      dle_verification_token='${state.verificationToken}' \\\r
+      dle_version='${state.tag}' \\\r
+      ${ state.snapshots > 1 ? `zpool_datasets_number='${state.snapshots}' \\\r` : `` }
+      ${ orgKey ? `dle_platform_org_key='${orgKey}' \\\r` : `` }
+      ${ API_SERVER === DEBUG_API_SERVER ? `dle_platform_url='${DEBUG_API_SERVER}' \\\r` : `` }
+      ${state.publicKeys ? `ssh_public_keys='${state.publicKeys}' \\\r` : ``}
+      dle_platform_project_name='${state.name}'"`
 
 export const getPlaybookCommandWithoutDocker = (
   state: typeof initialState,
@@ -194,7 +195,7 @@ export const getNetworkSubnet = (provider: string, classNames: ClassesType) => {
             <>
               Public network is always attached; this is needed to access the
               server the installation process. The variable 'server_network' is
-              used to define an additional network will be attached.
+              used to define an additional network will be attached
             </>
           }
           code="server_network='network-xx'"
