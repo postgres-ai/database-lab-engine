@@ -694,7 +694,7 @@ export const Configuration = observer(
                   <InputWithChip
                     id="databases"
                     value={formik.values.databases}
-                    label="Databases"
+                    label="Databases to copy"
                     tooltipText={tooltipText.databases}
                     handleDeleteChip={handleDeleteChip}
                     disabled={isConfigurationDisabled}
