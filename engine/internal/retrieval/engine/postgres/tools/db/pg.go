@@ -122,55 +122,75 @@ func CheckSource(ctx context.Context, conf *models.ConnectionTest, imageContent 
 
 	dbSource.TuningParams = tuningParameters
 
+	dbCheck, err := checkDatabases(ctx, conn, conf, imageContent)
+	if err != nil {
+		dbSource.Status = models.TCStatusError
+		dbSource.Result = models.TCResultQueryError
+		dbSource.Message = err.Error()
+
+		return dbSource, err
+	}
+
+	dbSource.TestConnection = dbCheck
+
+	return dbSource, nil
+}
+
+func checkDatabases(ctx context.Context, conn *pgx.Conn, conf *models.ConnectionTest,
+	imageContent *ImageContent) (*models.TestConnection, error) {
+	var tcResponse = &models.TestConnection{
+		Status:  models.TCStatusOK,
+		Result:  models.TCResultOK,
+		Message: models.TCMessageOK,
+	}
+
 	dbList := conf.DBList
 
 	if len(dbList) == 0 {
 		dbSourceList, err := getDBList(ctx, conn, conf.Username)
 		if err != nil {
-			dbSource.Status = models.TCStatusError
-			dbSource.Result = models.TCResultQueryError
-			dbSource.Message = err.Error()
-
-			return dbSource, err
+			return nil, err
 		}
 
 		dbList = dbSourceList
 	}
 
+	dbReport := make(map[string]*checkContentResp, 0)
+
 	if len(dbList) > maxNumberVerifiedDBs {
 		dbList = dbList[:maxNumberVerifiedDBs]
-		tcResponse = &models.TestConnection{
-			Status: models.TCStatusNotice,
-			Result: models.TCResultUnverifiedDB,
-			Message: "Too many databases were requested to be checked. Only the following databases have been verified: " +
-				strings.Join(dbList, ", "),
+		dbReport[""] = &checkContentResp{
+			status: models.TCStatusNotice,
+			result: models.TCResultUnverifiedDB,
+			message: "Too many databases. Only checked these databases: " +
+				strings.Join(dbList, ", ") + ". ",
 		}
-		dbSource.TestConnection = tcResponse
 	}
 
 	for _, dbName := range dbList {
 		dbConn, listTC := checkConnection(ctx, conf, dbName)
 		if listTC != nil {
-			dbSource.TestConnection = listTC
-			return dbSource, nil
+			dbReport[dbName] = &checkContentResp{
+				status:  listTC.Status,
+				result:  listTC.Result,
+				message: listTC.Message,
+			}
+
+			continue
 		}
 
-		listTC, err := checkContent(ctx, dbConn, dbName, imageContent)
-		if err != nil {
-			dbSource.Status = models.TCStatusError
-			dbSource.Result = models.TCResultQueryError
-			dbSource.Message = err.Error()
+		contentChecks := checkDBContent(ctx, dbConn, imageContent)
 
-			return dbSource, err
-		}
-
-		if listTC != nil {
-			dbSource.TestConnection = listTC
-			return dbSource, nil
+		if contentChecks != nil {
+			dbReport[dbName] = contentChecks
 		}
 	}
 
-	return dbSource, nil
+	if len(dbReport) > 0 {
+		tcResponse = aggregate(tcResponse, dbReport)
+	}
+
+	return tcResponse, nil
 }
 
 func getDBList(ctx context.Context, conn *pgx.Conn, dbUsername string) ([]string, error) {
@@ -191,6 +211,91 @@ func getDBList(ctx context.Context, conn *pgx.Conn, dbUsername string) ([]string
 	}
 
 	return dbList, nil
+}
+
+type aggregateState struct {
+	general        string
+	errors         map[string]string
+	missingExt     map[string][]extension
+	unsupportedExt map[string][]extension
+	missingLocales map[string][]locale
+	unexploredDBs  []string
+}
+
+func newAggregateState() aggregateState {
+	return aggregateState{
+		general:        "",
+		errors:         make(map[string]string, 0),
+		missingExt:     make(map[string][]extension, 0),
+		unsupportedExt: make(map[string][]extension, 0),
+		missingLocales: make(map[string][]locale, 0),
+		unexploredDBs:  make([]string, 0),
+	}
+}
+
+func aggregate(tcResponse *models.TestConnection, collection map[string]*checkContentResp) *models.TestConnection {
+	agg := newAggregateState()
+	sb := strings.Builder{}
+
+	for dbName, contentResponse := range collection {
+		if contentResponse.status > tcResponse.Status {
+			tcResponse.Status = contentResponse.status
+			tcResponse.Result = contentResponse.result
+		}
+
+		switch contentResponse.result {
+		case models.TCResultUnverifiedDB:
+			agg.general += contentResponse.message
+
+		case models.TCResultQueryError, models.TCResultConnectionError:
+			agg.errors[dbName] = contentResponse.message
+
+		case models.TCResultMissingExtension:
+			if len(contentResponse.missingExt) > 0 {
+				agg.missingExt[dbName] = append(agg.missingExt[dbName], contentResponse.missingExt...)
+			}
+
+			if len(contentResponse.unsupportedExt) > 0 {
+				agg.unsupportedExt[dbName] = append(agg.unsupportedExt[dbName], contentResponse.unsupportedExt...)
+			}
+
+		case models.TCResultMissingLocale:
+			agg.missingLocales[dbName] = append(agg.missingLocales[dbName], contentResponse.missingLocales...)
+
+		case models.TCResultUnexploredImage:
+			agg.unexploredDBs = append(agg.unexploredDBs, dbName)
+
+		case models.TCResultOK:
+		default:
+		}
+	}
+
+	sb.WriteString(agg.general)
+	sb.WriteString(buildErrorMessage(agg.errors))
+	sb.WriteString(buildExtensionsWarningMessage(agg.missingExt, agg.unsupportedExt))
+	sb.WriteString(buildLocalesWarningMessage(agg.missingLocales))
+	sb.WriteString(unexploredDBsNoticeMessage(agg.unexploredDBs))
+
+	tcResponse.Message = sb.String()
+
+	return tcResponse
+}
+
+func buildErrorMessage(errors map[string]string) string {
+	if len(errors) == 0 {
+		return ""
+	}
+
+	sb := strings.Builder{}
+	sb.WriteString("Issues detected in databases:\n")
+
+	for dbName, message := range errors {
+		sb.WriteString(fmt.Sprintf(" %q - %s;\n", dbName, message))
+	}
+
+	sb.WriteString(" \n")
+
+	return sb.String()
 }
 
 func checkConnection(ctx context.Context, conf *models.ConnectionTest, dbName string) (*pgx.Conn, *models.TestConnection) {
@@ -220,41 +325,59 @@ func checkConnection(ctx context.Context, conf *models.ConnectionTest, dbName st
 	return conn, nil
 }
 
-func checkContent(ctx context.Context, conn *pgx.Conn, dbName string, imageContent *ImageContent) (*models.TestConnection, error) {
+type checkContentResp struct {
+	status         models.StatusType
+	result         string
+	message        string
+	missingExt     []extension
+	unsupportedExt []extension
+	missingLocales []locale
+}
+
+func checkDBContent(ctx context.Context, conn *pgx.Conn, imageContent *ImageContent) *checkContentResp {
 	if !imageContent.IsReady() {
-		return &models.TestConnection{
-			Status: models.TCStatusNotice,
-			Result: models.TCResultUnexploredImage,
-			Message: "The connection to the database was successful. " +
-				"Details about the extensions and locales of the Docker image have not yet been collected. Please try again later",
-		}, nil
+		return &checkContentResp{
+			status: models.TCStatusNotice,
+			result: models.TCResultUnexploredImage,
+			message: "Connected to database. " +
+				"Docker image extensions and locales not yet analyzed. Retry later. ",
+		}
 	}
 
 	if missing, unsupported, err := checkExtensions(ctx, conn, imageContent.Extensions()); err != nil {
 		if err != errExtensionWarning {
-			return nil, fmt.Errorf("failed to check database extensions: %w", err)
+			return &checkContentResp{
+				status:  models.TCStatusError,
+				result:  models.TCResultQueryError,
+				message: fmt.Sprintf("failed to check database extensions: %s", err),
+			}
 		}
 
-		return &models.TestConnection{
-			Status:  models.TCStatusWarning,
-			Result:  models.TCResultMissingExtension,
-			Message: buildExtensionsWarningMessage(dbName, missing, unsupported),
-		}, nil
+		return &checkContentResp{
+			status:         models.TCStatusWarning,
+			result:         models.TCResultMissingExtension,
+			missingExt:     missing,
+			unsupportedExt: unsupported,
+		}
 	}
 
 	if missing, err := checkLocales(ctx, conn, imageContent.Locales(), imageContent.Databases()); err != nil {
 		if err != errLocaleWarning {
-			return nil, fmt.Errorf("failed to check database locales: %w", err)
+			return &checkContentResp{
+				status:  models.TCStatusError,
+				result:  models.TCResultQueryError,
+				message: fmt.Sprintf("failed to check database locales: %s", err),
+			}
 		}
 
-		return &models.TestConnection{
-			Status:  models.TCStatusWarning,
-			Result:  models.TCResultMissingLocale,
-			Message: buildLocalesWarningMessage(dbName, missing),
-		}, nil
+		return &checkContentResp{
+			status:         models.TCStatusWarning,
+			result:         models.TCResultMissingLocale,
+			missingLocales: missing,
+		}
 	}
 
-	return nil, nil
+	return nil
 }
 
 func checkExtensions(ctx context.Context, conn *pgx.Conn, imageExtensions map[string]string) ([]extension, []extension, error) {
@@ -311,21 +434,19 @@ func toCanonicalSemver(v string) string {
 	return v
 }
 
-func buildExtensionsWarningMessage(dbName string, missingExtensions, unsupportedVersions []extension) string {
+func buildExtensionsWarningMessage(missingExtensions, unsupportedVersions map[string][]extension) string {
 	sb := &strings.Builder{}
 
 	if len(missingExtensions) > 0 {
-		sb.WriteString("The image specified in section \"databaseContainer\" lacks the following " +
-			"extensions used in the source database (\"" + dbName + "\"):")
+		sb.WriteString("Image configured in \"databaseContainer\" missing " +
+			"extensions installed in source databases: ")
 
 		formatExtensionList(sb, missingExtensions)
-
-		sb.WriteString(".\n")
 	}
 
 	if len(unsupportedVersions) > 0 {
-		sb.WriteString("The source database (\"" + dbName + "\") uses extensions that are present " +
-			"in image specified in section \"databaseContainer\" but their versions are not supported by the image:")
+		sb.WriteString("Source databases have extensions with different versions " +
+			"than image configured in \"databaseContainer\":")
 
 		formatExtensionList(sb, unsupportedVersions)
 	}
@@ -333,16 +454,44 @@ func buildExtensionsWarningMessage(dbName string, missingExtensions, unsupported
 	return sb.String()
 }
 
-func formatExtensionList(sb *strings.Builder, extensions []extension) {
-	length := len(extensions)
+func formatExtensionList(sb *strings.Builder, extensionMap map[string][]extension) {
+	var j int
 
-	for i, missing := range extensions {
-		sb.WriteString(" " + missing.name + " " + missing.defaultVersion)
+	lengthDBs := len(extensionMap)
 
-		if i != length-1 {
-			sb.WriteRune(',')
+	for dbName, extensions := range extensionMap {
+		lengthExt := len(extensions)
+
+		sb.WriteString(" " + dbName + " (")
+
+		for i, missing := range extensions {
+			sb.WriteString(missing.name + " " + missing.defaultVersion)
+
+			if i != lengthExt-1 {
+				sb.WriteString(", ")
+			}
 		}
+
+		sb.WriteString(")")
+
+		if j != lengthDBs-1 {
+			sb.WriteRune(';')
+		}
+
+		j++
 	}
+
+	sb.WriteString(". \n")
+}
+
+func unexploredDBsNoticeMessage(dbs []string) string {
+	if len(dbs) == 0 {
+		return ""
+	}
+
+	return fmt.Sprintf("Connected to databases: %s. "+
+		"Docker image extensions and locales not analyzed. Retry later.\n",
+		strings.Join(dbs, ","))
 }
 
 func checkLocales(ctx context.Context, conn *pgx.Conn, imageLocales, databases map[string]struct{}) ([]locale, error) {
@@ -386,20 +535,38 @@ func checkLocales(ctx context.Context, conn *pgx.Conn, imageLocales, databases m
 	return nil, nil
 }
 
-func buildLocalesWarningMessage(dbName string, missingLocales []locale) string {
+func buildLocalesWarningMessage(localeMap map[string][]locale) string {
+	var j int
+
 	sb := &strings.Builder{}
 
-	if length := len(missingLocales); length > 0 {
-		sb.WriteString("The image specified in section \"databaseContainer\" lacks the following " +
-			"locales used in the source database (\"" + dbName + "\"):")
+	if lengthDBs := len(localeMap); lengthDBs > 0 {
+		sb.WriteString("Image configured in \"databaseContainer\" missing " +
+			"locales from source databases: ")
 
-		for i, missing := range missingLocales {
-			sb.WriteString(fmt.Sprintf(" '%s' (collate: %s, ctype: %s)", missing.name, missing.collate, missing.ctype))
+		for dbName, missingLocales := range localeMap {
+			lengthLoc := len(missingLocales)
 
-			if i != length-1 {
-				sb.WriteRune(',')
+			sb.WriteString(" " + dbName + " (")
+
+			for i, missing := range missingLocales {
+				sb.WriteString(fmt.Sprintf(" '%s' (collate: %s, ctype: %s)", missing.name, missing.collate, missing.ctype))
+
+				if i != lengthLoc-1 {
+					sb.WriteRune(',')
+				}
 			}
+
+			sb.WriteString(")")
+
+			if j != lengthDBs-1 {
+				sb.WriteRune(';')
+			}
+
+			j++
 		}
+
+		sb.WriteString(". \n")
 	}
 
 	return sb.String()
