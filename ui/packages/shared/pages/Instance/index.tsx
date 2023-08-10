@@ -100,7 +100,7 @@ export const Instance = observer((props: Props) => {
   useEffect(() => {
     if (
       instance &&
-      instance?.state.retrieving?.status === 'pending' &&
+      instance?.state?.retrieving?.status === 'pending' &&
       isConfigurationActive &&
       !props.isPlatform && !hasBeenRedirected
     ) {
@@ -148,7 +148,7 @@ export const Instance = observer((props: Props) => {
               {!instanceError && (
                 <div className={classes.content}>
                   {!instance ||
-                    (!instance?.state.retrieving?.status && <StubSpinner />)}
+                    (!instance?.state?.retrieving?.status && <StubSpinner />)}
 
                   {instance ? (
                     <>
@@ -176,7 +176,7 @@ export const Instance = observer((props: Props) => {
                   <Configuration
                     isConfigurationActive={isConfigurationActive}
                     disableConfigModification={
-                      instance?.state.engine.disableConfigModification
+                      instance?.state?.engine.disableConfigModification
                     }
                     switchActiveTab={switchTab}
                     reload={() => load(props.instanceId)}
