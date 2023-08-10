@@ -54,6 +54,8 @@ export type InstanceStateDto = {
 }
 
 export const formatInstanceStateDto = (dto: InstanceStateDto) => {
+  if (!dto) return null
+
   const pools = dto.pools?.map(formatPoolDto) ?? null
   const clones =
     dto?.clones?.map(formatCloneDto) ?? dto.cloning?.clones.map(formatCloneDto)

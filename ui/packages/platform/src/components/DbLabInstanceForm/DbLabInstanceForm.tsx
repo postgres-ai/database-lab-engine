@@ -32,7 +32,7 @@ import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinnerFlex'
 import { Select } from '@postgres.ai/shared/components/Select'
 
-import { generateToken } from 'utils/utils'
+import { generateToken, validateDLEName } from 'utils/utils'
 import urls from 'utils/urls'
 
 import { AnsibleInstance } from 'components/DbLabInstanceForm/DbLabFormSteps/AnsibleInstance'
@@ -483,6 +483,12 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
                     InputLabelProps={{
                       shrink: true,
                     }}
+                    helperText={
+                      validateDLEName(state.name)
+                        ? 'Name must be lowercase and contain only letters and numbers.'
+                        : ''
+                    }
+                    error={validateDLEName(state.name)}
                     onChange={(
                       event: React.ChangeEvent<
                         HTMLTextAreaElement | HTMLInputElement
@@ -595,7 +601,10 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
             </div>
             <DbLabInstanceFormSidebar
               state={state}
-              handleCreate={() => handleSetFormStep('docker')}
+              disabled={validateDLEName(state.name)}
+              handleCreate={() =>
+                !validateDLEName(state.name) && handleSetFormStep('docker')
+              }
             />
           </>
         ) : state.formStep === 'ansible' && permitted ? (

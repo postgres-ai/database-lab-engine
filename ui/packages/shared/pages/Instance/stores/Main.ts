@@ -83,7 +83,7 @@ export class MainStore {
 
   get isDisabledInstance() {
     if (!this.instance) return true
-    return this.instance.state.status.code === 'NO_RESPONSE'
+    return this.instance.state?.status.code === 'NO_RESPONSE'
   }
 
   load = (instanceId: string) => {
@@ -167,7 +167,7 @@ export class MainStore {
 
       const unstableClones = new Set<string>()
 
-      this.instance.state.cloning.clones.forEach((clone) => {
+      this.instance.state?.cloning.clones?.forEach((clone) => {
         if (UNSTABLE_CLONE_STATUS_CODES.includes(clone.status.code)) {
           unstableClones.add(clone.id)
         }

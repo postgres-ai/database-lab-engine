@@ -88,9 +88,11 @@ const useStyles = makeStyles({
 export const DbLabInstanceFormSidebar = ({
   state,
   handleCreate,
+  disabled,
 }: {
   state: typeof initialState
   handleCreate: () => void
+  disabled: boolean
 }) => {
   const classes = useStyles()
 
@@ -200,7 +202,7 @@ export const DbLabInstanceFormSidebar = ({
         variant="contained"
         color="primary"
         onClick={handleCreate}
-        disabled={!state.name || !state.verificationToken}
+        disabled={!state.name || !state.verificationToken || disabled}
       >
         Create DLE
       </Button>

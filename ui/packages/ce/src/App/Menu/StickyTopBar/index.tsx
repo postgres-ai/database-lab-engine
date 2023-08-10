@@ -11,7 +11,7 @@ import { activateBilling } from 'api/configs/activateBilling'
 
 import styles from './styles.module.scss'
 
-const AUTO_HIDE_DURATION = 1500
+const AUTO_HIDE_DURATION = 3000
 
 export const StickyTopBar = () => {
   const useStyles = makeStyles(
