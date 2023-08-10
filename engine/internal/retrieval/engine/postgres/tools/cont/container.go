@@ -8,6 +8,7 @@ package cont
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -124,7 +125,7 @@ func CleanUpControlContainers(ctx context.Context, dockerClient *client.Client, 
 func CleanUpSatelliteContainers(ctx context.Context, dockerClient *client.Client, instanceID string) error {
 	log.Msg("Clean up satellite containers")
 
-	shutdownCtx, shutdownCancel := context.WithTimeout(ctx, StopTimeout)
+	shutdownCtx, shutdownCancel := context.WithTimeout(ctx, StopTimeout*time.Second)
 	defer shutdownCancel()
 
 	return cleanUpContainers(shutdownCtx, dockerClient, instanceID, getSatelliteContainerFilters())
