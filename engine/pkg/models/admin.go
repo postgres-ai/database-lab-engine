@@ -19,6 +19,9 @@ const (
 	// TCResultConnectionError defines a connection error of the test connection request.
 	TCResultConnectionError = "connection_error"
 
+	// TCResultQueryError defines a query error of the test connection request.
+	TCResultQueryError = "query_error"
+
 	// TCResultUnexploredImage defines the notice about unexplored Docker image yet.
 	TCResultUnexploredImage = "unexplored_image"
 
@@ -37,9 +40,14 @@ const (
 
 // TestConnection represents the response of the test connection request.
 type TestConnection struct {
-	Status       string            `json:"status"`
-	Result       string            `json:"result"`
-	Message      string            `json:"message"`
+	Status  string `json:"status"`
+	Result  string `json:"result"`
+	Message string `json:"message"`
+}
+
+// DBSource represents the response of the database source checks.
+type DBSource struct {
+	*TestConnection
 	DBVersion    int               `json:"dbVersion,omitempty"`
 	TuningParams map[string]string `json:"tuningParams"`
 }

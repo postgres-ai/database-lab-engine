@@ -80,10 +80,13 @@ func GetDatabaseListQuery(username string) string {
 }
 
 // CheckSource checks the readiness of the source database to dump and restore processes.
-func CheckSource(ctx context.Context, conf *models.ConnectionTest, imageContent *ImageContent) (*models.TestConnection, error) {
+func CheckSource(ctx context.Context, conf *models.ConnectionTest, imageContent *ImageContent) (*models.DBSource, error) {
+	dbSource := &models.DBSource{}
+
 	conn, tcResponse := checkConnection(ctx, conf, conf.DBName)
 	if tcResponse != nil {
-		return tcResponse, nil
+		dbSource.TestConnection = tcResponse
+		return dbSource, nil
 	}
 
 	defer func() {
@@ -92,12 +95,43 @@ func CheckSource(ctx context.Context, conf *models.ConnectionTest, imageContent 
 		}
 	}()
 
+	// Return the database version in any case.
+	dbVersion, err := getMajorVersion(ctx, conn)
+	if err != nil {
+		return nil, err
+	}
+
+	dbSource.DBVersion = dbVersion
+
+	tcResponse = &models.TestConnection{
+		Status:  models.TCStatusOK,
+		Result:  models.TCResultOK,
+		Message: models.TCMessageOK,
+	}
+
+	dbSource.TestConnection = tcResponse
+
+	tuningParameters, err := getTuningParameters(ctx, conn)
+	if err != nil {
+		dbSource.Status = models.TCStatusError
+		dbSource.Result = models.TCResultQueryError
+		dbSource.Message = err.Error()
+
+		return dbSource, err
+	}
+
+	dbSource.TuningParams = tuningParameters
+
 	dbList := conf.DBList
 
 	if len(dbList) == 0 {
 		dbSourceList, err := getDBList(ctx, conn, conf.Username)
 		if err != nil {
-			return nil, err
+			dbSource.Status = models.TCStatusError
+			dbSource.Result = models.TCResultQueryError
+			dbSource.Message = err.Error()
+
+			return dbSource, err
 		}
 
 		dbList = dbSourceList
@@ -111,45 +145,32 @@ func CheckSource(ctx context.Context, conf *models.ConnectionTest, imageContent 
 			Message: "Too many databases were requested to be checked. Only the following databases have been verified: " +
 				strings.Join(dbList, ", "),
 		}
+		dbSource.TestConnection = tcResponse
 	}
 
 	for _, dbName := range dbList {
 		dbConn, listTC := checkConnection(ctx, conf, dbName)
 		if listTC != nil {
-			return listTC, nil
+			dbSource.TestConnection = listTC
+			return dbSource, nil
 		}
 
 		listTC, err := checkContent(ctx, dbConn, dbName, imageContent)
 		if err != nil {
-			return nil, err
+			dbSource.Status = models.TCStatusError
+			dbSource.Result = models.TCResultQueryError
+			dbSource.Message = err.Error()
+
+			return dbSource, err
 		}
 
 		if listTC != nil {
-			return listTC, nil
+			dbSource.TestConnection = listTC
+			return dbSource, nil
 		}
 	}
 
-	if tcResponse != nil {
-		return tcResponse, nil
-	}
-
-	dbVersion, err := getMajorVersion(ctx, conn)
-	if err != nil {
-		return nil, err
-	}
-
-	tuningParameters, err := getTuningParameters(ctx, conn)
-	if err != nil {
-		return nil, err
-	}
-
-	return &models.TestConnection{
-		Status:       models.TCStatusOK,
-		Result:       models.TCResultOK,
-		Message:      models.TCMessageOK,
-		DBVersion:    dbVersion,
-		TuningParams: tuningParameters,
-	}, nil
+	return dbSource, nil
 }
 
 func getDBList(ctx context.Context, conn *pgx.Conn, dbUsername string) ([]string, error) {
