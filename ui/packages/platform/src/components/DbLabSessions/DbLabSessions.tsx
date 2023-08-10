@@ -22,7 +22,7 @@ import { StubContainer } from '@postgres.ai/shared/components/StubContainer'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { icons } from '@postgres.ai/shared/styles/icons'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
@@ -77,12 +77,12 @@ interface DbLabSessionsState {
 const PAGE_SIZE = 20
 
 class DbLabSessions extends Component<DbLabSessionsProps, DbLabSessionsState> {
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
     const { orgId } = this.props
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth = this.data && this.data.auth ? this.data.auth : null
       const sessions =
         this.data && this.data.dbLabSessions ? this.data.dbLabSessions : null

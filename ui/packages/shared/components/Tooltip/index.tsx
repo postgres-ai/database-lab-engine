@@ -11,7 +11,14 @@ import {
   makeStyles,
 } from '@material-ui/core'
 
-type Props = Omit<TooltipProps, 'title'> & { content: TooltipProps['title'] }
+type Props = {
+  children: JSX.Element
+  content: string | JSX.Element
+  disableTouchListener?: boolean
+  placement?: TooltipProps['placement']
+  interactive?: TooltipProps['interactive']
+  enterTouchDelay?: TooltipProps['enterTouchDelay']
+}
 
 const useStyles = makeStyles(
   {

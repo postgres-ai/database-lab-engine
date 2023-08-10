@@ -22,6 +22,7 @@ import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import {
   ClassesType,
   ProjectProps,
+  RefluxTypes,
 } from '@postgres.ai/platform/src/components/types'
 
 import Actions from '../../actions/actions'
@@ -116,14 +117,14 @@ class DbLabInstanceForm extends Component<
     },
   }
 
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
     const { orgId } = this.props
     const url = window.location.href.split('/')
     const instanceID = url[url.length - 1]
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       that.setState({ data: this.data, instanceID: instanceID })
 
       const auth = this.data && this.data.auth ? this.data.auth : null

@@ -12,9 +12,9 @@ export interface DbLabInstancesProps {
   history: RouteComponentProps['history']
   match: {
     params: {
-      org?: string
       project?: string
       projectId?: string | number | undefined
+      org?: string
     }
   }
   orgPermissions: {

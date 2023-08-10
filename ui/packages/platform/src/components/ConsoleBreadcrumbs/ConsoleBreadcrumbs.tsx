@@ -12,7 +12,7 @@ import clsx from 'clsx'
 
 import { Head, createTitle as createTitleBase } from 'components/Head'
 import { ConsoleBreadcrumbsProps } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
@@ -50,11 +50,11 @@ class ConsoleBreadcrumbs extends Component<
   ConsoleBreadcrumbsWithStylesProps,
   ConsoleBreadcrumbsState
 > {
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       that.setState({ data: this.data })
     })
     Actions.refresh()

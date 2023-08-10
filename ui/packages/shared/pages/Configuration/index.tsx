@@ -43,7 +43,7 @@ import {
 } from './InputWithTooltip'
 
 import styles from './styles.module.scss'
-import { SeImages } from 'types/api/endpoints/getSeImages'
+import { SeImages } from '@postgres.ai/shared/types/api/endpoints/getSeImages'
 import {
   formatTuningParams,
   formatTuningParamsToObj,

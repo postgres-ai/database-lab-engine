@@ -10,7 +10,7 @@ import { Button } from '@material-ui/core'
 
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { icons } from '@postgres.ai/shared/styles/icons'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import { JoeSessionCommandWrapper } from 'pages/JoeSessionCommand/JoeSessionCommandWrapper'
 import Actions from '../../actions/actions'
@@ -68,12 +68,12 @@ class SharedUrl extends Component<SharedUrlWithStylesProps, SharedUrlState> {
     },
   }
 
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
     const uuid = this.props.match.params.url_uuid
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const sharedUrlData =
         this.data && this.data.sharedUrlData ? this.data.sharedUrlData : null
 

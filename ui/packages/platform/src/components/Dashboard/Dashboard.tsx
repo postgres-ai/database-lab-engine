@@ -24,7 +24,7 @@ import remarkGfm from 'remark-gfm'
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { StubContainer } from '@postgres.ai/shared/components/StubContainer'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import { ROUTES } from 'config/routes'
 
@@ -97,13 +97,13 @@ interface DashboardState {
 }
 
 class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
     const orgId = this.props.orgId
     const onlyProjects = this.props.onlyProjects
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       that.setState({ data: this.data })
       const auth: DashboardState['data']['auth'] =
         this.data && this.data.auth ? this.data.auth : null

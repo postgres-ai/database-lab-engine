@@ -88,7 +88,13 @@ export interface ProjectWrapperProps {
 
 export interface OrganizationWrapperProps {
   classes: ClassesType
-  match: { params: { org?: string, projectId?: number, project?: string } }
+  match: {
+    params: {
+      org?: string | undefined
+      projectId?: string | undefined
+      project?: string | undefined
+    }
+  }
   location: RouteComponentProps['location']
   env: {
     data: {
@@ -183,4 +189,8 @@ export interface TokenRequestProps {
 
 export interface FlameGraphPlanType {
   [plan: string]: string | string[]
+}
+
+export interface RefluxTypes {
+  listen: (callback: Function) => Function
 }

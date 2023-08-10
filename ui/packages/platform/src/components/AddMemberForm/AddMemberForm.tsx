@@ -12,7 +12,7 @@ import TextField from '@material-ui/core/TextField'
 
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Actions from '../../actions/actions'
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
@@ -49,12 +49,12 @@ interface InviteFormState {
 }
 
 class InviteForm extends Component<InviteFormWithStylesProps, InviteFormState> {
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
     const { org, orgId } = this.props
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       that.setState({ data: this.data })
 
       if (this.data.inviteUser.isProcessed && !this.data.inviteUser.error) {

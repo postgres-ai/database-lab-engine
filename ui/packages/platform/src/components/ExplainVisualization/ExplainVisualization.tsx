@@ -20,7 +20,7 @@ import Store from '../../stores/store'
 
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Actions from '../../actions/actions'
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
@@ -50,11 +50,11 @@ class ExplainVisualization extends Component<
   ExplainVisualizationProps,
   ExplainVisualizationState
 > {
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       that.setState({ data: this.data })
     })
 

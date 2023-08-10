@@ -30,7 +30,7 @@ import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
@@ -203,7 +203,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
     this.props.history.push(Urls.linkJoeInstanceAdd(this.props))
   }
 
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
     const {
@@ -220,7 +220,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
 
     this.buildFilter()
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth = this.data && this.data.auth ? this.data.auth : null
       const commands =
         this.data && this.data.commands ? this.data.commands : null

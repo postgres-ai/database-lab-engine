@@ -9,7 +9,7 @@ import { Component } from 'react'
 import { InputAdornment } from '@material-ui/core'
 import { IconButton, TextField } from '@material-ui/core'
 
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { icons } from '@postgres.ai/shared/styles/icons'
 
@@ -35,13 +35,13 @@ interface DisplayTokenState {
 }
 
 class DisplayToken extends Component<DisplayTokenProps, DisplayTokenState> {
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
 
     document.getElementsByTagName('html')[0].style.overflow = 'hidden'
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       that.setState({ data: this.data })
     })
 

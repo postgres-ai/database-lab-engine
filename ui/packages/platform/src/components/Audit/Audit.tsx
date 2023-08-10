@@ -23,7 +23,7 @@ import ExpandMoreIcon from '@material-ui/icons/ExpandMore'
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Actions from '../../actions/actions'
 import ConsolePageTitle from '../ConsolePageTitle'
@@ -75,12 +75,12 @@ interface AuditState {
 }
 
 class Audit extends Component<AuditWithStylesProps, AuditState> {
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
     const orgId = this.props.orgId
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth: AuditState['data']['auth'] =
         this.data && this.data.auth ? this.data.auth : null
       const auditLog: AuditState['data']['auditLog'] =

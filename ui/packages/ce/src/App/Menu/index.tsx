@@ -8,12 +8,14 @@ import { ROUTES } from 'config/routes'
 
 import { SignOutModal } from './SignOutModal'
 import { Header } from './Header'
-import githubIconUrl from './icons/github.svg'
-import docsIconUrl from './icons/docs.svg'
-import exitIcon from './icons/exit-icon.svg'
-import discussionIconUrl from './icons/discussion.svg'
-import arrowLeftIconUrl from './icons/arrow-left.svg'
-import arrowRightIconUrl from './icons/arrow-right.svg'
+import {
+  ArrowRight,
+  ArrowLeft,
+  Discussion,
+  Docs,
+  ExitIcon,
+  Github,
+} from './icons'
 
 import styles from './styles.module.scss'
 
@@ -48,7 +50,7 @@ export const Menu = observer(
           <Button
             type="gateway-link"
             href={linksConfig.github}
-            icon={<img src={githubIconUrl} alt="GitHub" />}
+            icon={<Github />}
             isCollapsed={isCollapsed}
           >
             Star us on GitHub
@@ -57,7 +59,7 @@ export const Menu = observer(
           <Button
             type="gateway-link"
             href={linksConfig.docs}
-            icon={<img src={docsIconUrl} alt="Documentation" />}
+            icon={<Docs />}
             isCollapsed={isCollapsed}
           >
             Documentation
@@ -67,7 +69,7 @@ export const Menu = observer(
             type="gateway-link"
             href={linksConfig.support}
             className={styles.supportBtn}
-            icon={<img src={discussionIconUrl} alt="Discussion" />}
+            icon={<Discussion />}
             isCollapsed={isCollapsed}
           >
             Ask support
@@ -76,7 +78,7 @@ export const Menu = observer(
             <Button
               type="button"
               onClick={() => setIsOpen(true)}
-              icon={<img src={exitIcon} alt="Profile" />}
+              icon={<ExitIcon />}
               isCollapsed={isCollapsed}
             >
               Sign out
@@ -86,12 +88,7 @@ export const Menu = observer(
             className={styles.collapseBtn}
             onClick={handleCollapse}
             isCollapsed={isCollapsed}
-            icon={
-              <img
-                src={isCollapsed ? arrowRightIconUrl : arrowLeftIconUrl}
-                alt={isCollapsed ? 'Arrow right' : 'Arrow left'}
-              />
-            }
+            icon={isCollapsed ? <ArrowRight /> : <ArrowLeft />}
           >
             Collapse
           </Button>

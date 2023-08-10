@@ -62,7 +62,7 @@ export const establishConnection = async (api: Api) => {
 
       if (
         logElement.childElementCount > LOGS_LINE_LIMIT &&
-        timeDifference > LOGS_TIME_LIMIT
+        Number(timeDifference) > LOGS_TIME_LIMIT
       ) {
         logElement.removeChild(logElement.children[1])
       }
