@@ -11,8 +11,7 @@ import { makeStyles } from '@material-ui/core'
 
 import { Button } from '@postgres.ai/shared/components/MenuButton'
 import { useWindowDimensions } from '@postgres.ai/shared/hooks/useWindowDimensions'
-import { ReactComponent as ArrowRightIcon } from '@postgres.ai/ce/src/App/Menu/icons/arrow-right.svg'
-import { ReactComponent as ArrowLeftIcon } from '@postgres.ai/ce/src/App/Menu/icons/arrow-left.svg'
+import { ArrowLeft, ArrowRight } from '@postgres.ai/shared/pages/Instance/Info/Icons'
 
 import { Status } from './Status'
 import { Retrieval } from './Retrieval'
@@ -106,9 +105,9 @@ export const Info = () => {
           isCollapsed={isCollapsed}
           icon={
             isCollapsed ? (
-              <ArrowLeftIcon className={classes.arrowImage} />
+              <ArrowLeft className={classes.arrowImage} />
             ) : (
-              <ArrowRightIcon className={classes.arrowImage} />
+              <ArrowRight className={classes.arrowImage} />
             )
           }
         >

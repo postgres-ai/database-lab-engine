@@ -26,7 +26,7 @@ import { HorizontalScrollContainer } from '@postgres.ai/shared/components/Horizo
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { icons } from '@postgres.ai/shared/styles/icons'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
@@ -163,12 +163,12 @@ class DbLabSession extends Component<
   DbLabSessionWithStylesProps,
   DbLabSessionState
 > {
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const sessionId = this.props.match.params.sessionId
     const that = this
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth = this.data && this.data.auth ? this.data.auth : null
       const dbLabSession =
         this.data && this.data.dbLabSession ? this.data.dbLabSession : null

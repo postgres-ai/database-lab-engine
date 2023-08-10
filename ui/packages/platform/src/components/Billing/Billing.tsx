@@ -8,7 +8,7 @@
 import { Component } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements } from '@stripe/react-stripe-js'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import ConsolePageTitle from '../ConsolePageTitle'
 import StripeForm from '../StripeForm'
@@ -64,12 +64,12 @@ const page = {
 }
 
 class Billing extends Component<BillingWithStylesProps, BillingState> {
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
     const { orgId } = this.props
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth: BillingState['data']['auth'] =
         this.data && this.data.auth ? this.data.auth : null
       const billing: BillingState['data']['billing'] =

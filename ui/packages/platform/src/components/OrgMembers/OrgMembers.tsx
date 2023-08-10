@@ -22,7 +22,7 @@ import ExitIcon from '@material-ui/icons/ExitToApp'
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Actions from '../../actions/actions'
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
@@ -90,14 +90,14 @@ class OrgSettings extends Component<
   OrgSettingsWithStylesProps,
   OrgSettingsState
 > {
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
     const { orgId, orgPermissions } = this.props
     const hasListMembersPermission =
       !orgPermissions || orgPermissions.settingsMemberList
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth = this.data && this.data.auth ? this.data.auth : null
       const orgUsers =
         this.data && this.data.orgUsers ? this.data.orgUsers : null

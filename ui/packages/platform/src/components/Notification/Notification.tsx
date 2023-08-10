@@ -13,7 +13,7 @@ import WarningIcon from '@material-ui/icons/Warning'
 import InfoIcon from '@material-ui/icons/Info'
 import CheckCircleIcon from '@material-ui/icons/CheckCircle'
 
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
@@ -36,12 +36,12 @@ class Notification extends Component<NotificationProps, NotificationState> {
   componentDidMount() {
     const that = this
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       that.setState({ data: this.data })
     })
   }
 
-  unsubscribe: () => void
+  unsubscribe: Function
   componentWillUnmount() {
     this.unsubscribe()
   }

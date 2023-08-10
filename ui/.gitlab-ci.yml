@@ -2,7 +2,7 @@ include:
   - local: 'ui/packages/ce/.gitlab-ci.yml'
   - local: 'ui/packages/platform/.gitlab-ci.yml'
 
-.code_style: &code_style
+.ui_checks: &ui_checks
   rules:
     - if: $CI_COMMIT_TAG =~ /^ui\/[0-9.]+$/
     - if: $CI_COMMIT_TAG =~ /^v[a-zA-Z0-9_.-]*/
@@ -14,11 +14,12 @@ include:
   cache: &cache
     key: "$CI_COMMIT_REF_SLUG"
     paths:
+      - cache/Cypress
       - .pnpm-store
     policy: pull
 
 check-code-style:
-  <<: *code_style
+  <<: *ui_checks
   <<: *ui_cache
   stage: test
   before_script:
@@ -38,7 +39,7 @@ check-code-style:
 semgrep-sast:
   stage: test
   image: returntocorp/semgrep
-  <<: *code_style
+  <<: *ui_checks
   <<: *ui_cache
   variables:
     # See more at semgrep.dev/explore.
@@ -55,3 +56,19 @@ semgrep-sast:
   artifacts:
     reports:
       sast: gl-sast-report.json
+
+test:
+  <<: *ui_checks
+  <<: *ui_cache
+  image: node:latest
+  stage: test
+  before_script:
+    - apt update && apt install curl
+    - apt install -y libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb
+    - npm install -g wait-on
+    - npm install -g pnpm
+    - pnpm config set store-dir /builds/postgres-ai/database-lab/.pnpm-store/
+  script:
+    - pnpm --dir ui/ i --no-frozen-lockfile
+    - pnpm --dir ui/ --filter @postgres.ai/ce start & wait-on http://localhost:3001
+    - pnpm --dir ui/ --filter @postgres.ai/ce cy:run

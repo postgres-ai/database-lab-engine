@@ -29,6 +29,7 @@ import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
 import {
   ClassesType,
   ProjectProps,
+  RefluxTypes,
 } from '@postgres.ai/platform/src/components/types'
 
 import Store from '../../stores/store'
@@ -176,7 +177,7 @@ class Reports extends Component<ReportsWithStylesProps, ReportsState> {
     }
   }
 
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
     const orgId = this.props.orgId ? this.props.orgId : null
@@ -188,7 +189,7 @@ class Reports extends Component<ReportsWithStylesProps, ReportsState> {
       Actions.setReportsProject(orgId, 0)
     }
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth = this.data && this.data.auth ? this.data.auth : null
       const reports: ReportsType =
         this.data && this.data.reports ? this.data.reports : null

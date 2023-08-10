@@ -23,6 +23,7 @@ import { styles } from '@postgres.ai/shared/styles/styles'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import {
   ClassesType,
+  RefluxTypes,
   TokenRequestProps,
 } from '@postgres.ai/platform/src/components/types'
 
@@ -122,7 +123,7 @@ class AccessTokens extends Component<
       this.setState({ isPersonal: event.target.checked })
     }
   }
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
     const orgId = this.props.orgId ? this.props.orgId : null
@@ -137,7 +138,7 @@ class AccessTokens extends Component<
 
     document.getElementsByTagName('html')[0].style.overflow = 'hidden'
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth: AccessTokensState['data']['auth'] =
         this.data && this.data.auth ? this.data.auth : null
       const userTokens: AccessTokensState['data']['userTokens'] =

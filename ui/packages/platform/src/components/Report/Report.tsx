@@ -20,7 +20,7 @@ import {
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
@@ -65,7 +65,7 @@ interface ReportState {
 }
 
 class Report extends Component<ReportWithStylesProps, ReportState> {
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
     const reportId = this.props.match.params.reportId
@@ -74,7 +74,7 @@ class Report extends Component<ReportWithStylesProps, ReportState> {
       : 'md'
     const orgId = this.props.orgId
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth = this.data && this.data.auth ? this.data.auth : null
       const reports = this.data && this.data.reports ? this.data.reports : null
       const report = this.data && this.data.report ? this.data.report : null

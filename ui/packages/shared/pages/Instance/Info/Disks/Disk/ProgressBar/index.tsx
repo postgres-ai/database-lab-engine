@@ -3,7 +3,7 @@ import { makeStyles } from '@material-ui/core'
 import { colors } from '@postgres.ai/shared/styles/colors'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 
-import pointerIconUrl from './pointer.svg'
+import { PoinerIcon } from './PointerIcon'
 
 type Props = {
   value: number
@@ -61,9 +61,7 @@ export const ProgressBar = (props: Props) => {
       <Tooltip
         content={`+${props.thresholdPercent}% disk usage may result in performance degradation`}
       >
-        <img
-          src={pointerIconUrl}
-          alt="pointer"
+        <PoinerIcon
           className={classes.pointer}
           style={{
             left: `${props.thresholdPercent}%`,

@@ -30,6 +30,7 @@ import { styles } from '@postgres.ai/shared/styles/styles'
 import {
   ClassesType,
   ProjectProps,
+  RefluxTypes,
 } from '@postgres.ai/platform/src/components/types'
 
 import Actions from '../../actions/actions'
@@ -120,7 +121,7 @@ class DbLabInstances extends Component<
       Actions.setDbLabInstancesProject(orgId, 0)
     }
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth: DbLabInstancesState['data']['auth'] =
         this.data && this.data.auth ? this.data.auth : null
       const dbLabInstances: DbLabInstancesState['data']['dbLabInstances'] =
@@ -154,7 +155,7 @@ class DbLabInstances extends Component<
     Actions.refresh()
   }
 
-  unsubscribe: () => void
+  unsubscribe: Function
   componentWillUnmount() {
     this.unsubscribe()
   }

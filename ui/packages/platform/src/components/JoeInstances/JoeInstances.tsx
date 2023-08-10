@@ -27,7 +27,7 @@ import { StubContainer } from '@postgres.ai/shared/components/StubContainer'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Actions from '../../actions/actions'
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
@@ -92,7 +92,7 @@ class JoeInstances extends Component<
   JoeInstancesWithStylesProps,
   JoeInstancesState
 > {
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
     let orgId = this.props.orgId ? this.props.orgId : null
@@ -113,7 +113,7 @@ class JoeInstances extends Component<
       Actions.setJoeInstancesProject(orgId, 0)
     }
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth = this.data && this.data.auth ? this.data.auth : null
       const joeInstances =
         this.data && this.data.joeInstances ? this.data.joeInstances : null

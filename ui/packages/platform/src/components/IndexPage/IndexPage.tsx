@@ -31,6 +31,7 @@ import {
   UserProfile,
   OrgPermissions,
   ClassesType,
+  RefluxTypes,
 } from '@postgres.ai/platform/src/components/types'
 import { ROUTES } from 'config/routes'
 import { Instance } from 'pages/Instance'
@@ -900,13 +901,13 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
     mobileOpen: false,
   }
 
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
 
     document.getElementsByTagName('html')[0].style.overflow = 'hidden'
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       that.setState({ data: this.data })
 
       // redirect to new organization alias if need

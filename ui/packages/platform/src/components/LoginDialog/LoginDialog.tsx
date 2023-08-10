@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from '@material-ui/core'
 
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
@@ -60,11 +60,11 @@ class LoginDialog extends React.Component<LoginDialogProps, LoginDialogState> {
     isProcessing: false,
   }
 
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       that.setState({ data: this.data })
     })
   }

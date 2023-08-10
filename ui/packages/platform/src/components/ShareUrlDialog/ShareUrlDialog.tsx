@@ -24,7 +24,7 @@ import MuiDialogActions from '@material-ui/core/DialogActions'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
@@ -158,12 +158,12 @@ class ShareUrlDialog extends Component<
     },
   }
 
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
     // const { url_type, url_id } = this.props;
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       let stateData = { data: this.data, shared: '', uuid: '' }
 
       if (this.data.shareUrl.isAdding) {
