@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -41,6 +42,7 @@ const (
 	maxNumberOfPortsToCheck = 5
 	portCheckingTimeout     = 3 * time.Second
 	unknownVersion          = "unknown"
+	wildcardIP              = "0.0.0.0"
 )
 
 // PortPool describes an available port range for clones.
@@ -73,11 +75,12 @@ type Provisioner struct {
 	pm             *pool.Manager
 	networkID      string
 	instanceID     string
+	gateway        string
 }
 
 // New creates a new Provisioner instance.
 func New(ctx context.Context, cfg *Config, dbCfg *resources.DB, docker *client.Client, pm *pool.Manager,
-	instanceID, networkID string) (*Provisioner, error) {
+	instanceID, networkID, gateway string) (*Provisioner, error) {
 	if err := IsValidConfig(*cfg); err != nil {
 		return nil, errors.Wrap(err, "configuration is not valid")
 	}
@@ -93,6 +96,7 @@ func New(ctx context.Context, cfg *Config, dbCfg *resources.DB, docker *client.C
 		pm:           pm,
 		networkID:    networkID,
 		instanceID:   instanceID,
+		gateway:      gateway,
 		ports:        make([]bool, cfg.PortPool.To-cfg.PortPool.From+1),
 	}
 
@@ -435,7 +439,7 @@ func getLatestSnapshot(snapshots []resources.Snapshot) (*resources.Snapshot, err
 func (p *Provisioner) RevisePortPool() error {
 	log.Msg(fmt.Sprintf("Revising availability of the port range [%d - %d]", p.config.PortPool.From, p.config.PortPool.To))
 
-	host, err := externalIP()
+	host, err := hostIP(p.gateway)
 	if err != nil {
 		return err
 	}
@@ -468,13 +472,21 @@ func (p *Provisioner) RevisePortPool() error {
 	return nil
 }
 
+func hostIP(gateway string) (string, error) {
+	if gateway != "" {
+		return gateway, nil
+	}
+
+	return externalIP()
+}
+
 // allocatePort tries to find a free port and occupy it.
 func (p *Provisioner) allocatePort() (uint, error) {
 	portOpts := p.config.PortPool
 
 	attempts := 0
 
-	host, err := externalIP()
+	host, err := hostIP(p.gateway)
 	if err != nil {
 		return 0, err
 	}
@@ -598,6 +610,8 @@ func (p *Provisioner) stopPoolSessions(fsm pool.FSManager, exceptClones map[stri
 }
 
 func (p *Provisioner) getAppConfig(pool *resources.Pool, name string, port uint) *resources.AppConfig {
+	provisionHosts := p.getProvisionHosts()
+
 	appConfig := &resources.AppConfig{
 		CloneName:      name,
 		DockerImage:    p.config.DockerImage,
@@ -607,10 +621,31 @@ func (p *Provisioner) getAppConfig(pool *resources.Pool, name string, port uint)
 		Pool:           pool,
 		ContainerConf:  p.config.ContainerConfig,
 		NetworkID:      p.networkID,
-		ProvisionHosts: p.config.CloneAccessAddresses,
+		ProvisionHosts: provisionHosts,
 	}
 
 	return appConfig
+}
+
+// getProvisionHosts adds an internal Docker gateway to the hosts rule if the user restricts access to IP addresses.
+func (p *Provisioner) getProvisionHosts() string {
+	provisionHosts := p.config.CloneAccessAddresses
+
+	if provisionHosts == "" || provisionHosts == wildcardIP {
+		return provisionHosts
+	}
+
+	hostSet := []string{p.gateway}
+
+	for _, hostIP := range strings.Split(provisionHosts, ",") {
+		if hostIP != p.gateway {
+			hostSet = append(hostSet, hostIP)
+		}
+	}
+
+	provisionHosts = strings.Join(hostSet, ",")
+
+	return provisionHosts
 }
 
 // LastSessionActivity returns the time of the last session activity.
