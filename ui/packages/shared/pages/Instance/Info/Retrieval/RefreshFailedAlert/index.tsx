@@ -12,7 +12,7 @@ export const RefreshFailedAlert = observer(() => {
   const stores = useStores()
 
   const refreshFailed =
-    stores.main.instance?.state.retrieving?.alerts?.refreshFailed
+    stores.main.instance?.state?.retrieving?.alerts?.refreshFailed
   if (!refreshFailed) return null
 
   return (

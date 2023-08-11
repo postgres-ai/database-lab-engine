@@ -89,27 +89,33 @@ export class MainStore {
   load = (instanceId: string) => {
     this.instance = null
     this.isReloadingInstance = true
-    this.loadInstance(instanceId, false)
+    this.loadInstance(instanceId, false).then(() => {
+      if (this.instance?.url) {
+        this.snapshots.load(instanceId)
+      }
+    })
     this.loadInstanceRetrieval(instanceId).then(() => {
       if (this.instanceRetrieval) {
         this.getConfig()
         this.getFullConfig()
       }
     })
-    this.snapshots.load(instanceId)
   }
 
   reload = (instanceId: string) => {
     this.instance = null
     this.isReloadingInstance = true
-    this.loadInstance(instanceId)
+    this.loadInstance(instanceId, false).then(() => {
+      if (this.instance?.url) {
+        this.snapshots.load(instanceId)
+      }
+    })
     this.loadInstanceRetrieval(instanceId).then(() => {
       if (this.instanceRetrieval) {
         this.getConfig()
         this.getFullConfig()
       }
     })
-    this.snapshots.load(instanceId)
   }
 
   reloadSnapshots = async () => {
@@ -269,7 +275,7 @@ export class MainStore {
 
     return {
       response,
-      error
+      error,
     }
   }
 

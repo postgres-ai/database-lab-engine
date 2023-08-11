@@ -1,6 +1,8 @@
-import { defineConfig } from "cypress";
+import { defineConfig } from 'cypress'
 
 export default defineConfig({
+  pageLoadTimeout: 10000,
+  defaultCommandTimeout: 10000,
   e2e: {
     testIsolation: false,
     supportFile: false,
@@ -11,8 +13,8 @@ export default defineConfig({
 
   component: {
     devServer: {
-      framework: "create-react-app",
-      bundler: "webpack",
+      framework: 'create-react-app',
+      bundler: 'webpack',
     },
   },
-});
+})

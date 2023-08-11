@@ -39,7 +39,7 @@ import { ConnectionModal } from './ConnectionModal'
 import styles from './styles.module.scss'
 
 type Props = {
-  clones: Clone[]
+  clones?: Clone[]
   isDisabled: boolean
   emptyStubText: string
 }
@@ -62,7 +62,7 @@ export const ClonesList = (props: Props) => {
     setIsOpenConnectionModal(false)
   }
 
-  if (!props.clones.length)
+  if (!props.clones?.length)
     return <p className={styles.emptyStub}>{props.emptyStubText}</p>
 
   return (

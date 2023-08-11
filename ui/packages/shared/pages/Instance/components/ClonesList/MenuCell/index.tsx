@@ -91,7 +91,7 @@ export const MenuCell = observer((props: Props) => {
         onResetClone={(snapshotId) =>
           stores.main.resetClone(clone.id, snapshotId)
         }
-        version={stores.main.instance.state.engine.version}
+        version={stores.main.instance.state?.engine.version}
       />
     </TableBodyCellMenu>
   )

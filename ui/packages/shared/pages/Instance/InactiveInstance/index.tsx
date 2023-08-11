@@ -60,7 +60,7 @@ export const InactiveInstance = ({
 }) => {
   const classes = useStyles()
 
-  const getVersionDigits = (str: string | undefined) => {
+  const getVersionDigits = (str: string | undefined | null) => {
     if (!str) {
       return 'N/A'
     }

@@ -99,7 +99,7 @@ export const DbLabInstanceFormInstallSidebar = ({
           variant="contained"
           color="primary"
           onClick={handleCreate}
-          disabled={!state.name || !state.verificationToken || !disabled}
+          disabled={!state.name || !state.verificationToken || disabled}
         >
           Install DLE
         </Button>
