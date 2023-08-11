@@ -210,7 +210,7 @@ export const CreateClone = observer((props: Props) => {
               <p className={styles.param}>
                 <span>Data size:</span>
                 <strong>
-                  {stores.main.instance.state.dataSize
+                  {stores.main.instance.state?.dataSize
                     ? formatBytesIEC(stores.main.instance.state.dataSize)
                     : '-'}
                 </strong>
@@ -220,7 +220,7 @@ export const CreateClone = observer((props: Props) => {
                 <span>Expected cloning time:</span>
                 <strong>
                   {round(
-                    stores.main.instance.state.cloning.expectedCloningTime,
+                    stores.main.instance.state?.cloning.expectedCloningTime as number,
                     2,
                   )}{' '}
                   s

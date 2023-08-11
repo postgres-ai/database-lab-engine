@@ -22,7 +22,7 @@ export const Disks = observer(() => {
 
   return (
     <Section title="Disks">
-      {instance.state.pools?.map((pool) => {
+      {instance.state?.pools?.map((pool) => {
         return (
           <Disk
             key={pool.name}
@@ -38,11 +38,11 @@ export const Disks = observer(() => {
             totalDataSize={pool.fileSystem.size}
             usedDataSize={pool.fileSystem.used}
             freeDataSize={pool.fileSystem.free}
-            refreshingStartDate={instance.state.retrieving?.lastRefresh ?? null}
+            refreshingStartDate={instance.state?.retrieving?.lastRefresh ?? null}
           />
         )
       }) ??
-        (instance.state.fileSystem && (
+        (instance.state?.fileSystem && (
           <Disk
             status={'active'}
             name={'Main'}

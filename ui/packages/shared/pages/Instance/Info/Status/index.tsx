@@ -30,7 +30,7 @@ export const Status = observer(() => {
   const stores = useStores()
 
   const { instance } = stores.main
-  if (!instance) return null
+  if (!instance || !instance.state) return null
 
   const { code, message } = instance.state.status
   const { version, startedAt } = instance.state.engine

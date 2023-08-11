@@ -18,7 +18,6 @@ import { ImportantText } from '@postgres.ai/shared/components/ImportantText'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { SimpleModalControls } from '@postgres.ai/shared/components/SimpleModalControls'
 import { compareSnapshotsDesc } from '@postgres.ai/shared/utils/snapshot'
-import { InstanceState } from '@postgres.ai/shared/types/api/entities/instanceState'
 
 type Props = {
   isOpen: boolean
@@ -26,7 +25,7 @@ type Props = {
   clone: Clone
   onResetClone: (snapshotId: string) => void
   snapshots: Snapshot[] | null
-  version: InstanceState['engine']['version']
+  version: string | null | undefined
 }
 
 const useStyles = makeStyles(

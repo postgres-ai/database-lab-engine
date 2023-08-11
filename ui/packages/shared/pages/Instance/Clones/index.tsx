@@ -63,7 +63,7 @@ export const Clones = observer(() => {
   const host = useHost()
 
   const { instance } = stores.main
-  if (!instance) return null
+  if (!instance || !instance.state) return null
 
   const isShortList = isMobile && isShortListForMobile
   const toggleListSize = () => setIsShortListForMobile(!isShortListForMobile)
@@ -71,7 +71,7 @@ export const Clones = observer(() => {
   const goToCloneAddPage = () => history.push(host.routes.createClone())
 
   const showListSizeButton =
-    instance.state.cloning.clones?.length > SHORT_LIST_SIZE && isMobile
+    instance.state?.cloning.clones?.length > SHORT_LIST_SIZE && isMobile
 
   const isLoadingSnapshots = stores.main.snapshots.isLoading
   const hasSnapshots = Boolean(stores.main.snapshots.data?.length)
