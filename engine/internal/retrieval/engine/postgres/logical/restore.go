@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -165,7 +166,18 @@ func (r *RestoreJob) Reload(cfg map[string]interface{}) (err error) {
 
 	stat, err := os.Stat(r.RestoreOptions.DumpLocation)
 	if err != nil {
-		return errors.Wrap(err, "dumpLocation not found")
+		if !errors.Is(err, fs.ErrNotExist) {
+			return errors.Wrap(err, "cannot get stats of dumpLocation")
+		}
+
+		if err := os.MkdirAll(r.RestoreOptions.DumpLocation, 0666); err != nil {
+			return fmt.Errorf("error creating dumpLocation directory:  %w", err)
+		}
+
+		stat, err = os.Stat(r.RestoreOptions.DumpLocation)
+		if err != nil {
+			return fmt.Errorf("cannot get stats of dumpLocation: %w", err)
+		}
 	}
 
 	r.isDumpLocationDir = stat.IsDir()
