@@ -519,6 +519,7 @@ class Api {
       Authorization: 'Bearer ' + token,
     }
     let params = {
+      url: instanceData.url,
       instance_id: Number(instanceData.instanceId),
       project_name: instanceData.project,
       project_label: instanceData.projectLabel,

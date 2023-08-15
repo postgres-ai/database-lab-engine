@@ -49,6 +49,7 @@ interface UsersType {
 }
 
 interface OrgSettingsState {
+  filterValue: string
   changes: {
     [change: number]: number
   }
@@ -245,6 +246,10 @@ class OrgSettings extends Component<
     )
   }
 
+  filterInputHandler = (event: React.ChangeEvent<HTMLInputElement>) => {
+    this.setState({ filterValue: event.target.value })
+  }
+
   render() {
     const { classes, orgPermissions, orgId, env } = this.props
     const data = this.state && this.state.data ? this.state.data.orgUsers : null
@@ -278,8 +283,38 @@ class OrgSettings extends Component<
       </ConsoleButtonWrapper>,
     ]
 
+    let users: UsersType[] = []
+    if (hasListMembersPermission) {
+      if (data && data.data && data.data.users && data.data.users.length > 0) {
+        users = data.data.users
+      }
+    } else if (userProfile && userProfile.data && userProfile.data.info) {
+      users = [userProfile.data.info]
+    }
+
+    const filteredUsers = users?.filter((user) => {
+      const fullName = (user.first_name || '') + ' ' + (user.last_name || '')
+      return (
+        fullName
+          ?.toLowerCase()
+          .indexOf((this.state.filterValue || '')?.toLowerCase()) !== -1
+      )
+    })
+
     const pageTitle = (
-      <ConsolePageTitle title={membersTitle} actions={actions} />
+      <ConsolePageTitle
+        title={membersTitle}
+        actions={actions}
+        filterProps={
+          users && users.length > 0
+            ? {
+                filterValue: this.state.filterValue,
+                filterHandler: this.filterInputHandler,
+                placeholder: 'Search users by name',
+              }
+            : null
+        }
+      />
     )
 
     if (
@@ -308,14 +343,6 @@ class OrgSettings extends Component<
 
     // If user does not have "ListMembersPermission" we will fill the list only
     // with his data without making getOrgUsers request.
-    let users: UsersType[] = []
-    if (hasListMembersPermission) {
-      if (data && data.data && data.data.users && data.data.users.length > 0) {
-        users = data.data.users
-      }
-    } else if (userProfile && userProfile.data && userProfile.data.info) {
-      users = [userProfile.data.info]
-    }
 
     return (
       <div className={classes.root}>
@@ -329,7 +356,7 @@ class OrgSettings extends Component<
           </WarningWrapper>
         )}
 
-        {users.length > 0 ? (
+        {filteredUsers && filteredUsers.length > 0 ? (
           <HorizontalScrollContainer>
             <Table className={classes.table}>
               <TableHead>
@@ -342,7 +369,7 @@ class OrgSettings extends Component<
                 </TableRow>
               </TableHead>
               <TableBody>
-                {users.map((u: UsersType) => {
+                {filteredUsers.map((u: UsersType) => {
                   return (
                     <TableRow hover className={classes.row} key={u.id}>
                       <TableCell className={classes.cell}>{u.email}</TableCell>

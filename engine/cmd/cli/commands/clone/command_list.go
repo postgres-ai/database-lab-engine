@@ -229,11 +229,7 @@ func CommandList() []*cli.Command {
 						return err
 					}
 
-					if err := commands.CheckForwardingServerURL(ctxCli); err != nil {
-						return err
-					}
-
-					return nil
+					return commands.CheckForwardingServerURL(ctxCli)
 				},
 				Action: forward,
 			},

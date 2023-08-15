@@ -50,6 +50,6 @@ func (c *custom) GetRecoveryConfig(pgVersion float64) map[string]string {
 }
 
 // Init initialize custom recovery tool to work in provided container.
-func (c *custom) Init(ctx context.Context, containerID string) error {
+func (c *custom) Init(_ context.Context, _ string) error {
 	return nil
 }

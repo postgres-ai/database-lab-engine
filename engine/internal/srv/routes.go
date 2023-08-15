@@ -18,6 +18,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
@@ -162,6 +163,11 @@ func (s *Server) createSnapshot(w http.ResponseWriter, r *http.Request) {
 
 	latestSnapshot := snapshotList[0]
 
+	s.webhookCh <- webhooks.BasicEvent{
+		EventType: webhooks.SnapshotCreateEvent,
+		EntityID:  latestSnapshot.ID,
+	}
+
 	if err := api.WriteJSON(w, http.StatusOK, latestSnapshot); err != nil {
 		api.SendError(w, r, err)
 		return
@@ -215,6 +221,11 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.Cloning.ReloadSnapshots(); err != nil {
 		log.Dbg("Failed to reload snapshots", err.Error())
+	}
+
+	s.webhookCh <- webhooks.BasicEvent{
+		EventType: webhooks.SnapshotDeleteEvent,
+		EntityID:  destroyRequest.SnapshotID,
 	}
 }
 

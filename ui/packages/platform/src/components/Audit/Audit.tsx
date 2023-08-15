@@ -34,6 +34,7 @@ import { messages } from '../../assets/messages'
 import format from '../../utils/format'
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
 import { AuditProps } from 'components/Audit/AuditWrapper'
+import { FilteredTableMessage } from 'components/AccessTokens/FilteredTableMessage/FilteredTableMessage'
 
 const PAGE_SIZE = 20
 const auditTitle = 'Audit log'
@@ -42,7 +43,7 @@ interface AuditWithStylesProps extends AuditProps {
   classes: ClassesType
 }
 
-interface AuditLogData {
+export interface AuditLogData {
   id: number
   data_before: string
   data_after: string
@@ -56,6 +57,7 @@ interface AuditLogData {
 }
 
 interface AuditState {
+  filterValue: string
   data: {
     auth: {
       token: string
@@ -212,6 +214,10 @@ class Audit extends Component<AuditWithStylesProps, AuditState> {
     return 'Changes'
   }
 
+  filterInputHandler = (event: React.ChangeEvent<HTMLInputElement>) => {
+    this.setState({ filterValue: event.target.value })
+  }
+
   render() {
     const { classes, orgPermissions, orgId } = this.props
     const data = this.state && this.state.data ? this.state.data.auditLog : null
@@ -227,7 +233,27 @@ class Audit extends Component<AuditWithStylesProps, AuditState> {
       />
     )
 
-    const pageTitle = <ConsolePageTitle title={auditTitle} />
+    const filteredLogs = logs.filter(
+      (log) =>
+        log.actor
+          ?.toLowerCase()
+          .indexOf((this.state.filterValue || '')?.toLowerCase()) !== -1,
+    )
+
+    const pageTitle = (
+      <ConsolePageTitle
+        title={auditTitle}
+        filterProps={
+          logs && logs.length > 0
+            ? {
+                filterValue: this.state.filterValue,
+                filterHandler: this.filterInputHandler,
+                placeholder: 'Search audit log',
+              }
+            : null
+        }
+      />
+    )
 
     if (orgPermissions && !orgPermissions.auditLogView) {
       return (
@@ -268,7 +294,7 @@ class Audit extends Component<AuditWithStylesProps, AuditState> {
       <div className={classes?.root}>
         {breadcrumbs}
         {pageTitle}
-        {logs && logs.length > 0 ? (
+        {filteredLogs && filteredLogs.length > 0 ? (
           <div>
             <HorizontalScrollContainer>
               <Table className={classes?.table}>
@@ -374,7 +400,16 @@ class Audit extends Component<AuditWithStylesProps, AuditState> {
             </div>
           </div>
         ) : (
-          'Audit log records not found'
+          <FilteredTableMessage
+            filteredItems={filteredLogs}
+            emptyState="Audit log records not found"
+            filterValue={this.state.filterValue}
+            clearFilter={() =>
+              this.setState({
+                filterValue: '',
+              })
+            }
+          />
         )}
         <div className={classes?.bottomSpace} />
       </div>

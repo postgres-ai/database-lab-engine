@@ -6,7 +6,7 @@
  */
 
 import { GetInstance } from '@postgres.ai/shared/types/api/endpoints/getInstance'
-import { formatInstanceDto } from '@postgres.ai/shared/types/api/entities/instance'
+import { formatInstanceDto, InstanceDto } from '@postgres.ai/shared/types/api/entities/instance'
 import { InstanceStateDto } from '@postgres.ai/shared/types/api/entities/instanceState'
 
 import { request } from 'helpers/request'
@@ -24,7 +24,7 @@ export const getInstance: GetInstance = async () => {
     : null
 
   return {
-    response: responseDto ? formatInstanceDto(responseDto) : null,
+    response: responseDto ? formatInstanceDto(responseDto as InstanceDto) : null,
     error: response.ok ? null : response,
   }
 }

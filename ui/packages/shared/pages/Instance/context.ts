@@ -30,6 +30,7 @@ export type Host = {
   wsHost?: string
   hideInstanceTabs?: boolean
   renderCurrentTab?: number
+  isPlatform?: boolean
 }
 
 // Host context.

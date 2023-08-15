@@ -53,7 +53,7 @@ const useStyles = makeStyles(
       width: '64px',
     },
     collapseBtn: {
-      background: '#f9f9f9',
+      background: '#f9f9f9 !important',
       margin: '20px 0 10px 0',
       fontWeight: 500,
 

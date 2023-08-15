@@ -63,11 +63,11 @@ type mockFSManager struct {
 	cloneList []string
 }
 
-func (m mockFSManager) CreateClone(name, snapshotID string) error {
+func (m mockFSManager) CreateClone(_, _ string) error {
 	return nil
 }
 
-func (m mockFSManager) DestroyClone(name string) error {
+func (m mockFSManager) DestroyClone(_ string) error {
 	return nil
 }
 
@@ -75,15 +75,15 @@ func (m mockFSManager) ListClonesNames() ([]string, error) {
 	return m.cloneList, nil
 }
 
-func (m mockFSManager) CreateSnapshot(poolSuffix, dataStateAt string) (snapshotName string, err error) {
+func (m mockFSManager) CreateSnapshot(_, _ string) (snapshotName string, err error) {
 	return "", nil
 }
 
-func (m mockFSManager) DestroySnapshot(snapshotName string) (err error) {
+func (m mockFSManager) DestroySnapshot(_ string) (err error) {
 	return nil
 }
 
-func (m mockFSManager) CleanupSnapshots(retentionLimit int) ([]string, error) {
+func (m mockFSManager) CleanupSnapshots(_ int) ([]string, error) {
 	return nil, nil
 }
 
@@ -94,7 +94,7 @@ func (m mockFSManager) SnapshotList() []resources.Snapshot {
 func (m mockFSManager) RefreshSnapshotList() {
 }
 
-func (m mockFSManager) GetSessionState(name string) (*resources.SessionState, error) {
+func (m mockFSManager) GetSessionState(_ string) (*resources.SessionState, error) {
 	return nil, nil
 }
 

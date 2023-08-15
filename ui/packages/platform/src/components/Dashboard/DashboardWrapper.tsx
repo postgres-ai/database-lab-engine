@@ -6,7 +6,7 @@ import Dashboard from 'components/Dashboard/Dashboard'
 export interface DashboardProps {
   org?: string | number
   orgId?: number
-  onlyProjects: boolean
+  onlyProjects?: boolean
   history: RouteComponentProps['history']
   project?: string | undefined
   orgPermissions?: {
@@ -18,24 +18,6 @@ export interface DashboardProps {
 export const DashboardWrapper = (props: DashboardProps) => {
   const useStyles = makeStyles(
     (theme) => ({
-      stubContainerProjects: {
-        marginRight: '-20px',
-        paddingBottom: 0,
-        [theme.breakpoints.down('sm')]: {
-          flexDirection: 'column',
-          marginRight: 0,
-          marginTop: '-20px',
-        },
-      },
-      productCardProjects: {
-        flex: '1 1 100%',
-        marginRight: '20px',
-        [theme.breakpoints.down('sm')]: {
-          flex: '0 0 auto',
-          marginRight: 0,
-          marginTop: '20px',
-        },
-      },
       orgsHeader: {
         position: 'relative',
       },
@@ -91,6 +73,60 @@ export const DashboardWrapper = (props: DashboardProps) => {
       onboarding: {
         '& ul': {
           paddingInlineStart: '20px',
+        },
+      },
+      filterOrgsInput: {
+        width: '100%',
+
+        '& .MuiOutlinedInput-input': {
+          width: '200px',
+        },
+      },
+      createOrgButton: {
+        height: '37px',
+      },
+      blockedStatus: {
+        color: colors.state.error,
+        fontSize: '1.1em',
+        verticalAlign: 'middle',
+        '& svg': {
+          marginTop: '-3px',
+        },
+      },
+      validStatus: {
+        color: colors.state.ok,
+        fontSize: '1.1em',
+        verticalAlign: 'middle',
+        '& svg': {
+          marginTop: '-3px',
+        },
+      },
+      flexContainer: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        height: '100%',
+        gap: 40,
+        marginTop: '20px',
+
+        '& > div': {
+          maxWidth: '300px',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          border: '1px solid #e0e0e0',
+          padding: '20px',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          fontSize: '15px',
+          transition: 'border 0.3s ease-in-out',
+
+          '&:hover': {
+            border: '1px solid #FF6212',
+          },
         },
       },
     }),

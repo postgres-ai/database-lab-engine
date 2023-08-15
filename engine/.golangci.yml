@@ -66,14 +66,12 @@ linters-settings:
 
 linters:
   enable:
-    - deadcode
     - depguard
     - dupl
     - errcheck
     - gochecknoinits
     - goconst
     - gocritic
-    - goimports
     - gomnd
     - gosimple
     - govet
@@ -83,10 +81,8 @@ linters:
     - misspell
     - prealloc
     - revive
-    - structcheck
     - stylecheck
     - unconvert
-    - varcheck
     - unused
     - unparam
     - wsl
@@ -95,6 +91,7 @@ linters:
     - gosec
     - interfacer
     - gocyclo # currently unmaintained
+    - goimports # TODO: move it back to "enable" (Nik 2023-06-09)
   presets:
   fast: false
 

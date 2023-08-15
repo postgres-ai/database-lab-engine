@@ -72,7 +72,7 @@ export const Clones = observer((props: ClonesProps) => {
   const goToCloneAddPage = () => history.push(host.routes.createClone())
 
   const showListSizeButton =
-    instance.state.cloning.clones.length > SHORT_LIST_SIZE && isMobile
+    instance.state.cloning.clones?.length > SHORT_LIST_SIZE && isMobile
 
   const isLoadingSnapshots = stores.main.snapshots.isLoading
   const hasSnapshots = Boolean(stores.main.snapshots.data?.length)

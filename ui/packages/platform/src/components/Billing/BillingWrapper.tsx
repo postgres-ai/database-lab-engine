@@ -1,7 +1,6 @@
 import { makeStyles } from '@material-ui/core'
 import Billing from 'components/Billing/Billing'
 import { colors } from '@postgres.ai/shared/styles/colors'
-import { styles } from '@postgres.ai/shared/styles/styles'
 
 export interface BillingProps {
   org: string | number
@@ -9,7 +8,9 @@ export interface BillingProps {
   short: boolean
   projectId: number | string | undefined
   orgData: {
+    alias: string
     is_priveleged: boolean
+    stripe_payment_method_primary: string
     is_blocked: boolean
     new_subscription: boolean
     is_blocked_on_creation: boolean
@@ -59,101 +60,12 @@ export const BillingWrapper = (props: BillingProps) => {
         flexDirection: 'column',
         paddingBottom: '20px',
       },
-      billingError: {
-        color: colors.state.warning,
-      },
       errorMessage: {
         color: colors.state.error,
         marginBottom: 10,
       },
       subscriptionForm: {
         marginBottom: 20,
-      },
-      orgStatusActive: {
-        color: colors.state.ok,
-        display: 'block',
-        marginBottom: 20,
-      },
-      orgStatusBlocked: {
-        color: colors.state.error,
-        display: 'block',
-        marginBottom: 20,
-      },
-      navLink: {
-        color: colors.secondary2.main,
-        '&:visited': {
-          color: colors.secondary2.main,
-        },
-      },
-      sortArrow: {
-        '& svg': {
-          marginBottom: -8,
-        },
-      },
-      paperSection: {
-        display: 'block',
-        width: '100%',
-        marginBottom: 20,
-        overflow: 'auto',
-      },
-      monthColumn: {
-        width: 255,
-        float: 'left',
-      },
-      monthInfo: {
-        '& strong': {
-          display: 'inline-block',
-          marginBottom: 10,
-        },
-      },
-      monthValue: {
-        marginBottom: '0px!important',
-      },
-
-      toolTip: {
-        fontSize: '12px!important',
-        maxWidth: '300px!important',
-      },
-      paper: {
-        maxWidth: 510,
-        padding: 15,
-        marginBottom: 20,
-        display: 'block',
-        borderWidth: 1,
-        borderColor: colors.consoleStroke,
-        borderStyle: 'solid',
-      },
-      expansionPaper: {
-        maxWidth: 540,
-        borderWidth: 1,
-        borderColor: colors.consoleStroke,
-        borderStyle: 'solid',
-        borderRadius: 4,
-        marginBottom: 30,
-      },
-      expansionPaperHeader: {
-        padding: 15,
-        minHeight: 0,
-        'justify-content': 'left',
-        '& div.MuiExpansionPanelSummary-content': {
-          margin: 0,
-        },
-        '&.Mui-expanded': {
-          minHeight: '0px!important',
-        },
-        '& .MuiExpansionPanelSummary-expandIcon': {
-          padding: 0,
-          marginRight: 0,
-        },
-      },
-      expansionPaperBody: {
-        padding: 15,
-        paddingTop: 0,
-        display: 'block',
-        marginTop: -15,
-      },
-      bottomSpace: {
-        ...styles.bottomSpace,
       },
     }),
     { index: 1 },

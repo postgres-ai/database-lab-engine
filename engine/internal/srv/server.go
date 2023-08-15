@@ -32,6 +32,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/ws"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/validator"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
@@ -59,6 +60,7 @@ type Server struct {
 	startedAt   *models.LocalTime
 	filtering   *log.Filtering
 	reloadFn    func(server *Server) error
+	webhookCh   chan webhooks.EventTyper
 }
 
 // WSService defines a service to manage web-sockets.
@@ -73,7 +75,8 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps *global
 	dockerClient *client.Client, cloning *cloning.Base, provisioner *provision.Provisioner,
 	retrievalSvc *retrieval.Retrieval, platform *platform.Service, billingSvc *billing.Billing, observer *observer.Observer,
 	pm *pool.Manager, tm *telemetry.Agent, tokenKeeper *ws.TokenKeeper,
-	filtering *log.Filtering, uiManager *embeddedui.UIManager, reloadConfigFn func(server *Server) error) *Server {
+	filtering *log.Filtering, uiManager *embeddedui.UIManager, reloadConfigFn func(server *Server) error,
+	webhookCh chan webhooks.EventTyper) *Server {
 	server := &Server{
 		Config:      cfg,
 		Global:      globalCfg,
@@ -95,6 +98,7 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps *global
 		filtering:  filtering,
 		startedAt:  &models.LocalTime{Time: time.Now().Truncate(time.Second)},
 		reloadFn:   reloadConfigFn,
+		webhookCh:  webhookCh,
 	}
 
 	return server
@@ -183,7 +187,6 @@ func attachAPI(r *mux.Router) error {
 // Reload reloads server configuration.
 func (s *Server) Reload(cfg srvCfg.Config) {
 	*s.Config = cfg
-	s.initLogRegExp()
 }
 
 // InitHandlers initializes handler functions of the HTTP server.
@@ -231,7 +234,7 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/instance/logs", authMW.WebSocketsMW(s.wsService.tokenKeeper, s.instanceLogs))
 
 	// Health check.
-	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet)
+	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet, http.MethodPost)
 
 	// Show Swagger UI on index page.
 	if err := attachAPI(r); err != nil {
@@ -274,8 +277,4 @@ func (s *Server) Uptime() float64 {
 // reportLaunching reports the launch of the HTTP server.
 func reportLaunching(cfg *srvCfg.Config) {
 	log.Msg(fmt.Sprintf("API server started listening on %s:%d.", cfg.Host, cfg.Port))
-}
-
-func (s *Server) initLogRegExp() {
-	s.filtering.ReloadLogRegExp([]string{s.Config.VerificationToken, s.Platform.AccessToken(), s.Platform.OrgKey()})
 }

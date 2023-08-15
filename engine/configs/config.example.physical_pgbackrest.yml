@@ -366,3 +366,11 @@ platform:
 #    "regexp": "replace"
 #    "select \\d+": "***"
 #    "[a-z0-9._%+\\-]+(@[a-z0-9.\\-]+\\.[a-z]{2,4})": "***$1"
+# Webhooks configuration.
+#webhooks:
+#  hooks:
+#    - url: ""
+#      secret: "" # (optional) Sent with the request in the `DBLab-Webhook-Token` HTTP header.
+#      trigger:
+#        - clone_create
+#        - clone_reset
