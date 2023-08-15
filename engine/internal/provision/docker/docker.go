@@ -186,11 +186,7 @@ func createSocketCloneDir(socketCloneDir string) error {
 		return err
 	}
 
-	if err := os.Chmod(socketCloneDir, 0777); err != nil {
-		return err
-	}
-
-	return nil
+	return os.Chmod(socketCloneDir, 0777)
 }
 
 // StopContainer stops specified container.

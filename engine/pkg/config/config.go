@@ -15,6 +15,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	retConfig "gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	srvCfg "gitlab.com/postgres-ai/database-lab/v3/internal/srv/config"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 )
 
@@ -35,4 +36,5 @@ type Config struct {
 	PoolManager pool.Config       `yaml:"poolManager"`
 	EmbeddedUI  embeddedui.Config `yaml:"embeddedUI"`
 	Diagnostic  diagnostic.Config `yaml:"diagnostic"`
+	Webhooks    webhooks.Config   `yaml:"webhooks"`
 }

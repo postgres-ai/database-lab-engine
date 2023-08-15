@@ -1,10 +1,10 @@
 import { makeAutoObservable } from 'mobx'
 
 import { getEngine } from 'api/engine/getEngine'
-import { Engine } from 'types/api/entities/engine'
+import { EngineType } from '@postgres.ai/shared/types/api/endpoints/getEngine'
 
 type EngineProp = {
-  data: Engine | null | undefined
+  data: EngineType | null | undefined
   isLoading: boolean
 }
 

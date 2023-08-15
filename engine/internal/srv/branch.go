@@ -9,6 +9,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
@@ -153,6 +154,11 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	branch := models.Branch{Name: createRequest.BranchName}
+
+	s.webhookCh <- webhooks.BasicEvent{
+		EventType: webhooks.BranchCreateEvent,
+		EntityID:  branch.Name,
+	}
 
 	if err := api.WriteJSON(w, http.StatusOK, branch); err != nil {
 		api.SendError(w, r, err)
@@ -413,6 +419,11 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 	if err := cleanupSnapshotProperties(repo, fsm, deleteRequest.BranchName); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
+	}
+
+	s.webhookCh <- webhooks.BasicEvent{
+		EventType: webhooks.BranchDeleteEvent,
+		EntityID:  deleteRequest.BranchName,
 	}
 
 	if err := api.WriteJSON(w, http.StatusOK, models.Response{

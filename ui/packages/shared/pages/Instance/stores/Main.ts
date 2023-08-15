@@ -84,6 +84,7 @@ export class MainStore {
   isReloadingInstanceRetrieval = false
   isBranchesLoading = false
   isConfigLoading = false
+  isLoadingInstance = false
 
   private readonly api: Api
 
@@ -104,11 +105,13 @@ export class MainStore {
     this.loadInstance(instanceId)
     this.getBranches()
     this.loadInstanceRetrieval(instanceId).then(() => {
-      this.getConfig().then((res) => {
-        if (res) {
-          this.getEngine()
-        }
-      })
+      if (this.instanceRetrieval) {
+        this.getConfig().then((res) => {
+          if (res) {
+            this.getEngine()
+          }
+        })
+      }
     })
     this.snapshots.load(instanceId)
   }
@@ -145,6 +148,7 @@ export class MainStore {
     updateUnstableClones = true,
   ) => {
     this.instanceError = null
+    this.isLoadingInstance = true
 
     if (this.api.refreshInstance)
       await this.api.refreshInstance({ instanceId: instanceId })
@@ -152,6 +156,8 @@ export class MainStore {
     const { response, error } = await this.api.getInstance({
       instanceId: instanceId,
     })
+
+    this.isLoadingInstance = false
 
     if (response === null) {
       this.instanceError = {

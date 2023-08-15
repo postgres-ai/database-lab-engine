@@ -11,6 +11,12 @@ import { destroyClone } from 'api/clones/destroyClone'
 import { resetClone } from 'api/clones/resetClone'
 import { bannersStore } from 'stores/banners'
 import { getWSToken } from 'api/instances/getWSToken'
+import { getConfig } from 'api/configs/getConfig'
+import { getFullConfig } from 'api/configs/getFullConfig'
+import { testDbSource } from 'api/configs/testDbSource'
+import { updateConfig } from 'api/configs/updateConfig'
+import { getEngine } from 'api/engine/getEngine'
+import { initWS } from 'api/engine/initWS'
 
 type Params = {
   org: string
@@ -54,6 +60,12 @@ export const Instance = () => {
     refreshInstance,
     resetClone,
     getWSToken,
+    getConfig,
+    getFullConfig,
+    updateConfig,
+    testDbSource,
+    getEngine,
+    initWS,
   }
 
   const callbacks = {
@@ -82,11 +94,11 @@ export const Instance = () => {
 
   return (
     <InstancePage
+      isPlatform
       title={`Database Lab instance #${params.instanceId} ${
         params.project ? `(${params.project})` : ''
       }`}
       instanceId={params.instanceId}
-      hideInstanceTabs
       routes={routes}
       api={api}
       callbacks={callbacks}

@@ -23,7 +23,11 @@ import {
 
 // parseDate parses date of both format: '2006-01-02 15:04:05 UTC' and `2006-01-02T15:04:05Z` (RFC3339).
 export const parseDate = (dateStr: string) =>
-  parse(dateStr.replace(' UTC', 'Z').replace('T', ' '), 'yyyy-MM-dd HH:mm:ssX', new Date())
+  parse(
+    dateStr.replace(' UTC', 'Z').replace('T', ' '),
+    'yyyy-MM-dd HH:mm:ssX',
+    new Date(),
+  )
 
 // UTCf - UTC formatted, but not actually UTC.
 // date-fns using this approach because browser don't have an opportunity to switch single date

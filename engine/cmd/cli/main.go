@@ -1,3 +1,4 @@
+// Package main contains the starting point of the CLI tool.
 package main
 
 import (

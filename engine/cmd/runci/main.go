@@ -1,3 +1,4 @@
+// Package main contains the starting point of the CI Checker tool.
 package main
 
 import (

@@ -57,6 +57,6 @@ func (p *pgbackrest) GetRecoveryConfig(pgVersion float64) map[string]string {
 }
 
 // Init initialize pgbackrest tool.
-func (p *pgbackrest) Init(ctx context.Context, containerID string) error {
+func (p *pgbackrest) Init(_ context.Context, _ string) error {
 	return nil
 }

@@ -355,7 +355,9 @@ class JoeInstanceForm extends Component<
               }}
               margin="normal"
               helperText={
-                !isHttps(this.state.url) && !this.state.useTunnel ? (
+                this.state.url &&
+                !isHttps(this.state.url) &&
+                !this.state.useTunnel ? (
                   <span>
                     <WarningIcon className={classes.warningIcon} />
                     <span className={classes.warning}>

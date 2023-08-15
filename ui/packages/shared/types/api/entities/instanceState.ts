@@ -55,9 +55,9 @@ export type InstanceStateDto = {
 export const formatInstanceStateDto = (dto: InstanceStateDto) => {
   const pools = dto.pools?.map(formatPoolDto) ?? null
   const clones =
-    dto.clones?.map(formatCloneDto) ?? dto.cloning.clones.map(formatCloneDto)
+    dto?.clones?.map(formatCloneDto) ?? dto.cloning?.clones.map(formatCloneDto)
   const expectedCloningTime =
-    dto?.expectedCloningTime ?? dto.cloning.expectedCloningTime
+    dto?.expectedCloningTime ?? dto.cloning?.expectedCloningTime
 
   return {
     ...dto,

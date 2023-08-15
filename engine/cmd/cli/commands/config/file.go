@@ -100,9 +100,5 @@ func SaveConfig(filename string, cfg *CLIConfig) error {
 		return err
 	}
 
-	if err := os.WriteFile(filename, configData, 0600); err != nil {
-		return err
-	}
-
-	return nil
+	return os.WriteFile(filename, configData, 0600)
 }

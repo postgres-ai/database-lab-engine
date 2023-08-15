@@ -568,7 +568,7 @@ const Store = Reflux.createStore({
     this.data.orgProfile.updateError = !!this.data.orgProfile.updateErrorMessage;
 
     if (!this.data.orgProfile.updateError && data.length > 0) {
-      this.data.orgProfile.prevAlias = this.data.orgProfile.data.alias;
+      this.data.orgProfile.prevAlias = this.data.orgProfile.data?.alias;
       this.data.orgProfile.data = data[0];
       Actions.getUserProfile(this.data.auth.token);
       Actions.getOrgs(this.data.auth.token, this.data.orgProfile.orgId);
@@ -632,7 +632,7 @@ const Store = Reflux.createStore({
       Actions.getUserProfile(this.data.auth.token);
       Actions.getOrgs(this.data.auth.token, this.data.orgProfile.orgId);
       this.data.orgProfile.updateErrorFields = null;
-      window.location.pathname = process.env.PUBLIC_URL;
+      window.location.pathname = this.data.orgProfile.data.alias
     } else {
       this.data.orgProfile.updateErrorFields = [];
 
@@ -2384,20 +2384,11 @@ const Store = Reflux.createStore({
     this.data.billing.subscriptionError = !!this.data.billing.subscriptionErrorMessage;
 
     if (!this.data.billing.subscriptionError && data.result && data.result !== 'fail') {
-      if (data.result === 'created') {
-        Actions.showNotification('Subscription successfully created.', 'success');
-      } else {
-        Actions.showNotification('Subscription successfully created.', 'success');
-      }
-
       Actions.getUserProfile(this.data.auth.token);
       setTimeout(() => {
         Actions.getUserProfile(this.data.auth.token);
       }, 5000);
-    } else {
-      Actions.showNotification('Error happened on change subscription.', 'error');
-    }
-
+    } 
     this.trigger(this.data);
   },
 

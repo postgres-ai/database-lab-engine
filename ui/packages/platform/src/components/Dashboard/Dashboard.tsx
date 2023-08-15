@@ -7,6 +7,7 @@
 
 import { Component, MouseEvent } from 'react'
 import { NavLink } from 'react-router-dom'
+import Brightness1Icon from '@material-ui/icons/Brightness1'
 import {
   Table,
   TableBody,
@@ -23,7 +24,6 @@ import remarkGfm from 'remark-gfm'
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { StubContainer } from '@postgres.ai/shared/components/StubContainer'
-import { icons } from '@postgres.ai/shared/styles/icons'
 import { ClassesType } from '@postgres.ai/platform/src/components/types'
 
 import { ROUTES } from 'config/routes'
@@ -32,21 +32,24 @@ import Actions from '../../actions/actions'
 import ConsolePageTitle from '../ConsolePageTitle'
 import { ErrorWrapper } from 'components/Error/ErrorWrapper'
 import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
-import { messages } from '../../assets/messages'
 import Store from '../../stores/store'
 import Urls from '../../utils/urls'
 import settings from '../../utils/settings'
+import format from '../../utils/format'
 
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
 import { ConsoleButtonWrapper } from 'components/ConsoleButton/ConsoleButtonWrapper'
 import { ProductCardWrapper } from 'components/ProductCard/ProductCardWrapper'
 import { DashboardProps } from 'components/Dashboard/DashboardWrapper'
+import { FilteredTableMessage } from 'components/AccessTokens/FilteredTableMessage/FilteredTableMessage'
+import { CreatedDbLabCards } from 'components/CreateDbLabCards/CreateDbLabCards'
 
 interface DashboardWithStylesProps extends DashboardProps {
   classes: ClassesType
 }
 
 interface DashboardState {
+  filterValue: string
   data: {
     auth: {
       token: string
@@ -69,6 +72,8 @@ interface DashboardState {
         platform_onboarding_text: string
         orgs: {
           [org: string]: {
+            is_blocked: boolean
+            created_at: string
             id: number
             alias: string
             name: string
@@ -178,10 +183,6 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
     this.props.history.push(ROUTES.CREATE_ORG.path)
   }
 
-  addDblabInstanceButtonHandler = () => {
-    this.props.history.push(Urls.linkDbLabInstanceAdd(this.props))
-  }
-
   addCheckupAgentButtonHandler = () => {
     this.props.history.push(Urls.linkCheckupAgentAdd(this.props))
   }
@@ -202,6 +203,10 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
     return () => {
       this.props.history.push(Urls.linkReports({ org, project }))
     }
+  }
+
+  filterOrgsInputHandler = (event: React.ChangeEvent<HTMLInputElement>) => {
+    this.setState({ filterValue: event.target.value })
   }
 
   render() {
@@ -264,90 +269,9 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
     const projects = projectsData.data
 
     const dblabPermitted = this.props.orgPermissions?.dblabInstanceCreate
-    const checkupPermitted = this.props.orgPermissions?.checkupReportConfigure
-
-    const addDblabInstanceButton = (
-      <ConsoleButtonWrapper
-        disabled={!dblabPermitted}
-        variant="contained"
-        color="primary"
-        onClick={this.addDblabInstanceButtonHandler}
-        title={
-          dblabPermitted
-            ? 'Add a new Database Lab instance'
-            : messages.noPermission
-        }
-      >
-        Add instance
-      </ConsoleButtonWrapper>
-    )
-
-    const addCheckupAgentButton = (
-      <ConsoleButtonWrapper
-        disabled={!checkupPermitted}
-        variant="contained"
-        color="primary"
-        onClick={this.addCheckupAgentButtonHandler}
-        title={
-          checkupPermitted ? 'Add a new Checkup agent' : messages.noPermission
-        }
-      >
-        Add agent
-      </ConsoleButtonWrapper>
-    )
 
     let table = (
-      <StubContainer className={classes.stubContainerProjects}>
-        <ProductCardWrapper
-          inline
-          className={classes.productCardProjects}
-          title={'Setup Database Lab Engine'}
-          actions={[
-            {
-              id: 'addDblabInstanceButton',
-              content: addDblabInstanceButton,
-            },
-          ]}
-          icon={icons.databaseLabLogo}
-        >
-          <p>
-            Clone multi-terabyte databases in seconds and use them to test your
-            database migrations, optimize SQL, or deploy full-size staging apps.
-            Start here to work with all Database Lab tools.
-            <GatewayLink
-              href={settings.rootUrl + '/docs/database-lab'}
-              target="_blank"
-            >
-              Learn more
-            </GatewayLink>
-            .
-          </p>
-        </ProductCardWrapper>
-        <ProductCardWrapper
-          inline
-          className={classes.productCardProjects}
-          title={'Configure automated checkups'}
-          actions={[
-            {
-              id: 'addCheckupAgentButton',
-              content: addCheckupAgentButton,
-            },
-          ]}
-          icon={icons.checkupLogo}
-        >
-          <p>
-            Automated routine checkup for your PostgreSQL databases. Configure
-            Checkup agent to start collecting reports (
-            <GatewayLink
-              href={settings.rootUrl + '/docs/checkup'}
-              target="_blank"
-            >
-              Learn more
-            </GatewayLink>
-            ).
-          </p>
-        </ProductCardWrapper>
-      </StubContainer>
+      <CreatedDbLabCards props={this.props} dblabPermitted={dblabPermitted} />
     )
 
     if (projects.length > 0) {
@@ -411,36 +335,13 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
       onboarding = (
         <div>
           <Grid container spacing={2} id="usefulContainer">
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={12}>
               <div className={classes.onboardingCard}>
                 <h1>Getting started</h1>
                 <ReactMarkdown
                   className={classes.onboarding}
                   children={
                     this.state.data.userProfile.data.orgs[org].onboarding_text
-                  }
-                  rehypePlugins={[rehypeRaw]}
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    a: (props) => {
-                      const { href, target, children } = props
-                      return (
-                        <GatewayLink href={String(href)} target={target}>
-                          {String(children)}
-                        </GatewayLink>
-                      )
-                    },
-                  }}
-                />
-              </div>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <div className={classes.onboardingCard}>
-                <h1>Useful links</h1>
-                <ReactMarkdown
-                  className={classes.onboarding}
-                  children={
-                    this.state.data.userProfile.data.platform_onboarding_text
                   }
                   rehypePlugins={[rehypeRaw]}
                   remarkPlugins={[remarkGfm]}
@@ -486,6 +387,15 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
         ? this.state.data.dashboard.profileUpdateInitAfterDemo
         : null
 
+    const filteredItems =
+      profile?.data?.orgs &&
+      Object.keys(profile?.data?.orgs)?.filter(
+        (org) =>
+          org
+            ?.toLowerCase()
+            .indexOf((this.state.filterValue || '')?.toLowerCase()) !== -1,
+      )
+
     // Show organizations.
     if (this.state && this.state.data.projects?.error) {
       return (
@@ -528,6 +438,7 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
         color="primary"
         onClick={this.addOrgButtonHandler}
         id="createOrgButton"
+        className={classes.createOrgButton}
         title=""
       >
         Create new organization
@@ -576,9 +487,17 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
           title="Your organizations"
           information="Your own organizations and organizations of which you are a member"
           actions={pageActions}
+          filterProps={
+            profile?.data?.orgs
+              ? {
+                  filterValue: this.state.filterValue,
+                  filterHandler: this.filterOrgsInputHandler,
+                  placeholder: 'Search organizations by name',
+                }
+              : null
+          }
         />
-
-        {profile.data?.orgs && Object.keys(profile.data?.orgs).length > 0 ? (
+        {profile.data?.orgs && filteredItems && filteredItems.length > 0 ? (
           <HorizontalScrollContainer>
             <Table className={classes.table} id="orgsTable">
               <TableHead>
@@ -587,10 +506,12 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
                     Organization
                   </TableCell>
                   <TableCell>Projects count</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Created at</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {Object.keys(profile.data?.orgs).map((index) => {
+                {filteredItems.map((index) => {
                   return (
                     <TableRow
                       hover
@@ -620,6 +541,20 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
                             : '0'}
                         </NavLink>
                       </TableCell>
+                      <TableCell className={classes.cell}>
+                        <Brightness1Icon
+                          className={
+                            profile.data?.orgs[index].is_blocked
+                              ? classes.blockedStatus
+                              : classes.validStatus
+                          }
+                        />
+                      </TableCell>
+                      <TableCell className={classes.cell}>
+                        {format.formatDate(
+                          profile.data?.orgs[index].created_at,
+                        ) || '-'}
+                      </TableCell>
                     </TableRow>
                   )
                 })}
@@ -627,7 +562,16 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
             </Table>
           </HorizontalScrollContainer>
         ) : (
-          orgsPlaceholder
+          <FilteredTableMessage
+            filteredItems={filteredItems}
+            emptyState={orgsPlaceholder}
+            filterValue={this.state.filterValue}
+            clearFilter={() =>
+              this.setState({
+                filterValue: '',
+              })
+            }
+          />
         )}
       </div>
     )

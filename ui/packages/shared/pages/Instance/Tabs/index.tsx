@@ -77,14 +77,15 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
-type Props = {
+export interface TabsProps {
   value: number
   handleChange: (event: React.ChangeEvent<{}>, newValue: number) => void
   hasLogs: boolean
+  isPlatform?: boolean
   hideInstanceTabs?: boolean
 }
 
-export const Tabs = (props: Props) => {
+export const Tabs = (props: TabsProps) => {
   const classes = useStyles()
 
   const { value, handleChange, hasLogs, hideInstanceTabs } = props

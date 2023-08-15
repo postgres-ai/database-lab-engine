@@ -33,6 +33,7 @@ import ConsolePageTitle from '../ConsolePageTitle'
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
 import { DisplayTokenWrapper } from 'components/DisplayToken/DisplayTokenWrapper'
 import { AccessTokensProps } from 'components/AccessTokens/AccessTokensWrapper'
+import { FilteredTableMessage } from 'components/AccessTokens/FilteredTableMessage/FilteredTableMessage'
 
 interface AccessTokensWithStylesProps extends AccessTokensProps {
   classes: ClassesType
@@ -49,6 +50,7 @@ interface UserTokenData {
 }
 
 interface AccessTokensState {
+  filterValue: string
   data: {
     auth: {
       token: string
@@ -75,6 +77,7 @@ class AccessTokens extends Component<
   AccessTokensState
 > {
   state = {
+    filterValue: '',
     data: {
       auth: {
         token: '',
@@ -247,6 +250,10 @@ class AccessTokens extends Component<
     }
   }
 
+  filterTokensInputHandler = (event: React.ChangeEvent<HTMLInputElement>) => {
+    this.setState({ filterValue: event.target.value })
+  }
+
   render() {
     const { classes, orgPermissions, orgId } = this.props
     const data =
@@ -255,7 +262,27 @@ class AccessTokens extends Component<
       this.state && this.state.data && this.state.data.tokenRequest
         ? this.state.data.tokenRequest
         : null
-    const pageTitle = <ConsolePageTitle title="Access tokens" />
+    const filteredTokens = data?.data?.filter(
+      (token: UserTokenData) =>
+        token.name
+          ?.toLowerCase()
+          .indexOf((this.state.filterValue || '')?.toLowerCase()) !== -1,
+    )
+
+    const pageTitle = (
+      <ConsolePageTitle
+        title="Access tokens"
+        filterProps={
+          data && data.data?.length > 0
+            ? {
+                filterValue: this.state.filterValue,
+                filterHandler: this.filterTokensInputHandler,
+                placeholder: 'Search access tokens by name',
+              }
+            : null
+        }
+      />
+    )
 
     let tokenDisplay = null
     if (
@@ -437,7 +464,7 @@ class AccessTokens extends Component<
         <br />
         <h2>Active access tokens</h2>
 
-        {data.data.length > 0 ? (
+        {filteredTokens && filteredTokens.length > 0 ? (
           <HorizontalScrollContainer>
             <Table className={classes?.table}>
               <TableHead>
@@ -452,9 +479,9 @@ class AccessTokens extends Component<
               </TableHead>
 
               <TableBody>
-                {data.data &&
-                  data.data.length > 0 &&
-                  data.data.map((t: UserTokenData) => {
+                {filteredTokens &&
+                  filteredTokens.length > 0 &&
+                  filteredTokens.map((t: UserTokenData) => {
                     return (
                       <TableRow className={classes?.row} key={t.id}>
                         <TableCell className={classes?.cell}>
@@ -496,7 +523,16 @@ class AccessTokens extends Component<
             </Table>
           </HorizontalScrollContainer>
         ) : (
-          'This user has no active access tokens'
+          <FilteredTableMessage
+            filteredItems={filteredTokens}
+            emptyState="This user has no active access tokens"
+            filterValue={this.state.filterValue}
+            clearFilter={() =>
+              this.setState({
+                filterValue: '',
+              })
+            }
+          />
         )}
 
         <div className={classes?.bottomSpace} />

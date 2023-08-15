@@ -39,6 +39,7 @@ func (f *Filtering) ReloadLogRegExp(secretStings []string) {
 		"accessToken:\\s?(\\S+)",
 		"orgKey:\\s?(\\S+)",
 		"ACCESS_KEY(_ID)?:\\s?(\\S+)",
+		"secret:\\s?(\\S+)",
 	}
 
 	for _, secret := range secretStings {

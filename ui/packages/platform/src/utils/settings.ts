@@ -12,7 +12,7 @@ const AUTH_URL = process.env.REACT_APP_AUTH_URL;
 const ROOT_URL = process.env.REACT_APP_ROOT_URL;
 const EXPLAIN_DEPESZ_SERVER = process.env.REACT_APP_EXPLAIN_DEPESZ_SERVER;
 const EXPLAIN_PEV2_SERVER = process.env.REACT_APP_EXPLAIN_PEV2_SERVER;
-const STRIPE_API_KEY = process.env.REACT_APP_STRIPE_API_KEY;
+const STRIPE_API_KEY = process.env.REACT_APP_STRIPE_API_KEY
 
 const settings = {
   server: window.location.protocol + '//' + window.location.host,

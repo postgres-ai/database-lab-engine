@@ -381,11 +381,7 @@ func initStatFile(filename string) error {
 		return err
 	}
 
-	if err := os.Chmod(filename, 0666); err != nil {
-		return err
-	}
-
-	return nil
+	return os.Chmod(filename, 0666)
 }
 
 // IsAvailableArtifactType checks if artifact type is available.
