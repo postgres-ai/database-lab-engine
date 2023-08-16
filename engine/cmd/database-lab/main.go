@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
@@ -124,7 +125,9 @@ func main() {
 	}
 
 	// Create a cloning service to provision new clones.
-	provisioner, err := provision.New(ctx, &cfg.Provision, dbCfg, docker, pm, engProps.InstanceID, internalNetworkID)
+	networkGateway := getNetworkGateway(docker, internalNetworkID)
+
+	provisioner, err := provision.New(ctx, &cfg.Provision, dbCfg, docker, pm, engProps.InstanceID, internalNetworkID, networkGateway)
 	if err != nil {
 		log.Errf(errors.WithMessage(err, `error in the "provision" section of the config`).Error())
 	}
@@ -251,6 +254,22 @@ func main() {
 	cloningSvc.SaveClonesState()
 	logCleaner.StopLogCleanupJob()
 	tm.SendEvent(ctxBackground, telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
+}
+
+func getNetworkGateway(docker *client.Client, internalNetworkID string) string {
+	gateway := ""
+
+	networkResource, err := docker.NetworkInspect(context.Background(), internalNetworkID, types.NetworkInspectOptions{})
+	if err != nil {
+		log.Err(err.Error())
+		return gateway
+	}
+
+	if len(networkResource.IPAM.Config) > 0 {
+		gateway = networkResource.IPAM.Config[0].Gateway
+	}
+
+	return gateway
 }
 
 func getEngineProperties(ctx context.Context, docker *client.Client, cfg *config.Config) (global.EngineProps, error) {
