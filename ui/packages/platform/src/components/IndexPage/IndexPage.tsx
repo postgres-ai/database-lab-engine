@@ -884,6 +884,7 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
       },
       userProfile: {
         data: {
+          orgs: {},
           info: {
             first_name: '',
             user_name: '',
@@ -907,7 +908,7 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
 
     document.getElementsByTagName('html')[0].style.overflow = 'hidden'
 
-     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
+    this.unsubscribe = (Store.listen as RefluxTypes['listen'])(function () {
       that.setState({ data: this.data })
 
       // redirect to new organization alias if need
@@ -1302,9 +1303,13 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
               <Route
                 path={ROUTES.ROOT.path}
                 exact
-                render={(props) => (
-                  <DashboardWrapper onlyProjects={false} {...props} />
-                )}
+                render={(props) => {
+                  if (env.data && env.data?.orgs) {
+                    return <DashboardWrapper onlyProjects={false} {...props} />
+                  } else {
+                    return <OrgFormWrapper mode={'new'} {...props} />
+                  }
+                }}
               />
               <Route
                 path={ROUTES.CREATE_ORG.path}
