@@ -6,10 +6,15 @@
 package validator
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
+	passwordvalidator "github.com/wagslane/go-password-validator"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 )
+
+const minEntropyBits = 60
 
 // Service provides a validation service.
 type Service struct {
@@ -27,6 +32,10 @@ func (v Service) ValidateCloneRequest(cloneRequest *types.CloneCreateRequest) er
 
 	if cloneRequest.DB.Password == "" {
 		return errors.New("missing DB password")
+	}
+
+	if err := passwordvalidator.Validate(cloneRequest.DB.Password, minEntropyBits); err != nil {
+		return fmt.Errorf("password validation: %w", err)
 	}
 
 	return nil
