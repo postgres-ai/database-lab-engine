@@ -70,6 +70,7 @@ export const Instance = observer((props: Props) => {
   const [activeTab, setActiveTab] = React.useState(
     props?.renderCurrentTab || TABS_INDEX.OVERVIEW,
   )
+  const [hasBeenRedirected, setHasBeenRedirected] = React.useState(false);
 
   const stores = useCreatedStores(props)
   const {
@@ -108,14 +109,12 @@ export const Instance = observer((props: Props) => {
       instance &&
       instance?.state.retrieving?.status === 'pending' &&
       isConfigurationActive &&
-      !props.isPlatform
+      !props.isPlatform && !hasBeenRedirected
     ) {
       setActiveTab(TABS_INDEX.CONFIGURATION)
+      setHasBeenRedirected(true)
     }
-    if (instance && !instance?.state?.pools) {
-      if (!props.callbacks) return
-    }
-  }, [instance])
+  }, [instance, hasBeenRedirected])
 
   return (
     <HostProvider value={props}>
