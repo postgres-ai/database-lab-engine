@@ -445,7 +445,7 @@ class DbLabSession extends Component<
           </Typography>
 
           <Typography component="p">
-            <span className={classes.paramTitle}>DLE instance:</span>
+            <span className={classes.paramTitle}>DBLab instance:</span>
             {session?.internal_instance_id ? (
               <NavLink
                 to={urls.linkDbLabInstance(
@@ -462,7 +462,7 @@ class DbLabSession extends Component<
           </Typography>
 
           <Typography component="p">
-            <span className={classes.paramTitle}>DLE version:</span>
+            <span className={classes.paramTitle}>DBLab version:</span>
             {session && session.tags && session.tags.dle_version
               ? session.tags.dle_version
               : '-'}

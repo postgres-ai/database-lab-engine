@@ -10,7 +10,7 @@ export const tooltipText = {
   dockerImage: () => (
     <div>
       Major PostgreSQL version (e.g., "9.6", "15"). For logical provisioning
-      mode, the version used by DLE doesn't need to match the version used on
+      mode, the version used by DBLab doesn't need to match the version used on
       the source (although, it's recommended). <br />
       If you need a version that is not listed here, contact support.
     </div>
@@ -19,7 +19,7 @@ export const tooltipText = {
     <div>
       Docker image used to run all database containers – clones, snapshot
       preparation containers, sync containers. Although such images are based on
-      traditional Docker images for Postgres, DLE expects slightly different
+      traditional Docker images for Postgres, DBLab expects slightly different
       behavior: e.g., Postgres is not the first process used to start container,
       so Postgres restarts are possible, they do not trigger container state
       change. For details, see{' '}
@@ -35,9 +35,9 @@ export const tooltipText = {
   ),
   sharedBuffers: () => (
     <div>
-      Defines default buffer pool size of each Postgres instance managed by DLE.
+      Defines default buffer pool size of each Postgres instance managed by DBLab.
       Note, that this amount of RAM is immediately allocated at Postgres startup
-      time. For example, if the machine running DLE has 32 GiB of RAM, and the
+      time. For example, if the machine running DBLab has 32 GiB of RAM, and the
       value used here is '1GB', then the theoretical limit of the number of
       clones is 32. Practically, this limit is even lower because some memory is
       consumed by various other processes. If you need more clones, reduce the
@@ -121,13 +121,13 @@ export const tooltipText = {
   restoreParallelJobs: () => (
     <div>
       Number of parallel workers used to restore databases from dump to Postgres
-      managed by DLE. For initial data retrieval (very first data refresh), it
+      managed by DBLab. For initial data retrieval (very first data refresh), it
       is recommended to use the number of vCPUs available on machine running
-      DLE. With this approach, we have faster restore time, but we need to keep
+      DBLab. With this approach, we have faster restore time, but we need to keep
       in mind that we can also have higher usage of CPU and disk IO on this
       machine (up to temporary saturation of resources). For subsequent
-      refreshes, if DLE is constantly used, it is recommended to reduce this
-      value by 50% to keep some room for normal use of DLE (such as work with
+      refreshes, if DBLab is constantly used, it is recommended to reduce this
+      value by 50% to keep some room for normal use of DBLab (such as work with
       clones).
     </div>
   ),
