@@ -97,7 +97,7 @@ export const StickyTopBar = () => {
           handleReset()
           setSnackbarState({
             isOpen: true,
-            message: 'All DLE SE features are now active.',
+            message: 'All DBLab SE features are now active.',
             type: 'success',
           })
         } else {
@@ -178,7 +178,7 @@ export const StickyTopBar = () => {
                 onClick={handleActivate}
                 disabled={isLoading}
               >
-                re-activate DLE
+                re-activate DBLab
                 {isLoading && <Spinner size="sm" className={styles.spinner} />}
               </Button>
             </>
@@ -191,7 +191,7 @@ export const StickyTopBar = () => {
                 onClick={handleActivate}
                 disabled={isLoading}
               >
-                re-activate DLE
+                re-activate DBLab
                 {isLoading && <Spinner size="sm" className={styles.spinner} />}
               </Button>
             </>

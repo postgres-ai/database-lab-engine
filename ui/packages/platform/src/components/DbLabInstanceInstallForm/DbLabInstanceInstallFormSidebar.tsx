@@ -101,7 +101,7 @@ export const DbLabInstanceFormInstallSidebar = ({
           onClick={handleCreate}
           disabled={!state.name || !state.verificationToken || disabled}
         >
-          Install DLE
+          Install DBLab
         </Button>
       </div>
     </div>

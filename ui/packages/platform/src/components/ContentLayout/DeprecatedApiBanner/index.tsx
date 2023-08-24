@@ -29,12 +29,12 @@ export const DeprecatedApiBanner = () => {
   return (
     <div className={classes.root}>
       <Status type="warning" className={classes.status} disableColor>
-        The version of your DLE instance is deprecated.
+        The version of your DBLab instance is deprecated.
       </Status>{' '}
-      Some information about DLE, disks, clones, and snapshots may be
+      Some information about DBLab, disks, clones, and snapshots may be
       unavailable.
       <br />
-      Please upgrade your DLE to&nbsp;
+      Please upgrade your DBLab to&nbsp;
       <GatewayLink
         href="https://gitlab.com/postgres-ai/database-lab/-/releases"
         className={classes.link}
