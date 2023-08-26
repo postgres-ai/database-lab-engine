@@ -166,7 +166,7 @@ HTML-код для светлых фонов:
 - [DB Migration Checker](https://postgres.ai/docs/db-migration-checker)
 
 ## Лицензия
-Код DLE распространяется под лицензией, одобренной OSI: GNU Affero General Public License version 3 (AGPLv3).
+Код DLE распространяется под лицензией, одобренной OSI: [Apache 2.0](https://opensource.org/license/apache-2-0/).
 
 Свяжитесь с командой Postgres.ai, если вам нужна коммерческая лицензия, которая не содержит предложений GPL, а также, если вам нужна поддержка: [Контактная страница](https://postgres.ai/contact).
 

@@ -168,7 +168,7 @@ Weitere Informationen finden Sie im [Abschnitt „Anleitungen“](https://postgr
 - [DB-Migrationsprüfer](https://postgres.ai/docs/db-migration-checker)
 
 ## Lizenz
-Der DLE-Quellcode ist unter der vom OSI genehmigten Open-Source-Lizenz GNU Affero General Public License Version 3 (AGPLv3) lizenziert.
+Der DLE-Quellcode ist unter der vom OSI genehmigten Open-Source-Lizenz [Apache 2.0](https://opensource.org/license/apache-2-0/) lizenziert.
 
 Wenden Sie sich an das Postgres.ai-Team, wenn Sie eine Test- oder kommerzielle Lizenz wünschen, die die GPL-Klauseln nicht enthält: [Kontaktseite](https://postgres.ai/contact).
 
