@@ -183,7 +183,7 @@ More you can find in [the "How-to guides" section](https://postgres.ai/docs/how-
 - [DB Migration Checker](https://postgres.ai/docs/db-migration-checker)
 
 ## License
-DBLab source code is licensed under the OSI-approved open source license GNU Affero General Public License version 3 (AGPLv3).
+DBLab source code is licensed under the OSI-approved open source license [Apache 2.0](https://opensource.org/license/apache-2-0/).
 
 Reach out to the Postgres.ai team if you want a trial or commercial license that does not contain the GPL clauses: [Contact page](https://postgres.ai/contact).
 
