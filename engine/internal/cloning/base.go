@@ -74,8 +74,8 @@ func (c *Base) Reload(cfg Config) {
 
 // Run initializes and runs cloning component.
 func (c *Base) Run(ctx context.Context) error {
-	if err := c.provision.Init(); err != nil {
-		return errors.Wrap(err, "failed to run cloning service")
+	if err := c.provision.RevisePortPool(); err != nil {
+		return fmt.Errorf("failed to revise port pool: %w", err)
 	}
 
 	if _, err := c.GetSnapshots(); err != nil {
