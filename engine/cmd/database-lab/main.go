@@ -156,27 +156,9 @@ func main() {
 	}
 
 	obs := observer.NewObserver(docker, &cfg.Observer, pm)
-
-	go removeObservingClones(observingChan, obs)
-
-	systemMetrics := billing.GetSystemMetrics(pm)
-
-	tm.SendEvent(ctx, telemetry.EngineStartedEvent, telemetry.EngineStarted{
-		EngineVersion: version.GetVersion(),
-		DBEngine:      cfg.Global.Engine,
-		DBVersion:     provisioner.DetectDBVersion(),
-		Pools:         pm.CollectPoolStat(),
-		Restore:       retrievalSvc.ReportState(),
-		System:        systemMetrics,
-	})
-
 	billingSvc := billing.New(platformSvc.Client, &engProps, pm)
 
-	if err := billingSvc.RegisterInstance(ctx, systemMetrics); err != nil {
-		log.Msg("Skip registering instance:", err)
-	}
-
-	log.Msg("DLE Edition:", engProps.GetEdition())
+	go removeObservingClones(observingChan, obs)
 
 	embeddedUI := embeddedui.New(cfg.EmbeddedUI, engProps, runner, docker)
 
@@ -201,12 +183,6 @@ func main() {
 
 	server := srv.NewServer(&cfg.Server, &cfg.Global, &engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc,
 		billingSvc, obs, pm, tm, tokenHolder, logFilter, embeddedUI, reloadConfigFn)
-	shutdownCh := setShutdownListener()
-
-	go setReloadListener(ctx, engProps, provisioner, billingSvc,
-		retrievalSvc, pm, cloningSvc, platformSvc,
-		embeddedUI, server,
-		logCleaner, logFilter)
 
 	server.InitHandlers()
 
@@ -216,8 +192,6 @@ func main() {
 		}
 	}()
 
-	go billingSvc.CollectUsage(ctx, systemMetrics)
-
 	if cfg.EmbeddedUI.Enabled {
 		go func() {
 			if err := embeddedUI.Run(ctx); err != nil {
@@ -226,6 +200,39 @@ func main() {
 			}
 		}()
 	}
+
+	if err := provisioner.Init(); err != nil {
+		log.Err(err)
+		emergencyShutdown()
+
+		return
+	}
+
+	systemMetrics := billing.GetSystemMetrics(pm)
+
+	tm.SendEvent(ctx, telemetry.EngineStartedEvent, telemetry.EngineStarted{
+		EngineVersion: version.GetVersion(),
+		DBEngine:      cfg.Global.Engine,
+		DBVersion:     provisioner.DetectDBVersion(),
+		Pools:         pm.CollectPoolStat(),
+		Restore:       retrievalSvc.ReportState(),
+		System:        systemMetrics,
+	})
+
+	if err := billingSvc.RegisterInstance(ctx, systemMetrics); err != nil {
+		log.Msg("Skip registering instance:", err)
+	}
+
+	log.Msg("DBLab Edition:", engProps.GetEdition())
+
+	shutdownCh := setShutdownListener()
+
+	go setReloadListener(ctx, engProps, provisioner, billingSvc,
+		retrievalSvc, pm, cloningSvc, platformSvc,
+		embeddedUI, server,
+		logCleaner, logFilter)
+
+	go billingSvc.CollectUsage(ctx, systemMetrics)
 
 	if err := retrievalSvc.Run(ctx); err != nil {
 		log.Err("Failed to run the data retrieval service:", err)
