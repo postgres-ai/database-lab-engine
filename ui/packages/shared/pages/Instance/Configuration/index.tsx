@@ -252,8 +252,6 @@ export const Configuration = observer(
 
     if (!instance && isConfigLoading) return <StubSpinner />
 
-    if (!instance && !isConfigLoading) return <></>
-
     return (
       <div className={styles.root}>
         <Snackbar
