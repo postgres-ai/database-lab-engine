@@ -230,7 +230,7 @@ export const AnsibleInstance = ({
           ) : null}
           <AnsibleInstallation />
           <p className={classes.title}>
-            6. Run ansible playbook to create server and install DLE SE
+            6. Run ansible playbook to create server and install DBLab SE
           </p>
           <SyntaxHighlight
             content={getPlaybookCommandWithoutDocker(
@@ -242,7 +242,7 @@ export const AnsibleInstance = ({
           {getNetworkSubnet(state.provider, classes)}
           <p className={classes.title}>
             7. After the code snippet runs successfully, follow the directions
-            displayed in the resulting output to start using DLE AUI/API/CLI.
+            displayed in the resulting output to start using DBLab AUI/API/CLI.
           </p>
           <Box
             sx={{

@@ -146,13 +146,13 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
     (region: CloudRegion) => region.world_part === state.region,
   )
 
-  const pageTitle = <ConsolePageTitle title="Create DLE" />
+  const pageTitle = <ConsolePageTitle title="Create DBLab" />
   const breadcrumbs = (
     <ConsoleBreadcrumbsWrapper
       {...props}
       breadcrumbs={[
         { name: 'Database Lab Instances', url: 'instances' },
-        { name: 'Create DLE' },
+        { name: 'Create DBLab' },
       ]}
     />
   )
@@ -472,10 +472,10 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
                       }}
                     />
                   </Box>
-                  <p className={classes.sectionTitle}>5. Provide DLE name</p>
+                  <p className={classes.sectionTitle}>5. Provide DBLab name</p>
                   <TextField
                     required
-                    label="DLE Name"
+                    label="DBLab Name"
                     variant="outlined"
                     fullWidth
                     value={state.name}
@@ -501,12 +501,12 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
                     }
                   />
                   <p className={classes.sectionTitle}>
-                    6. Define DLE verification token (keep it secret!)
+                    6. Define DBLab verification token (keep it secret!)
                   </p>
                   <div className={classes.generateContainer}>
                     <TextField
                       required
-                      label="DLE Verification Token"
+                      label="DBLab Verification Token"
                       variant="outlined"
                       fullWidth
                       value={state.verificationToken}
@@ -534,7 +534,7 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
                       Generate random
                     </Button>
                   </div>
-                  <p className={classes.sectionTitle}>7. Choose DLE version</p>
+                  <p className={classes.sectionTitle}>7. Choose DBLab version</p>
                   <Select
                     label="Select tag"
                     items={
@@ -564,7 +564,7 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
                     8. Provide SSH public keys (one per line)
                   </p>
                   <p className={classes.instanceParagraph}>
-                    These SSH public keys will be added to the DLE server's
+                    These SSH public keys will be added to the DBLab server's
                     &nbsp;
                     <code className={classes.code}>~/.ssh/authorized_keys</code>
                     &nbsp; file. Providing at least one public key is

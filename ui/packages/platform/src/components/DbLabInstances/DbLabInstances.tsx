@@ -309,9 +309,9 @@ class DbLabInstances extends Component<
         color="primary"
         key="add_dblab_instance"
         onClick={() => this.setState({ modalOpen: true })}
-        title={addPermitted ? 'Create new DLE' : messages.noPermission}
+        title={addPermitted ? 'Create new DBLab' : messages.noPermission}
       >
-        New DLE
+        New DBLab
       </ConsoleButtonWrapper>
     )
     const pageTitle = (
@@ -415,7 +415,7 @@ class DbLabInstances extends Component<
       <Modal
         size="md"
         isOpen={this.state.modalOpen}
-        title="Choose the location for your DLE SE installation"
+        title="Choose the location for your DBLab SE installation"
         onClose={() => this.setState({ modalOpen: false })}
         aria-labelledby="simple-modal-title"
         aria-describedby="simple-modal-description"

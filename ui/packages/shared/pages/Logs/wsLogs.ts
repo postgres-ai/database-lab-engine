@@ -94,7 +94,7 @@ export const establishConnection = async (api: Api) => {
   socket.onclose = (event) => {
     console.log('Socket Closed Connection: ', event);
     socket.send('Client Closed')
-    appendLogElement('DLE Connection Closed')
+    appendLogElement('DBLab Connection Closed')
   }
 
   socket.onerror = (error) => {

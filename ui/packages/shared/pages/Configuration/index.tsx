@@ -812,7 +812,7 @@ export const Configuration = observer(
                   className={classes.grayText}
                   style={{ margin: '0.5rem 0 1rem 0', display: 'block' }}
                 >
-                  DLE manages various database containers, such as clones. This
+                  DBLab manages various database containers, such as clones. This
                   section defines default container settings.
                 </span>
                 <div>
@@ -955,7 +955,7 @@ export const Configuration = observer(
                   style={{ marginTop: '0.5rem', display: 'block' }}
                 >
                   Default Postgres configuration used for all Postgres instances
-                  running in containers managed by DLE.
+                  running in containers managed by DBLab.
                 </span>
                 <InputWithTooltip
                   type="textarea"

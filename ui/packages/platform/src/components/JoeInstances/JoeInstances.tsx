@@ -359,7 +359,7 @@ class JoeInstances extends Component<
           <p>
             Joe Bot is a virtual DBA for SQL Optimization. Joe helps engineers
             quickly troubleshoot and optimize SQL. Joe runs on top of the
-            Database Lab Engine. (
+            DBLab Engine. (
             <GatewayLink
               href="https://postgres.ai/docs/joe-bot"
               target="_blank"
