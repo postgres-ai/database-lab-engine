@@ -1,8 +1,6 @@
 import { defineConfig } from 'cypress'
 
 export default defineConfig({
-  pageLoadTimeout: 10000,
-  defaultCommandTimeout: 10000,
   e2e: {
     testIsolation: false,
     supportFile: false,

@@ -57,11 +57,11 @@ semgrep-sast:
     reports:
       sast: gl-sast-report.json
 
-test:
+e2e-ce-ui-test:
   <<: *ui_checks
   <<: *ui_cache
   image: node:latest
-  stage: test
+  stage: integration-test
   before_script:
     - apt update && apt install curl
     - apt install -y libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb

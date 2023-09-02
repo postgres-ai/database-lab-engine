@@ -598,7 +598,7 @@ class DbLabInstances extends Component<
             key={4}
             onClick={(event) => this.menuHandler(event, 'destroy')}
           >
-            Remove
+            Remove from List
           </MenuItem>
         </Menu>
       )

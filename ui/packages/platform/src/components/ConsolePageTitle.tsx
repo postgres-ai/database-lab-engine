@@ -65,12 +65,19 @@ const useStyles = makeStyles(
       'margin-bottom': '20px',
     },
     pageTitleActions: {
-      lineHeight: '37px',
-      display: 'inline-block',
+      display: 'flex',
+      alignItems: 'center',
+      height: '100%',
       float: 'right',
     },
     pageTitleActionContainer: {
       marginLeft: '10px',
+      display: 'inline-block',
+      height: "36px",
+
+      "& > span, button": {
+        height: '100%',
+      },
     },
     tooltip: {
       fontSize: '10px!important',
@@ -125,7 +132,7 @@ const ConsolePageTitle = ({
               id="filterOrgsInput"
               variant="outlined"
               size="small"
-              style={{ minWidth: '260px', height: '30px' }}
+              style={{ minWidth: '260px' }}
               className="filterOrgsInput"
               placeholder={filterProps.placeholder}
               value={filterProps.filterValue}

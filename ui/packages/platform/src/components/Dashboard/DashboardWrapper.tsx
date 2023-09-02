@@ -82,9 +82,6 @@ export const DashboardWrapper = (props: DashboardProps) => {
           width: '200px',
         },
       },
-      createOrgButton: {
-        height: '37px',
-      },
       blockedStatus: {
         color: colors.state.error,
         fontSize: '1.1em',

@@ -24,7 +24,10 @@ import remarkGfm from 'remark-gfm'
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { StubContainer } from '@postgres.ai/shared/components/StubContainer'
-import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
+import {
+  ClassesType,
+  RefluxTypes,
+} from '@postgres.ai/platform/src/components/types'
 
 import { ROUTES } from 'config/routes'
 
@@ -103,7 +106,7 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
     const orgId = this.props.orgId
     const onlyProjects = this.props.onlyProjects
 
-     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
+    this.unsubscribe = (Store.listen as RefluxTypes['listen'])(function () {
       that.setState({ data: this.data })
       const auth: DashboardState['data']['auth'] =
         this.data && this.data.auth ? this.data.auth : null
@@ -330,6 +333,7 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
       this.state.data.userProfile.data &&
       this.state.data.userProfile.data.orgs &&
       this.state.data.userProfile.data.orgs[org] &&
+      this.state.data.userProfile.data.orgs[org].projects &&
       this.state.data.userProfile.data.orgs[org].onboarding_text
     ) {
       onboarding = (
@@ -422,7 +426,7 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
 
     const useDemoDataButton = (
       <ConsoleButtonWrapper
-        variant="contained"
+        variant="outlined"
         color="primary"
         onClick={this.useDemoDataButtonHandler}
         id="useDemoDataButton"
@@ -434,7 +438,7 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
 
     const createOrgButton = (
       <ConsoleButtonWrapper
-        variant="outlined"
+        variant="contained"
         color="primary"
         onClick={this.addOrgButtonHandler}
         id="createOrgButton"
@@ -452,12 +456,12 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
           title={'Create or join an organization'}
           actions={[
             {
-              id: 'useDemoDataButton',
-              content: useDemoDataButton,
-            },
-            {
               id: 'createOrgButton',
               content: createOrgButton,
+            },
+            {
+              id: 'useDemoDataButton',
+              content: useDemoDataButton,
             },
           ]}
         >
@@ -475,10 +479,16 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
     )
 
     const pageActions = []
-    if (!profile.data?.orgs || !profile.data?.orgs[settings.demoOrgAlias]) {
+    if (
+      Object.keys(profile?.data?.orgs).length > 0 &&
+      (!profile.data?.orgs || !profile.data?.orgs[settings.demoOrgAlias])
+    ) {
       pageActions.push(useDemoDataButton)
     }
-    pageActions.push(createOrgButton)
+
+    if (Object.keys(profile?.data?.orgs).length > 0) {
+      pageActions.push(createOrgButton)
+    }
 
     return (
       <div className={classes.root}>
@@ -486,9 +496,9 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
           top={true}
           title="Your organizations"
           information="Your own organizations and organizations of which you are a member"
-          actions={pageActions}
+          actions={filteredItems && pageActions}
           filterProps={
-            profile?.data?.orgs
+            Object.keys(profile?.data?.orgs).length > 0
               ? {
                   filterValue: this.state.filterValue,
                   filterHandler: this.filterOrgsInputHandler,

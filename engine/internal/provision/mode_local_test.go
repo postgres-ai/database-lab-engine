@@ -26,7 +26,7 @@ func TestPortAllocation(t *testing.T) {
 		},
 	}
 
-	p, err := New(context.Background(), cfg, &resources.DB{}, &client.Client{}, &pool.Manager{}, "instanceID", "networkID")
+	p, err := New(context.Background(), cfg, &resources.DB{}, &client.Client{}, &pool.Manager{}, "instanceID", "networkID", "")
 	require.NoError(t, err)
 
 	// Allocate a new port.
@@ -329,4 +329,58 @@ func createTempConfigFile(testCaseDir, fileName string, content string) error {
 	fn := path.Join(testCaseDir, fileName)
 
 	return os.WriteFile(fn, []byte(content), 0666)
+}
+
+func TestProvisionHosts(t *testing.T) {
+	tests := []struct {
+		name          string
+		udAddresses   string
+		gateway       string
+		expectedHosts string
+	}{
+		{
+			name:          "Empty fields",
+			udAddresses:   "",
+			gateway:       "",
+			expectedHosts: "",
+		},
+		{
+			name:          "Empty user-defined address",
+			udAddresses:   "",
+			gateway:       "172.20.0.1",
+			expectedHosts: "",
+		},
+		{
+			name:          "Wildcard IP",
+			udAddresses:   "0.0.0.0",
+			gateway:       "172.20.0.1",
+			expectedHosts: "0.0.0.0",
+		},
+		{
+			name:          "User-defined address",
+			udAddresses:   "192.168.1.1",
+			gateway:       "172.20.0.1",
+			expectedHosts: "172.20.0.1,192.168.1.1",
+		},
+		{
+			name:          "Multiple user-defined addresses",
+			udAddresses:   "192.168.1.1,10.0.58.1",
+			gateway:       "172.20.0.1",
+			expectedHosts: "172.20.0.1,192.168.1.1,10.0.58.1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			p := Provisioner{
+				config: &Config{
+					CloneAccessAddresses: tt.udAddresses,
+				},
+				gateway: tt.gateway,
+			}
+
+			assert.Equal(t, tt.expectedHosts, p.getProvisionHosts())
+		})
+	}
 }
