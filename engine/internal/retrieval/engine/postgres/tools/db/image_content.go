@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -124,7 +123,7 @@ func (i *ImageContent) collectImageContent(ctx context.Context, docker *client.C
 		return fmt.Errorf("failed to create a Docker container: %w", err)
 	}
 
-	defer tools.RemoveContainer(ctx, docker, containerID, time.Millisecond)
+	defer tools.RemoveContainer(ctx, docker, containerID, 0)
 
 	if err := i.collectExtensions(ctx, i.engineProps.InstanceID); err != nil {
 		return fmt.Errorf("failed to collect extensions from the image %s: %w", dockerImage, err)
@@ -217,7 +216,11 @@ func createContainer(ctx context.Context, docker *client.Client, image string, p
 	}
 
 	if err := resetHBA(ctx, docker, containerID); err != nil {
-		return "", fmt.Errorf("failed to init Postgres: %w", err)
+		return "", fmt.Errorf("failed to prepare pg_hba.conf: %w", err)
+	}
+
+	if err := setListenAddresses(ctx, docker, containerID); err != nil {
+		return "", fmt.Errorf("failed to set listen_addresses: %w", err)
 	}
 
 	if err := tools.StartPostgres(ctx, docker, containerID, tools.DefaultStopTimeout); err != nil {
@@ -248,10 +251,27 @@ func resetHBA(ctx context.Context, dockerClient *client.Client, containerID stri
 	})
 
 	if err != nil {
+		log.Dbg(out)
 		return fmt.Errorf("failed to reset pg_hba.conf: %w", err)
 	}
 
-	log.Dbg(out)
+	return nil
+}
+
+func setListenAddresses(ctx context.Context, dockerClient *client.Client, containerID string) error {
+	command := []string{"sh", "-c", `su postgres -c "echo listen_addresses = \'*\' >> ${PGDATA}/postgresql.conf"`}
+
+	log.Dbg("Set listen addresses", command)
+
+	out, err := tools.ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
+		Tty: true,
+		Cmd: command,
+	})
+
+	if err != nil {
+		log.Dbg(out)
+		return fmt.Errorf("failed to set listen addresses: %w", err)
+	}
 
 	return nil
 }

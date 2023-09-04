@@ -46,7 +46,7 @@ export const Snapshots = observer(() => {
         !snapshots.data && !snapshots.error && <Spinner size="sm" />
       }
     >
-      {snapshots.error && <ErrorStub {...snapshots.error} size="normal" />}
+      {snapshots.error && <ErrorStub message={snapshots.error} size="normal" />}
 
       {snapshots.data && !snapshots.error && (
         <>

@@ -21,7 +21,7 @@ export const Instances = observer((props: Props) => {
           activeClassName={styles.selected}
           className={styles.link}
         >
-          DLE #1
+          DBLab #1
         </Button>
       </nav>
       <Button

@@ -11,7 +11,7 @@ import { activateBilling } from 'api/configs/activateBilling'
 
 import styles from './styles.module.scss'
 
-const AUTO_HIDE_DURATION = 1500
+const AUTO_HIDE_DURATION = 3000
 
 export const StickyTopBar = () => {
   const useStyles = makeStyles(
@@ -97,7 +97,7 @@ export const StickyTopBar = () => {
           handleReset()
           setSnackbarState({
             isOpen: true,
-            message: 'All DLE SE features are now active.',
+            message: 'All DBLab SE features are now active.',
             type: 'success',
           })
         } else if (res.error?.message) {
@@ -123,10 +123,13 @@ export const StickyTopBar = () => {
           message:
             'No active payment methods are found for your organization on the Postgres.ai Platform; please, visit the',
         })
-      } else if (!res.error?.message && !res.response?.recognized_org) {
+      } else if (
+        !res.response?.billing_active &&
+        !res.response?.recognized_org
+      ) {
         setState({
           type: 'missingOrgKey',
-          message: capitalizeFirstLetter(res?.error?.message),
+          message: capitalizeFirstLetter(res.error?.message),
         })
       }
     })
@@ -175,7 +178,7 @@ export const StickyTopBar = () => {
                 onClick={handleActivate}
                 disabled={isLoading}
               >
-                re-activate DLE
+                re-activate DBLab
                 {isLoading && <Spinner size="sm" className={styles.spinner} />}
               </Button>
             </>
@@ -188,7 +191,7 @@ export const StickyTopBar = () => {
                 onClick={handleActivate}
                 disabled={isLoading}
               >
-                re-activate DLE
+                re-activate DBLab
                 {isLoading && <Spinner size="sm" className={styles.spinner} />}
               </Button>
             </>

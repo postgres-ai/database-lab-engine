@@ -58,8 +58,8 @@ func TestContainerOutputCollection(t *testing.T) {
 	networks.Setup(ctx, docker, engProps.InstanceID, id)
 
 	defer func() {
-		tools.StopContainer(ctx, docker, "dblab_embedded_ui_"+id, 10*time.Second)
-		tools.RemoveContainer(ctx, docker, "dblab_embedded_ui_"+id, 10*time.Second)
+		tools.StopContainer(ctx, docker, "dblab_embedded_ui_"+id, 10)
+		tools.RemoveContainer(ctx, docker, "dblab_embedded_ui_"+id, 10)
 	}()
 
 	err = embeddedUI.Run(ctx)

@@ -16,7 +16,7 @@ function encodeData(data) {
 
 class Api {
   constructor(setting) {
-    this.server = setting.server;
+    this.server = setting.server
     this.apiServer = setting.apiServer
   }
 

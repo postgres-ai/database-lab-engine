@@ -12,8 +12,8 @@
     "@material-ui/styles": "^4.11.4",
     "@monaco-editor/react": "^4.4.5",
     "@mui/material": "^5.10.12",
-    "@postgres.ai/shared": "link:../shared",
     "@postgres.ai/ce": "link:../ce",
+    "@postgres.ai/shared": "link:../shared",
     "@types/node": "^12.20.33",
     "@types/react": "^17.0.30",
     "@types/react-dom": "^17.0.10",
@@ -26,7 +26,9 @@
     "copy-to-clipboard": "^3.3.1",
     "create-file-webpack": "^1.0.2",
     "crypto-browserify": "^3.12.0",
+    "cypress": "^12.15.0",
     "date-fns": "^2.22.1",
+    "eslint-plugin-cypress": "^2.13.3",
     "formik": "^2.2.9",
     "get-user-locale": "^1.4.0",
     "mobx": "^6.3.5",
@@ -53,7 +55,13 @@
     "lint": "pnpm run lint:code && pnpm run lint:styles && pnpm run lint:spelling",
     "lint:code": "eslint --cache './src'",
     "lint:styles": "stylelint './src/**/*.scss'",
-    "lint:spelling": "cspell './src/**/*' --no-progress --no-summary"
+    "lint:spelling": "cspell './src/**/*' --no-progress --no-summary",
+    "cy:run": "pnpm cypress run"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:cypress/recommended"
+    ]
   },
   "browserslist": {
     "production": [

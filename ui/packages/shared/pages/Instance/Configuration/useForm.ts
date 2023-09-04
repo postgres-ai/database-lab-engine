@@ -11,9 +11,12 @@ import * as Yup from 'yup'
 export type FormValues = {
   debug: boolean
   dockerImage: string
+  dockerTag: string
+  dockerPath: string
   dockerImageType: string
   sharedBuffers: string
   sharedPreloadLibraries: string
+  tuningParams: string
   timetable: string
   dbname: string
   host: string
@@ -42,9 +45,12 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
     initialValues: {
       debug: false,
       dockerImage: '',
+      dockerTag: '',
+      dockerPath: '',
       dockerImageType: '',
       sharedBuffers: '',
       sharedPreloadLibraries: '',
+      tuningParams: '',
       timetable: '',
       dbname: '',
       host: '',
@@ -96,8 +102,7 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
     formik.values.host &&
     formik.values.port &&
     formik.values.username &&
-    formik.values.dbname &&
-    formik.values.dockerImage
+    formik.values.dbname
 
   return [{ formik, connectionData, isConnectionDataValid }]
 }

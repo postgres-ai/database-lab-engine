@@ -28,8 +28,7 @@ import { isSameDayUTC } from '@postgres.ai/shared/utils/date'
 
 import { Tags } from '@postgres.ai/shared/pages/Instance/components/Tags'
 import { ModalReloadButton } from '@postgres.ai/shared/pages/Instance/components/ModalReloadButton'
-
-import { getTags } from './utils'
+import { getTags } from '../Snapshots/components/SnapshotsModal/utils'
 
 const useStyles = makeStyles(
   {

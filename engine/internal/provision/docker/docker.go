@@ -52,6 +52,8 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 
 	unixSocketCloneDir, volumes := createDefaultVolumes(c)
 
+	log.Dbg(fmt.Sprintf("Host info: %#v", hostInfo))
+
 	if hostInfo.VirtualizationRole == "guest" {
 		// Build custom mounts rely on mounts of the Database Lab instance if it's running inside Docker container.
 		// We cannot use --volumes-from because it removes the ZFS mount point.
@@ -76,14 +78,14 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 		"docker run",
 		"--name", c.CloneName,
 		"--detach",
-		"--publish", fmt.Sprintf("%[1]s:%[1]s", instancePort),
+		publishPorts(c.ProvisionHosts, instancePort),
 		"--env", "PGDATA=" + c.DataDir(),
+		"--env", "PG_UNIX_SOCKET_DIR=" + unixSocketCloneDir,
+		"--env", "PG_SERVER_PORT=" + instancePort,
 		strings.Join(volumes, " "),
 		fmt.Sprintf("--label %s='%s'", LabelClone, c.Pool.Name),
 		strings.Join(containerFlags, " "),
 		c.DockerImage,
-		"-p", instancePort,
-		"-k", unixSocketCloneDir,
 	}, " ")
 
 	if _, err := r.Run(dockerRunCmd, true); err != nil {
@@ -99,12 +101,26 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 	return nil
 }
 
+func publishPorts(provisionHosts string, instancePort string) string {
+	if provisionHosts == "" {
+		return fmt.Sprintf("--publish %[1]s:%[1]s", instancePort)
+	}
+
+	pub := []string{}
+
+	for _, s := range strings.Split(provisionHosts, ",") {
+		pub = append(pub, "--publish", fmt.Sprintf("%[1]s:%[2]s:%[2]s", s, instancePort))
+	}
+
+	return strings.Join(pub, " ")
+}
+
 func createDefaultVolumes(c *resources.AppConfig) (string, []string) {
 	unixSocketCloneDir := c.Pool.SocketCloneDir(c.CloneName)
 
 	// Directly mount PGDATA if Database Lab is running without any virtualization.
 	volumes := []string{
-		fmt.Sprintf("--volume %s:%s", c.DataDir(), c.DataDir()),
+		fmt.Sprintf("--volume %s:%s", c.CloneDir(), c.CloneDir()),
 		fmt.Sprintf("--volume %s:%s", unixSocketCloneDir, unixSocketCloneDir),
 	}
 
@@ -130,7 +146,7 @@ func getMountVolumes(r runners.Runner, c *resources.AppConfig, containerID strin
 
 func buildVolumesFromMountPoints(c *resources.AppConfig, mountPoints []types.MountPoint) []string {
 	unixSocketCloneDir := c.Pool.SocketCloneDir(c.CloneName)
-	mounts := tools.GetMountsFromMountPoints(c.DataDir(), mountPoints)
+	mounts := tools.GetMountsFromMountPoints(c.CloneDir(), mountPoints)
 	volumes := make([]string, 0, len(mounts))
 
 	for _, mountPoint := range mountPoints {

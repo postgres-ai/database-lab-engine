@@ -13,6 +13,7 @@ import { bannersStore } from 'stores/banners'
 import { getWSToken } from 'api/instances/getWSToken'
 import { getConfig } from 'api/configs/getConfig'
 import { getFullConfig } from 'api/configs/getFullConfig'
+import { getSeImages } from 'api/configs/getSeImages'
 import { testDbSource } from 'api/configs/testDbSource'
 import { updateConfig } from 'api/configs/updateConfig'
 import { getEngine } from 'api/engine/getEngine'
@@ -62,6 +63,7 @@ export const Instance = () => {
     getWSToken,
     getConfig,
     getFullConfig,
+    getSeImages,
     updateConfig,
     testDbSource,
     getEngine,

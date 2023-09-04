@@ -15,7 +15,7 @@ export DLE_TEST_MOUNT_DIR="/var/lib/test/dblab_mount"
 export DLE_TEST_POOL_NAME="test_dblab_pool"
 export DLE_SERVER_PORT=${DLE_SERVER_PORT:-12345}
 export DLE_PORT_POOL_FROM=${DLE_PORT_POOL_FROM:-9000}
-export DLE_PORT_POOL_TO=${DLE_PORT_POOL_TO:-9100}
+export DLE_PORT_POOL_TO=${DLE_PORT_POOL_TO:-9099}
 
 DIR=${0%/*}
 
@@ -112,7 +112,7 @@ yq eval -i '
   .poolManager.mountDir = env(DLE_TEST_MOUNT_DIR) |
   .provision.portPool.from = env(DLE_PORT_POOL_FROM) |
   .provision.portPool.to = env(DLE_PORT_POOL_TO) |
-  .databaseContainer.dockerImage = "postgresai/extended-postgres:" + strenv(POSTGRES_VERSION) |
+  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION) |
   .retrieval.spec.physicalRestore.options.envs.PGUSER = strenv(SOURCE_USERNAME) |
   .retrieval.spec.physicalRestore.options.envs.PGPASSWORD = strenv(SOURCE_PASSWORD) |
   .retrieval.spec.physicalRestore.options.envs.PGHOST = strenv(SOURCE_HOST) |
@@ -130,8 +130,8 @@ if [ "${POSTGRES_VERSION}" = "9.6" ]; then
   ' "${configDir}/server.yml"
 fi
 
-# Edit the following options for PostgreSQL 15beta4
-if [ "${POSTGRES_VERSION}" = "15beta4" ]; then
+# Edit the following options for PostgreSQL 15
+if [ "${POSTGRES_VERSION}" = "15" ]; then
   yq eval -i '
   .databaseConfigs.configs.shared_preload_libraries = "pg_stat_statements, auto_explain, logerrors, pg_stat_kcache"
   ' "${configDir}/server.yml"

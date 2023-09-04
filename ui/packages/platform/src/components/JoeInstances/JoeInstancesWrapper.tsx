@@ -16,7 +16,9 @@ export interface JoeInstancesProps {
   }
   match: {
     params: {
-      projectId?: number
+      org?: string
+      project?: string
+      projectId?: string | number | undefined
     }
   }
 }

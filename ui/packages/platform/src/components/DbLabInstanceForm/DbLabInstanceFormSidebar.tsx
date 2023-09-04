@@ -88,9 +88,11 @@ const useStyles = makeStyles({
 export const DbLabInstanceFormSidebar = ({
   state,
   handleCreate,
+  disabled,
 }: {
   state: typeof initialState
   handleCreate: () => void
+  disabled: boolean
 }) => {
   const classes = useStyles()
 
@@ -179,7 +181,7 @@ export const DbLabInstanceFormSidebar = ({
         </span>
       </div>
       <div className={classes.asideSection}>
-        <span>Software: DLE SE (pay as you go)</span>
+        <span>Software: DBLab SE (pay as you go)</span>
         <p className={classes.flexWrap}>
           {state.instanceType && (
             <>
@@ -200,9 +202,9 @@ export const DbLabInstanceFormSidebar = ({
         variant="contained"
         color="primary"
         onClick={handleCreate}
-        disabled={!state.name || !state.verificationToken}
+        disabled={!state.name || !state.verificationToken || disabled}
       >
-        Create DLE
+        Create DBLab
       </Button>
     </div>
   )

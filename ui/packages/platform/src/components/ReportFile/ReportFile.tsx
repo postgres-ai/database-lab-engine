@@ -12,7 +12,7 @@ import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
 
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
@@ -143,7 +143,7 @@ class ReportFile extends Component<ReportFileWithStylesProps, ReportFileState> {
     const id = this.getFileId()
     const fileId = type.toLowerCase() + '_' + id
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth = this.data && this.data.auth ? this.data.auth : null
       const reportFile =
         this.data && this.data.reportFile ? this.data.reportFile : null
@@ -175,7 +175,7 @@ class ReportFile extends Component<ReportFileWithStylesProps, ReportFileState> {
     Actions.refresh()
   }
 
-  unsubscribe: () => void
+  unsubscribe: Function
   componentWillUnmount() {
     this.unsubscribe()
   }

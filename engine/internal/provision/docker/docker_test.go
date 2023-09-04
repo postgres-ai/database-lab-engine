@@ -61,7 +61,7 @@ func TestVolumesBuilding(t *testing.T) {
 			},
 			expectedVolumes: []string{
 				"--volume /var/lib/dblab/dblab_pool/sockets/dblab_clone_6000:/var/lib/dblab/dblab_pool/sockets/dblab_clone_6000:rshared",
-				"--volume /var/lib/dblab/dblab_pool/clones/dblab_clone_6000/data:/var/lib/dblab/dblab_pool/clones/dblab_clone_6000/data:rshared",
+				"--volume /var/lib/dblab/dblab_pool/clones/dblab_clone_6000:/var/lib/dblab/dblab_pool/clones/dblab_clone_6000:rshared",
 			},
 		},
 	}
@@ -93,4 +93,21 @@ func TestDefaultVolumes(t *testing.T) {
 	assert.ElementsMatch(t, []string{
 		"--volume /tmp/test/default:/tmp/test/default",
 		"--volume /tmp/test/default/socket:/tmp/test/default/socket"}, volumes)
+}
+
+func TestPublishPorts(t *testing.T) {
+	testCases := []struct {
+		provisionHosts string
+		instancePort   string
+		expectedResult string
+	}{
+		{provisionHosts: "", instancePort: "6000", expectedResult: "--publish 6000:6000"},
+		{provisionHosts: "127.0.0.1", instancePort: "6000", expectedResult: "--publish 127.0.0.1:6000:6000"},
+		{provisionHosts: "127.0.0.1,172.0.0.1", instancePort: "6000", expectedResult: "--publish 127.0.0.1:6000:6000 --publish 172.0.0.1:6000:6000"},
+		{provisionHosts: "[::1]", instancePort: "6000", expectedResult: "--publish [::1]:6000:6000"},
+	}
+
+	for _, tc := range testCases {
+		assert.Equal(t, publishPorts(tc.provisionHosts, tc.instancePort), tc.expectedResult)
+	}
 }

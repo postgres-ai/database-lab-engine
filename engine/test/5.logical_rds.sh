@@ -10,7 +10,7 @@ export DLE_TEST_MOUNT_DIR="/var/lib/test/dblab_mount"
 export DLE_TEST_POOL_NAME="test_dblab_pool"
 export DLE_SERVER_PORT=${DLE_SERVER_PORT:-12345}
 export DLE_PORT_POOL_FROM=${DLE_PORT_POOL_FROM:-9000}
-export DLE_PORT_POOL_TO=${DLE_PORT_POOL_TO:-9100}
+export DLE_PORT_POOL_TO=${DLE_PORT_POOL_TO:-9099}
 export POSTGRES_VERSION="${POSTGRES_VERSION:-13}"
 export SOURCE_DBNAME="${SOURCE_DBNAME:-"test"}"
 export SOURCE_USERNAME="${SOURCE_USERNAME:-"test_user"}"
@@ -48,7 +48,7 @@ yq eval -i '
   .poolManager.mountDir = env(DLE_TEST_MOUNT_DIR) |
   .provision.portPool.from = env(DLE_PORT_POOL_FROM) |
   .provision.portPool.to = env(DLE_PORT_POOL_TO) |
-  .databaseContainer.dockerImage = "postgresai/extended-postgres:" + strenv(POSTGRES_VERSION) |
+  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION) |
   .retrieval.spec.logicalDump.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump" |
   .retrieval.spec.logicalDump.options.source.connection.dbname = strenv(SOURCE_DBNAME) |
   .retrieval.spec.logicalDump.options.source.connection.username = strenv(SOURCE_USERNAME) |

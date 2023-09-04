@@ -100,7 +100,7 @@ export const CreatedDbLabCards = ({
 
   const productData = [
     {
-      title: 'Create DLE in your cloud',
+      title: 'Create DBLab in your cloud',
       renderDescription: () => (
         <>
           <p>
@@ -116,7 +116,7 @@ export const CreatedDbLabCards = ({
         {
           id: 'createDblabInstanceButton',
           content: (
-            <CreateButton type="create" title="Create DLE in your cloud" />
+            <CreateButton type="create" title="Create DBLab in your cloud" />
           ),
         },
       ],
@@ -145,6 +145,7 @@ export const CreatedDbLabCards = ({
             <CreateButton
               type="install"
               title="Install DLE on an existing machine"
+              title="Install DBLab on an existing machine"
             />
           ),
         },

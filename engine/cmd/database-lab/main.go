@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
@@ -130,7 +131,9 @@ func main() {
 	}
 
 	// Create a cloning service to provision new clones.
-	provisioner, err := provision.New(ctx, &cfg.Provision, dbCfg, docker, pm, engProps.InstanceID, internalNetworkID)
+	networkGateway := getNetworkGateway(docker, internalNetworkID)
+
+	provisioner, err := provision.New(ctx, &cfg.Provision, dbCfg, docker, pm, engProps.InstanceID, internalNetworkID, networkGateway)
 	if err != nil {
 		log.Errf(errors.WithMessage(err, `error in the "provision" section of the config`).Error())
 	}
@@ -159,27 +162,9 @@ func main() {
 	}
 
 	obs := observer.NewObserver(docker, &cfg.Observer, pm)
-
-	go removeObservingClones(observingChan, obs)
-
-	systemMetrics := billing.GetSystemMetrics(pm)
-
-	tm.SendEvent(ctx, telemetry.EngineStartedEvent, telemetry.EngineStarted{
-		EngineVersion: version.GetVersion(),
-		DBEngine:      cfg.Global.Engine,
-		DBVersion:     provisioner.DetectDBVersion(),
-		Pools:         pm.CollectPoolStat(),
-		Restore:       retrievalSvc.ReportState(),
-		System:        systemMetrics,
-	})
-
 	billingSvc := billing.New(platformSvc.Client, &engProps, pm)
 
-	if err := billingSvc.RegisterInstance(ctx, systemMetrics); err != nil {
-		log.Msg("Skip registering instance:", err)
-	}
-
-	log.Msg("DLE Edition:", engProps.GetEdition())
+	go removeObservingClones(observingChan, obs)
 
 	embeddedUI := embeddedui.New(cfg.EmbeddedUI, engProps, runner, docker)
 
@@ -220,8 +205,6 @@ func main() {
 		}
 	}()
 
-	go billingSvc.CollectUsage(ctx, systemMetrics)
-
 	if cfg.EmbeddedUI.Enabled {
 		go func() {
 			if err := embeddedUI.Run(ctx); err != nil {
@@ -230,6 +213,39 @@ func main() {
 			}
 		}()
 	}
+
+	if err := provisioner.Init(); err != nil {
+		log.Err(err)
+		emergencyShutdown()
+
+		return
+	}
+
+	systemMetrics := billing.GetSystemMetrics(pm)
+
+	tm.SendEvent(ctx, telemetry.EngineStartedEvent, telemetry.EngineStarted{
+		EngineVersion: version.GetVersion(),
+		DBEngine:      cfg.Global.Engine,
+		DBVersion:     provisioner.DetectDBVersion(),
+		Pools:         pm.CollectPoolStat(),
+		Restore:       retrievalSvc.ReportState(),
+		System:        systemMetrics,
+	})
+
+	if err := billingSvc.RegisterInstance(ctx, systemMetrics); err != nil {
+		log.Msg("Skip registering instance:", err)
+	}
+
+	log.Msg("DBLab Edition:", engProps.GetEdition())
+
+	shutdownCh := setShutdownListener()
+
+	go setReloadListener(ctx, engProps, provisioner, billingSvc,
+		retrievalSvc, pm, cloningSvc, platformSvc,
+		embeddedUI, server,
+		logCleaner, logFilter)
+
+	go billingSvc.CollectUsage(ctx, systemMetrics)
 
 	if err := retrievalSvc.Run(ctx); err != nil {
 		log.Err("Failed to run the data retrieval service:", err)
@@ -258,6 +274,22 @@ func main() {
 	cloningSvc.SaveClonesState()
 	logCleaner.StopLogCleanupJob()
 	tm.SendEvent(ctxBackground, telemetry.EngineStoppedEvent, telemetry.EngineStopped{Uptime: server.Uptime()})
+}
+
+func getNetworkGateway(docker *client.Client, internalNetworkID string) string {
+	gateway := ""
+
+	networkResource, err := docker.NetworkInspect(context.Background(), internalNetworkID, types.NetworkInspectOptions{})
+	if err != nil {
+		log.Err(err.Error())
+		return gateway
+	}
+
+	if len(networkResource.IPAM.Config) > 0 {
+		gateway = networkResource.IPAM.Config[0].Gateway
+	}
+
+	return gateway
 }
 
 func getEngineProperties(ctx context.Context, docker *client.Client, cfg *config.Config) (global.EngineProps, error) {

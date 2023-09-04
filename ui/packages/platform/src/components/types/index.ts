@@ -54,8 +54,9 @@ export interface ProjectWrapperProps {
   location: RouteComponentProps['location']
   match: {
     params: {
-      org: string
-      project: string
+      org?: string
+      project?: string
+      projectId?: string
     }
   }
   raw?: boolean
@@ -87,7 +88,13 @@ export interface ProjectWrapperProps {
 
 export interface OrganizationWrapperProps {
   classes: ClassesType
-  match: { params: { org: string | undefined } }
+  match: {
+    params: {
+      org?: string | undefined
+      projectId?: string | undefined
+      project?: string | undefined
+    }
+  }
   location: RouteComponentProps['location']
   env: {
     data: {
@@ -115,7 +122,9 @@ export interface OrganizationMenuProps {
   location: RouteComponentProps['location']
   match: {
     params: {
-      org: string
+      org?: string
+      project?: string
+      projectId?: string
     }
   }
   env: {
@@ -180,4 +189,8 @@ export interface TokenRequestProps {
 
 export interface FlameGraphPlanType {
   [plan: string]: string | string[]
+}
+
+export interface RefluxTypes {
+  listen: (callback: Function) => Function
 }

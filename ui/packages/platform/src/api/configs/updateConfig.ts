@@ -13,12 +13,13 @@ export const updateConfig = async (req: Config) => {
         debug: req.debug,
       },
       databaseContainer: {
-        dockerImage: req.dockerImage,
+        dockerImage: req.dockerPath,
       },
       databaseConfigs: {
         configs: {
           shared_buffers: req.sharedBuffers,
           shared_preload_libraries: req.sharedPreloadLibraries,
+          ...(req.tuningParams as unknown as { [key: string]: string }),
         },
       },
       retrieval: {
@@ -31,6 +32,7 @@ export const updateConfig = async (req: Config) => {
               databases: postUniqueDatabases(req.databases),
               customOptions: postUniqueCustomOptions(req.pgDumpCustomOptions),
               parallelJobs: req.dumpParallelJobs,
+              ignoreErrors: req.dumpIgnoreErrors,
               source: {
                 connection: {
                   dbname: req.dbname,
@@ -48,6 +50,7 @@ export const updateConfig = async (req: Config) => {
                 req.pgRestoreCustomOptions,
               ),
               parallelJobs: req.restoreParallelJobs,
+              ignoreErrors: req.restoreIgnoreErrors,
             },
           },
         },

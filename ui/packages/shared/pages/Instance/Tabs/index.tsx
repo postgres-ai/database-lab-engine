@@ -14,7 +14,7 @@ import {
 } from '@material-ui/core'
 
 import { colors } from '@postgres.ai/shared/styles/colors'
-import { PostgresSQL } from '@postgres.ai/shared/icons/PostgresSQL'
+import { PostgresSQLIcon } from '@postgres.ai/shared/icons/PostgresSQL'
 
 export const TABS_INDEX = {
   OVERVIEW: 0,
@@ -88,7 +88,7 @@ export interface TabsProps {
 export const Tabs = (props: TabsProps) => {
   const classes = useStyles()
 
-  const { value, handleChange, hasLogs, hideInstanceTabs } = props
+  const { value, handleChange, hasLogs } = props
 
   return (
     <TabsComponent
@@ -127,11 +127,11 @@ export const Tabs = (props: TabsProps) => {
         <TabComponent
           label={
             <div className={classes.flexRow}>
-              <PostgresSQL /> Clones
+              <PostgresSQLIcon /> Clones
             </div>
           }
           classes={{
-            root: hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
+            root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
           }}
           value={TABS_INDEX.CLONES}
         />

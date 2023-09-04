@@ -747,7 +747,17 @@ func (r *Retrieval) reportContainerSyncStatus(ctx context.Context, containerID s
 		}, nil
 	}
 
-	socketPath := filepath.Join(r.poolManager.First().Pool().SocketDir(), resp.Name)
+	firstPool := r.poolManager.First()
+	if firstPool == nil {
+		return &models.Sync{
+			Status: models.Status{
+				Code:    models.SyncStatusError,
+				Message: "Data pool is not available",
+			},
+		}, nil
+	}
+
+	socketPath := filepath.Join(firstPool.Pool().SocketDir(), resp.Name)
 	value, err := status.FetchSyncMetrics(ctx, r.global, socketPath)
 
 	if err != nil {

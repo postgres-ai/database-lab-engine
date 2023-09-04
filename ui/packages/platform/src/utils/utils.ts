@@ -24,3 +24,10 @@ export const isHttps = function (url: string | string[]) {
 
 export const snakeToCamel = (str: string) =>
   str.replace(/([-_]\w)/g, (g) => g[1].toUpperCase())
+
+export const validateDLEName = (name: string) => {
+  return (
+    name.length > 0 &&
+    !name.match(/^([a-z](?:[-a-z0-9]{0,61}[a-z0-9])?|[1-9][0-9]{0,19})$/)
+  )
+}

@@ -3,10 +3,9 @@ import { Link } from 'react-router-dom'
 
 import { ROUTES } from 'config/routes'
 
-import logoIconUrl from './icons/logo.svg'
-
 import styles from './styles.module.scss'
 import { DLEEdition } from 'helpers/edition'
+import { LogoIcon } from './icons'
 
 type Props = {
   isCollapsed: boolean
@@ -19,11 +18,7 @@ export const Header = (props: Props) => {
         to={ROUTES.path}
         className={cn(styles.header, props.isCollapsed && styles.collapsed)}
       >
-        <img
-          className={styles.logo}
-          src={logoIconUrl}
-          alt="Database Lab logo"
-        />
+        <LogoIcon className={styles.logo} />
 
         {!props.isCollapsed && (
           <h1 className={styles.title}>

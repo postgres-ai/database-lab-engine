@@ -147,8 +147,6 @@ func AddVolumesToHostConfig(ctx context.Context, docker *client.Client, hostConf
 		}
 
 		hostConfig.Mounts = GetMountsFromMountPoints(dataDir, inspection.Mounts)
-
-		log.Dbg(hostConfig.Mounts)
 	} else {
 		hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
 			Type:   mount.TypeBind,
@@ -156,6 +154,8 @@ func AddVolumesToHostConfig(ctx context.Context, docker *client.Client, hostConf
 			Target: dataDir,
 		})
 	}
+
+	log.Dbg(hostConfig.Mounts)
 
 	return nil
 }
@@ -440,10 +440,10 @@ func PrintLastPostgresLogs(ctx context.Context, dockerClient *client.Client, con
 }
 
 // StopContainer stops container.
-func StopContainer(ctx context.Context, dockerClient *client.Client, containerID string, stopTimeout time.Duration) {
+func StopContainer(ctx context.Context, dockerClient *client.Client, containerID string, stopTimeout int) {
 	log.Msg(fmt.Sprintf("Stopping container ID: %v", containerID))
 
-	if err := dockerClient.ContainerStop(ctx, containerID, pointer.ToDuration(stopTimeout)); err != nil {
+	if err := dockerClient.ContainerStop(ctx, containerID, container.StopOptions{Timeout: pointer.ToInt(stopTimeout)}); err != nil {
 		log.Err("Failed to stop container: ", err)
 	}
 
@@ -451,10 +451,10 @@ func StopContainer(ctx context.Context, dockerClient *client.Client, containerID
 }
 
 // RemoveContainer stops and removes container.
-func RemoveContainer(ctx context.Context, dockerClient *client.Client, containerID string, stopTimeout time.Duration) {
+func RemoveContainer(ctx context.Context, dockerClient *client.Client, containerID string, stopTimeout int) {
 	log.Msg(fmt.Sprintf("Removing container ID: %v", containerID))
 
-	if err := dockerClient.ContainerStop(ctx, containerID, pointer.ToDuration(stopTimeout)); err != nil {
+	if err := dockerClient.ContainerStop(ctx, containerID, container.StopOptions{Timeout: pointer.ToInt(stopTimeout)}); err != nil {
 		log.Err("Failed to stop container: ", err)
 	}
 
@@ -539,18 +539,27 @@ func inspectCommandExitCode(ctx context.Context, dockerClient *client.Client, co
 	return errors.Errorf("exit code: %d", inspect.ExitCode)
 }
 
-// ExecCommandWithOutput runs command in Docker container and returns the command output.
+// ExecCommandWithOutput runs command in Docker container, enables all stdout and stderr and returns the command output.
 func ExecCommandWithOutput(ctx context.Context, dockerClient *client.Client, containerID string, execCfg types.ExecConfig) (string, error) {
 	execCfg.AttachStdout = true
 	execCfg.AttachStderr = true
 
-	execCommand, err := dockerClient.ContainerExecCreate(ctx, containerID, execCfg)
+	return execCommandWithResponse(ctx, dockerClient, containerID, execCfg)
+}
+
+// ExecCommandWithResponse runs command in Docker container and returns the command output.
+func ExecCommandWithResponse(ctx context.Context, docker *client.Client, containerID string, execCfg types.ExecConfig) (string, error) {
+	return execCommandWithResponse(ctx, docker, containerID, execCfg)
+}
+
+func execCommandWithResponse(ctx context.Context, docker *client.Client, containerID string, execCfg types.ExecConfig) (string, error) {
+	execCommand, err := docker.ContainerExecCreate(ctx, containerID, execCfg)
 
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create an exec command")
 	}
 
-	attachResponse, err := dockerClient.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{})
+	attachResponse, err := docker.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to attach to exec command")
 	}
@@ -562,7 +571,7 @@ func ExecCommandWithOutput(ctx context.Context, dockerClient *client.Client, con
 		return string(output), errors.Wrap(err, "failed to read response of exec command")
 	}
 
-	inspection, err := dockerClient.ContainerExecInspect(ctx, execCommand.ID)
+	inspection, err := docker.ContainerExecInspect(ctx, execCommand.ID)
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect an exec process: %w", err)
 	}
@@ -599,7 +608,7 @@ func processAttachResponse(ctx context.Context, reader io.Reader) ([]byte, error
 	}
 
 	if errBuf.Len() > 0 {
-		return nil, errors.New(errBuf.String())
+		log.Dbg(errBuf.String())
 	}
 
 	return bytes.TrimSpace(outBuf.Bytes()), nil

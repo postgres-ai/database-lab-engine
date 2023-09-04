@@ -80,8 +80,8 @@ func (c *Base) Reload(cfg Config, global global.Config) {
 
 // Run initializes and runs cloning component.
 func (c *Base) Run(ctx context.Context) error {
-	if err := c.provision.Init(); err != nil {
-		return errors.Wrap(err, "failed to run cloning service")
+	if err := c.provision.RevisePortPool(); err != nil {
+		return fmt.Errorf("failed to revise port pool: %w", err)
 	}
 
 	if _, err := c.GetSnapshots(); err != nil {
@@ -144,7 +144,7 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 	cloneRequest.ID = strings.TrimSpace(cloneRequest.ID)
 
 	if _, ok := c.findWrapper(cloneRequest.ID); ok {
-		return nil, models.New(models.ErrCodeBadRequest, "clone with such ID already exists")
+		return nil, models.New(models.ErrCodeBadRequest, fmt.Sprintf("clone with ID %q already exists", cloneRequest.ID))
 	}
 
 	if cloneRequest.ID == "" {
@@ -326,7 +326,7 @@ func (c *Base) DestroyClone(cloneID string) error {
 
 	go func() {
 		if err := c.provision.StopSession(w.Session); err != nil {
-			log.Errf("Failed to delete a clone: %+v.", err)
+			log.Errf("Failed to delete a clone: %v.", err)
 
 			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
@@ -684,7 +684,7 @@ func (c *Base) destroyIdleClones(ctx context.Context) {
 				log.Msg(fmt.Sprintf("Idle clone %q is going to be removed.", cloneWrapper.Clone.ID))
 
 				if err = c.DestroyClone(cloneWrapper.Clone.ID); err != nil {
-					log.Errf("Failed to destroy clone: %+v.", err)
+					log.Errf("Failed to destroy clone: %v.", err)
 					continue
 				}
 			}

@@ -76,6 +76,17 @@ const useStyles = makeStyles(
         flex: 'auto',
       },
     },
+    flexColumnContainer: {
+      display: 'flex',
+      flexDirection: 'column',
+      flex: '1.75 1 0',
+      gap: 20,
+
+      [theme.breakpoints.down('sm')]: {
+        width: '100%',
+        flex: 'auto',
+      },
+    },
     cardContainerTitle: {
       fontSize: 14,
       fontWeight: 'bold',
@@ -103,6 +114,11 @@ const useStyles = makeStyles(
     emptyMethod: {
       fontSize: 13,
       flex: '1 1 0',
+    },
+    button: {
+      '&:hover': {
+        color: '#0F879D',
+      },
     },
     columnContainer: {
       display: 'flex',
@@ -426,9 +442,23 @@ function StripeForm(props: {
                   <Spinner size="sm" className={classes.spinner} />
                 )}
               </Button>
+              {state.cards.length > 0 && (
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  className={classes.button}
+                  disabled={props.disabled || state.isLoading}
+                  onClick={handleSubmit}
+                >
+                  Invoices
+                  {state.isLoading && (
+                    <Spinner size="sm" className={classes.spinner} />
+                  )}
+                </Button>
+              )}
             </Box>
             {state.cards.length === 0 && !state.isFetching ? (
-              <p className={classes.emptyMethod}>No payment method available</p>
+              <p className={classes.emptyMethod}>No payment methods available</p>
             ) : (
               <>
                 {state.cards.map(

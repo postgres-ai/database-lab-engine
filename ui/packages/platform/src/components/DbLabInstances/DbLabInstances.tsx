@@ -30,6 +30,7 @@ import { styles } from '@postgres.ai/shared/styles/styles'
 import {
   ClassesType,
   ProjectProps,
+  RefluxTypes,
 } from '@postgres.ai/platform/src/components/types'
 
 import Actions from '../../actions/actions'
@@ -120,7 +121,7 @@ class DbLabInstances extends Component<
       Actions.setDbLabInstancesProject(orgId, 0)
     }
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth: DbLabInstancesState['data']['auth'] =
         this.data && this.data.auth ? this.data.auth : null
       const dbLabInstances: DbLabInstancesState['data']['dbLabInstances'] =
@@ -154,7 +155,7 @@ class DbLabInstances extends Component<
     Actions.refresh()
   }
 
-  unsubscribe: () => void
+  unsubscribe: Function
   componentWillUnmount() {
     this.unsubscribe()
   }
@@ -308,9 +309,9 @@ class DbLabInstances extends Component<
         color="primary"
         key="add_dblab_instance"
         onClick={() => this.setState({ modalOpen: true })}
-        title={addPermitted ? 'Create new DLE' : messages.noPermission}
+        title={addPermitted ? 'Create new DBLab' : messages.noPermission}
       >
-        New DLE
+        New DBLab
       </ConsoleButtonWrapper>
     )
     const pageTitle = (
@@ -414,7 +415,7 @@ class DbLabInstances extends Component<
       <Modal
         size="md"
         isOpen={this.state.modalOpen}
-        title="Choose the location for your DLE SE installation"
+        title="Choose the location for your DBLab SE installation"
         onClose={() => this.setState({ modalOpen: false })}
         aria-labelledby="simple-modal-title"
         aria-describedby="simple-modal-description"
@@ -597,7 +598,7 @@ class DbLabInstances extends Component<
             key={4}
             onClick={(event) => this.menuHandler(event, 'destroy')}
           >
-            Remove
+            Remove from List
           </MenuItem>
         </Menu>
       )

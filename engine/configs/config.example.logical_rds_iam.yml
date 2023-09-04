@@ -100,7 +100,7 @@ databaseContainer: &db_container
   # It is possible to choose any custom or official Docker image that runs Postgres. Our Dockerfile
   # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
   # is recommended in case if customization is needed.
-  dockerImage: "postgresai/extended-postgres:15"
+  dockerImage: "postgresai/extended-postgres:15-0.3.0"
 
   # Custom parameters for containers with PostgreSQL, see
   # https://docs.docker.com/engine/reference/run/#runtime-constraints-on-resources
@@ -129,10 +129,10 @@ databaseConfigs: &db_configs
 provision:
   <<: *db_container
   # Pool of ports for Postgres clones. Ports will be allocated sequentially,
-  # starting from the lowest value. The "from" value must be less than "to".
+  # starting from the lowest value. The "from" value must be less than or equal to "to".
   portPool:
     from: 6000
-    to: 6100
+    to: 6099
 
   # Use sudo for ZFS/LVM and Docker commands if Database Lab server running
   # outside a container. Keep it "false" (default) when running in a container.
@@ -141,6 +141,12 @@ provision:
   # Avoid default password resetting in clones and have the ability for
   # existing users to log in with old passwords.
   keepUserPasswords: false
+
+  # IP addresses that can be used to access clones.
+  # By default, using a loop-back to accept only local connections.
+  # The empty string means "all available addresses".
+  # The option supports multiple IPs (using comma-separated format) and IPv6 addresses (for example, [::1])
+  cloneAccessAddresses: "127.0.0.1"
 
 # Data retrieval flow. This section defines both initial retrieval, and rules
 # to keep the data directory in a synchronized state with the source. Both are optional:
@@ -189,6 +195,7 @@ retrieval:
         <<: *db_container
         # The dump file will be automatically created on this location and then used to restore.
         # Ensure that there is enough disk space.
+        # If you specify dumpLocation outside the mountDir, add this location as a volume to the DLE container.
         dumpLocation: "/var/lib/dblab/dblab_pool/dump"
 
         # Source of data.
@@ -259,6 +266,7 @@ retrieval:
       options:
         <<: *db_container
         # The location of the archive file (or directory, for a directory-format archive) to be restored.
+        # If you specify dumpLocation outside the mountDir, add this location as a volume to the DLE container.
         dumpLocation: "/var/lib/dblab/dblab_pool/dump"
 
         # Use parallel jobs to restore faster.
@@ -312,6 +320,9 @@ retrieval:
           - "--no-privileges"
           - "--no-owner"
           - "--exit-on-error"
+
+        # Option to skip policies during restore.
+        skipPolicies: true
 
     logicalSnapshot:
       options:

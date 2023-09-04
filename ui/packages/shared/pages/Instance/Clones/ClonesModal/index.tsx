@@ -36,7 +36,7 @@ export const ClonesModal = observer(() => {
 
   return (
     <Modal
-      title={`Clones (${instance.state.cloning.clones.length})`}
+      title={`Clones (${instance.state?.cloning.clones.length})`}
       isOpen={isOpenModal}
       onClose={closeModal}
       size="md"
@@ -58,7 +58,7 @@ export const ClonesModal = observer(() => {
     >
       <ClonesList
         isDisabled={false}
-        clones={instance.state.cloning.clones.filter((clone) => {
+        clones={instance.state?.cloning.clones.filter((clone) => {
           const isMatchedByPool = !pool || pool === clone.snapshot?.pool
           const isMatchedBySnapshot =
             !snapshotId || snapshotId === clone.snapshot?.id

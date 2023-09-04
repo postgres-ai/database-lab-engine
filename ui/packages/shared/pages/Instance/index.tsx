@@ -21,9 +21,9 @@ import { Clones } from './Clones'
 import { Info } from './Info'
 import { Snapshots } from './Snapshots'
 import { Branches } from '../Branches'
-import { Configuration } from '../Configuration'
+import { Configuration } from './Configuration'
+import { SnapshotsModal } from './SnapshotsModal'
 import { ClonesModal } from './Clones/ClonesModal'
-import { SnapshotsModal } from './Snapshots/components/SnapshotsModal'
 import { InactiveInstance } from './InactiveInstance'
 import { Host, HostProvider, StoresProvider } from './context'
 
@@ -70,7 +70,7 @@ export const Instance = observer((props: Props) => {
   const [activeTab, setActiveTab] = React.useState(
     props?.renderCurrentTab || TABS_INDEX.OVERVIEW,
   )
-  const [hasBeenRedirected, setHasBeenRedirected] = React.useState(false);
+  const [hasBeenRedirected, setHasBeenRedirected] = React.useState(false)
 
   const stores = useCreatedStores(props)
   const {
@@ -107,9 +107,10 @@ export const Instance = observer((props: Props) => {
   useEffect(() => {
     if (
       instance &&
-      instance?.state.retrieving?.status === 'pending' &&
+      instance.state?.retrieving?.status === 'pending' &&
       isConfigurationActive &&
-      !props.isPlatform && !hasBeenRedirected
+      !props.isPlatform &&
+      !hasBeenRedirected
     ) {
       setActiveTab(TABS_INDEX.CONFIGURATION)
       setHasBeenRedirected(true)
@@ -139,7 +140,6 @@ export const Instance = observer((props: Props) => {
             <InstanceTab
               value={activeTab}
               handleChange={switchTab}
-              isPlatform={props.isPlatform}
               hasLogs={api.initWS != undefined}
             />
           )}
@@ -154,7 +154,7 @@ export const Instance = observer((props: Props) => {
             <TabPanel value={activeTab} index={TABS_INDEX.OVERVIEW}>
               {!instanceError && (
                 <div className={classes.content}>
-                  {instance && instance?.state.retrieving?.status ? (
+                  {instance && instance.state?.retrieving?.status ? (
                     <>
                       <Clones />
                       <Info />
@@ -194,7 +194,7 @@ export const Instance = observer((props: Props) => {
                       isConfigurationActive={isConfigurationActive}
                       reload={() => load(props.instanceId)}
                       disableConfigModification={
-                        instance?.state.engine.disableConfigModification
+                        instance?.state?.engine.disableConfigModification
                       }
                     />
                   )}

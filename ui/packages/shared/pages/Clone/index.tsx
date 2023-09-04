@@ -425,7 +425,7 @@ export const Clone = observer((props: Props) => {
 
             <p className={classes.text}>
               <span className={classes.paramTitle}>Logical data size:</span>
-              {instance.state.dataSize
+              {instance.state?.dataSize
                 ? formatBytesIEC(instance.state.dataSize)
                 : '-'}
             </p>
@@ -691,7 +691,7 @@ export const Clone = observer((props: Props) => {
             clone={clone}
             snapshots={snapshots.data}
             onResetClone={resetClone}
-            version={instance.state.engine.version}
+            version={instance.state?.engine.version}
           />
         </>
       </div>

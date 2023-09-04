@@ -27,11 +27,11 @@ import (
 const (
 	labelFilter = "label"
 
-	// StopTimeout defines a container stop timeout.
-	StopTimeout = 30 * time.Second
+	// StopTimeout defines a container stop timeout in seconds.
+	StopTimeout = 30
 
-	// StopPhysicalTimeout defines stop timeout for a physical container.
-	StopPhysicalTimeout = 5 * time.Second
+	// StopPhysicalTimeout defines stop timeout for a physical container in seconds.
+	StopPhysicalTimeout = 5
 
 	// SyncInstanceContainerPrefix defines a sync container name.
 	SyncInstanceContainerPrefix = "dblab_sync_"
@@ -125,7 +125,7 @@ func CleanUpControlContainers(ctx context.Context, dockerClient *client.Client, 
 func CleanUpSatelliteContainers(ctx context.Context, dockerClient *client.Client, instanceID string) error {
 	log.Msg("Clean up satellite containers")
 
-	shutdownCtx, shutdownCancel := context.WithTimeout(ctx, StopTimeout)
+	shutdownCtx, shutdownCancel := context.WithTimeout(ctx, StopTimeout*time.Second)
 	defer shutdownCancel()
 
 	return cleanUpContainers(shutdownCtx, dockerClient, instanceID, getSatelliteContainerFilters())

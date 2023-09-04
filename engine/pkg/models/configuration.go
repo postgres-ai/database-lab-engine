@@ -12,21 +12,20 @@ type ConnectionTest struct {
 
 // ConfigProjection is a projection of the configuration.
 type ConfigProjection struct {
-	Debug                  *bool                  `proj:"global.debug"`
-	SharedBuffers          *string                `proj:"databaseConfigs.configs.shared_buffers"`
-	SharedPreloadLibraries *string                `proj:"databaseConfigs.configs.shared_preload_libraries"`
-	DockerImage            *string                `proj:"databaseContainer.dockerImage"`
-	Timetable              *string                `proj:"retrieval.refresh.timetable"`
-	DBName                 *string                `proj:"retrieval.spec.logicalDump.options.source.connection.dbname"`
-	Host                   *string                `proj:"retrieval.spec.logicalDump.options.source.connection.host"`
-	Password               *string                `proj:"retrieval.spec.logicalDump.options.source.connection.password" groups:"sensitive"`
-	Port                   *int64                 `proj:"retrieval.spec.logicalDump.options.source.connection.port"`
-	Username               *string                `proj:"retrieval.spec.logicalDump.options.source.connection.username"`
-	DBList                 map[string]interface{} `proj:"retrieval.spec.logicalDump.options.databases,createKey"`
-	DumpParallelJobs       *int64                 `proj:"retrieval.spec.logicalDump.options.parallelJobs"`
-	RestoreParallelJobs    *int64                 `proj:"retrieval.spec.logicalRestore.options.parallelJobs"`
-	DumpCustomOptions      []interface{}          `proj:"retrieval.spec.logicalDump.options.customOptions"`
-	RestoreCustomOptions   []interface{}          `proj:"retrieval.spec.logicalRestore.options.customOptions"`
-	IgnoreDumpErrors       *bool                  `proj:"retrieval.spec.logicalDump.options.ignoreErrors"`
-	IgnoreRestoreErrors    *bool                  `proj:"retrieval.spec.logicalRestore.options.ignoreErrors"`
+	Debug                *bool                  `proj:"global.debug"`
+	DatabaseConfigs      map[string]interface{} `proj:"databaseConfigs.configs"`
+	DockerImage          *string                `proj:"databaseContainer.dockerImage"`
+	Timetable            *string                `proj:"retrieval.refresh.timetable"`
+	DBName               *string                `proj:"retrieval.spec.logicalDump.options.source.connection.dbname"`
+	Host                 *string                `proj:"retrieval.spec.logicalDump.options.source.connection.host"`
+	Password             *string                `proj:"retrieval.spec.logicalDump.options.source.connection.password" groups:"sensitive"`
+	Port                 *int64                 `proj:"retrieval.spec.logicalDump.options.source.connection.port"`
+	Username             *string                `proj:"retrieval.spec.logicalDump.options.source.connection.username"`
+	DBList               map[string]interface{} `proj:"retrieval.spec.logicalDump.options.databases,createKey"`
+	DumpParallelJobs     *int64                 `proj:"retrieval.spec.logicalDump.options.parallelJobs"`
+	RestoreParallelJobs  *int64                 `proj:"retrieval.spec.logicalRestore.options.parallelJobs"`
+	DumpCustomOptions    []interface{}          `proj:"retrieval.spec.logicalDump.options.customOptions"`
+	RestoreCustomOptions []interface{}          `proj:"retrieval.spec.logicalRestore.options.customOptions"`
+	IgnoreDumpErrors     *bool                  `proj:"retrieval.spec.logicalDump.options.ignoreErrors"`
+	IgnoreRestoreErrors  *bool                  `proj:"retrieval.spec.logicalRestore.options.ignoreErrors"`
 }

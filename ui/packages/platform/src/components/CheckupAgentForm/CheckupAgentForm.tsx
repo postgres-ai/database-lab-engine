@@ -34,6 +34,7 @@ import {
   TabPanelProps,
   ProjectProps,
   TokenRequestProps,
+  RefluxTypes,
 } from '@postgres.ai/platform/src/components/types'
 
 import Store from '../../stores/store'
@@ -151,11 +152,11 @@ class CheckupAgentForm extends Component<
     tab: 0,
   }
 
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const that = this
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth: CheckupAgentFormState['data']['auth'] =
         this.data && this.data.auth ? this.data.auth : null
       const reports: CheckupAgentFormState['data']['reports'] =

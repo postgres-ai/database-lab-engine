@@ -7,6 +7,9 @@ package logical
 
 import (
 	"strconv"
+	"strings"
+
+	"github.com/docker/docker/api/types/mount"
 )
 
 func buildAnalyzeCommand(conn Connection, parallelJobs int) []string {
@@ -19,4 +22,16 @@ func buildAnalyzeCommand(conn Connection, parallelJobs int) []string {
 	}
 
 	return analyzeCmd
+}
+
+func isAlreadyMounted(mounts []mount.Mount, dir string) bool {
+	dir = strings.Trim(dir, "/")
+
+	for _, mountPoint := range mounts {
+		if strings.Trim(mountPoint.Source, "/") == dir {
+			return true
+		}
+	}
+
+	return false
 }

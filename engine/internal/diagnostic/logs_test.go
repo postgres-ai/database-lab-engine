@@ -22,7 +22,7 @@ func TestLogsCleanup(t *testing.T) {
 		containerName, err := uuid.NewUUID()
 		assert.NoError(t, err)
 
-		name := now.AddDate(0, 0, -1*day).Format(timeFormat)
+		name := now.AddDate(0, 0, -1*day).In(time.UTC).Format(timeFormat)
 
 		err = os.MkdirAll(path.Join(dir, name, containerName.String()), 0755)
 		require.NoError(t, err)

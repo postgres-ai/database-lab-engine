@@ -6,13 +6,12 @@
  */
 
 import cn from 'classnames'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { makeStyles } from '@material-ui/core'
 
 import { Button } from '@postgres.ai/shared/components/MenuButton'
 import { useWindowDimensions } from '@postgres.ai/shared/hooks/useWindowDimensions'
-import { ReactComponent as ArrowRightIcon } from '@postgres.ai/ce/src/App/Menu/icons/arrow-right.svg'
-import { ReactComponent as ArrowLeftIcon } from '@postgres.ai/ce/src/App/Menu/icons/arrow-left.svg'
+import { ArrowLeft, ArrowRight } from '@postgres.ai/shared/pages/Instance/Info/Icons'
 
 import { Status } from './Status'
 import { Retrieval } from './Retrieval'
@@ -84,19 +83,14 @@ export const Info = () => {
   const isMobileScreen = width <= SMALL_BREAKPOINT_PX
 
   const [isCollapsed, setIsCollapsed] = useState(
-    () => localStorage.getItem(SIDEBAR_COLLAPSED_PARAM) === '1',
+    () =>
+      localStorage.getItem(SIDEBAR_COLLAPSED_PARAM) === '1' && !isMobileScreen,
   )
 
   const handleClick = () => {
     setIsCollapsed(!isCollapsed)
     localStorage.setItem(SIDEBAR_COLLAPSED_PARAM, isCollapsed ? '0' : '1')
   }
-
-  useEffect(() => {
-    if (isMobileScreen) {
-      setIsCollapsed(false)
-    }
-  }, [width])
 
   return (
     <div
@@ -115,9 +109,9 @@ export const Info = () => {
           type="button"
           icon={
             isCollapsed ? (
-              <ArrowLeftIcon className={classes.arrowImage} />
+              <ArrowLeft className={classes.arrowImage} />
             ) : (
-              <ArrowRightIcon className={classes.arrowImage} />
+              <ArrowRight className={classes.arrowImage} />
             )
           }
         >

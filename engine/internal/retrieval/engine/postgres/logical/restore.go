@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/pkg/errors"
@@ -100,11 +102,12 @@ type RestoreOptions struct {
 	DockerImage        string                    `yaml:"dockerImage"`
 	ContainerConfig    map[string]interface{}    `yaml:"containerConfig"`
 	Databases          map[string]DumpDefinition `yaml:"databases"`
-	ForceInit          bool                      `yaml:"forceInit"`
+	IgnoreErrors       bool                      `yaml:"ignoreErrors"`
 	ParallelJobs       int                       `yaml:"parallelJobs"`
 	Configs            map[string]string         `yaml:"configs"`
 	QueryPreprocessing query.PreprocessorCfg     `yaml:"queryPreprocessing"`
 	CustomOptions      []string                  `yaml:"customOptions"`
+	SkipPolicies       bool                      `yaml:"skipPolicies"`
 }
 
 // Partial defines tables and rules for a partial logical restore.
@@ -125,7 +128,7 @@ func NewJob(cfg config.JobConfig, global *global.Config, engineProps *global.Eng
 	}
 
 	if err := restoreJob.Reload(cfg.Spec.Options); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal configuration options")
+		return nil, errors.Wrap(err, "failed to load configuration options")
 	}
 
 	restoreJob.setDefaults()
@@ -163,7 +166,18 @@ func (r *RestoreJob) Reload(cfg map[string]interface{}) (err error) {
 
 	stat, err := os.Stat(r.RestoreOptions.DumpLocation)
 	if err != nil {
-		return errors.Wrap(err, "dumpLocation not found")
+		if !errors.Is(err, fs.ErrNotExist) {
+			return errors.Wrap(err, "cannot get stats of dumpLocation")
+		}
+
+		if err := os.MkdirAll(r.RestoreOptions.DumpLocation, 0666); err != nil {
+			return fmt.Errorf("error creating dumpLocation directory:  %w", err)
+		}
+
+		stat, err = os.Stat(r.RestoreOptions.DumpLocation)
+		if err != nil {
+			return fmt.Errorf("cannot get stats of dumpLocation: %w", err)
+		}
 	}
 
 	r.isDumpLocationDir = stat.IsDir()
@@ -197,23 +211,14 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	}
 
 	if !isEmpty {
-		if !r.ForceInit {
-			return fmt.Errorf("the data directory %q is not empty. Use 'forceInit' or empty the data directory: %w",
-				dataDir, err)
-		}
-
-		log.Msg(fmt.Sprintf("The data directory %q is not empty. Existing data may be overwritten.", dataDir))
-
-		if err := updateConfigs(dataDir, r.RestoreOptions.Configs); err != nil {
-			return fmt.Errorf("failed to update configuration: %w", err)
-		}
+		log.Warn(fmt.Sprintf("The data directory %q is not empty. Existing data will be overwritten.", dataDir))
 	}
 
 	if err := tools.PullImage(ctx, r.dockerClient, r.RestoreOptions.DockerImage); err != nil {
 		return errors.Wrap(err, "failed to scan image pulling response")
 	}
 
-	hostConfig, err := cont.BuildHostConfig(ctx, r.dockerClient, r.fsPool.DataDir(), r.RestoreOptions.ContainerConfig)
+	hostConfig, err := r.buildHostConfig(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to build container host config")
 	}
@@ -299,6 +304,30 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Msg("Restoring job has been finished")
 
 	return nil
+}
+
+func (r *RestoreJob) buildHostConfig(ctx context.Context) (*container.HostConfig, error) {
+	hostConfig, err := cont.BuildHostConfig(ctx, r.dockerClient, r.fsPool.DataDir(), r.RestoreOptions.ContainerConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build container host config: %w", err)
+	}
+
+	if r.RestoreOptions.DumpLocation != "" && !isAlreadyMounted(hostConfig.Mounts, r.RestoreOptions.DumpLocation) {
+		hostConfig.Mounts = append(hostConfig.Mounts,
+			mount.Mount{
+				Type:   mount.TypeBind,
+				Source: r.RestoreOptions.DumpLocation,
+				Target: r.RestoreOptions.DumpLocation,
+				BindOptions: &mount.BindOptions{
+					Propagation: mount.PropagationRShared,
+				},
+			},
+		)
+
+		log.Dbg("Mount dump location", r.RestoreOptions.DumpLocation)
+	}
+
+	return hostConfig, nil
 }
 
 func (r *RestoreJob) getDBList(ctx context.Context, contID string) (map[string]DumpDefinition, error) {
@@ -510,7 +539,48 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 		}
 	}
 
-	restoreCommand := r.buildLogicalRestoreCommand(dbName, dbDefinition)
+	var (
+		tmpListFile *os.File
+		err         error
+	)
+
+	if r.RestoreOptions.SkipPolicies {
+		tmpListFile, err = os.CreateTemp(r.getDumpLocation(dbDefinition.Format, dbDefinition.dbName), dbName+"-list-file*")
+		if err != nil {
+			return fmt.Errorf("failed to create temporary list file: %w", err)
+		}
+
+		defer func() {
+			if err := os.Remove(tmpListFile.Name()); err != nil {
+				log.Dbg("Cannot remove temporary file:", err)
+			}
+		}()
+		defer func() { _ = tmpListFile.Close() }()
+
+		dumpLocation := r.getDumpLocation(dbDefinition.Format, dbDefinition.dbName)
+
+		if dbDefinition.Format != directoryFormat {
+			dumpLocation = r.RestoreOptions.DumpLocation
+		}
+
+		preCmd := []string{"bash", "-c", `pg_restore -l ` + dumpLocation + " | grep -v POLICY > " + tmpListFile.Name()}
+
+		log.Msg("Running preparatory command to create list file for "+dbName, preCmd)
+
+		output, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
+			Tty: true,
+			Cmd: preCmd,
+			Env: []string{"PGAPPNAME=" + dleRetrieval},
+		})
+
+		if err != nil {
+			log.Dbg(output)
+
+			return fmt.Errorf("failed to perform preparatory command: %w", err)
+		}
+	}
+
+	restoreCommand := r.buildLogicalRestoreCommand(dbName, dbDefinition, tmpListFile)
 	log.Msg("Running restore command for "+dbName, restoreCommand)
 
 	output, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
@@ -519,7 +589,7 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 		Env: []string{"PGAPPNAME=" + dleRetrieval},
 	})
 
-	if err != nil {
+	if err != nil && !r.RestoreOptions.IgnoreErrors {
 		log.Err("Restore command failed: ", output)
 
 		return fmt.Errorf("failed to exec restore command: %w. Output: %s", err, output)
@@ -708,12 +778,12 @@ func (r *RestoreJob) updateDataStateAt() {
 	r.fsPool.SetDSA(dsaTime)
 }
 
-func (r *RestoreJob) buildLogicalRestoreCommand(dumpName string, definition DumpDefinition) []string {
+func (r *RestoreJob) buildLogicalRestoreCommand(dumpName string, definition DumpDefinition, listFile *os.File) []string {
 	if definition.Format == plainFormat {
 		return r.buildPlainTextCommand(dumpName, definition)
 	}
 
-	return r.buildPGRestoreCommand(dumpName, definition)
+	return r.buildPGRestoreCommand(dumpName, definition, listFile)
 }
 
 func (r *RestoreJob) buildPlainTextCommand(dumpName string, definition DumpDefinition) []string {
@@ -738,16 +808,13 @@ func (r *RestoreJob) buildPlainTextCommand(dumpName string, definition DumpDefin
 	}
 }
 
-func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DumpDefinition) []string {
+func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DumpDefinition, listFile *os.File) []string {
+	// Using the default database name because the database for connection must exist.
 	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName}
 
 	if definition.dbName != defaults.DBName {
 		// To avoid recreating of the default database.
 		restoreCmd = append(restoreCmd, "--create")
-	}
-
-	if r.ForceInit {
-		restoreCmd = append(restoreCmd, "--clean", "--if-exists")
 	}
 
 	restoreCmd = append(restoreCmd, "--jobs", strconv.Itoa(r.ParallelJobs))
@@ -762,7 +829,25 @@ func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DumpDefin
 
 	restoreCmd = append(restoreCmd, r.getDumpLocation(definition.Format, dumpName))
 
-	restoreCmd = append(restoreCmd, r.RestoreOptions.CustomOptions...)
+	customOptions := r.RestoreOptions.CustomOptions
+
+	// Skip policies: https://gitlab.com/postgres-ai/database-lab/-/merge_requests/769
+	if listFile != nil {
+		restoreCmd = append(restoreCmd, fmt.Sprintf("--use-list=%s", listFile.Name()))
+
+		customOptions = []string{}
+
+		for _, customOption := range r.RestoreOptions.CustomOptions {
+			// Exclude -L (--use-list) in customOptions to avoid conflicts if skipping policies is enabled.
+			if strings.HasPrefix(customOption, "-L") || strings.HasPrefix(customOption, "--use-list") {
+				continue
+			}
+
+			customOptions = append(customOptions, customOption)
+		}
+	}
+
+	restoreCmd = append(restoreCmd, customOptions...)
 
 	return restoreCmd
 }

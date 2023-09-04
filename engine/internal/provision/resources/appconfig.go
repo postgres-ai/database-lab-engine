@@ -10,13 +10,14 @@ import (
 
 // AppConfig currently stores Postgres configuration (other application in the future too).
 type AppConfig struct {
-	CloneName   string
-	DockerImage string
-	Pool        *Pool
-	Host        string
-	Port        uint
-	DB          *DB
-	NetworkID   string
+	CloneName      string
+	DockerImage    string
+	Pool           *Pool
+	Host           string
+	Port           uint
+	DB             *DB
+	NetworkID      string
+	ProvisionHosts string
 
 	ContainerConf map[string]string
 	pgExtraConf   map[string]string
@@ -26,6 +27,12 @@ type AppConfig struct {
 type DB struct {
 	Username string
 	DBName   string
+}
+
+// CloneDir returns the path of the clone directory.
+func (c *AppConfig) CloneDir() string {
+	// TODO(akartasov): Move to pool.
+	return path.Join(c.Pool.ClonesDir(), c.CloneName)
 }
 
 // DataDir returns the path of clone data.

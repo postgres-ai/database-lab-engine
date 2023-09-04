@@ -5,18 +5,21 @@
 
 <br />
 
-<div align="center"><h1 align="center">Database Lab Engine (DBLab)</h1></div>
+<div align="center"><h1 align="center">DBLab Engine</h1></div>
 
 <div align="center">
-  <a href="https://twitter.com/intent/tweet?via=Database_Lab&url=https://github.com/postgres-ai/database-lab-engine/&text=Thin%20@PostgreSQL%20clones%20–%20DBLab%20provides%20blazing-fast%20database%20cloning%20to%20build%20powerful%20development,%20test,%20QA,%20staging%20environments.">
+  <a href="https://twitter.com/intent/tweet?via=Database_Lab&url=https://github.com/postgres-ai/database-lab-engine/&text=20@PostgreSQL%branching%20–%20DLE%20provides%20blazing-fast%20database%20cloning%20to%20build%20powerful%20development,%20test,%20QA,%20staging%20environments.">
     <img src="https://img.shields.io/twitter/url/https/github.com/postgres-ai/database-lab-engine.svg?style=for-the-badge" alt="twitter">
   </a>
 </div>
 
 <div align="center">
-  <strong>:zap: Blazing-fast cloning of PostgreSQL databases :elephant:</strong><br>
-  Thin clones of PostgreSQL to build powerful development, test, QA, and staging environments.<br>
-  Available for any PostgreSQL, including AWS RDS<sup>*</sup>, GCP CloudSQL<sup>*</sup>, Heroku<sup>*</sup>, Digital Ocean<sup>*</sup>, and self-managed instances.
+  <strong>⚡ Blazing-fast Postgres cloning and branching 🐘</strong><br /><br />
+  🛠️ Build powerful dev/test environments.<br />
+  🔃 Cover 100% of DB migrations with CI tests.<br>
+  💡 Quickly verify ChatGPT ideas to get rid of hallucinations.<br /><br />
+  Available for any PostgreSQL, including self-managed and managed<sup>*</sup> like AWS RDS, GCP CloudSQL, Supabase, Timescale.<br /><br />
+  Can be installed and used anywhere: all clouds and on-premises.
 </div>
 
 <br />
@@ -44,14 +47,15 @@
 </div>
 
 ---
-  <sub><sup>*</sup> For a managed PostgreSQL cloud service such as AWS RDS or Heroku, where physical connection and access to PGDATA are not available, DBLab is supposed to be running on a separate VM in the same region, performing periodical automated full refresh of data and serving itself as a database-as-a-service solution providing thin database clones for development and testing purposes.</sub>
+  <sub><sup>*</sup>For managed PostgreSQL cloud services like AWS RDS or Heroku, direct physical connection and PGDATA access aren't possible. In these cases, DBLab should run on a separate VM within the same region. It will routinely auto-refresh its data, effectively acting as a database-as-a-service solution. This setup then offers thin database branching ideal for development and testing.</sub>
 
 ## Why DBLab?
-- Build dev/QA/staging environments based on full-size production-like databases.
+- Build dev/QA/staging environments using full-scale, production-like databases.
 - Provide temporary full-size database clones for SQL query analysis and optimization (see also: [SQL optimization chatbot Joe](https://gitlab.com/postgres-ai/joe)).
-- Automatically test database changes in CI/CD pipelines to avoid incidents in production.
+- Automatically test database changes in CI/CD pipelines, minimizing risks of production incidents.
+- Rapidly validate ChatGPT or other LLM concepts, check for hallucinations, and iterate towards effective solutions.
 
-For example, cloning a 1 TiB PostgreSQL database takes ~10 seconds. Dozens of independent clones are up and running on a single machine, supporting lots of development and testing activities, without increasing costs for hardware.
+For example, cloning a 1 TiB PostgreSQL database takes just about 10 seconds. On a single machine, you can have dozens of independent clones running simultaneously, supporting extensive development and testing activities without any added hardware costs.
 
 <p><img src="./assets/dle-demo-animated.gif" border="0" /></p>
 
@@ -63,7 +67,7 @@ Try it yourself right now:
 ## How it works
 Thin cloning is fast because it uses [Copy-on-Write (CoW)](https://en.wikipedia.org/wiki/Copy-on-write#In_computer_storage). DBLab supports two technologies to enable CoW and thin cloning: [ZFS](https://en.wikipedia.org/wiki/ZFS) (default) and [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).
 
-With ZFS, Database Lab Engine periodically creates a new snapshot of the data directory and maintains a set of snapshots, cleaning up old and unused ones. When requesting a new clone, users can choose which snapshot to use.
+Using ZFS, DBLab routinely takes new snapshots of the data directory, managing a collection of them and removing old or unused ones. When requesting a fresh clone, users have the option to select their preferred snapshot.
 
 Read more:
 - [How it works](https://postgres.ai/products/how-it-works)
@@ -72,12 +76,12 @@ Read more:
 - [Questions and answers](https://postgres.ai/docs/questions-and-answers)
 
 ## Where to start
-- [Database Lab tutorial for any PostgreSQL database](https://postgres.ai/docs/tutorials/database-lab-tutorial)
-- [Database Lab tutorial for Amazon RDS](https://postgres.ai/docs/tutorials/database-lab-tutorial-amazon-rds)
-- [Terraform module template (AWS)](https://postgres.ai/docs/how-to-guides/administration/install-database-lab-with-terraform)
+- [DBLab tutorial for any PostgreSQL database](https://postgres.ai/docs/tutorials/database-lab-tutorial)
+- [DBLab tutorial for Amazon RDS](https://postgres.ai/docs/tutorials/database-lab-tutorial-amazon-rds)
+- [How to install DBLab SE using Postgres.ai Console](https://postgres.ai/docs/how-to-guides/administration/install-dle-from-postgres-ai)
+- [How to install DBLab SE using AWS Marketplace](https://postgres.ai/docs/how-to-guides/administration/install-dle-from-aws-marketplace)
 
 ## Case studies
-- Qiwi: [How Qiwi Controls the Data to Accelerate Development](https://postgres.ai/resources/case-studies/qiwi)
 - GitLab: [How GitLab iterates on SQL performance optimization workflow to reduce downtime risks](https://postgres.ai/resources/case-studies/gitlab)
 
 ## Features
@@ -110,15 +114,17 @@ Read more:
 - Monitoring: auth-free `/healthz` API endpoint, extended `/status` (requires auth), [Netdata module](https://gitlab.com/postgres-ai/netdata_for_dle).
 
 ## How to contribute
-### Give the project a star
-The easiest way to contribute is to give the project a GitHub/GitLab star:
+### Support us on GitHub/GitLab
+The simplest way to show your support is by giving us a star on GitHub or GitLab! ⭐
 
 ![Add a star](./assets/star.gif)
 
 ### Spread the word
-Post a tweet mentioning [@Database_Lab](https://twitter.com/Database_Lab) or share the link to this repo in your favorite social network.
+- Shoot out a tweet and mention [@Database_Lab](https://twitter.com/Database_Lab) 
+- Share this repo's link on your favorite social media platform
 
-If you are actively using DBLab, tell others about your experience. You can use the logo referenced below and stored in the `./assets` folder. Feel free to put them in your documents, slide decks, application, and website interfaces to show that you use DBLab.
+### Share your experience
+If DBLab has been a vital tool for you, tell the world about your journey. Use the logo from the `./assets` folder for a visual touch. Whether it's in documents, presentations, applications, or on your website, let everyone know you trust and use DBLab.
 
 HTML snippet for lighter backgrounds:
 <p>
@@ -148,18 +154,15 @@ Check out our [contributing guide](./CONTRIBUTING.md) for more details.
 ### Participate in development
 Check out our [contributing guide](./CONTRIBUTING.md) for more details.
 
-### Translate the README
-Making Database Lab Engine more accessible to engineers around the Globe is a great help for the project. Check details in the [translation section of contributing guide](./CONTRIBUTING.md#Translation).
 
 ### Reference guides
 - [DBLab components](https://postgres.ai/docs/reference-guides/database-lab-engine-components)
+- [Client CLI reference](https://postgres.ai/docs/database-lab/cli-reference)
+- [DBLab API reference](https://api.dblab.dev/)
 - [DBLab configuration reference](https://postgres.ai/docs/database-lab/config-reference)
-- [DBLab API reference](https://postgres.ai/swagger-ui/dblab/)
-- [DBLab Client CLI (`dblab`) reference](https://postgres.ai/docs/database-lab/cli-reference)
 
 ### How-to guides
-- [How to install DBLab SE](XXXXXXX) – TBD
-- [How to install and initialize DBLab CLI `dblab`](https://postgres.ai/docs/how-to-guides/cli/cli-install-init)
+- [How to install and initialize Database Lab CLI](https://postgres.ai/docs/how-to-guides/cli/cli-install-init)
 - [How to manage DBLab](https://postgres.ai/docs/how-to-guides/administration)
 - [How to work with clones](https://postgres.ai/docs/how-to-guides/cloning)
 - [How to work with branches](XXXXXXX) – TBD
@@ -175,28 +178,34 @@ More you can find in [the "How-to guides" section](https://postgres.ai/docs/how-
 - [DB Migration Checker](https://postgres.ai/docs/db-migration-checker)
 
 ## License
-DBLab source code is licensed under the OSI-approved open-source license Apache License 2.0
+DBLab source code is licensed under the OSI-approved open source license [Apache 2.0](https://opensource.org/license/apache-2-0/).
 
 Reach out to the Postgres.ai team if you use or want to start using DBLab Standard Edition (DBLab SE) or Enterprise Edition (DBLab EE): [Contact page](https://postgres.ai/contact).
-
-[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fpostgres-ai%2Fdatabase-lab-engine?ref=badge_large)
 
 ## Community & Support
 - ["Database Lab Engine Community Covenant Code of Conduct"](./CODE_OF_CONDUCT.md)
 - Where to get help: [Contact page](https://postgres.ai/contact)
 - [Community Slack](https://slack.postgres.ai)
-- If you need to report a security issue, follow instructions in ["DBLab security guidelines"](./SECURITY.md).
+- If you need to report a security issue, follow instructions in ["Database Lab Engine security guidelines"](./SECURITY.md)
 
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?color=blue)](./CODE_OF_CONDUCT.md)
 
+Many thanks to our amazing contributors!
+
+<a href = "https://github.com/postgresml/pgcat/graphs/contributors">
+  <img src = "https://contrib.rocks/image?repo=postgres-ai/database-lab"/>
+</a>
+
 ## Translations
+Making DBLab more accessible to engineers around the globe is a great help for the project. Check details in the [translation section of contributing guide](./CONTRIBUTING.md#Translation).
 
 This README is available in the following translations:
-
-- [German / Deutsch](translations/README.german.md) (🙏 [@ane4ka](https://github.com/ane4ka))
-- [Brazilian Portuguese / Português (BR)](translations/README.portuguese-br.md) (🙏 [@Alexand](https://gitlab.com/Alexand))
-- [Russian / Pусский](translations/README.russian.md) (🙏 [@Tanya301](https://github.com/Tanya301))
-- [Spanish / Español](translations/README.spanish.md) (🙏 [@asotolongo](https://gitlab.com/asotolongo))
-- [Ukrainian / Українська](translations/README.ukrainian.md) (🙏 [@denis-boost](https://github.com/denis-boost))
+- [German / Deutsch](translations/README.german.md) (by [@ane4ka](https://github.com/ane4ka))
+- [Brazilian Portuguese / Português (BR)](translations/README.portuguese-br.md) (by [@Alexand](https://gitlab.com/Alexand))
+- [Russian / Pусский](translations/README.russian.md) (by [@Tanya301](https://github.com/Tanya301))
+- [Spanish / Español](translations/README.spanish.md) (by [@asotolongo](https://gitlab.com/asotolongo))
+- [Ukrainian / Українська](translations/README.ukrainian.md) (by [@denis-boost](https://github.com/denis-boost))
 
 👉 [How to make a translation contribution](./CONTRIBUTING.md#translation)
+
+

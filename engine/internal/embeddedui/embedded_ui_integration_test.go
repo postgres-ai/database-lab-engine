@@ -10,7 +10,6 @@ package embeddedui
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -48,14 +47,14 @@ func TestStartExistingContainer(t *testing.T) {
 	networks.Setup(ctx, docker, engProps.InstanceID, getEmbeddedUIName(engProps.InstanceID))
 
 	// clean test UI container
-	defer tools.RemoveContainer(ctx, docker, getEmbeddedUIName(engProps.InstanceID), 30*time.Second)
+	defer tools.RemoveContainer(ctx, docker, getEmbeddedUIName(engProps.InstanceID), 30)
 
 	// start UI container
 	err = embeddedUI.Run(ctx)
 	require.NoError(t, err)
 
 	// explicitly stop container
-	tools.StopContainer(ctx, docker, getEmbeddedUIName(engProps.InstanceID), 30*time.Second)
+	tools.StopContainer(ctx, docker, getEmbeddedUIName(engProps.InstanceID), 30)
 
 	// start UI container back
 	err = embeddedUI.Run(ctx)

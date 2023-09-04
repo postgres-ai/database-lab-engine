@@ -42,7 +42,6 @@ const useStyles = makeStyles(
       borderRadius: '3px',
       marginLeft: '5px',
       marginTop: '-2px',
-      backgroundColor: colors.white,
       height: '20px',
       lineHeight: '20px',
       fontSize: '12px',
@@ -66,8 +65,8 @@ export const DemoOrgNotice = () => {
       {icons.infoIconBlue}&nbsp;This is a Demo organization, once you’ve
       explored <span className={classes.noWrap}>Database Lab</span> features:
       <Button
-        variant="outlined"
-        color="secondary"
+        variant="contained"
+        color="primary"
         className={classes.demoOrgNoticeButton}
         onClick={goToOrgForm}
       >

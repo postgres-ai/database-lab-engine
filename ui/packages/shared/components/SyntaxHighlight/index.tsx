@@ -37,7 +37,13 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
-export const SyntaxHighlight = ({ content }: { content: string }) => {
+export const SyntaxHighlight = ({
+  content,
+  wrapLines,
+}: {
+  content: string
+  wrapLines?: boolean
+}) => {
   const classes = useStyles()
 
   const copyContent = () => {
@@ -48,7 +54,7 @@ export const SyntaxHighlight = ({ content }: { content: string }) => {
     <div className={classes.copyFieldContainer}>
       <SyntaxHighlighter
         language="bash"
-        wrapLines
+        wrapLines={wrapLines}
         style={oneLight}
         customStyle={{ borderRadius: 4, margin: '12px 0', fontSize: '14px' }}
         codeTagProps={{

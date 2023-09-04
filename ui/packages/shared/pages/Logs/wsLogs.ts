@@ -1,5 +1,6 @@
 import moment from 'moment';
 import { Api } from '../Instance/stores/Main';
+import { stringContainsPattern, stringWithoutBrackets } from './utils';
 
 const logsEndpoint = '/instance/logs';
 
@@ -18,8 +19,34 @@ export const establishConnection = async (api: Api) => {
 
   const appendLogElement = (logEntry: string, logType?: string) => {
     const tag = document.createElement('p')
-    tag.appendChild(document.createTextNode(logEntry))
-    logElement.appendChild(tag)
+    const logLevel = logEntry.split(' ')[3]
+    const logInitiator = logEntry.split(' ')[2]
+    const logsFilterState = JSON.parse(localStorage.getItem('logsFilter') || '')
+
+    const filterInitiators = Object.keys(logsFilterState).some((state) => {
+      if (logsFilterState[state]) {
+        if (state === '[other]') {
+          return !stringContainsPattern(logInitiator)
+        }
+        return logInitiator?.includes(stringWithoutBrackets(state))
+      }
+    })
+
+    if (
+      filterInitiators &&
+      (logsFilterState[logInitiator] ||
+        logsFilterState[logLevel] ||
+        logEntry === 'Connection Error')
+    ) {
+      tag.appendChild(document.createTextNode(logEntry))
+      logElement.appendChild(tag)
+    }
+
+    // we need to check both second and third element of logEntry,
+    // since the pattern of the response returned isn't always consistent
+    if (logInitiator === '[ERROR]' || logLevel === '[ERROR]') {
+      tag.classList.add('error-log')
+    }
 
     if (logType === 'message') {
       const logEntryTime = moment.utc(
@@ -32,7 +59,7 @@ export const establishConnection = async (api: Api) => {
 
       if (
         logElement.childElementCount > LOGS_LINE_LIMIT &&
-        timeDifference > LOGS_TIME_LIMIT
+        Number(timeDifference) > LOGS_TIME_LIMIT
       ) {
         logElement.removeChild(logElement.children[0])
       }
@@ -71,7 +98,7 @@ export const establishConnection = async (api: Api) => {
   socket.onclose = (event) => {
     console.log('Socket Closed Connection: ', event)
     socket.send('Client Closed')
-    appendLogElement('DLE Connection Closed')
+    appendLogElement('DBLab Connection Closed')
   }
 
   socket.onerror = (error) => {

@@ -26,7 +26,7 @@ import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 import { theme } from '@postgres.ai/shared/styles/theme'
 
 import Store from '../../stores/store'
@@ -140,12 +140,12 @@ class OrgForm extends Component<OrgFormWithStylesProps, OrgFormState> {
     },
   }
 
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const { orgId, mode } = this.props
     const that = this
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth = this.data && this.data.auth ? this.data.auth : null
       const orgProfile =
         this.data && this.data.orgProfile ? this.data.orgProfile : null

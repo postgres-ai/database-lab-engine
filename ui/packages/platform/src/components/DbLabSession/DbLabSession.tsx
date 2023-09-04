@@ -26,8 +26,8 @@ import { HorizontalScrollContainer } from '@postgres.ai/shared/components/Horizo
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { icons } from '@postgres.ai/shared/styles/icons'
-import { ClassesType } from '@postgres.ai/platform/src/components/types'
 import { isValidDate } from '@postgres.ai/shared/utils/date'
+import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
@@ -164,12 +164,12 @@ class DbLabSession extends Component<
   DbLabSessionWithStylesProps,
   DbLabSessionState
 > {
-  unsubscribe: () => void
+  unsubscribe: Function
   componentDidMount() {
     const sessionId = this.props.match.params.sessionId
     const that = this
 
-    this.unsubscribe = Store.listen(function () {
+     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
       const auth = this.data && this.data.auth ? this.data.auth : null
       const dbLabSession =
         this.data && this.data.dbLabSession ? this.data.dbLabSession : null
@@ -446,7 +446,7 @@ class DbLabSession extends Component<
           </Typography>
 
           <Typography component="p">
-            <span className={classes.paramTitle}>DLE instance:</span>
+            <span className={classes.paramTitle}>DBLab instance:</span>
             {session?.internal_instance_id ? (
               <NavLink
                 to={urls.linkDbLabInstance(
@@ -463,7 +463,7 @@ class DbLabSession extends Component<
           </Typography>
 
           <Typography component="p">
-            <span className={classes.paramTitle}>DLE version:</span>
+            <span className={classes.paramTitle}>DBLab version:</span>
             {session && session.tags && session.tags.dle_version
               ? session.tags.dle_version
               : '-'}

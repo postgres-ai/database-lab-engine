@@ -21,7 +21,7 @@ import { DockerInstance } from 'components/DbLabInstanceInstallForm/DbLabFormSte
 import { availableTags } from 'components/DbLabInstanceForm/utils'
 import { Select } from '@postgres.ai/shared/components/Select'
 
-import { generateToken } from 'utils/utils'
+import { generateToken, validateDLEName } from 'utils/utils'
 import urls from 'utils/urls'
 
 interface DbLabInstanceFormWithStylesProps extends DbLabInstanceFormProps {
@@ -34,13 +34,13 @@ const DbLabInstanceInstallForm = (props: DbLabInstanceFormWithStylesProps) => {
 
   const permitted = !orgPermissions || orgPermissions.dblabInstanceCreate
 
-  const pageTitle = <ConsolePageTitle title="Install DLE" />
+  const pageTitle = <ConsolePageTitle title="Install DBLab" />
   const breadcrumbs = (
     <ConsoleBreadcrumbsWrapper
       {...props}
       breadcrumbs={[
         { name: 'Database Lab Instances', url: 'instances' },
-        { name: 'Install DLE' },
+        { name: 'Install DBLab' },
       ]}
     />
   )
@@ -82,10 +82,10 @@ const DbLabInstanceInstallForm = (props: DbLabInstanceFormWithStylesProps) => {
         {state.formStep === initialState.formStep && permitted ? (
           <>
             <div className={classes.form}>
-              <p className={classes.sectionTitle}>1. Provide DLE name</p>
+              <p className={classes.sectionTitle}>1. Provide DBLab name</p>
               <TextField
                 required
-                label="DLE Name"
+                label="DBLab Name"
                 variant="outlined"
                 fullWidth
                 value={state.name}
@@ -93,6 +93,12 @@ const DbLabInstanceInstallForm = (props: DbLabInstanceFormWithStylesProps) => {
                 InputLabelProps={{
                   shrink: true,
                 }}
+                helperText={
+                  validateDLEName(state.name)
+                    ? 'Name must be lowercase and contain only letters and numbers.'
+                    : ''
+                }
+                error={validateDLEName(state.name)}
                 onChange={(
                   event: React.ChangeEvent<
                     HTMLTextAreaElement | HTMLInputElement
@@ -102,12 +108,12 @@ const DbLabInstanceInstallForm = (props: DbLabInstanceFormWithStylesProps) => {
                 }
               />
               <p className={classes.sectionTitle}>
-                2. Define DLE verification token (keep it secret!)
+                2. Define DBLab verification token (keep it secret!)
               </p>
               <div className={classes.generateContainer}>
                 <TextField
                   required
-                  label="DLE Verification Token"
+                  label="DBLab Verification Token"
                   variant="outlined"
                   fullWidth
                   value={state.verificationToken}
@@ -136,7 +142,7 @@ const DbLabInstanceInstallForm = (props: DbLabInstanceFormWithStylesProps) => {
                 </Button>
               </div>
               <p className={classes.sectionTitle}>
-                3. Choose DLE server version
+                3. Choose DBLab server version
               </p>
               <Select
                 label="Select tag"
@@ -165,7 +171,7 @@ const DbLabInstanceInstallForm = (props: DbLabInstanceFormWithStylesProps) => {
               </p>{' '}
               <p className={classes.instanceParagraph}>
                 The specified ssh public keys will be added to authorized_keys
-                on the DLE server. Add your public key here to have access to
+                on the DBLab server. Add your public key here to have access to
                 the server after deployment.
               </p>
               <TextField
@@ -192,7 +198,10 @@ const DbLabInstanceInstallForm = (props: DbLabInstanceFormWithStylesProps) => {
             </div>
             <DbLabInstanceFormInstallSidebar
               state={state}
-              handleCreate={() => handleSetFormStep('docker')}
+              disabled={validateDLEName(state.name)}
+              handleCreate={() =>
+                !validateDLEName(state.name) && handleSetFormStep('docker')
+              }
             />
           </>
         ) : state.formStep === 'ansible' && permitted ? (

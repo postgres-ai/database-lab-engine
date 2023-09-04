@@ -41,7 +41,7 @@ export const Retrieval = observer(() => {
   const { instance, instanceRetrieval } = stores.main
   if (!instance) return null
 
-  const { retrieving } = instance.state
+  const retrieving  = instance.state?.retrieving
   if (!retrieving) return null
 
   if (!instanceRetrieval) return null

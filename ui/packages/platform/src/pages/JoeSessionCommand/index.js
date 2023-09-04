@@ -405,6 +405,9 @@ class JoeSessionCommand extends Component {
             <h4>Statistics:</h4>
             <FormattedText value={data.stats.trim()} />
 
+            <h4>Query locks:</h4>
+            <FormattedText value={data.queryLocks} />
+
             <h4>Details:</h4>
             <Typography component='p'>
               <span>Uploaded</span>:&nbsp;

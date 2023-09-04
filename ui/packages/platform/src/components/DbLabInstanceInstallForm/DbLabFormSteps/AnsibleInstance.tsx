@@ -77,7 +77,7 @@ export const AnsibleInstance = ({
                 </li>
                 <li>
                   Attach an empty disk that is at least twice the size of the
-                  database you plan to use with DLE.
+                  database you plan to use with DBLab.
                 </li>
                 <li>
                   Ensure that your SSH public key is added to the machine (in
@@ -110,14 +110,14 @@ export const AnsibleInstance = ({
                 content={'ansible-galaxy install -r requirements.yml'}
               />{' '}
               <p className={classes.title}>
-                5. Execute the Ansible playbook to install DLE SE on the remote
+                5. Execute the Ansible playbook to install DBLab SE on the remote
                 server
               </p>
               <p>
                 Replace{' '}
                 <code className={classes.code}>'user@server-ip-address'</code>
                 with the specific username and IP address of the server where
-                you will be installing DLE.
+                you will be installing DBLab.
               </p>
               <SyntaxHighlight
                 content={getAnsiblePlaybookCommand(state, orgKey)}
@@ -133,7 +133,7 @@ export const AnsibleInstance = ({
               </p>
               <p className={classes.title}>
                 7. After the code snippet runs successfully, follow the
-                directions displayed in the resulting output to start using DLE
+                directions displayed in the resulting output to start using DBLab
                 UI/API/CLI.
               </p>{' '}
               <Box
@@ -143,15 +143,15 @@ export const AnsibleInstance = ({
                   margin: '20px 0',
                 }}
               >
-                <Button variant="contained" color="primary" onClick={goBack}>
-                  See list of instances
-                </Button>
                 <Button
                   variant="outlined"
                   color="secondary"
                   onClick={goBackToForm}
                 >
                   Back to form
+                </Button>
+                <Button variant="contained" color="primary" onClick={goBack}>
+                  See list of instances
                 </Button>
               </Box>
             </>

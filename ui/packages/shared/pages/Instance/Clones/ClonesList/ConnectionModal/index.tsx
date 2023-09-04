@@ -76,7 +76,7 @@ export const ConnectionModal = observer((props: Props) => {
   const { instance } = stores.main
   if (!instance) return null
 
-  const clone = instance.state.cloning.clones.find(
+  const clone = instance.state?.cloning.clones.find(
     (clone) => clone.id === cloneId,
   )
   if (!clone) return null
