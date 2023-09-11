@@ -193,7 +193,7 @@ export const CreateSnapshotPage = observer(
               {snapshotError && (
                 <ResponseMessage
                   type={'error'}
-                  message={snapshotError?.message}
+                  message={snapshotError}
                 />
               )}
             </div>
