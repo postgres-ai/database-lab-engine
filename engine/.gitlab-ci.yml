@@ -464,6 +464,11 @@ bash-test-15:
   variables:
     POSTGRES_VERSION: 15
 
+bash-test-16:
+  <<: *bash_test
+  variables:
+    POSTGRES_VERSION: 16rc1
+
 integration-test:
   services:
     - name: docker:dind
