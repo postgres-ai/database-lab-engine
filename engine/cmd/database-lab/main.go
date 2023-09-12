@@ -190,7 +190,6 @@ func main() {
 
 	server := srv.NewServer(&cfg.Server, &cfg.Global, &engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc,
 		billingSvc, obs, pm, tm, tokenHolder, logFilter, embeddedUI, reloadConfigFn, webhookChan)
-	shutdownCh := setShutdownListener()
 
 	go setReloadListener(ctx, engProps, provisioner, billingSvc,
 		retrievalSvc, pm, cloningSvc, platformSvc,
@@ -243,7 +242,7 @@ func main() {
 	go setReloadListener(ctx, engProps, provisioner, billingSvc,
 		retrievalSvc, pm, cloningSvc, platformSvc,
 		embeddedUI, server,
-		logCleaner, logFilter)
+		logCleaner, logFilter, whs)
 
 	go billingSvc.CollectUsage(ctx, systemMetrics)
 
