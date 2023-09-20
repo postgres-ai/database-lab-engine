@@ -98,11 +98,16 @@ export const Instance = observer((props: Props) => {
   }, [instanceId])
 
   useEffect(() => {
+    if (props.setProjectAlias) props.setProjectAlias(instance?.projectAlias || '')
+  }, [instance])
+
+  useEffect(() => {
     if (
       instance &&
       instance?.state?.retrieving?.status === 'pending' &&
       isConfigurationActive &&
-      !props.isPlatform && !hasBeenRedirected
+      !props.isPlatform &&
+      !hasBeenRedirected
     ) {
       setActiveTab(2)
       setHasBeenRedirected(true)

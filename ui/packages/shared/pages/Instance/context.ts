@@ -27,6 +27,7 @@ export type Host = {
   }
   wsHost?: string
   isPlatform?: boolean
+  setProjectAlias?: (alias: string) => void
 }
 
 // Host context.
