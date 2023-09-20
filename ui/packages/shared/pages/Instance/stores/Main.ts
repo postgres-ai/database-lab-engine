@@ -106,6 +106,9 @@ export class MainStore {
     this.instance = null
     this.isReloadingInstance = true
     this.loadInstance(instanceId, false).then(() => {
+      if (this.api.refreshInstance)
+        this.api.refreshInstance({ instanceId: instanceId })
+
       if (this.instance?.url) {
         this.snapshots.load(instanceId)
       }

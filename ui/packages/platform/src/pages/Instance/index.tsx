@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { Instance as InstancePage } from '@postgres.ai/shared/pages/Instance'
@@ -27,6 +28,7 @@ type Params = {
 
 export const Instance = () => {
   const params = useParams<Params>()
+  const [projectAlias, setProjectAlias] = useState<string>('')
 
   const routes = {
     createClone: () =>
@@ -73,6 +75,14 @@ export const Instance = () => {
     hideDeprecatedApiBanner: bannersStore.hideDeprecatedApi,
   }
 
+  const instanceTitle = `#${params.instanceId} ${
+    projectAlias
+      ? `(${projectAlias})`
+      : params.project
+      ? `(${params.project})`
+      : ''
+  }`
+
   const elements = {
     breadcrumbs: (
       <ConsoleBreadcrumbsWrapper
@@ -82,9 +92,7 @@ export const Instance = () => {
         breadcrumbs={[
           { name: 'Database Lab Instances', url: 'instances' },
           {
-            name: `Instance #${params.instanceId} ${
-              params.project ? `(${params.project})` : ''
-            }`,
+            name: `Instance ${instanceTitle}`,
             url: null,
           },
         ]}
@@ -95,9 +103,8 @@ export const Instance = () => {
   return (
     <InstancePage
       isPlatform
-      title={`Database Lab instance #${params.instanceId} ${
-        params.project ? `(${params.project})` : ''
-      }`}
+      setProjectAlias={setProjectAlias}
+      title={`Database Lab instance ${instanceTitle}`}
       instanceId={params.instanceId}
       routes={routes}
       api={api}
