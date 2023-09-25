@@ -90,7 +90,7 @@ export class MainStore {
     this.instance = null
     this.isReloadingInstance = true
     this.loadInstance(instanceId, false).then(() => {
-      if (this.instance?.url) {
+      if (this.instance?.createdAt && this.instance?.url || !this.instance?.createdAt) {
         this.snapshots.load(instanceId)
       }
     })
@@ -109,7 +109,7 @@ export class MainStore {
       if (this.api.refreshInstance)
         this.api.refreshInstance({ instanceId: instanceId })
 
-      if (this.instance?.url) {
+        if (this.instance?.createdAt && this.instance?.url || !this.instance?.createdAt) {
         this.snapshots.load(instanceId)
       }
     })
