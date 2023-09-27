@@ -9,8 +9,14 @@ describe('Instance page should have "Configuration" tab with content', () => {
     })
   })
   it('should have "Configuration" tab with content', () => {
-    cy.visit('/')
-    cy.get('.MuiTabs-flexContainer').contains('Configuration')
-    cy.get('.MuiBox-root').contains('p').should('have.length.greaterThan', 0)
+    cy.visit('/', {
+      retryOnStatusCodeFailure: true,
+      onLoad: () => {
+        cy.get('.MuiTabs-flexContainer').contains('Configuration')
+        cy.get('.MuiBox-root')
+          .contains('p')
+          .should('have.length.greaterThan', 0)
+      },
+    })
   })
 })

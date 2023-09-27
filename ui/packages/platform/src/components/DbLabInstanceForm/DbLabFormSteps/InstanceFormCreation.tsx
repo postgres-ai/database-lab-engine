@@ -1,3 +1,4 @@
+import classNames from 'classnames'
 import { makeStyles } from '@material-ui/core'
 
 const useStyles = makeStyles((theme) => ({
@@ -17,6 +18,14 @@ const useStyles = makeStyles((theme) => ({
     '&  p:first-child': {
       marginTop: '0',
     },
+  },
+  fullWidth: {
+    width: '100%',
+    maxWidth: '100%',
+
+    '& .MuiTextField-root': {
+      maxWidth: '800px',
+    }
   },
   navigation: {
     display: 'flex',
@@ -60,16 +69,39 @@ export const InstanceFormCreation = ({
   formStep,
   setFormStep,
   children,
+  install,
+  fullWidth,
 }: {
   formStep: string
   setFormStep: (step: string) => void
   children: React.ReactNode
+  install?: boolean
+  fullWidth?: boolean
 }) => {
   const classes = useStyles()
 
   return (
-    <div className={classes.snippetContainer}>
+    <div
+      className={classNames(
+        fullWidth && classes.fullWidth,
+        classes.snippetContainer,
+      )}
+    >
       <div className={classes.navigation}>
+        {!install && (
+          <span
+            className={formStep === 'simple' ? classes.active : ''}
+            onClick={() => setFormStep('simple')}
+          >
+            <img
+              src={`/images/simple.svg`}
+              width={30}
+              height="auto"
+              alt={'simple install setup'}
+            />
+            Simple setup
+          </span>
+        )}
         <span
           className={formStep === 'docker' ? classes.active : ''}
           onClick={() => setFormStep('docker')}

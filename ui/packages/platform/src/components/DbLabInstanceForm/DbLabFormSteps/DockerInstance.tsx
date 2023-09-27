@@ -84,7 +84,7 @@ export const DockerInstance = ({
             <ErrorStub title="Error 404" message="orgKey not found" />
           ) : state.provider === 'digitalocean' ? (
             <InstanceDocumentation
-              fistStep="Create Personal Access Token"
+              firstStep="Create Personal Access Token"
               documentation="https://docs.digitalocean.com/reference/api/create-personal-access-token"
               secondStep={<code className={classes.code}>DO_API_TOKEN</code>}
               snippetContent="export DO_API_TOKEN=XXXXXX"
@@ -92,7 +92,7 @@ export const DockerInstance = ({
             />
           ) : state.provider === 'hetzner' ? (
             <InstanceDocumentation
-              fistStep="Create API Token"
+              firstStep="Create API Token"
               documentation="https://docs.hetzner.com/cloud/api/getting-started/generating-api-token"
               secondStep={
                 <code className={classes.code}>HCLOUD_API_TOKEN</code>
@@ -102,7 +102,7 @@ export const DockerInstance = ({
             />
           ) : state.provider === 'aws' ? (
             <InstanceDocumentation
-              fistStep="Create access key"
+              firstStep="Create access key"
               documentation="https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html"
               secondStep={
                 <>
@@ -116,7 +116,7 @@ export const DockerInstance = ({
           ) : state.provider === 'gcp' ? (
             <>
               <InstanceDocumentation
-                fistStep="Create a service account"
+                firstStep="Create a service account"
                 firsStepDescription={
                   <>
                     Create and save the JSON key for the service account and

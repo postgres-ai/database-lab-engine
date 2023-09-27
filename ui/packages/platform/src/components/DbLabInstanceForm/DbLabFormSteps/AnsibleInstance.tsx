@@ -24,11 +24,14 @@ import { initialState } from '../reducer'
 
 export const formStyles = makeStyles({
   marginTop: {
-    marginTop: '20px',
+    marginTop: '20px !important',
   },
   marginBottom: {
     marginBottom: '20px',
     display: 'block',
+  },
+  maxContentWidth: {
+    maxWidth: '800px',
   },
   spinner: {
     display: 'flex',
@@ -36,10 +39,26 @@ export const formStyles = makeStyles({
     alignItems: 'center',
     height: '100%',
   },
+  buttonSpinner: {
+    marginRight: '8px',
+    color: '#fff',
+  },
   title: {
     fontWeight: 600,
     fontSize: '15px',
     margin: '10px 0',
+  },
+  mainTitle: {
+    fontWeight: 600,
+    fontSize: '20px',
+    borderBottom: '1px solid #eee',
+    margin: '0 0 10px 0',
+    paddingBottom: '10px',
+  },
+  note: {
+    fontSize: '12px',
+    margin: '0 0 10px 0',
+    color: '#777',
   },
   code: {
     backgroundColor: '#eee',
@@ -59,18 +78,18 @@ export const formStyles = makeStyles({
   },
   smallMarginTop: {
     marginBottom: '10px',
-  }
+  },
 })
 
 export const InstanceDocumentation = ({
-  fistStep,
+  firstStep,
   firsStepDescription,
   documentation,
   secondStep,
   snippetContent,
   classes,
 }: {
-  fistStep: string
+  firstStep: string
   firsStepDescription?: React.ReactNode
   documentation: string
   secondStep: React.ReactNode
@@ -78,7 +97,7 @@ export const InstanceDocumentation = ({
   classes: ReturnType<typeof formStyles>
 }) => (
   <>
-    <p className={classes.title}>1. {fistStep}</p>
+    <p className={classes.title}>1. {firstStep}</p>
     {firsStepDescription && <p>{firsStepDescription}</p>}
     <p className={classes.marginBottom}>
       Documentation:{' '}
@@ -182,7 +201,7 @@ export const AnsibleInstance = ({
             />
           ) : state.provider === 'digitalocean' ? (
             <InstanceDocumentation
-              fistStep="Create Personal Access Token"
+              firstStep="Create Personal Access Token"
               documentation="https://docs.digitalocean.com/reference/api/create-personal-access-token"
               secondStep={
                 <>
@@ -194,7 +213,7 @@ export const AnsibleInstance = ({
             />
           ) : state.provider === 'hetzner' ? (
             <InstanceDocumentation
-              fistStep="Create API Token"
+              firstStep="Create API Token"
               documentation="https://docs.hetzner.com/cloud/api/getting-started/generating-api-token"
               secondStep={
                 <code className={classes.code}>HCLOUD_API_TOKEN</code>
@@ -204,7 +223,7 @@ export const AnsibleInstance = ({
             />
           ) : state.provider === 'aws' ? (
             <InstanceDocumentation
-              fistStep="Create access key"
+              firstStep="Create access key"
               documentation="https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html"
               secondStep={
                 <>
@@ -217,7 +236,7 @@ export const AnsibleInstance = ({
             />
           ) : state.provider === 'gcp' ? (
             <InstanceDocumentation
-              fistStep="Create a service account"
+              firstStep="Create a service account"
               documentation="https://developers.google.com/identity/protocols/oauth2/service-account#creatinganaccount"
               secondStep={
                 <code className={classes.code}>

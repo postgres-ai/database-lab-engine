@@ -13,6 +13,7 @@ import DbLabInstanceForm from 'components/DbLabInstanceForm/DbLabInstanceForm'
 import { styles } from '@postgres.ai/shared/styles/styles'
 
 export interface DbLabInstanceFormProps {
+  userID?: number
   edit?: boolean
   orgId: number
   project: string | undefined
