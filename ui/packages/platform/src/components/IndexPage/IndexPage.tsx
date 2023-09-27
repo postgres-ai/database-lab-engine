@@ -686,6 +686,7 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
         path="/:org/instances/create"
         render={(props) => (
           <DbLabInstanceFormWrapper
+            userID={auth?.userId}
             {...props}
             {...customProps}
             {...queryProps}

@@ -10,18 +10,20 @@ const useStyles = makeStyles(
   {
     copyFieldContainer: {
       position: 'relative',
-      display: 'inline-block',
+      display: 'inline-flex',
       maxWidth: '100%',
       width: '100%',
+      margin: "12px 0",
+      backgroundColor: 'rgb(250, 250, 250)',
 
       '& code': {
         whiteSpace: 'inherit !important',
       },
     },
     copyButton: {
-      position: 'absolute',
-      top: 15,
-      right: 4,
+      top: 6,
+      position: 'sticky',
+      right: 6,
       zIndex: 10,
       width: 26,
       height: 26,
@@ -40,32 +42,54 @@ const useStyles = makeStyles(
 export const SyntaxHighlight = ({
   content,
   wrapLines,
+  id,
+  style,
 }: {
   content: string
   wrapLines?: boolean
+  id?: string
+  style?: React.CSSProperties
 }) => {
   const classes = useStyles()
 
   const copyContent = () => {
+    if (!content) {
+      const codeTag = document.getElementById(id as string)
+      if (codeTag) {
+        copyToClipboard(codeTag.innerText)
+      }
+      return
+    }
+
     copyToClipboard(content.replace(/^\s*[\r\n]/gm, ''))
   }
 
+  const fontSize = style ? '12px' : '14px'
+
   return (
-    <div className={classes.copyFieldContainer}>
+    <div className={classes.copyFieldContainer} style={style}>
       <SyntaxHighlighter
+        id={id}
         language="bash"
         wrapLines={wrapLines}
         style={oneLight}
-        customStyle={{ borderRadius: 4, margin: '12px 0', fontSize: '14px' }}
+        customStyle={{
+          borderRadius: 4,
+          fontSize: fontSize,
+          margin: 0,
+          border: 0,
+          flexGrow: 1,
+          height: '100%',
+        }}
         codeTagProps={{
           style: {
-            fontSize: '14px',
+            fontSize: fontSize,
           },
         }}
         lineProps={{
           style: {
             display: 'flex',
-            fontSize: '14px',
+            fontSize: fontSize,
           },
         }}
       >

@@ -37,6 +37,7 @@ export const initialState = {
   name: '',
   publicKeys: '',
   verificationToken: '',
+  taskID: '',
 }
 
 export const reducer = (
@@ -187,6 +188,8 @@ export const reducer = (
       return {
         ...state,
         formStep: action.formStep,
+        ...(action.taskID ? { taskID: action.taskID } : {}),
+        ...(action.provider ? { provider: action.provider } : {}),
       }
     }
     case 'set_tag': {
