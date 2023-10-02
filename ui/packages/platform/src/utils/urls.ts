@@ -66,6 +66,12 @@ export default {
     return basePath + '/instances'
   },
 
+  linkClusters: function (props: PropsType) {
+    const basePath = this.getBasePath(props)
+
+    return basePath + '/pg'
+  },
+
   linkDbLabInstance: function (props: PropsType, instanceId: string) {
     const basePath = this.getBasePath(props)
 
@@ -77,6 +83,14 @@ export default {
 
     return (
       basePath + '/instances' + (creationType ? '/' + creationType : '')
+    )
+  },
+
+  linkClusterInstanceAdd: function (props: PropsType, creationType?: string) {
+    const basePath = this.getBasePath(props)
+
+    return (
+      basePath + '/pg' + (creationType ? '/' + creationType : '')
     )
   },
 

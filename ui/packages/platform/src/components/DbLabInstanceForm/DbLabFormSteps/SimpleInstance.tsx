@@ -112,6 +112,7 @@ const SimpleInstanceDocumentation = ({
 }
 
 export const SimpleInstance = ({
+  cluster,
   state,
   orgId,
   userID,
@@ -119,6 +120,7 @@ export const SimpleInstance = ({
   formStep,
   setFormStep,
 }: {
+  cluster?: boolean
   state: typeof initialState
   orgId: number
   userID?: number
@@ -301,6 +303,7 @@ export const SimpleInstance = ({
         error: '',
       })
       await launchDeploy({
+        launchType: cluster ? 'cluster' : 'instance',
         state: state,
         userID: userID,
         extraEnvs: extraEnvs,

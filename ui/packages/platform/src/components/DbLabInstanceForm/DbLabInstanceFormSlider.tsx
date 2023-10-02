@@ -9,34 +9,6 @@ import React from 'react'
 import Slider from '@material-ui/core/Slider'
 import { makeStyles } from '@material-ui/core'
 
-const storageMarks = [
-  {
-    value: 30,
-    label: '30 GiB',
-    scaledValue: 30,
-  },
-  {
-    value: 500,
-    label: '500 GiB',
-    scaledValue: 500,
-  },
-  {
-    value: 1000,
-    label: '1000 GiB',
-    scaledValue: 1000,
-  },
-  {
-    value: 1500,
-    label: '1500 GiB',
-    scaledValue: 1500,
-  },
-  {
-    value: 2000,
-    label: '2000 GiB',
-    scaledValue: 2000,
-  },
-]
-
 const useStyles = makeStyles({
   root: {
     width: '100%',
@@ -53,42 +25,48 @@ const useStyles = makeStyles({
   },
 })
 
-const scale = (value: number) => {
-  const previousMarkIndex = Math.floor(value / 25)
-  const previousMark = storageMarks[previousMarkIndex]
-  const remainder = value % 25
-
-  if (remainder === 0) {
-    return previousMark?.scaledValue
-  }
-
-  const nextMark = storageMarks[previousMarkIndex + 1]
-  const increment = (nextMark?.scaledValue - previousMark?.scaledValue) / 25
-  return remainder * increment + previousMark?.scaledValue
-}
-
 export const StorageSlider = ({
   value,
   onChange,
+  customMarks,
+  sliderOptions,
 }: {
   value: number
+  customMarks: { value: number; scaledValue: number; label: string | number }[]
+  sliderOptions: { [key: string]: number }
   onChange: (event: React.ChangeEvent<{}>, value: unknown) => void
 }) => {
   const classes = useStyles()
 
+  const scale = (value: number) => {
+      if (customMarks) {
+        const previousMarkIndex = Math.floor(value / 25)
+        const previousMark = customMarks[previousMarkIndex]
+        const remainder = value % 25
+
+        if (remainder === 0) {
+          return previousMark?.scaledValue
+        }
+
+        const nextMark = customMarks[previousMarkIndex + 1]
+        const increment = (nextMark?.scaledValue - previousMark?.scaledValue) / 25
+        return remainder * increment + previousMark?.scaledValue
+      } else {
+        return value
+      }
+  }
+
   return (
     <Slider
-      classes={{ root: classes.root, valueLabel: classes.valueLabel }}
+      {...sliderOptions}
       value={value}
-      min={30}
-      step={10}
-      max={2000}
-      marks={storageMarks}
       scale={scale}
+      marks={customMarks}
       onChange={onChange}
-      valueLabelFormat={() => value}
       valueLabelDisplay="auto"
+      valueLabelFormat={() => value}
       aria-labelledby="non-linear-slider"
+      classes={{ root: classes.root, valueLabel: classes.valueLabel }}
     />
   )
 }

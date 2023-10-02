@@ -86,10 +86,12 @@ const useStyles = makeStyles({
 })
 
 export const DbLabInstanceFormSidebar = ({
+  cluster,
   state,
   handleCreate,
   disabled,
 }: {
+  cluster?: boolean
   state: typeof initialState
   handleCreate: () => void
   disabled: boolean
@@ -132,19 +134,39 @@ export const DbLabInstanceFormSidebar = ({
         <p className={classes.flexWrap}>
           {state.instanceType ? (
             <>
+              {cluster && (
+                <span
+                  style={{
+                    width: '100%',
+                  }}
+                >
+                  Instances count: {state.numberOfInstances}
+                </span>
+              )}
               <span>{state.instanceType.native_name}: </span>
               <span>🔳 {state.instanceType.native_vcpus} CPU</span>
               <span>🧠 {state.instanceType.native_ram_gib} GiB RAM</span>
               <span>
                 Price: {state.instanceType.native_reference_price_currency}
-                {state.instanceType.native_reference_price_hourly?.toFixed(
-                  4,
-                )}{' '}
+                {cluster
+                  ? (
+                      state.numberOfInstances *
+                      state.instanceType.native_reference_price_hourly
+                    )?.toFixed(4)
+                  : state.instanceType.native_reference_price_hourly?.toFixed(
+                      4,
+                    )}{' '}
                 hourly (~{state.instanceType.native_reference_price_currency}
-                {(
-                  state.instanceType.native_reference_price_hourly *
-                  MONTHLY_HOURS
-                ).toFixed(2)}{' '}
+                {cluster
+                  ? (
+                      state.numberOfInstances *
+                      state.instanceType.native_reference_price_hourly *
+                      MONTHLY_HOURS
+                    ).toFixed(2)
+                  : (
+                      state.instanceType.native_reference_price_hourly *
+                      MONTHLY_HOURS
+                    ).toFixed(2)}{' '}
                 per month)<sup>*</sup>
               </span>
             </>
@@ -157,12 +179,22 @@ export const DbLabInstanceFormSidebar = ({
         <span>Database volume</span>
         <p className={classes.flexWrap}>
           <span>Type: {state.volumeType}</span>
-          <span>Size: {state.storage.toFixed(2)} GiB </span>
+          <span>Size: {Number(state.storage)?.toFixed(2)} GiB </span>
         </p>
         <p>
           Price: {state.volumeCurrency}
-          {state.volumePrice.toFixed(4)} hourly (~{state.volumeCurrency}
-          {(state.volumePrice * MONTHLY_HOURS).toFixed(2)} per month)
+          {cluster
+            ? (state.volumePrice * state.numberOfInstances).toFixed(4)
+            : state.volumePrice.toFixed(4)}{' '}
+          hourly (~{state.volumeCurrency}
+          {cluster
+            ? (
+                state.volumePrice *
+                state.numberOfInstances *
+                MONTHLY_HOURS
+              ).toFixed(2)
+            : (state.volumePrice * MONTHLY_HOURS).toFixed(2)}{' '}
+          per month)
           <sup>*</sup>
         </p>
         <span className={classes.remark}>
@@ -181,17 +213,31 @@ export const DbLabInstanceFormSidebar = ({
         </span>
       </div>
       <div className={classes.asideSection}>
-        <span>Software: DBLab SE (pay as you go)</span>
+        <span>
+          Software: {cluster ? 'Postgres cluster' : 'DBLab SE'} (pay as you go)
+        </span>
         <p className={classes.flexWrap}>
           {state.instanceType && (
             <>
               <span>Size: {state.instanceType.api_name}</span>
               <span>
-                Price: ${state.instanceType.dle_se_price_hourly?.toFixed(4)}{' '}
+                Price: $
+                {cluster
+                  ? (
+                      state.instanceType.dle_se_price_hourly *
+                      state.numberOfInstances
+                    ).toFixed(4)
+                  : state.instanceType.dle_se_price_hourly?.toFixed(4)}{' '}
                 hourly (~$
-                {(
-                  state.instanceType.dle_se_price_hourly * MONTHLY_HOURS
-                ).toFixed(2)}{' '}
+                {cluster
+                  ? (
+                      state.numberOfInstances *
+                      state.instanceType.dle_se_price_hourly *
+                      MONTHLY_HOURS
+                    ).toFixed(2)
+                  : (
+                      state.instanceType.dle_se_price_hourly * MONTHLY_HOURS
+                    ).toFixed(2)}{' '}
                 per month)
               </span>
             </>
@@ -202,9 +248,11 @@ export const DbLabInstanceFormSidebar = ({
         variant="contained"
         color="primary"
         onClick={handleCreate}
-        disabled={!state.name || !state.verificationToken || disabled}
+        disabled={
+          !state.name || (!cluster && !state.verificationToken) || disabled
+        }
       >
-        Create DBLab
+        {cluster ? 'Create Postgres Cluster' : 'Create DBLab'}
       </Button>
     </div>
   )

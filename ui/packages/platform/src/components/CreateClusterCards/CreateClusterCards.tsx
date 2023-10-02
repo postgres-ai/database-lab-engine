@@ -1,4 +1,3 @@
-import { makeStyles } from '@material-ui/core'
 import { StubContainer } from '@postgres.ai/shared/components/StubContainer'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { ConsoleButtonWrapper } from 'components/ConsoleButton/ConsoleButtonWrapper'
@@ -7,74 +6,9 @@ import { DashboardProps } from 'components/Dashboard/DashboardWrapper'
 
 import Urls from '../../utils/urls'
 import { messages } from '../../assets/messages'
+import { useStyles } from 'components/CreateDbLabCards/CreateDbLabCards'
 
-export const useStyles = makeStyles((theme) => ({
-  stubContainerProjects: {
-    marginRight: '-20px',
-    padding: '0 40px',
-    alignItems: 'initial !important',
-
-    '& > div:nth-child(1), & > div:nth-child(2)': {
-      minHeight: '350px',
-    },
-
-    [theme.breakpoints.down('sm')]: {
-      flexDirection: 'column',
-    },
-  },
-  productCardProjects: {
-    flex: '1 1 0',
-    marginRight: '20px',
-    height: 'maxContent',
-    gap: 20,
-    maxHeight: '100%',
-    '& ul': {
-      marginBlockStart: '-10px',
-      paddingInlineStart: '30px',
-    },
-
-    '& svg': {
-      width: '206px',
-      height: '130px',
-    },
-
-    '&:nth-child(1) svg': {
-      marginBottom: '-5px',
-    },
-
-    '&:nth-child(2) svg': {
-      marginBottom: '-20px',
-    },
-
-    '& li': {
-      listStyleType: 'none',
-      position: 'relative',
-
-      '&::before': {
-        content: '"-"',
-        position: 'absolute',
-        left: '-10px',
-        top: '0',
-      },
-    },
-
-    [theme.breakpoints.down('sm')]: {
-      flex: '100%',
-      marginTop: '20px',
-      minHeight: 'auto !important',
-
-      '&:nth-child(1) svg': {
-        marginBottom: 0,
-      },
-
-      '&:nth-child(2) svg': {
-        marginBottom: 0,
-      },
-    },
-  },
-}))
-
-export const CreatedDbLabCards = ({
+export const CreateClusterCards = ({
   props,
   dblabPermitted,
 }: {
@@ -83,8 +17,8 @@ export const CreatedDbLabCards = ({
 }) => {
   const classes = useStyles()
 
-  const createDblabInstanceButtonHandler = (provider: string) => {
-    props.history.push(Urls.linkDbLabInstanceAdd(props, provider))
+  const createClusterInstanceButton = (provider: string) => {
+    props.history.push(Urls.linkClusterInstanceAdd(props, provider))
   }
 
   const CreateButton = ({ type, title }: { type: string; title: string }) => (
@@ -92,7 +26,7 @@ export const CreatedDbLabCards = ({
       disabled={!dblabPermitted}
       variant="contained"
       color="primary"
-      onClick={() => createDblabInstanceButtonHandler(type)}
+      onClick={() => createClusterInstanceButton(type)}
       title={dblabPermitted ? title : messages.noPermission}
     >
       {type === 'create' ? 'Create' : 'Install'}
@@ -101,7 +35,7 @@ export const CreatedDbLabCards = ({
 
   const productData = [
     {
-      title: 'Create DBLab in your cloud',
+      title: 'Create Postgres Cluster in your cloud',
       renderDescription: () => (
         <>
           <p>
@@ -117,13 +51,13 @@ export const CreatedDbLabCards = ({
         {
           id: 'createDblabInstanceButton',
           content: (
-            <CreateButton type="create" title="Create DBLab in your cloud" />
+            <CreateButton type="create" title="Create Cluster in your cloud" />
           ),
         },
       ],
     },
     {
-      title: 'BYOM (Bring Your Own Machine)',
+      title: 'BYOM (Bring Your Own Machines)',
       renderDescription: () => (
         <>
           <p>
@@ -133,7 +67,11 @@ export const CreatedDbLabCards = ({
           </p>
           <p>Requirements:</p>
           <ul>
-            <li>Ubuntu 20.04 or newer</li>
+            <li>
+              Three or more servers running a supported Linux distro: Ubuntu
+              (20.04/22.04), Debian (11/12), CentOS Stream (8/9), Rocky Linux
+              (8/9), AlmaLinux (8/9), or Red Hat Enterprise Linux (8/9).
+            </li>
             <li>Internet connectivity</li>
           </ul>
         </>
@@ -145,7 +83,7 @@ export const CreatedDbLabCards = ({
           content: (
             <CreateButton
               type="install"
-              title="Install DBLab on an existing machine"
+              title="Install Cluster on an existing machine"
             />
           ),
         },
