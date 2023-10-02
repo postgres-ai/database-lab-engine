@@ -49,14 +49,18 @@ import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/Console
 import { DbLabStatusWrapper } from 'components/DbLabStatus/DbLabStatusWrapper'
 import { DbLabInstancesProps } from 'components/DbLabInstances/DbLabInstancesWrapper'
 import { CreatedDbLabCards } from 'components/CreateDbLabCards/CreateDbLabCards'
+import { CreateClusterCards } from 'components/CreateClusterCards/CreateClusterCards'
 import { ConsoleButtonWrapper } from 'components/ConsoleButton/ConsoleButtonWrapper'
 
-interface DbLabInstancesWithStylesProps extends DbLabInstancesProps {
+interface PostgresClustersProps extends DbLabInstancesProps {
   classes: ClassesType
 }
 
 interface DbLabInstancesState {
-  modalOpen: boolean
+  modalState: {
+    open: boolean
+    type: string
+  }
   data: {
     auth: {
       token: string
@@ -97,8 +101,8 @@ interface DbLabInstancesState {
   anchorEl: (EventTarget & HTMLButtonElement) | null
 }
 
-class DbLabInstances extends Component<
-  DbLabInstancesWithStylesProps,
+class PostgresClusters extends Component<
+  PostgresClustersProps,
   DbLabInstancesState
 > {
   componentDidMount() {
@@ -284,7 +288,7 @@ class DbLabInstances extends Component<
         : null
     const projectId = this.props.projectId ? this.props.projectId : null
     const menuOpen = Boolean(this.state && this.state.anchorEl)
-    const title = 'Database Lab Instances'
+    const title = 'Postgres Clusters'
     const addPermitted = !orgPermissions || orgPermissions.dblabInstanceCreate
     const deletePermitted =
       !orgPermissions || orgPermissions.dblabInstanceDelete
@@ -303,26 +307,23 @@ class DbLabInstances extends Component<
     }
 
     const addInstanceButton = (
-      <ConsoleButtonWrapper
-        disabled={!addPermitted}
-        variant="contained"
-        color="primary"
-        key="add_dblab_instance"
-        onClick={() => this.setState({ modalOpen: true })}
-        title={addPermitted ? 'Create new DBLab' : messages.noPermission}
-      >
-        New DBLab
-      </ConsoleButtonWrapper>
+      <div className={classes.buttonContainer}>
+        <ConsoleButtonWrapper
+          disabled={!addPermitted}
+          variant="contained"
+          color="primary"
+          key="add-cluster"
+          onClick={() =>
+            this.setState({ modalState: { open: true, type: 'cluster' } })
+          }
+          title={addPermitted ? 'Create new cluster' : messages.noPermission}
+        >
+          New Postgres cluster
+        </ConsoleButtonWrapper>
+      </div>
     )
     const pageTitle = (
-      <ConsolePageTitle
-        title={title}
-        actions={
-          data?.data && Object.keys(data.data).length > 0
-            ? [addInstanceButton]
-            : []
-        }
-      />
+      <ConsolePageTitle title={title} actions={[addInstanceButton]} />
     )
 
     let projectFilter = null
@@ -333,7 +334,7 @@ class DbLabInstances extends Component<
             value={data.projectId}
             onChange={(event) => this.handleChangeProject(event)}
             select
-            label="Project"
+            label="Name"
             inputProps={{
               name: 'project',
               id: 'project-filter',
@@ -347,6 +348,7 @@ class DbLabInstances extends Component<
             }}
             variant="outlined"
             className={classes.filterSelect}
+            disabled
           >
             <MenuItem value={0}>All</MenuItem>
 
@@ -413,32 +415,30 @@ class DbLabInstances extends Component<
 
     const CardsModal = () => (
       <Modal
-        size="md"
-        isOpen={this.state.modalOpen}
-        title="Choose the location for your DBLab SE installation"
-        onClose={() => this.setState({ modalOpen: false })}
+        size={'md'}
+        isOpen={this.state.modalState.open}
+        title={'Choose the location for your Cluster installation'}
+        onClose={() => this.setState({ modalState: { open: false, type: '' } })}
         aria-labelledby="simple-modal-title"
         aria-describedby="simple-modal-description"
       >
-        <CreatedDbLabCards props={this.props} dblabPermitted={addPermitted} />
+        <CreateClusterCards props={this.props} dblabPermitted={addPermitted} />
       </Modal>
     )
 
     let table = (
-      <CreatedDbLabCards props={this.props} dblabPermitted={addPermitted} />
+      <CreateClusterCards props={this.props} dblabPermitted={addPermitted} />
     )
 
     let menu = null
-    if (data.data && Object.keys(data.data).length > 0) {
+    if (true) {
       table = (
         <HorizontalScrollContainer>
           <Table className={classes.table} id="dblabInstancesTable">
             <TableHead>
               <TableRow className={classes.row}>
-                <TableCell>Project</TableCell>
-                <TableCell>Instance ID</TableCell>
-                <TableCell>URL</TableCell>
-                <TableCell>Clones</TableCell>
+                <TableCell>Cluster name</TableCell>
+                <TableCell>ID</TableCell>
                 <TableCell>Plan</TableCell>
                 <TableCell>Version</TableCell>
                 <TableCell>State</TableCell>
@@ -448,7 +448,7 @@ class DbLabInstances extends Component<
             </TableHead>
 
             <TableBody>
-              {Object.keys(data.data).map((index) => {
+              {/* {Object.keys(data.data).map((index) => {
                 return (
                   <TableRow
                     hover
@@ -547,7 +547,7 @@ class DbLabInstances extends Component<
                     </TableCell>
                   </TableRow>
                 )
-              })}
+              })} */}
             </TableBody>
           </Table>
         </HorizontalScrollContainer>
@@ -616,10 +616,10 @@ class DbLabInstances extends Component<
 
         {menu}
 
-        <CardsModal />
+        {this.state.modalState && <CardsModal />}
       </div>
     )
   }
 }
 
-export default DbLabInstances
+export default PostgresClusters

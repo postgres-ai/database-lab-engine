@@ -7,11 +7,10 @@
 
 import { RouteComponentProps } from 'react-router'
 
-import DbLabInstanceInstallForm from 'components/DbLabInstanceInstallForm/DbLabInstanceInstallForm'
-
+import PostgresClusterInstallForm from './PostgresClusterInstallForm'
 import { useInstanceFormStyles } from 'components/DbLabInstanceForm/DbLabInstanceFormWrapper'
 
-export interface DbLabInstanceFormProps {
+export interface PostgresClusterInstallFormWrapperProps {
   edit?: boolean
   orgId: number
   project: string | undefined
@@ -21,11 +20,10 @@ export interface DbLabInstanceFormProps {
   }
 }
 
-export const DbLabInstanceFormInstallWrapper = (
-  props: DbLabInstanceFormProps,
+export const PostgresClusterInstallWrapper = (
+  props: PostgresClusterInstallFormWrapperProps,
 ) => {
-
   const classes = useInstanceFormStyles()
 
-  return <DbLabInstanceInstallForm {...props} classes={classes} />
+  return <PostgresClusterInstallForm {...props} classes={classes} />
 }

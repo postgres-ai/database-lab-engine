@@ -11,16 +11,14 @@ import { CloudRegion } from 'api/cloud/getCloudRegions'
 import { CloudInstance } from 'api/cloud/getCloudInstances'
 import { CloudVolumes } from 'api/cloud/getCloudVolumes'
 
-import { availableTags } from 'components/DbLabInstanceForm/utils'
-
 export const initialState = {
   isLoading: false,
   isReloading: false,
   formStep: 'create',
   provider: 'aws',
-  storage: 30,
+  storage: 100,
   region: 'North America',
-  tag: availableTags[0],
+  version: '16',
   serviceProviders: [],
   cloudRegions: [],
   cloudInstances: [],
@@ -35,17 +33,18 @@ export const initialState = {
   location: {} as CloudRegion,
   instanceType: {} as CloudInstance,
   name: '',
+  tag: '',
+  numberOfInstances: 3,
   publicKeys: '',
   verificationToken: '',
-  numberOfInstances: 3,
-  version: '',
+  seImageVersions: [],
   database_public_access: false,
   with_haproxy_load_balancing: false,
   pgbouncer_install: true,
   synchronous_mode: false,
   synchronous_node_count: 1,
   netdata_install: true,
-  taskID: ''
+  taskID: '',
 }
 
 export const reducer = (
@@ -65,8 +64,6 @@ export const reducer = (
         volumePricePerHour: action.volumePricePerHour,
         volumeCurrency: action.volumeCurrency,
         region: initialState.region,
-        databaseSize: initialState.databaseSize,
-        snapshots: initialState.snapshots,
         location: action.cloudRegions.find(
           (region: CloudRegion) =>
             region.world_part === initialState.region &&
@@ -100,8 +97,6 @@ export const reducer = (
         ...state,
         provider: action.provider,
         region: initialState.region,
-        databaseSize: initialState.databaseSize,
-        snapshots: initialState.snapshots,
         storage: initialState.storage,
       }
     }
@@ -143,16 +138,16 @@ export const reducer = (
         instanceType: action.instanceType,
       }
     }
-    case 'change_verification_token': {
-      return {
-        ...state,
-        verificationToken: action.verificationToken,
-      }
-    }
     case 'change_public_keys': {
       return {
         ...state,
         publicKeys: action.publicKeys,
+      }
+    }
+    case 'change_number_of_instances': {
+      return {
+        ...state,
+        numberOfInstances: action.number,
       }
     }
     case 'change_volume_type': {
@@ -163,21 +158,12 @@ export const reducer = (
         volumePricePerHour: action.volumePricePerHour,
       }
     }
-    case 'change_snapshots': {
-      return {
-        ...state,
-        snapshots: action.snapshots,
-        storage: action.storage,
-        volumePrice: action.volumePrice,
-      }
-    }
 
     case 'change_volume_price': {
       return {
         ...state,
         volumePrice: action.volumePrice,
-        databaseSize: action.databaseSize,
-        storage: action.storage,
+        storage: action.volumeSize,
       }
     }
     case 'set_is_loading': {
@@ -200,12 +186,54 @@ export const reducer = (
         ...(action.provider ? { provider: action.provider } : {}),
       }
     }
-    case 'set_tag': {
+    case 'set_version': {
       return {
         ...state,
-        tag: action.tag,
+        version: action.version,
       }
     }
+    case 'change_database_public_access': {
+      return {
+        ...state,
+        database_public_access: action.database_public_access,
+      }
+    }
+    
+    case 'change_with_haproxy_load_balancing': {
+      return {
+        ...state,
+        with_haproxy_load_balancing: action.with_haproxy_load_balancing,
+      }
+    }
+
+    case 'change_pgbouncer_install': {
+      return {
+        ...state,
+        pgbouncer_install: action.pgbouncer_install,
+      }
+    }
+
+    case 'change_synchronous_mode': {
+      return {
+        ...state,
+        synchronous_mode: action.synchronous_mode,
+      }
+    }
+
+    case 'change_synchronous_node_count': {
+      return {
+        ...state,
+        synchronous_node_count: action.synchronous_node_count,
+      }
+    }
+
+    case 'change_netdata_install': {
+      return {
+        ...state,
+        netdata_install: action.netdata_install,
+      }
+    }
+    
     default:
       throw new Error()
   }

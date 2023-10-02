@@ -21,6 +21,10 @@ import {
 import { InstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/InstanceFormCreation'
 
 import { initialState } from '../reducer'
+import {
+  cloneClusterRepositoryCommand,
+  getClusterPlaybookCommandWithoutDocker,
+} from 'components/PostgresClusterForm/utils'
 
 export const formStyles = makeStyles({
   marginTop: {
@@ -68,6 +72,10 @@ export const formStyles = makeStyles({
   },
   ul: {
     paddingInlineStart: '30px',
+
+    '& li': {
+      marginBottom: '5px',
+    },
   },
   important: {
     fontWeight: 600,
@@ -111,6 +119,7 @@ export const InstanceDocumentation = ({
 )
 
 export const AnsibleInstance = ({
+  cluster,
   state,
   orgId,
   goBack,
@@ -118,6 +127,7 @@ export const AnsibleInstance = ({
   formStep,
   setFormStep,
 }: {
+  cluster?: boolean
   state: typeof initialState
   orgId: number
   goBack: () => void
@@ -179,10 +189,24 @@ export const AnsibleInstance = ({
         </a>
         .
       </span>
-      <p className={classes.title}>4. Clone the dle-se-ansible repository</p>
-      <SyntaxHighlight content={cloneRepositoryCommand()} />
-      <p className={classes.title}>5. Install requirements</p>
-      <SyntaxHighlight content={'ansible-galaxy install -r requirements.yml'} />
+      <p className={classes.title}>
+        4. Clone the {cluster ? 'postgresql_cluster' : 'dle-se-ansible'}{' '}
+        repository
+      </p>
+      <SyntaxHighlight
+        content={
+          cluster ? cloneClusterRepositoryCommand() : cloneRepositoryCommand()
+        }
+      />
+
+      {!cluster && (
+        <>
+          <p className={classes.title}>5. Install requirements</p>
+          <SyntaxHighlight
+            content={'ansible-galaxy install -r requirements.yml'}
+          />
+        </>
+      )}
     </>
   )
 
@@ -249,19 +273,26 @@ export const AnsibleInstance = ({
           ) : null}
           <AnsibleInstallation />
           <p className={classes.title}>
-            6. Run ansible playbook to create server and install DBLab SE
+            {cluster
+              ? '5. Run ansible playbook to deploy Postgres Cluster'
+              : '6. Run ansible playbook to create server and install DBLab SE'}
           </p>
           <SyntaxHighlight
-            content={getPlaybookCommandWithoutDocker(
-              state,
-              cloudImages[0],
-              orgKey,
-            )}
+            content={
+              cluster
+                ? getClusterPlaybookCommandWithoutDocker(
+                    state,
+                    cloudImages[0],
+                    orgKey,
+                  )
+                : getPlaybookCommandWithoutDocker(state, cloudImages[0], orgKey)
+            }
           />
           {getNetworkSubnet(state.provider, classes)}
           <p className={classes.title}>
-            7. After the code snippet runs successfully, follow the directions
-            displayed in the resulting output to start using DBLab AUI/API/CLI.
+            {cluster
+              ? '6. After the code snippet runs successfully, follow the directions displayed in the resulting output to start using the database.'
+              : '7. After the code snippet runs successfully, follow the directions displayed in the resulting output to start using DBLab AUI/API/CLI.'}
           </p>
           <Box
             sx={{
@@ -274,7 +305,7 @@ export const AnsibleInstance = ({
               Back to form
             </Button>
             <Button variant="contained" color="primary" onClick={goBack}>
-              See list of instances
+              See list of {cluster ? ' clusters' : ' instances'}
             </Button>
           </Box>
         </>

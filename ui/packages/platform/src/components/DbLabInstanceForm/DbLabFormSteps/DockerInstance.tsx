@@ -21,8 +21,10 @@ import {
 import { InstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/InstanceFormCreation'
 
 import { initialState } from '../reducer'
+import { getClusterPlaybookCommand } from 'components/PostgresClusterForm/utils'
 
 export const DockerInstance = ({
+  cluster,
   state,
   orgId,
   goBack,
@@ -31,6 +33,7 @@ export const DockerInstance = ({
   setFormStep,
 }: {
   state: typeof initialState
+  cluster?: boolean
   orgId: number
   goBack: () => void
   goBackToForm: () => void
@@ -139,15 +142,23 @@ export const DockerInstance = ({
             </>
           ) : null}
           <p className={classes.title}>
-            3. Run ansible playbook to create server and install DBLab SE
+            3. Run ansible playbook to{' '}
+            {cluster
+              ? 'deploy Postgres Cluster'
+              : 'create server and install DBLab SE'}
           </p>
           <SyntaxHighlight
-            content={getPlaybookCommand(state, cloudImages[0], orgKey)}
+            content={
+              cluster
+                ? getClusterPlaybookCommand(state, cloudImages[0], orgKey)
+                : getPlaybookCommand(state, cloudImages[0], orgKey)
+            }
           />
           {getNetworkSubnet(state.provider, classes)}
           <p className={classes.title}>
             4. After the code snippet runs successfully, follow the directions
-            displayed in the resulting output to start using DBLab UI/API/CLI.
+            displayed in the resulting output to start using{' '}
+            {cluster ? 'the database.' : 'DBLab UI/API/CLI.'}
           </p>
           <Box
             sx={{
@@ -160,7 +171,7 @@ export const DockerInstance = ({
               Back to form
             </Button>
             <Button variant="contained" color="primary" onClick={goBack}>
-              See list of instances
+              See list of {cluster ? ' clusters' : ' instances'}
             </Button>
           </Box>
         </>

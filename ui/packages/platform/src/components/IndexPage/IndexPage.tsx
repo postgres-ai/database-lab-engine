@@ -79,6 +79,9 @@ import Urls from '../../utils/urls'
 import settings from '../../utils/settings'
 import { AppUpdateBanner } from '../AppUpdateBanner'
 import { IndexPageProps } from 'components/IndexPage/IndexPageWrapper'
+import { PostgresClusterWrapper } from 'components/PostgresClusterForm/PostgresClusterWrapper'
+import { PostgresClusterInstallWrapper } from 'components/PostgresClusterInstallForm/PostgresClusterInstallWrapper'
+import { PostgresClustersWrapper } from 'components/PostgresClusters/PostgresClustersWrapper'
 
 interface IndexPageWithStylesProps extends IndexPageProps {
   classes: ClassesType
@@ -153,6 +156,18 @@ function ProjectWrapper(parentProps: Omit<ProjectWrapperProps, 'classes'>) {
         )}
       />
       <Route
+        path="/:org/:project/pg/create"
+        render={(props) => (
+          <PostgresClusterWrapper {...props} {...customProps} />
+        )}
+      />
+      <Route
+        path="/:org/:project/pg/install"
+        render={(props) => (
+          <PostgresClusterInstallWrapper {...props} {...customProps} />
+        )}
+      />
+      <Route
         path="/:org/:project/instances/create"
         render={(props) => (
           <DbLabInstanceFormWrapper {...props} {...customProps} />
@@ -188,6 +203,12 @@ function ProjectWrapper(parentProps: Omit<ProjectWrapperProps, 'classes'>) {
         path="/:org/:project/instances"
         render={(props) => (
           <DbLabInstancesWrapper {...props} {...customProps} />
+        )}
+      />
+      <Route
+        path="/:org/:project/pg"
+        render={(props) => (
+          <PostgresClustersWrapper {...props} {...customProps} />
         )}
       />
       <Route
@@ -429,6 +450,38 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
               </NavLink>
             </ListItem>
           )}
+
+          {/* <ListItem
+            button
+            className={parentProps.classes.menuSectionHeader}
+            disabled={isBlocked}
+            id="menuPostgresTitle"
+          >
+            <NavLink
+              className={parentProps.classes.menuSectionHeaderLink}
+              activeClassName={parentProps.classes.menuSectionHeaderActiveLink}
+              to={'/' + org + '/pg'}
+            >
+              <span className={parentProps.classes.menuSectionHeaderIcon}>
+                {icons.postgresSQLIcon}
+              </span>
+              Postgres
+            </NavLink>
+          </ListItem>
+          <ListItem
+            button
+            className={parentProps.classes.menuItem}
+            disabled={isBlocked}
+            id="menuDblabClusters"
+          >
+            <NavLink
+              className={parentProps.classes.menuItemLink}
+              activeClassName={parentProps.classes.menuItemActiveLink}
+              to={'/' + org + '/pg'}
+            >
+              Clusters
+            </NavLink>
+          </ListItem> */}
 
           <ListItem
             button
@@ -683,6 +736,22 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
         )}
       />
       <Route
+        path="/:org/pg/create"
+        render={(props) => (
+          <PostgresClusterWrapper {...props} {...customProps} {...queryProps} />
+        )}
+      />
+      <Route
+        path="/:org/pg/install"
+        render={(props) => (
+          <PostgresClusterInstallWrapper
+            {...props}
+            {...customProps}
+            {...queryProps}
+          />
+        )}
+      />
+      <Route
         path="/:org/instances/create"
         render={(props) => (
           <DbLabInstanceFormWrapper
@@ -716,6 +785,12 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
         path="/:org/instances"
         render={(props) => (
           <DbLabInstancesWrapper {...props} {...customProps} {...queryProps} />
+        )}
+      />
+      <Route
+        path="/:org/pg"
+        render={(props) => (
+          <PostgresClustersWrapper {...props} {...customProps} {...queryProps} />
         )}
       />
       <Route

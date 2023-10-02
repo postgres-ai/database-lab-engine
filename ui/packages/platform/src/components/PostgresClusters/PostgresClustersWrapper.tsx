@@ -1,8 +1,8 @@
 import { makeStyles } from '@material-ui/core'
 import { styles } from '@postgres.ai/shared/styles/styles'
-import DbLabInstances from 'components/DbLabInstances/DbLabInstances'
 import { RouteComponentProps } from 'react-router'
 import { colors } from '@postgres.ai/shared/styles/colors'
+import PostgresClusters from './PostgresClusters'
 
 export interface DbLabInstancesProps {
   orgId: number
@@ -24,7 +24,7 @@ export interface DbLabInstancesProps {
   }
 }
 
-export const DbLabInstancesWrapper = (props: DbLabInstancesProps) => {
+export const PostgresClustersWrapper = (props: DbLabInstancesProps) => {
   const useStyles = makeStyles(
     {
       root: {
@@ -102,5 +102,5 @@ export const DbLabInstancesWrapper = (props: DbLabInstancesProps) => {
 
   const classes = useStyles()
 
-  return <DbLabInstances {...props} classes={classes} />
+  return <PostgresClusters {...props} classes={classes} />
 }

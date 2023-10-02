@@ -175,6 +175,17 @@
     "nvme",
     "HCLOUD",
     "gserviceaccount",
-    "pgrst"
+    "pgrst",
+    "postgis",
+    "pgbouncer",
+    "pooler",
+    "netdata",
+    "Netdata",
+    "pgcluster",
+    "patroni",
+    "pgnode",
+    "pgbackrest",
+    "vitabaks",
+    "distro"
   ]
 }

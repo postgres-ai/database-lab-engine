@@ -18,7 +18,8 @@
     "noImplicitAny": true,
     "noImplicitThis": false,
     "typeRoots": ["./node_modules/@types"],
-    "strictPropertyInitialization": false
+    "strictPropertyInitialization": false,
+    "downlevelIteration": true,
   },
   "include": ["src", "../shared"],
   "exclude": ["node_modules", "**/node_modules/*"]
