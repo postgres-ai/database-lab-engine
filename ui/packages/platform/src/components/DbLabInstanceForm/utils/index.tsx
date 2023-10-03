@@ -7,7 +7,7 @@ export const DEBUG_API_SERVER = 'https://v2.postgres.ai/api/general'
 
 export const availableTags = ['3.4.0', '4.0.0-alpha.6']
 
-export const sePackageTag = 'v1.0-rc.8'
+export const sePackageTag = 'v1.0-rc.9'
 
 export const dockerRunCommand = (provider: string) => {
   /* eslint-disable no-template-curly-in-string */
@@ -48,13 +48,13 @@ export const getPlaybookCommand = (
       server_image='${cloudImages?.native_os_image}' \\\r
       server_location='${state.location.native_code}' \\\r
       volume_size='${state.storage}' \\\r
-      dle_verification_token='${state.verificationToken}' \\\r
-      dle_version='${state.tag}' \\\r
+      dblab_engine_verification_token='${state.verificationToken}' \\\r
+      dblab_engine_version='${state.tag}' \\\r
       ${ state.snapshots > 1 ? `zpool_datasets_number='${state.snapshots}' \\\r` : `` }
-      ${ orgKey ? `dle_platform_org_key='${orgKey}' \\\r` : `` }
-      ${ API_SERVER === DEBUG_API_SERVER ? `dle_platform_url='${DEBUG_API_SERVER}' \\\r` : `` }
+      ${ orgKey ? `platform_org_key='${orgKey}' \\\r` : `` }
+      ${ API_SERVER === DEBUG_API_SERVER ? `platform_url='${DEBUG_API_SERVER}' \\\r` : `` }
       ${state.publicKeys ? `ssh_public_keys='${state.publicKeys}' \\\r` : ``}
-      dle_platform_project_name='${state.name}'"`
+      platform_project_name='${state.name}'"`
 
 export const getPlaybookCommandWithoutDocker = (
   state: typeof initialState,
@@ -68,19 +68,19 @@ export const getPlaybookCommandWithoutDocker = (
   server_image='${cloudImages?.native_os_image}' \\\r
   server_location='${state.location.native_code}' \\\r
   volume_size='${state.storage}' \\\r
-  dle_verification_token='${state.verificationToken}' \\\r
-  dle_version='${state.tag}' \\\r
+  dblab_engine_verification_token='${state.verificationToken}' \\\r
+  dblab_engine_version='${state.tag}' \\\r
   ${
     state.snapshots > 1 ? `zpool_datasets_number='${state.snapshots}' \\\r` : ``
   }
-  ${orgKey ? `dle_platform_org_key='${orgKey}' \\\r` : ``}
+  ${orgKey ? `platform_org_key='${orgKey}' \\\r` : ``}
   ${
     API_SERVER === DEBUG_API_SERVER
-      ? `dle_platform_url='${DEBUG_API_SERVER}' \\\r`
+      ? `platform_url='${DEBUG_API_SERVER}' \\\r`
       : ``
   }
   ${state.publicKeys ? `ssh_public_keys='${state.publicKeys}' \\\r` : ``}
-  dle_platform_project_name='${state.name}'"`
+  platform_project_name='${state.name}'"`
 
 export const getGcpAccountContents = () =>
   `export GCP_SERVICE_ACCOUNT_CONTENTS='{
