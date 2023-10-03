@@ -39,12 +39,26 @@ export const postUniqueDatabases = (values: string) => {
   return values.length !== 0 ? nonEmptyDatabase : null
 }
 
+
+// using the same json data structue as se-images
 export const genericDockerImages = [
+  {
+    package_group: 'postgresai',
+    pg_major_version: '9.6',
+    tag: '9.6-0.4.1',
+    location: `${genericImagePrefix}:9.6-0.4.1`,
+  },
   {
     package_group: 'postgresai',
     pg_major_version: '9.6',
     tag: '9.6-0.3.0',
     location: `${genericImagePrefix}:9.6-0.3.0`,
+  },
+  {
+    package_group: 'postgresai',
+    pg_major_version: '10',
+    tag: '10-0.4.1',
+    location: `${genericImagePrefix}:10-0.4.1`,
   },
   {
     package_group: 'postgresai',
@@ -55,8 +69,20 @@ export const genericDockerImages = [
   {
     package_group: 'postgresai',
     pg_major_version: '11',
+    tag: '11-0.4.1',
+    location: `${genericImagePrefix}:11-0.4.1`,
+  },
+  {
+    package_group: 'postgresai',
+    pg_major_version: '11',
     tag: '11-0.3.0',
     location: `${genericImagePrefix}:11-0.3.0`,
+  },
+  {
+    package_group: 'postgresai',
+    pg_major_version: '12',
+    tag: '12-0.4.1',
+    location: `${genericImagePrefix}:12-0.4.1`,
   },
   {
     package_group: 'postgresai',
@@ -67,8 +93,20 @@ export const genericDockerImages = [
   {
     package_group: 'postgresai',
     pg_major_version: '13',
+    tag: '13-0.4.1',
+    location: `${genericImagePrefix}:13-0.4.1`,
+  },
+  {
+    package_group: 'postgresai',
+    pg_major_version: '13',
     tag: '13-0.3.0',
     location: `${genericImagePrefix}:13-0.3.0`,
+  },
+  {
+    package_group: 'postgresai',
+    pg_major_version: '14',
+    tag: '14-0.4.1',
+    location: `${genericImagePrefix}:14-0.4.1`,
   },
   {
     package_group: 'postgresai',
@@ -79,8 +117,26 @@ export const genericDockerImages = [
   {
     package_group: 'postgresai',
     pg_major_version: '15',
+    tag: '15-0.4.1',
+    location: `${genericImagePrefix}:15-0.4.1`,
+  },
+  {
+    package_group: 'postgresai',
+    pg_major_version: '15',
     tag: '15-0.3.0',
     location: `${genericImagePrefix}:15-0.3.0`,
+  },
+  {
+    package_group: 'postgresai',
+    pg_major_version: '16',
+    tag: '16rc1-0.4.1',
+    location: `${genericImagePrefix}:16rc1-0.4.1`,
+  },
+  {
+    package_group: 'postgresai',
+    pg_major_version: '16',
+    tag: '16-0.3.0',
+    location: `${genericImagePrefix}:16-0.3.0`,
   },
 ]
 
