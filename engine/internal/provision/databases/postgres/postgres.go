@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 
 	_ "github.com/lib/pq" // Register Postgres database driver.
@@ -60,6 +59,8 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 	if err := docker.RunContainer(r, c); err != nil {
 		return errors.Wrap(err, "failed to run container")
 	}
+
+	log.Dbg("Container has been started. Running Postgres...")
 
 	// Waiting for server to become ready and promote if needed.
 	first := true
@@ -112,7 +113,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 		cnt++
 
 		if cnt > waitPostgresTimeout {
-			err := collectDiagnostics(c)
+			collectDiagnostics(c)
 
 			if runnerErr := Stop(r, c.Pool, c.CloneName); runnerErr != nil {
 				log.Err(runnerErr)
@@ -127,21 +128,13 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 	return nil
 }
 
-func collectDiagnostics(c *resources.AppConfig) error {
+func collectDiagnostics(c *resources.AppConfig) {
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		log.Fatal("Failed to create a Docker client:", err)
 	}
 
-	filterArgs := filters.NewArgs(
-		filters.KeyValuePair{Key: "label",
-			Value: fmt.Sprintf("%s=%s", docker.LabelClone, c.Pool.Name)})
-
-	if err := diagnostic.CollectDiagnostics(context.Background(), dockerClient, filterArgs, c.CloneName, c.DataDir()); err != nil {
-		log.Err("Failed to collect container diagnostics", err)
-	}
-
-	return err
+	diagnostic.CollectContainerDiagnostics(context.Background(), dockerClient, c.CloneName, c.DataDir())
 }
 
 // Stop stops Postgres instance.

@@ -72,7 +72,7 @@ func CollectDiagnostics(ctx context.Context, client *client.Client, filterArgs f
 }
 
 // CollectContainerDiagnostics collect specific container diagnostics information.
-func CollectContainerDiagnostics(ctx context.Context, client *client.Client, containerName string) {
+func CollectContainerDiagnostics(ctx context.Context, client *client.Client, containerName, dbDataDir string) {
 	diagnosticsDir, err := util.GetLogsPath(time.Now().Format(timeFormat))
 
 	if err != nil {
@@ -88,6 +88,12 @@ func CollectContainerDiagnostics(ctx context.Context, client *client.Client, con
 	err = collectContainerLogs(ctx, client, diagnosticsDir, containerName)
 	if err != nil {
 		log.Warn("Failed to collect container logs ", containerName, err)
+	}
+
+	err = collectPostgresLogs(ctx, client, diagnosticsDir, containerName, dbDataDir)
+
+	if err != nil {
+		log.Warn("Failed to collect Postgres logs ", containerName, err)
 	}
 }
 

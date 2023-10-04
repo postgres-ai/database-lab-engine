@@ -31,6 +31,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/fs"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
@@ -188,6 +189,10 @@ func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUs
 	appConfig := p.getAppConfig(fsm.Pool(), name, port)
 	appConfig.SetExtraConf(extraConfig)
 
+	if err := fs.CleanupLogsDir(appConfig.DataDir()); err != nil {
+		log.Warn("Failed to clean up logs directory:", err.Error())
+	}
+
 	if err = postgres.Start(p.runner, appConfig); err != nil {
 		return nil, errors.Wrap(err, "failed to start a container")
 	}
@@ -283,6 +288,10 @@ func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string
 
 	appConfig := p.getAppConfig(newFSManager.Pool(), name, session.Port)
 	appConfig.SetExtraConf(session.ExtraConfig)
+
+	if err := fs.CleanupLogsDir(appConfig.DataDir()); err != nil {
+		log.Warn("Failed to clean up logs directory:", err.Error())
+	}
 
 	if err = postgres.Start(p.runner, appConfig); err != nil {
 		return nil, errors.Wrap(err, "failed to start container")
