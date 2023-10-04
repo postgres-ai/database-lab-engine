@@ -221,6 +221,23 @@ const PostgresCluster = (props: PostgresClusterProps) => {
     dispatch({ type: 'set_form_step', formStep: initialState.formStep })
   }
 
+  const checkSyncStandbyCount = () => {
+    if (state.synchronous_mode) {
+      if (Number(state.numberOfInstances) === 1) {
+        return state.synchronous_node_count > state.numberOfInstances
+      } else {
+        return state.synchronous_node_count > state.numberOfInstances - 1
+      }
+    }
+  }
+
+  const disableSubmitButton =
+    validateDLEName(state.name) ||
+    requirePublicKeys ||
+    state.numberOfInstances > 32 ||
+    checkSyncStandbyCount() ||
+    (state.publicKeys && state.publicKeys.length < 30)
+
   if (state.isLoading) return <StubSpinner />
 
   return (
@@ -783,16 +800,14 @@ const PostgresCluster = (props: PostgresClusterProps) => {
                           fullWidth
                           type="number"
                           helperText={
-                            state.synchronous_node_count >
-                              state.numberOfInstances - 1 &&
+                            checkSyncStandbyCount() &&
                             `Maximum ${
-                              state.numberOfInstances - 1
+                              Number(state.numberOfInstances) === 1
+                                ? state.numberOfInstances
+                                : state.numberOfInstances - 1
                             } synchronous standbys`
                           }
-                          error={
-                            state.synchronous_node_count >
-                            state.numberOfInstances - 1
-                          }
+                          error={checkSyncStandbyCount()}
                           value={state.synchronous_node_count}
                           disabled={!state.synchronous_mode}
                           className={classes.marginTop}
@@ -843,16 +858,8 @@ const PostgresCluster = (props: PostgresClusterProps) => {
             <DbLabInstanceFormSidebar
               cluster
               state={state as unknown as typeof dbLabInitialState}
-              disabled={
-                validateDLEName(state.name) ||
-                requirePublicKeys ||
-                state.numberOfInstances > 32 ||
-                state.synchronous_node_count > state.numberOfInstances - 1 ||
-                (state.publicKeys && state.publicKeys.length < 30)
-              }
-              handleCreate={() =>
-                !validateDLEName(state.name) && handleSetFormStep('simple')
-              }
+              disabled={disableSubmitButton}
+              handleCreate={() => handleSetFormStep('simple')}
             />
           </>
         ) : state.formStep === 'ansible' && permitted ? (
