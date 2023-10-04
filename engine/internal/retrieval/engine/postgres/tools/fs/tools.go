@@ -6,9 +6,15 @@
 package fs
 
 import (
+	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
+)
+
+const (
+	logDirectory = "log"
 )
 
 // CopyDirectoryContent copies all files from one directory to another.
@@ -69,6 +75,25 @@ func AppendFile(file string, data []byte) error {
 
 	if _, err := configFile.Write(data); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// CleanupLogsDir removes old log files from the clone directory.
+func CleanupLogsDir(dataDir string) error {
+	logPath := path.Join(dataDir, logDirectory)
+
+	logDir, err := os.ReadDir(logPath)
+	if err != nil {
+		return fmt.Errorf("cannot read directory %s: %v", logPath, err.Error())
+	}
+
+	for _, logFile := range logDir {
+		logName := path.Join(logPath, logFile.Name())
+		if err := os.RemoveAll(logName); err != nil {
+			return fmt.Errorf("cannot remove %s: %v", logName, err.Error())
+		}
 	}
 
 	return nil
