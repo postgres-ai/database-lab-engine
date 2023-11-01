@@ -5,9 +5,9 @@ import { initialState } from '../reducer'
 const API_SERVER = process.env.REACT_APP_API_SERVER
 export const DEBUG_API_SERVER = 'https://v2.postgres.ai/api/general'
 
-export const availableTags = ['3.4.0', '4.0.0-alpha.6']
+export const availableTags = ['3.5.0', '3.4.0', '4.0.0-alpha.6']
 
-export const sePackageTag = 'v1.0-rc.9'
+export const sePackageTag = 'v1.0-rc.10'
 
 export const dockerRunCommand = (provider: string) => {
   /* eslint-disable no-template-curly-in-string */
@@ -50,9 +50,17 @@ export const getPlaybookCommand = (
       volume_size='${state.storage}' \\\r
       dblab_engine_verification_token='${state.verificationToken}' \\\r
       dblab_engine_version='${state.tag}' \\\r
-      ${ state.snapshots > 1 ? `zpool_datasets_number='${state.snapshots}' \\\r` : `` }
-      ${ orgKey ? `platform_org_key='${orgKey}' \\\r` : `` }
-      ${ API_SERVER === DEBUG_API_SERVER ? `platform_url='${DEBUG_API_SERVER}' \\\r` : `` }
+      ${
+        state.snapshots > 1
+          ? `zpool_datasets_number='${state.snapshots}' \\\r`
+          : ``
+      }
+      ${orgKey ? `platform_org_key='${orgKey}' \\\r` : ``}
+      ${
+        API_SERVER === DEBUG_API_SERVER
+          ? `platform_url='${DEBUG_API_SERVER}' \\\r`
+          : ``
+      }
       ${state.publicKeys ? `ssh_public_keys='${state.publicKeys}' \\\r` : ``}
       platform_project_name='${state.name}'"`
 
