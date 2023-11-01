@@ -83,7 +83,7 @@
     "cspell": "^5.12.6",
     "eslint": "^8.2.0",
     "monaco-editor": ">=0.25.0 <1.0.0",
-    "postcss": "^8.3.3",
+    "postcss": "^8.4.31",
     "prettier": "^2.4.1",
     "sass": "^1.43.2",
     "stylelint": "^14.0.1",
