@@ -27,7 +27,10 @@ import { StubContainer } from '@postgres.ai/shared/components/StubContainer'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
-import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
+import {
+  ClassesType,
+  RefluxTypes,
+} from '@postgres.ai/platform/src/components/types'
 
 import Actions from '../../actions/actions'
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
@@ -113,7 +116,7 @@ class JoeInstances extends Component<
       Actions.setJoeInstancesProject(orgId, 0)
     }
 
-     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
+    this.unsubscribe = (Store.listen as RefluxTypes['listen'])(function () {
       const auth = this.data && this.data.auth ? this.data.auth : null
       const joeInstances =
         this.data && this.data.joeInstances ? this.data.joeInstances : null
@@ -200,7 +203,7 @@ class JoeInstances extends Component<
         this.state.data && this.state.data.auth ? this.state.data.auth : null
 
       if (anchorEl) {
-        let instanceId = anchorEl.getAttribute('instanceid')
+        let instanceId = anchorEl.getAttribute('aria-rowindex')
         if (!instanceId) {
           return
         }
@@ -358,8 +361,8 @@ class JoeInstances extends Component<
         >
           <p>
             Joe Bot is a virtual DBA for SQL Optimization. Joe helps engineers
-            quickly troubleshoot and optimize SQL. Joe runs on top of the
-            DBLab Engine. (
+            quickly troubleshoot and optimize SQL. Joe runs on top of the DBLab
+            Engine. (
             <GatewayLink
               href="https://postgres.ai/docs/joe-bot"
               target="_blank"
@@ -422,6 +425,7 @@ class JoeInstances extends Component<
                         aria-label="more"
                         aria-controls="instance-menu"
                         aria-haspopup="true"
+                        aria-rowindex={data.data[i].id}
                         onClick={this.openMenu}
                       >
                         <MoreVertIcon />
