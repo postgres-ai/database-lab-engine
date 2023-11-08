@@ -292,7 +292,7 @@ export const AnsibleInstance = ({
           <p className={classes.title}>
             {cluster
               ? '6. After the code snippet runs successfully, follow the directions displayed in the resulting output to start using the database.'
-              : '7. After the code snippet runs successfully, follow the directions displayed in the resulting output to start using DBLab AUI/API/CLI.'}
+              : '7. After the code snippet runs successfully, follow the directions displayed in the resulting output to start using DBLab UI/API/CLI.'}
           </p>
           <Box
             sx={{
