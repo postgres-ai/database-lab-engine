@@ -7,6 +7,7 @@ package validator
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	passwordvalidator "github.com/wagslane/go-password-validator"
@@ -32,6 +33,10 @@ func (v Service) ValidateCloneRequest(cloneRequest *types.CloneCreateRequest) er
 
 	if cloneRequest.DB.Password == "" {
 		return errors.New("missing DB password")
+	}
+
+	if cloneRequest.ID != "" && strings.Contains(cloneRequest.ID, "/") {
+		return errors.New("Clone ID cannot contain slash ('/'). Please choose another ID")
 	}
 
 	if err := passwordvalidator.Validate(cloneRequest.DB.Password, minEntropyBits); err != nil {
