@@ -80,6 +80,7 @@ export class MainStore {
 
   isReloadingClones = false
   isConfigurationLoading = false
+  isReloadingInstance = false
   isReloadingInstanceRetrieval = false
   isBranchesLoading = false
   isConfigLoading = false
@@ -101,9 +102,31 @@ export class MainStore {
 
   load = (instanceId: string) => {
     this.instance = null
+    this.isReloadingInstance = true
     this.getBranches()
     this.loadInstance(instanceId, false).then(() => {
-      this.snapshots.load(instanceId)
+      if (this.instance?.createdAt && this.instance?.url || !this.instance?.createdAt) {
+        this.snapshots.load(instanceId)
+      }
+    })
+    this.loadInstanceRetrieval(instanceId).then(() => {
+      if (this.instanceRetrieval) {
+        this.getConfig()
+        this.getFullConfig()
+      }
+    })
+  }
+
+  reload = (instanceId: string) => {
+    this.instance = null
+    this.isReloadingInstance = true
+    this.loadInstance(instanceId, false).then(() => {
+      if (this.api.refreshInstance)
+        this.api.refreshInstance({ instanceId: instanceId })
+
+        if (this.instance?.createdAt && this.instance?.url || !this.instance?.createdAt) {
+        this.snapshots.load(instanceId)
+      }
     })
     this.loadInstanceRetrieval(instanceId).then(() => {
       if (this.instanceRetrieval) {

@@ -18,10 +18,22 @@ func TestValidationCloneRequest(t *testing.T) {
 		&types.CloneCreateRequest{
 			DB: &types.DatabaseRequest{
 				Username: "username",
-				Password: "password",
+				Password: "secret_password",
 			}})
 
 	assert.Nil(t, err)
+}
+
+func TestWeakPassword(t *testing.T) {
+	validator := Service{}
+	err := validator.ValidateCloneRequest(
+		&types.CloneCreateRequest{
+			DB: &types.DatabaseRequest{
+				Username: "username",
+				Password: "password",
+			}})
+
+	assert.ErrorContains(t, err, "insecure password")
 }
 
 func TestValidationCloneRequestErrors(t *testing.T) {

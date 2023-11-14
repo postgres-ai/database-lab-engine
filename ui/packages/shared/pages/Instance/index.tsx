@@ -105,6 +105,10 @@ export const Instance = observer((props: Props) => {
   }, [instanceId])
 
   useEffect(() => {
+    if (props.setProjectAlias) props.setProjectAlias(instance?.projectAlias || '')
+  }, [instance])
+
+  useEffect(() => {
     if (
       instance &&
       instance.state?.retrieving?.status === 'pending' &&

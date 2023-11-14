@@ -64,6 +64,10 @@ export const DbLabInstancesWrapper = (props: DbLabInstancesProps) => {
         fontSize: 12,
         cursor: 'pointer',
       },
+      buttonContainer: {
+        display: 'flex',
+        gap: 10,
+      },
       flexContainer: {
         display: 'flex',
         alignItems: 'center',

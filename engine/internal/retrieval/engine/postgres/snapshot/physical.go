@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path"
 	"strings"
 	"sync"
@@ -37,6 +38,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/fs"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/pgtool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/query"
@@ -65,6 +67,9 @@ const (
 	// WAL parsing constants.
 	walNameLen  = 24
 	pgVersion10 = 10
+
+	logDirName              = "log"
+	defaultLogRetentionDays = 7
 )
 
 var defaultRecoveryCfg = map[string]string{
@@ -351,6 +356,11 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to create \"pre\" clone %s", cloneName)
 	}
 
+	cloneDataDir := path.Join(p.fsPool.ClonesDir(), cloneName, p.fsPool.DataSubDir)
+	if err := fs.CleanupLogsDir(cloneDataDir); err != nil {
+		log.Warn("Failed to clean up logs directory:", err.Error())
+	}
+
 	defer func() {
 		if err != nil {
 			if errDestroy := p.cloneManager.DestroyClone(cloneName); errDestroy != nil {
@@ -361,7 +371,7 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 
 	// Promotion.
 	if p.options.Promotion.Enabled {
-		if err := p.promoteInstance(ctx, path.Join(p.fsPool.ClonesDir(), cloneName, p.fsPool.DataSubDir), syState); err != nil {
+		if err := p.promoteInstance(ctx, cloneDataDir, syState); err != nil {
 			return errors.Wrap(err, "failed to promote instance")
 		}
 	}
@@ -386,6 +396,45 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	p.updateDataStateAt()
 
 	p.tm.SendEvent(ctx, telemetry.SnapshotCreatedEvent, telemetry.SnapshotCreated{})
+
+	if err := p.cleanupOldLogs(); err != nil {
+		log.Warn("cannot clean up old logs", err.Error())
+	}
+
+	return nil
+}
+
+func (p *PhysicalInitial) cleanupOldLogs() error {
+	lastWeekTime := time.Now().AddDate(0, 0, -1*defaultLogRetentionDays)
+
+	log.Dbg("Cleaning up PGDATA logs older than", lastWeekTime.Format(time.DateTime))
+
+	logDir := path.Join(p.fsPool.DataDir(), logDirName)
+
+	dirEntries, err := os.ReadDir(logDir)
+	if err != nil {
+		return err
+	}
+
+	var fileCounter int
+
+	for _, logFile := range dirEntries {
+		info, err := logFile.Info()
+		if err != nil {
+			continue
+		}
+
+		if info.ModTime().Before(lastWeekTime) {
+			logFilename := path.Join(logDir, logFile.Name())
+			if err := os.RemoveAll(logFilename); err != nil {
+				log.Warn("cannot remove old log file %s: %s", logFilename, err.Error())
+			}
+
+			fileCounter++
+		}
+	}
+
+	log.Dbg("Old PGDATA logs have been cleaned. Number of deleted files: ", fileCounter)
 
 	return nil
 }

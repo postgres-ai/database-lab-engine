@@ -8,10 +8,11 @@ import { DashboardProps } from 'components/Dashboard/DashboardWrapper'
 import Urls from '../../utils/urls'
 import { messages } from '../../assets/messages'
 
-const useStyles = makeStyles((theme) => ({
+export const useStyles = makeStyles((theme) => ({
   stubContainerProjects: {
     marginRight: '-20px',
     padding: '0 40px',
+    alignItems: 'initial !important',
 
     '& > div:nth-child(1), & > div:nth-child(2)': {
       minHeight: '350px',

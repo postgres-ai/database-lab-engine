@@ -40,9 +40,13 @@ import { CloudRegion, getCloudRegions } from 'api/cloud/getCloudRegions'
 import { CloudInstance, getCloudInstances } from 'api/cloud/getCloudInstances'
 import { DockerInstance } from './DbLabFormSteps/DockerInstance'
 import { availableTags } from 'components/DbLabInstanceForm/utils'
+import { SimpleInstance } from './DbLabFormSteps/SimpleInstance'
 
 interface DbLabInstanceFormWithStylesProps extends DbLabInstanceFormProps {
   classes: ClassesType
+  auth?: {
+    userId: number
+  }
 }
 
 const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
@@ -50,6 +54,26 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
   const [state, dispatch] = useReducer(reducer, initialState)
 
   const permitted = !orgPermissions || orgPermissions.dblabInstanceCreate
+  const urlParams = new URLSearchParams(window.location.search)
+  const urlTaskID = urlParams.get('taskID')
+  const urlProvider = urlParams.get('provider')
+
+  useEffect(() => {
+    if (urlTaskID && urlProvider) {
+      dispatch({
+        type: 'set_form_step',
+        formStep: 'simple',
+        taskID: urlTaskID,
+        provider: urlProvider,
+      })
+    } else {
+      dispatch({
+        type: 'set_form_step',
+        formStep: initialState.formStep,
+        provider: initialState.provider,
+      })
+    }
+  }, [urlTaskID, urlProvider])
 
   useEffect(() => {
     const fetchCloudDetails = async () => {
@@ -113,27 +137,29 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
   }, [state.api_name, state.provider])
 
   useEffect(() => {
-    const fetchUpdatedDetails = async () => {
-      dispatch({ type: 'set_is_reloading', isReloading: true })
-      try {
-        const cloudInstances = await getCloudInstances({
-          provider: state.provider,
-          region: state.location.native_code,
-        })
+    if (state.location.native_code && state.provider) {
+      const fetchUpdatedDetails = async () => {
+        dispatch({ type: 'set_is_reloading', isReloading: true })
+        try {
+          const cloudInstances = await getCloudInstances({
+            provider: state.provider,
+            region: state.location.native_code,
+          })
 
-        dispatch({
-          type: 'update_instance_type',
-          cloudInstances: cloudInstances.response,
-          instanceType: cloudInstances.response[0],
-          isReloading: false,
-        })
-      } catch (error) {
-        console.log(error)
+          dispatch({
+            type: 'update_instance_type',
+            cloudInstances: cloudInstances.response,
+            instanceType: cloudInstances.response[0],
+            isReloading: false,
+          })
+        } catch (error) {
+          console.log(error)
+        }
       }
+      fetchUpdatedDetails()
     }
-    fetchUpdatedDetails()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.location.native_code])
+  }, [state.location.native_code, state.provider])
 
   const uniqueRegionsByProvider = state.cloudRegions
     .map((region: CloudRegion) => region.world_part)
@@ -195,6 +221,9 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
   const handleReturnToForm = () => {
     dispatch({ type: 'set_form_step', formStep: initialState.formStep })
   }
+
+  const requirePublicKeys =
+    !state.publicKeys && (state.provider === 'aws' || state.provider === 'gcp')
 
   const calculateVolumePrice = (databaseSize: number, snapshots: number) => {
     let storage = databaseSize * snapshots
@@ -313,7 +342,7 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
               {state.instanceType ? (
                 <>
                   <p className={classes.sectionTitle}>
-                    3. Choose the instance type
+                    3. Choose instance type
                   </p>
                   <p className={classes.instanceParagraph}>
                     A larger instance can accommodate more dev/test activities.
@@ -460,6 +489,38 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
                       </Box>
                     </Box>
                     <StorageSlider
+                      sliderOptions={{
+                        min: 0,
+                        max: 2000,
+                        step: 10,
+                      }}
+                      customMarks={[
+                        {
+                          value: 30,
+                          label: '30 GiB',
+                          scaledValue: 30,
+                        },
+                        {
+                          value: 500,
+                          label: '500 GiB',
+                          scaledValue: 500,
+                        },
+                        {
+                          value: 1000,
+                          label: '1000 GiB',
+                          scaledValue: 1000,
+                        },
+                        {
+                          value: 1500,
+                          label: '1500 GiB',
+                          scaledValue: 1500,
+                        },
+                        {
+                          value: 2000,
+                          label: '2000 GiB',
+                          scaledValue: 2000,
+                        },
+                      ]}
                       value={state.storage}
                       onChange={(_: React.ChangeEvent<{}>, value: unknown) => {
                         dispatch({
@@ -534,7 +595,9 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
                       Generate random
                     </Button>
                   </div>
-                  <p className={classes.sectionTitle}>7. Choose DBLab version</p>
+                  <p className={classes.sectionTitle}>
+                    7. Choose DBLab version
+                  </p>
                   <Select
                     label="Select tag"
                     items={
@@ -575,6 +638,13 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
                     variant="outlined"
                     fullWidth
                     multiline
+                    required={requirePublicKeys}
+                    helperText={
+                      state.publicKeys && state.publicKeys.length < 30
+                        ? 'Public key is too short'
+                        : ''
+                    }
+                    error={state.publicKeys && state.publicKeys.length < 30}
                     value={state.publicKeys}
                     className={classes.marginTop}
                     InputLabelProps={{
@@ -593,17 +663,18 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
                   />
                 </>
               ) : (
-                <p className={classes.errorMessage}>
-                  No instance types available for this cloud region. Please try
-                  another region.
-                </p>
+                <div />
               )}
             </div>
             <DbLabInstanceFormSidebar
               state={state}
-              disabled={validateDLEName(state.name)}
+              disabled={
+                validateDLEName(state.name) ||
+                requirePublicKeys ||
+                (state.publicKeys && state.publicKeys.length < 30)
+              }
               handleCreate={() =>
-                !validateDLEName(state.name) && handleSetFormStep('docker')
+                !validateDLEName(state.name) && handleSetFormStep('simple')
               }
             />
           </>
@@ -624,6 +695,18 @@ const DbLabInstanceForm = (props: DbLabInstanceFormWithStylesProps) => {
             setFormStep={handleSetFormStep}
             goBack={handleReturnToList}
             goBackToForm={handleReturnToForm}
+          />
+        ) : state.formStep === 'simple' && permitted ? (
+          <SimpleInstance
+            state={state}
+            userID={props.auth?.userId}
+            orgId={props.orgId}
+            formStep={state.formStep}
+            setFormStep={handleSetFormStep}
+            goBackToForm={() => {
+              window.history.pushState({}, '', `${window.location.pathname}`)
+              handleReturnToForm()
+            }}
           />
         ) : null}
       </div>

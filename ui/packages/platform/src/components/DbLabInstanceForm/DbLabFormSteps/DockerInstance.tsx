@@ -21,8 +21,10 @@ import {
 import { InstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/InstanceFormCreation'
 
 import { initialState } from '../reducer'
+import { getClusterPlaybookCommand } from 'components/PostgresClusterForm/utils'
 
 export const DockerInstance = ({
+  cluster,
   state,
   orgId,
   goBack,
@@ -31,6 +33,7 @@ export const DockerInstance = ({
   setFormStep,
 }: {
   state: typeof initialState
+  cluster?: boolean
   orgId: number
   goBack: () => void
   goBackToForm: () => void
@@ -84,7 +87,7 @@ export const DockerInstance = ({
             <ErrorStub title="Error 404" message="orgKey not found" />
           ) : state.provider === 'digitalocean' ? (
             <InstanceDocumentation
-              fistStep="Create Personal Access Token"
+              firstStep="Create Personal Access Token"
               documentation="https://docs.digitalocean.com/reference/api/create-personal-access-token"
               secondStep={<code className={classes.code}>DO_API_TOKEN</code>}
               snippetContent="export DO_API_TOKEN=XXXXXX"
@@ -92,7 +95,7 @@ export const DockerInstance = ({
             />
           ) : state.provider === 'hetzner' ? (
             <InstanceDocumentation
-              fistStep="Create API Token"
+              firstStep="Create API Token"
               documentation="https://docs.hetzner.com/cloud/api/getting-started/generating-api-token"
               secondStep={
                 <code className={classes.code}>HCLOUD_API_TOKEN</code>
@@ -102,7 +105,7 @@ export const DockerInstance = ({
             />
           ) : state.provider === 'aws' ? (
             <InstanceDocumentation
-              fistStep="Create access key"
+              firstStep="Create access key"
               documentation="https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html"
               secondStep={
                 <>
@@ -116,7 +119,7 @@ export const DockerInstance = ({
           ) : state.provider === 'gcp' ? (
             <>
               <InstanceDocumentation
-                fistStep="Create a service account"
+                firstStep="Create a service account"
                 firsStepDescription={
                   <>
                     Create and save the JSON key for the service account and
@@ -139,15 +142,23 @@ export const DockerInstance = ({
             </>
           ) : null}
           <p className={classes.title}>
-            3. Run ansible playbook to create server and install DBLab SE
+            3. Run ansible playbook to{' '}
+            {cluster
+              ? 'deploy Postgres Cluster'
+              : 'create server and install DBLab SE'}
           </p>
           <SyntaxHighlight
-            content={getPlaybookCommand(state, cloudImages[0], orgKey)}
+            content={
+              cluster
+                ? getClusterPlaybookCommand(state, cloudImages[0], orgKey)
+                : getPlaybookCommand(state, cloudImages[0], orgKey)
+            }
           />
           {getNetworkSubnet(state.provider, classes)}
           <p className={classes.title}>
             4. After the code snippet runs successfully, follow the directions
-            displayed in the resulting output to start using DBLab UI/API/CLI.
+            displayed in the resulting output to start using{' '}
+            {cluster ? 'the database.' : 'DBLab UI/API/CLI.'}
           </p>
           <Box
             sx={{
@@ -160,7 +171,7 @@ export const DockerInstance = ({
               Back to form
             </Button>
             <Button variant="contained" color="primary" onClick={goBack}>
-              See list of instances
+              See list of {cluster ? ' clusters' : ' instances'}
             </Button>
           </Box>
         </>

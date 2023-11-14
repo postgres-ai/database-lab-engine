@@ -10,7 +10,7 @@ include:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 .ui_cache: &ui_cache
-  image: node:lts-alpine
+  image: node:21.1.0-alpine
   cache: &cache
     key: "$CI_COMMIT_REF_SLUG"
     paths:
@@ -23,8 +23,9 @@ check-code-style:
   <<: *ui_cache
   stage: test
   before_script:
-    - apk add --no-cache curl
-    - curl -f https://get.pnpm.io/v6.16.js | node - add --global pnpm@7
+    - corepack enable
+    - corepack prepare pnpm@8.9.2 --activate
+    - export PNPM_HOME=/usr/local/bin
     - pnpm config set store-dir /builds/postgres-ai/database-lab/.pnpm-store/
 
   script:
@@ -59,15 +60,17 @@ semgrep-sast:
 
 e2e-ce-ui-test:
   <<: *ui_checks
-  <<: *ui_cache
-  image: node:latest
+  image: node:21.1.0
   stage: integration-test
+  variables:
+    CYPRESS_CACHE_FOLDER: '$CI_PROJECT_DIR/cache/Cypress'
   before_script:
     - apt update && apt install curl
     - apt install -y libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb
     - npm install -g wait-on
     - npm install -g pnpm
-    - pnpm config set store-dir /builds/postgres-ai/database-lab/.pnpm-store/
+    # TODO: Set up caching.
+#    - pnpm config set store-dir /builds/postgres-ai/database-lab/.pnpm-store/
   script:
     - pnpm --dir ui/ i --no-frozen-lockfile
     - pnpm --dir ui/ --filter @postgres.ai/ce start & wait-on http://localhost:3001

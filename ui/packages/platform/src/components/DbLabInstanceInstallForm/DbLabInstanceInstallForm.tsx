@@ -180,6 +180,12 @@ const DbLabInstanceInstallForm = (props: DbLabInstanceFormWithStylesProps) => {
                 fullWidth
                 multiline
                 value={state.publicKeys}
+                helperText={
+                  state.publicKeys && state.publicKeys.length < 30
+                    ? 'Public key is too short'
+                    : ''
+                }
+                error={state.publicKeys && state.publicKeys.length < 30}
                 className={classes.marginTop}
                 InputLabelProps={{
                   shrink: true,
@@ -198,7 +204,10 @@ const DbLabInstanceInstallForm = (props: DbLabInstanceFormWithStylesProps) => {
             </div>
             <DbLabInstanceFormInstallSidebar
               state={state}
-              disabled={validateDLEName(state.name)}
+              disabled={
+                validateDLEName(state.name) ||
+                (state.publicKeys && state.publicKeys.length < 30)
+              }
               handleCreate={() =>
                 !validateDLEName(state.name) && handleSetFormStep('docker')
               }

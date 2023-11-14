@@ -50,7 +50,7 @@ export const DockerInstance = ({
   }, [orgId])
 
   return (
-    <InstanceFormCreation formStep={formStep} setFormStep={setFormStep}>
+    <InstanceFormCreation formStep={formStep} setFormStep={setFormStep} install>
       {isLoading ? (
         <span className={classes.spinner}>
           <Spinner />

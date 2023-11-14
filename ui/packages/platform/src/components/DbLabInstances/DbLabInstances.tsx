@@ -121,7 +121,7 @@ class DbLabInstances extends Component<
       Actions.setDbLabInstancesProject(orgId, 0)
     }
 
-     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
+    this.unsubscribe = (Store.listen as RefluxTypes['listen'])(function () {
       const auth: DbLabInstancesState['data']['auth'] =
         this.data && this.data.auth ? this.data.auth : null
       const dbLabInstances: DbLabInstancesState['data']['dbLabInstances'] =

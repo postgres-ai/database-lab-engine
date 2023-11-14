@@ -37,6 +37,15 @@ export const initialState = {
   name: '',
   publicKeys: '',
   verificationToken: '',
+  numberOfInstances: 3,
+  version: '',
+  database_public_access: false,
+  with_haproxy_load_balancing: false,
+  pgbouncer_install: true,
+  synchronous_mode: false,
+  synchronous_node_count: 1,
+  netdata_install: true,
+  taskID: ''
 }
 
 export const reducer = (
@@ -187,6 +196,8 @@ export const reducer = (
       return {
         ...state,
         formStep: action.formStep,
+        ...(action.taskID ? { taskID: action.taskID } : {}),
+        ...(action.provider ? { provider: action.provider } : {}),
       }
     }
     case 'set_tag': {

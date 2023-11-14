@@ -7,19 +7,18 @@ export const getPlaybookCommand = (
   state: typeof initialState,
   orgKey: string,
 ) =>
-  `docker run --rm -it postgresai/dle-se-ansible:v1.0-rc.1 \\\r
-  ansible-playbook deploy_dle.yml --extra-vars \\\r
-    "dle_host='user@server-ip-address' \\\r
-    dle_platform_project_name='${state.name}' \\\r
-    dle_version='${state.tag}' \\\r
-    ${orgKey ? `dle_platform_org_key='${orgKey}' \\\r` : ``}
-    ${
-      API_SERVER === DEBUG_API_SERVER
-        ? `dle_platform_url='${DEBUG_API_SERVER}' \\\r`
-        : ``
-    }
-    ${state.publicKeys ? `ssh_public_keys='${state.publicKeys}' \\\r` : ``}
-    dle_verification_token='${state.verificationToken}'"
+  `docker run --rm -it \\\r
+  --volume $HOME/.ssh:/root/.ssh:ro \\\r
+  --env ANSIBLE_SSH_ARGS="-F none" \\\r
+  postgresai/dle-se-ansible:${sePackageTag} \\\r
+    ansible-playbook deploy_dle.yml --extra-vars \\\r
+      "dblab_engine_host='user@server-ip-address' \\\r
+      platform_project_name='${state.name}' \\\r
+      dblab_engine_version='${state.tag}' \\\r
+      ${ orgKey ? `platform_org_key='${orgKey}' \\\r` : `` }
+      ${ API_SERVER === DEBUG_API_SERVER ? `platform_url='${DEBUG_API_SERVER}' \\\r` : `` }
+      ${ state.publicKeys ? `ssh_public_keys='${state.publicKeys}' \\\r` : `` }
+      dblab_engine_verification_token='${state.verificationToken}'"
 `
 
 export const getAnsiblePlaybookCommand = (
@@ -27,17 +26,17 @@ export const getAnsiblePlaybookCommand = (
   orgKey: string,
 ) =>
   `ansible-playbook deploy_dle.yml --extra-vars \\\r
-  "dle_host='user@server-ip-address' \\\r
-  dle_platform_project_name='${state.name}' \\\r
-  dle_version='${state.tag}' \\\r
-  ${orgKey ? `dle_platform_org_key='${orgKey}' \\\r` : ``}
+  "dblab_engine_host='user@server-ip-address' \\\r
+  platform_project_name='${state.name}' \\\r
+  dblab_engine_version='${state.tag}' \\\r
+  ${orgKey ? `platform_org_key='${orgKey}' \\\r` : ``}
   ${
     API_SERVER === DEBUG_API_SERVER
-      ? `dle_platform_url='${DEBUG_API_SERVER}' \\\r`
+      ? `platform_url='${DEBUG_API_SERVER}' \\\r`
       : ``
   }
   ${state.publicKeys ? `ssh_public_keys='${state.publicKeys}' \\\r` : ``}
-  dle_verification_token='${state.verificationToken}'"
+  dblab_engine_verification_token='${state.verificationToken}'"
 `
 
 export const getAnsibleInstallationCommand = () =>

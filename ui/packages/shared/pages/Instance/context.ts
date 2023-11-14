@@ -31,6 +31,7 @@ export type Host = {
   hideInstanceTabs?: boolean
   renderCurrentTab?: number
   isPlatform?: boolean
+  setProjectAlias?: (alias: string) => void
 }
 
 // Host context.

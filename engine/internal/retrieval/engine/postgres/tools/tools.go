@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/AlekSi/pointer"
+	"github.com/ahmetalpbalkan/dlog"
 	"github.com/docker/cli/cli/streams"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -682,7 +683,7 @@ func CopyContainerLogs(ctx context.Context, docker *client.Client, containerName
 		}
 	}()
 
-	if _, err := io.Copy(writeFile, reader); err != nil {
+	if _, err := io.Copy(writeFile, dlog.NewReader(reader)); err != nil {
 		return fmt.Errorf("failed to copy container output %w", err)
 	}
 
