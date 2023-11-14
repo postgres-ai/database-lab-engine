@@ -58,6 +58,9 @@ importers:
       '@types/react-router-dom':
         specifier: ^5.3.1
         version: 5.3.1
+      '@types/react-syntax-highlighter':
+        specifier: ^15.5.6
+        version: 15.5.6
       byte-size:
         specifier: ^8.1.0
         version: 8.1.0
@@ -118,6 +121,9 @@ importers:
       react-scripts:
         specifier: ^5.0.0
         version: 5.0.1(@babel/plugin-syntax-flow@7.18.6)(@babel/plugin-transform-react-jsx@7.19.0)(acorn@8.8.0)(eslint@8.9.0)(react@17.0.2)(sass@1.43.2)(typescript@4.5.5)
+      react-syntax-highlighter:
+        specifier: ^15.5.0
+        version: 15.5.0(react@17.0.2)
       stream-browserify:
         specifier: ^3.0.0
         version: 3.0.0
@@ -5020,7 +5026,7 @@ packages:
   /@types/react-is@17.0.3:
     resolution: {integrity: sha512-aBTIWg1emtu95bLTLx0cpkxwGW3ueZv71nE2YFBpL8k/z5czEW8yYpOo8Dp+UUAFAtKwNaOsh/ioSeQnWlZcfw==}
     dependencies:
-      '@types/react': 18.0.18
+      '@types/react': 17.0.39
     dev: false
 
   /@types/react-router-dom@5.3.1:
@@ -5041,19 +5047,19 @@ packages:
   /@types/react-syntax-highlighter@15.5.6:
     resolution: {integrity: sha512-i7wFuLbIAFlabTeD2I1cLjEOrG/xdMa/rpx2zwzAoGHuXJDhSqp9BSfDlMHSh9JSuNfxHk9eEmMX6D55GiyjGg==}
     dependencies:
-      '@types/react': 18.0.18
+      '@types/react': 17.0.39
     dev: false
 
   /@types/react-transition-group@4.4.3:
     resolution: {integrity: sha512-fUx5muOWSYP8Bw2BUQ9M9RK9+W1XBK/7FLJ8PTQpnpTEkn0ccyMffyEQvan4C3h53gHdx7KE5Qrxi/LnUGQtdg==}
     dependencies:
-      '@types/react': 18.0.18
+      '@types/react': 17.0.39
     dev: false
 
   /@types/react-transition-group@4.4.5:
     resolution: {integrity: sha512-juKD/eiSM3/xZYzjuzH6ZwpP+/lejltmiS3QEzV/vmb/Q8+HfDmxu+Baga8UEMGBqV88Nbg4l2hY/K2DkyaLLA==}
     dependencies:
-      '@types/react': 18.0.18
+      '@types/react': 17.0.39
     dev: false
 
   /@types/react@17.0.39:
@@ -15183,19 +15189,6 @@ packages:
     dev: false
 
   /react-syntax-highlighter@15.5.0(react@17.0.2):
-    resolution: {integrity: sha512-+zq2myprEnQmH5yw6Gqc8lD55QHnpKaU8TOcFeC/Lg/MQSs8UknEA0JC4nTZGFAXC2J2Hyj/ijJ7NlabyPi2gg==}
-    peerDependencies:
-      react: '>= 0.14.0'
-    dependencies:
-      '@babel/runtime': 7.19.0
-      highlight.js: 10.7.3
-      lowlight: 1.20.0
-      prismjs: 1.29.0
-      react: 17.0.2
-      refractor: 3.6.0
-    dev: false
-
-  /react-syntax-highlighter/15.5.0_react@17.0.2:
     resolution: {integrity: sha512-+zq2myprEnQmH5yw6Gqc8lD55QHnpKaU8TOcFeC/Lg/MQSs8UknEA0JC4nTZGFAXC2J2Hyj/ijJ7NlabyPi2gg==}
     peerDependencies:
       react: '>= 0.14.0'
