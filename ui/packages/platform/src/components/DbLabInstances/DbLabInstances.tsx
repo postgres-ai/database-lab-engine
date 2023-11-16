@@ -420,7 +420,7 @@ class DbLabInstances extends Component<
         aria-labelledby="simple-modal-title"
         aria-describedby="simple-modal-description"
       >
-        <CreatedDbLabCards props={this.props} dblabPermitted={addPermitted} />
+        <CreatedDbLabCards isModal props={this.props} dblabPermitted={addPermitted} />
       </Modal>
     )
 

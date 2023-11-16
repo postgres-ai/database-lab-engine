@@ -75,7 +75,7 @@ export const ActionsMenu = (props: Props) => {
           Copy name
         </MenuItem>
         {props.isActive && (
-          <>
+          <div>
             <MenuItem
               onClick={() => {
                 closeMenu()
@@ -92,7 +92,7 @@ export const ActionsMenu = (props: Props) => {
             >
               List snapshots
             </MenuItem>
-          </>
+          </div>
         )}
       </Menu>
     </>
