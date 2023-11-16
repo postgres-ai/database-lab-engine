@@ -422,7 +422,7 @@ class PostgresClusters extends Component<
         aria-labelledby="simple-modal-title"
         aria-describedby="simple-modal-description"
       >
-        <CreateClusterCards props={this.props} dblabPermitted={addPermitted} />
+        <CreateClusterCards isModal props={this.props} dblabPermitted={addPermitted} />
       </Modal>
     )
 

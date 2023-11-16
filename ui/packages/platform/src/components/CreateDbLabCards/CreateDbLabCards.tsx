@@ -1,3 +1,4 @@
+import classNames from 'classnames'
 import { makeStyles } from '@material-ui/core'
 import { StubContainer } from '@postgres.ai/shared/components/StubContainer'
 import { icons } from '@postgres.ai/shared/styles/icons'
@@ -9,6 +10,9 @@ import Urls from '../../utils/urls'
 import { messages } from '../../assets/messages'
 
 export const useStyles = makeStyles((theme) => ({
+  zeroMaxHeight: {
+    maxHeight: 0,
+  },
   stubContainerProjects: {
     marginRight: '-20px',
     padding: '0 40px',
@@ -75,9 +79,11 @@ export const useStyles = makeStyles((theme) => ({
 }))
 
 export const CreatedDbLabCards = ({
+  isModal,
   props,
   dblabPermitted,
 }: {
+  isModal?: boolean
   props: DashboardProps
   dblabPermitted: boolean | undefined
 }) => {
@@ -154,7 +160,12 @@ export const CreatedDbLabCards = ({
   ]
 
   return (
-    <StubContainer className={classes.stubContainerProjects}>
+    <StubContainer
+      className={classNames(
+        !isModal && classes.zeroMaxHeight,
+        classes.stubContainerProjects,
+      )}
+    >
       {productData.map((product) => (
         <ProductCardWrapper
           inline

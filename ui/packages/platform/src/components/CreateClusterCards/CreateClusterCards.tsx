@@ -1,3 +1,4 @@
+import classNames from 'classnames'
 import { StubContainer } from '@postgres.ai/shared/components/StubContainer'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { ConsoleButtonWrapper } from 'components/ConsoleButton/ConsoleButtonWrapper'
@@ -9,9 +10,11 @@ import { messages } from '../../assets/messages'
 import { useStyles } from 'components/CreateDbLabCards/CreateDbLabCards'
 
 export const CreateClusterCards = ({
+  isModal,
   props,
   dblabPermitted,
 }: {
+  isModal?: boolean
   props: DashboardProps
   dblabPermitted: boolean | undefined
 }) => {
@@ -92,7 +95,12 @@ export const CreateClusterCards = ({
   ]
 
   return (
-    <StubContainer className={classes.stubContainerProjects}>
+    <StubContainer
+      className={classNames(
+        !isModal && classes.zeroMaxHeight,
+        classes.stubContainerProjects,
+      )}
+    >
       {productData.map((product) => (
         <ProductCardWrapper
           inline

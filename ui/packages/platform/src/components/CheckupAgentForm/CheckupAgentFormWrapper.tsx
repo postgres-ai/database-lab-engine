@@ -38,6 +38,8 @@ export const CheckupAgentFormWrapper = (props: CheckupAgentFormProps) => {
       },
       heading: {
         ...theme.typography.h3,
+      } as {
+        [key: string]: string
       },
       fieldValue: {
         display: 'inline-block',
