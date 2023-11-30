@@ -55,7 +55,7 @@ func (c *Base) restartCloneContainers(ctx context.Context) {
 			continue
 		}
 
-		cloneName := util.GetCloneName(wrapper.Session.Port)
+		cloneName := wrapper.Clone.ID
 		if c.provision.IsCloneRunning(ctx, cloneName) {
 			continue
 		}
@@ -102,11 +102,11 @@ func (c *Base) filterRunningClones(ctx context.Context) {
 			snapshotCache[snapshot.ID] = struct{}{}
 		}
 
-		if !c.provision.IsCloneRunning(ctx, util.GetCloneName(wrapper.Session.Port)) {
+		if !c.provision.IsCloneRunning(ctx, wrapper.Clone.ID) {
 			delete(c.clones, cloneID)
 		}
 
-		c.incrementCloneNumber(wrapper.Clone.Snapshot.ID)
+		c.IncrementCloneNumber(wrapper.Clone.Snapshot.ID)
 	}
 }
 

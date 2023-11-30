@@ -6,7 +6,7 @@ import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
 import { formStyles } from 'components/DbLabInstanceForm/DbLabFormSteps/AnsibleInstance'
-import { ResponseMessage } from '@postgres.ai/shared/pages/Configuration/ResponseMessage'
+import { ResponseMessage } from '@postgres.ai/shared/pages/Instance/Configuration/ResponseMessage'
 import { InstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/InstanceFormCreation'
 
 import { initialState } from '../reducer'

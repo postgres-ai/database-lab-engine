@@ -8,8 +8,6 @@ import (
 	"path"
 	"sync"
 	"time"
-
-	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
 // PoolStatus represents a pool status.
@@ -68,8 +66,8 @@ func (p *Pool) SocketDir() string {
 }
 
 // ObserverDir returns a path to the observer directory of the storage pool.
-func (p *Pool) ObserverDir(port uint) string {
-	return path.Join(p.ClonePath(port), p.ObserverSubDir)
+func (p *Pool) ObserverDir(name string) string {
+	return path.Join(p.ClonePath(name), p.ObserverSubDir)
 }
 
 // ClonesDir returns a path to the clones directory of the storage pool.
@@ -78,8 +76,8 @@ func (p *Pool) ClonesDir() string {
 }
 
 // ClonePath returns a path to the initialized clone directory.
-func (p *Pool) ClonePath(port uint) string {
-	return path.Join(p.MountDir, p.PoolDirName, p.CloneSubDir, util.GetCloneName(port), p.DataSubDir)
+func (p *Pool) ClonePath(name string) string {
+	return path.Join(p.MountDir, p.PoolDirName, p.CloneSubDir, name, p.DataSubDir)
 }
 
 // SocketCloneDir returns a path to the socket clone directory.

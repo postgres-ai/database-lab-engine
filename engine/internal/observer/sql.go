@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v4"
@@ -17,16 +16,11 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
 // InitConnection creates a new connection to the clone database.
 func InitConnection(clone *models.Clone, socketDir string) (*pgx.Conn, error) {
-	host, err := unixSocketDir(socketDir, clone.DB.Port)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse clone port")
-	}
-
+	host := unixSocketDir(socketDir, clone.ID)
 	connectionStr := buildConnectionString(clone, host)
 
 	conn, err := pgx.Connect(context.Background(), connectionStr)
@@ -73,13 +67,8 @@ func runQuery(ctx context.Context, db *pgx.Conn, query string, args ...interface
 	return result.String(), nil
 }
 
-func unixSocketDir(socketDir, portStr string) (string, error) {
-	port, err := strconv.ParseUint(portStr, 10, 64)
-	if err != nil {
-		return "", err
-	}
-
-	return path.Join(socketDir, util.GetCloneName(uint(port))), nil
+func unixSocketDir(socketDir, cloneID string) string {
+	return path.Join(socketDir, cloneID)
 }
 
 func buildConnectionString(clone *models.Clone, socketDir string) string {

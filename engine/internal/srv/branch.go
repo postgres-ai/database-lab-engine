@@ -3,6 +3,7 @@ package srv
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -11,6 +12,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
@@ -227,13 +229,6 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fsm := s.pm.First()
-
-	if fsm == nil {
-		api.SendBadRequestError(w, r, "no available pools")
-		return
-	}
-
 	clone, err := s.Cloning.GetClone(snapshotRequest.CloneID)
 	if err != nil {
 		api.SendBadRequestError(w, r, "clone not found")
@@ -242,6 +237,13 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 
 	if clone.Branch == "" {
 		api.SendBadRequestError(w, r, "clone was not created on branch")
+		return
+	}
+
+	fsm, err := s.pm.GetFSManager(clone.Snapshot.Pool)
+
+	if err != nil {
+		api.SendBadRequestError(w, r, fmt.Sprintf("pool %q not found", clone.Snapshot.Pool))
 		return
 	}
 
@@ -257,9 +259,11 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Dbg("Current snapshot ID", currentSnapshotID)
+
 	dataStateAt := time.Now().Format(util.DataStateAtFormat)
 
-	snapshotBase := fmt.Sprintf("%s/%s", clone.Snapshot.Pool, util.GetCloneNameStr(clone.DB.Port))
+	snapshotBase := fmt.Sprintf("%s/%s", clone.Snapshot.Pool, clone.ID)
 	snapshotName := fmt.Sprintf("%s@%s", snapshotBase, dataStateAt)
 
 	if err := fsm.Snapshot(snapshotName); err != nil {
@@ -267,20 +271,7 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newSnapshotName := fmt.Sprintf("%s/%s/%s", fsm.Pool().Name, clone.Branch, dataStateAt)
-
-	if err := fsm.Rename(snapshotBase, newSnapshotName); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	snapshotPath := fmt.Sprintf("%s/%s@%s", fsm.Pool().ClonesDir(), clone.Branch, dataStateAt)
-	if err := fsm.SetMountpoint(snapshotPath, newSnapshotName); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	if err := fsm.AddBranchProp(clone.Branch, newSnapshotName); err != nil {
+	if err := fsm.AddBranchProp(clone.Branch, snapshotName); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
@@ -290,21 +281,23 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	childID := newSnapshotName + "@" + dataStateAt
-	if err := fsm.SetRelation(currentSnapshotID, childID); err != nil {
+	if err := fsm.SetRelation(currentSnapshotID, snapshotName); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	if err := fsm.SetDSA(dataStateAt, childID); err != nil {
+	if err := fsm.SetDSA(dataStateAt, snapshotName); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	if err := fsm.SetMessage(snapshotRequest.Message, childID); err != nil {
+	if err := fsm.SetMessage(snapshotRequest.Message, snapshotName); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
+
+	// Since the snapshot is created from a clone, it already has one associated clone.
+	s.Cloning.IncrementCloneNumber(snapshotName)
 
 	fsm.RefreshSnapshotList()
 
@@ -313,18 +306,18 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newSnapshot, err := s.Cloning.GetSnapshotByID(childID)
+	snapshot, err := s.Cloning.GetSnapshotByID(snapshotName)
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	if err := s.Cloning.UpdateCloneSnapshot(clone.ID, newSnapshot); err != nil {
+	if err := s.Cloning.UpdateCloneSnapshot(clone.ID, snapshot); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	if err := api.WriteJSON(w, http.StatusOK, types.SnapshotResponse{SnapshotID: childID}); err != nil {
+	if err := api.WriteJSON(w, http.StatusOK, types.SnapshotResponse{SnapshotID: snapshotName}); err != nil {
 		api.SendError(w, r, err)
 		return
 	}
@@ -402,10 +395,28 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if hasSnapshots(repo, snapshotID, deleteRequest.BranchName) {
-		if err := fsm.DeleteBranch(deleteRequest.BranchName); err != nil {
-			api.SendBadRequestError(w, r, err.Error())
-			return
+	toRemove := snapshotsToRemove(repo, snapshotID, deleteRequest.BranchName)
+
+	// Pre-check.
+	for _, snapshotID := range toRemove {
+		if cloneNum := s.Cloning.GetCloneNumber(snapshotID); cloneNum > 0 {
+			log.Warn(fmt.Sprintf("cannot delete branch %q because snapshot %q contains %d clone(s)",
+				deleteRequest.BranchName, snapshotID, cloneNum))
+		}
+	}
+
+	for _, snapshotID := range toRemove {
+		if err := fsm.DestroySnapshot(snapshotID); err != nil {
+			log.Warn(fmt.Sprintf("failed to remove snapshot %q:", snapshotID), err.Error())
+		}
+	}
+
+	if len(toRemove) > 0 {
+		datasetFull := strings.Split(toRemove[0], "@")
+		datasetName, _ := strings.CutPrefix(datasetFull[0], fsm.Pool().Name+"/")
+
+		if err := fsm.DestroyClone(datasetName); err != nil {
+			log.Warn("cannot destroy the underlying branch dataset", err)
 		}
 	}
 
@@ -463,14 +474,25 @@ func cleanupSnapshotProperties(repo *models.Repo, fsm pool.FSManager, branchName
 	return nil
 }
 
-func hasSnapshots(repo *models.Repo, snapshotID, branchName string) bool {
+func snapshotsToRemove(repo *models.Repo, snapshotID, branchName string) []string {
 	snapshotPointer := repo.Snapshots[snapshotID]
 
-	for _, rootBranch := range snapshotPointer.Root {
-		if rootBranch == branchName {
-			return false
+	removingList := []string{}
+
+	for snapshotPointer.Parent != "-" {
+		if len(snapshotPointer.Root) > 0 {
+			break
 		}
+
+		for _, snapshotRoot := range snapshotPointer.Root {
+			if snapshotRoot == branchName {
+				break
+			}
+		}
+
+		removingList = append(removingList, snapshotPointer.ID)
+		snapshotPointer = repo.Snapshots[snapshotPointer.Parent]
 	}
 
-	return true
+	return removingList
 }

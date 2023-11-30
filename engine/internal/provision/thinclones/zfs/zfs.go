@@ -191,7 +191,7 @@ func (m *Manager) CreateClone(cloneName, snapshotID string) error {
 
 	clonesMountDir := m.config.Pool.ClonesDir()
 
-	cmd := "zfs clone " +
+	cmd := "zfs clone -p " +
 		"-o mountpoint=" + clonesMountDir + "/" + cloneName + " " +
 		snapshotID + " " +
 		m.config.Pool.Name + "/" + cloneName + " && " +

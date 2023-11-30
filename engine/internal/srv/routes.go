@@ -181,21 +181,16 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	const snapshotParts = 2
-
-	parts := strings.Split(destroyRequest.SnapshotID, "@")
-	if len(parts) != snapshotParts {
-		api.SendBadRequestError(w, r, fmt.Sprintf("invalid snapshot name given: %s", destroyRequest.SnapshotID))
+	poolName, err := s.detectPoolName(destroyRequest.SnapshotID)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	rootParts := strings.Split(parts[0], "/")
-	if len(rootParts) < 1 {
-		api.SendBadRequestError(w, r, fmt.Sprintf("invalid root part of snapshot name given: %s", destroyRequest.SnapshotID))
+	if poolName == "" {
+		api.SendBadRequestError(w, r, fmt.Sprintf("pool for the requested snapshot (%s) not found", destroyRequest.SnapshotID))
 		return
 	}
-
-	poolName := rootParts[0]
 
 	fsm, err := s.pm.GetFSManager(poolName)
 	if err != nil {
@@ -229,6 +224,26 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) detectPoolName(snapshotID string) (string, error) {
+	const snapshotParts = 2
+
+	parts := strings.Split(snapshotID, "@")
+	if len(parts) != snapshotParts {
+		return "", fmt.Errorf("invalid snapshot name given: %s. Should contain `dataset@snapname`", snapshotID)
+	}
+
+	poolName := ""
+
+	for _, fsm := range s.pm.GetFSManagerList() {
+		if strings.HasPrefix(parts[0], fsm.Pool().Name) {
+			poolName = fsm.Pool().Name
+			break
+		}
+	}
+
+	return poolName, nil
+}
+
 func (s *Server) createSnapshotClone(w http.ResponseWriter, r *http.Request) {
 	if r.Body == http.NoBody {
 		api.SendBadRequestError(w, r, "request body cannot be empty")
@@ -258,7 +273,7 @@ func (s *Server) createSnapshotClone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cloneName := util.GetCloneNameStr(clone.DB.Port)
+	cloneName := clone.ID
 
 	snapshotID, err := fsm.CreateSnapshot(cloneName, time.Now().Format(util.DataStateAtFormat))
 	if err != nil {
@@ -550,8 +565,7 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clone, err := s.Cloning.GetClone(observationRequest.CloneID)
-	if err != nil {
+	if _, err := s.Cloning.GetClone(observationRequest.CloneID); err != nil {
 		api.SendNotFoundError(w, r)
 		return
 	}
@@ -596,7 +610,7 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 
 	sessionID := strconv.FormatUint(session.SessionID, 10)
 
-	logs, err := s.Observer.GetCloneLog(context.TODO(), clone.DB.Port, observingClone)
+	logs, err := s.Observer.GetCloneLog(context.TODO(), observingClone)
 	if err != nil {
 		log.Err("Failed to get observation logs", err)
 	}

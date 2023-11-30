@@ -110,7 +110,7 @@ func TestCloneCounter(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, 0, snapshot.NumClones)
 
-	c.incrementCloneNumber("testSnapshotID")
+	c.IncrementCloneNumber("testSnapshotID")
 	snapshot, err = c.getSnapshotByID("testSnapshotID")
 	require.Nil(t, err)
 	require.Equal(t, 1, snapshot.NumClones)

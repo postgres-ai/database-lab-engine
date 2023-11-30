@@ -8,23 +8,22 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 )
 
 const (
-	branchProp    = "dle:branch"
-	parentProp    = "dle:parent"
-	childProp     = "dle:child"
-	rootProp      = "dle:root"
-	messageProp   = "dle:message"
-	branchSep     = ","
-	empty         = "-"
-	defaultBranch = "main"
+	branchProp  = "dle:branch"
+	parentProp  = "dle:parent"
+	childProp   = "dle:child"
+	rootProp    = "dle:root"
+	messageProp = "dle:message"
+	branchSep   = ","
+	empty       = "-"
 )
 
 // InitBranching inits data branching.
@@ -60,7 +59,7 @@ func (m *Manager) InitBranching() error {
 		return nil
 	}
 
-	if err := m.AddBranchProp(defaultBranch, latest.ID); err != nil {
+	if err := m.AddBranchProp(branching.DefaultBranch, latest.ID); err != nil {
 		return fmt.Errorf("failed to add branch property: %w", err)
 	}
 
@@ -82,8 +81,8 @@ func (m *Manager) InitBranching() error {
 			return fmt.Errorf("failed to read branch property: %w", err)
 		}
 
-		if brProperty == defaultBranch {
-			if err := m.DeleteBranchProp(defaultBranch, follower.ID); err != nil {
+		if brProperty == branching.DefaultBranch {
+			if err := m.DeleteBranchProp(branching.DefaultBranch, follower.ID); err != nil {
 				return fmt.Errorf("failed to delete default branch property: %w", err)
 			}
 
@@ -134,7 +133,7 @@ func (m *Manager) VerifyBranchMetadata() error {
 	}
 
 	if brName == "" {
-		brName = defaultBranch
+		brName = branching.DefaultBranch
 	}
 
 	if err := m.AddBranchProp(brName, latest.ID); err != nil {
@@ -208,7 +207,9 @@ func (m *Manager) SetMountpoint(path, name string) error {
 // ListBranches lists data pool branches.
 func (m *Manager) ListBranches() (map[string]string, error) {
 	cmd := fmt.Sprintf(
-		`zfs list -H -t snapshot -o %s,name | grep -v "^-" | cat`, branchProp,
+		// Get ZFS snapshots (-t) with options (-o) without output headers (-H) filtered by pool (-r).
+		// Excluding snapshots without "dle:branch" property ("grep -v").
+		`zfs list -H -t snapshot -o %s,name -r %s | grep -v "^-" | cat`, branchProp, m.config.Pool.Name,
 	)
 
 	out, err := m.runner.Run(cmd)
@@ -248,7 +249,8 @@ func (m *Manager) GetRepo() (*models.Repo, error) {
 	strFields := bytes.TrimRight(bytes.Repeat([]byte(`%s,`), len(repoFields)), ",")
 
 	cmd := fmt.Sprintf(
-		`zfs list -H -t snapshot -o `+string(strFields), repoFields...,
+		// Get ZFS snapshots (-t) with options (-o) without output headers (-H) filtered by pool (-r).
+		`zfs list -H -t snapshot -o `+string(strFields)+" -r %s", append(repoFields, m.config.Pool.Name)...,
 	)
 
 	out, err := m.runner.Run(cmd)
@@ -342,7 +344,7 @@ func (m *Manager) SetRelation(parent, snapshotName string) error {
 		return err
 	}
 
-	return m.addChild(parent, snapshotName);
+	return m.addChild(parent, snapshotName)
 }
 
 // DeleteChildProp deletes child from snapshot property.
@@ -470,18 +472,6 @@ func (m *Manager) Reset(snapshotID string, _ thinclones.ResetOptions) error {
 
 	if out, err := m.runner.Run(cmd, true); err != nil {
 		return fmt.Errorf("failed to rollback a snapshot: %w. Out: %v", err, out)
-	}
-
-	return nil
-}
-
-// DeleteBranch deletes branch.
-func (m *Manager) DeleteBranch(branch string) error {
-	branchName := filepath.Join(m.Pool().Name, branch)
-	cmd := fmt.Sprintf("zfs destroy -R %s", branchName)
-
-	if out, err := m.runner.Run(cmd, true); err != nil {
-		return fmt.Errorf("failed to destroy branch: %w. Out: %v", err, out)
 	}
 
 	return nil

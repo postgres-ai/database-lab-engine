@@ -12,7 +12,6 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"strconv"
 	"sync"
 	"time"
 
@@ -80,13 +79,8 @@ func NewObserver(dockerClient *client.Client, cfg *Config, pm *pool.Manager) *Ob
 
 // GetCloneLog gets clone logs.
 // TODO (akartasov): Split log to chunks.
-func (o *Observer) GetCloneLog(ctx context.Context, port string, obsClone *ObservingClone) ([]byte, error) {
-	clonePort, err := strconv.Atoi(port)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse clone port")
-	}
-
-	fileSelector := pglog.NewSelector(obsClone.pool.ClonePath(uint(clonePort)))
+func (o *Observer) GetCloneLog(ctx context.Context, obsClone *ObservingClone) ([]byte, error) {
+	fileSelector := pglog.NewSelector(obsClone.pool.ClonePath(obsClone.cloneID))
 	fileSelector.SetMinimumTime(obsClone.session.StartedAt)
 
 	if err := fileSelector.DiscoverLogDir(); err != nil {
