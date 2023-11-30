@@ -11,6 +11,7 @@ import (
 // AppConfig currently stores Postgres configuration (other application in the future too).
 type AppConfig struct {
 	CloneName      string
+	Branch         string
 	DockerImage    string
 	Pool           *Pool
 	Host           string

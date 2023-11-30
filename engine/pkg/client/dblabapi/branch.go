@@ -163,7 +163,7 @@ func (c *Client) DeleteBranch(ctx context.Context, r types.BranchDeleteRequest) 
 
 	response, err := c.Do(ctx, request)
 	if err != nil {
-		return fmt.Errorf("failed to get response: %w", err)
+		return err
 	}
 
 	defer func() { _ = response.Body.Close() }()

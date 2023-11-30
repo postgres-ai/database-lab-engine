@@ -34,7 +34,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/fs"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/networks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/pglog"
 )
@@ -151,9 +150,9 @@ func (p *Provisioner) ContainerOptions() models.ContainerOptions {
 }
 
 // StartSession starts a new session.
-func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUser,
+func (p *Provisioner) StartSession(clone *models.Clone, user resources.EphemeralUser,
 	extraConfig map[string]string) (*resources.Session, error) {
-	snapshot, err := p.getSnapshot(snapshotID)
+	snapshot, err := p.getSnapshot(clone.Snapshot.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get snapshots")
 	}
@@ -163,7 +162,7 @@ func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUs
 		return nil, errors.New("failed to get a free port")
 	}
 
-	name := util.GetCloneName(port)
+	name := clone.ID
 
 	fsm, err := p.pm.GetFSManager(snapshot.Pool)
 	if err != nil {
@@ -186,7 +185,7 @@ func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUs
 		return nil, errors.Wrap(err, "failed to create clone")
 	}
 
-	appConfig := p.getAppConfig(fsm.Pool(), name, port)
+	appConfig := p.getAppConfig(fsm.Pool(), clone.Branch, name, port)
 	appConfig.SetExtraConf(extraConfig)
 
 	if err := fs.CleanupLogsDir(appConfig.DataDir()); err != nil {
@@ -217,13 +216,13 @@ func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUs
 }
 
 // StopSession stops an existing session.
-func (p *Provisioner) StopSession(session *resources.Session) error {
+func (p *Provisioner) StopSession(session *resources.Session, clone *models.Clone) error {
 	fsm, err := p.pm.GetFSManager(session.Pool)
 	if err != nil {
 		return errors.Wrap(err, "failed to find a filesystem manager of this session")
 	}
 
-	name := util.GetCloneName(session.Port)
+	name := clone.ID
 
 	if err := postgres.Stop(p.runner, fsm.Pool(), name); err != nil {
 		return errors.Wrap(err, "failed to stop a container")
@@ -241,13 +240,13 @@ func (p *Provisioner) StopSession(session *resources.Session) error {
 }
 
 // ResetSession resets an existing session.
-func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string) (*models.Snapshot, error) {
+func (p *Provisioner) ResetSession(session *resources.Session, clone *models.Clone, snapshotID string) (*models.Snapshot, error) {
 	fsm, err := p.pm.GetFSManager(session.Pool)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find filesystem manager of this session")
 	}
 
-	name := util.GetCloneName(session.Port)
+	name := clone.ID
 
 	snapshot, err := p.getSnapshot(snapshotID)
 	if err != nil {
@@ -286,7 +285,7 @@ func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string
 		return nil, errors.Wrap(err, "failed to create clone")
 	}
 
-	appConfig := p.getAppConfig(newFSManager.Pool(), name, session.Port)
+	appConfig := p.getAppConfig(newFSManager.Pool(), clone.Branch, name, session.Port)
 	appConfig.SetExtraConf(session.ExtraConfig)
 
 	if err := fs.CleanupLogsDir(appConfig.DataDir()); err != nil {
@@ -328,13 +327,13 @@ func (p *Provisioner) GetSnapshots() ([]resources.Snapshot, error) {
 }
 
 // GetSessionState describes the state of the session.
-func (p *Provisioner) GetSessionState(s *resources.Session) (*resources.SessionState, error) {
+func (p *Provisioner) GetSessionState(s *resources.Session, cloneID string) (*resources.SessionState, error) {
 	fsm, err := p.pm.GetFSManager(s.Pool)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find a filesystem manager of this session")
 	}
 
-	return fsm.GetSessionState(util.GetCloneName(s.Port))
+	return fsm.GetSessionState(cloneID)
 }
 
 // GetPoolEntryList provides an ordered list of available pools.
@@ -614,11 +613,12 @@ func (p *Provisioner) stopPoolSessions(fsm pool.FSManager, exceptClones map[stri
 	return nil
 }
 
-func (p *Provisioner) getAppConfig(pool *resources.Pool, name string, port uint) *resources.AppConfig {
+func (p *Provisioner) getAppConfig(pool *resources.Pool, branch, name string, port uint) *resources.AppConfig {
 	provisionHosts := p.getProvisionHosts()
 
 	appConfig := &resources.AppConfig{
 		CloneName:      name,
+		Branch:         branch,
 		DockerImage:    p.config.DockerImage,
 		Host:           pool.SocketCloneDir(name),
 		Port:           port,
@@ -654,7 +654,7 @@ func (p *Provisioner) getProvisionHosts() string {
 }
 
 // LastSessionActivity returns the time of the last session activity.
-func (p *Provisioner) LastSessionActivity(session *resources.Session, minimumTime time.Time) (*time.Time, error) {
+func (p *Provisioner) LastSessionActivity(session *resources.Session, cloneID string, minimumTime time.Time) (*time.Time, error) {
 	fsm, err := p.pm.GetFSManager(session.Pool)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find a filesystem manager")
@@ -663,7 +663,7 @@ func (p *Provisioner) LastSessionActivity(session *resources.Session, minimumTim
 	ctx, cancel := context.WithCancel(p.ctx)
 	defer cancel()
 
-	clonePath := fsm.Pool().ClonePath(session.Port)
+	clonePath := fsm.Pool().ClonePath(cloneID)
 	fileSelector := pglog.NewSelector(clonePath)
 
 	if err := fileSelector.DiscoverLogDir(); err != nil {

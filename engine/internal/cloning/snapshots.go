@@ -130,7 +130,8 @@ func (c *Base) getSnapshotByID(snapshotID string) (*models.Snapshot, error) {
 	return snapshot, nil
 }
 
-func (c *Base) incrementCloneNumber(snapshotID string) {
+// IncrementCloneNumber increases clone counter by 1.
+func (c *Base) IncrementCloneNumber(snapshotID string) {
 	c.snapshotBox.snapshotMutex.Lock()
 	defer c.snapshotBox.snapshotMutex.Unlock()
 
@@ -161,6 +162,20 @@ func (c *Base) decrementCloneNumber(snapshotID string) {
 	snapshot.NumClones--
 }
 
+// GetCloneNumber counts snapshot clones.
+func (c *Base) GetCloneNumber(snapshotID string) int {
+	c.snapshotBox.snapshotMutex.Lock()
+	defer c.snapshotBox.snapshotMutex.Unlock()
+
+	snapshot, ok := c.snapshotBox.items[snapshotID]
+	if !ok {
+		log.Err("Snapshot not found:", snapshotID)
+		return 0
+	}
+
+	return snapshot.NumClones
+}
+
 func (c *Base) getSnapshotList() []models.Snapshot {
 	c.snapshotBox.snapshotMutex.RLock()
 	defer c.snapshotBox.snapshotMutex.RUnlock()
@@ -188,7 +203,7 @@ func (c *Base) hasDependentSnapshots(w *CloneWrapper) bool {
 	c.snapshotBox.snapshotMutex.RLock()
 	defer c.snapshotBox.snapshotMutex.RUnlock()
 
-	poolName := util.GetPoolName(w.Clone.Snapshot.Pool, util.GetCloneNameStr(w.Clone.DB.Port))
+	poolName := util.GetPoolName(w.Clone.Snapshot.Pool, w.Clone.ID)
 
 	for name := range c.snapshotBox.items {
 		if strings.HasPrefix(name, poolName) {

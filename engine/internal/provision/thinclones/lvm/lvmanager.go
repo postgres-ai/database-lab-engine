@@ -260,10 +260,3 @@ func (m *LVManager) Rename(_, _ string) error {
 
 	return nil
 }
-
-// DeleteBranch deletes branch.
-func (m *LVManager) DeleteBranch(_ string) error {
-	log.Msg("DeleteBranch is not supported for LVM. Skip the operation")
-
-	return nil
-}

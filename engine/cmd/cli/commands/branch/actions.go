@@ -218,6 +218,15 @@ func deleteBranch(cliCtx *cli.Context) error {
 
 	branchName := cliCtx.String("delete")
 
+	branching, err := getBranchingFromEnv()
+	if err != nil {
+		return err
+	}
+
+	if branching.CurrentBranch == branchName {
+		return fmt.Errorf("cannot delete branch %q because it is the current one", branchName)
+	}
+
 	if err = dblabClient.DeleteBranch(cliCtx.Context, types.BranchDeleteRequest{
 		BranchName: branchName,
 	}); err != nil {
@@ -284,6 +293,30 @@ func history(cliCtx *cli.Context) error {
 	_, err = fmt.Fprint(cliCtx.App.Writer, formattedLog)
 
 	return err
+}
+
+func getBranchingFromEnv() (config.Branching, error) {
+	branching := config.Branching{}
+
+	dirname, err := config.GetDirname()
+	if err != nil {
+		return branching, err
+	}
+
+	filename := config.BuildFileName(dirname)
+
+	cfg, err := config.Load(filename)
+	if err != nil && !os.IsNotExist(err) {
+		return branching, err
+	}
+
+	if len(cfg.Environments) == 0 {
+		return branching, errors.New("no environments found. Use `dblab init` to create a new environment before branching")
+	}
+
+	branching = cfg.Environments[cfg.CurrentEnvironment].Branching
+
+	return branching, nil
 }
 
 func formatSnapshotLog(snapshots []models.SnapshotDetails) (string, error) {

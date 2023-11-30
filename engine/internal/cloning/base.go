@@ -29,6 +29,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/pglog"
 )
 
@@ -115,7 +116,7 @@ func (c *Base) cleanupInvalidClones() error {
 	c.cloneMutex.Lock()
 
 	for _, clone := range c.clones {
-		keepClones[util.GetCloneName(clone.Session.Port)] = struct{}{}
+		keepClones[clone.Clone.ID] = struct{}{}
 	}
 
 	c.cloneMutex.Unlock()
@@ -186,6 +187,10 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 		},
 	}
 
+	if clone.Branch == "" {
+		clone.Branch = branching.DefaultBranch
+	}
+
 	w := NewCloneWrapper(clone, createdAt)
 	cloneID := clone.ID
 
@@ -198,10 +203,10 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 		AvailableDB: cloneRequest.DB.DBName,
 	}
 
-	c.incrementCloneNumber(clone.Snapshot.ID)
+	c.IncrementCloneNumber(clone.Snapshot.ID)
 
 	go func() {
-		session, err := c.provision.StartSession(clone.Snapshot.ID, ephemeralUser, cloneRequest.ExtraConf)
+		session, err := c.provision.StartSession(clone, ephemeralUser, cloneRequest.ExtraConf)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
 			log.Errf("Failed to start session: %v.", err)
@@ -228,7 +233,7 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 			Port:          session.Port,
 			Username:      clone.DB.Username,
 			DBName:        clone.DB.DBName,
-			ContainerName: util.GetCloneName(session.Port),
+			ContainerName: cloneID,
 		}
 	}()
 
@@ -304,7 +309,7 @@ func (c *Base) DestroyClone(cloneID string) error {
 	}
 
 	if c.hasDependentSnapshots(w) {
-		return models.New(models.ErrCodeBadRequest, "clone has dependent snapshots")
+		log.Warn("clone has dependent snapshots", cloneID)
 	}
 
 	if err := c.UpdateCloneStatus(cloneID, models.Status{
@@ -325,7 +330,7 @@ func (c *Base) DestroyClone(cloneID string) error {
 	}
 
 	go func() {
-		if err := c.provision.StopSession(w.Session); err != nil {
+		if err := c.provision.StopSession(w.Session, w.Clone); err != nil {
 			log.Errf("Failed to delete a clone: %v.", err)
 
 			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
@@ -356,7 +361,7 @@ func (c *Base) DestroyClone(cloneID string) error {
 			Port:          w.Session.Port,
 			Username:      w.Clone.DB.Username,
 			DBName:        w.Clone.DB.DBName,
-			ContainerName: util.GetCloneName(w.Session.Port),
+			ContainerName: cloneID,
 		}
 	}()
 
@@ -381,7 +386,7 @@ func (c *Base) refreshCloneMetadata(w *CloneWrapper) {
 		return
 	}
 
-	sessionState, err := c.provision.GetSessionState(w.Session)
+	sessionState, err := c.provision.GetSessionState(w.Session, w.Clone.ID)
 	if err != nil {
 		// Session not ready yet.
 		log.Err(fmt.Errorf("failed to get a session state: %w", err))
@@ -484,7 +489,7 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 			originalSnapshotID = w.Clone.Snapshot.ID
 		}
 
-		snapshot, err := c.provision.ResetSession(w.Session, snapshotID)
+		snapshot, err := c.provision.ResetSession(w.Session, w.Clone, snapshotID)
 		if err != nil {
 			log.Errf("Failed to reset clone: %v", err)
 
@@ -502,7 +507,7 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 		w.Clone.Snapshot = snapshot
 		c.cloneMutex.Unlock()
 		c.decrementCloneNumber(originalSnapshotID)
-		c.incrementCloneNumber(snapshot.ID)
+		c.IncrementCloneNumber(snapshot.ID)
 
 		if err := c.UpdateCloneStatus(cloneID, models.Status{
 			Code:    models.StatusOK,
@@ -522,7 +527,7 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 			Port:          w.Session.Port,
 			Username:      w.Clone.DB.Username,
 			DBName:        w.Clone.DB.DBName,
-			ContainerName: util.GetCloneName(w.Session.Port),
+			ContainerName: cloneID,
 		}
 
 		c.tm.SendEvent(context.Background(), telemetry.CloneResetEvent, telemetry.CloneCreated{
@@ -714,10 +719,10 @@ func (c *Base) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 		return false, errors.New("failed to get clone session")
 	}
 
-	if _, err := c.provision.LastSessionActivity(session, minimumTime); err != nil {
+	if _, err := c.provision.LastSessionActivity(session, wrapper.Clone.ID, minimumTime); err != nil {
 		if err == pglog.ErrNotFound {
 			log.Dbg(fmt.Sprintf("Not found recent activity for the session: %q. Clone name: %q",
-				session.ID, util.GetCloneName(session.Port)))
+				session.ID, wrapper.Clone.ID))
 
 			return hasNotQueryActivity(session)
 		}

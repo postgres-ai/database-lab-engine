@@ -181,13 +181,15 @@ if [[ $(dblab snapshot list | jq length) -eq 0 ]] ; then
 fi
 
 ## Create a clone
+CLONE_ID="testclone"
+
 dblab clone create \
   --username dblab_user_1 \
   --password secret_password \
-  --id testclone
+  --id ${CLONE_ID}
 
 ### Check that database system was properly shut down (clone data dir)
-CLONE_LOG_DIR="${DLE_TEST_MOUNT_DIR}"/"${DLE_TEST_POOL_NAME}"/clones/dblab_clone_"${DLE_PORT_POOL_FROM}"/data/log
+CLONE_LOG_DIR="${DLE_TEST_MOUNT_DIR}"/"${DLE_TEST_POOL_NAME}"/clones/"${CLONE_ID}"/data/log
 LOG_FILE_CSV=$(sudo ls -t "$CLONE_LOG_DIR" | grep .csv | head -n 1)
 if sudo test -d "$CLONE_LOG_DIR"
 then
@@ -258,7 +260,7 @@ dblab branch
 
 dblab clone create \
   --username john \
-  --password test \
+  --password secret_test_123 \
   --branch 001-branch \
   --id branchclone001 || (echo "Failed to create a clone on branch" && exit 1)
 
@@ -266,7 +268,7 @@ dblab commit --clone-id branchclone001 --message branchclone001 || (echo "Failed
 
 dblab clone create \
   --username alice \
-  --password password \
+  --password secret_password_123 \
   --branch 001-branch \
   --id branchclone002 || (echo "Failed to create a clone on branch" && exit 1)
 
@@ -276,6 +278,13 @@ dblab log 001-branch || (echo "Failed to show branch history" && exit 1)
 
 dblab clone destroy branchclone001 || (echo "Failed to destroy clone" && exit 1)
 dblab clone destroy branchclone002 || (echo "Failed to destroy clone" && exit 1)
+
+sudo docker wait branchclone001 branchclone002 || echo "Clones have been removed"
+
+dblab clone list
+dblab snapshot list
+
+dblab switch main
 
 dblab branch --delete 001-branch || (echo "Failed to delete data branch" && exit 1)
 

@@ -66,7 +66,6 @@ type Branching interface {
 	DeleteBranchProp(branch, snapshotName string) error
 	DeleteChildProp(childSnapshot, snapshotName string) error
 	DeleteRootProp(branch, snapshotName string) error
-	DeleteBranch(branch string) error
 	SetRoot(branch, snapshotName string) error
 	SetDSA(dsa, snapshotName string) error
 	SetMessage(message, snapshotName string) error

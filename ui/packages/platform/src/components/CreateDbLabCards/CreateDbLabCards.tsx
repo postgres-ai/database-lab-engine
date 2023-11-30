@@ -145,7 +145,6 @@ export const CreatedDbLabCards = ({
           content: (
             <CreateButton
               type="install"
-              title="Install DLE on an existing machine"
               title="Install DBLab on an existing machine"
             />
           ),

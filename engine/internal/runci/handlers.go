@@ -30,7 +30,6 @@ import (
 	dblab_types "gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
@@ -266,7 +265,7 @@ func (s *Server) runCommands(ctx context.Context, clone *models.Clone, runID str
 func (s *Server) buildContainerConfig(clone *models.Clone, migrationEnvs []string) *container.Config {
 	host := clone.DB.Host
 	if host == s.dle.URL("").Hostname() || host == "127.0.0.1" || host == "localhost" {
-		host = util.GetCloneNameStr(clone.DB.Port)
+		host = clone.ID
 	}
 
 	return &container.Config{
