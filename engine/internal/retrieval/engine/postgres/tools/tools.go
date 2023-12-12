@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -93,6 +94,24 @@ func IsEmptyDirectory(dir string) (bool, error) {
 	}
 
 	return len(names) == 0, nil
+}
+
+// CleanupDir removes content of the directory.
+func CleanupDir(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("failed to read directory %s: %w", dir, err)
+	}
+
+	for _, entry := range entries {
+		entryName := filepath.Join(dir, entry.Name())
+
+		if err := os.RemoveAll(entryName); err != nil {
+			return fmt.Errorf("failed to remove %s: %w", entryName, err)
+		}
+	}
+
+	return nil
 }
 
 // TouchFile creates an empty file.

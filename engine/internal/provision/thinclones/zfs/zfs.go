@@ -259,11 +259,10 @@ func (m *Manager) ListClonesNames() ([]string, error) {
 
 	cloneNames := []string{}
 	poolPrefix := m.config.Pool.Name + "/"
-	clonePoolPrefix := m.config.Pool.Name + "/" + util.ClonePrefix
 	lines := strings.Split(strings.TrimSpace(cmdOutput), "\n")
 
 	for _, line := range lines {
-		if strings.HasPrefix(line, clonePoolPrefix) {
+		if strings.HasPrefix(line, poolPrefix) && !strings.Contains(line, m.config.PreSnapshotSuffix) {
 			cloneNames = append(cloneNames, strings.TrimPrefix(line, poolPrefix))
 		}
 	}
@@ -447,7 +446,7 @@ func (m *Manager) CleanupSnapshots(retentionLimit int) ([]string, error) {
 func (m *Manager) getBusySnapshotList(clonesOutput string) []string {
 	systemClones, userClones := make(map[string]string), make(map[string]struct{})
 
-	userClonePrefix := m.config.Pool.Name + "/" + util.ClonePrefix
+	userClonePrefix := m.config.Pool.Name + "/"
 
 	for _, line := range strings.Split(clonesOutput, "\n") {
 		cloneLine := strings.FieldsFunc(line, unicode.IsSpace)
@@ -456,7 +455,8 @@ func (m *Manager) getBusySnapshotList(clonesOutput string) []string {
 			continue
 		}
 
-		if strings.HasPrefix(cloneLine[0], userClonePrefix) {
+		if cloneName, _ := strings.CutPrefix(cloneLine[0], userClonePrefix);
+			strings.HasPrefix(cloneLine[0], userClonePrefix) && !strings.Contains(cloneName, m.config.PreSnapshotSuffix) {
 			origin := cloneLine[1]
 
 			if idx := strings.Index(origin, "@"); idx != -1 {

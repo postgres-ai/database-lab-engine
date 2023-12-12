@@ -21,8 +21,8 @@ func (r runnerMock) Run(string, ...bool) (string, error) {
 
 func TestListClones(t *testing.T) {
 	const (
-		poolName    = "datastore"
-		clonePrefix = "dblab_clone_"
+		poolName          = "datastore"
+		preSnapshotSuffix = "_pre"
 	)
 
 	testCases := []struct {
@@ -37,47 +37,47 @@ func TestListClones(t *testing.T) {
 		{
 			caseName: "single clone",
 			cmdOutput: `datastore/clone_pre_20200831030000
-datastore/dblab_clone_6000
+datastore/cls19p20l4rc73bc2v9g
 `,
 			cloneNames: []string{
-				"dblab_clone_6000",
+				"cls19p20l4rc73bc2v9g",
 			},
 		},
 		{
 			caseName: "multiple clones",
 			cmdOutput: `datastore/clone_pre_20200831030000
-datastore/dblab_clone_6000
-datastore/dblab_clone_6001
+datastore/cls19p20l4rc73bc2v9g
+datastore/cls184a0l4rc73bc2v90
 `,
 			cloneNames: []string{
-				"dblab_clone_6000",
-				"dblab_clone_6001",
+				"cls19p20l4rc73bc2v9g",
+				"cls184a0l4rc73bc2v90",
 			},
 		},
 		{
 			caseName: "clone duplicate",
 			cmdOutput: `datastore/clone_pre_20200831030000
-datastore/dblab_clone_6000
-datastore/dblab_clone_6000
+datastore/cls19p20l4rc73bc2v9g
+datastore/cls19p20l4rc73bc2v9g
 `,
 			cloneNames: []string{
-				"dblab_clone_6000",
+				"cls19p20l4rc73bc2v9g",
 			},
 		},
 		{
 			caseName: "different pool",
 			cmdOutput: `datastore/clone_pre_20200831030000
-dblab_pool/dblab_clone_6001
-datastore/dblab_clone_6000
+dblab_pool/cls19p20l4rc73bc2v9g
+datastore/cls184a0l4rc73bc2v90
 `,
 			cloneNames: []string{
-				"dblab_clone_6000",
+				"cls184a0l4rc73bc2v90",
 			},
 		},
 		{
 			caseName: "no matched clone",
 			cmdOutput: `datastore/clone_pre_20200831030000
-dblab_pool/dblab_clone_6001
+dblab_pool/cls19p20l4rc73bc2v9g
 `,
 			cloneNames: []string{},
 		},
@@ -90,7 +90,7 @@ dblab_pool/dblab_clone_6001
 			},
 			config: Config{
 				Pool:              resources.NewPool(poolName),
-				PreSnapshotSuffix: clonePrefix,
+				PreSnapshotSuffix: preSnapshotSuffix,
 			},
 		}
 
@@ -115,7 +115,8 @@ func TestFailedListClones(t *testing.T) {
 }
 
 func TestBusySnapshotList(t *testing.T) {
-	m := Manager{config: Config{Pool: &resources.Pool{Name: "dblab_pool"}}}
+	const preSnapshotSuffix = "_pre"
+	m := Manager{config: Config{Pool: &resources.Pool{Name: "dblab_pool"}, PreSnapshotSuffix: preSnapshotSuffix}}
 
 	out := `dblab_pool	-
 dblab_pool/clone_pre_20210127105215	dblab_pool@snapshot_20210127105215_pre
@@ -125,8 +126,8 @@ dblab_pool/clone_pre_20210127123000	dblab_pool@snapshot_20210127123000_pre
 dblab_pool/clone_pre_20210127130000	dblab_pool@snapshot_20210127130000_pre
 dblab_pool/clone_pre_20210127133000	dblab_pool@snapshot_20210127133000_pre
 dblab_pool/clone_pre_20210127140000	dblab_pool@snapshot_20210127140000_pre
-dblab_pool/dblab_clone_6000	dblab_pool/clone_pre_20210127133000@snapshot_20210127133008
-dblab_pool/dblab_clone_6001	dblab_pool/clone_pre_20210127123000@snapshot_20210127133008
+dblab_pool/cls19p20l4rc73bc2v9g	dblab_pool/clone_pre_20210127133000@snapshot_20210127133008
+dblab_pool/cls19p20l4rc73bc2v9g	dblab_pool/clone_pre_20210127123000@snapshot_20210127133008
 `
 	expected := []string{"dblab_pool@snapshot_20210127133000_pre", "dblab_pool@snapshot_20210127123000_pre"}
 

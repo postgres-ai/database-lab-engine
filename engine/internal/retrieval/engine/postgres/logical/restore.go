@@ -211,10 +211,6 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return fmt.Errorf("failed to explore the data directory %q: %w", dataDir, err)
 	}
 
-	if !isEmpty {
-		log.Warn(fmt.Sprintf("The data directory %q is not empty. Existing data will be overwritten.", dataDir))
-	}
-
 	if err := tools.PullImage(ctx, r.dockerClient, r.RestoreOptions.DockerImage); err != nil {
 		return errors.Wrap(err, "failed to scan image pulling response")
 	}
@@ -243,6 +239,16 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 			tools.PrintContainerLogs(ctx, r.dockerClient, r.restoreContainerName())
 		}
 	}()
+
+	if !isEmpty {
+		log.Warn(fmt.Sprintf("The data directory %q is not empty. Existing data will be overwritten.", dataDir))
+
+		log.Msg("Clean up data directory:", dataDir)
+
+		if err := tools.CleanupDir(dataDir); err != nil {
+			return fmt.Errorf("failed to clean up data directory before restore: %w", err)
+		}
+	}
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", r.restoreContainerName(), containerID))
 
