@@ -467,7 +467,8 @@ func (m *Manager) getBusySnapshotList(clonesOutput string) []string {
 			continue
 		}
 
-		if cloneName, _ := strings.CutPrefix(cloneLine[0], userClonePrefix); strings.HasPrefix(cloneLine[0], userClonePrefix) && !strings.Contains(cloneName, m.config.PreSnapshotSuffix) {
+		if cloneName, _ := strings.CutPrefix(cloneLine[0], userClonePrefix);
+			strings.HasPrefix(cloneLine[0], userClonePrefix) && !strings.Contains(cloneName, m.config.PreSnapshotSuffix) {
 			origin := cloneLine[1]
 
 			if idx := strings.Index(origin, "@"); idx != -1 {
