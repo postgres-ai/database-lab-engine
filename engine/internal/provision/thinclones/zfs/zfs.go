@@ -415,6 +415,18 @@ func (m *Manager) moveBranchPointer(rel *snapshotRelation, snapshotName string) 
 	return nil
 }
 
+func (m *Manager) checkDependentClones(snapshotName string) (string, error) {
+	clonesCmd := fmt.Sprintf("zfs list -t snapshot -H -o clones -r %s %s", m.config.Pool.Name, snapshotName)
+
+	clonesOutput, err := m.runner.Run(clonesCmd)
+	if err != nil {
+		log.Dbg(clonesOutput)
+		return "", fmt.Errorf("failed to list dependent clones: %w", err)
+	}
+
+	return strings.TrimSpace(clonesOutput), nil
+}
+
 // CleanupSnapshots destroys old snapshots considering retention limit and related clones.
 func (m *Manager) CleanupSnapshots(retentionLimit int) ([]string, error) {
 	clonesCmd := fmt.Sprintf("zfs list -S clones -o name,origin -H -r %s", m.config.Pool.Name)

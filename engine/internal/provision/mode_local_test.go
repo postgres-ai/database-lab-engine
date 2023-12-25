@@ -182,6 +182,10 @@ func (m mockFSManager) DeleteRootProp(_, _ string) error {
 	return nil
 }
 
+func (m mockFSManager) HasDependentEntity(_ string) error {
+	return nil
+}
+
 func TestBuildPoolEntry(t *testing.T) {
 	testCases := []struct {
 		pool          *resources.Pool

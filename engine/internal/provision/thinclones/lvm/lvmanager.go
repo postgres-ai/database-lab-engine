@@ -260,3 +260,10 @@ func (m *LVManager) Rename(_, _ string) error {
 
 	return nil
 }
+
+// HasDependentEntity checks if snapshot has dependent entities.
+func (m *LVManager) HasDependentEntity(_ string) error {
+	log.Msg("HasDependentEntity is not supported for LVM. Skip the operation")
+
+	return nil
+}

@@ -70,6 +70,7 @@ type Branching interface {
 	SetDSA(dsa, snapshotName string) error
 	SetMessage(message, snapshotName string) error
 	Reset(snapshotID string, options thinclones.ResetOptions) error
+	HasDependentEntity(snapshotName string) error
 }
 
 // Pooler describes methods for Pool providing.

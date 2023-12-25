@@ -198,6 +198,11 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := fsm.HasDependentEntity(destroyRequest.SnapshotID); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
 	if err = fsm.DestroySnapshot(destroyRequest.SnapshotID); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return

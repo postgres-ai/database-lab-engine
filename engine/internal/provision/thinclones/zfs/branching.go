@@ -381,6 +381,38 @@ func (m *Manager) SetMessage(message, snapshotName string) error {
 	return m.setProperty(messageProp, encodedMessage, snapshotName)
 }
 
+// HasDependentEntity gets the root property of the snapshot.
+func (m *Manager) HasDependentEntity(snapshotName string) error {
+	root, err := m.getProperty(rootProp, snapshotName)
+	if err != nil {
+		return fmt.Errorf("failed to check root property: %w", err)
+	}
+
+	if root != "" {
+		return fmt.Errorf("snapshot has dependent branches: %s", root)
+	}
+
+	child, err := m.getProperty(childProp, snapshotName)
+	if err != nil {
+		return fmt.Errorf("failed to check snapshot child property: %w", err)
+	}
+
+	if child != "" {
+		return fmt.Errorf("snapshot has dependent snapshots: %s", child)
+	}
+
+	clones, err := m.checkDependentClones(snapshotName)
+	if err != nil {
+		return fmt.Errorf("failed to check dependent clones: %w", err)
+	}
+
+	if len(clones) != 0 {
+		return fmt.Errorf("snapshot has dependent clones: %s", clones)
+	}
+
+	return nil
+}
+
 func (m *Manager) addToSet(property, snapshot, value string) error {
 	original, err := m.getProperty(property, snapshot)
 	if err != nil {
