@@ -184,6 +184,13 @@ func (m *LVManager) ListBranches() (map[string]string, error) {
 	return nil, nil
 }
 
+// ListAllBranches lists all branches.
+func (m *LVManager) ListAllBranches() (map[string]string, error) {
+	log.Msg("ListAllBranches is not supported for LVM. Skip the operation")
+
+	return nil, nil
+}
+
 // AddBranchProp adds branch to snapshot property.
 func (m *LVManager) AddBranchProp(_, _ string) error {
 	log.Msg("AddBranchProp is not supported for LVM. Skip the operation")
@@ -229,6 +236,13 @@ func (m *LVManager) SetRoot(_, _ string) error {
 // GetRepo provides data repository details.
 func (m *LVManager) GetRepo() (*models.Repo, error) {
 	log.Msg("GetRepo is not supported for LVM. Skip the operation")
+
+	return nil, nil
+}
+
+// GetAllRepo provides data repository details.
+func (m *LVManager) GetAllRepo() (*models.Repo, error) {
+	log.Msg("GetAllRepo is not supported for LVM. Skip the operation")
 
 	return nil, nil
 }

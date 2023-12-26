@@ -57,7 +57,9 @@ type Branching interface {
 	VerifyBranchMetadata() error
 	CreateBranch(branchName, snapshotID string) error
 	ListBranches() (map[string]string, error)
+	ListAllBranches() (map[string]string, error)
 	GetRepo() (*models.Repo, error)
+	GetAllRepo() (*models.Repo, error)
 	SetRelation(parent, snapshotName string) error
 	Snapshot(snapshotName string) error
 	SetMountpoint(path, branch string) error

@@ -28,6 +28,7 @@ type SnapshotDetails struct {
 	Root        []string `json:"root"`
 	DataStateAt string   `json:"dataStateAt"`
 	Message     string   `json:"message"`
+	Dataset     string   `json:"dataset"`
 }
 
 // BranchView describes branch view.
@@ -36,4 +37,10 @@ type BranchView struct {
 	Parent      string `json:"parent"`
 	DataStateAt string `json:"dataStateAt"`
 	SnapshotID  string `json:"snapshotID"`
+	Dataset     string `json:"dataset"`
+}
+
+// BranchName returns full branch name.
+func BranchName(pool, branch string) string {
+	return pool + "_" + branch
 }

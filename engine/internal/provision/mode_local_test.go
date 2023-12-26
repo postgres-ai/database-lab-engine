@@ -134,6 +134,10 @@ func (m mockFSManager) ListBranches() (map[string]string, error) {
 	return nil, nil
 }
 
+func (m mockFSManager) ListAllBranches() (map[string]string, error) {
+	return nil, nil
+}
+
 func (m mockFSManager) AddBranchProp(_, _ string) error {
 	return nil
 }
@@ -151,6 +155,10 @@ func (m mockFSManager) SetRoot(_, _ string) error {
 }
 
 func (m mockFSManager) GetRepo() (*models.Repo, error) {
+	return nil, nil
+}
+
+func (m mockFSManager) GetAllRepo() (*models.Repo, error) {
 	return nil, nil
 }
 

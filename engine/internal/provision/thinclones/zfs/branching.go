@@ -26,6 +26,10 @@ const (
 	empty       = "-"
 )
 
+type cmdCfg struct {
+	pool string
+}
+
 // InitBranching inits data branching.
 func (m *Manager) InitBranching() error {
 	snapshots := m.SnapshotList()
@@ -206,10 +210,28 @@ func (m *Manager) SetMountpoint(path, name string) error {
 
 // ListBranches lists data pool branches.
 func (m *Manager) ListBranches() (map[string]string, error) {
+	return m.listBranches(cmdCfg{pool: m.config.Pool.Name})
+}
+
+// ListAllBranches lists all branches.
+func (m *Manager) ListAllBranches() (map[string]string, error) {
+	return m.listBranches(cmdCfg{})
+}
+
+func (m *Manager) listBranches(cfg cmdCfg) (map[string]string, error) {
+	filter := ""
+	args := []any{branchProp}
+
+	if cfg.pool != "" {
+		filter = "-r %s"
+		
+		args = append(args, cfg.pool)
+	}
+
 	cmd := fmt.Sprintf(
 		// Get ZFS snapshots (-t) with options (-o) without output headers (-H) filtered by pool (-r).
 		// Excluding snapshots without "dle:branch" property ("grep -v").
-		`zfs list -H -t snapshot -o %s,name -r %s | grep -v "^-" | cat`, branchProp, m.config.Pool.Name,
+		`zfs list -H -t snapshot -o %s,name `+filter+` | grep -v "^-" | cat`, args...,
 	)
 
 	out, err := m.runner.Run(cmd)
@@ -229,13 +251,15 @@ func (m *Manager) ListBranches() (map[string]string, error) {
 			continue
 		}
 
+		dataset, _, _ := strings.Cut(fields[1], "@")
+
 		if !strings.Contains(fields[0], branchSep) {
-			branches[fields[0]] = fields[1]
+			branches[models.BranchName(dataset, fields[0])] = fields[1]
 			continue
 		}
 
 		for _, branchName := range strings.Split(fields[0], branchSep) {
-			branches[branchName] = fields[1]
+			branches[models.BranchName(dataset, branchName)] = fields[1]
 		}
 	}
 
@@ -244,16 +268,30 @@ func (m *Manager) ListBranches() (map[string]string, error) {
 
 var repoFields = []any{"name", parentProp, childProp, branchProp, rootProp, dataStateAtLabel, messageProp}
 
-// GetRepo provides repository details about snapshots and branches.
+// GetRepo provides repository details about snapshots and branches filtered by data pool.
 func (m *Manager) GetRepo() (*models.Repo, error) {
+	return m.getRepo(cmdCfg{pool: m.config.Pool.Name})
+}
+
+// GetAllRepo provides all repository details about snapshots and branches.
+func (m *Manager) GetAllRepo() (*models.Repo, error) {
+	return m.getRepo(cmdCfg{})
+}
+
+func (m *Manager) getRepo(cmdCfg cmdCfg) (*models.Repo, error) {
 	strFields := bytes.TrimRight(bytes.Repeat([]byte(`%s,`), len(repoFields)), ",")
 
-	cmd := fmt.Sprintf(
-		// Get ZFS snapshots (-t) with options (-o) without output headers (-H) filtered by pool (-r).
-		`zfs list -H -t snapshot -o `+string(strFields)+" -r %s", append(repoFields, m.config.Pool.Name)...,
-	)
+	// Get ZFS snapshots (-t) with options (-o) without output headers (-H) filtered by pool (-r).
+	format := `zfs list -H -t snapshot -o ` + string(strFields)
+	args := repoFields
 
-	out, err := m.runner.Run(cmd)
+	if cmdCfg.pool != "" {
+		format += " -r %s"
+
+		args = append(args, cmdCfg.pool)
+	}
+
+	out, err := m.runner.Run(fmt.Sprintf(format, args...))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list branches: %w. Out: %v", err, out)
 	}
@@ -271,6 +309,8 @@ func (m *Manager) GetRepo() (*models.Repo, error) {
 			continue
 		}
 
+		dataset, _, _ := strings.Cut(fields[0], "@")
+
 		snDetail := models.SnapshotDetails{
 			ID:          fields[0],
 			Parent:      fields[1],
@@ -279,6 +319,7 @@ func (m *Manager) GetRepo() (*models.Repo, error) {
 			Root:        unwindField(fields[4]),
 			DataStateAt: strings.Trim(fields[5], empty),
 			Message:     decodeCommitMessage(fields[6]),
+			Dataset:     dataset,
 		}
 
 		repo.Snapshots[fields[0]] = snDetail
@@ -288,7 +329,7 @@ func (m *Manager) GetRepo() (*models.Repo, error) {
 				continue
 			}
 
-			repo.Branches[sn] = fields[0]
+			repo.Branches[models.BranchName(dataset, sn)] = fields[0]
 		}
 	}
 

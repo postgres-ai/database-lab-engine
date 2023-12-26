@@ -26,13 +26,13 @@ func (s *Server) listBranches(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	branches, err := fsm.ListBranches()
+	branches, err := fsm.ListAllBranches()
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	repo, err := fsm.GetRepo()
+	repo, err := fsm.GetAllRepo()
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
@@ -46,12 +46,15 @@ func (s *Server) listBranches(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		_, branchNam, _ := strings.Cut(branchName, "_")
+
 		branchDetails = append(branchDetails,
 			models.BranchView{
-				Name:        branchName,
-				Parent:      findBranchParent(repo.Snapshots, snapshotDetails.ID, branchName),
+				Name:        branchNam,
+				Parent:      findBranchParent(repo.Snapshots, snapshotDetails.ID, branchNam),
 				DataStateAt: snapshotDetails.DataStateAt,
 				SnapshotID:  snapshotDetails.ID,
+				Dataset:     snapshotDetails.Dataset,
 			})
 	}
 
@@ -343,7 +346,7 @@ func (s *Server) log(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snapshotID, ok := repo.Branches[logRequest.BranchName]
+	snapshotID, ok := repo.Branches[models.BranchName(fsm.Pool().Name, logRequest.BranchName)]
 	if !ok {
 		api.SendBadRequestError(w, r, "branch not found: "+logRequest.BranchName)
 		return
@@ -389,7 +392,7 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snapshotID, ok := repo.Branches[deleteRequest.BranchName]
+	snapshotID, ok := repo.Branches[models.BranchName(fsm.Pool().Name, deleteRequest.BranchName)]
 	if !ok {
 		api.SendBadRequestError(w, r, "branch not found: "+deleteRequest.BranchName)
 		return
