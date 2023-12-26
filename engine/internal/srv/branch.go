@@ -126,7 +126,7 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, ok := branches[createRequest.BranchName]; ok {
+	if _, ok := branches[models.BranchName(fsm.Pool().Name, createRequest.BranchName)]; ok {
 		api.SendBadRequestError(w, r, fmt.Sprintf("branch '%s' already exists", createRequest.BranchName))
 		return
 	}
@@ -139,7 +139,7 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		branchPointer, ok := branches[createRequest.BaseBranch]
+		branchPointer, ok := branches[createRequest.BranchName]
 		if !ok {
 			api.SendBadRequestError(w, r, "base branch not found")
 			return
@@ -256,7 +256,7 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currentSnapshotID, ok := branches[clone.Branch]
+	currentSnapshotID, ok := branches[models.BranchName(fsm.Pool().Name, clone.Branch)]
 	if !ok {
 		api.SendBadRequestError(w, r, "branch not found: "+clone.Branch)
 		return
