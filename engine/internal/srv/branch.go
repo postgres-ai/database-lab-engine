@@ -139,7 +139,7 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		branchPointer, ok := branches[createRequest.BranchName]
+		branchPointer, ok := branches[models.BranchName(fsm.Pool().Name, createRequest.BranchName)]
 		if !ok {
 			api.SendBadRequestError(w, r, "base branch not found")
 			return
