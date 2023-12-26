@@ -42,5 +42,5 @@ type BranchView struct {
 
 // BranchName returns full branch name.
 func BranchName(pool, branch string) string {
-	return pool + "_" + branch
+	return pool + "|" + branch
 }
