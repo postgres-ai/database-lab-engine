@@ -210,28 +210,52 @@ func (m *Manager) SetMountpoint(path, name string) error {
 
 // ListBranches lists data pool branches.
 func (m *Manager) ListBranches() (map[string]string, error) {
-	return m.listBranches(cmdCfg{pool: m.config.Pool.Name})
+	return m.listBranches()
 }
 
 // ListAllBranches lists all branches.
-func (m *Manager) ListAllBranches() (map[string]string, error) {
-	return m.listBranches(cmdCfg{})
-}
+func (m *Manager) ListAllBranches() ([]models.BranchEntity, error) {
+	cmd := fmt.Sprintf(
+		// Get all ZFS snapshots (-t) with options (-o) without output headers (-H).
+		// Excluding snapshots without "dle:branch" property ("grep -v").
+		`zfs list -H -t snapshot -o %s,name | grep -v "^-" | cat`, branchProp,
+	)
 
-func (m *Manager) listBranches(cfg cmdCfg) (map[string]string, error) {
-	filter := ""
-	args := []any{branchProp}
-
-	if cfg.pool != "" {
-		filter = "-r %s"
-		
-		args = append(args, cfg.pool)
+	out, err := m.runner.Run(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list branches: %w. Out: %v", err, out)
 	}
 
+	branches := make([]models.BranchEntity, 0)
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+
+	const expectedColumns = 2
+
+	for _, line := range lines {
+		fields := strings.Fields(line)
+
+		if len(fields) != expectedColumns {
+			continue
+		}
+
+		if !strings.Contains(fields[0], branchSep) {
+			branches = append(branches, models.BranchEntity{Name: fields[0], SnapshotID: fields[1]})
+			continue
+		}
+
+		for _, branchName := range strings.Split(fields[0], branchSep) {
+			branches = append(branches, models.BranchEntity{Name: branchName, SnapshotID: fields[1]})
+		}
+	}
+
+	return branches, nil
+}
+
+func (m *Manager) listBranches() (map[string]string, error) {
 	cmd := fmt.Sprintf(
 		// Get ZFS snapshots (-t) with options (-o) without output headers (-H) filtered by pool (-r).
 		// Excluding snapshots without "dle:branch" property ("grep -v").
-		`zfs list -H -t snapshot -o %s,name `+filter+` | grep -v "^-" | cat`, args...,
+		`zfs list -H -t snapshot -o %s,name -r %s | grep -v "^-" | cat`, branchProp, m.config.Pool.Name,
 	)
 
 	out, err := m.runner.Run(cmd)
@@ -251,15 +275,13 @@ func (m *Manager) listBranches(cfg cmdCfg) (map[string]string, error) {
 			continue
 		}
 
-		dataset, _, _ := strings.Cut(fields[1], "@")
-
 		if !strings.Contains(fields[0], branchSep) {
-			branches[models.BranchName(dataset, fields[0])] = fields[1]
+			branches[fields[0]] = fields[1]
 			continue
 		}
 
 		for _, branchName := range strings.Split(fields[0], branchSep) {
-			branches[models.BranchName(dataset, branchName)] = fields[1]
+			branches[branchName] = fields[1]
 		}
 	}
 
@@ -329,7 +351,7 @@ func (m *Manager) getRepo(cmdCfg cmdCfg) (*models.Repo, error) {
 				continue
 			}
 
-			repo.Branches[models.BranchName(dataset, sn)] = fields[0]
+			repo.Branches[sn] = fields[0]
 		}
 	}
 

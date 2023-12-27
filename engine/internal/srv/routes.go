@@ -344,7 +344,7 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		snapshotID, ok := branches[models.BranchName(fsm.Pool().Name, cloneRequest.Branch)]
+		snapshotID, ok := branches[cloneRequest.Branch]
 		if !ok {
 			api.SendBadRequestError(w, r, "branch not found")
 			return

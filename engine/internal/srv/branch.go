@@ -40,18 +40,16 @@ func (s *Server) listBranches(w http.ResponseWriter, r *http.Request) {
 
 	branchDetails := make([]models.BranchView, 0, len(branches))
 
-	for branchName, snapshotID := range branches {
-		snapshotDetails, ok := repo.Snapshots[snapshotID]
+	for _, branchEntity := range branches {
+		snapshotDetails, ok := repo.Snapshots[branchEntity.SnapshotID]
 		if !ok {
 			continue
 		}
 
-		_, branchNam, _ := strings.Cut(branchName, "_")
-
 		branchDetails = append(branchDetails,
 			models.BranchView{
-				Name:        branchNam,
-				Parent:      findBranchParent(repo.Snapshots, snapshotDetails.ID, branchNam),
+				Name:        branchEntity.Name,
+				Parent:      findBranchParent(repo.Snapshots, snapshotDetails.ID, branchEntity.Name),
 				DataStateAt: snapshotDetails.DataStateAt,
 				SnapshotID:  snapshotDetails.ID,
 				Dataset:     snapshotDetails.Dataset,
@@ -126,7 +124,7 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, ok := branches[models.BranchName(fsm.Pool().Name, createRequest.BranchName)]; ok {
+	if _, ok := branches[createRequest.BranchName]; ok {
 		api.SendBadRequestError(w, r, fmt.Sprintf("branch '%s' already exists", createRequest.BranchName))
 		return
 	}
@@ -139,7 +137,7 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		branchPointer, ok := branches[models.BranchName(fsm.Pool().Name, createRequest.BaseBranch)]
+		branchPointer, ok := branches[createRequest.BaseBranch]
 		if !ok {
 			api.SendBadRequestError(w, r, "base branch not found")
 			return
@@ -256,7 +254,7 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currentSnapshotID, ok := branches[models.BranchName(fsm.Pool().Name, clone.Branch)]
+	currentSnapshotID, ok := branches[clone.Branch]
 	if !ok {
 		api.SendBadRequestError(w, r, "branch not found: "+clone.Branch)
 		return
@@ -346,7 +344,7 @@ func (s *Server) log(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snapshotID, ok := repo.Branches[models.BranchName(fsm.Pool().Name, logRequest.BranchName)]
+	snapshotID, ok := repo.Branches[logRequest.BranchName]
 	if !ok {
 		api.SendBadRequestError(w, r, "branch not found: "+logRequest.BranchName)
 		return
@@ -392,7 +390,7 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snapshotID, ok := repo.Branches[models.BranchName(fsm.Pool().Name, deleteRequest.BranchName)]
+	snapshotID, ok := repo.Branches[deleteRequest.BranchName]
 	if !ok {
 		api.SendBadRequestError(w, r, "branch not found: "+deleteRequest.BranchName)
 		return

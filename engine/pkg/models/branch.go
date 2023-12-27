@@ -40,7 +40,8 @@ type BranchView struct {
 	Dataset     string `json:"dataset"`
 }
 
-// BranchName returns full branch name.
-func BranchName(pool, branch string) string {
-	return pool + "|" + branch
+// BranchEntity defines a branch-snapshot pair.
+type BranchEntity struct {
+	Name       string
+	SnapshotID string
 }

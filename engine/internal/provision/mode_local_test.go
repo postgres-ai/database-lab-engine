@@ -134,7 +134,7 @@ func (m mockFSManager) ListBranches() (map[string]string, error) {
 	return nil, nil
 }
 
-func (m mockFSManager) ListAllBranches() (map[string]string, error) {
+func (m mockFSManager) ListAllBranches() ([]models.BranchEntity, error) {
 	return nil, nil
 }
 
