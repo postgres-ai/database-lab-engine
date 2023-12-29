@@ -1086,7 +1086,7 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
     const appBarLogo = (
       <Typography color="inherit" noWrap>
         <NavLink to={ROUTES.ROOT.path} className={classes.logo}>
-          Database Lab Platform &#946;
+          Postgres.ai Console
         </NavLink>
       </Typography>
     )
