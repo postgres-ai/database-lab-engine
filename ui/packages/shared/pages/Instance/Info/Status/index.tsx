@@ -29,7 +29,7 @@ export const Status = observer(() => {
     useState(false)
   const stores = useStores()
 
-  const { instance } = stores.main
+  const { instance, uiVersion, config } = stores.main
   if (!instance || !instance.state) return null
 
   const { code, message } = instance.state.status
@@ -60,7 +60,11 @@ export const Status = observer(() => {
           {formatDateStd(instance.createdAt, { withDistance: true })}
         </Property>
       )}
-      {version && <Property name="Version">{version}</Property>}
+      {uiVersion && <Property name="UI version">{`v${uiVersion}`}</Property>}
+      {version && <Property name="Engine version">{version}</Property>}
+      {config?.dockerImage && (
+        <Property name="Docker image">{config?.dockerImage}</Property>
+        )}
 
       {!isStatusOk && (
         <div className={styles.controls}>

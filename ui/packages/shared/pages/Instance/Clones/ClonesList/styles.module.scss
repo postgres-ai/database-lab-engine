@@ -18,6 +18,16 @@
 .sortIcon {
   margin-left: 8px;
   width: 10px;
+  cursor: pointer;
+  transition: transform 0.15s ease-in-out;
+}
+
+.hideSortIcon {
+  opacity: 0;
+}
+
+.sortIconUp {
+  transform: rotate(180deg);
 }
 
 .protectionIcon {

@@ -49,6 +49,12 @@ export const ClonesList = (props: Props) => {
   const host = useHost()
   const history = useHistory()
 
+  const [state, setState] = useState({
+    sortByBranch: 'desc',
+    sortByCreated: 'desc',
+    clones: props.clones ?? [],
+  })
+
   const [cloneIdForConnect, setCloneIdForConnect] = useState<null | string>(
     null,
   )
@@ -63,7 +69,49 @@ export const ClonesList = (props: Props) => {
     setIsOpenConnectionModal(false)
   }
 
-  if (!props.clones?.length)
+  const handleSortByBranch = () => {
+    const sortByBranch = state.sortByBranch === 'desc' ? 'asc' : 'desc'
+
+    const sortedClones = [...state.clones].sort((a, b) => {
+      if (sortByBranch === 'asc') {
+        return a.branch.localeCompare(b.branch)
+      } else {
+        return b.branch.localeCompare(a.branch)
+      }
+    })
+
+    setState({
+      ...state,
+      sortByBranch,
+      clones: sortedClones,
+    })
+  }
+
+  const handleSortByCreated = () => {
+    const sortByCreated = state.sortByCreated === 'desc' ? 'asc' : 'desc'
+
+    const sortedClones = [...state.clones].sort((a, b) => {
+      if (sortByCreated === 'asc') {
+        return (
+          new Date(a.createdAtDate).getTime() -
+          new Date(b.createdAtDate).getTime()
+        )
+      } else {
+        return (
+          new Date(b.createdAtDate).getTime() -
+          new Date(a.createdAtDate).getTime()
+        )
+      }
+    })
+
+    setState({
+      ...state,
+      sortByCreated,
+      clones: sortedClones,
+    })
+  }
+
+  if (!state.clones?.length)
     return <p className={styles.emptyStub}>{props.emptyStubText}</p>
 
   return (
@@ -76,6 +124,21 @@ export const ClonesList = (props: Props) => {
               <TableHeaderCell>Status</TableHeaderCell>
               <TableHeaderCell>ID</TableHeaderCell>
               <TableHeaderCell>
+                <div
+                  onClick={handleSortByBranch}
+                  className={cn(styles.interactiveRow, styles.verticalCentered)}
+                >
+                  Branch
+                  <ArrowDropDownIcon
+                    className={cn(
+                      state.sortByCreated === 'asc' && styles.hideSortIcon,
+                      state.sortByBranch === 'asc' && styles.sortIconUp,
+                      styles.sortIcon,
+                    )}
+                  />
+                </div>
+              </TableHeaderCell>
+              <TableHeaderCell>
                 <Tooltip content="When enabled, neither manual nor automated deletion of this clone is possible. Note that abandoned protected clones may lead to out-of-disk-space events because they hold old data, blocking cleanup and refresh processes.">
                   <div className={styles.verticalCentered}>
                     Protected
@@ -84,9 +147,18 @@ export const ClonesList = (props: Props) => {
                 </Tooltip>
               </TableHeaderCell>
               <TableHeaderCell>
-                <div className={styles.verticalCentered}>
+                <div
+                  onClick={handleSortByCreated}
+                  className={cn(styles.interactiveRow, styles.verticalCentered)}
+                >
                   Created
-                  <ArrowDropDownIcon className={styles.sortIcon} />
+                  <ArrowDropDownIcon
+                    className={cn(
+                      state.sortByBranch === 'asc' && styles.hideSortIcon,
+                      state.sortByCreated === 'asc' && styles.sortIconUp,
+                      styles.sortIcon,
+                    )}
+                  />
                 </div>
               </TableHeaderCell>
               <TableHeaderCell>Port</TableHeaderCell>
@@ -104,7 +176,7 @@ export const ClonesList = (props: Props) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {props.clones.map((clone) => {
+            {state.clones.map((clone) => {
               const clonePagePath = host.routes.clone(clone.id)
 
               return (
@@ -131,6 +203,7 @@ export const ClonesList = (props: Props) => {
                     </Tooltip>
                   </TableBodyCell>
                   <TableBodyCell>{clone.id}</TableBodyCell>
+                  <TableBodyCell>{clone.branch}</TableBodyCell>
                   <TableBodyCell>
                     {clone.protected ? (
                       <Tooltip content="Clone is protected from manual and automated deletion. Note that abandoned protected clones may lead to out-of-disk-space events because they hold old data, blocking cleanup and refresh processes.">
@@ -160,7 +233,7 @@ export const ClonesList = (props: Props) => {
                   <TableBodyCell>
                     {clone.snapshot ? (
                       <>
-                        {clone.snapshot.dataStateAt}
+                        {clone.snapshot.dataStateAt} (
                         {isValidDate(clone.snapshot.dataStateAtDate)
                           ? formatDistanceToNowStrict(
                               clone.snapshot.dataStateAtDate,
@@ -169,6 +242,7 @@ export const ClonesList = (props: Props) => {
                               },
                             )
                           : '-'}
+                        )
                       </>
                     ) : (
                       '-'

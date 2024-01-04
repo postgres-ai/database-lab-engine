@@ -36,6 +36,7 @@ import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
+import { generateSnapshotPageId } from '@postgres.ai/shared/pages/Instance/Snapshots/utils'
 
 import { Status } from './Status'
 import { useCreatedStores } from './useCreatedStores'
@@ -53,7 +54,7 @@ const useStyles = makeStyles(
   (theme) => ({
     wrapper: {
       display: 'flex',
-      gap: '60px',
+      gap: '40px',
       maxWidth: '1200px',
       fontSize: '14px !important',
       marginTop: '20px',
@@ -77,13 +78,13 @@ const useStyles = makeStyles(
       marginTop: '4px',
     },
     errorStub: {
-      marginTop: '24px',
+      margin: '24px 0',
     },
     spinner: {
       marginLeft: '8px',
     },
     summary: {
-      flex: '1 1 0',
+      flex: '1.5 1 0',
       minWidth: 0,
     },
     snippetContainer: {
@@ -124,7 +125,7 @@ const useStyles = makeStyles(
       marginBottom: '20px',
     },
     actionButton: {
-      marginRight: '16px',
+      marginRight: '10px',
     },
     remark: {
       fontSize: '12px',
@@ -230,26 +231,17 @@ export const Clone = observer((props: Props) => {
     </>
   )
 
-  // Getting instance error.
-  if (stores.main.instanceError)
+  const cloneErrorMessage =
+    stores.main.instanceError?.message || stores.main.cloneError?.message
+  const cloneErrorTitle =
+    stores.main.instanceError?.title || stores.main.cloneError?.title
+
+  if (cloneErrorMessage && cloneErrorTitle)
     return (
       <>
         {headRendered}
 
-        <ErrorStub
-          title={stores.main.instanceError.title}
-          message={stores.main.instanceError.message}
-        />
-      </>
-    )
-
-  // Getting clone error.
-  if (stores.main.cloneError)
-    return (
-      <>
-        {headRendered}
-
-        <ErrorStub {...stores.main.cloneError} />
+        <ErrorStub title={cloneErrorTitle} message={cloneErrorMessage} />
       </>
     )
 
@@ -283,6 +275,16 @@ export const Clone = observer((props: Props) => {
     if (isSuccess) history.push(props.routes.instance())
   }
 
+  const createSnapshot = async () => {
+    await snapshots.createSnapshot(props.cloneId).then((snapshot) => {
+      if (snapshot && generateSnapshotPageId(snapshot.snapshotID)) {
+        history.push(
+          `/instance/snapshots/${generateSnapshotPageId(snapshot.snapshotID)}`,
+        )
+      }
+    })
+  }
+
   // Clone reload.
   const reloadClone = () => stores.main.reload()
 
@@ -309,22 +311,6 @@ export const Clone = observer((props: Props) => {
     <>
       {headRendered}
       <div className={classes.wrapper}>
-        {stores.main.resetCloneError && (
-          <ErrorStub
-            title="Resetting error"
-            message={stores.main.resetCloneError}
-            className={classes.errorStub}
-          />
-        )}
-
-        {stores.main.destroyCloneError && (
-          <ErrorStub
-            title="Destroying error"
-            message={stores.main.destroyCloneError}
-            className={classes.errorStub}
-          />
-        )}
-
         <div className={classes.summary}>
           <div className={classes.actions}>
             <Button
@@ -354,6 +340,19 @@ export const Clone = observer((props: Props) => {
               )}
             </Button>
             <Button
+              variant="contained"
+              color="primary"
+              onClick={createSnapshot}
+              disabled={isDisabledControls}
+              title={'Destroy this clone'}
+              className={classes.actionButton}
+            >
+              Create snapshot
+              {snapshots.snapshotDataLoading && (
+                <Spinner size="sm" className={classes.spinner} />
+              )}
+            </Button>
+            <Button
               variant="outlined"
               color="secondary"
               onClick={reloadClone}
@@ -365,7 +364,22 @@ export const Clone = observer((props: Props) => {
               {isReloading && <Spinner size="sm" className={classes.spinner} />}
             </Button>
           </div>
+          {stores.main.destroyCloneError ||
+            (stores.main.resetCloneError && (
+              <ErrorStub
+                title={'test' ? 'Destroying error' : 'Resetting error'}
+                message={'test' || stores.main.resetCloneError}
+                className={classes.errorStub}
+              />
+            ))}
           <div>
+            <p>
+              <strong>Branch</strong>
+            </p>
+            <p className={classes.text}>{clone.branch}</p>
+          </div>
+
+          <div className={classes.title}>
             <p>
               <strong>Created</strong>
             </p>
@@ -651,8 +665,8 @@ export const Clone = observer((props: Props) => {
             text={'Toggle deletion protection using CLI'}
           />
           <p className={classes.tooltip}>
-            You can toggle deletion protection using CLI for this clone
-            using the following command:
+            You can toggle deletion protection using CLI for this clone using
+            the following command:
           </p>
           <SyntaxHighlight content={getCliProtectedCloneCommand(true)} />
 

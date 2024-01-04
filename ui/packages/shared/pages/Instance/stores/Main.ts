@@ -66,6 +66,7 @@ export class MainStore {
   fullConfig?: string
   dleEdition?: string
   platformUrl?: string
+  uiVersion?: string
   instanceError: Error | null = null
   configError: string | null = null
   getFullConfigError: string | null = null
@@ -248,6 +249,7 @@ export class MainStore {
 
       const splitYML = this.fullConfig.split('---')
       this.platformUrl = splitYML[0]?.split('url: ')[1]?.split('\n')[0]
+      this.uiVersion = splitYML[0]?.split('dockerImage: "postgresai/ce-ui:')[2]?.split('\n')[0]?.replace(/['"]+/g, '')
     }
 
     if (error)

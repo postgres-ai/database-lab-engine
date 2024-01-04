@@ -112,10 +112,11 @@ export const ResetCloneModal = (props: Props) => {
               children: (
                 <>
                   {snapshot.dataStateAt} (
-                  {isValidDate(snapshot.dataStateAtDate) &&
+                  {isValidDate(snapshot.dataStateAtDate) && 
                     formatDistanceToNowStrict(snapshot.dataStateAtDate, {
                       addSuffix: true,
                     })}
+                  )
                   {isLatest && (
                     <span className={classes.snapshotTag}>Latest</span>
                   )}

@@ -34,6 +34,9 @@ const useStyles = makeStyles(
     error: {
       color: '#f44336',
     },
+    infoIcon: {
+      position: 'relative',
+    },
     absoluteSpinner: {
       position: 'absolute',
       left: 'calc(50% - 40px)',
@@ -92,7 +95,9 @@ export const InputWithTooltip = ({
           spellCheck={false}
         />
         <Tooltip interactive content={<p>{tooltipText()}</p>}>
-          <InfoIcon className={styles.infoIcon} />
+          <div className={styles.infoIcon}>
+            <InfoIcon />
+          </div>
         </Tooltip>
       </Box>
     </Box>
@@ -145,7 +150,9 @@ export const InputWithChip = ({
           }}
         />
         <Tooltip interactive content={<p>{tooltipText()}</p>}>
-          <InfoIcon className={styles.infoIcon} />
+          <div className={styles.infoIcon}>
+            <InfoIcon />
+          </div>
         </Tooltip>
       </Box>
       <div className={styles.chipContainer}>
@@ -215,7 +222,7 @@ export const SelectWithTooltip = ({
             !disabled && classes.textField,
             styles.textField,
           )}
-          label={label}
+          label={''}
           error={error}
           value={value}
           disabled={disabled}
@@ -223,7 +230,9 @@ export const SelectWithTooltip = ({
           items={items}
         />
         <Tooltip interactive content={<p>{tooltipText()}</p>}>
-          <InfoIcon className={styles.infoIcon} />
+          <div className={styles.infoIcon}>
+            <InfoIcon />
+          </div>
         </Tooltip>
       </Box>
     </Box>

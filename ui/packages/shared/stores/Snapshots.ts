@@ -19,8 +19,12 @@ export class SnapshotsStore {
   data: Snapshot[] | null = null
   error: string | null = null
   isLoading = false
+  snapshotDataLoading = false
   snapshotData: boolean | null = null
-  snapshotDataError: Error | null = null
+  snapshotDataError: {
+    title?: string
+    message?: string
+  } | null = null
 
   private readonly api: SnapshotsApi
 
@@ -40,10 +44,12 @@ export class SnapshotsStore {
 
   createSnapshot = async (cloneId: string) => {
     if (!this.api.createSnapshot || !cloneId) return
-
+    this.snapshotDataLoading = true
     this.snapshotDataError = null
 
     const { response, error } = await this.api.createSnapshot(cloneId)
+
+    this.snapshotDataLoading = false
 
     if (response) {
       this.snapshotData = !!response

@@ -35,13 +35,13 @@ export const tooltipText = {
   ),
   sharedBuffers: () => (
     <div>
-      Defines default buffer pool size of each Postgres instance managed by DBLab.
-      Note, that this amount of RAM is immediately allocated at Postgres startup
-      time. For example, if the machine running DBLab has 32 GiB of RAM, and the
-      value used here is '1GB', then the theoretical limit of the number of
-      clones is 32. Practically, this limit is even lower because some memory is
-      consumed by various other processes. If you need more clones, reduce the
-      value of{' '}
+      Defines default buffer pool size of each Postgres instance managed by
+      DBLab. Note, that this amount of RAM is immediately allocated at Postgres
+      startup time. For example, if the machine running DBLab has 32 GiB of RAM,
+      and the value used here is '1GB', then the theoretical limit of the number
+      of clones is 32. Practically, this limit is even lower because some memory
+      is consumed by various other processes. If you need more clones, reduce
+      the value of{' '}
       <span className={styles.firaCodeFont}>configs.shared_buffers</span>.
     </div>
   ),
@@ -123,8 +123,8 @@ export const tooltipText = {
       Number of parallel workers used to restore databases from dump to Postgres
       managed by DBLab. For initial data retrieval (very first data refresh), it
       is recommended to use the number of vCPUs available on machine running
-      DBLab. With this approach, we have faster restore time, but we need to keep
-      in mind that we can also have higher usage of CPU and disk IO on this
+      DBLab. With this approach, we have faster restore time, but we need to
+      keep in mind that we can also have higher usage of CPU and disk IO on this
       machine (up to temporary saturation of resources). For subsequent
       refreshes, if DBLab is constantly used, it is recommended to reduce this
       value by 50% to keep some room for normal use of DBLab (such as work with
@@ -153,5 +153,20 @@ export const tooltipText = {
       .
     </div>
   ),
-  tuningParams: () => <div>Test</div>,
+  tuningParams: () => (
+    <div>
+      Query tuning parameters. This is essential to ensure that cloned
+      PostgreSQL most likely generates the same plans as on the source
+      (specifically, it is crutial for query performance troubleshooting and
+      optimization, including working with EXPLAIN plans). For details, see the{' '}
+      <a
+        target={'_blank'}
+        href={'https://postgres.ai/docs/how-to-guides/administration/postgresql-configuration#postgresql-configuration-in-clones'}
+        className={styles.externalLink}
+      >
+        docs
+      </a>
+      .
+    </div>
+  ),
 }

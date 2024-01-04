@@ -36,6 +36,11 @@
    customOrGenericImage,
    genericDockerImages,
  } from './utils'
+ import {
+   SelectWithTooltip,
+   InputWithChip,
+   InputWithTooltip,
+ } from './InputWithTooltip'
  
  import styles from './styles.module.scss'
  import { SeImages } from '@postgres.ai/shared/types/api/endpoints/getSeImages'
@@ -43,7 +48,6 @@
    formatTuningParams,
    formatTuningParamsToObj,
  } from '@postgres.ai/shared/types/api/endpoints/testDbSource'
-import { InputWithChip, InputWithTooltip, SelectWithTooltip } from './InputWithTooltip'
  
  type PgOptionsType = {
    optionType: string
@@ -445,27 +449,30 @@ import { InputWithChip, InputWithTooltip, SelectWithTooltip } from './InputWithT
        e: React.ChangeEvent<HTMLInputElement>,
      ) => {
        if (e.target.value === 'Generic Postgres') {
-         const currentDockerImage =
-           genericDockerImages[genericDockerImages.length - 1]
+         const genericImageVersions = genericDockerImages
+           .map((image) => image.pg_major_version)
+           .filter((value, index, self) => self.indexOf(value) === index)
+           .sort((a, b) => Number(a) - Number(b))
+         const currentDockerImage = genericImageVersions.slice(-1)[0]
+ 
          setDockerState({
            ...dockerState,
-           images: genericDockerImages.map((image) => image.pg_major_version),
            tags: genericDockerImages
-             .filter((image) =>
-               image.tag.startsWith(currentDockerImage.pg_major_version),
-             )
-             .map((image) => image.tag),
+             .map((image) => image.tag)
+             .filter((tag) => tag.startsWith(currentDockerImage)),
+           locations: genericDockerImages
+             .map((image) => image.location)
+             .filter((location) => location?.includes(currentDockerImage)),
+           images: genericImageVersions,
            data: genericDockerImages,
          })
  
          formik.setValues({
            ...formik.values,
-           dockerImage: currentDockerImage.pg_major_version,
-           dockerPath: currentDockerImage.location,
+           dockerImage: currentDockerImage,
            dockerImageType: e.target.value,
-           dockerTag: genericDockerImages.filter((image) =>
-             image.tag.startsWith(currentDockerImage.pg_major_version),
-           )[0].tag,
+           dockerTag: genericDockerImages.map((image) => image.tag)[0],
+           dockerPath: genericDockerImages.map((image) => image.location)[0],
            sharedPreloadLibraries:
              'pg_stat_statements,pg_stat_kcache,pg_cron,pgaudit,anon',
          })
@@ -538,27 +545,33 @@ import { InputWithChip, InputWithTooltip, SelectWithTooltip } from './InputWithT
  
            if (customOrGenericImage(configData?.dockerImageType)) {
              if (configData?.dockerImageType === 'Generic Postgres') {
-               const dockerObject = genericDockerImages.filter(
-                 (image) => image.location === configData.dockerPath,
-               )[0]
+               const genericImageVersions = genericDockerImages
+                 .map((image) => image.pg_major_version)
+                 .filter((value, index, self) => self.indexOf(value) === index)
+                 .sort((a, b) => Number(a) - Number(b))
+               const currentDockerImage =
+                 genericDockerImages.filter(
+                   (image) => image.location === configData?.dockerPath,
+                 )[0] ||
+                 genericDockerImages.filter((image) =>
+                   configData?.dockerPath?.includes(image.pg_major_version),
+                 )[0]
  
                setDockerState({
                  ...dockerState,
-                 images: genericDockerImages.map(
-                   (image) => image.pg_major_version,
-                 ),
                  tags: genericDockerImages
-                   .filter((image) =>
-                     image.tag.startsWith(dockerObject?.pg_major_version),
-                   )
-                   .map((image) => image.tag),
+                   .map((image) => image.tag)
+                   .filter((tag) =>
+                     tag.startsWith(currentDockerImage.pg_major_version),
+                   ),
+                 images: genericImageVersions,
                  data: genericDockerImages,
                })
  
-               formik.setFieldValue('dockerTag', dockerObject?.tag)
+               formik.setFieldValue('dockerTag', currentDockerImage?.tag)
                formik.setFieldValue(
                  'dockerImage',
-                 dockerObject?.pg_major_version,
+                 currentDockerImage.pg_major_version,
                )
              } else {
                formik.setFieldValue('dockerImage', configData?.dockerPath)
@@ -625,7 +638,7 @@ import { InputWithChip, InputWithTooltip, SelectWithTooltip } from './InputWithT
            }
            className={styles.snackbar}
          />
-         {!config || isConfigurationLoading ? (
+         {!config && isConfigurationLoading ? (
            <div className={styles.spinnerContainer}>
              <Spinner size="lg" className={styles.spinner} />
            </div>
@@ -808,8 +821,8 @@ import { InputWithChip, InputWithTooltip, SelectWithTooltip } from './InputWithT
                    className={classes.grayText}
                    style={{ margin: '0.5rem 0 1rem 0', display: 'block' }}
                  >
-                   DBLab manages various database containers, such as clones. This
-                   section defines default container settings.
+                   DBLab manages various database containers, such as clones.
+                   This section defines default container settings.
                  </span>
                  <div>
                    <SelectWithTooltip
