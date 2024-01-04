@@ -9,6 +9,7 @@ export type SnapshotDto = {
   physicalSize: number
   logicalSize: number
   comment?: string
+  message?: string
 }
 
 export const formatSnapshotDto = (dto: SnapshotDto) => ({

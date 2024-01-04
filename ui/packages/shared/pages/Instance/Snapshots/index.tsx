@@ -98,7 +98,9 @@ export const Snapshots = observer(() => {
 
                 {!hasClones && (
                   <Tooltip content="No clones">
-                    <InfoIcon className={classes.infoIcon} />
+                    <div>
+                      <InfoIcon className={classes.infoIcon} />
+                    </div>
                   </Tooltip>
                 )}
               </>

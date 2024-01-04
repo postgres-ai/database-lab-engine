@@ -69,6 +69,7 @@ export const DeleteBranchModal = ({
             text: 'Destroy branch',
             variant: 'primary',
             onClick: handleSubmit,
+            isDisabled: branchName === 'main',
           },
         ]}
       />

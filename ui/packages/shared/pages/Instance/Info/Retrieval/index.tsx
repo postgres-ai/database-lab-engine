@@ -7,8 +7,6 @@ import { Status } from '@postgres.ai/shared/components/Status'
 import { capitalize } from '@postgres.ai/shared/utils/strings'
 import { formatDateStd } from '@postgres.ai/shared/utils/date'
 import { Button } from '@postgres.ai/shared/components/Button2'
-import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
-import { InfoIcon } from '@postgres.ai/shared/icons/Info'
 
 import { Section } from '../components/Section'
 import { Property } from '../components/Property'
@@ -41,7 +39,7 @@ export const Retrieval = observer(() => {
   const { instance, instanceRetrieval } = stores.main
   if (!instance) return null
 
-  const retrieving  = instance.state?.retrieving
+  const retrieving = instance.state?.retrieving
   if (!retrieving) return null
 
   if (!instanceRetrieval) return null
@@ -64,11 +62,6 @@ export const Retrieval = observer(() => {
               >
                 Show details
               </Button>
-              {!isActive && (
-                <Tooltip content="No retrieval activity details">
-                  <InfoIcon className={classes.infoIcon} />
-                </Tooltip>
-              )}
             </>
           )}
         </Status>

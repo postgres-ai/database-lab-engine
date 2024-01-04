@@ -5,11 +5,13 @@
  *--------------------------------------------------------------------------
  */
 
+import cn from 'classnames'
 import { useState } from 'react'
 import copy from 'copy-to-clipboard'
 import { makeStyles } from '@material-ui/core'
 import { useHistory } from 'react-router-dom'
 
+import { ArrowDropDownIcon } from '@postgres.ai/shared/icons/ArrowDropDown'
 import { GetBranchesResponseType } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
 import {
@@ -37,8 +39,18 @@ const useStyles = makeStyles(
       marginLeft: '8px',
       width: '10px',
     },
+    interactiveRow: {
+      cursor: 'pointer',
+    },
+    verticalCentered: {
+      display: 'flex',
+      alignItems: 'center',
+    },
     marginTop: {
       marginTop: '16px',
+    },
+    sortIconUp: {
+      transform: 'rotate(180deg)',
     },
   },
   { index: 1 },
@@ -58,10 +70,31 @@ export const BranchesTable = ({
   const history = useHistory()
   const classes = useStyles()
 
+  const [state, setState] = useState({
+    sortByParent: 'desc',
+    branches: branchesData ?? [],
+  })
   const [branchId, setBranchId] = useState('')
   const [isOpenDestroyModal, setIsOpenDestroyModal] = useState(false)
 
-  if (!branchesData.length) {
+  const handlesortByParent = () => {
+    const sortByParent = state.sortByParent === 'desc' ? 'asc' : 'desc'
+
+    const sortedBranches = [...state.branches].sort((a, b) => {
+      if (sortByParent === 'asc') {
+        return a.parent.localeCompare(b.parent)
+      } else {
+        return b.parent.localeCompare(a.parent)
+      }
+    })
+
+    setState({
+      sortByParent,
+      branches: sortedBranches,
+    })
+  }
+
+  if (!state.branches.length) {
     return <p className={classes.marginTop}>{emptyTableText}</p>
   }
 
@@ -72,13 +105,26 @@ export const BranchesTable = ({
           <TableRow>
             <TableHeaderCell />
             <TableHeaderCell>Branch</TableHeaderCell>
-            <TableHeaderCell>Parent</TableHeaderCell>
+            <TableHeaderCell>
+              <div
+                onClick={handlesortByParent}
+                className={cn(classes.interactiveRow, classes.verticalCentered)}
+              >
+                Parent
+                <ArrowDropDownIcon
+                  className={cn(
+                    state.sortByParent === 'asc' && classes.sortIconUp,
+                    classes.sortIcon,
+                  )}
+                />
+              </div>
+            </TableHeaderCell>
             <TableHeaderCell>Data state time</TableHeaderCell>
             <TableHeaderCell>Snapshot ID</TableHeaderCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {branchesData?.map((branch) => (
+          {state.branches?.map((branch) => (
             <TableRow
               key={branch.name}
               hover

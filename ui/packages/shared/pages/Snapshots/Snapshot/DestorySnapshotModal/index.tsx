@@ -5,20 +5,21 @@
  *--------------------------------------------------------------------------
  */
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { makeStyles } from '@material-ui/core'
 
 import { Modal } from '@postgres.ai/shared/components/Modal'
 import { ImportantText } from '@postgres.ai/shared/components/ImportantText'
 import { Text } from '@postgres.ai/shared/components/Text'
+import { destroySnapshot as destroySnapshotAPI } from '@postgres.ai/ce/src/api/snapshots/destroySnapshot'
 import { SimpleModalControls } from '@postgres.ai/shared/components/SimpleModalControls'
+import { useCreatedStores } from '../useCreatedStores'
 
 type Props = {
   snapshotId: string
   isOpen: boolean
   onClose: () => void
-  onDestroySnapshot: () => void
-  destroySnapshotError: { title?: string; message: string } | null
+  afterSubmitClick: () => void
 }
 
 const useStyles = makeStyles(
@@ -35,24 +36,30 @@ export const DestroySnapshotModal = ({
   snapshotId,
   isOpen,
   onClose,
-  onDestroySnapshot,
-  destroySnapshotError,
+  afterSubmitClick,
 }: Props) => {
   const classes = useStyles()
-  const [deleteError, setDeleteError] = useState(destroySnapshotError?.message)
-
-  const handleClickDestroy = () => {
-    onDestroySnapshot()
-  }
+  const props = { api: { destroySnapshot: destroySnapshotAPI } }
+  const stores = useCreatedStores(props.api)
+  const { destroySnapshot } = stores.main
+  const [deleteError, setDeleteError] = useState(null)
 
   const handleClose = () => {
-    setDeleteError('')
+    setDeleteError(null)
     onClose()
   }
 
-  useEffect(() => {
-    setDeleteError(destroySnapshotError?.message)
-  }, [destroySnapshotError])
+  const handleClickDestroy = () => {
+    destroySnapshot(snapshotId).then((res) => {
+     if (res?.error?.message) {
+        setDeleteError(res.error.message)
+      } else {
+        afterSubmitClick()
+        handleClose()
+      }
+    })
+  }
+
 
   return (
     <Modal title={'Confirmation'} onClose={handleClose} isOpen={isOpen}>

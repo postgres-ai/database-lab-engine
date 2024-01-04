@@ -24,7 +24,7 @@ type Error = {
 
 export type Api = SnapshotsApi & {
   destroySnapshot: DestroySnapshot
-  getBranchSnapshot: GetBranchSnapshot
+  getBranchSnapshot?: GetBranchSnapshot
 }
 
 export class MainStore {
@@ -33,7 +33,6 @@ export class MainStore {
 
   snapshotError: Error | null = null
   branchSnapshotError: Error | null = null
-  destroySnapshotError: Error | null = null
 
   isSnapshotsLoading = false
 
@@ -78,7 +77,7 @@ export class MainStore {
   }
 
   getBranchSnapshot = async (snapshotId: string) => {
-    if (!snapshotId) return
+    if (!snapshotId || !this.api.getBranchSnapshot) return
 
     const { response, error } = await this.api.getBranchSnapshot(snapshotId)
 
@@ -100,10 +99,9 @@ export class MainStore {
 
     const { response, error } = await this.api.destroySnapshot(snapshotId)
 
-    if (error) {
-      this.destroySnapshotError = await error.json().then((err) => err)
+    return  {
+      response,
+      error: error ? await error.json().then((err) => err) : null,
     }
-
-    return response
   }
 }

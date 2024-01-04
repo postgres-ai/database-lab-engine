@@ -136,7 +136,7 @@ const useStyles = makeStyles(
 export const SnapshotPage = observer((props: Props) => {
   const classes = useStyles()
   const history = useHistory()
-  const stores = useCreatedStores(props)
+  const stores = useCreatedStores(props.api)
 
   const [isOpenDestroyModal, setIsOpenDestroyModal] = useState(false)
 
@@ -146,13 +146,11 @@ export const SnapshotPage = observer((props: Props) => {
     isSnapshotsLoading,
     snapshotError,
     branchSnapshotError,
-    destroySnapshotError,
     load,
   } = stores.main
 
-  const destroySnapshot = async () => {
-    const isSuccess = await stores.main.destroySnapshot(String(snapshot?.id))
-    if (isSuccess) history.push(props.routes.snapshot())
+  const redirectToSnapshot = () => {
+    history.push(props.routes.snapshot())
   }
 
   const BranchHeader = () => {
@@ -376,15 +374,14 @@ export const SnapshotPage = observer((props: Props) => {
             text={'Delete snapshot using CLI'}
           />
           <p className={classes.cliText}>
-            You can delete this snapshot using CLI. To do this, run the
-            command below:
+            You can delete this snapshot using CLI. To do this, run the command
+            below:
           </p>
           <SyntaxHighlight
             content={
-              'dblab snapshot delete dblab_pool/dataset_2@snapshot_20230110074634dblab snapshot delete dblab_pool/dataset_2@snapshot_20230110074634'
+              `dblab snapshot delete ${snapshot?.id}`
             }
           />
-
           <SectionTitle
             className={classes.marginTop}
             tag="h2"
@@ -392,8 +389,8 @@ export const SnapshotPage = observer((props: Props) => {
             text={'Get snapshots using CLI'}
           />
           <p className={classes.cliText}>
-            You can get a list of all snapshots using CLI. To do this, run
-            the command below:
+            You can get a list of all snapshots using CLI. To do this, run the
+            command below:
           </p>
           <SyntaxHighlight content={`dblab snapshot list`} />
         </div>
@@ -401,8 +398,7 @@ export const SnapshotPage = observer((props: Props) => {
           isOpen={isOpenDestroyModal}
           onClose={() => setIsOpenDestroyModal(false)}
           snapshotId={props.snapshotId}
-          onDestroySnapshot={destroySnapshot}
-          destroySnapshotError={destroySnapshotError}
+          afterSubmitClick={redirectToSnapshot}
         />
       </div>
     </>

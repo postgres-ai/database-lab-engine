@@ -1,3 +1,4 @@
+import cn from 'classnames'
 import { useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
@@ -135,12 +136,6 @@ export const CreateClone = observer((props: Props) => {
       <div className={styles.container}>
         <div className={styles.form}>
           <SectionTitle tag="h1" level={1} text="Create clone" />
-          {stores.main.cloneError && (
-            <div className={styles.section}>
-              <ErrorStub message={stores.main.cloneError} />
-            </div>
-          )}
-
           <div className={styles.section}>
             {branchesList && branchesList.length > 0 && (
               <Select
@@ -234,7 +229,32 @@ export const CreateClone = observer((props: Props) => {
             />
           </div>
 
-          <div className={styles.section}>
+          <div className={styles.form}>
+            <FormControlLabel
+              label="Enable deletion protection"
+              control={
+                <Checkbox
+                  checked={formik.values.isProtected}
+                  onChange={(e) =>
+                    formik.setFieldValue('isProtected', e.target.checked)
+                  }
+                  name="protected"
+                  disabled={isCreatingClone}
+                />
+              }
+            />
+
+            <p className={styles.remark}>
+              When enabled no one can delete this clone and automated deletion
+              is also disabled.
+              <br />
+              Please be careful: abandoned clones with this checkbox enabled may
+              cause out-of-disk-space events. Check disk space on daily basis
+              and delete this clone once the work is done.
+            </p>
+          </div>
+
+          <div className={cn(styles.marginBottom, styles.section)}>
             <Paper className={styles.summary}>
               <InfoIcon className={styles.summaryIcon} />
 
@@ -261,77 +281,28 @@ export const CreateClone = observer((props: Props) => {
                 </p>
               </div>
             </Paper>
-          </div>
-        </div>
-
-        <div className={styles.section}>
-          <FormControlLabel
-            label="Enable deletion protection"
-            control={
-              <Checkbox
-                checked={formik.values.isProtected}
-                onChange={(e) =>
-                  formik.setFieldValue('isProtected', e.target.checked)
-                }
-                name="protected"
-                disabled={isCreatingClone}
-              />
-            }
-          />
-
-          <p className={styles.remark}>
-            When enabled no one can delete this clone and automated deletion is
-            also disabled.
-            <br />
-            Please be careful: abandoned clones with this checkbox enabled may
-            cause out-of-disk-space events. Check disk space on daily basis and
-            delete this clone once the work is done.
-          </p>
-        </div>
-
-        <div className={styles.section}>
-          <div className={styles.controls}>
-            <Button
-              onClick={formik.submitForm}
-              variant="primary"
-              size="medium"
-              isDisabled={isCreatingClone}
-            >
-              Create clone
-              {isCreatingClone && (
-                <Spinner size="sm" className={styles.spinner} />
-              )}
-            </Button>
-
-            <div className={styles.section}>
-              <Paper className={styles.summary}>
-                <InfoIcon className={styles.summaryIcon} />
-
-                <div className={styles.params}>
-                  <p className={styles.param}>
-                    <span>Data size:</span>
-                    <strong>
-                      {stores.main.instance.state?.dataSize
-                        ? formatBytesIEC(stores.main.instance.state.dataSize)
-                        : '-'}
-                    </strong>
-                  </p>
-
-                  <p className={styles.param}>
-                    <span>Expected cloning time:</span>
-                    <strong>
-                      {round(
-                        stores.main.instance.state?.cloning
-                          .expectedCloningTime as number,
-                        2,
-                      )}{' '}
-                      s
-                    </strong>
-                  </p>
-                </div>
-              </Paper>
+            {stores.main.cloneError && (
+              <div className={cn(styles.marginBottom, styles.section)}>
+                <ErrorStub message={stores.main.cloneError} />
+              </div>
+            )}
+            <div className={styles.controls}>
+              <Button
+                onClick={formik.submitForm}
+                variant="primary"
+                size="medium"
+                isDisabled={isCreatingClone}
+              >
+                Create clone
+                {isCreatingClone && (
+                  <Spinner size="sm" className={styles.spinner} />
+                )}
+              </Button>
             </div>
           </div>
+        </div>
+
+        <div className={styles.form}>
           <div className={styles.snippetContainer}>
             <SectionTitle
               className={styles.title}
@@ -344,6 +315,7 @@ export const CreateClone = observer((props: Props) => {
               form, copy the command below and paste it into your terminal.
             </p>
             <SyntaxHighlight
+              wrapLines
               content={getCliCreateCloneCommand(formik.values)}
             />
 
