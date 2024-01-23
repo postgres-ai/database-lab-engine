@@ -55,6 +55,13 @@ func TestValidationCloneRequestErrors(t *testing.T) {
 			createRequest: types.CloneCreateRequest{DB: &types.DatabaseRequest{Password: "password"}},
 			error:         "missing DB username",
 		},
+		{
+			createRequest: types.CloneCreateRequest{
+				DB: &types.DatabaseRequest{Username: "user", Password: "password"},
+				ID: "test/ID",
+			},
+			error: "Clone ID cannot contain slash ('/'). Please choose another ID",
+		},
 	}
 
 	for _, tc := range testCases {
