@@ -263,7 +263,6 @@ class JoeSessionCommand extends Component {
     const openVizDialog = showFlameGraph || (externalVisualization &&
       externalVisualization.url && externalVisualization.url.length > 0);
     const title = `Command #${commandId} (${data.command}) from session #${sessionId}`;
-    const recommends = data.recommends;
 
     let shareUrlButton = (
       <Button
@@ -397,9 +396,6 @@ class JoeSessionCommand extends Component {
             <TabPanel value={this.state.tab} index={2}>
               <FormattedText value={data.planText} />
             </TabPanel>
-
-            <h4>Recommendations:</h4>
-            <FormattedText value={recommends} />
 
             <h4>Statistics:</h4>
             <FormattedText value={data.stats.trim()} />
