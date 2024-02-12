@@ -124,7 +124,7 @@ class DbLabInstanceForm extends Component<
     const url = window.location.href.split('/')
     const instanceID = url[url.length - 1]
 
-     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
+    this.unsubscribe = (Store.listen as RefluxTypes['listen'])(function () {
       that.setState({ data: this.data, instanceID: instanceID })
 
       const auth = this.data && this.data.auth ? this.data.auth : null
@@ -138,7 +138,8 @@ class DbLabInstanceForm extends Component<
           project_label:
             that.state.project_label ||
             dbLabInstances.data[instanceID]?.project_label_or_name,
-          token: dbLabInstances.data[instanceID]?.verify_token,
+          token:
+            that.state.token || dbLabInstances.data[instanceID]?.verify_token,
           useTunnel:
             that.state.useTunnel || dbLabInstances.data[instanceID]?.use_tunnel,
           url: that.state.url || dbLabInstances.data[instanceID]?.url,
@@ -224,14 +225,30 @@ class DbLabInstanceForm extends Component<
     }
   }
 
+  clearFieldError = (fieldName: string) => {
+    const errorFields = this.state.errorFields.filter((field) => {
+      return field !== fieldName
+    })
+
+    this.setState({ errorFields: errorFields })
+  }
+
   checkUrlHandler = () => {
     const auth =
       this.state.data && this.state.data.auth ? this.state.data.auth : null
     const data = this.state.data ? this.state.data.newDbLabInstance : null
-    const errorFields = []
+    const errorFields: string[] = []
 
     if (!this.state.url) {
       errorFields.push('url')
+    }
+
+    if (!this.state.token) {
+      errorFields.push('token')
+    }
+
+    if (errorFields.length > 0) {
+      this.setState({ errorFields: errorFields })
       return
     }
 
@@ -259,6 +276,7 @@ class DbLabInstanceForm extends Component<
 
   generateTokenHandler = () => {
     this.setState({ token: generateToken() })
+    this.clearFieldError('token')
   }
 
   render() {
@@ -357,6 +375,7 @@ class DbLabInstanceForm extends Component<
                 this.setState({
                   project: e.target.value,
                 })
+                this.clearFieldError('project')
                 Actions.resetNewDbLabInstance()
               }}
               margin="normal"
@@ -389,6 +408,7 @@ class DbLabInstanceForm extends Component<
                 this.setState({
                   project_label: e.target.value,
                 })
+                this.clearFieldError('project_label')
                 Actions.resetNewDbLabInstance()
               }}
               margin="normal"
@@ -423,6 +443,7 @@ class DbLabInstanceForm extends Component<
                   this.setState({
                     token: e.target.value,
                   })
+                  this.clearFieldError('token')
                   Actions.resetNewDbLabInstance()
                 }}
                 margin="normal"
@@ -470,6 +491,7 @@ class DbLabInstanceForm extends Component<
                 this.setState({
                   url: e.target.value,
                 })
+                this.clearFieldError('url')
                 Actions.resetNewDbLabInstance()
               }}
               margin="normal"
@@ -534,6 +556,7 @@ class DbLabInstanceForm extends Component<
                   this.setState({
                     sshServerUrl: e.target.value,
                   })
+                  this.clearFieldError('token')
                   Actions.resetNewDbLabInstance()
                 }}
                 margin="normal"
