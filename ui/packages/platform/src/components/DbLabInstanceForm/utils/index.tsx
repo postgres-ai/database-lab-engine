@@ -7,7 +7,7 @@ export const DEBUG_API_SERVER = 'https://v2.postgres.ai/api/general'
 
 export const availableTags = ['3.5.0', '3.4.0', '4.0.0-alpha.6']
 
-export const sePackageTag = 'v1.0-rc.10'
+export const sePackageTag = 'v1.0'
 
 export const dockerRunCommand = (provider: string) => {
   /* eslint-disable no-template-curly-in-string */

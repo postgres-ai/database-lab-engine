@@ -1037,7 +1037,6 @@ const Store = Reflux.createStore({
         planText: data.plan_text,
         planExecText: data.plan_execution_text,
         planExecJson: data.plan_execution_json,
-        recommends: data.recommendations,
         stats: data.stats,
         error: data.error,
         queryLocks: data.query_locks || '',
@@ -1050,11 +1049,6 @@ const Store = Reflux.createStore({
         useremail: data.useremail,
         username: data.username
       };
-
-      command.recommends = command.recommends && command.recommends.split(
-        ':white_check_mark:').join('✅');
-      command.recommends = command.recommends &&
-        command.recommends.split(':exclamation:').join('❗️');
 
       this.data.command.data = command;
       this.data.command.isProcessed = true;

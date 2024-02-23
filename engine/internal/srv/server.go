@@ -191,7 +191,7 @@ func (s *Server) Reload(cfg srvCfg.Config) {
 
 // InitHandlers initializes handler functions of the HTTP server.
 func (s *Server) InitHandlers() {
-	r := mux.NewRouter().StrictSlash(true)
+	r := mux.NewRouter().StrictSlash(true).UseEncodedPath()
 
 	authMW := mw.NewAuth(s.Config.VerificationToken, s.Platform)
 

@@ -15,13 +15,13 @@ info:
   license:
     name: AGPL v3 / Database Lab License
     url: https://github.com/postgres-ai/database-lab-engine/blob/master/LICENSE
-  version: 3.4.0
+  version: 3.5.0
 externalDocs:
   description: DBLab Docs
   url: https://gitlab.com/postgres-ai/docs/tree/master/docs/database-lab
 
 servers:
-  - url: "https://demo.aws.postgres.ai:446/api"
+  - url: "https://demo.aws.postgres.ai:446"
     description: "DBLab 3.x demo server; token: 'demo-token'"
     x-examples:
       Verification-Token: "demo-token"
@@ -484,7 +484,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /observation/download/{artifact_type}/{clone_id}/{session_id}:
+  /observation/download:
     get:
       tags:
         - Observation
@@ -497,19 +497,19 @@ paths:
           schema:
             type: string
           required: true
-        - in: path
+        - in: query
           required: true
           name: "artifact_type"
           schema:
             type: "string"
           description: "Type of the requested artifact"
-        - in: path
+        - in: query
           required: true
           name: "clone_id"
           schema:
             type: "string"
           description: "Clone ID"
-        - in: path
+        - in: query
           required: true
           name: "session_id"
           schema:
@@ -517,7 +517,7 @@ paths:
           description: "Session ID"
       responses:
         200:
-          description: Downloaded the specified artificed of the specified
+          description: Downloaded the specified artifact of the specified
             observation session and clone
         400:
           description: "Bad request"
@@ -558,7 +558,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Instance'
+                $ref: "#/components/schemas/Error"
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
@@ -613,7 +613,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Instance'
+                $ref: "#/components/schemas/Error"
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
@@ -660,7 +660,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Instance'
+                $ref: "#/components/schemas/Error"
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
@@ -693,7 +693,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Instance'
+                $ref: "#/components/schemas/Error"
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
@@ -738,7 +738,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Instance'
+                $ref: "#/components/schemas/Error"
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
@@ -762,6 +762,76 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WSToken"
+  /admin/billing-status:
+    get:
+      tags:
+        - Admin
+      summary: Checks billing status
+      description: ""
+      operationId: billingStatus
+      parameters:
+        - in: header
+          name: Verification-Token
+          schema:
+            type: string
+          required: true
+      responses:
+        200:
+          description: "Successful operation"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingStatus"
+        400:
+          description: "Bad request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
+  /admin/activate:
+    post:
+      tags:
+        - Admin
+      summary: "Activate billing"
+      description: "Activates billing and sends usage statistics of the instance"
+      operationId: activateBilling
+      parameters:
+        - in: header
+          name: Verification-Token
+          schema:
+            type: string
+          required: true
+      responses:
+        200:
+          description: "Successful operation"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Engine"
+        400:
+          description: "Bad request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
 
 components:
   schemas:
@@ -1245,7 +1315,6 @@ components:
           type: "string"
         dbVersion:
           type: "integer"
-          required: false
         tuningParams:
           type: "object"
           additionalProperties:
