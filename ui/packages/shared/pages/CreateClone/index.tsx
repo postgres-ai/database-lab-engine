@@ -1,3 +1,4 @@
+import cn from 'classnames'
 import { useEffect } from 'react'
 import { useHistory } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
@@ -15,6 +16,11 @@ import { compareSnapshotsDesc } from '@postgres.ai/shared/utils/snapshot'
 import { round } from '@postgres.ai/shared/utils/numbers'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
+import {
+  MIN_ENTROPY,
+  getEntropy,
+  validatePassword,
+} from '@postgres.ai/shared/helpers/getEntropy'
 
 import { useCreatedStores, MainStoreApi } from './useCreatedStores'
 import { useForm, FormValues } from './useForm'
@@ -37,15 +43,26 @@ type Props = Host
 export const CreateClone = observer((props: Props) => {
   const history = useHistory()
   const stores = useCreatedStores(props.api)
+  const cloneError = stores.main.cloneError
   const timer = useTimer()
 
   // Form.
   const onSubmit = async (values: FormValues) => {
+    if (!values.dbPassword || getEntropy(values.dbPassword) < MIN_ENTROPY) {
+      formik.setFieldError(
+        'dbPassword',
+        validatePassword(values.dbPassword, MIN_ENTROPY),
+      )
+      return
+    }
+
     timer.start()
 
     const isSuccess = await stores.main.createClone(values)
 
-    if (!isSuccess) {
+    formik.setFieldError('dbPassword', '')
+
+    if (!isSuccess || cloneError) {
       timer.pause()
       timer.reset()
     }
@@ -196,10 +213,23 @@ export const CreateClone = observer((props: Props) => {
             label="Database password *"
             type="password"
             value={formik.values.dbPassword}
-            onChange={(e) => formik.setFieldValue('dbPassword', e.target.value)}
+            onChange={(e) => {
+              formik.setFieldValue('dbPassword', e.target.value)
+              if (formik.errors.dbPassword) {
+                formik.setFieldError('dbPassword', '')
+              }
+            }}
             error={Boolean(formik.errors.dbPassword)}
             disabled={isCreatingClone}
           />
+          <p
+            className={cn(
+              formik.errors.dbPassword && styles.error,
+              styles.remark,
+            )}
+          >
+            {formik.errors.dbPassword}
+          </p>
         </div>
 
         <div className={styles.section}>
@@ -220,7 +250,8 @@ export const CreateClone = observer((props: Props) => {
                 <span>Expected cloning time:</span>
                 <strong>
                   {round(
-                    stores.main.instance.state?.cloning.expectedCloningTime as number,
+                    stores.main.instance.state?.cloning
+                      .expectedCloningTime as number,
                     2,
                   )}{' '}
                   s

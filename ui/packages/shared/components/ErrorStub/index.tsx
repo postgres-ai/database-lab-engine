@@ -11,7 +11,11 @@ import clsx from 'clsx'
 
 type Props = {
   title?: string
-  message?: string
+  message?:
+    | string
+    | {
+        details: string
+      }
   className?: string
   size?: 'big' | 'normal'
 }
@@ -71,7 +75,9 @@ export const ErrorStub = (props: Props) => {
       )}
     >
       <h2 className={classes.title}>{title}</h2>
-      <p className={classes.message}>{message}</p>
+      <p className={classes.message}>
+        {typeof message === 'object' ? message.details : message}
+      </p>
     </Paper>
   )
 }
