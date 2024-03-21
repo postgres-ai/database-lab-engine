@@ -30,7 +30,10 @@ import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
-import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
+import {
+  ClassesType,
+  RefluxTypes,
+} from '@postgres.ai/platform/src/components/types'
 
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
@@ -80,8 +83,7 @@ interface CommandDataProps {
   username: string
   useremail: string
   project_name: string
-  project_label: string
-  project_label_or_name: string
+  project_id: number
   joe_session_id: number
   id: number
 }
@@ -115,7 +117,15 @@ interface JoeHistoryState {
         [id: number]: boolean
       }[]
     } | null
-    projects: { isProcessing: boolean; error: boolean } | null
+    projects: {
+      isProcessing: boolean
+      error: boolean
+      data: {
+        id: number
+        alias: string
+        name: string
+      }[]
+    } | null
   } | null
 }
 
@@ -220,7 +230,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
 
     this.buildFilter()
 
-     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
+    this.unsubscribe = (Store.listen as RefluxTypes['listen'])(function () {
       const auth = this.data && this.data.auth ? this.data.auth : null
       const commands =
         this.data && this.data.commands ? this.data.commands : null
@@ -501,11 +511,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
   }
 
   getProject(command: CommandDataProps) {
-    return (
-      command['project_label_or_name'] ||
-      command['project_label'] ||
-      command['project_name']
-    )
+    return command['project_name']
   }
 
   getChannel(command: CommandDataProps) {
@@ -591,6 +597,8 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
     }
 
     const commandStore = this.state.data.commands || null
+    const projectsStore = this.state.data.projects || null
+    const projects = projectsStore?.data || []
     const commands = commandStore?.data || []
 
     const isFilterAvailable =
@@ -775,6 +783,9 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
                 <TableBody>
                   {commands.map((c: CommandDataProps) => {
                     if (c) {
+                      const project = projects?.find(project => project.id === c['project_id']);
+                      const projectAlias = project?.alias || project?.name || '';
+
                       return (
                         <TableRow
                           hover={false}
@@ -783,7 +794,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
                           onClick={(event) => {
                             this.onCommandClick(
                               event,
-                              this.getProject(c),
+                              projectAlias,
                               this.getSessionId(c),
                               c.id,
                             )
