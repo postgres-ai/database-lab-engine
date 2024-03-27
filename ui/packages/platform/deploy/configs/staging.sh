@@ -8,7 +8,7 @@
 export PORT=3000
 export REPLICAS=1
 export REACT_APP_API_SERVER="https://v2.postgres.ai/api/general"
-export REACT_APP_WS_SERVER="ws://v2.postgres.ai/websockets"
+export REACT_APP_WS_SERVER="wss://v2.postgres.ai/websockets"
 export REACT_APP_SIGNIN_URL="https://console-v2.postgres.ai/signin"
 export REACT_APP_EXPLAIN_DEPESZ_SERVER="https://explain-depesz.postgres.ai/"
 export REACT_APP_EXPLAIN_PEV2_SERVER="https://v2.postgres.ai/explain-pev2/"
