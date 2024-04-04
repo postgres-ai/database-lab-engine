@@ -17,7 +17,7 @@ function encodeData(data) {
 class Api {
   constructor(setting) {
     this.server = setting.server
-    this.apiServer = setting.apiServer
+    this.apiServer = process.env.REACT_APP_API_URL_PREFIX || setting.apiServer // if set in .env (e.g., for dev/debug), use it
   }
 
   get(url, query, options) {
