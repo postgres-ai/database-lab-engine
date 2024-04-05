@@ -40,6 +40,7 @@ _Important note: don't use commands for `@postgres.ai/shared` - it's dependent p
 - edit `.env` setting:
     - `REACT_APP_API_URL_PREFIX` to point to dev API server (e.g., staging API server: `https://v2.postgres.ai/api/general`).
     - `REACT_APP_TOKEN_DEBUG` to have your JWT ready work with the same server. Note that it has an expiration date so it needs to be periodically refreshed.
+- `pnpm install` - to install packages if they are not found
 - `pnpm run start` - start Platform for local debugging/development
 
 ### How to start "ce"
