@@ -12,7 +12,7 @@ export const getPlaybookCommand = (
   --env ANSIBLE_SSH_ARGS="-F none" \\\r
   postgresai/dle-se-ansible:${sePackageTag} \\\r
     ansible-playbook deploy_dle.yml --extra-vars \\\r
-      "dblab_engine_host='user@server-ip-address' \\\r
+      "dblab_host='user@server-ip-address' \\\r
       platform_project_name='${state.name}' \\\r
       dblab_engine_version='${state.tag}' \\\r
       ${ orgKey ? `platform_org_key='${orgKey}' \\\r` : `` }
@@ -26,7 +26,7 @@ export const getAnsiblePlaybookCommand = (
   orgKey: string,
 ) =>
   `ansible-playbook deploy_dle.yml --extra-vars \\\r
-  "dblab_engine_host='user@server-ip-address' \\\r
+  "dblab_host='user@server-ip-address' \\\r
   platform_project_name='${state.name}' \\\r
   dblab_engine_version='${state.tag}' \\\r
   ${orgKey ? `platform_org_key='${orgKey}' \\\r` : ``}
