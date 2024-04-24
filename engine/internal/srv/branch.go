@@ -94,6 +94,22 @@ func containsString(slice []string, s string) bool {
 	return false
 }
 
+//nolint:unused
+func (s *Server) getFSManagerForBranch(branchName string) (pool.FSManager, error) {
+	allBranches, err := s.pm.First().ListAllBranches()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get branch list: %w", err)
+	}
+
+	for _, branchEntity := range allBranches {
+		if branchEntity.Name == branchName {
+			return s.getFSManagerForSnapshot(branchEntity.SnapshotID)
+		}
+	}
+
+	return nil, fmt.Errorf("failed to found dataset of the branch: %s", branchName)
+}
+
 func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 	var createRequest types.BranchCreateRequest
 	if err := api.ReadJSON(r, &createRequest); err != nil {
@@ -111,10 +127,20 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
+	
 	fsm := s.pm.First()
 
+	if createRequest.BaseBranch != "" {
+		fsm, err = s.getFSManagerForBranch(createRequest.BaseBranch)
+		if err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+	}
+
 	if fsm == nil {
-		api.SendBadRequestError(w, r, "no available pools")
+		api.SendBadRequestError(w, r, "no pool manager found")
 		return
 	}
 
@@ -197,10 +223,9 @@ func (s *Server) getCommit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fsm := s.pm.First()
-
-	if fsm == nil {
-		api.SendBadRequestError(w, r, "no available pools")
+	fsm, err := s.getFSManagerForSnapshot(snapshotID)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
@@ -221,6 +246,20 @@ func (s *Server) getCommit(w http.ResponseWriter, r *http.Request) {
 		api.SendError(w, r, err)
 		return
 	}
+}
+
+func (s *Server) getFSManagerForSnapshot(snapshotID string) (pool.FSManager, error) {
+	poolName, err := s.detectPoolName(snapshotID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect pool name for the snapshot %s: %w", snapshotID, err)
+	}
+
+	fsm, err := s.pm.GetFSManager(poolName)
+	if err != nil {
+		return nil, fmt.Errorf("pool manager not available %s: %w", poolName, err)
+	}
+
+	return fsm, nil
 }
 
 func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
@@ -325,16 +364,20 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) log(w http.ResponseWriter, r *http.Request) {
-	fsm := s.pm.First()
-
-	if fsm == nil {
-		api.SendBadRequestError(w, r, "no available pools")
-		return
-	}
-
 	var logRequest types.LogRequest
 	if err := api.ReadJSON(r, &logRequest); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	fsm, err := s.getFSManagerForBranch(logRequest.BranchName)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if fsm == nil {
+		api.SendBadRequestError(w, r, "no pool manager found")
 		return
 	}
 
@@ -377,10 +420,14 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fsm := s.pm.First()
+	fsm, err := s.getFSManagerForBranch(deleteRequest.BranchName)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
 
 	if fsm == nil {
-		api.SendBadRequestError(w, r, "no available pools")
+		api.SendBadRequestError(w, r, "no pool manager found")
 		return
 	}
 

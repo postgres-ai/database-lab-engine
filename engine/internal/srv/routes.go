@@ -331,10 +331,14 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if cloneRequest.Branch != "" {
-		fsm := s.pm.First()
+		fsm, err := s.getFSManagerForBranch(cloneRequest.Branch)
+		if err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
 
 		if fsm == nil {
-			api.SendBadRequestError(w, r, "no available pools")
+			api.SendBadRequestError(w, r, "no pool manager found")
 			return
 		}
 
