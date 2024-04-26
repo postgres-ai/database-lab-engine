@@ -496,8 +496,9 @@ class CheckupAgentForm extends Component<
                         id="hostName"
                         className={classes.textInput}
                         helperText={
-                          'Hostname(s) or IP address(es) divided ' +
-                          'by `;`, `,`, space or end of string'
+                          'Enter hostnames or IPs, separated by commas, spaces, or line breaks. ' +
+                          'To reach your machine\'s "localhost" from the container, use "host.docker.internal". ' +
+                          'The same approach works when using SSH port forwarding from your machine to a remote host.'
                         }
                         margin="normal"
                         onChange={(e) => {
@@ -552,6 +553,11 @@ class CheckupAgentForm extends Component<
                     variant="outlined"
                     id="databaseUserName"
                     className={classes.textInput}
+                    helperText={
+                      'You can create a new DB user named "pgai_observer", then grant ' +
+                      'the "pg_monitor" role to this user using the following SQL command: ' +
+                      'GRANT pg_monitor TO pgai_observer;'
+                    }
                     margin="normal"
                     onChange={(e) => {
                       this.setState({

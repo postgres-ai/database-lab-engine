@@ -309,11 +309,11 @@ class Reports extends Component<ReportsWithStylesProps, ReportsState> {
         onClick={() => this.props.history.push('/' + org + '/checkup-config')}
         title={
           this.props.orgPermissions?.checkupReportConfigure
-            ? 'Add Checkup agent to your server'
+            ? 'Start generating new reports for your Postgres servers'
             : messages.noPermission
         }
       >
-        Add agent
+        Generate report
       </ConsoleButtonWrapper>
     )
 

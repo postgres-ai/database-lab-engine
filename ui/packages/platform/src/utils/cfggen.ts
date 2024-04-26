@@ -129,7 +129,6 @@ cat <<EOF > ${data.projectName}.yml
 ${this.generateCheckupConfig(data)}
 EOF
 
-# Start check health of Postgres databases
 `
 
     if (data.password === 'inputpassword') {
@@ -140,11 +139,19 @@ EOF
 && read -s -p "" DB_PWD \\
 && PGPASSWORD="$\{DB_PWD}" \\
 && `
+    } else {
+      result =
+        result +
+        `# Specify Postgres password
+export DB_PWD=****
+
+`
     }
 
     result =
       result +
-      `docker run \\
+      `# Start check health of Postgres databases
+docker run \\
   -v $(pwd)/${data.projectName}.yml:/${data.projectName}.yml \\
   -v $(pwd)/artifacts:/artifacts \\`
 
@@ -162,7 +169,7 @@ EOF
   -e ${hostsType}="${hosts}" \\
   -e CHECKUP_SNAPSHOT_DISTANCE_SECONDS=${data.collectPeriod} \\
   -e PGPASSWORD="$\{DB_PWD}" \\
-  registry.gitlab.com/postgres-ai/postgres-checkup:latest bash run_checkup.sh
+  registry.gitlab.com/postgres-ai/postgres-checkup:1-5-1 bash run_checkup.sh
 `
 
     return result
