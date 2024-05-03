@@ -35,7 +35,7 @@ func TestStartExistingContainer(t *testing.T) {
 	embeddedUI := New(
 		Config{
 			// "mock" UI image
-			DockerImage: "gcr.io/google_containers/pause-amd64:3.0",
+			DockerImage: "alpine:3.19",
 		},
 		engProps,
 		runners.NewLocalRunner(false),
