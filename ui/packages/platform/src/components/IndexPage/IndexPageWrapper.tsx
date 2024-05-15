@@ -174,7 +174,7 @@ export const IndexPageWrapper = (props: IndexPageProps) => {
         position: 'absolute',
         top: '2px',
       },
-      botTag: {
+      menuItemLabel: {
         fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
         fontStyle: 'normal',
         fontWeight: 'normal',
@@ -191,6 +191,9 @@ export const IndexPageWrapper = (props: IndexPageProps) => {
         marginLeft: 10,
         position: 'absolute',
         top: '10px',
+      },
+      headerLinkMenuItemLabel: {
+        position: 'static'
       },
       menuSectionHeader: {
         fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
@@ -220,6 +223,8 @@ export const IndexPageWrapper = (props: IndexPageProps) => {
         width: '100%',
         paddingLeft: '15px',
         color: '#000000',
+        display: 'inline-flex',
+        alignItems: 'center'
       },
       menuSectionHeaderActiveLink: {
         textDecoration: 'none',
@@ -230,6 +235,9 @@ export const IndexPageWrapper = (props: IndexPageProps) => {
         paddingLeft: '15px',
         color: '#000000',
       },
+      menuSingleSectionHeaderActiveLink: {
+        backgroundColor: colors.consoleStroke,
+      },
       menuPointer: {
         height: '100%',
       },
@@ -237,6 +245,9 @@ export const IndexPageWrapper = (props: IndexPageProps) => {
         padding: '0px',
         height: 'calc(100% - 160px)',
         overflowY: 'auto',
+        
+        display: 'flex',
+        flexDirection: 'column',
       },
       menuSectionHeaderIcon: {
         marginRight: '13px',

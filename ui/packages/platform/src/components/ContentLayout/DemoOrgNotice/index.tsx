@@ -62,15 +62,14 @@ export const DemoOrgNotice = () => {
 
   return (
     <div className={classes.demoNoticeText}>
-      {icons.infoIconBlue}&nbsp;This is a Demo organization, once you’ve
-      explored <span className={classes.noWrap}>Database Lab</span> features:
+      {icons.infoIconBlue}&nbsp;This is a demo organization. All the data here is public.
       <Button
         variant="contained"
         color="primary"
         className={classes.demoOrgNoticeButton}
         onClick={goToOrgForm}
       >
-        Create new organization
+        Create your own organization
       </Button>
     </div>
   )

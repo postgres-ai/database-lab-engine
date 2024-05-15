@@ -37,6 +37,7 @@ DOCKER_BUILDKIT=1 docker build \
       --build-arg ARG_REACT_APP_AUTH_URL="${REACT_APP_AUTH_URL}" \
       --build-arg ARG_REACT_APP_ROOT_URL="${REACT_APP_ROOT_URL}" \
       --build-arg ARG_REACT_APP_SENTRY_DSN="${REACT_APP_SENTRY_DSN}" \
+      --build-arg ARG_REACT_APP_WS_URL="${REACT_APP_WS_URL}" \
       $tags_build --file ./ui/packages/platform/Dockerfile .
 set +x
 
