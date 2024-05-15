@@ -451,6 +451,28 @@ class Api {
     });
   }
 
+  updateAiBotSettings(token, orgId, orgData) {
+    let params = {};
+    let headers = {
+      Authorization: 'Bearer ' + token,
+      prefer: 'return=representation'
+    };
+
+    if (typeof orgData.custom_prompt !== 'undefined') {
+      params.custom_prompt = orgData.custom_prompt;
+    }
+
+    if (typeof orgData.model !== 'undefined') {
+      params.model = orgData.model;
+    }
+
+    console.log('params', params)
+
+    return this.patch(`${this.apiServer}/orgs?id=eq.` + orgId, params, {
+      headers: headers
+    });
+  }
+
   inviteUser(token, orgId, email) {
     let headers = {
       Authorization: 'Bearer ' + token

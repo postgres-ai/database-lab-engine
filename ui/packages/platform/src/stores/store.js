@@ -597,6 +597,35 @@ const Store = Reflux.createStore({
     this.trigger(this.data);
   },
 
+  //bot settings
+
+  onUpdateAiBotSettingsFailed: function (error) {
+    this.data.orgProfile.isUpdating = false;
+    this.data.orgProfile.updateError = true;
+    this.data.orgProfile.updateErrorMessage = error.message;
+    this.trigger(this.data);
+  },
+
+  onUpdateAiBotSettingsProgressed: function (data) {
+    this.data.orgProfile.updateErrorFields = null;
+    this.data.orgProfile.isUpdating = true;
+
+    this.trigger(this.data);
+  },
+
+  onUpdateAiBotSettingsCompleted: function (data) {
+    this.data.orgProfile.isUpdating = false;
+    this.data.orgProfile.updateErrorMessage = this.getError(data);
+    this.data.orgProfile.updateError = !!this.data.orgProfile.updateErrorMessage;
+
+    if (!this.data.orgProfile.updateError && data.length > 0) {
+      this.data.orgProfile.updateErrorFields = null;
+      Actions.showNotification('AI Bot settings successfully saved.', 'success');
+    }
+
+    this.trigger(this.data);
+  },
+
 
   onCreateOrgFailed: function (error) {
     this.data.orgProfile.isUpdating = false;
@@ -2967,5 +2996,6 @@ const Store = Reflux.createStore({
     this.trigger(this.data);
   }
 });
+
 
 export default Store;

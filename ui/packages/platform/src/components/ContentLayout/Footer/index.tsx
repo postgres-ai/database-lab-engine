@@ -20,7 +20,7 @@ const useStyles = makeStyles(
       justifyContent: 'center',
       padding: '16px 20px',
       [theme.breakpoints.down('sm')]: {
-        padding: '16px 12px',
+        padding: '12px 12px',
         flexDirection: 'column',
       },
     },
@@ -28,6 +28,14 @@ const useStyles = makeStyles(
       marginRight: 50,
       [theme.breakpoints.down('sm')]: {
         marginBottom: 10,
+      },
+    },
+    footerLinks: {
+      display: 'flex',
+      [theme.breakpoints.down('sm')]: {
+        flexDirection: 'column',
+        flexWrap: 'wrap',
+        maxHeight: '80px',
       },
     },
     footerItem: {
@@ -62,36 +70,38 @@ export const Footer = () => {
   return (
     <div className={classes.footer}>
       <div className={classes.footerCopyrightItem}>
-        {new Date().getFullYear()} © Postgres.ai
+        {new Date().getFullYear()} © Postgres.AI
       </div>
-      <div className={classes.footerItem}>
-        <GatewayLink href={settings.rootUrl + '/docs'}>
-          Documentation
-        </GatewayLink>
-      </div>
-      <div className={classes.footerItemSeparator}>|</div>
-      <div className={classes.footerItem}>
-        <GatewayLink href={settings.rootUrl + '/blog'}>
-          News
-        </GatewayLink>
-      </div>
-      <div className={classes.footerItemSeparator}>|</div>
-      <div className={classes.footerItem}>
-        <GatewayLink href={settings.rootUrl + '/tos'}>
-          Terms of Service
-        </GatewayLink>
-      </div>
-      <div className={classes.footerItemSeparator}>|</div>
-      <div className={classes.footerItem}>
-        <GatewayLink href={settings.rootUrl + '/privacy'}>
-          Privacy Policy
-        </GatewayLink>
-      </div>
-      <div className={classes.footerItemSeparator}>|</div>
-      <div className={classes.footerItem}>
-        <GatewayLink href={settings.rootUrl + '/contact'}>
-          Ask support
-        </GatewayLink>
+      <div className={classes.footerLinks}>
+        <div className={classes.footerItem}>
+          <GatewayLink href={settings.rootUrl + '/docs'}>
+            Documentation
+          </GatewayLink>
+        </div>
+        <div className={classes.footerItemSeparator}>|</div>
+        <div className={classes.footerItem}>
+          <GatewayLink href={settings.rootUrl + '/blog'}>
+            News
+          </GatewayLink>
+        </div>
+        <div className={classes.footerItemSeparator}>|</div>
+        <div className={classes.footerItem}>
+          <GatewayLink href={settings.rootUrl + '/tos'}>
+            Terms of Service
+          </GatewayLink>
+        </div>
+        <div className={classes.footerItemSeparator}>|</div>
+        <div className={classes.footerItem}>
+          <GatewayLink href={settings.rootUrl + '/privacy'}>
+            Privacy Policy
+          </GatewayLink>
+        </div>
+        <div className={classes.footerItemSeparator}>|</div>
+        <div className={classes.footerItem}>
+          <GatewayLink href={settings.rootUrl + '/contact'}>
+            Ask support
+          </GatewayLink>
+        </div>
       </div>
     </div>
   )
