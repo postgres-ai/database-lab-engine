@@ -23,4 +23,4 @@ export REACT_APP_STRIPE_API_KEY="xxx"
 export REACT_APP_SENTRY_DSN="https://91517477289e477cb8880f2f07a82632@sentry.postgres.ai/2"
 
 # AI Bot
-export REACT_APP_WS_URL="wss://postgres.ai/ai-bot-wss/" # don't forget trailing slash!
+export REACT_APP_WS_URL="wss://postgres.ai/ai-bot-ws/" # don't forget trailing slash!
