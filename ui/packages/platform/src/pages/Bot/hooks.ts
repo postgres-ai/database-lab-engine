@@ -72,9 +72,8 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
     if (event.data) {
       const messageData: BotMessage = JSON.parse(event.data);
       if (messageData) {
-        if ((threadId && threadId === messageData.thread_id) || (!threadId && messageData.parent_id)) {
+        if ((threadId && threadId === messageData.thread_id) || (!threadId && messageData.parent_id && messages)) {
           let currentMessages = [...(messages || [])];
-
           // Check if the last message needs its data updated
           const lastMessage = currentMessages[currentMessages.length - 1];
           if (lastMessage && !lastMessage.id && messageData.parent_id) {
