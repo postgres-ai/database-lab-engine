@@ -110,7 +110,6 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
       subscribe(threadId)
     }
     setWsLoading(false);
-    setLoading(false);
     closeSnackbar();
   }
   const onWebSocketClose = (event: WebSocketEventMap['close']) => {

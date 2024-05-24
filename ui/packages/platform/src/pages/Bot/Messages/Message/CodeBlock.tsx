@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { memo, useState } from 'react';
 import { Accordion, AccordionDetails, AccordionSummary, Typography, makeStyles, Button } from '@material-ui/core';
 import { Prism as SyntaxHighlighter, SyntaxHighlighterProps } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -65,7 +65,9 @@ const useStyles = makeStyles((theme) => ({
   }
 }));
 
-export const CodeBlock = ({ value, language }: { value: string, language?: string | null }) => {
+type CodeBlockProps = { value: string, language?: string | null };
+
+export const CodeBlock = memo(({ value, language }: CodeBlockProps) => {
   const classes = useStyles();
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -92,8 +94,7 @@ export const CodeBlock = ({ value, language }: { value: string, language?: strin
       });
     }
   };
-
-
+  
   const header = (
     <div className={classes.header}>
       {isValidLanguage && <Typography className={classes.languageName}>{language}</Typography>}
@@ -140,4 +141,4 @@ export const CodeBlock = ({ value, language }: { value: string, language?: strin
       />
     </div>
   );
-}
+})
