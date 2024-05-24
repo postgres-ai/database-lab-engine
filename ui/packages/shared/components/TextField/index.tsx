@@ -34,6 +34,7 @@ export type TextFieldProps = {
   error?: boolean
   placeholder?: string
   onBlur?: TextFieldPropsBase['onBlur']
+  onFocus?: TextFieldPropsBase['onFocus']
 }
 
 const useStyles = makeStyles(
@@ -98,6 +99,7 @@ export const TextField = (props: TextFieldProps) => {
       error={props.error}
       placeholder={props.placeholder}
       onBlur={props.onBlur}
+      onFocus={props.onFocus}
     />
   )
 }

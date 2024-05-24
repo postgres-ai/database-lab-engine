@@ -9,7 +9,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { useParams } from "react-router";
 import cn from "classnames";
-import { makeStyles, Theme } from "@material-ui/core";
+import { makeStyles, Theme, useMediaQuery } from "@material-ui/core";
 import Drawer from '@material-ui/core/Drawer';
 import List from "@material-ui/core/List";
 import Divider from "@material-ui/core/Divider";
@@ -18,6 +18,7 @@ import Box from "@mui/material/Box";
 import { Spinner } from "@postgres.ai/shared/components/Spinner";
 import { HeaderButtons, HeaderButtonsProps } from "../HeaderButtons/HeaderButtons";
 import { BotMessage } from "../../../types/api/entities/bot";
+import { theme } from "@postgres.ai/shared/styles/theme";
 
 
 const useStyles = makeStyles<Theme, ChatsListProps>((theme) => ({
@@ -111,7 +112,7 @@ export const ChatsList = (props: ChatsListProps) => {
   } = props;
   const classes = useStyles(props);
   const params = useParams<{ org?: string, threadId?: string }>();
-
+  const matches = useMediaQuery(theme.breakpoints.down('sm'));
   const linkBuilder = (msgId: string) => {
     if (params.org) {
       return `/${params.org}/bot/${msgId}`
@@ -123,6 +124,12 @@ export const ChatsList = (props: ChatsListProps) => {
   const handleClick = (threadId: string) => {
     if (onLinkClick) {
       onLinkClick(threadId)
+    }
+  }
+
+  const handleCloseOnClickOutside = () => {
+    if (matches) {
+      onClose()
     }
   }
 
@@ -172,11 +179,12 @@ export const ChatsList = (props: ChatsListProps) => {
 
   return (
     <Drawer
-      variant={'persistent'}
+      variant={matches ? 'temporary' : 'persistent'}
       anchor="right"
       BackdropProps={{ invisible: true }}
       elevation={1}
       open={isOpen}
+      onClose={handleCloseOnClickOutside}
       classes={{
         paper: classes.drawerPaper
       }}

@@ -1,8 +1,18 @@
-export const checkIsSendCmd = (e: KeyboardEvent) =>
-  e.code === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey
+import { isMobileDevice } from "../../../utils/utils";
 
-export const checkIsNewLineCmd = (e: KeyboardEvent) =>
-  e.code === 'Enter' && (e.shiftKey || e.ctrlKey || e.metaKey)
+export const checkIsSendCmd = (e: KeyboardEvent): boolean => {
+  if (isMobileDevice()) {
+    return false; // On mobile devices, Enter should not send.
+  }
+  return e.code === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey;
+};
+
+export const checkIsNewLineCmd = (e: KeyboardEvent): boolean => {
+  if (isMobileDevice()) {
+    return e.code === 'Enter'; // On mobile devices, Enter should create a new line.
+  }
+  return e.code === 'Enter' && (e.shiftKey || e.ctrlKey || e.metaKey);
+};
 
 export const addNewLine = (
   value: string,
