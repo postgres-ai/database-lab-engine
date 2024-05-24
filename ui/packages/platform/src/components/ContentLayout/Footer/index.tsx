@@ -68,7 +68,7 @@ export const Footer = () => {
   const classes = useStyles()
 
   return (
-    <div className={classes.footer}>
+    <footer className={classes.footer}>
       <div className={classes.footerCopyrightItem}>
         {new Date().getFullYear()} © Postgres.AI
       </div>
@@ -103,6 +103,6 @@ export const Footer = () => {
           </GatewayLink>
         </div>
       </div>
-    </div>
+    </footer>
   )
 }

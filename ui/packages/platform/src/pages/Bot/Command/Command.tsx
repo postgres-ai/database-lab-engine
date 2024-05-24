@@ -13,6 +13,7 @@ import {
 import { useBuffer } from './useBuffer'
 import { useCaret } from './useCaret'
 import { theme } from "@postgres.ai/shared/styles/theme";
+import { isMobileDevice } from "../../../utils/utils";
 
 
 type Props = {
@@ -76,7 +77,7 @@ export const Command = React.memo((props: Props) => {
   const { sendDisabled, onSend, threadId } = props
 
   const classes = useStyles()
-
+  const isMobile = isMobileDevice();
   // Handle value.
   const [value, setValue] = useState('')
 
@@ -104,11 +105,21 @@ export const Command = React.memo((props: Props) => {
   }
 
   const handleBlur = () => {
-    if (window.innerWidth < theme.breakpoints.values.sm)
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    })
+    if ((window.innerWidth < theme.breakpoints.values.sm) && isMobile) {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      })
+      const footer: HTMLElement | null = document.querySelector("footer")
+      if (footer) footer.style.display = 'flex';
+    }
+  }
+
+  const handleFocus = () => {
+    if ((window.innerWidth < theme.breakpoints.values.sm)  && isMobile) {
+      const footer: HTMLElement | null = document.querySelector("footer")
+      if (footer) footer.style.display = 'none';
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -163,11 +174,13 @@ export const Command = React.memo((props: Props) => {
   return (
     <div className={classes.root}>
       <TextField
-        autoFocus={true}
+        autoFocus={window.innerWidth > theme.breakpoints.values.sm}
         multiline
         className={classes.field}
         onKeyDown={handleKeyDown}
+        onChange={handleChange}
         onBlur={handleBlur}
+        onFocus={handleFocus}
         InputProps={{
           inputRef,
           classes: {
@@ -175,7 +188,6 @@ export const Command = React.memo((props: Props) => {
           },
         }}
         value={value}
-        onChange={handleChange}
         placeholder="Message..."
       />
       <IconButton
