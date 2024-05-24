@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import cn from "classnames";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import { makeStyles } from "@material-ui/core";
@@ -241,7 +241,20 @@ export const Message = React.memo((props: MessageProps) => {
     setDebugVisible(prevState => !prevState)
   }
 
-  const contentToRender: string = content?.replace(/\n/g, '  \n') || ''
+  const contentToRender = useMemo(() => content, [content]);
+
+  const renderers = useMemo<Components>(() => ({
+    p: ({ node, ...props }) => <div {...props} />,
+    img: ({ node, ...props }) => <img style={{ maxWidth: '60%' }} {...props} />,
+    code: ({ node, inline, className, children, ...props }) => {
+      const match = /language-(\w+)/.exec(className || '');
+      return !inline ? (
+        <CodeBlock value={String(children).replace(/\n$/, '')} language={match?.[1]} />
+      ) : (
+        <code {...props}>{children}</code>
+      );
+    },
+  }), []);
 
   return (
     <>
@@ -303,22 +316,11 @@ export const Message = React.memo((props: MessageProps) => {
             </div>
             : <ReactMarkdown
                 className={classes.markdown}
-                children={contentToRender}
+                children={contentToRender || ''}
                 rehypePlugins={[rehypeRaw]}
                 remarkPlugins={[remarkGfm]}
                 linkTarget='_blank'
-                components={{
-                  p: 'div',
-                  img: ({node, ...props}) => <img style={{maxWidth: '60%'}} {...props} />,
-                  code: ({ node, inline, className, children, ...props }) => {
-                    const match = /language-(\w+)/.exec(className || '');
-                    return !inline ? (
-                      <CodeBlock value={String(children).replace(/\n$/, '')} language={match?.[1]} />
-                    ) : (
-                      <code {...props}>{children}</code>
-                    );
-                  },
-                }}
+                components={renderers}
               />
           }
         </div>
