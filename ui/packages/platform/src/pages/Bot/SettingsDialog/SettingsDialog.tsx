@@ -25,6 +25,12 @@ import { styles } from '@postgres.ai/shared/styles/styles'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { colors } from "@postgres.ai/shared/styles/colors";
+import FormLabel from '@mui/material/FormLabel'
+import { Model } from '../hooks'
+
+export type Visibility = 'public' | 'private';
+
+export type SaveChangesFunction = (model: Model, visibility: Visibility) => void
 
 type DialogTitleProps = {
   id: string
@@ -33,10 +39,11 @@ type DialogTitleProps = {
 }
 
 type PublicChatDialogProps = {
-  defaultValue: 'public' | 'private'
+  defaultVisibility: Visibility
+  defaultModel: Model
   isOpen: boolean
   onClose: () => void
-  onSaveChanges: (value: boolean) => void
+  onSaveChanges: SaveChangesFunction
   isLoading: boolean
   threadId: string
 }
@@ -158,10 +165,19 @@ const useDialogStyles = makeStyles(
   { index: 1 },
 )
 
-export const PublicChatDialog = (props: PublicChatDialogProps) => {
-  const { onSaveChanges, defaultValue, onClose, isOpen, isLoading, threadId } = props;
+export const SettingsDialog = (props: PublicChatDialogProps) => {
+  const {
+    onSaveChanges,
+    defaultVisibility,
+    defaultModel,
+    onClose,
+    isOpen,
+    isLoading,
+    threadId
+  } = props;
 
-  const [visibility, setVisibility] = useState(defaultValue ? "public" : "private");
+  const [visibility, setVisibility] = useState<Visibility>(defaultVisibility);
+  const [model, setModel] = useState<Model>(defaultModel)
 
   const classes = useDialogStyles();
 
@@ -174,9 +190,7 @@ export const PublicChatDialog = (props: PublicChatDialogProps) => {
   }
 
   const handleSaveChanges = () => {
-    if (defaultValue !== visibility) {
-      onSaveChanges(visibility === 'public');
-    }
+    onSaveChanges(model, visibility)
   }
 
   const urlField = (
@@ -223,15 +237,16 @@ export const PublicChatDialog = (props: PublicChatDialogProps) => {
         id="customized-dialog-title"
         onClose={onClose}
       >
-        Public Chat
+        Chat Settings
       </DialogTitle>
       <DialogContent>
+        <FormLabel component="legend">Visibility</FormLabel>
         <RadioGroup
           aria-label="shareUrl"
           name="shareUrl"
           value={visibility}
           onChange={(event) => {
-            setVisibility(event.target.value)
+            setVisibility(event.target.value as Visibility)
           }}
           className={classes.radioLabel}
         >
@@ -256,7 +271,30 @@ export const PublicChatDialog = (props: PublicChatDialogProps) => {
         {visibility && (
             <div className={classes.urlContainer}>{urlField}</div>
           )}
+        <FormLabel component="legend">Model</FormLabel>
+        <RadioGroup
+          aria-label="model"
+          name="model"
+          value={model}
+          onChange={(event) => {
+            setModel(event.target.value as Model)
+          }}
+          className={classes.radioLabel}
+        >
+          <FormControlLabel
+            value="gemini"
+            control={<Radio />}
+            label="gemini-1.5-pro"
+          />
+
+          <FormControlLabel
+            value="gpt"
+            control={<Radio />}
+            label="gpt-4-turbo"
+          />
+        </RadioGroup>
       </DialogContent>
+
       <DialogActions>
         <Button
           autoFocus

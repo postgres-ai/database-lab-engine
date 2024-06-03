@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
-import {useCallback, useEffect, useRef, useState} from "react";
+import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import useWebSocket, {ReadyState} from "react-use-websocket";
 import { useLocation } from "react-router-dom";
 import {BotMessage} from "../../types/api/entities/bot";
@@ -18,13 +18,15 @@ import { makeChatPublic } from "../../api/bot/makeChatPublic";
 
 const WS_URL = process.env.REACT_APP_WS_URL || '';
 
+export type Model = 'gpt' | 'gemini'
+
 type ErrorType = {
   code?: number;
   message: string;
   type?: 'connection' | 'chatNotFound';
 }
 
-type sendMessageType = {
+type SendMessageType = {
   content: string;
   thread_id?: string | null;
   org_id?: number | null;
@@ -35,13 +37,15 @@ type UseAiBotReturnType = {
   messages: BotMessage[] | null;
   error: ErrorType | null;
   loading: boolean;
-  sendMessage: (args: sendMessageType) => Promise<void>;
+  sendMessage: (args: SendMessageType) => Promise<void>;
   clearChat: () => void;
   wsLoading: boolean;
   wsReadyState: ReadyState;
   changeChatVisibility: (threadId: string, isPublic: boolean) => void;
   isChangeVisibilityLoading: boolean;
-  unsubscribe: (threadId: string) => void
+  unsubscribe: (threadId: string) => void;
+  model: Model,
+  setModel: Dispatch<SetStateAction<Model>>
 }
 
 type UseAiBotArgs = {
@@ -59,7 +63,8 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
   const [isLoading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<ErrorType | null>(null);
   const [wsLoading, setWsLoading] = useState<boolean>(false);
-  const [isChangeVisibilityLoading, setIsChangeVisibilityLoading] = useState<boolean>(false)
+  const [isChangeVisibilityLoading, setIsChangeVisibilityLoading] = useState<boolean>(false);
+  const [model, setModel] = useState<Model>('gemini');
   
   const token = localStorage.getAuthToken()
 
@@ -197,7 +202,7 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
     };
   }, [readyState, threadId]);
 
-  const sendMessage = async ({content, thread_id, org_id, is_public}: sendMessageType) => {
+  const sendMessage = async ({content, thread_id, org_id, is_public}: SendMessageType) => {
     setWsLoading(true)
     if (!thread_id) {
       setLoading(true)
@@ -215,7 +220,8 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
           content,
           thread_id,
           org_id,
-          is_public
+          is_public,
+          ai_model: model
         }
       }))
       setError(error)
@@ -294,7 +300,9 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
     sendMessage,
     clearChat,
     messages,
-    unsubscribe
+    unsubscribe,
+    model,
+    setModel
   }
 }
 

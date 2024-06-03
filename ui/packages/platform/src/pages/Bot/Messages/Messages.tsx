@@ -248,7 +248,8 @@ export const Messages = (props: MessagesProps) => {
                 display_name,
                 slack_profile,
                 created_at,
-                content
+                content,
+                ai_model
               } = messages[idx];
               let name = 'You';
 
@@ -275,11 +276,12 @@ export const Messages = (props: MessagesProps) => {
                   created_at={created_at}
                   content={content}
                   formattedTime={formattedTime}
+                  aiModel={ai_model}
                 />
               )
             })}
           {isWaitingForAnswer &&
-            <Message id={null} isLoading isAi={true}/>
+            <Message id={null} isLoading isAi={true} />
           }
         </div>
       </div>

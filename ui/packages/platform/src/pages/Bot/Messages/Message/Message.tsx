@@ -16,12 +16,14 @@ type BaseMessageProps = {
   content?: string;
   name?: string;
   isLoading?: boolean;
-  formattedTime?: string
+  formattedTime?: string;
+  aiModel?: string
 }
 
 type AiMessageProps = BaseMessageProps & {
   isAi: true;
   content: string;
+  aiModel: string
 }
 
 type HumanMessageProps = BaseMessageProps & {
@@ -230,7 +232,8 @@ export const Message = React.memo((props: MessageProps) => {
     content,
     name,
     created_at,
-    isLoading
+    isLoading,
+    aiModel
   } = props;
 
   const [isDebugVisible, setDebugVisible] = useState(false);
@@ -305,12 +308,23 @@ export const Message = React.memo((props: MessageProps) => {
                 debug info
               </button>
             </>}
+            {
+              aiModel && isAi && <>
+                <span className={classes.messageInfo}>|</span>
+                <span
+                  className={cn(classes.messageInfo)}
+                  title={aiModel}
+                >
+                  {aiModel}
+                </span>
+              </>
+            }
           </div>
         </div>
         <div>
           {isLoading
             ? <div className={classes.markdown}>
-                <div className={classes.loading}>
+              <div className={classes.loading}>
                   Thinking
                 </div>
             </div>

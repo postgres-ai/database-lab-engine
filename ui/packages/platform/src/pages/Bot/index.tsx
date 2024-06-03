@@ -17,11 +17,11 @@ import { Messages } from './Messages/Messages';
 import { Command } from './Command/Command';
 import { ChatsList } from "./ChatsList/ChatsList";
 import { BotWrapperProps } from "./BotWrapper";
-import { useBotChatsList, useAiBot } from "./hooks";
+import { useBotChatsList, useAiBot, Model } from "./hooks";
 import { usePrev } from "../../hooks/usePrev";
 import {HeaderButtons} from "./HeaderButtons/HeaderButtons";
 import settings from "../../utils/settings";
-import { PublicChatDialog } from "./PublicChatDialog/PublicChatDialog";
+import { SaveChangesFunction, SettingsDialog, Visibility } from "./SettingsDialog/SettingsDialog";
 import { theme } from "@postgres.ai/shared/styles/theme";
 import { colors } from "@postgres.ai/shared/styles/colors";
 import { SettingsWithLabel } from "./SettingsWithLabel/SettingsWithLabel";
@@ -103,7 +103,9 @@ export const BotPage = (props: BotPageProps) => {
     wsReadyState,
     isChangeVisibilityLoading,
     changeChatVisibility,
-    unsubscribe
+    unsubscribe,
+    model,
+    setModel
   } = useAiBot({
     threadId: match.params.threadId,
   });
@@ -165,6 +167,15 @@ export const BotPage = (props: BotPageProps) => {
     }
   }
 
+  const handleSaveSettings: SaveChangesFunction = ( _model, _visibility) => {
+    if (_model !== model) {
+      setModel(_model)
+    }
+    if (_visibility !== chatVisibility) {
+      handleSaveChatVisibility( _visibility === 'public')
+    }
+  }
+
   const handleChatListLinkClick = (targetThreadId: string) => {
     if (match.params.threadId && match.params.threadId !== targetThreadId) {
       unsubscribe(match.params.threadId)
@@ -206,12 +217,13 @@ export const BotPage = (props: BotPageProps) => {
 
   return (
     <>
-      {match.params.threadId && <PublicChatDialog
-        defaultValue={chatVisibility}
+      {match.params.threadId && <SettingsDialog
+        defaultVisibility={chatVisibility}
+        defaultModel={model}
         isOpen={isVisibilityDialogVisible}
         isLoading={isChangeVisibilityLoading}
         onClose={toggleVisibilityDialog}
-        onSaveChanges={handleSaveChatVisibility}
+        onSaveChanges={handleSaveSettings}
         threadId={match.params.threadId}
       />}
       <ChatsList

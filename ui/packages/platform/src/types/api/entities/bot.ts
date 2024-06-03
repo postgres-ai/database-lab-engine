@@ -13,4 +13,5 @@ export type BotMessage = {
   user_id: string
   org_id: string
   thread_id: string
+  ai_model: string
 }

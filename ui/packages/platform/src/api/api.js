@@ -453,20 +453,19 @@ class Api {
 
   updateAiBotSettings(token, orgId, orgData) {
     let params = {};
+    let data = {};
     let headers = {
       Authorization: 'Bearer ' + token,
       prefer: 'return=representation'
     };
 
-    if (typeof orgData.custom_prompt !== 'undefined') {
-      params.custom_prompt = orgData.custom_prompt;
-    }
-
+    // if (typeof orgData.custom_prompt !== 'undefined') {
+    //   data.custom_prompt = orgData.custom_prompt;
+    // }
     if (typeof orgData.model !== 'undefined') {
-      params.model = orgData.model;
+      data.ai_model = orgData.model;
     }
-
-    console.log('params', params)
+    params.data = JSON.stringify(data)
 
     return this.patch(`${this.apiServer}/orgs?id=eq.` + orgId, params, {
       headers: headers
