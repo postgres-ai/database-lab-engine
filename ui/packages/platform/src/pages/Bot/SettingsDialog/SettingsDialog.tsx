@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   IconButton,
   TextField,
@@ -192,6 +192,15 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
   const handleSaveChanges = () => {
     onSaveChanges(model, visibility)
   }
+
+  useEffect(() => {
+    if (visibility !== defaultVisibility) {
+      setVisibility(defaultVisibility)
+    }
+    if (model !== defaultModel) {
+      setModel(defaultModel)
+    }
+  }, [isOpen]);
 
   const urlField = (
     <div>

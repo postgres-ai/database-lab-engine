@@ -465,7 +465,9 @@ class Api {
     if (typeof orgData.model !== 'undefined') {
       data.ai_model = orgData.model;
     }
-    params.data = JSON.stringify(data)
+    params.data = {
+      ai_bot: data
+    }
 
     return this.patch(`${this.apiServer}/orgs?id=eq.` + orgId, params, {
       headers: headers

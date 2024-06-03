@@ -121,7 +121,7 @@ const useStyles = makeStyles(
       flexWrap: 'wrap',
       alignItems: 'baseline',
       '@media (max-width: 450px)': {
-        height: '2.25rem',
+        height: 'auto',
       }
     },
     additionalInfo: {
