@@ -14,11 +14,14 @@ import {getChats} from "api/bot/getChats";
 import {useAlertSnackbar} from "@postgres.ai/shared/components/AlertSnackbar/useAlertSnackbar";
 import {localStorage} from "../../helpers/localStorage";
 import { makeChatPublic } from "../../api/bot/makeChatPublic";
+import { aiModelBuilder } from "./utils";
 
 
 const WS_URL = process.env.REACT_APP_WS_URL || '';
 
 export type Model = 'gpt' | 'gemini'
+
+export const DEFAULT_MODEL: Model = 'gemini'
 
 type ErrorType = {
   code?: number;
@@ -64,7 +67,7 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
   const [error, setError] = useState<ErrorType | null>(null);
   const [wsLoading, setWsLoading] = useState<boolean>(false);
   const [isChangeVisibilityLoading, setIsChangeVisibilityLoading] = useState<boolean>(false);
-  const [model, setModel] = useState<Model>('gemini');
+  const [model, setModel] = useState<Model>(DEFAULT_MODEL);
   
   const token = localStorage.getAuthToken()
 
@@ -141,6 +144,7 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
         subscribe(threadId)
         if (response && response.length > 0) {
           setMessages(response);
+          setModel(aiModelBuilder(response?.[response.length - 1]?.ai_model || ''))
         } else {
           if (onChatLoadingError) onChatLoadingError();
           setError({
@@ -235,6 +239,7 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
 
   const clearChat = () => {
     setMessages(null);
+    setModel(DEFAULT_MODEL);
   }
 
   const changeChatVisibility = async (threadId: string, isPublic: boolean) => {

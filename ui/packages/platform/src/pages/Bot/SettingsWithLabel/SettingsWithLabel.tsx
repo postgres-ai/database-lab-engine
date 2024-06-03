@@ -55,14 +55,14 @@ export const SettingsWithLabel = (props: SettingsWithLabelProps) => {
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
   return (
     <>
-      <a
+    {permalinkId && <a
         href={permalinkId && chatVisibility === 'public' ? permalinkLinkBuilder(permalinkId) : ''}
         className={cn(classes.label, {[classes.labelPrivate]: chatVisibility === 'private', [classes.disabled]: chatVisibility === 'private' || !permalinkId})}
         target="_blank"
         aria-disabled={chatVisibility === 'private' || !permalinkId}
       >
         This thread is {chatVisibility}
-      </a>
+      </a>}
       <Button
         variant="outlined"
         onClick={onSettingsClick}

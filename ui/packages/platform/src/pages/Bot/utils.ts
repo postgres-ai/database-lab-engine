@@ -6,9 +6,15 @@
  */
 
 import { API_URL_PREFIX } from "../../config/env";
+import { DEFAULT_MODEL, Model } from "./hooks";
 
 export const permalinkLinkBuilder = (id: string): string => {
   const apiUrl = process.env.REACT_APP_API_URL_PREFIX || API_URL_PREFIX;
   const isV2API = /https?:\/\/.*v2\.postgres\.ai\b/.test(apiUrl);
   return `https://${isV2API ? 'v2.' : ''}postgres.ai/chats/${id}`;
 };
+
+
+export const aiModelBuilder = (model: string): Model => {
+  return /oai|gpt/.test(model) ? "gpt" : /gemini|gcp/.test(model) ? "gemini" : DEFAULT_MODEL;
+}

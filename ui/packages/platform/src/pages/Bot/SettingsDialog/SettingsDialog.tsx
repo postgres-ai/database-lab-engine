@@ -45,7 +45,7 @@ type PublicChatDialogProps = {
   onClose: () => void
   onSaveChanges: SaveChangesFunction
   isLoading: boolean
-  threadId: string
+  threadId: string | null
 }
 
 const useDialogTitleStyles = makeStyles(
@@ -241,6 +241,7 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
       aria-labelledby="customized-dialog-title"
       open={isOpen}
       className={classes.dialog}
+      fullWidth
     >
       <DialogTitle
         id="customized-dialog-title"
@@ -249,37 +250,39 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
         Chat Settings
       </DialogTitle>
       <DialogContent>
-        <FormLabel component="legend">Visibility</FormLabel>
-        <RadioGroup
-          aria-label="shareUrl"
-          name="shareUrl"
-          value={visibility}
-          onChange={(event) => {
-            setVisibility(event.target.value as Visibility)
-          }}
-          className={classes.radioLabel}
-        >
-          <FormControlLabel
-            value="private"
-            control={<Radio />}
-            label="Only members of the organization can view"
-          />
+        {threadId && <>
+          <FormLabel component="legend">Visibility</FormLabel>
+          <RadioGroup
+            aria-label="shareUrl"
+            name="shareUrl"
+            value={visibility}
+            onChange={(event) => {
+              setVisibility(event.target.value as Visibility)
+            }}
+            className={classes.radioLabel}
+          >
+            <FormControlLabel
+              value="private"
+              control={<Radio />}
+              label="Only members of the organization can view"
+            />
 
-          <FormControlLabel
-            value="public"
-            control={<Radio />}
-            label="Anyone with a special link and members of the organization can view"
-          />
-        </RadioGroup>
-        {/*{shareUrl.remark && (
-            <Typography className={classes.remark}>
-              <span className={classes.remarkIcon}>{icons.warningIcon}</span>
-              {shareUrl.remark}
-            </Typography>
-          )}*/}
-        {visibility && (
-            <div className={classes.urlContainer}>{urlField}</div>
-          )}
+            <FormControlLabel
+              value="public"
+              control={<Radio />}
+              label="Anyone with a special link and members of the organization can view"
+            />
+          </RadioGroup>
+          {/*{shareUrl.remark && (
+              <Typography className={classes.remark}>
+                <span className={classes.remarkIcon}>{icons.warningIcon}</span>
+                {shareUrl.remark}
+              </Typography>
+            )}*/}
+          {visibility && (
+              <div className={classes.urlContainer}>{urlField}</div>
+            )}
+        </>}
         <FormLabel component="legend">Model</FormLabel>
         <RadioGroup
           aria-label="model"

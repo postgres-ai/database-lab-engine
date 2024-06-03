@@ -114,7 +114,7 @@ export const BotPage = (props: BotPageProps) => {
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [isChatsListVisible, setChatsListVisible] = useState(window?.innerWidth > 640);
-  const [isVisibilityDialogVisible, setVisibilityDialogVisible] = useState(false);
+  const [isSettingsDialogVisible, setSettingsDialogVisible] = useState(false);
   const [chatVisibility, setChatVisibility] = useState<'public' | 'private'>('public');
 
   const history = useHistory();
@@ -139,8 +139,8 @@ export const BotPage = (props: BotPageProps) => {
     setChatsListVisible((prevState) => !prevState)
   }
 
-  const toggleVisibilityDialog = () => {
-    setVisibilityDialogVisible((prevState) => !prevState)
+  const toggleSettingsDialog = () => {
+    setSettingsDialogVisible((prevState) => !prevState)
   }
 
   const handleSendMessage = async (message: string) => {
@@ -174,6 +174,7 @@ export const BotPage = (props: BotPageProps) => {
     if (_visibility !== chatVisibility) {
       handleSaveChatVisibility( _visibility === 'public')
     }
+    toggleSettingsDialog();
   }
 
   const handleChatListLinkClick = (targetThreadId: string) => {
@@ -217,15 +218,15 @@ export const BotPage = (props: BotPageProps) => {
 
   return (
     <>
-      {match.params.threadId && <SettingsDialog
+      <SettingsDialog
         defaultVisibility={chatVisibility}
         defaultModel={model}
-        isOpen={isVisibilityDialogVisible}
+        isOpen={isSettingsDialogVisible}
         isLoading={isChangeVisibilityLoading}
-        onClose={toggleVisibilityDialog}
+        onClose={toggleSettingsDialog}
         onSaveChanges={handleSaveSettings}
-        threadId={match.params.threadId}
-      />}
+        threadId={match.params.threadId || null}
+      />
       <ChatsList
         isOpen={isChatsListVisible}
         onCreateNewChat={handleCreateNewChat}
@@ -234,16 +235,16 @@ export const BotPage = (props: BotPageProps) => {
         chatsList={chatsList}
         loading={chatsListLoading}
         withChatVisibilityButton={matches && Boolean(match.params.threadId)}
-        onChatVisibilityClick={toggleVisibilityDialog}
+        onChatVisibilityClick={toggleSettingsDialog}
         currentVisibility={chatVisibility}
         onLinkClick={handleChatListLinkClick}
         permalinkId={messages?.[0]?.id}
       />
       <Box className={classes.actions}>
-        {match.params.threadId && !matches &&
+        {!matches &&
           <SettingsWithLabel
             chatVisibility={chatVisibility}
-            onSettingsClick={toggleVisibilityDialog}
+            onSettingsClick={toggleSettingsDialog}
             permalinkId={messages?.[0]?.id}
           />}
         <Box className={classes.hiddenButtons}>
@@ -252,7 +253,7 @@ export const BotPage = (props: BotPageProps) => {
             onClose={toggleChatsList}
             onCreateNewChat={handleCreateNewChat}
             withChatVisibilityButton={matches && Boolean(match.params.threadId)}
-            onChatVisibilityClick={toggleVisibilityDialog}
+            onChatVisibilityClick={toggleSettingsDialog}
             currentVisibility={chatVisibility}
             permalinkId={messages?.[0]?.id}
           />
