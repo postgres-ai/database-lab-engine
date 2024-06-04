@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
-import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
+import { Dispatch, SetStateAction, useCallback, useEffect, useState } from "react";
 import useWebSocket, {ReadyState} from "react-use-websocket";
 import { useLocation } from "react-router-dom";
 import {BotMessage} from "../../types/api/entities/bot";
