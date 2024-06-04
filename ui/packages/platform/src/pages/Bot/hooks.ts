@@ -19,9 +19,9 @@ import { aiModelBuilder } from "./utils";
 
 const WS_URL = process.env.REACT_APP_WS_URL || '';
 
-export type Model = 'gpt' | 'gemini'
+export type Model = 'oai' | 'gcp'
 
-export const DEFAULT_MODEL: Model = 'gemini'
+export const DEFAULT_MODEL: Model = 'gcp'
 
 type ErrorType = {
   code?: number;

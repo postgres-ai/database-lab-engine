@@ -16,5 +16,5 @@ export const permalinkLinkBuilder = (id: string): string => {
 
 
 export const aiModelBuilder = (model: string): Model => {
-  return /oai|gpt/.test(model) ? "gpt" : /gemini|gcp/.test(model) ? "gemini" : DEFAULT_MODEL;
+  return /oai|gpt/.test(model) ? "oai" : /gemini|gcp/.test(model) ? "gcp" : DEFAULT_MODEL;
 }
