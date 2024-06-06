@@ -17,11 +17,11 @@ import { Messages } from './Messages/Messages';
 import { Command } from './Command/Command';
 import { ChatsList } from "./ChatsList/ChatsList";
 import { BotWrapperProps } from "./BotWrapper";
-import { useBotChatsList, useAiBot, Model } from "./hooks";
+import { useBotChatsList, useAiBot } from "./hooks";
 import { usePrev } from "../../hooks/usePrev";
 import {HeaderButtons} from "./HeaderButtons/HeaderButtons";
 import settings from "../../utils/settings";
-import { SaveChangesFunction, SettingsDialog, Visibility } from "./SettingsDialog/SettingsDialog";
+import { SaveChangesFunction, SettingsDialog } from "./SettingsDialog/SettingsDialog";
 import { theme } from "@postgres.ai/shared/styles/theme";
 import { colors } from "@postgres.ai/shared/styles/colors";
 import { SettingsWithLabel } from "./SettingsWithLabel/SettingsWithLabel";
@@ -105,7 +105,8 @@ export const BotPage = (props: BotPageProps) => {
     changeChatVisibility,
     unsubscribe,
     model,
-    setModel
+    setModel,
+    llmModels
   } = useAiBot({
     threadId: match.params.threadId,
   });
@@ -226,6 +227,7 @@ export const BotPage = (props: BotPageProps) => {
         onClose={toggleSettingsDialog}
         onSaveChanges={handleSaveSettings}
         threadId={match.params.threadId || null}
+        llmModels={llmModels}
       />
       <ChatsList
         isOpen={isChatsListVisible}

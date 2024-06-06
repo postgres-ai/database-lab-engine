@@ -15,3 +15,10 @@ export type BotMessage = {
   thread_id: string
   ai_model: string
 }
+
+export type LLMModel = {
+  name: string;
+  vendor: string;
+  isThirdParty: boolean;
+  freeUseAvailable: boolean;
+};

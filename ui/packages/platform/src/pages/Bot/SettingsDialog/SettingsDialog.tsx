@@ -27,6 +27,7 @@ import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { colors } from "@postgres.ai/shared/styles/colors";
 import FormLabel from '@mui/material/FormLabel'
 import { Model } from '../hooks'
+import { LLMModel } from "../../../types/api/entities/bot";
 
 export type Visibility = 'public' | 'private';
 
@@ -46,6 +47,7 @@ type PublicChatDialogProps = {
   onSaveChanges: SaveChangesFunction
   isLoading: boolean
   threadId: string | null
+  llmModels: LLMModel[] | null
 }
 
 const useDialogTitleStyles = makeStyles(
@@ -173,7 +175,8 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
     onClose,
     isOpen,
     isLoading,
-    threadId
+    threadId,
+    llmModels
   } = props;
 
   const [visibility, setVisibility] = useState<Visibility>(defaultVisibility);
@@ -273,38 +276,32 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
               label="Anyone with a special link and members of the organization can view"
             />
           </RadioGroup>
-          {/*{shareUrl.remark && (
-              <Typography className={classes.remark}>
-                <span className={classes.remarkIcon}>{icons.warningIcon}</span>
-                {shareUrl.remark}
-              </Typography>
-            )}*/}
           {visibility && (
               <div className={classes.urlContainer}>{urlField}</div>
             )}
         </>}
-        <FormLabel component="legend">Model</FormLabel>
-        <RadioGroup
-          aria-label="model"
-          name="model"
-          value={model}
-          onChange={(event) => {
-            setModel(event.target.value as Model)
-          }}
-          className={classes.radioLabel}
-        >
-          <FormControlLabel
-            value="gemini"
-            control={<Radio />}
-            label="gemini-1.5-pro"
-          />
-
-          <FormControlLabel
-            value="gpt"
-            control={<Radio />}
-            label="gpt-4-turbo"
-          />
-        </RadioGroup>
+        {llmModels && <>
+          <FormLabel component="legend">Model</FormLabel>
+          <RadioGroup
+            aria-label="model"
+            name="model"
+            value={model}
+            onChange={(event) => {
+              setModel(event.target.value as Model)
+            }}
+            className={classes.radioLabel}
+          >
+            {llmModels.map((model) =>
+                <FormControlLabel
+                  key={`${model.vendor}/${model.name}`}
+                  value={`${model.vendor}/${model.name}`}
+                  control={<Radio />}
+                  label={model.name}
+                />
+              )
+            }
+          </RadioGroup>
+        </>}
       </DialogContent>
 
       <DialogActions>

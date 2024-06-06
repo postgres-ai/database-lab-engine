@@ -5,23 +5,26 @@
  *--------------------------------------------------------------------------
  */
 
-import { Dispatch, SetStateAction, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import useWebSocket, {ReadyState} from "react-use-websocket";
 import { useLocation } from "react-router-dom";
-import {BotMessage} from "../../types/api/entities/bot";
+import { BotMessage, LLMModel } from "../../types/api/entities/bot";
 import {getChatsWithWholeThreads} from "../../api/bot/getChatsWithWholeThreads";
 import {getChats} from "api/bot/getChats";
 import {useAlertSnackbar} from "@postgres.ai/shared/components/AlertSnackbar/useAlertSnackbar";
 import {localStorage} from "../../helpers/localStorage";
 import { makeChatPublic } from "../../api/bot/makeChatPublic";
-import { aiModelBuilder } from "./utils";
+import { getLLMModels } from "../../api/bot/getLLMModels";
 
 
 const WS_URL = process.env.REACT_APP_WS_URL || '';
 
-export type Model = 'oai' | 'gcp'
+export type Model = `${LLMModel['vendor']}/${LLMModel['name']}`
 
-export const DEFAULT_MODEL: Model = 'gcp'
+const DEFAULT_MODEL_NAME = 'gemini-1.5-pro'
+const DEFAULT_VENDOR = 'gcp';
+
+export const DEFAULT_MODEL: Model = `${DEFAULT_VENDOR}/${DEFAULT_MODEL_NAME}`
 
 type ErrorType = {
   code?: number;
@@ -47,8 +50,9 @@ type UseAiBotReturnType = {
   changeChatVisibility: (threadId: string, isPublic: boolean) => void;
   isChangeVisibilityLoading: boolean;
   unsubscribe: (threadId: string) => void;
-  model: Model,
-  setModel: Dispatch<SetStateAction<Model>>
+  model: UseLLMModelsList['model'],
+  setModel: UseLLMModelsList['setModel']
+  llmModels: UseLLMModelsList['llmModels']
 }
 
 type UseAiBotArgs = {
@@ -60,6 +64,7 @@ type UseAiBotArgs = {
 export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
   const { threadId, onChatLoadingError } = args;
   const { showMessage, closeSnackbar } = useAlertSnackbar();
+  const { llmModels, model, setModel } = useLLMModelsList();
   let location = useLocation<{skipReloading?: boolean}>();
 
   const [messages, setMessages] = useState<BotMessage[] | null>(null);
@@ -67,7 +72,7 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
   const [error, setError] = useState<ErrorType | null>(null);
   const [wsLoading, setWsLoading] = useState<boolean>(false);
   const [isChangeVisibilityLoading, setIsChangeVisibilityLoading] = useState<boolean>(false);
-  const [model, setModel] = useState<Model>(DEFAULT_MODEL);
+
   
   const token = localStorage.getAuthToken()
 
@@ -144,7 +149,6 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
         subscribe(threadId)
         if (response && response.length > 0) {
           setMessages(response);
-          setModel(aiModelBuilder(response?.[response.length - 1]?.ai_model || ''))
         } else {
           if (onChatLoadingError) onChatLoadingError();
           setError({
@@ -239,7 +243,6 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
 
   const clearChat = () => {
     setMessages(null);
-    setModel(DEFAULT_MODEL);
   }
 
   const changeChatVisibility = async (threadId: string, isPublic: boolean) => {
@@ -307,7 +310,8 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
     messages,
     unsubscribe,
     model,
-    setModel
+    setModel,
+    llmModels
   }
 }
 
@@ -359,5 +363,64 @@ export const useBotChatsList = (orgId?: number): UseBotChatsListHook => {
     error,
     getChatsList,
     loading: isLoading
+  }
+}
+
+type UseLLMModelsList = {
+  llmModels: LLMModel[] | null
+  error: Response | null
+  model: Model
+  setModel: (model: Model) => void
+}
+
+const useLLMModelsList = (): UseLLMModelsList => {
+  const [llmModels, setLLMModels] = useState<UseLLMModelsList['llmModels']>(null);
+  const [error, setError] = useState<Response | null>(null);
+  const [userModel, setUserModel] = useState<Model | null>(null)
+
+  const getModels = useCallback(async () => {
+    let models = null;
+    try {
+      const { response } = await getLLMModels();
+      setLLMModels(response)
+      const currentModel = window.localStorage.getItem('bot.llm_model')
+
+      if (currentModel && currentModel !== userModel) {
+        setUserModel(currentModel as Model)
+      } else if (!currentModel) {
+        setModel(DEFAULT_MODEL)
+      }
+    } catch (e) {
+      setError(e as unknown as Response)
+    }
+    return models
+  }, []);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    getModels()
+      .catch((e) => {
+        if (!isCancelled) {
+          setError(e);
+        }
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [getModels]);
+
+  const setModel = (model: Model) => {
+    if (model !== userModel) {
+      setUserModel(model);
+      window.localStorage.setItem('bot.llm_model', model)
+    }
+  }
+
+  return {
+    llmModels,
+    error,
+    setModel,
+    model: userModel || DEFAULT_MODEL,
   }
 }
