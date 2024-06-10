@@ -5,6 +5,7 @@ import { DialogContent, IconButton, makeStyles, Typography } from "@material-ui/
 import ReactMarkdown from "react-markdown";
 import Format from "../../../utils/format";
 import { icons } from "@postgres.ai/shared/styles/icons";
+import { disallowedHtmlTagsForMarkdown } from "../utils";
 
 type DebugDialogProps = {
   isOpen: boolean;
@@ -80,6 +81,8 @@ export const DebugDialog = (props: DebugDialogProps) => {
                     components={{
                       p: 'div',
                     }}
+                    disallowedElements={disallowedHtmlTagsForMarkdown}
+                    unwrapDisallowed
                   >
                     {debugMessage.message}
                   </ReactMarkdown>

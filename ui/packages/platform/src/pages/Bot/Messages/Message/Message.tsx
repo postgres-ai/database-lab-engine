@@ -8,7 +8,7 @@ import { colors } from "@postgres.ai/shared/styles/colors";
 import { icons } from "@postgres.ai/shared/styles/icons";
 import { DebugDialog } from "../../DebugDialog/DebugDialog";
 import { CodeBlock } from "./CodeBlock";
-import { permalinkLinkBuilder } from "../../utils";
+import { disallowedHtmlTagsForMarkdown, permalinkLinkBuilder } from "../../utils";
 
 type BaseMessageProps = {
   id: string | null;
@@ -321,6 +321,8 @@ export const Message = React.memo((props: MessageProps) => {
                 remarkPlugins={[remarkGfm]}
                 linkTarget='_blank'
                 components={renderers}
+                disallowedElements={disallowedHtmlTagsForMarkdown}
+                unwrapDisallowed
               />
           }
         </div>
