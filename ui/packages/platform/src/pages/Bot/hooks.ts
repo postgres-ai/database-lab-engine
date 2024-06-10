@@ -14,6 +14,7 @@ import {getChats} from "api/bot/getChats";
 import {useAlertSnackbar} from "@postgres.ai/shared/components/AlertSnackbar/useAlertSnackbar";
 import {localStorage} from "../../helpers/localStorage";
 import { makeChatPublic } from "../../api/bot/makeChatPublic";
+import { usePrev } from "../../hooks/usePrev";
 
 
 const WS_URL = process.env.REACT_APP_WS_URL || '';
@@ -41,26 +42,34 @@ type UseAiBotReturnType = {
   wsReadyState: ReadyState;
   changeChatVisibility: (threadId: string, isPublic: boolean) => void;
   isChangeVisibilityLoading: boolean;
-  unsubscribe: (threadId: string) => void
+  unsubscribe: (threadId: string) => void;
+  chatsList: UseBotChatsListHook['chatsList'];
+  chatsListLoading: UseBotChatsListHook['loading'];
+  getChatsList: UseBotChatsListHook['getChatsList']
 }
 
 type UseAiBotArgs = {
   threadId?: string;
-  prevThreadId?: string;
-  onChatLoadingError?: () => void;
+  orgId?: number
 }
 
 export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
-  const { threadId, onChatLoadingError } = args;
+  const { threadId, orgId } = args;
   const { showMessage, closeSnackbar } = useAlertSnackbar();
   let location = useLocation<{skipReloading?: boolean}>();
+
+  const {
+    chatsList,
+    loading: chatsListLoading,
+    getChatsList,
+  } = useBotChatsList(orgId);
 
   const [messages, setMessages] = useState<BotMessage[] | null>(null);
   const [isLoading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<ErrorType | null>(null);
   const [wsLoading, setWsLoading] = useState<boolean>(false);
   const [isChangeVisibilityLoading, setIsChangeVisibilityLoading] = useState<boolean>(false)
-  
+
   const token = localStorage.getAuthToken()
 
   const onWebSocketError = (error: WebSocketEventMap['error']) => {
@@ -92,6 +101,9 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
               });
             }
           }
+        } else if (threadId !== messageData.thread_id) {
+          const threadInList = chatsList?.find((item) => item.thread_id === messageData.thread_id)
+          if (!threadInList) getChatsList()
         }
       } else {
         showMessage('An error occurred. Please try again')
@@ -137,7 +149,6 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
         if (response && response.length > 0) {
           setMessages(response);
         } else {
-          if (onChatLoadingError) onChatLoadingError();
           setError({
             code: 404,
             message: 'Specified chat not found or you have no access.',
@@ -168,7 +179,6 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
     } else if (threadId) {
       subscribe(threadId)
     }
-
     return () => {
       isCancelled = true;
     };
@@ -294,7 +304,10 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
     sendMessage,
     clearChat,
     messages,
-    unsubscribe
+    unsubscribe,
+    chatsList,
+    chatsListLoading,
+    getChatsList
   }
 }
 
@@ -302,7 +315,7 @@ type UseBotChatsListHook = {
   chatsList: BotMessage[] | null;
   error: Response | null;
   loading: boolean;
-  getChatsList: () => void
+  getChatsList: () => void;
 };
 
 export const useBotChatsList = (orgId?: number): UseBotChatsListHook => {
