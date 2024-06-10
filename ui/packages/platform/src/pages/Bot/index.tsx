@@ -103,11 +103,14 @@ export const BotPage = (props: BotPageProps) => {
     wsReadyState,
     isChangeVisibilityLoading,
     changeChatVisibility,
-    unsubscribe
+    unsubscribe,
+    chatsListLoading,
+    getChatsList,
+    chatsList
   } = useAiBot({
     threadId: match.params.threadId,
+    orgId: orgData.id
   });
-  const {chatsList, loading: chatsListLoading, getChatsList} = useBotChatsList(orgData.id);
 
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
 

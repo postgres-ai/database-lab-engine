@@ -168,6 +168,7 @@ export const Command = React.memo((props: Props) => {
   useEffect(() => {
     if (!inputRef.current) return
     if (window.innerWidth > theme.breakpoints.values.md) inputRef.current.focus()
+    setValue('')
   }, [threadId]);
 
 
