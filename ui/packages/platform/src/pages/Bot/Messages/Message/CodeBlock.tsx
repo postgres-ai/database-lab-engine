@@ -6,6 +6,7 @@ import languages from 'react-syntax-highlighter/dist/esm/languages/prism/support
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import FileCopyOutlinedIcon from '@material-ui/icons/FileCopyOutlined';
 import CheckCircleOutlineIcon from '@material-ui/icons/CheckCircleOutline';
+import CodeIcon from '@material-ui/icons/Code';
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -38,17 +39,26 @@ const useStyles = makeStyles((theme) => ({
     width: '0.813rem',
   },
   summary: {
+    color: 'rgb(166, 38, 164)',
     textDecoration: 'underline',
     textDecorationStyle: 'dotted',
     cursor: 'pointer',
     backgroundColor: 'transparent',
     boxShadow: 'none',
     display: 'inline-flex',
-    minHeight: '32px!important',
+    minHeight: '2rem!important',
     padding: 0,
     '&:hover': {
       textDecoration: 'none'
     }
+  },
+  summaryText: {
+    display: 'inline-flex',
+    alignItems: 'center'
+  },
+  summaryTextIcon: {
+    marginRight: 8,
+    fontSize: '1rem'
   },
   details: {
     padding: 0,
@@ -117,7 +127,12 @@ export const CodeBlock = memo(({ value, language }: CodeBlockProps) => {
     return (
       <Accordion expanded={expanded} onChange={handleToggle} className={classes.accordion}>
         <AccordionSummary expandIcon={<ExpandMoreIcon />} className={classes.summary}>
-          <Typography>{expanded ? 'Hide' : 'Show'} code block ({codeLines.length} LOC)</Typography>
+          <Typography
+            className={classes.summaryText}
+          >
+            <CodeIcon className={classes.summaryTextIcon} />
+            {expanded ? 'Hide' : 'Show'} code block ({codeLines.length} LOC)
+          </Typography>
         </AccordionSummary>
         <AccordionDetails className={classes.details}>
           <div className={classes.container}>

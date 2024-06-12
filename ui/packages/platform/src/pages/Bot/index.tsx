@@ -106,11 +106,14 @@ export const BotPage = (props: BotPageProps) => {
     unsubscribe,
     model,
     setModel,
-    llmModels
+    llmModels,
+    chatsListLoading,
+    getChatsList,
+    chatsList
   } = useAiBot({
     threadId: match.params.threadId,
+    orgId: orgData.id
   });
-  const {chatsList, loading: chatsListLoading, getChatsList} = useBotChatsList(orgData.id);
 
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
 
