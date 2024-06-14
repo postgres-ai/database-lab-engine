@@ -25,6 +25,7 @@ import { styles } from '@postgres.ai/shared/styles/styles'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { colors } from "@postgres.ai/shared/styles/colors";
+import { useAiBot } from "../hooks";
 
 type DialogTitleProps = {
   id: string
@@ -33,7 +34,6 @@ type DialogTitleProps = {
 }
 
 type PublicChatDialogProps = {
-  defaultValue: 'public' | 'private'
   isOpen: boolean
   onClose: () => void
   onSaveChanges: (value: boolean) => void
@@ -159,9 +159,11 @@ const useDialogStyles = makeStyles(
 )
 
 export const PublicChatDialog = (props: PublicChatDialogProps) => {
-  const { onSaveChanges, defaultValue, onClose, isOpen, isLoading, threadId } = props;
+  const { onSaveChanges, onClose, isOpen, isLoading, threadId } = props;
 
-  const [visibility, setVisibility] = useState(defaultValue ? "public" : "private");
+  const { chatVisibility } = useAiBot();
+
+  const [visibility, setVisibility] = useState<string>(chatVisibility);
 
   const classes = useDialogStyles();
 
@@ -174,7 +176,7 @@ export const PublicChatDialog = (props: PublicChatDialogProps) => {
   }
 
   const handleSaveChanges = () => {
-    if (defaultValue !== visibility) {
+    if (chatVisibility !== visibility) {
       onSaveChanges(visibility === 'public');
     }
   }
@@ -247,12 +249,6 @@ export const PublicChatDialog = (props: PublicChatDialogProps) => {
             label="Anyone with a special link and members of the organization can view"
           />
         </RadioGroup>
-        {/*{shareUrl.remark && (
-            <Typography className={classes.remark}>
-              <span className={classes.remarkIcon}>{icons.warningIcon}</span>
-              {shareUrl.remark}
-            </Typography>
-          )}*/}
         {visibility && (
             <div className={classes.urlContainer}>{urlField}</div>
           )}

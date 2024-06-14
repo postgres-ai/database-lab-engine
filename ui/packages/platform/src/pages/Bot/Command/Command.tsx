@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { makeStyles } from '@material-ui/core'
 import SendRoundedIcon from '@material-ui/icons/SendRounded';
 import IconButton from "@material-ui/core/IconButton";
@@ -14,12 +14,13 @@ import { useBuffer } from './useBuffer'
 import { useCaret } from './useCaret'
 import { theme } from "@postgres.ai/shared/styles/theme";
 import { isMobileDevice } from "../../../utils/utils";
+import { useAiBot } from "../hooks";
+import { ReadyState } from "react-use-websocket";
 
 
 type Props = {
-  sendDisabled: boolean
-  onSend: (value: string) => void
   threadId?: string
+  orgId: number | null
 }
 
 
@@ -74,10 +75,22 @@ const useStyles = makeStyles((theme) => (
 )
 
 export const Command = React.memo((props: Props) => {
-  const { sendDisabled, onSend, threadId } = props
+  const { threadId, orgId } = props
 
   const classes = useStyles()
   const isMobile = isMobileDevice();
+
+  const {
+    error,
+    wsReadyState,
+    wsLoading,
+    loading,
+    sendMessage,
+    chatVisibility
+  } = useAiBot();
+
+  const sendDisabled = error !== null || loading || wsLoading || wsReadyState !== ReadyState.OPEN;
+
   // Handle value.
   const [value, setValue] = useState('')
 
@@ -90,10 +103,19 @@ export const Command = React.memo((props: Props) => {
   // Input caret.
   const caret = useCaret(inputRef)
 
-  const triggerSend = () => {
+  const onSend = async (message: string) => {
+    await sendMessage({
+      content: message,
+      thread_id: threadId || null,
+      org_id: orgId,
+      is_public: chatVisibility === 'public'
+    })
+  }
+
+  const triggerSend = async () => {
     if (!value.trim().length || sendDisabled) return
 
-    onSend(value)
+    await onSend(value)
     buffer.addNew()
     setValue(buffer.getCurrent())
   }
@@ -122,13 +144,13 @@ export const Command = React.memo((props: Props) => {
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = async (e: React.KeyboardEvent) => {
     if (!inputRef.current) return
 
     // Trigger to send.
     if (checkIsSendCmd(e.nativeEvent)) {
       e.preventDefault()
-      triggerSend()
+      await triggerSend()
       return
     }
 
@@ -170,7 +192,6 @@ export const Command = React.memo((props: Props) => {
     if (window.innerWidth > theme.breakpoints.values.md) inputRef.current.focus()
     setValue('')
   }, [threadId]);
-
 
   return (
     <div className={classes.root}>

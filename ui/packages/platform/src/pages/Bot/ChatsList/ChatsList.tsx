@@ -30,7 +30,7 @@ const useStyles = makeStyles<Theme, ChatsListProps>((theme) => ({
       [theme.breakpoints.down('sm')]: {
         height: '100vh!important',
         marginTop: '0!important',
-        width: 260,
+        width: 300,
         zIndex: 9999
       },
       '& > ul': {
@@ -94,7 +94,6 @@ type ChatsListProps = {
   loading: boolean;
   chatsList: BotMessage[] | null;
   onLinkClick?: (targetThreadId: string) => void;
-  permalinkId?: string
 } & HeaderButtonsProps
 
 export const ChatsList = (props: ChatsListProps) => {
@@ -104,11 +103,10 @@ export const ChatsList = (props: ChatsListProps) => {
     onClose,
     chatsList,
     loading,
-    currentVisibility,
     withChatVisibilityButton,
-    onChatVisibilityClick,
+    onSettingsClick,
     onLinkClick,
-    permalinkId
+    onConsoleClick
   } = props;
   const classes = useStyles(props);
   const params = useParams<{ org?: string, threadId?: string }>();
@@ -150,10 +148,9 @@ export const ChatsList = (props: ChatsListProps) => {
           onClose={onClose}
           onCreateNewChat={onCreateNewChat}
           isOpen={isOpen}
-          currentVisibility={currentVisibility}
           withChatVisibilityButton={withChatVisibilityButton}
-          onChatVisibilityClick={onChatVisibilityClick}
-          permalinkId={permalinkId}
+          onSettingsClick={onSettingsClick}
+          onConsoleClick={onConsoleClick}
         />
         <Divider/>
       </ListSubheader>

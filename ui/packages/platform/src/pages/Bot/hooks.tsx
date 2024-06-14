@@ -5,16 +5,17 @@
  *--------------------------------------------------------------------------
  */
 
-import {useCallback, useEffect, useRef, useState} from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import useWebSocket, {ReadyState} from "react-use-websocket";
 import { useLocation } from "react-router-dom";
-import {BotMessage} from "../../types/api/entities/bot";
+import { BotMessage, DebugMessage } from "../../types/api/entities/bot";
 import {getChatsWithWholeThreads} from "../../api/bot/getChatsWithWholeThreads";
 import {getChats} from "api/bot/getChats";
 import {useAlertSnackbar} from "@postgres.ai/shared/components/AlertSnackbar/useAlertSnackbar";
 import {localStorage} from "../../helpers/localStorage";
 import { makeChatPublic } from "../../api/bot/makeChatPublic";
-import { usePrev } from "../../hooks/usePrev";
+import { getDebugMessages } from "../../api/bot/getDebugMessages";
+import { messages } from "../../assets/messages";
 
 
 const WS_URL = process.env.REACT_APP_WS_URL || '';
@@ -42,10 +43,14 @@ type UseAiBotReturnType = {
   wsReadyState: ReadyState;
   changeChatVisibility: (threadId: string, isPublic: boolean) => void;
   isChangeVisibilityLoading: boolean;
-  unsubscribe: (threadId: string) => void;
+  unsubscribe: (threadId: string) => void
+  chatVisibility: 'public' | 'private'
+  debugMessages: DebugMessage[] | null
+  getDebugMessagesForWholeThread: () => void
   chatsList: UseBotChatsListHook['chatsList'];
   chatsListLoading: UseBotChatsListHook['loading'];
-  getChatsList: UseBotChatsListHook['getChatsList']
+  getChatsList: UseBotChatsListHook['getChatsList'];
+  debugMessagesLoading: boolean;
 }
 
 type UseAiBotArgs = {
@@ -53,7 +58,7 @@ type UseAiBotArgs = {
   orgId?: number
 }
 
-export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
+export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType => {
   const { threadId, orgId } = args;
   const { showMessage, closeSnackbar } = useAlertSnackbar();
   let location = useLocation<{skipReloading?: boolean}>();
@@ -65,11 +70,15 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
   } = useBotChatsList(orgId);
 
   const [messages, setMessages] = useState<BotMessage[] | null>(null);
+  const [debugMessages, setDebugMessages] = useState<DebugMessage[] | null>(null);
+  const [debugMessagesLoading, setDebugMessagesLoading] = useState<boolean>(false);
   const [isLoading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<ErrorType | null>(null);
   const [wsLoading, setWsLoading] = useState<boolean>(false);
-  const [isChangeVisibilityLoading, setIsChangeVisibilityLoading] = useState<boolean>(false)
+  const [chatVisibility, setChatVisibility] = useState<UseAiBotReturnType['chatVisibility']>('public');
 
+  const [isChangeVisibilityLoading, setIsChangeVisibilityLoading] = useState<boolean>(false);
+  
   const token = localStorage.getAuthToken()
 
   const onWebSocketError = (error: WebSocketEventMap['error']) => {
@@ -79,31 +88,42 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
 
   const onWebSocketMessage = (event: WebSocketEventMap['message']) => {
     if (event.data) {
-      const messageData: BotMessage = JSON.parse(event.data);
+      const messageData: BotMessage | DebugMessage = JSON.parse(event.data);
       if (messageData) {
-        if ((threadId && threadId === messageData.thread_id) || (!threadId && messageData.parent_id && messages)) {
-          let currentMessages = [...(messages || [])];
-          // Check if the last message needs its data updated
-          const lastMessage = currentMessages[currentMessages.length - 1];
-          if (lastMessage && !lastMessage.id && messageData.parent_id) {
-            lastMessage.id = messageData.parent_id;
-            lastMessage.created_at = messageData.created_at;
-            lastMessage.is_public = messageData.is_public;
-          }
+        const isThreadMatching = threadId && threadId === messageData.thread_id;
+        const isParentMatching = !threadId && 'parent_id' in messageData && messageData.parent_id && messages;
+        const isDebugMessage = messageData.type === 'debug';
+        if (isThreadMatching || isParentMatching || isDebugMessage) {
+          if (isDebugMessage) {
+            let currentDebugMessages = [...(debugMessages || [])];
+            currentDebugMessages.push(messageData)
+            setDebugMessages(currentDebugMessages)
+          } else {
+            // Check if the last message needs its data updated
+            let currentMessages = [...(messages || [])];
+            const lastMessage = currentMessages[currentMessages.length - 1];
+            if (lastMessage && !lastMessage.id && messageData.parent_id) {
+              lastMessage.id = messageData.parent_id;
+              lastMessage.created_at = messageData.created_at;
+              lastMessage.is_public = messageData.is_public;
+            }
 
-          currentMessages.push(messageData);
-          setMessages(currentMessages);
-          if (document.visibilityState === "hidden") {
-            if (Notification.permission === "granted") {
-              new Notification("New message", {
-                body: 'New message from Postgres.AI Bot',
-                icon: '/images/bot_avatar.png'
-              });
+            currentMessages.push(messageData);
+            setMessages(currentMessages);
+            setWsLoading(false);
+            if (document.visibilityState === "hidden") {
+              if (Notification.permission === "granted") {
+                new Notification("New message", {
+                  body: 'New message from Postgres.AI Bot',
+                  icon: '/images/bot_avatar.png'
+                });
+              }
             }
           }
         } else if (threadId !== messageData.thread_id) {
           const threadInList = chatsList?.find((item) => item.thread_id === messageData.thread_id)
           if (!threadInList) getChatsList()
+          setWsLoading(false);
         }
       } else {
         showMessage('An error occurred. Please try again')
@@ -111,7 +131,7 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
     } else {
       showMessage('An error occurred. Please try again')
     }
-    setWsLoading(false);
+
     setLoading(false);
   }
 
@@ -141,10 +161,11 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
 
   const getChatMessages = useCallback(async (threadId: string) => {
     setError(null);
+    setDebugMessages(null)
     if (threadId) {
       setLoading(true);
       try {
-        const { response} = await getChatsWithWholeThreads({id: threadId});
+        const { response } = await getChatsWithWholeThreads({id: threadId});
         subscribe(threadId)
         if (response && response.length > 0) {
           setMessages(response);
@@ -239,6 +260,8 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
 
   const clearChat = () => {
     setMessages(null);
+    setDebugMessages(null);
+    setWsLoading(false);
   }
 
   const changeChatVisibility = async (threadId: string, isPublic: boolean) => {
@@ -282,6 +305,17 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
     }))
   }
 
+  const getDebugMessagesForWholeThread = async () => {
+    setDebugMessagesLoading(true)
+    if (threadId) {
+      const { response } = await getDebugMessages({thread_id: threadId})
+      if (response) {
+        setDebugMessages(response)
+      }
+    }
+    setDebugMessagesLoading(false)
+  }
+
   useEffect(() => {
     if ('Notification' in window) {
       Notification.requestPermission().then(permission => {
@@ -294,6 +328,12 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
     }
   }, [])
 
+  useEffect(() => {
+    if (messages && messages.length > 0 && threadId) {
+      setChatVisibility(messages[0].is_public ? 'public' : 'private')
+    }
+  }, [messages]);
+
   return {
     error: error,
     wsLoading: wsLoading,
@@ -304,12 +344,42 @@ export const useAiBot = (args: UseAiBotArgs): UseAiBotReturnType => {
     sendMessage,
     clearChat,
     messages,
+    getDebugMessagesForWholeThread,
     unsubscribe,
     chatsList,
     chatsListLoading,
-    getChatsList
+    getChatsList,
+    chatVisibility,
+    debugMessages,
+    debugMessagesLoading
   }
 }
+
+type AiBotContextType = UseAiBotReturnType;
+
+const AiBotContext = createContext<AiBotContextType | undefined>(undefined);
+
+type AiBotProviderProps = {
+  children: React.ReactNode;
+  args: UseAiBotArgs;
+};
+
+export const AiBotProvider = ({ children, args }: AiBotProviderProps) => {
+  const aiBot = useAiBotProviderValue(args);
+  return (
+    <AiBotContext.Provider value={aiBot}>
+      {children}
+      </AiBotContext.Provider>
+  );
+};
+
+export const useAiBot = (): AiBotContextType => {
+  const context = useContext(AiBotContext);
+  if (context === undefined) {
+    throw new Error('useAiBotContext must be used within an AiBotProvider');
+  }
+  return context;
+};
 
 type UseBotChatsListHook = {
   chatsList: BotMessage[] | null;

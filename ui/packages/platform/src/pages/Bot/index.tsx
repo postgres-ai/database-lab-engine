@@ -7,7 +7,6 @@
 
 import React, { useEffect, useState } from 'react';
 import cn from "classnames";
-import {ReadyState} from "react-use-websocket";
 import Box from '@mui/material/Box/Box';
 import { makeStyles, useMediaQuery } from "@material-ui/core";
 import { useHistory, useRouteMatch } from "react-router-dom";
@@ -17,14 +16,15 @@ import { Messages } from './Messages/Messages';
 import { Command } from './Command/Command';
 import { ChatsList } from "./ChatsList/ChatsList";
 import { BotWrapperProps } from "./BotWrapper";
-import { useBotChatsList, useAiBot } from "./hooks";
+import { useAiBot } from "./hooks";
 import { usePrev } from "../../hooks/usePrev";
 import {HeaderButtons} from "./HeaderButtons/HeaderButtons";
 import settings from "../../utils/settings";
 import { PublicChatDialog } from "./PublicChatDialog/PublicChatDialog";
 import { theme } from "@postgres.ai/shared/styles/theme";
 import { colors } from "@postgres.ai/shared/styles/colors";
-import { SettingsWithLabel } from "./SettingsWithLabel/SettingsWithLabel";
+import { SettingsPanel } from "./SettingsPanel/SettingsPanel";
+import { DebugConsole } from "./DebugConsole/DebugConsole";
 
 type BotPageProps = BotWrapperProps;
 
@@ -43,7 +43,7 @@ const useStyles = makeStyles(
       width: 192,
       marginLeft: 52,
       [theme.breakpoints.down('sm')]: {
-        width: 226
+        width: 266
       }
     },
     toggleListButton: {
@@ -95,28 +95,22 @@ export const BotPage = (props: BotPageProps) => {
 
   const {
     messages,
-    loading,
     error,
-    sendMessage,
     clearChat,
-    wsLoading,
-    wsReadyState,
     isChangeVisibilityLoading,
     changeChatVisibility,
     unsubscribe,
+    getDebugMessagesForWholeThread,
     chatsListLoading,
     getChatsList,
     chatsList
-  } = useAiBot({
-    threadId: match.params.threadId,
-    orgId: orgData.id
-  });
+  } = useAiBot();
 
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [isChatsListVisible, setChatsListVisible] = useState(window?.innerWidth > 640);
   const [isVisibilityDialogVisible, setVisibilityDialogVisible] = useState(false);
-  const [chatVisibility, setChatVisibility] = useState<'public' | 'private'>('public');
+  const [isDebugConsoleVisible, setDebugConsoleVisible] = useState(false);
 
   const history = useHistory();
 
@@ -144,16 +138,13 @@ export const BotPage = (props: BotPageProps) => {
     setVisibilityDialogVisible((prevState) => !prevState)
   }
 
-  const handleSendMessage = async (message: string) => {
-    const { threadId } = match.params;
-    const orgId = orgData.id || null;
+  const handleOpenDebugConsole = () => {
+    setDebugConsoleVisible(true);
+    getDebugMessagesForWholeThread()
+  }
 
-    await sendMessage({
-      content: message,
-      thread_id: threadId || null,
-      org_id: orgId,
-      is_public: chatVisibility === 'public'
-    })
+  const toggleDebugConsole = () => {
+    setDebugConsoleVisible((prevState) => !prevState)
   }
 
   const handleCreateNewChat = () => {
@@ -185,15 +176,13 @@ export const BotPage = (props: BotPageProps) => {
   }, [match.params.threadId, match.params.org, messages, prevThreadId]);
 
   useEffect(() => {
-    if (messages && messages.length > 0 && match.params.threadId) {
-      setChatVisibility(messages[0].is_public ? 'public' : 'private')
-    }
-  }, [messages]);
-
-  useEffect(() => {
     // fixes hack with skipping additional loading chats_ancestors_and_descendants
     history.replace({ state: {} })
   }, []);
+
+  useEffect(() => {
+    if (isDebugConsoleVisible) setDebugConsoleVisible(false)
+  }, [match.params.threadId]);
 
   if (error && error.code === 404) {
     return (
@@ -209,8 +198,12 @@ export const BotPage = (props: BotPageProps) => {
 
   return (
     <>
+      <DebugConsole
+        onClose={toggleDebugConsole}
+        isOpen={isDebugConsoleVisible}
+        threadId={match.params.threadId}
+      />
       {match.params.threadId && <PublicChatDialog
-        defaultValue={chatVisibility}
         isOpen={isVisibilityDialogVisible}
         isLoading={isChangeVisibilityLoading}
         onClose={toggleVisibilityDialog}
@@ -225,17 +218,15 @@ export const BotPage = (props: BotPageProps) => {
         chatsList={chatsList}
         loading={chatsListLoading}
         withChatVisibilityButton={matches && Boolean(match.params.threadId)}
-        onChatVisibilityClick={toggleVisibilityDialog}
-        currentVisibility={chatVisibility}
+        onSettingsClick={toggleVisibilityDialog}
         onLinkClick={handleChatListLinkClick}
-        permalinkId={messages?.[0]?.id}
+        onConsoleClick={handleOpenDebugConsole}
       />
       <Box className={classes.actions}>
         {match.params.threadId && !matches &&
-          <SettingsWithLabel
-            chatVisibility={chatVisibility}
+          <SettingsPanel
             onSettingsClick={toggleVisibilityDialog}
-            permalinkId={messages?.[0]?.id}
+            onConsoleClick={handleOpenDebugConsole}
           />}
         <Box className={classes.hiddenButtons}>
           <HeaderButtons
@@ -243,23 +234,16 @@ export const BotPage = (props: BotPageProps) => {
             onClose={toggleChatsList}
             onCreateNewChat={handleCreateNewChat}
             withChatVisibilityButton={matches && Boolean(match.params.threadId)}
-            onChatVisibilityClick={toggleVisibilityDialog}
-            currentVisibility={chatVisibility}
-            permalinkId={messages?.[0]?.id}
+            onSettingsClick={toggleVisibilityDialog}
+            onConsoleClick={handleOpenDebugConsole}
           />
         </Box>
       </Box>
       <Box className={cn(classes.contentContainer, {[classes.isChatsListVisible]: isChatsListVisible})}>
-        <Messages
-          messages={messages}
-          isLoading={loading}
-          isWaitingForAnswer={wsLoading}
-        />
-
+        <Messages />
         <Command
-          sendDisabled={error !== null || loading || wsLoading || wsReadyState !== ReadyState.OPEN}
-          onSend={handleSendMessage}
           threadId={match.params.threadId}
+          orgId={orgData.id}
         />
       </Box>
     </>
