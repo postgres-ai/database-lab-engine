@@ -27,7 +27,7 @@ import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { colors } from "@postgres.ai/shared/styles/colors";
 import FormLabel from '@mui/material/FormLabel'
 import { Model } from '../hooks'
-import { LLMModel } from "../../../types/api/entities/bot";
+import { useAiBot } from "../hooks";
 
 export type Visibility = 'public' | 'private';
 
@@ -40,14 +40,9 @@ type DialogTitleProps = {
 }
 
 type PublicChatDialogProps = {
-  defaultVisibility: Visibility
-  defaultModel: Model
   isOpen: boolean
   onClose: () => void
-  onSaveChanges: SaveChangesFunction
-  isLoading: boolean
   threadId: string | null
-  llmModels: LLMModel[] | null
 }
 
 const useDialogTitleStyles = makeStyles(
@@ -169,18 +164,24 @@ const useDialogStyles = makeStyles(
 
 export const SettingsDialog = (props: PublicChatDialogProps) => {
   const {
-    onSaveChanges,
-    defaultVisibility,
-    defaultModel,
     onClose,
     isOpen,
-    isLoading,
     threadId,
-    llmModels
   } = props;
 
-  const [visibility, setVisibility] = useState<Visibility>(defaultVisibility);
-  const [model, setModel] = useState<Model>(defaultModel)
+
+  const {
+    chatVisibility,
+    changeChatVisibility,
+    isChangeVisibilityLoading,
+    getChatsList,
+    llmModels,
+    model: activeModel,
+    setModel: setActiveModel
+  } = useAiBot();
+
+  const [model, setModel] = useState<Model>(activeModel)
+  const [visibility, setVisibility] = useState<string>(chatVisibility);
 
   const classes = useDialogStyles();
 
@@ -193,15 +194,23 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
   }
 
   const handleSaveChanges = () => {
-    onSaveChanges(model, visibility)
+    if (model !== activeModel) {
+      setActiveModel(model)
+    }
+    if (visibility !== chatVisibility && threadId) {
+      changeChatVisibility(threadId, visibility === 'public')
+      getChatsList();
+    }
+
+    onClose()
   }
 
   useEffect(() => {
-    if (visibility !== defaultVisibility) {
-      setVisibility(defaultVisibility)
+    if (visibility !== chatVisibility) {
+      setVisibility(chatVisibility)
     }
-    if (model !== defaultModel) {
-      setModel(defaultModel)
+    if (model !== activeModel) {
+      setModel(activeModel)
     }
   }, [isOpen]);
 
@@ -308,12 +317,12 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
         <Button
           autoFocus
           variant="contained"
-          disabled={isLoading}
+          disabled={isChangeVisibilityLoading}
           onClick={handleSaveChanges}
           color="primary"
         >
           Save changes
-          {isLoading && (
+          {isChangeVisibilityLoading && (
               <span>
                 &nbsp;
                 <Spinner size="sm" />

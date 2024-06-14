@@ -1,16 +1,16 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import cn from "classnames";
 import { Button, makeStyles, useMediaQuery } from "@material-ui/core";
 import SettingsOutlinedIcon from "@material-ui/icons/SettingsOutlined";
 import { colors } from "@postgres.ai/shared/styles/colors";
 import { theme } from "@postgres.ai/shared/styles/theme";
-import { Link } from "react-router-dom";
 import { permalinkLinkBuilder } from "../utils";
+import { useAiBot } from "../hooks";
+import DeveloperModeIcon from "@material-ui/icons/DeveloperMode";
 
-type SettingsWithLabelProps = {
-  chatVisibility: 'private' | 'public';
+export type SettingsPanelProps = {
   onSettingsClick: () => void;
-  permalinkId?: string
+  onConsoleClick: () => void;
 }
 
 const useStyles = makeStyles((theme) => ({
@@ -25,7 +25,6 @@ const useStyles = makeStyles((theme) => ({
       paddingLeft: 3,
       paddingRight: 3,
       verticalAlign: 'text-top',
-      marginRight: 8,
       textDecoration: 'none'
     },
     labelPrivate: {
@@ -35,6 +34,7 @@ const useStyles = makeStyles((theme) => ({
       pointerEvents: "none"
     },
     button: {
+      marginLeft: 8,
       [theme.breakpoints.down('sm')]: {
         border: 'none',
         minWidth: '2rem',
@@ -49,10 +49,13 @@ const useStyles = makeStyles((theme) => ({
   }),
 )
 
-export const SettingsWithLabel = (props: SettingsWithLabelProps) => {
-  const { chatVisibility, onSettingsClick, permalinkId } = props;
+export const SettingsPanel = (props: SettingsPanelProps) => {
+  const { onSettingsClick, onConsoleClick } = props;
   const classes = useStyles();
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
+  const { messages, chatVisibility } = useAiBot();
+  const permalinkId = useMemo(() => messages?.[0]?.id, [messages]);
+
   return (
     <>
     {permalinkId && <a
@@ -70,6 +73,14 @@ export const SettingsWithLabel = (props: SettingsWithLabelProps) => {
         className={classes.button}
       >
         {!matches && 'Settings'}
+      </Button>
+      <Button
+        variant="outlined"
+        onClick={onConsoleClick}
+        startIcon={<DeveloperModeIcon />}
+        className={classes.button}
+      >
+        {!matches && 'Console'}
       </Button>
     </>
   )

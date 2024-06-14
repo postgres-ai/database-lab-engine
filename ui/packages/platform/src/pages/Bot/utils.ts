@@ -6,6 +6,7 @@
  */
 
 import { API_URL_PREFIX } from "../../config/env";
+import { BotMessage, BotMessageWithDebugInfo, DebugMessage } from "../../types/api/entities/bot";
 
 export const permalinkLinkBuilder = (id: string): string => {
   const apiUrl = process.env.REACT_APP_API_URL_PREFIX || API_URL_PREFIX;
@@ -29,4 +30,4 @@ export const disallowedHtmlTagsForMarkdown= [
   'frameset',
   'audio',
   'video',
-]
+];

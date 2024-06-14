@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
-import { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { makeStyles, Typography } from "@material-ui/core";
 import cn from "classnames";
 import { ResizeObserver } from '@juggle/resize-observer';
@@ -14,8 +14,9 @@ import {PageSpinner} from "@postgres.ai/shared/components/PageSpinner";
 import { usePrev } from 'hooks/usePrev';
 import { getMaxScrollTop, getUserMessagesCount } from './utils';
 import Format from "../../../utils/format";
-import {BotMessage} from "../../../types/api/entities/bot";
+import { BotMessage, BotMessageWithDebugInfo } from "../../../types/api/entities/bot";
 import { Message } from "./Message/Message";
+import { useAiBot } from "../hooks";
 
 const useStyles = makeStyles(
   (theme) => ({
@@ -114,7 +115,7 @@ const useStyles = makeStyles(
 )
 
 type MessagesProps = {
-  messages: BotMessage[] | null
+  messages: BotMessageWithDebugInfo[] | null
   isLoading: boolean
   isWaitingForAnswer: boolean
 }
@@ -125,12 +126,8 @@ type FormattedTime = {
   [id: string]: Time
 }
 
-export const Messages = (props: MessagesProps) => {
-  const {
-    messages,
-    isLoading,
-    isWaitingForAnswer
-  } = props;
+export const Messages = React.memo(() => {
+  const { messages, loading: isLoading, wsLoading: isWaitingForAnswer } = useAiBot();
 
   const rootRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -237,9 +234,7 @@ export const Messages = (props: MessagesProps) => {
       <div className={classes.messages} ref={rootRef} onScroll={calcIsAtBottom}>
         <div ref={wrapperRef}>
           {messages &&
-            Object.keys(messages).map((m) => {
-              const idx = Number(m)
-
+            messages.map((message) => {
               const {
                 id,
                 is_ai,
@@ -250,7 +245,7 @@ export const Messages = (props: MessagesProps) => {
                 created_at,
                 content,
                 ai_model
-              } = messages[idx];
+              } = message;
               let name = 'You';
 
               if (first_name || last_name) {
@@ -287,4 +282,4 @@ export const Messages = (props: MessagesProps) => {
       </div>
     </div>
   );
-};
+});

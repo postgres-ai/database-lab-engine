@@ -3,12 +3,14 @@ import cn from "classnames";
 import ReactMarkdown, { Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
-import { makeStyles } from "@material-ui/core";
+import { Badge, makeStyles } from "@material-ui/core";
 import { colors } from "@postgres.ai/shared/styles/colors";
 import { icons } from "@postgres.ai/shared/styles/icons";
 import { DebugDialog } from "../../DebugDialog/DebugDialog";
 import { CodeBlock } from "./CodeBlock";
 import { disallowedHtmlTagsForMarkdown, permalinkLinkBuilder } from "../../utils";
+import { BotMessage, DebugMessage } from "../../../../types/api/entities/bot";
+import { getDebugMessages } from "../../../../api/bot/getDebugMessages";
 
 type BaseMessageProps = {
   id: string | null;
@@ -132,6 +134,12 @@ const useStyles = makeStyles(
 
       }
     },
+    badge: {
+      fontSize: '0.5rem',
+      minWidth: '0.714rem',
+      height: '0.714rem',
+      padding: '0 0.25rem'
+    },
     messagesSpinner: {
       display: 'flex',
       justifyContent: 'center',
@@ -238,13 +246,15 @@ export const Message = React.memo((props: MessageProps) => {
 
   const [isDebugVisible, setDebugVisible] = useState(false);
 
+
   const classes = useStyles();
+
+  const contentToRender: string = content?.replace(/\n/g, '  \n') || ''
 
   const toggleDebugDialog = () => {
     setDebugVisible(prevState => !prevState)
   }
 
-  const contentToRender = useMemo(() => content, [content]);
 
   const renderers = useMemo<Components>(() => ({
     p: ({ node, ...props }) => <div {...props} />,
@@ -261,11 +271,11 @@ export const Message = React.memo((props: MessageProps) => {
 
   return (
     <>
-      <DebugDialog
+    {id && <DebugDialog
         isOpen={isDebugVisible}
         onClose={toggleDebugDialog}
-        debugMessages={[]}
-      />
+        messageId={id}
+      />}
       <div className={classes.message}>
         <div className={classes.messageAvatar}>
           {isAi
@@ -299,7 +309,7 @@ export const Message = React.memo((props: MessageProps) => {
                 permalink
               </a>
             </>}
-            {!isLoading && <>
+            {!isLoading && isAi && id && <>
               <span className={classes.messageInfo}>|</span>
               <button
                 className={cn(classes.messageInfo, classes.messageInfoActive)}

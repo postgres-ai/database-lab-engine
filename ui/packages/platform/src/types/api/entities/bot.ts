@@ -1,3 +1,11 @@
+export type DebugMessage = {
+  type: 'debug'
+  message_id: string | null
+  org_id: string
+  thread_id: string
+  content: string
+  created_at: string
+}
 
 export type BotMessage = {
   id: string
@@ -13,7 +21,12 @@ export type BotMessage = {
   user_id: string
   org_id: string
   thread_id: string
+  type: 'message' | undefined
   ai_model: string
+}
+
+export type BotMessageWithDebugInfo = BotMessage & {
+  debugMessages?: DebugMessage[]
 }
 
 export type LLMModel = {

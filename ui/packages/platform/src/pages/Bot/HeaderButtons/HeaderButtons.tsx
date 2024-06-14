@@ -1,12 +1,12 @@
 import React from "react";
+import { Button, makeStyles, useMediaQuery } from "@material-ui/core";
 import IconButton from "@material-ui/core/IconButton";
 import NavigateBeforeIcon from "@material-ui/icons/NavigateBefore";
 import NavigateNextIcon from '@material-ui/icons/NavigateNext';
-import { Button, makeStyles, useMediaQuery } from "@material-ui/core";
 import AddCircleOutlineIcon from "@material-ui/icons/AddCircleOutline";
 import Box from "@mui/material/Box";
 import { theme } from "@postgres.ai/shared/styles/theme";
-import { SettingsWithLabel } from "../SettingsWithLabel/SettingsWithLabel";
+import { SettingsPanel, SettingsPanelProps } from "../SettingsPanel/SettingsPanel";
 
 
 export type HeaderButtonsProps = {
@@ -14,9 +14,8 @@ export type HeaderButtonsProps = {
   onClose: () => void;
   onCreateNewChat: () => void;
   withChatVisibilityButton: boolean;
-  onChatVisibilityClick?: () => void;
-  currentVisibility: 'public' | 'private';
-  permalinkId?: string;
+  onSettingsClick: SettingsPanelProps["onSettingsClick"];
+  onConsoleClick: SettingsPanelProps["onConsoleClick"];
 }
 
 const useStyles = makeStyles((theme) => ({
@@ -58,23 +57,22 @@ export const HeaderButtons = (props: HeaderButtonsProps) => {
     onClose,
     onCreateNewChat,
     isOpen,
-    onChatVisibilityClick,
+    onSettingsClick,
     withChatVisibilityButton,
-    currentVisibility,
-    permalinkId
+    onConsoleClick
   } = props;
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
   const classes = useStyles();
 
+
   return (
     <Box className={classes.container}>
       {
-        withChatVisibilityButton && onChatVisibilityClick &&
-        <SettingsWithLabel
-          chatVisibility={currentVisibility}
-          onSettingsClick={onChatVisibilityClick}
-          permalinkId={permalinkId}
-        />
+        withChatVisibilityButton &&
+          <SettingsPanel
+            onSettingsClick={onSettingsClick}
+            onConsoleClick={onConsoleClick}
+          />
       }
       <Button
         variant='outlined'

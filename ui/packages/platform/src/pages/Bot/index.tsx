@@ -7,7 +7,6 @@
 
 import React, { useEffect, useState } from 'react';
 import cn from "classnames";
-import {ReadyState} from "react-use-websocket";
 import Box from '@mui/material/Box/Box';
 import { makeStyles, useMediaQuery } from "@material-ui/core";
 import { useHistory, useRouteMatch } from "react-router-dom";
@@ -17,14 +16,15 @@ import { Messages } from './Messages/Messages';
 import { Command } from './Command/Command';
 import { ChatsList } from "./ChatsList/ChatsList";
 import { BotWrapperProps } from "./BotWrapper";
-import { useBotChatsList, useAiBot } from "./hooks";
+import { useAiBot } from "./hooks";
 import { usePrev } from "../../hooks/usePrev";
 import {HeaderButtons} from "./HeaderButtons/HeaderButtons";
 import settings from "../../utils/settings";
 import { SaveChangesFunction, SettingsDialog } from "./SettingsDialog/SettingsDialog";
 import { theme } from "@postgres.ai/shared/styles/theme";
 import { colors } from "@postgres.ai/shared/styles/colors";
-import { SettingsWithLabel } from "./SettingsWithLabel/SettingsWithLabel";
+import { SettingsPanel } from "./SettingsPanel/SettingsPanel";
+import { DebugConsole } from "./DebugConsole/DebugConsole";
 
 type BotPageProps = BotWrapperProps;
 
@@ -43,7 +43,7 @@ const useStyles = makeStyles(
       width: 192,
       marginLeft: 52,
       [theme.breakpoints.down('sm')]: {
-        width: 226
+        width: 266
       }
     },
     toggleListButton: {
@@ -95,31 +95,24 @@ export const BotPage = (props: BotPageProps) => {
 
   const {
     messages,
-    loading,
     error,
-    sendMessage,
     clearChat,
-    wsLoading,
-    wsReadyState,
-    isChangeVisibilityLoading,
     changeChatVisibility,
     unsubscribe,
     model,
     setModel,
-    llmModels,
+    getDebugMessagesForWholeThread,
     chatsListLoading,
     getChatsList,
     chatsList
-  } = useAiBot({
-    threadId: match.params.threadId,
-    orgId: orgData.id
-  });
+  } = useAiBot();
 
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [isChatsListVisible, setChatsListVisible] = useState(window?.innerWidth > 640);
   const [isSettingsDialogVisible, setSettingsDialogVisible] = useState(false);
   const [chatVisibility, setChatVisibility] = useState<'public' | 'private'>('public');
+  const [isDebugConsoleVisible, setDebugConsoleVisible] = useState(false);
 
   const history = useHistory();
 
@@ -147,16 +140,13 @@ export const BotPage = (props: BotPageProps) => {
     setSettingsDialogVisible((prevState) => !prevState)
   }
 
-  const handleSendMessage = async (message: string) => {
-    const { threadId } = match.params;
-    const orgId = orgData.id || null;
+  const handleOpenDebugConsole = () => {
+    setDebugConsoleVisible(true);
+    getDebugMessagesForWholeThread()
+  }
 
-    await sendMessage({
-      content: message,
-      thread_id: threadId || null,
-      org_id: orgId,
-      is_public: chatVisibility === 'public'
-    })
+  const toggleDebugConsole = () => {
+    setDebugConsoleVisible((prevState) => !prevState)
   }
 
   const handleCreateNewChat = () => {
@@ -198,15 +188,13 @@ export const BotPage = (props: BotPageProps) => {
   }, [match.params.threadId, match.params.org, messages, prevThreadId]);
 
   useEffect(() => {
-    if (messages && messages.length > 0 && match.params.threadId) {
-      setChatVisibility(messages[0].is_public ? 'public' : 'private')
-    }
-  }, [messages]);
-
-  useEffect(() => {
     // fixes hack with skipping additional loading chats_ancestors_and_descendants
     history.replace({ state: {} })
   }, []);
+
+  useEffect(() => {
+    if (isDebugConsoleVisible) setDebugConsoleVisible(false)
+  }, [match.params.threadId]);
 
   if (error && error.code === 404) {
     return (
@@ -222,35 +210,31 @@ export const BotPage = (props: BotPageProps) => {
 
   return (
     <>
+      <DebugConsole
+        onClose={toggleDebugConsole}
+        isOpen={isDebugConsoleVisible}
+        threadId={match.params.threadId}
+      />
       <SettingsDialog
-        defaultVisibility={chatVisibility}
-        defaultModel={model}
         isOpen={isSettingsDialogVisible}
-        isLoading={isChangeVisibilityLoading}
         onClose={toggleSettingsDialog}
-        onSaveChanges={handleSaveSettings}
         threadId={match.params.threadId || null}
-        llmModels={llmModels}
       />
       <ChatsList
         isOpen={isChatsListVisible}
         onCreateNewChat={handleCreateNewChat}
         onClose={toggleChatsList}
         isDemoOrg={Boolean(isDemoOrg)}
-        chatsList={chatsList}
-        loading={chatsListLoading}
         withChatVisibilityButton={matches && Boolean(match.params.threadId)}
-        onChatVisibilityClick={toggleSettingsDialog}
-        currentVisibility={chatVisibility}
+        onSettingsClick={toggleSettingsDialog}
         onLinkClick={handleChatListLinkClick}
-        permalinkId={messages?.[0]?.id}
+        onConsoleClick={handleOpenDebugConsole}
       />
       <Box className={classes.actions}>
         {!matches &&
-          <SettingsWithLabel
-            chatVisibility={chatVisibility}
+          <SettingsPanel
             onSettingsClick={toggleSettingsDialog}
-            permalinkId={messages?.[0]?.id}
+            onConsoleClick={handleOpenDebugConsole}
           />}
         <Box className={classes.hiddenButtons}>
           <HeaderButtons
@@ -258,23 +242,16 @@ export const BotPage = (props: BotPageProps) => {
             onClose={toggleChatsList}
             onCreateNewChat={handleCreateNewChat}
             withChatVisibilityButton={matches && Boolean(match.params.threadId)}
-            onChatVisibilityClick={toggleSettingsDialog}
-            currentVisibility={chatVisibility}
-            permalinkId={messages?.[0]?.id}
+            onSettingsClick={toggleSettingsDialog}
+            onConsoleClick={handleOpenDebugConsole}
           />
         </Box>
       </Box>
       <Box className={cn(classes.contentContainer, {[classes.isChatsListVisible]: isChatsListVisible})}>
-        <Messages
-          messages={messages}
-          isLoading={loading}
-          isWaitingForAnswer={wsLoading}
-        />
-
+        <Messages />
         <Command
-          sendDisabled={error !== null || loading || wsLoading || wsReadyState !== ReadyState.OPEN}
-          onSend={handleSendMessage}
           threadId={match.params.threadId}
+          orgId={orgData.id}
         />
       </Box>
     </>

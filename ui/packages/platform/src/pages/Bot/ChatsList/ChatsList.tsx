@@ -19,6 +19,7 @@ import { Spinner } from "@postgres.ai/shared/components/Spinner";
 import { HeaderButtons, HeaderButtonsProps } from "../HeaderButtons/HeaderButtons";
 import { BotMessage } from "../../../types/api/entities/bot";
 import { theme } from "@postgres.ai/shared/styles/theme";
+import { useAiBot } from "../hooks";
 
 
 const useStyles = makeStyles<Theme, ChatsListProps>((theme) => ({
@@ -30,7 +31,7 @@ const useStyles = makeStyles<Theme, ChatsListProps>((theme) => ({
       [theme.breakpoints.down('sm')]: {
         height: '100vh!important',
         marginTop: '0!important',
-        width: 260,
+        width: 300,
         zIndex: 9999
       },
       '& > ul': {
@@ -91,10 +92,7 @@ type ChatsListProps = {
   onCreateNewChat: () => void;
   onClose: () => void;
   isDemoOrg: boolean;
-  loading: boolean;
-  chatsList: BotMessage[] | null;
   onLinkClick?: (targetThreadId: string) => void;
-  permalinkId?: string
 } & HeaderButtonsProps
 
 export const ChatsList = (props: ChatsListProps) => {
@@ -102,14 +100,14 @@ export const ChatsList = (props: ChatsListProps) => {
     isOpen,
     onCreateNewChat,
     onClose,
-    chatsList,
-    loading,
-    currentVisibility,
     withChatVisibilityButton,
-    onChatVisibilityClick,
+    onSettingsClick,
     onLinkClick,
-    permalinkId
+    onConsoleClick
   } = props;
+
+  const { chatsList, chatsListLoading: loading } = useAiBot();
+
   const classes = useStyles(props);
   const params = useParams<{ org?: string, threadId?: string }>();
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
@@ -150,10 +148,9 @@ export const ChatsList = (props: ChatsListProps) => {
           onClose={onClose}
           onCreateNewChat={onCreateNewChat}
           isOpen={isOpen}
-          currentVisibility={currentVisibility}
           withChatVisibilityButton={withChatVisibilityButton}
-          onChatVisibilityClick={onChatVisibilityClick}
-          permalinkId={permalinkId}
+          onSettingsClick={onSettingsClick}
+          onConsoleClick={onConsoleClick}
         />
         <Divider/>
       </ListSubheader>
