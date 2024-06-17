@@ -1,3 +1,3 @@
 ci_access:
   projects:
-    - id: 14976868
+    - id: postgres-ai/database-lab
