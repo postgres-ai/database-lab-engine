@@ -102,9 +102,7 @@ export const BotPage = (props: BotPageProps) => {
     model,
     setModel,
     getDebugMessagesForWholeThread,
-    chatsListLoading,
     getChatsList,
-    chatsList
   } = useAiBot();
 
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
