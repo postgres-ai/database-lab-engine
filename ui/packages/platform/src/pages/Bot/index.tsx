@@ -20,7 +20,7 @@ import { useAiBot } from "./hooks";
 import { usePrev } from "../../hooks/usePrev";
 import {HeaderButtons} from "./HeaderButtons/HeaderButtons";
 import settings from "../../utils/settings";
-import { SaveChangesFunction, SettingsDialog } from "./SettingsDialog/SettingsDialog";
+import { SettingsDialog } from "./SettingsDialog/SettingsDialog";
 import { theme } from "@postgres.ai/shared/styles/theme";
 import { colors } from "@postgres.ai/shared/styles/colors";
 import { SettingsPanel } from "./SettingsPanel/SettingsPanel";
@@ -99,8 +99,6 @@ export const BotPage = (props: BotPageProps) => {
     clearChat,
     changeChatVisibility,
     unsubscribe,
-    model,
-    setModel,
     getDebugMessagesForWholeThread,
     getChatsList,
   } = useAiBot();
@@ -109,7 +107,6 @@ export const BotPage = (props: BotPageProps) => {
 
   const [isChatsListVisible, setChatsListVisible] = useState(window?.innerWidth > 640);
   const [isSettingsDialogVisible, setSettingsDialogVisible] = useState(false);
-  const [chatVisibility, setChatVisibility] = useState<'public' | 'private'>('public');
   const [isDebugConsoleVisible, setDebugConsoleVisible] = useState(false);
 
   const history = useHistory();
@@ -150,23 +147,6 @@ export const BotPage = (props: BotPageProps) => {
   const handleCreateNewChat = () => {
     clearChat();
     history.push(`/${match.params.org}/bot`);
-  }
-
-  const handleSaveChatVisibility = (value: boolean) => {
-    if (match.params.threadId) {
-      changeChatVisibility(match.params.threadId, value)
-      getChatsList();
-    }
-  }
-
-  const handleSaveSettings: SaveChangesFunction = ( _model, _visibility) => {
-    if (_model !== model) {
-      setModel(_model)
-    }
-    if (_visibility !== chatVisibility) {
-      handleSaveChatVisibility( _visibility === 'public')
-    }
-    toggleSettingsDialog();
   }
 
   const handleChatListLinkClick = (targetThreadId: string) => {
