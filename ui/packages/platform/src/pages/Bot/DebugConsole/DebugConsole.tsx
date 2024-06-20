@@ -17,8 +17,9 @@ const useStyles = makeStyles(
       top: '5%!important',
       right: '10%!important',
       left: 'unset!important',
-      height: 'fit-content',
-      width: 'fit-content',
+      [theme.breakpoints.down('sm')]: {
+        right: 'unset!important'
+      }
     },
     paper: {
       width: '80vw',
@@ -27,6 +28,12 @@ const useStyles = makeStyles(
       transition: '.2s ease',
       '&:hover': {
         opacity: 1
+      },
+      [theme.breakpoints.down('sm')]: {
+        opacity: 1,
+        width: '90vw',
+        height: '90vh',
+        margin: '0 5vw'
       }
     },
     dialogTitle: {

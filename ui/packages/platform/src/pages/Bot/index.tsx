@@ -43,7 +43,8 @@ const useStyles = makeStyles(
       width: 192,
       marginLeft: 52,
       [theme.breakpoints.down('sm')]: {
-        width: 266
+        width: 'min(100%, 320px)',
+        marginLeft: 'auto'
       }
     },
     toggleListButton: {
@@ -185,7 +186,7 @@ export const BotPage = (props: BotPageProps) => {
       </>
     )
   }
-
+  console.log('isDebugConsoleVisible', isDebugConsoleVisible)
   return (
     <>
       <DebugConsole

@@ -207,9 +207,6 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
       if (visibility !== chatVisibility) {
         setVisibility(chatVisibility)
       }
-      console.log('model', model)
-      console.log('active', activeModel)
-      console.log('eq', model?.name !== activeModel?.name)
       if (model?.name !== activeModel?.name) {
         setModel(activeModel)
       }

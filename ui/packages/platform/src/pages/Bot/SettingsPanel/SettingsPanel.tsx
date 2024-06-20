@@ -25,10 +25,16 @@ const useStyles = makeStyles((theme) => ({
       paddingLeft: 3,
       paddingRight: 3,
       verticalAlign: 'text-top',
-      textDecoration: 'none'
+      textDecoration: 'none',
+      '& > span': {
+        textTransform: 'capitalize'
+      }
     },
     labelVisibility: {
       marginLeft: '0.5rem',
+      [theme.breakpoints.down('sm')]: {
+        marginLeft: '0.25rem'
+      },
       '&:hover': {
         backgroundColor: colors.secondary1.main
       }
@@ -57,6 +63,7 @@ const useStyles = makeStyles((theme) => ({
         minWidth: '2rem',
         height: '2rem',
         padding: 0,
+        marginLeft: '0.25rem',
         '& .MuiButton-startIcon': {
           margin: 0
         }
@@ -107,7 +114,7 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
         target="_blank"
         aria-disabled={chatVisibility === 'private' || !permalinkId}
       >
-        This thread is {chatVisibility}
+        <span>{chatVisibility}</span> thread
       </a>}
       <Button
         variant="outlined"

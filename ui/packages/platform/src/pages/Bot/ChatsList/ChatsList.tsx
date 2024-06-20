@@ -31,7 +31,7 @@ const useStyles = makeStyles<Theme, ChatsListProps>((theme) => ({
       [theme.breakpoints.down('sm')]: {
         height: '100vh!important',
         marginTop: '0!important',
-        width: 300,
+        width: 320,
         zIndex: 9999
       },
       '& > ul': {
@@ -55,6 +55,9 @@ const useStyles = makeStyles<Theme, ChatsListProps>((theme) => ({
     },
     listSubheaderRoot: {
       background: 'white',
+      [theme.breakpoints.down('sm')]: {
+        padding: 0
+      }
     },
     listItemLink: {
       fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
