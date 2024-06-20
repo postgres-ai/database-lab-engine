@@ -20,18 +20,15 @@ import {
 import MuiDialogTitle from '@material-ui/core/DialogTitle'
 import MuiDialogContent from '@material-ui/core/DialogContent'
 import MuiDialogActions from '@material-ui/core/DialogActions'
-
+import FormLabel from '@mui/material/FormLabel'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { colors } from "@postgres.ai/shared/styles/colors";
-import FormLabel from '@mui/material/FormLabel'
-import { Model } from '../hooks'
 import { useAiBot } from "../hooks";
+import { AiModel } from "../../../types/api/entities/bot";
 
 export type Visibility = 'public' | 'private';
-
-export type SaveChangesFunction = (model: Model, visibility: Visibility) => void
 
 type DialogTitleProps = {
   id: string
@@ -175,12 +172,12 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
     changeChatVisibility,
     isChangeVisibilityLoading,
     getChatsList,
-    llmModels,
-    model: activeModel,
-    setModel: setActiveModel
+    aiModels,
+    aiModel: activeModel,
+    setAiModel: setActiveModel,
   } = useAiBot();
 
-  const [model, setModel] = useState<Model>(activeModel)
+  const [model, setModel] = useState<AiModel | null>(activeModel)
   const [visibility, setVisibility] = useState<string>(chatVisibility);
 
   const classes = useDialogStyles();
@@ -194,7 +191,7 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
   }
 
   const handleSaveChanges = () => {
-    if (model !== activeModel) {
+    if (model && model !== activeModel) {
       setActiveModel(model)
     }
     if (visibility !== chatVisibility && threadId) {
@@ -206,11 +203,16 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
   }
 
   useEffect(() => {
-    if (visibility !== chatVisibility) {
-      setVisibility(chatVisibility)
-    }
-    if (model !== activeModel) {
-      setModel(activeModel)
+    if (isOpen) {
+      if (visibility !== chatVisibility) {
+        setVisibility(chatVisibility)
+      }
+      console.log('model', model)
+      console.log('active', activeModel)
+      console.log('eq', model?.name !== activeModel?.name)
+      if (model?.name !== activeModel?.name) {
+        setModel(activeModel)
+      }
     }
   }, [isOpen]);
 
@@ -289,18 +291,19 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
               <div className={classes.urlContainer}>{urlField}</div>
             )}
         </>}
-        {llmModels && <>
+        {aiModels && <>
           <FormLabel component="legend">Model</FormLabel>
           <RadioGroup
             aria-label="model"
             name="model"
-            value={model}
+            value={`${model?.vendor}/${model?.name}`}
             onChange={(event) => {
-              setModel(event.target.value as Model)
+              const selectedModel = aiModels?.find((model) => `${model.vendor}/${model.name}` === event.target.value)
+              setModel(selectedModel!)
             }}
             className={classes.radioLabel}
           >
-            {llmModels.map((model) =>
+            {aiModels.map((model) =>
                 <FormControlLabel
                   key={`${model.vendor}/${model.name}`}
                   value={`${model.vendor}/${model.name}`}

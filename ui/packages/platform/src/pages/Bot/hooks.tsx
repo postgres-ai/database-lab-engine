@@ -8,24 +8,19 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import useWebSocket, {ReadyState} from "react-use-websocket";
 import { useLocation } from "react-router-dom";
-import { BotMessage, DebugMessage, LLMModel } from "../../types/api/entities/bot";
+import { BotMessage, DebugMessage, AiModel } from "../../types/api/entities/bot";
 import {getChatsWithWholeThreads} from "../../api/bot/getChatsWithWholeThreads";
 import {getChats} from "api/bot/getChats";
 import {useAlertSnackbar} from "@postgres.ai/shared/components/AlertSnackbar/useAlertSnackbar";
 import {localStorage} from "../../helpers/localStorage";
 import { makeChatPublic } from "../../api/bot/makeChatPublic";
-import { getLLMModels } from "../../api/bot/getLLMModels";
+import { getAiModels } from "../../api/bot/getAiModels";
 import { getDebugMessages } from "../../api/bot/getDebugMessages";
 
 
 const WS_URL = process.env.REACT_APP_WS_URL || '';
 
-export type Model = `${LLMModel['vendor']}/${LLMModel['name']}`
-
 const DEFAULT_MODEL_NAME = 'gemini-1.5-pro'
-const DEFAULT_VENDOR = 'gcp';
-
-export const DEFAULT_MODEL: Model = `${DEFAULT_VENDOR}/${DEFAULT_MODEL_NAME}`
 
 type ErrorType = {
   code?: number;
@@ -57,9 +52,10 @@ type UseAiBotReturnType = {
   chatsList: UseBotChatsListHook['chatsList'];
   chatsListLoading: UseBotChatsListHook['loading'];
   getChatsList: UseBotChatsListHook['getChatsList']
-  model: UseLLMModelsList['model'],
-  setModel: UseLLMModelsList['setModel']
-  llmModels: UseLLMModelsList['llmModels']
+  aiModel: UseAiModelsList['aiModel'],
+  setAiModel: UseAiModelsList['setAiModel']
+  aiModels: UseAiModelsList['aiModels']
+  aiModelsLoading: UseAiModelsList['loading']
   debugMessagesLoading: boolean;
 }
 
@@ -71,7 +67,12 @@ type UseAiBotArgs = {
 export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType => {
   const { threadId, orgId } = args;
   const { showMessage, closeSnackbar } = useAlertSnackbar();
-  const { llmModels, model, setModel } = useLLMModelsList();
+  const {
+    aiModels,
+    aiModel,
+    setAiModel,
+    loading: aiModelsLoading
+  } = useAiModelsList();
   let location = useLocation<{skipReloading?: boolean}>();
 
   const {
@@ -258,7 +259,7 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
           thread_id,
           org_id,
           is_public,
-          ai_model: model
+          ai_model: aiModel
         }
       }))
       setError(error)
@@ -361,9 +362,10 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     chatsList,
     chatsListLoading,
     getChatsList,
-    model,
-    setModel,
-    llmModels,
+    aiModel,
+    setAiModel,
+    aiModels,
+    aiModelsLoading,
     chatVisibility,
     debugMessages,
     debugMessagesLoading
@@ -447,33 +449,39 @@ export const useBotChatsList = (orgId?: number): UseBotChatsListHook => {
   }
 }
 
-type UseLLMModelsList = {
-  llmModels: LLMModel[] | null
+type UseAiModelsList = {
+  aiModels: AiModel[] | null
   error: Response | null
-  model: Model
-  setModel: (model: Model) => void
+  aiModel: AiModel | null
+  loading: boolean
+  setAiModel: (model: AiModel) => void
 }
 
-const useLLMModelsList = (): UseLLMModelsList => {
-  const [llmModels, setLLMModels] = useState<UseLLMModelsList['llmModels']>(null);
+const useAiModelsList = (): UseAiModelsList => {
+  const [llmModels, setLLMModels] = useState<UseAiModelsList['aiModels']>(null);
   const [error, setError] = useState<Response | null>(null);
-  const [userModel, setUserModel] = useState<Model | null>(null)
+  const [userModel, setUserModel] = useState<AiModel | null>(null);
+  const [loading, setLoading] = useState(false)
 
   const getModels = useCallback(async () => {
     let models = null;
+    setLoading(true)
     try {
-      const { response } = await getLLMModels();
+      const { response } = await getAiModels();
       setLLMModels(response)
-      const currentModel = window.localStorage.getItem('bot.llm_model')
-
-      if (currentModel && currentModel !== userModel) {
-        setUserModel(currentModel as Model)
-      } else if (!currentModel) {
-        setModel(DEFAULT_MODEL)
+      const currentModel = window.localStorage.getItem('bot.ai_model')
+      const parsedModel: AiModel = currentModel ? JSON.parse(currentModel) : null
+      if (currentModel && parsedModel.name !== userModel?.name) {
+        setUserModel(parsedModel)
+      } else if (response) {
+        const regex = new RegExp(`^${DEFAULT_MODEL_NAME}`);
+        const matchingModel = response.find(model => regex.test(model.name));
+        if (matchingModel) setModel(matchingModel)
       }
     } catch (e) {
       setError(e as unknown as Response)
     }
+    setLoading(false)
     return models
   }, []);
 
@@ -491,17 +499,18 @@ const useLLMModelsList = (): UseLLMModelsList => {
     };
   }, [getModels]);
 
-  const setModel = (model: Model) => {
+  const setModel = (model: AiModel) => {
     if (model !== userModel) {
       setUserModel(model);
-      window.localStorage.setItem('bot.llm_model', model)
+      window.localStorage.setItem('bot.ai_model', JSON.stringify(model))
     }
   }
 
   return {
-    llmModels,
+    aiModels: llmModels,
     error,
-    setModel,
-    model: userModel || DEFAULT_MODEL,
+    setAiModel: setModel,
+    loading,
+    aiModel: userModel,
   }
 }

@@ -27,6 +27,23 @@ const useStyles = makeStyles((theme) => ({
       verticalAlign: 'text-top',
       textDecoration: 'none'
     },
+    labelVisibility: {
+      marginLeft: '0.5rem',
+      '&:hover': {
+        backgroundColor: colors.secondary1.main
+      }
+    },
+    labelModel: {
+      background: colors.secondary1.main,
+    },
+    labelModelInvalid: {
+      background: colors.state.error,
+      border: "none",
+      cursor: 'pointer',
+      '&:hover': {
+        backgroundColor: colors.primary.dark
+      }
+    },
     labelPrivate: {
       backgroundColor: colors.pgaiDarkGray,
     },
@@ -34,13 +51,12 @@ const useStyles = makeStyles((theme) => ({
       pointerEvents: "none"
     },
     button: {
-      marginLeft: 8,
+      marginLeft: '0.5rem',
       [theme.breakpoints.down('sm')]: {
         border: 'none',
         minWidth: '2rem',
         height: '2rem',
         padding: 0,
-        marginLeft: '0.5rem',
         '& .MuiButton-startIcon': {
           margin: 0
         }
@@ -53,14 +69,41 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
   const { onSettingsClick, onConsoleClick } = props;
   const classes = useStyles();
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
-  const { messages, chatVisibility } = useAiBot();
+  const { messages, chatVisibility, aiModel, aiModelsLoading } = useAiBot();
   const permalinkId = useMemo(() => messages?.[0]?.id, [messages]);
+
+  let modelLabel;
+
+  if (aiModel) {
+    modelLabel = (
+      <span
+        className={cn(classes.label, classes.labelModel)}
+      >
+        {aiModel.name}
+      </span>
+    )
+  } else {
+    modelLabel = (
+      <button
+        className={cn(classes.label, classes.labelModelInvalid)}
+        onClick={onSettingsClick}
+      >
+        Model not set
+      </button>
+    )
+  }
 
   return (
     <>
-    {permalinkId && <a
+      {!aiModelsLoading && modelLabel}
+      {permalinkId && <a
         href={permalinkId && chatVisibility === 'public' ? permalinkLinkBuilder(permalinkId) : ''}
-        className={cn(classes.label, {[classes.labelPrivate]: chatVisibility === 'private', [classes.disabled]: chatVisibility === 'private' || !permalinkId})}
+        className={cn(classes.label, classes.labelVisibility,
+          {
+            [classes.labelPrivate]: chatVisibility === 'private',
+            [classes.disabled]: chatVisibility === 'private' || !permalinkId
+          }
+        )}
         target="_blank"
         aria-disabled={chatVisibility === 'private' || !permalinkId}
       >

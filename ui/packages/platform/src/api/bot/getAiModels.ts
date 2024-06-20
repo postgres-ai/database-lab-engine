@@ -1,7 +1,7 @@
 import {request} from "../../helpers/request";
-import { LLMModel } from "../../types/api/entities/bot";
+import { AiModel } from "../../types/api/entities/bot";
 
-export const getLLMModels = async (): Promise<{ response: LLMModel[] | null; error: Response | null }> => {
+export const getAiModels = async (): Promise<{ response: AiModel[] | null; error: Response | null }> => {
   const apiServer = process.env.REACT_APP_API_URL_PREFIX || '';
 
   try {
@@ -13,7 +13,7 @@ export const getLLMModels = async (): Promise<{ response: LLMModel[] | null; err
       return { response: null, error: response };
     }
 
-    const responseData: LLMModel[] = await response.json();
+    const responseData: AiModel[] = await response.json();
 
     return { response: responseData, error: null };
 

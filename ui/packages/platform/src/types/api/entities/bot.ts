@@ -29,7 +29,7 @@ export type BotMessageWithDebugInfo = BotMessage & {
   debugMessages?: DebugMessage[]
 }
 
-export type LLMModel = {
+export type AiModel = {
   name: string;
   vendor: string;
   isThirdParty: boolean;
