@@ -98,7 +98,6 @@ export const BotPage = (props: BotPageProps) => {
     messages,
     error,
     clearChat,
-    changeChatVisibility,
     unsubscribe,
     getDebugMessagesForWholeThread,
     getChatsList,
@@ -186,7 +185,7 @@ export const BotPage = (props: BotPageProps) => {
       </>
     )
   }
-  console.log('isDebugConsoleVisible', isDebugConsoleVisible)
+
   return (
     <>
       <DebugConsole
