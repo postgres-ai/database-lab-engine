@@ -1,15 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import Dialog from "@material-ui/core/Dialog";
 import { DialogContent, DialogTitle, makeStyles } from "@material-ui/core";
 import { useAiBot } from "../hooks";
-import rehypeRaw from "rehype-raw";
-import remarkGfm from "remark-gfm";
-import ReactMarkdown from "react-markdown";
 import IconButton from "@material-ui/core/IconButton";
 import CloseIcon from "@material-ui/icons/Close";
-import { disallowedHtmlTagsForMarkdown } from "../utils";
 import { DebugLogs } from "../DebugLogs/DebugLogs";
-import { DebugMessage } from "../../../types/api/entities/bot";
+import { createMessageFragment } from "../utils";
 
 const useStyles = makeStyles(
   (theme) => ({
@@ -17,13 +13,15 @@ const useStyles = makeStyles(
       top: '5%!important',
       right: '10%!important',
       left: 'unset!important',
+      height: '80vh',
+      width: '80vw',
       [theme.breakpoints.down('sm')]: {
         right: 'unset!important'
       }
     },
     paper: {
       width: '80vw',
-      height: '70vh',
+      height: '80vh',
       opacity: '.5',
       transition: '.2s ease',
       '&:hover': {
@@ -65,17 +63,19 @@ export const DebugConsole = (props: DebugConsoleProps) => {
 
   useEffect(() => {
     if (containerRef.current && debugMessages?.length && threadId && !debugMessagesLoading && isOpen) {
-      let code: HTMLElement = containerRef.current.getElementsByTagName('code')?.[0];
+      let code = containerRef.current.getElementsByTagName('code')?.[0];
+      if (!code) {
+        code = document.createElement('code');
+        containerRef.current.appendChild(code);
+      }
+
       if (code.hasChildNodes()) {
-        code.appendChild(document.createTextNode(`[${debugMessages[debugMessages.length - 1].created_at}]: ${debugMessages[debugMessages.length - 1].content}\n`))
+        const lastMessage = debugMessages[debugMessages.length - 1];
+        const fragment = createMessageFragment([lastMessage]);
+        code.appendChild(fragment);
       } else {
-        debugMessages.forEach((item) => {
-          code.appendChild(document.createTextNode(`[${item.created_at}]: ${item.content}\n`))
-        })
-        const container = document.getElementById(`logs-container-${threadId}`);
-        if (container) {
-          container.appendChild(code)
-        }
+        const fragment = createMessageFragment(debugMessages);
+        code.appendChild(fragment);
       }
     }
   }, [debugMessages, isOpen, threadId, debugMessagesLoading]);
