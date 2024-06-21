@@ -259,7 +259,7 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
           thread_id,
           org_id,
           is_public,
-          ai_model: aiModel
+          ai_model: `${aiModel?.vendor}/${aiModel?.name}`
         }
       }))
       setError(error)
