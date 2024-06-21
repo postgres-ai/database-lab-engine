@@ -1,18 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Dialog from "@material-ui/core/Dialog";
 import DialogTitle from '@material-ui/core/DialogTitle';
-import { DialogContent, IconButton, makeStyles, Typography } from "@material-ui/core";
-import ReactMarkdown from "react-markdown";
-import Format from "../../../utils/format";
+import { DialogContent, IconButton, makeStyles } from "@material-ui/core";
 import { icons } from "@postgres.ai/shared/styles/icons";
-import { disallowedHtmlTagsForMarkdown } from "../utils";
-import { BotMessage, DebugMessage } from "../../../types/api/entities/bot";
-import rehypeRaw from "rehype-raw";
-import remarkGfm from "remark-gfm";
+import { DebugMessage } from "../../../types/api/entities/bot";
 import { getDebugMessages } from "../../../api/bot/getDebugMessages";
-import { PageSpinner } from "@postgres.ai/shared/components/PageSpinner";
-import { SyntaxHighlight } from "@postgres.ai/shared/components/SyntaxHighlight";
 import { DebugLogs } from "../DebugLogs/DebugLogs";
+import { createMessageFragment } from "../utils";
 
 type DebugDialogProps = {
   isOpen: boolean;
@@ -52,15 +46,18 @@ export const DebugDialog = (props: DebugDialogProps) => {
   const debugMessages = useRef<DebugMessage[] | null>(null)
 
   const generateMessages = (messages: DebugMessage[]) => {
-    const code = document.createElement('code');
-    messages.forEach((item) => {
-      code.appendChild(document.createTextNode(`[${item.created_at}]: ${item.content}\n`))
-    })
     const container = document.getElementById(`logs-container-${messageId}`);
     if (container) {
-      container.appendChild(code)
+      let code = container.getElementsByTagName('code')?.[0];
+      if (!code) {
+        code = document.createElement('code');
+        container.appendChild(code);
+      }
+
+      const fragment = createMessageFragment(messages);
+      code.appendChild(fragment);
     }
-  }
+  };
 
   const getDebugMessagesForMessage = async () => {
     setDebugLoading(true)

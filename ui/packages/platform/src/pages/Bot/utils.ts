@@ -31,3 +31,30 @@ export const disallowedHtmlTagsForMarkdown= [
   'audio',
   'video',
 ];
+
+export const createMessageFragment = (messages: DebugMessage[]): DocumentFragment => {
+  const fragment = document.createDocumentFragment();
+
+  messages.forEach((item) => {
+    const textBeforeLink = `[${item.created_at}]: `;
+    const parts = item.content.split(/(https?:\/\/[^\s]+)/g);
+
+    const messageContent = parts.map((part) => {
+      if (/https?:\/\/[^\s]+/.test(part)) {
+        const link = document.createElement('a');
+        link.href = part;
+        link.target = '_blank';
+        link.textContent = part;
+        return link;
+      } else {
+        return document.createTextNode(part);
+      }
+    });
+
+    fragment.appendChild(document.createTextNode(textBeforeLink));
+    messageContent.forEach((node) => fragment.appendChild(node));
+    fragment.appendChild(document.createTextNode('\n'));
+  });
+
+  return fragment;
+};
