@@ -16,7 +16,10 @@ const useStyles = makeStyles(
       height: '80vh',
       width: '80vw',
       [theme.breakpoints.down('sm')]: {
-        right: 'unset!important'
+        right: 'unset!important',
+        top: '0!important',
+        height: '100vh',
+        width: '100vw',
       }
     },
     paper: {
@@ -29,9 +32,9 @@ const useStyles = makeStyles(
       },
       [theme.breakpoints.down('sm')]: {
         opacity: 1,
-        width: '90vw',
-        height: '90vh',
-        margin: '0 5vw'
+        width: '100vw',
+        height: '100vh',
+        margin: '0'
       }
     },
     dialogTitle: {
