@@ -15,6 +15,12 @@ const useStyles = makeStyles(
       left: 'unset!important',
       height: '80vh',
       width: '80vw',
+      [theme.breakpoints.down('sm')]: {
+        right: 'unset!important',
+        top: '0!important',
+        height: '100vh',
+        width: '100vw',
+      }
     },
     paper: {
       width: '80vw',
@@ -23,6 +29,12 @@ const useStyles = makeStyles(
       transition: '.2s ease',
       '&:hover': {
         opacity: 1
+      },
+      [theme.breakpoints.down('sm')]: {
+        opacity: 1,
+        width: '100vw',
+        height: '100vh',
+        margin: '0'
       }
     },
     dialogTitle: {

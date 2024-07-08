@@ -22,8 +22,16 @@ export type BotMessage = {
   org_id: string
   thread_id: string
   type: 'message' | undefined
+  ai_model: string
 }
 
 export type BotMessageWithDebugInfo = BotMessage & {
   debugMessages?: DebugMessage[]
 }
+
+export type AiModel = {
+  name: string;
+  vendor: string;
+  isThirdParty: boolean;
+  freeUseAvailable: boolean;
+};

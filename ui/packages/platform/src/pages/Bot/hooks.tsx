@@ -5,20 +5,22 @@
  *--------------------------------------------------------------------------
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import useWebSocket, {ReadyState} from "react-use-websocket";
 import { useLocation } from "react-router-dom";
-import { BotMessage, DebugMessage } from "../../types/api/entities/bot";
+import { BotMessage, DebugMessage, AiModel } from "../../types/api/entities/bot";
 import {getChatsWithWholeThreads} from "../../api/bot/getChatsWithWholeThreads";
 import {getChats} from "api/bot/getChats";
 import {useAlertSnackbar} from "@postgres.ai/shared/components/AlertSnackbar/useAlertSnackbar";
 import {localStorage} from "../../helpers/localStorage";
-import { makeChatPublic } from "../../api/bot/makeChatPublic";
+import { updateChatVisibility } from "../../api/bot/updateChatVisibility";
+import { getAiModels } from "../../api/bot/getAiModels";
 import { getDebugMessages } from "../../api/bot/getDebugMessages";
-import { messages } from "../../assets/messages";
 
 
 const WS_URL = process.env.REACT_APP_WS_URL || '';
+
+const DEFAULT_MODEL_NAME = 'gemini-1.5-pro'
 
 type ErrorType = {
   code?: number;
@@ -26,7 +28,7 @@ type ErrorType = {
   type?: 'connection' | 'chatNotFound';
 }
 
-type sendMessageType = {
+type SendMessageType = {
   content: string;
   thread_id?: string | null;
   org_id?: number | null;
@@ -37,7 +39,7 @@ type UseAiBotReturnType = {
   messages: BotMessage[] | null;
   error: ErrorType | null;
   loading: boolean;
-  sendMessage: (args: sendMessageType) => Promise<void>;
+  sendMessage: (args: SendMessageType) => Promise<void>;
   clearChat: () => void;
   wsLoading: boolean;
   wsReadyState: ReadyState;
@@ -49,7 +51,11 @@ type UseAiBotReturnType = {
   getDebugMessagesForWholeThread: () => void
   chatsList: UseBotChatsListHook['chatsList'];
   chatsListLoading: UseBotChatsListHook['loading'];
-  getChatsList: UseBotChatsListHook['getChatsList'];
+  getChatsList: UseBotChatsListHook['getChatsList']
+  aiModel: UseAiModelsList['aiModel'],
+  setAiModel: UseAiModelsList['setAiModel']
+  aiModels: UseAiModelsList['aiModels']
+  aiModelsLoading: UseAiModelsList['loading']
   debugMessagesLoading: boolean;
 }
 
@@ -61,6 +67,12 @@ type UseAiBotArgs = {
 export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType => {
   const { threadId, orgId } = args;
   const { showMessage, closeSnackbar } = useAlertSnackbar();
+  const {
+    aiModels,
+    aiModel,
+    setAiModel,
+    loading: aiModelsLoading
+  } = useAiModelsList();
   let location = useLocation<{skipReloading?: boolean}>();
 
   const {
@@ -228,7 +240,7 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     };
   }, [readyState, threadId]);
 
-  const sendMessage = async ({content, thread_id, org_id, is_public}: sendMessageType) => {
+  const sendMessage = async ({content, thread_id, org_id, is_public}: SendMessageType) => {
     setWsLoading(true)
     if (!thread_id) {
       setLoading(true)
@@ -246,7 +258,8 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
           content,
           thread_id,
           org_id,
-          is_public
+          is_public,
+          ai_model: `${aiModel?.vendor}/${aiModel?.name}`
         }
       }))
       setError(error)
@@ -267,7 +280,7 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
   const changeChatVisibility = async (threadId: string, isPublic: boolean) => {
     setIsChangeVisibilityLoading(true)
     try {
-      const { error } = await makeChatPublic({
+      const { error } = await updateChatVisibility({
         thread_id: threadId,
         is_public: isPublic
       })
@@ -349,6 +362,10 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     chatsList,
     chatsListLoading,
     getChatsList,
+    aiModel,
+    setAiModel,
+    aiModels,
+    aiModelsLoading,
     chatVisibility,
     debugMessages,
     debugMessagesLoading
@@ -429,5 +446,71 @@ export const useBotChatsList = (orgId?: number): UseBotChatsListHook => {
     error,
     getChatsList,
     loading: isLoading
+  }
+}
+
+type UseAiModelsList = {
+  aiModels: AiModel[] | null
+  error: Response | null
+  aiModel: AiModel | null
+  loading: boolean
+  setAiModel: (model: AiModel) => void
+}
+
+const useAiModelsList = (): UseAiModelsList => {
+  const [llmModels, setLLMModels] = useState<UseAiModelsList['aiModels']>(null);
+  const [error, setError] = useState<Response | null>(null);
+  const [userModel, setUserModel] = useState<AiModel | null>(null);
+  const [loading, setLoading] = useState(false)
+
+  const getModels = useCallback(async () => {
+    let models = null;
+    setLoading(true)
+    try {
+      const { response } = await getAiModels();
+      setLLMModels(response)
+      const currentModel = window.localStorage.getItem('bot.ai_model')
+      const parsedModel: AiModel = currentModel ? JSON.parse(currentModel) : null
+      if (currentModel && parsedModel.name !== userModel?.name) {
+        setUserModel(parsedModel)
+      } else if (response) {
+        const regex = new RegExp(`^${DEFAULT_MODEL_NAME}`);
+        const matchingModel = response.find(model => regex.test(model.name));
+        if (matchingModel) setModel(matchingModel)
+      }
+    } catch (e) {
+      setError(e as unknown as Response)
+    }
+    setLoading(false)
+    return models
+  }, []);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    getModels()
+      .catch((e) => {
+        if (!isCancelled) {
+          setError(e);
+        }
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [getModels]);
+
+  const setModel = (model: AiModel) => {
+    if (model !== userModel) {
+      setUserModel(model);
+      window.localStorage.setItem('bot.ai_model', JSON.stringify(model))
+    }
+  }
+
+  return {
+    aiModels: llmModels,
+    error,
+    setAiModel: setModel,
+    loading,
+    aiModel: userModel,
   }
 }

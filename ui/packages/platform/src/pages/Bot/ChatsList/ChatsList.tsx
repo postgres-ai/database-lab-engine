@@ -19,6 +19,7 @@ import { Spinner } from "@postgres.ai/shared/components/Spinner";
 import { HeaderButtons, HeaderButtonsProps } from "../HeaderButtons/HeaderButtons";
 import { BotMessage } from "../../../types/api/entities/bot";
 import { theme } from "@postgres.ai/shared/styles/theme";
+import { useAiBot } from "../hooks";
 
 
 const useStyles = makeStyles<Theme, ChatsListProps>((theme) => ({
@@ -30,7 +31,7 @@ const useStyles = makeStyles<Theme, ChatsListProps>((theme) => ({
       [theme.breakpoints.down('sm')]: {
         height: '100vh!important',
         marginTop: '0!important',
-        width: 300,
+        width: 320,
         zIndex: 9999
       },
       '& > ul': {
@@ -54,6 +55,9 @@ const useStyles = makeStyles<Theme, ChatsListProps>((theme) => ({
     },
     listSubheaderRoot: {
       background: 'white',
+      [theme.breakpoints.down('sm')]: {
+        padding: 0
+      }
     },
     listItemLink: {
       fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
@@ -91,8 +95,6 @@ type ChatsListProps = {
   onCreateNewChat: () => void;
   onClose: () => void;
   isDemoOrg: boolean;
-  loading: boolean;
-  chatsList: BotMessage[] | null;
   onLinkClick?: (targetThreadId: string) => void;
 } & HeaderButtonsProps
 
@@ -101,13 +103,14 @@ export const ChatsList = (props: ChatsListProps) => {
     isOpen,
     onCreateNewChat,
     onClose,
-    chatsList,
-    loading,
     withChatVisibilityButton,
     onSettingsClick,
     onLinkClick,
     onConsoleClick
   } = props;
+
+  const { chatsList, chatsListLoading: loading } = useAiBot();
+
   const classes = useStyles(props);
   const params = useParams<{ org?: string, threadId?: string }>();
   const matches = useMediaQuery(theme.breakpoints.down('sm'));

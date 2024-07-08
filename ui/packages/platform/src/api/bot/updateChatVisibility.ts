@@ -6,19 +6,19 @@ type Req = {
   is_public: boolean
 }
 
-export const makeChatPublic = async (req: Req): Promise<{ response: BotMessage | null; error: Response | null }> => {
+export const updateChatVisibility = async (req: Req): Promise<{ response: BotMessage | null; error: Response | null }> => {
   const { thread_id, is_public } = req;
 
   const apiServer = process.env.REACT_APP_API_URL_PREFIX || '';
 
   try {
-    const response = await request(`${apiServer}/chats_internal?thread_id=eq.${thread_id}`, {
+    const response = await request(`${apiServer}/chats_auth?thread_id=eq.${thread_id}`, {
       method: 'PATCH',
       headers: {
         Prefer: 'return=representation'
       },
       body: JSON.stringify({
-        is_public
+        is_public,
       })
     });
 
