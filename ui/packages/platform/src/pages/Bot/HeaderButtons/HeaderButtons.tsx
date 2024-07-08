@@ -44,7 +44,7 @@ const useStyles = makeStyles((theme) => ({
       minWidth: '2rem',
       height: '2rem',
       padding: 0,
-      marginRight: '0.5rem',
+      marginRight: '0.25rem',
       '& .MuiButton-startIcon': {
         margin: 0
       }

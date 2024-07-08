@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   IconButton,
   TextField,
@@ -20,12 +20,15 @@ import {
 import MuiDialogTitle from '@material-ui/core/DialogTitle'
 import MuiDialogContent from '@material-ui/core/DialogContent'
 import MuiDialogActions from '@material-ui/core/DialogActions'
-
+import FormLabel from '@mui/material/FormLabel'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { colors } from "@postgres.ai/shared/styles/colors";
 import { useAiBot } from "../hooks";
+import { AiModel } from "../../../types/api/entities/bot";
+
+export type Visibility = 'public' | 'private';
 
 type DialogTitleProps = {
   id: string
@@ -36,9 +39,7 @@ type DialogTitleProps = {
 type PublicChatDialogProps = {
   isOpen: boolean
   onClose: () => void
-  onSaveChanges: (value: boolean) => void
-  isLoading: boolean
-  threadId: string
+  threadId: string | null
 }
 
 const useDialogTitleStyles = makeStyles(
@@ -158,11 +159,25 @@ const useDialogStyles = makeStyles(
   { index: 1 },
 )
 
-export const PublicChatDialog = (props: PublicChatDialogProps) => {
-  const { onSaveChanges, onClose, isOpen, isLoading, threadId } = props;
+export const SettingsDialog = (props: PublicChatDialogProps) => {
+  const {
+    onClose,
+    isOpen,
+    threadId,
+  } = props;
 
-  const { chatVisibility } = useAiBot();
 
+  const {
+    chatVisibility,
+    changeChatVisibility,
+    isChangeVisibilityLoading,
+    getChatsList,
+    aiModels,
+    aiModel: activeModel,
+    setAiModel: setActiveModel,
+  } = useAiBot();
+
+  const [model, setModel] = useState<AiModel | null>(activeModel)
   const [visibility, setVisibility] = useState<string>(chatVisibility);
 
   const classes = useDialogStyles();
@@ -176,10 +191,27 @@ export const PublicChatDialog = (props: PublicChatDialogProps) => {
   }
 
   const handleSaveChanges = () => {
-    if (chatVisibility !== visibility) {
-      onSaveChanges(visibility === 'public');
+    if (model && model !== activeModel) {
+      setActiveModel(model)
     }
+    if (visibility !== chatVisibility && threadId) {
+      changeChatVisibility(threadId, visibility === 'public')
+      getChatsList();
+    }
+
+    onClose()
   }
+
+  useEffect(() => {
+    if (isOpen) {
+      if (visibility !== chatVisibility) {
+        setVisibility(chatVisibility)
+      }
+      if (model?.name !== activeModel?.name) {
+        setModel(activeModel)
+      }
+    }
+  }, [isOpen]);
 
   const urlField = (
     <div>
@@ -220,49 +252,77 @@ export const PublicChatDialog = (props: PublicChatDialogProps) => {
       aria-labelledby="customized-dialog-title"
       open={isOpen}
       className={classes.dialog}
+      fullWidth
     >
       <DialogTitle
         id="customized-dialog-title"
         onClose={onClose}
       >
-        Public Chat
+        Chat Settings
       </DialogTitle>
       <DialogContent>
-        <RadioGroup
-          aria-label="shareUrl"
-          name="shareUrl"
-          value={visibility}
-          onChange={(event) => {
-            setVisibility(event.target.value)
-          }}
-          className={classes.radioLabel}
-        >
-          <FormControlLabel
-            value="private"
-            control={<Radio />}
-            label="Only members of the organization can view"
-          />
+        {threadId && <>
+          <FormLabel component="legend">Visibility</FormLabel>
+          <RadioGroup
+            aria-label="shareUrl"
+            name="shareUrl"
+            value={visibility}
+            onChange={(event) => {
+              setVisibility(event.target.value as Visibility)
+            }}
+            className={classes.radioLabel}
+          >
+            <FormControlLabel
+              value="private"
+              control={<Radio />}
+              label="Only members of the organization can view"
+            />
 
-          <FormControlLabel
-            value="public"
-            control={<Radio />}
-            label="Anyone with a special link and members of the organization can view"
-          />
-        </RadioGroup>
-        {visibility && (
-            <div className={classes.urlContainer}>{urlField}</div>
-          )}
+            <FormControlLabel
+              value="public"
+              control={<Radio />}
+              label="Anyone with a special link and members of the organization can view"
+            />
+          </RadioGroup>
+          {visibility && (
+              <div className={classes.urlContainer}>{urlField}</div>
+            )}
+        </>}
+        {aiModels && <>
+          <FormLabel component="legend">Model</FormLabel>
+          <RadioGroup
+            aria-label="model"
+            name="model"
+            value={`${model?.vendor}/${model?.name}`}
+            onChange={(event) => {
+              const selectedModel = aiModels?.find((model) => `${model.vendor}/${model.name}` === event.target.value)
+              setModel(selectedModel!)
+            }}
+            className={classes.radioLabel}
+          >
+            {aiModels.map((model) =>
+                <FormControlLabel
+                  key={`${model.vendor}/${model.name}`}
+                  value={`${model.vendor}/${model.name}`}
+                  control={<Radio />}
+                  label={model.name}
+                />
+              )
+            }
+          </RadioGroup>
+        </>}
       </DialogContent>
+
       <DialogActions>
         <Button
           autoFocus
           variant="contained"
-          disabled={isLoading}
+          disabled={isChangeVisibilityLoading}
           onClick={handleSaveChanges}
           color="primary"
         >
           Save changes
-          {isLoading && (
+          {isChangeVisibilityLoading && (
               <span>
                 &nbsp;
                 <Spinner size="sm" />

@@ -52,7 +52,7 @@ interface BotSettingState {
       updateErrorFields: string[]
       data: {
         custom_prompt: string
-        model: string
+        ai_model: string
       }
     } | null
   } | null
@@ -81,7 +81,7 @@ class BotSettingsForm extends Component<BotSettingsFormWithStylesProps, BotSetti
         orgId: null,
         data: {
           custom_prompt: '',
-          model: 'gemini-1.5-pro',
+          ai_model: 'gemini-1.5-pro',
         }
       }
     }
@@ -120,10 +120,10 @@ class BotSettingsForm extends Component<BotSettingsFormWithStylesProps, BotSetti
       };
       /*if (data.data.custom_prompt !== this.state.custom_prompt) {
         params.custom_prompt = this.state.custom_prompt;
-      }
-      if (data.data.model !== this.state.model) {
-        params.model = this.state.model;
       }*/
+      if (data?.data?.ai_model !== this.state.model) {
+        params.model = this.state.model;
+      }
       Actions.updateAiBotSettings(auth.token, orgId, params)
     }
   }
@@ -213,7 +213,7 @@ class BotSettingsForm extends Component<BotSettingsFormWithStylesProps, BotSetti
                     onChange={this.handleChangeModel}
                   >
                     <FormControlLabel value="gemini-1.5-pro" control={<Radio />} label="gemini-1.5-pro" />
-                    <FormControlLabel disabled value="gpt-4-turbo" control={<Radio />} label="gpt-4-turbo	" />
+                    <FormControlLabel value="gpt-4-turbo" control={<Radio />} label="gpt-4-turbo	" />
                     <FormControlLabel disabled value="llama-3" control={<Radio />} label="Llama 3" />
                   </RadioGroup>
                 </FormControl>

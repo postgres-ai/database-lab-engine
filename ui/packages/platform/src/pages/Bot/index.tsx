@@ -20,7 +20,7 @@ import { useAiBot } from "./hooks";
 import { usePrev } from "../../hooks/usePrev";
 import {HeaderButtons} from "./HeaderButtons/HeaderButtons";
 import settings from "../../utils/settings";
-import { PublicChatDialog } from "./PublicChatDialog/PublicChatDialog";
+import { SettingsDialog } from "./SettingsDialog/SettingsDialog";
 import { theme } from "@postgres.ai/shared/styles/theme";
 import { colors } from "@postgres.ai/shared/styles/colors";
 import { SettingsPanel } from "./SettingsPanel/SettingsPanel";
@@ -43,7 +43,8 @@ const useStyles = makeStyles(
       width: 192,
       marginLeft: 52,
       [theme.breakpoints.down('sm')]: {
-        width: 266
+        width: 'min(100%, 320px)',
+        marginLeft: 'auto'
       }
     },
     toggleListButton: {
@@ -97,19 +98,15 @@ export const BotPage = (props: BotPageProps) => {
     messages,
     error,
     clearChat,
-    isChangeVisibilityLoading,
-    changeChatVisibility,
     unsubscribe,
     getDebugMessagesForWholeThread,
-    chatsListLoading,
     getChatsList,
-    chatsList
   } = useAiBot();
 
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [isChatsListVisible, setChatsListVisible] = useState(window?.innerWidth > 640);
-  const [isVisibilityDialogVisible, setVisibilityDialogVisible] = useState(false);
+  const [isSettingsDialogVisible, setSettingsDialogVisible] = useState(false);
   const [isDebugConsoleVisible, setDebugConsoleVisible] = useState(false);
 
   const history = useHistory();
@@ -134,8 +131,8 @@ export const BotPage = (props: BotPageProps) => {
     setChatsListVisible((prevState) => !prevState)
   }
 
-  const toggleVisibilityDialog = () => {
-    setVisibilityDialogVisible((prevState) => !prevState)
+  const toggleSettingsDialog = () => {
+    setSettingsDialogVisible((prevState) => !prevState)
   }
 
   const handleOpenDebugConsole = () => {
@@ -150,13 +147,6 @@ export const BotPage = (props: BotPageProps) => {
   const handleCreateNewChat = () => {
     clearChat();
     history.push(`/${match.params.org}/bot`);
-  }
-
-  const handleSaveChatVisibility = (value: boolean) => {
-    if (match.params.threadId) {
-      changeChatVisibility(match.params.threadId, value)
-      getChatsList();
-    }
   }
 
   const handleChatListLinkClick = (targetThreadId: string) => {
@@ -203,29 +193,25 @@ export const BotPage = (props: BotPageProps) => {
         isOpen={isDebugConsoleVisible}
         threadId={match.params.threadId}
       />
-      {match.params.threadId && <PublicChatDialog
-        isOpen={isVisibilityDialogVisible}
-        isLoading={isChangeVisibilityLoading}
-        onClose={toggleVisibilityDialog}
-        onSaveChanges={handleSaveChatVisibility}
-        threadId={match.params.threadId}
-      />}
+      <SettingsDialog
+        isOpen={isSettingsDialogVisible}
+        onClose={toggleSettingsDialog}
+        threadId={match.params.threadId || null}
+      />
       <ChatsList
         isOpen={isChatsListVisible}
         onCreateNewChat={handleCreateNewChat}
         onClose={toggleChatsList}
         isDemoOrg={Boolean(isDemoOrg)}
-        chatsList={chatsList}
-        loading={chatsListLoading}
         withChatVisibilityButton={matches && Boolean(match.params.threadId)}
-        onSettingsClick={toggleVisibilityDialog}
+        onSettingsClick={toggleSettingsDialog}
         onLinkClick={handleChatListLinkClick}
         onConsoleClick={handleOpenDebugConsole}
       />
       <Box className={classes.actions}>
-        {match.params.threadId && !matches &&
+        {!matches &&
           <SettingsPanel
-            onSettingsClick={toggleVisibilityDialog}
+            onSettingsClick={toggleSettingsDialog}
             onConsoleClick={handleOpenDebugConsole}
           />}
         <Box className={classes.hiddenButtons}>
@@ -234,7 +220,7 @@ export const BotPage = (props: BotPageProps) => {
             onClose={toggleChatsList}
             onCreateNewChat={handleCreateNewChat}
             withChatVisibilityButton={matches && Boolean(match.params.threadId)}
-            onSettingsClick={toggleVisibilityDialog}
+            onSettingsClick={toggleSettingsDialog}
             onConsoleClick={handleOpenDebugConsole}
           />
         </Box>

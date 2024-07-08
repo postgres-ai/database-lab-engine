@@ -244,6 +244,7 @@ export const Messages = React.memo(() => {
                 slack_profile,
                 created_at,
                 content,
+                ai_model
               } = message;
               let name = 'You';
 
@@ -270,11 +271,12 @@ export const Messages = React.memo(() => {
                   created_at={created_at}
                   content={content}
                   formattedTime={formattedTime}
+                  aiModel={ai_model}
                 />
               )
             })}
           {isWaitingForAnswer &&
-            <Message id={null} isLoading isAi={true}/>
+            <Message id={null} isLoading isAi={true} />
           }
         </div>
       </div>
