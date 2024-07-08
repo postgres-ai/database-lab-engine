@@ -153,7 +153,7 @@ export DB_PWD=****
       `# Start check health of Postgres databases
 docker run \\
   -v $(pwd)/${data.projectName}.yml:/${data.projectName}.yml \\
-  -v $(pwd)/artifacts:/artifacts \\`
+  -v $(pwd)/artifacts:/checkup/artifacts \\`
 
     if (data.sshKeysPath !== '') {
       result =
@@ -169,7 +169,7 @@ docker run \\
   -e ${hostsType}="${hosts}" \\
   -e CHECKUP_SNAPSHOT_DISTANCE_SECONDS=${data.collectPeriod} \\
   -e PGPASSWORD="$\{DB_PWD}" \\
-  registry.gitlab.com/postgres-ai/postgres-checkup:1-5-1 bash run_checkup.sh
+  registry.gitlab.com/postgres-ai/postgres-checkup:1-5-3 bash run_checkup.sh
 `
 
     return result
