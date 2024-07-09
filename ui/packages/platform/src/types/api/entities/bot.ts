@@ -35,3 +35,9 @@ export type AiModel = {
   isThirdParty: boolean;
   freeUseAvailable: boolean;
 };
+
+export type StateMessage = {
+  type: 'state'
+  state: string | null
+  thread_id: string
+}

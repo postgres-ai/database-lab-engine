@@ -8,7 +8,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import useWebSocket, {ReadyState} from "react-use-websocket";
 import { useLocation } from "react-router-dom";
-import { BotMessage, DebugMessage, AiModel } from "../../types/api/entities/bot";
+import { BotMessage, DebugMessage, AiModel, StateMessage } from "../../types/api/entities/bot";
 import {getChatsWithWholeThreads} from "../../api/bot/getChatsWithWholeThreads";
 import {getChats} from "api/bot/getChats";
 import {useAlertSnackbar} from "@postgres.ai/shared/components/AlertSnackbar/useAlertSnackbar";
@@ -45,18 +45,19 @@ type UseAiBotReturnType = {
   wsReadyState: ReadyState;
   changeChatVisibility: (threadId: string, isPublic: boolean) => void;
   isChangeVisibilityLoading: boolean;
-  unsubscribe: (threadId: string) => void
-  chatVisibility: 'public' | 'private'
-  debugMessages: DebugMessage[] | null
-  getDebugMessagesForWholeThread: () => void
+  unsubscribe: (threadId: string) => void;
+  chatVisibility: 'public' | 'private';
+  debugMessages: DebugMessage[] | null;
+  getDebugMessagesForWholeThread: () => void;
   chatsList: UseBotChatsListHook['chatsList'];
   chatsListLoading: UseBotChatsListHook['loading'];
-  getChatsList: UseBotChatsListHook['getChatsList']
-  aiModel: UseAiModelsList['aiModel'],
-  setAiModel: UseAiModelsList['setAiModel']
-  aiModels: UseAiModelsList['aiModels']
-  aiModelsLoading: UseAiModelsList['loading']
+  getChatsList: UseBotChatsListHook['getChatsList'];
+  aiModel: UseAiModelsList['aiModel'];
+  setAiModel: UseAiModelsList['setAiModel'];
+  aiModels: UseAiModelsList['aiModels'];
+  aiModelsLoading: UseAiModelsList['loading'];
   debugMessagesLoading: boolean;
+  stateMessage: StateMessage | null;
 }
 
 type UseAiBotArgs = {
@@ -88,6 +89,7 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
   const [error, setError] = useState<ErrorType | null>(null);
   const [wsLoading, setWsLoading] = useState<boolean>(false);
   const [chatVisibility, setChatVisibility] = useState<UseAiBotReturnType['chatVisibility']>('public');
+  const [stateMessage, setStateMessage] = useState<StateMessage | null>(null)
 
   const [isChangeVisibilityLoading, setIsChangeVisibilityLoading] = useState<boolean>(false);
   
@@ -100,16 +102,25 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
 
   const onWebSocketMessage = (event: WebSocketEventMap['message']) => {
     if (event.data) {
-      const messageData: BotMessage | DebugMessage = JSON.parse(event.data);
+      const messageData: BotMessage | DebugMessage | StateMessage = JSON.parse(event.data);
       if (messageData) {
         const isThreadMatching = threadId && threadId === messageData.thread_id;
         const isParentMatching = !threadId && 'parent_id' in messageData && messageData.parent_id && messages;
         const isDebugMessage = messageData.type === 'debug';
-        if (isThreadMatching || isParentMatching || isDebugMessage) {
+        const isStateMessage = messageData.type === 'state';
+        if (isThreadMatching || isParentMatching || isDebugMessage || isStateMessage) {
           if (isDebugMessage) {
             let currentDebugMessages = [...(debugMessages || [])];
             currentDebugMessages.push(messageData)
             setDebugMessages(currentDebugMessages)
+          } else if (isStateMessage) {
+            if (isThreadMatching || !threadId) {
+              if (messageData.state) {
+                setStateMessage(messageData)
+              } else {
+                setStateMessage(null)
+              }
+            }
           } else {
             // Check if the last message needs its data updated
             let currentMessages = [...(messages || [])];
@@ -368,7 +379,8 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     aiModelsLoading,
     chatVisibility,
     debugMessages,
-    debugMessagesLoading
+    debugMessagesLoading,
+    stateMessage,
   }
 }
 
