@@ -127,7 +127,7 @@ type FormattedTime = {
 }
 
 export const Messages = React.memo(() => {
-  const { messages, loading: isLoading, wsLoading: isWaitingForAnswer } = useAiBot();
+  const { messages, loading: isLoading, wsLoading: isWaitingForAnswer, stateMessage } = useAiBot();
 
   const rootRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -276,7 +276,7 @@ export const Messages = React.memo(() => {
               )
             })}
           {isWaitingForAnswer &&
-            <Message id={null} isLoading isAi={true} />
+            <Message id={null} isLoading isAi={true} stateMessage={stateMessage} />
           }
         </div>
       </div>

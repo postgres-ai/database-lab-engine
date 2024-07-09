@@ -3,14 +3,14 @@ import cn from "classnames";
 import ReactMarkdown, { Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
-import { Badge, makeStyles } from "@material-ui/core";
+import { makeStyles } from "@material-ui/core";
 import { colors } from "@postgres.ai/shared/styles/colors";
 import { icons } from "@postgres.ai/shared/styles/icons";
 import { DebugDialog } from "../../DebugDialog/DebugDialog";
 import { CodeBlock } from "./CodeBlock";
 import { disallowedHtmlTagsForMarkdown, permalinkLinkBuilder } from "../../utils";
-import { BotMessage, DebugMessage } from "../../../../types/api/entities/bot";
-import { getDebugMessages } from "../../../../api/bot/getDebugMessages";
+import { StateMessage } from "../../../../types/api/entities/bot";
+
 
 type BaseMessageProps = {
   id: string | null;
@@ -20,6 +20,7 @@ type BaseMessageProps = {
   isLoading?: boolean;
   formattedTime?: string;
   aiModel?: string
+  stateMessage?: StateMessage | null
 }
 
 type AiMessageProps = BaseMessageProps & {
@@ -38,6 +39,7 @@ type LoadingMessageProps = BaseMessageProps & {
   isLoading: true;
   isAi: true;
   content?: undefined
+  stateMessage: StateMessage | null
 }
 
 type MessageProps = AiMessageProps | HumanMessageProps | LoadingMessageProps;
@@ -241,7 +243,8 @@ export const Message = React.memo((props: MessageProps) => {
     name,
     created_at,
     isLoading,
-    aiModel
+    aiModel,
+    stateMessage
   } = props;
 
   const [isDebugVisible, setDebugVisible] = useState(false);
@@ -335,8 +338,8 @@ export const Message = React.memo((props: MessageProps) => {
           {isLoading
             ? <div className={classes.markdown}>
               <div className={classes.loading}>
-                  Thinking
-                </div>
+                {stateMessage && stateMessage.state ? stateMessage.state : 'Thinking'}
+              </div>
             </div>
             : <ReactMarkdown
                 className={classes.markdown}
