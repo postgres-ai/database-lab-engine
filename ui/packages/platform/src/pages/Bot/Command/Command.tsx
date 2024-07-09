@@ -194,11 +194,6 @@ export const Command = React.memo((props: Props) => {
     setValue('')
   }, [threadId]);
 
-  // Floating intercom.
-  const sendButtonRef = useRef<HTMLButtonElement | null>(null)
-
-  useFloatingIntercom(sendButtonRef)
-
   return (
     <div className={classes.root}>
       <TextField
@@ -222,7 +217,6 @@ export const Command = React.memo((props: Props) => {
         onClick={triggerSend}
         className={classes.iconButton}
         disabled={sendDisabled || value.length === 0}
-        ref={sendButtonRef}
       >
         <SendRoundedIcon />
       </IconButton>
