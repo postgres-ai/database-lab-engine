@@ -11,6 +11,7 @@ import { makeStyles } from '@material-ui/core'
 import DbLabInstanceForm from 'components/DbLabInstanceForm/DbLabInstanceForm'
 
 import { styles } from '@postgres.ai/shared/styles/styles'
+import { OrgPermissions } from 'components/types'
 
 export interface DbLabInstanceFormProps {
   userID?: number
@@ -18,9 +19,7 @@ export interface DbLabInstanceFormProps {
   orgId: number
   project: string | undefined
   history: RouteComponentProps['history']
-  orgPermissions: {
-    dblabInstanceCreate?: boolean
-  }
+  orgPermissions: OrgPermissions
 }
 
 export const useInstanceFormStyles = makeStyles(

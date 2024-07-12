@@ -7,8 +7,8 @@
 
 import { Button, makeStyles } from '@material-ui/core'
 
-import { initialState } from 'components/DbLabInstanceForm/reducer'
-import { pricingPageForProvider, cloudProviderName } from './utils'
+import { useCloudProviderProps } from 'hooks/useCloudProvider'
+import { cloudProviderName, pricingPageForProvider } from './utils'
 
 const MONTHLY_HOURS = 730
 
@@ -92,7 +92,7 @@ export const DbLabInstanceFormSidebar = ({
   disabled,
 }: {
   cluster?: boolean
-  state: typeof initialState
+  state: useCloudProviderProps['initialState']
   handleCreate: () => void
   disabled: boolean
 }) => {

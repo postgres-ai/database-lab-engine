@@ -5,47 +5,51 @@
  *--------------------------------------------------------------------------
  */
 
-import cn from 'classnames'
-import { useEffect, useReducer } from 'react'
-import { Box } from '@mui/material'
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Checkbox,
+  FormControlLabel,
+  InputAdornment,
+  MenuItem,
   Tab,
   Tabs,
   TextField,
-  MenuItem,
-  InputAdornment,
-  FormControlLabel,
-  Checkbox,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
 } from '@material-ui/core'
+import { Box } from '@mui/material'
+import cn from 'classnames'
 
-import ConsolePageTitle from '../ConsolePageTitle'
-import { TabPanel } from 'pages/JoeSessionCommand/TabPanel'
-import { WarningWrapper } from 'components/Warning/WarningWrapper'
 import { ClassesType } from '@postgres.ai/platform/src/components/types'
-import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
-import { DbLabInstanceFormProps } from 'components/DbLabInstanceForm/DbLabInstanceFormWrapper'
-import { StorageSlider } from 'components/DbLabInstanceForm/DbLabInstanceFormSlider'
-import { CloudProvider, getCloudProviders } from 'api/cloud/getCloudProviders'
-import { CloudVolumes, getCloudVolumes } from 'api/cloud/getCloudVolumes'
-import { initialState, reducer } from 'components/PostgresClusterForm/reducer'
-import { initialState as dbLabInitialState } from 'components/DbLabInstanceForm/reducer'
-import { DbLabInstanceFormSidebar } from 'components/DbLabInstanceForm/DbLabInstanceFormSidebar'
+import { Select } from '@postgres.ai/shared/components/Select'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinnerFlex'
-import { Select } from '@postgres.ai/shared/components/Select'
+import { CloudProvider } from 'api/cloud/getCloudProviders'
+import { CloudVolumes } from 'api/cloud/getCloudVolumes'
+import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
+import { DbLabInstanceFormSidebar } from 'components/DbLabInstanceForm/DbLabInstanceFormSidebar'
+import { StorageSlider } from 'components/DbLabInstanceForm/DbLabInstanceFormSlider'
+import { DbLabInstanceFormProps } from 'components/DbLabInstanceForm/DbLabInstanceFormWrapper'
+import { initialState, reducer } from 'components/PostgresClusterForm/reducer'
+import { WarningWrapper } from 'components/Warning/WarningWrapper'
+import { TabPanel } from 'pages/JoeSessionCommand/TabPanel'
+import ConsolePageTitle from '../ConsolePageTitle'
 
-import { validateDLEName } from 'utils/utils'
 import urls from 'utils/urls'
+import { validateDLEName } from 'utils/utils'
 
+import { icons } from '@postgres.ai/shared/styles/icons'
+import { CloudInstance } from 'api/cloud/getCloudInstances'
+import { CloudRegion } from 'api/cloud/getCloudRegions'
 import { AnsibleInstance } from 'components/DbLabInstanceForm/DbLabFormSteps/AnsibleInstance'
-import { CloudRegion, getCloudRegions } from 'api/cloud/getCloudRegions'
-import { CloudInstance, getCloudInstances } from 'api/cloud/getCloudInstances'
 import { DockerInstance } from 'components/DbLabInstanceForm/DbLabFormSteps/DockerInstance'
 import { SimpleInstance } from 'components/DbLabInstanceForm/DbLabFormSteps/SimpleInstance'
-import { icons } from '@postgres.ai/shared/styles/icons'
+import {
+  filteredRegions,
+  uniqueRegionsByProvider,
+} from 'components/DbLabInstanceForm/utils'
+import { ClusterExtensionAccordion } from 'components/PostgresClusterForm/PostgresClusterSteps'
+import { useCloudProvider } from 'hooks/useCloudProvider'
 
 interface PostgresClusterProps extends DbLabInstanceFormProps {
   classes: ClassesType
@@ -56,127 +60,17 @@ interface PostgresClusterProps extends DbLabInstanceFormProps {
 
 const PostgresCluster = (props: PostgresClusterProps) => {
   const { classes, orgPermissions } = props
-  const [state, dispatch] = useReducer(reducer, initialState)
+  const {
+    state,
+    dispatch,
+    handleChangeVolume,
+    handleSetFormStep,
+    handleReturnToForm,
+  } = useCloudProvider({ initialState, reducer })
 
   const permitted = !orgPermissions || orgPermissions.dblabInstanceCreate
-  const urlParams = new URLSearchParams(window.location.search)
-  const urlTaskID = urlParams.get('taskID')
-  const urlProvider = urlParams.get('provider')
   const requirePublicKeys =
     !state.publicKeys && (state.provider === 'aws' || state.provider === 'gcp')
-
-  useEffect(() => {
-    if (urlTaskID && urlProvider) {
-      dispatch({
-        type: 'set_form_step',
-        formStep: 'simple',
-        taskID: urlTaskID,
-        provider: urlProvider,
-      })
-    } else {
-      dispatch({
-        type: 'set_form_step',
-        formStep: initialState.formStep,
-        provider: initialState.provider,
-      })
-    }
-  }, [urlTaskID, urlProvider])
-
-  useEffect(() => {
-    const fetchCloudDetails = async () => {
-      dispatch({ type: 'set_is_loading', isLoading: true })
-      try {
-        const cloudRegions = await getCloudRegions(initialState.provider)
-        const cloudVolumes = await getCloudVolumes(initialState.provider)
-        const serviceProviders = await getCloudProviders()
-        const ssdCloudVolumes = cloudVolumes.response.filter(
-          (volume: CloudVolumes) => volume.api_name === initialState?.api_name,
-        )[0]
-
-        dispatch({
-          type: 'set_initial_state',
-          cloudRegions: cloudRegions.response,
-          volumes: cloudVolumes.response,
-          volumeType: `${ssdCloudVolumes.api_name} (${ssdCloudVolumes.cloud_provider}: ${ssdCloudVolumes.native_name})`,
-          volumeCurrency: ssdCloudVolumes.native_reference_price_currency,
-          volumePricePerHour:
-            ssdCloudVolumes.native_reference_price_per_1000gib_per_hour,
-          volumePrice:
-            (initialState.storage *
-              ssdCloudVolumes.native_reference_price_per_1000gib_per_hour) /
-            1000,
-          serviceProviders: serviceProviders.response,
-          isLoading: false,
-        })
-      } catch (error) {
-        console.log(error)
-      }
-    }
-    fetchCloudDetails()
-  }, [])
-
-  useEffect(() => {
-    const fetchUpdatedDetails = async () => {
-      try {
-        const cloudRegions = await getCloudRegions(state.provider)
-        const cloudVolumes = await getCloudVolumes(state.provider)
-        const ssdCloudVolumes = cloudVolumes.response.filter(
-          (volume: CloudVolumes) => volume.api_name === initialState?.api_name,
-        )[0]
-
-        dispatch({
-          type: 'update_initial_state',
-          volumes: cloudVolumes.response,
-          volumeType: `${ssdCloudVolumes.api_name} (${ssdCloudVolumes.cloud_provider}: ${ssdCloudVolumes.native_name})`,
-          volumeCurrency: ssdCloudVolumes.native_reference_price_currency,
-          volumePricePerHour:
-            ssdCloudVolumes.native_reference_price_per_1000gib_per_hour,
-          volumePrice:
-            (initialState.storage *
-              ssdCloudVolumes.native_reference_price_per_1000gib_per_hour) /
-            1000,
-          cloudRegions: cloudRegions.response,
-        })
-      } catch (error) {
-        console.log(error)
-      }
-    }
-    fetchUpdatedDetails()
-  }, [state.api_name, state.provider])
-
-  useEffect(() => {
-    const fetchUpdatedDetails = async () => {
-      dispatch({ type: 'set_is_reloading', isReloading: true })
-      try {
-        const cloudInstances = await getCloudInstances({
-          provider: state.provider,
-          region: state.location.native_code,
-        })
-
-        dispatch({
-          type: 'update_instance_type',
-          cloudInstances: cloudInstances.response,
-          instanceType: cloudInstances.response[0],
-          isReloading: false,
-        })
-      } catch (error) {
-        console.log(error)
-      }
-    }
-    fetchUpdatedDetails()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.location.native_code])
-
-  const uniqueRegionsByProvider = state.cloudRegions
-    .map((region: CloudRegion) => region.world_part)
-    .filter(
-      (value: string, index: number, self: string) =>
-        self.indexOf(value) === index,
-    )
-
-  const filteredRegions = state.cloudRegions.filter(
-    (region: CloudRegion) => region.world_part === state.region,
-  )
 
   const pageTitle = <ConsolePageTitle title="Create Postgres Cluster" />
   const breadcrumbs = (
@@ -189,36 +83,8 @@ const PostgresCluster = (props: PostgresClusterProps) => {
     />
   )
 
-  const handleChangeVolume = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    const volumeApiName = event.target.value.split(' ')[0]
-    const selectedVolume = state.volumes.filter(
-      (volume: CloudVolumes) => volume.api_name === volumeApiName,
-    )[0]
-
-    dispatch({
-      type: 'change_volume_type',
-      volumeType: event.target.value,
-      volumePricePerHour:
-        selectedVolume.native_reference_price_per_1000gib_per_hour,
-      volumePrice:
-        (state.storage *
-          selectedVolume.native_reference_price_per_1000gib_per_hour) /
-        1000,
-    })
-  }
-
-  const handleSetFormStep = (step: string) => {
-    dispatch({ type: 'set_form_step', formStep: step })
-  }
-
   const handleReturnToList = () => {
     props.history.push(urls.linkClusters(props))
-  }
-
-  const handleReturnToForm = () => {
-    dispatch({ type: 'set_form_step', formStep: initialState.formStep })
   }
 
   const checkSyncStandbyCount = () => {
@@ -281,6 +147,7 @@ const PostgresCluster = (props: PostgresClusterProps) => {
                         dispatch({
                           type: 'change_provider',
                           provider: provider.api_name,
+                          isReloading: true,
                         })
                       }
                     >
@@ -312,7 +179,7 @@ const PostgresCluster = (props: PostgresClusterProps) => {
                     })
                   }
                 >
-                  {uniqueRegionsByProvider.map(
+                  {uniqueRegionsByProvider(state.cloudRegions).map(
                     (region: string, index: number) => (
                       <Tab
                         key={index}
@@ -325,25 +192,27 @@ const PostgresCluster = (props: PostgresClusterProps) => {
                 </Tabs>
               </div>
               <TabPanel value={state.region} index={state.region}>
-                {filteredRegions.map((region: CloudRegion, index: number) => (
-                  <div
-                    key={index}
-                    className={cn(
-                      classes.serviceLocation,
-                      state.location?.api_name === region?.api_name &&
-                        classes.activeBorder,
-                    )}
-                    onClick={() =>
-                      dispatch({
-                        type: 'change_location',
-                        location: region,
-                      })
-                    }
-                  >
-                    <p className={classes.serviceTitle}>{region.api_name}</p>
-                    <p className={classes.serviceTitle}>🏴 {region.label}</p>
-                  </div>
-                ))}
+                {filteredRegions(state.cloudRegions, state.region).map(
+                  (region: CloudRegion, index: number) => (
+                    <div
+                      key={index}
+                      className={cn(
+                        classes.serviceLocation,
+                        state.location?.api_name === region?.api_name &&
+                          classes.activeBorder,
+                      )}
+                      onClick={() =>
+                        dispatch({
+                          type: 'change_location',
+                          location: region,
+                        })
+                      }
+                    >
+                      <p className={classes.serviceTitle}>{region.api_name}</p>
+                      <p className={classes.serviceTitle}>🏴 {region.label}</p>
+                    </div>
+                  ),
+                )}
               </TabPanel>
               {state.instanceType ? (
                 <>
@@ -483,6 +352,34 @@ const PostgresCluster = (props: PostgresClusterProps) => {
                   <p className={classes.sectionTitle}>5. Database volume</p>
                   <Box className={classes.sliderContainer}>
                     <Box className={classes.sliderInputContainer}>
+                      <Box className={classes.sliderVolume}>
+                        <TextField
+                          value={state.fileSystem}
+                          onChange={(e) =>
+                            dispatch({
+                              type: 'change_file_system',
+                              fileSystem: e.target.value,
+                            })
+                          }
+                          select
+                          label="Filesystem"
+                          InputLabelProps={{
+                            shrink: true,
+                          }}
+                          variant="outlined"
+                          className={classes.filterSelect}
+                        >
+                          {state.fileSystemArray.map(
+                            (p: string, id: number) => {
+                              return (
+                                <MenuItem value={p} key={id}>
+                                  {p}
+                                </MenuItem>
+                              )
+                            },
+                          )}
+                        </TextField>
+                      </Box>
                       <Box className={classes.sliderVolume}>
                         <TextField
                           value={state.volumeType}
@@ -669,43 +566,13 @@ const PostgresCluster = (props: PostgresClusterProps) => {
                       })
                     }
                   />
-                  <p className={classes.sectionTitle}>
-                    8. Provide SSH public keys (one per line)
-                  </p>
-                  <p className={classes.instanceParagraph}>
-                    These SSH public keys will be added to the DBLab server's
-                    &nbsp;
-                    <code className={classes.code}>~/.ssh/authorized_keys</code>
-                    &nbsp; file. Providing at least one public key is
-                    recommended to ensure access to the server after deployment.
-                  </p>
-                  <TextField
-                    label="SSH public keys"
-                    variant="outlined"
-                    fullWidth
-                    multiline
-                    helperText={
-                      state.publicKeys && state.publicKeys.length < 30
-                        ? 'Public key is too short'
-                        : ''
-                    }
-                    error={state.publicKeys && state.publicKeys.length < 30}
-                    value={state.publicKeys}
-                    required={requirePublicKeys}
-                    className={classes.marginTop}
-                    InputLabelProps={{
-                      shrink: true,
-                    }}
-                    onChange={(
-                      event: React.ChangeEvent<
-                        HTMLTextAreaElement | HTMLInputElement
-                      >,
-                    ) =>
-                      dispatch({
-                        type: 'change_public_keys',
-                        publicKeys: event.target.value,
-                      })
-                    }
+                  <ClusterExtensionAccordion
+                    step={8}
+                    state={Object.fromEntries(
+                      Object.entries(state).filter(([key]) => key !== 'region'),
+                    )}
+                    classes={classes}
+                    dispatch={dispatch}
                   />
                   <Accordion className={classes.sectionTitle}>
                     <AccordionSummary
@@ -847,6 +714,44 @@ const PostgresCluster = (props: PostgresClusterProps) => {
                       </Box>
                     </AccordionDetails>
                   </Accordion>
+                  <p className={classes.sectionTitle}>
+                    10. Provide SSH public keys (one per line)
+                  </p>
+                  <p className={classes.instanceParagraph}>
+                    These SSH public keys will be added to the DBLab server's
+                    &nbsp;
+                    <code className={classes.code}>~/.ssh/authorized_keys</code>
+                    &nbsp; file. Providing at least one public key is
+                    recommended to ensure access to the server after deployment.
+                  </p>
+                  <TextField
+                    label="SSH public keys"
+                    variant="outlined"
+                    fullWidth
+                    multiline
+                    helperText={
+                      state.publicKeys && state.publicKeys.length < 30
+                        ? 'Public key is too short'
+                        : ''
+                    }
+                    error={state.publicKeys && state.publicKeys.length < 30}
+                    value={state.publicKeys}
+                    required={requirePublicKeys}
+                    className={classes.marginTop}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                    onChange={(
+                      event: React.ChangeEvent<
+                        HTMLTextAreaElement | HTMLInputElement
+                      >,
+                    ) =>
+                      dispatch({
+                        type: 'change_public_keys',
+                        publicKeys: event.target.value,
+                      })
+                    }
+                  />
                 </>
               ) : (
                 <p className={classes.errorMessage}>
@@ -857,7 +762,7 @@ const PostgresCluster = (props: PostgresClusterProps) => {
             </div>
             <DbLabInstanceFormSidebar
               cluster
-              state={state as unknown as typeof dbLabInitialState}
+              state={state}
               disabled={disableSubmitButton}
               handleCreate={() => handleSetFormStep('simple')}
             />
@@ -865,7 +770,7 @@ const PostgresCluster = (props: PostgresClusterProps) => {
         ) : state.formStep === 'ansible' && permitted ? (
           <AnsibleInstance
             cluster
-            state={state as unknown as typeof dbLabInitialState}
+            state={state}
             orgId={props.orgId}
             formStep={state.formStep}
             setFormStep={handleSetFormStep}
@@ -875,7 +780,7 @@ const PostgresCluster = (props: PostgresClusterProps) => {
         ) : state.formStep === 'docker' && permitted ? (
           <DockerInstance
             cluster
-            state={state as unknown as typeof dbLabInitialState}
+            state={state}
             orgId={props.orgId}
             formStep={state.formStep}
             setFormStep={handleSetFormStep}
@@ -885,7 +790,7 @@ const PostgresCluster = (props: PostgresClusterProps) => {
         ) : state.formStep === 'simple' && permitted ? (
           <SimpleInstance
             cluster
-            state={state as unknown as typeof dbLabInitialState}
+            state={state}
             userID={props.auth?.userId}
             orgId={props.orgId}
             formStep={state.formStep}

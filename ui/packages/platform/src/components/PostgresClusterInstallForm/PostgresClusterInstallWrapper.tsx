@@ -9,15 +9,14 @@ import { RouteComponentProps } from 'react-router'
 
 import PostgresClusterInstallForm from './PostgresClusterInstallForm'
 import { useInstanceFormStyles } from 'components/DbLabInstanceForm/DbLabInstanceFormWrapper'
+import { OrgPermissions } from 'components/types'
 
 export interface PostgresClusterInstallFormWrapperProps {
   edit?: boolean
   orgId: number
   project: string | undefined
   history: RouteComponentProps['history']
-  orgPermissions: {
-    dblabInstanceCreate?: boolean
-  }
+  orgPermissions: OrgPermissions
 }
 
 export const PostgresClusterInstallWrapper = (

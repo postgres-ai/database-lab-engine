@@ -1,22 +1,22 @@
-import { Box } from '@mui/material'
 import {
-  Button,
   Accordion,
-  AccordionSummary,
   AccordionDetails,
+  AccordionSummary,
+  Button,
 } from '@material-ui/core'
+import { Box } from '@mui/material'
 
 import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
+import { icons } from '@postgres.ai/shared/styles/icons'
 import { formStyles } from 'components/DbLabInstanceForm/DbLabFormSteps/AnsibleInstance'
 import { InstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/InstanceFormCreation'
-import { initialState } from '../reducer'
+import { getAnsibleInstallationCommand } from 'components/DbLabInstanceInstallForm/utils'
+import { useCloudProviderProps } from 'hooks/useCloudProvider'
 import {
-  getAnsibleClusterCommand,
+  getClusterCommand,
   getClusterExampleCommand,
   getPostgresClusterInstallationCommand,
 } from '../utils'
-import { getAnsibleInstallationCommand } from 'components/DbLabInstanceInstallForm/utils'
-import { icons } from '@postgres.ai/shared/styles/icons'
 
 export const AnsibleInstance = ({
   state,
@@ -25,7 +25,7 @@ export const AnsibleInstance = ({
   formStep,
   setFormStep,
 }: {
-  state: typeof initialState
+  state: useCloudProviderProps['initialState']
   goBack: () => void
   goBackToForm: () => void
   formStep: string
@@ -108,7 +108,7 @@ export const AnsibleInstance = ({
         <p className={classes.title}>
           5. Execute the Ansible playbook to Postgres Cluster
         </p>
-        <SyntaxHighlight wrapLines content={getAnsibleClusterCommand(state)} />
+        <SyntaxHighlight wrapLines content={getClusterCommand(state)} />
         <p className={classes.title}>
           6. After the code snippet runs successfully, follow the directions
           displayed in the resulting output to start using the database.

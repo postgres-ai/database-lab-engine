@@ -4,20 +4,20 @@
  * Unauthorized copying of this file, via any medium is strictly prohibited
  *--------------------------------------------------------------------------
  */
+import { Button, Paper, Tooltip, makeStyles } from '@material-ui/core'
 import { Box } from '@mui/material'
 import { formatDistanceToNowStrict } from 'date-fns'
-import { useReducer, useEffect, useCallback, ReducerAction } from 'react'
-import { Button, makeStyles, Paper, Tooltip } from '@material-ui/core'
+import { ReducerAction, useCallback, useEffect, useReducer } from 'react'
 
-import { colors } from '@postgres.ai/shared/styles/colors'
-import { Spinner } from '@postgres.ai/shared/components/Spinner'
-import { stripeStyles } from 'components/StripeForm/stripeStyles'
 import { Link } from '@postgres.ai/shared/components/Link2'
+import { Spinner } from '@postgres.ai/shared/components/Spinner'
+import { colors } from '@postgres.ai/shared/styles/colors'
+import { stripeStyles } from 'components/StripeForm/stripeStyles'
 import { ROUTES } from 'config/routes'
 
 import { getPaymentMethods } from 'api/billing/getPaymentMethods'
-import { startBillingSession } from 'api/billing/startBillingSession'
 import { getSubscription } from 'api/billing/getSubscription'
+import { startBillingSession } from 'api/billing/startBillingSession'
 
 import format from '../../utils/format'
 
@@ -182,8 +182,8 @@ function StripeForm(props: {
   const initialState = {
     isLoading: false,
     isFetching: false,
-    cards: [],
-    billingInfo: [],
+    cards: [] as { id: string; card: { exp_year: string; exp_month: string; brand: string; last4: string } }[],
+    billingInfo: [] as BillingSubscription[],
   }
 
   const reducer = (

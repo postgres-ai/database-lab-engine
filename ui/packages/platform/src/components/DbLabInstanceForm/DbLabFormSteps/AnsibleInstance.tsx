@@ -1,30 +1,30 @@
+import { Button, makeStyles } from '@material-ui/core'
 import { Box } from '@mui/material'
 import { useEffect, useState } from 'react'
-import { makeStyles, Button } from '@material-ui/core'
 
-import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
+import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
 
-import { getOrgKeys } from 'api/cloud/getOrgKeys'
 import { getCloudImages } from 'api/cloud/getCloudImages'
+import { getOrgKeys } from 'api/cloud/getOrgKeys'
 
+import { InstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/InstanceFormCreation'
 import {
   getGcpAccountContents,
   getNetworkSubnet,
-  getPlaybookCommandWithoutDocker,
+  getPlaybookCommand,
 } from 'components/DbLabInstanceForm/utils'
 import {
   cloneRepositoryCommand,
   getAnsibleInstallationCommand,
 } from 'components/DbLabInstanceInstallForm/utils'
-import { InstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/InstanceFormCreation'
 
-import { initialState } from '../reducer'
 import {
   cloneClusterRepositoryCommand,
-  getClusterPlaybookCommandWithoutDocker,
+  getClusterPlaybookCommand,
 } from 'components/PostgresClusterForm/utils'
+import { useCloudProviderProps } from 'hooks/useCloudProvider'
 
 export const formStyles = makeStyles({
   marginTop: {
@@ -128,7 +128,7 @@ export const AnsibleInstance = ({
   setFormStep,
 }: {
   cluster?: boolean
-  state: typeof initialState
+  state: useCloudProviderProps["initialState"]
   orgId: number
   goBack: () => void
   goBackToForm: () => void
@@ -280,12 +280,12 @@ export const AnsibleInstance = ({
           <SyntaxHighlight
             content={
               cluster
-                ? getClusterPlaybookCommandWithoutDocker(
+                ? getClusterPlaybookCommand(
                     state,
                     cloudImages[0],
                     orgKey,
                   )
-                : getPlaybookCommandWithoutDocker(state, cloudImages[0], orgKey)
+                : getPlaybookCommand(state, cloudImages[0], orgKey, false)
             }
           />
           {getNetworkSubnet(state.provider, classes)}

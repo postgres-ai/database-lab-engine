@@ -1,23 +1,23 @@
-import { Box } from '@mui/material'
 import { Button, TextField } from '@material-ui/core'
+import { Box } from '@mui/material'
 import { useCallback, useEffect, useState } from 'react'
 
-import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
+import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
-import { formStyles } from 'components/DbLabInstanceForm/DbLabFormSteps/AnsibleInstance'
 import { ResponseMessage } from '@postgres.ai/shared/pages/Configuration/ResponseMessage'
+import { formStyles } from 'components/DbLabInstanceForm/DbLabFormSteps/AnsibleInstance'
 import { InstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/InstanceFormCreation'
 
-import { initialState } from '../reducer'
-import { cloudProviderName } from '../utils'
-import { getOrgKeys } from 'api/cloud/getOrgKeys'
-import { establishConnection } from './streamLogs'
-import { launchDeploy } from 'api/configs/launchDeploy'
-import { getCloudImages } from 'api/cloud/getCloudImages'
-import { regenerateCode } from 'api/configs/regenerateCode'
 import { useWsScroll } from '@postgres.ai/shared/pages/Logs/hooks/useWsScroll'
+import { getCloudImages } from 'api/cloud/getCloudImages'
+import { getOrgKeys } from 'api/cloud/getOrgKeys'
 import { getTaskState } from 'api/configs/getTaskState'
+import { launchDeploy } from 'api/configs/launchDeploy'
+import { regenerateCode } from 'api/configs/regenerateCode'
+import { useCloudProviderProps } from 'hooks/useCloudProvider'
+import { cloudProviderName } from '../utils'
+import { establishConnection } from './streamLogs'
 
 const SimpleInstanceDocumentation = ({
   state,
@@ -30,7 +30,7 @@ const SimpleInstanceDocumentation = ({
   isLoading: boolean
   documentation: string
   secondStep: JSX.Element
-  state: typeof initialState
+  state: useCloudProviderProps['initialState']
   handleDeploy: (e: React.FormEvent<HTMLFormElement>) => void
   deployingState: {
     status: string
@@ -121,7 +121,7 @@ export const SimpleInstance = ({
   setFormStep,
 }: {
   cluster?: boolean
-  state: typeof initialState
+  state: useCloudProviderProps['initialState']
   orgId: number
   userID?: number
   goBackToForm: () => void
@@ -349,6 +349,7 @@ export const SimpleInstance = ({
     },
     [
       state,
+      cluster,
       extraEnvs,
       orgKey,
       cloudImages,

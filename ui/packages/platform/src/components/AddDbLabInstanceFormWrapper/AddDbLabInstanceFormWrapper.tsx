@@ -1,6 +1,7 @@
 import { makeStyles } from '@material-ui/core'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import AddDbLabInstanceForm from 'components/AddDbLabInstanceFormWrapper/AddDblabInstanceForm'
+import { OrgPermissions } from 'components/types'
 import { RouteComponentProps } from 'react-router'
 
 export interface DbLabInstanceFormProps {
@@ -8,9 +9,7 @@ export interface DbLabInstanceFormProps {
   orgId: number
   project: string | undefined
   history: RouteComponentProps['history']
-  orgPermissions: {
-    dblabInstanceCreate?: boolean
-  }
+  orgPermissions: OrgPermissions
 }
 
 export const AddDbLabInstanceFormWrapper = (props: DbLabInstanceFormProps) => {
