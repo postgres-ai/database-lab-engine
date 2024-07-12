@@ -1,6 +1,9 @@
 import { CloudImage } from 'api/cloud/getCloudImages'
+import { CloudRegion } from 'api/cloud/getCloudRegions'
+import { CloudVolumes } from 'api/cloud/getCloudVolumes'
+import { addIndentForDocker } from 'components/PostgresClusterInstallForm/utils'
 import { ClassesType } from 'components/types'
-import { initialState } from '../reducer'
+import { useCloudProviderProps } from 'hooks/useCloudProvider'
 
 const API_SERVER = process.env.REACT_APP_API_SERVER
 export const DEBUG_API_SERVER = 'https://v2.postgres.ai/api/general'
@@ -10,7 +13,6 @@ export const availableTags = ['3.5.0', '3.4.0', '4.0.0-alpha.6']
 export const sePackageTag = 'v1.0'
 
 export const dockerRunCommand = (provider: string) => {
-  /* eslint-disable no-template-curly-in-string */
   switch (provider) {
     case 'aws':
       return `docker run --rm -it \\\r
@@ -35,41 +37,12 @@ export const dockerRunCommand = (provider: string) => {
 }
 
 export const getPlaybookCommand = (
-  state: typeof initialState,
+  state: useCloudProviderProps['initialState'],
   cloudImages: CloudImage,
   orgKey: string,
-) =>
-  `${dockerRunCommand(state.provider)} \\\r
-  postgresai/dle-se-ansible:${sePackageTag} \\\r
-    ansible-playbook deploy_dle.yml --extra-vars \\\r
-      "provision='${state.provider}' \\\r
-      server_name='${state.name}' \\\r
-      server_type='${state.instanceType.native_name}' \\\r
-      server_image='${cloudImages?.native_os_image}' \\\r
-      server_location='${state.location.native_code}' \\\r
-      volume_size='${state.storage}' \\\r
-      dblab_engine_verification_token='${state.verificationToken}' \\\r
-      dblab_engine_version='${state.tag}' \\\r
-      ${
-        state.snapshots > 1
-          ? `zpool_datasets_number='${state.snapshots}' \\\r`
-          : ``
-      }
-      ${orgKey ? `platform_org_key='${orgKey}' \\\r` : ``}
-      ${
-        API_SERVER === DEBUG_API_SERVER
-          ? `platform_url='${DEBUG_API_SERVER}' \\\r`
-          : ``
-      }
-      ${state.publicKeys ? `ssh_public_keys='${state.publicKeys}' \\\r` : ``}
-      platform_project_name='${state.name}'"`
-
-export const getPlaybookCommandWithoutDocker = (
-  state: typeof initialState,
-  cloudImages: CloudImage,
-  orgKey: string,
-) =>
-  `ansible-playbook deploy_dle.yml --extra-vars \\\r
+  isDocker?: boolean,
+) =>{
+  const playbookCommand = `ansible-playbook deploy_dle.yml --extra-vars \\\r
   "provision='${state.provider}' \\\r
   server_name='${state.name}' \\\r
   server_type='${state.instanceType.native_name}' \\\r
@@ -78,17 +51,20 @@ export const getPlaybookCommandWithoutDocker = (
   volume_size='${state.storage}' \\\r
   dblab_engine_verification_token='${state.verificationToken}' \\\r
   dblab_engine_version='${state.tag}' \\\r
-  ${
-    state.snapshots > 1 ? `zpool_datasets_number='${state.snapshots}' \\\r` : ``
-  }
-  ${orgKey ? `platform_org_key='${orgKey}' \\\r` : ``}
-  ${
-    API_SERVER === DEBUG_API_SERVER
-      ? `platform_url='${DEBUG_API_SERVER}' \\\r`
-      : ``
-  }
+  ${ state.snapshots > 1 ? `zpool_datasets_number='${state.snapshots}' \\\r` : `` }
+  ${ orgKey ? `platform_org_key='${orgKey}' \\\r` : `` }
+  ${ API_SERVER === DEBUG_API_SERVER ? `platform_url='${DEBUG_API_SERVER}' \\\r` : `` }
   ${state.publicKeys ? `ssh_public_keys='${state.publicKeys}' \\\r` : ``}
   platform_project_name='${state.name}'"`
+
+  if (isDocker) {
+    return `${dockerRunCommand(state.provider)} \\\r
+    postgresai/dle-se-ansible:${sePackageTag} \\\r
+      ${addIndentForDocker(playbookCommand)}`
+  } else {
+    return playbookCommand
+  }
+}
 
 export const getGcpAccountContents = () =>
   `export GCP_SERVICE_ACCOUNT_CONTENTS='{
@@ -274,3 +250,29 @@ export const getNetworkSubnet = (provider: string, classNames: ClassesType) => {
       )
   }
 }
+
+export const uniqueRegionsByProvider = (cloudRegions: CloudRegion[]) => {
+  return cloudRegions
+    .map((region) => region.world_part)
+    .filter((value, index, self) => self.indexOf(value) === index)
+}
+
+export const filteredRegions = (
+  cloudRegions: CloudRegion[],
+  selectedRegion: string,
+) => {
+  return cloudRegions.filter((region) => region.world_part === selectedRegion)
+}
+
+export const formatVolumeDetails = (
+  ssdCloudVolume: CloudVolumes,
+  storage: number,
+) => ({
+  volumeType: `${ssdCloudVolume.api_name} (${ssdCloudVolume.cloud_provider}: ${ssdCloudVolume.native_name})`,
+  volumeCurrency: ssdCloudVolume.native_reference_price_currency,
+  volumePricePerHour:
+    ssdCloudVolume.native_reference_price_per_1000gib_per_hour,
+  volumePrice:
+    (storage * ssdCloudVolume.native_reference_price_per_1000gib_per_hour) /
+    1000,
+})

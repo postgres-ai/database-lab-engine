@@ -278,7 +278,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
       contentContainer.addEventListener('scroll', () => {
         if (
           contentContainer.scrollTop >=
-          contentContainer.scrollHeight - contentContainer.offsetHeight
+          contentContainer.scrollHeight - contentContainer.offsetHeight && !this.state.data?.commands?.isComplete
         ) {
           this.showMore()
         }
@@ -970,7 +970,7 @@ class JoeHistory extends Component<JoeHistoryWithStylesProps, JoeHistoryState> {
               </Table>
             </HorizontalScrollContainer>
             <div className={classes.showMoreContainer}>
-              {commandStore && commandStore.isProcessing && (
+              {commandStore && commandStore.isProcessing && !commandStore.isComplete && (
                 <Spinner size="lg" className={classes.progress} />
               )}
               {commandStore &&

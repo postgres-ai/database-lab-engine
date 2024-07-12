@@ -7,9 +7,11 @@
 
 import { ReducerAction } from 'react'
 
-import { CloudRegion } from 'api/cloud/getCloudRegions'
 import { CloudInstance } from 'api/cloud/getCloudInstances'
+import { CloudRegion } from 'api/cloud/getCloudRegions'
 import { CloudVolumes } from 'api/cloud/getCloudVolumes'
+import { clusterExtensionsState } from 'components/PostgresClusterInstallForm/reducer'
+import { useCloudProviderProps } from 'hooks/useCloudProvider'
 
 export const initialState = {
   isLoading: false,
@@ -18,7 +20,7 @@ export const initialState = {
   provider: 'aws',
   storage: 100,
   region: 'North America',
-  version: '16',
+  version: 16,
   serviceProviders: [],
   cloudRegions: [],
   cloudInstances: [],
@@ -45,10 +47,13 @@ export const initialState = {
   synchronous_node_count: 1,
   netdata_install: true,
   taskID: '',
+  fileSystem: 'zfs',
+  fileSystemArray: ['zfs', 'ext4', 'xfs'],
+  ...clusterExtensionsState,
 }
 
 export const reducer = (
-  state: typeof initialState,
+  state: useCloudProviderProps['initialState'],
   // @ts-ignore
   action: ReducerAction<unknown, void>,
 ) => {
@@ -113,19 +118,7 @@ export const reducer = (
         location: action.location,
       }
     }
-    case 'change_plan': {
-      return {
-        ...state,
-        plan: action.plan,
-        size: action.size,
-      }
-    }
-    case 'change_size': {
-      return {
-        ...state,
-        size: action.size,
-      }
-    }
+
     case 'change_name': {
       return {
         ...state,
@@ -166,18 +159,7 @@ export const reducer = (
         storage: action.volumeSize,
       }
     }
-    case 'set_is_loading': {
-      return {
-        ...state,
-        isLoading: action.isLoading,
-      }
-    }
-    case 'set_is_reloading': {
-      return {
-        ...state,
-        isReloading: action.isReloading,
-      }
-    }
+
     case 'set_form_step': {
       return {
         ...state,
@@ -198,7 +180,7 @@ export const reducer = (
         database_public_access: action.database_public_access,
       }
     }
-    
+
     case 'change_with_haproxy_load_balancing': {
       return {
         ...state,
@@ -233,7 +215,81 @@ export const reducer = (
         netdata_install: action.netdata_install,
       }
     }
-    
+
+    case 'change_pg_repack': {
+      return {
+        ...state,
+        pg_repack: action.pg_repack,
+      }
+    }
+    case 'change_pg_cron': {
+      return {
+        ...state,
+        pg_cron: action.pg_cron,
+      }
+    }
+    case 'change_pgaudit': {
+      return {
+        ...state,
+        pgaudit: action.pgaudit,
+      }
+    }
+    case 'change_pgvector': {
+      return {
+        ...state,
+        pgvector: action.pgvector,
+      }
+    }
+    case 'change_postgis': {
+      return {
+        ...state,
+        postgis: action.postgis,
+      }
+    }
+    case 'change_pgrouting': {
+      return {
+        ...state,
+        pgrouting: action.pgrouting,
+      }
+    }
+    case 'change_timescaledb': {
+      return {
+        ...state,
+        timescaledb: action.timescaledb,
+      }
+    }
+    case 'change_citus': {
+      return {
+        ...state,
+        citus: action.citus,
+      }
+    }
+    case 'change_pg_partman': {
+      return {
+        ...state,
+        pg_partman: action.pg_partman,
+      }
+    }
+    case 'change_pg_stat_kcache': {
+      return {
+        ...state,
+        pg_stat_kcache: action.pg_stat_kcache,
+      }
+    }
+    case 'change_pg_wait_sampling': {
+      return {
+        ...state,
+        pg_wait_sampling: action.pg_wait_sampling,
+      }
+    }
+
+    case 'change_file_system': {
+      return {
+        ...state,
+        fileSystem: action.fileSystem,
+      }
+    }
+
     default:
       throw new Error()
   }

@@ -24,7 +24,6 @@ export const ShieldIcon = React.forwardRef<SVGSVGElement, Props>(
         xmlns="http://www.w3.org/2000/svg"
       >
         <path
-          // eslint-disable-next-line max-len
           d="M4.00195 0L0.251953 1.66667V4.16667C0.251953 6.47917 1.85195 8.64167 4.00195 9.16667C6.15195 8.64167 7.75195 6.47917 7.75195 4.16667V1.66667L4.00195 0ZM3.16862 6.66667L1.50195 5L2.08945 4.4125L3.16862 5.4875L5.91445 2.74167L6.50195 3.33333L3.16862 6.66667Z"
           fill="currentColor"
         />

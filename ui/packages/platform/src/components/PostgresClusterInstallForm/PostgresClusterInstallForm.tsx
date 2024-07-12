@@ -28,6 +28,7 @@ import {
 import { PostgresClusterInstallFormSidebar } from 'components/PostgresClusterInstallForm/PostgresClusterInstallFormSidebar'
 import { AnsibleInstance } from 'components/PostgresClusterInstallForm/PostgresClusterSteps/AnsibleInstance'
 import { DockerInstance } from 'components/PostgresClusterInstallForm/PostgresClusterSteps/DockerInstance'
+import { ClusterExtensionAccordion } from 'components/PostgresClusterForm/PostgresClusterSteps'
 import { Select } from '@postgres.ai/shared/components/Select'
 
 import { validateDLEName } from 'utils/utils'
@@ -159,13 +160,23 @@ const PostgresClusterInstallForm = (props: PostgresClusterInstallFormProps) => {
                   })
                 }
               />
+              <ClusterExtensionAccordion
+                step={8}
+                state={Object.fromEntries(
+                  Object.entries(state).filter(
+                    ([key]) => key !== 'postgresql_data_dir',
+                  ),
+                )}
+                classes={classes}
+                dispatch={dispatch}
+              />
               <Accordion className={classes.sectionTitle}>
                 <AccordionSummary
                   aria-controls="panel1a-content"
                   id="panel1a-header"
                   expandIcon={icons.sortArrowDown}
                 >
-                  4. Advanced options
+                  5. Advanced options
                 </AccordionSummary>
                 <AccordionDetails>
                   <Box

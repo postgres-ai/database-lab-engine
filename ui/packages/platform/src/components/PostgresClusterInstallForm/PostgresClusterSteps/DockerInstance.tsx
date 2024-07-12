@@ -1,21 +1,21 @@
-import { Box } from '@mui/material'
 import {
-  Button,
   Accordion,
-  AccordionSummary,
   AccordionDetails,
+  AccordionSummary,
+  Button,
 } from '@material-ui/core'
+import { Box } from '@mui/material'
 
 import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
+import { icons } from '@postgres.ai/shared/styles/icons'
 import { formStyles } from 'components/DbLabInstanceForm/DbLabFormSteps/AnsibleInstance'
 import { InstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/InstanceFormCreation'
-import { initialState } from '../reducer'
+import { useCloudProviderProps } from 'hooks/useCloudProvider'
 import {
   getClusterCommand,
   getClusterExampleCommand,
   getInventoryPreparationCommand,
 } from '../utils'
-import { icons } from '@postgres.ai/shared/styles/icons'
 
 export const DockerInstance = ({
   state,
@@ -24,7 +24,7 @@ export const DockerInstance = ({
   formStep,
   setFormStep,
 }: {
-  state: typeof initialState
+  state: useCloudProviderProps['initialState']
   goBack: () => void
   goBackToForm: () => void
   formStep: string
@@ -88,7 +88,7 @@ export const DockerInstance = ({
         <p className={classes.title}>
           3. Run ansible playbook to deploy Postgres Cluster
         </p>
-        <SyntaxHighlight wrapLines content={getClusterCommand(state)} />
+        <SyntaxHighlight wrapLines content={getClusterCommand(state, true)} />
         <p className={classes.title}>
           4. After the code snippet runs successfully, follow the directions
           displayed in the resulting output to start using the database.

@@ -3,6 +3,7 @@ import { styles } from '@postgres.ai/shared/styles/styles'
 import DbLabInstances from 'components/DbLabInstances/DbLabInstances'
 import { RouteComponentProps } from 'react-router'
 import { colors } from '@postgres.ai/shared/styles/colors'
+import { OrgPermissions } from 'components/types'
 
 export interface DbLabInstancesProps {
   orgId: number
@@ -17,11 +18,7 @@ export interface DbLabInstancesProps {
       org?: string
     }
   }
-  orgPermissions: {
-    dblabInstanceCreate?: boolean
-    dblabInstanceDelete?: boolean
-    dblabInstanceList?: boolean
-  }
+  orgPermissions: OrgPermissions
 }
 
 export const DbLabInstancesWrapper = (props: DbLabInstancesProps) => {

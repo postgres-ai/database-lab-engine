@@ -7,12 +7,26 @@
 
 import { ReducerAction } from 'react'
 
+export const clusterExtensionsState = {
+  pg_repack: true,
+  pg_cron: true,
+  pgaudit: true,
+  pgvector: true,
+  postgis: false,
+  pgrouting: false,
+  timescaledb: false,
+  citus: false,
+  pg_partman: false,
+  pg_stat_kcache: false,
+  pg_wait_sampling: false,
+}
+
 export const initialState = {
   isLoading: false,
   isReloading: false,
   formStep: 'create',
   patroni_cluster_name: '',
-  version: '16',
+  version: 16,
   postgresql_data_dir: '/var/lib/postgresql/16/<cluster-name>',
   cluster_vip: '',
   with_haproxy_load_balancing: false,
@@ -21,6 +35,7 @@ export const initialState = {
   synchronous_node_count: 1,
   netdata_install: true,
   taskID: '',
+  ...clusterExtensionsState,
 }
 
 export const reducer = (
@@ -98,22 +113,76 @@ export const reducer = (
       }
     }
 
-    case 'set_is_loading': {
-      return {
-        ...state,
-        isLoading: action.isLoading,
-      }
-    }
-    case 'set_is_reloading': {
-      return {
-        ...state,
-        isReloading: action.isReloading,
-      }
-    }
     case 'set_form_step': {
       return {
         ...state,
         formStep: action.formStep,
+      }
+    }
+    case 'change_pg_repack': {
+      return {
+        ...state,
+        pg_repack: action.pg_repack,
+      }
+    }
+    case 'change_pg_cron': {
+      return {
+        ...state,
+        pg_cron: action.pg_cron,
+      }
+    }
+    case 'change_pgaudit': {
+      return {
+        ...state,
+        pgaudit: action.pgaudit,
+      }
+    }
+    case 'change_pgvector': {
+      return {
+        ...state,
+        pgvector: action.pgvector,
+      }
+    }
+    case 'change_postgis': {
+      return {
+        ...state,
+        postgis: action.postgis,
+      }
+    }
+    case 'change_pgrouting': {
+      return {
+        ...state,
+        pgrouting: action.pgrouting,
+      }
+    }
+    case 'change_timescaledb': {
+      return {
+        ...state,
+        timescaledb: action.timescaledb,
+      }
+    }
+    case 'change_citus': {
+      return {
+        ...state,
+        citus: action.citus,
+      }
+    }
+    case 'change_pg_partman': {
+      return {
+        ...state,
+        pg_partman: action.pg_partman,
+      }
+    }
+    case 'change_pg_stat_kcache': {
+      return {
+        ...state,
+        pg_stat_kcache: action.pg_stat_kcache,
+      }
+    }
+    case 'change_pg_wait_sampling': {
+      return {
+        ...state,
+        pg_wait_sampling: action.pg_wait_sampling,
       }
     }
     default:

@@ -7,7 +7,7 @@
 
 import { Button, makeStyles } from '@material-ui/core'
 
-import { initialState } from 'components/PostgresClusterInstallForm/reducer'
+import { useCloudProviderProps } from 'hooks/useCloudProvider'
 
 const useStyles = makeStyles({
   boxShadow: {
@@ -74,7 +74,7 @@ export const PostgresClusterInstallFormSidebar = ({
   handleCreate,
   disabled,
 }: {
-  state: typeof initialState
+  state: useCloudProviderProps['initialState']
   handleCreate: () => void
   disabled: boolean
 }) => {

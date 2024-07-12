@@ -186,6 +186,13 @@
     "pgnode",
     "pgbackrest",
     "vitabaks",
-    "distro"
+    "distro",
+    "pgaudit",
+    "pgrouting",
+    "timescaledb",
+    "citus",
+    "pgvector",
+    "partman",
+    "fstype"
   ]
 }

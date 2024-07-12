@@ -2,17 +2,14 @@ import { makeStyles } from '@material-ui/core'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { RouteComponentProps } from 'react-router'
 import OrgSettings from 'components/OrgMembers/OrgMembers'
+import { OrgPermissions } from 'components/types'
 
 export interface OrgSettingsProps {
   project: string | undefined
   history: RouteComponentProps['history']
   org: string | number
   orgId: number
-  orgPermissions: {
-    settingsMemberList?: boolean
-    settingsMemberUpdate?: boolean
-    settingsMemberAdd?: boolean
-  }
+  orgPermissions: OrgPermissions
   env: {
     data: {
       info: {

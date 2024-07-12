@@ -1,18 +1,19 @@
+import { Button } from '@material-ui/core'
 import { Box } from '@mui/material'
 import { useEffect, useState } from 'react'
-import { Button } from '@material-ui/core'
 
-import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
+import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
 
 import { getOrgKeys } from 'api/cloud/getOrgKeys'
 
-import { InstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/InstanceFormCreation'
-import { getPlaybookCommand } from 'components/DbLabInstanceInstallForm/utils'
 import { formStyles } from 'components/DbLabInstanceForm/DbLabFormSteps/AnsibleInstance'
+import { InstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/InstanceFormCreation'
+import { SetupStep } from 'components/DbLabInstanceInstallForm/DbLabFormSteps/SetupStep'
+import { getPlaybookCommand } from 'components/DbLabInstanceInstallForm/utils'
+import { useCloudProviderProps } from 'hooks/useCloudProvider'
 
-import { initialState } from '../reducer'
 
 export const DockerInstance = ({
   state,
@@ -22,7 +23,7 @@ export const DockerInstance = ({
   formStep,
   setFormStep,
 }: {
-  state: typeof initialState
+  state: useCloudProviderProps['initialState']
   orgId: number
   goBack: () => void
   goBackToForm: () => void
@@ -64,23 +65,7 @@ export const DockerInstance = ({
             />
           ) : (
             <>
-              <p className={classes.title}>1. Set up your machine</p>
-              <ul className={classes.ul}>
-                <li>
-                  Obtain a machine running Ubuntu 22.04 (although other versions
-                  may work, we recommend using an LTS version for optimal
-                  compatibility).
-                </li>
-                <li>
-                  Attach an empty disk that is at least twice the size of the
-                  database you plan to use with DBLab.
-                </li>
-                <li>
-                  Ensure that your SSH public key is added to the machine (in
-                  <code className={classes.code}>~/.ssh/authorized_keys</code>),
-                  allowing for secure SSH access.
-                </li>
-              </ul>
+              <SetupStep classes={classes} />
               <p className={classes.title}>
                 2. Execute the Ansible playbook to install DBLab SE on the remote
                 server
@@ -91,7 +76,7 @@ export const DockerInstance = ({
                 with the specific username and IP address of the server where
                 you will be installing DBLab.
               </p>
-              <SyntaxHighlight content={getPlaybookCommand(state, orgKey)} />
+              <SyntaxHighlight content={getPlaybookCommand(state, orgKey, true)} />
               <p className={classes.important}>Please be aware:</p>
               <p>
                 The script will attempt to automatically detect an empty volume

@@ -6,8 +6,8 @@
  */
 
 import { Button, makeStyles } from '@material-ui/core'
+import { useCloudProviderProps } from 'hooks/useCloudProvider'
 
-import { initialState } from 'components/DbLabInstanceForm/reducer'
 
 const useStyles = makeStyles({
   boxShadow: {
@@ -74,7 +74,7 @@ export const DbLabInstanceFormInstallSidebar = ({
   handleCreate,
   disabled,
 }: {
-  state: typeof initialState
+  state: useCloudProviderProps['initialState']
   handleCreate: () => void
   disabled: boolean
 }) => {

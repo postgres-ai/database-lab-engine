@@ -2,16 +2,14 @@ import { makeStyles } from '@material-ui/core'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { RouteComponentProps } from 'react-router'
 import Reports from 'components/Reports/Reports'
+import { OrgPermissions } from 'components/types'
 
 export interface ReportsProps extends RouteComponentProps {
   projectId: string | undefined | number
   project: string | undefined
   orgId: number
   org: string | number
-  orgPermissions: {
-    checkupReportConfigure?: boolean
-    checkupReportDelete?: boolean
-  }
+  orgPermissions: OrgPermissions
 }
 
 export const ReportsWrapper = (props: ReportsProps) => {
