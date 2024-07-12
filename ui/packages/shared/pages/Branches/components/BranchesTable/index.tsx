@@ -6,7 +6,7 @@
  */
 
 import cn from 'classnames'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import copy from 'copy-to-clipboard'
 import { makeStyles } from '@material-ui/core'
 import { useHistory } from 'react-router-dom'
@@ -72,7 +72,7 @@ export const BranchesTable = ({
 
   const [state, setState] = useState({
     sortByParent: 'desc',
-    branches: branchesData ?? [],
+    branches: [] as GetBranchesResponseType[],
   })
   const [branchId, setBranchId] = useState('')
   const [isOpenDestroyModal, setIsOpenDestroyModal] = useState(false)
@@ -93,6 +93,13 @@ export const BranchesTable = ({
       branches: sortedBranches,
     })
   }
+
+  useEffect(() => {
+    setState({
+      sortByParent: 'desc',
+      branches: branchesData ?? [],
+    })
+  }, [branchesData])
 
   if (!state.branches.length) {
     return <p className={classes.marginTop}>{emptyTableText}</p>

@@ -62,9 +62,9 @@ export const Status = observer(() => {
       )}
       {uiVersion && <Property name="UI version">{`v${uiVersion}`}</Property>}
       {version && <Property name="Engine version">{version}</Property>}
-      {config?.dockerImage && (
-        <Property name="Docker image">{config?.dockerImage}</Property>
-        )}
+      {config?.dockerPath && (
+        <Property name="Docker image">{config?.dockerPath}</Property>
+      )}
 
       {!isStatusOk && (
         <div className={styles.controls}>
