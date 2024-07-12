@@ -98,7 +98,7 @@ export const Snapshots = observer(() => {
 
                 {!hasClones && (
                   <Tooltip content="No clones">
-                    <div>
+                    <div style={{ display: 'flex' }}>
                       <InfoIcon className={classes.infoIcon} />
                     </div>
                   </Tooltip>

@@ -252,7 +252,7 @@ export const CreateBranchPage = observer(
               form, copy the command below and paste it into your terminal.
             </p>
             <SyntaxHighlight
-              content={getCliCreateBranchCommand(formik.values.branchName)}
+              content={getCliCreateBranchCommand(formik.values.branchName, formik.values.baseBranch)}
             />
             <SectionTitle
               className={classes.marginTop}

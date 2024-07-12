@@ -102,7 +102,7 @@ export const Branches = observer((): React.ReactElement => {
 
                 {!branchesList.length && (
                   <Tooltip content="No existing branch">
-                    <div>
+                    <div style={{ display: 'flex' }}>
                       <InfoIcon className={classes.infoIcon} />
                     </div>
                   </Tooltip>
