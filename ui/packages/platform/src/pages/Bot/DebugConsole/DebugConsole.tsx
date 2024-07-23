@@ -65,23 +65,20 @@ export const DebugConsole = (props: DebugConsoleProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (containerRef.current && debugMessages?.length && threadId && !debugMessagesLoading && isOpen) {
-      let code = containerRef.current.getElementsByTagName('code')?.[0];
-      if (!code) {
-        code = document.createElement('code');
-        containerRef.current.appendChild(code);
-      }
+    if (!containerRef.current || !debugMessages?.length || debugMessagesLoading || !isOpen) return;
 
-      if (code.hasChildNodes()) {
-        const lastMessage = debugMessages[debugMessages.length - 1];
-        const fragment = createMessageFragment([lastMessage]);
-        code.appendChild(fragment);
-      } else {
-        const fragment = createMessageFragment(debugMessages);
-        code.appendChild(fragment);
-      }
+    let code = containerRef.current.getElementsByTagName('code')?.[0];
+    if (!code) {
+      code = document.createElement('code');
+      containerRef.current.appendChild(code);
     }
-  }, [debugMessages, isOpen, threadId, debugMessagesLoading]);
+
+    const fragment = createMessageFragment(
+      code.hasChildNodes() ? [debugMessages[debugMessages.length - 1]] : debugMessages
+    );
+    code.appendChild(fragment);
+
+  }, [debugMessages, isOpen, debugMessagesLoading]);
 
   return (
     <Dialog
