@@ -23,3 +23,4 @@ export REACT_APP_SENTRY_DSN=""
 # AI Bot
 # don't forget trailing slash if GET path is used!
 export REACT_APP_WS_URL="wss://v2.postgres.ai/ai-bot-ws/" # we use staging for now, since dev env is not fullfledged yet
+export REACT_APP_BOT_API_URL="https://v2.postgres.ai/ai-bot-api/bot"

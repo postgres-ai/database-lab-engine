@@ -6,7 +6,7 @@
  */
 
 import { Component } from 'react'
-import { Switch, Route, NavLink, Redirect } from 'react-router-dom'
+import { Switch, Route, NavLink, Redirect, useRouteMatch } from 'react-router-dom'
 import {
   AppBar,
   Toolbar,
@@ -291,6 +291,7 @@ function ProjectWrapper(parentProps: Omit<ProjectWrapperProps, 'classes'>) {
 }
 
 function OrganizationMenu(parentProps: OrganizationMenuProps) {
+  const isDemoOrg = useRouteMatch(`/${settings.demoOrgAlias}`)
   if (
     parentProps.env &&
     parentProps.env.data &&
@@ -352,7 +353,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
             </NavLink>
           </ListItem>
 
-          {/*<ListItem
+          {Boolean(isDemoOrg) && <ListItem
             button
             className={parentProps.classes.menuSectionHeader}
             disabled={isBlocked}
@@ -368,7 +369,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
               </span>
               AI Bot<span className={cn(parentProps.classes.menuItemLabel, parentProps.classes.headerLinkMenuItemLabel)}>NEW</span>
             </NavLink>
-          </ListItem>*/}
+          </ListItem>}
           <ListItem
             button
             className={parentProps.classes.menuSectionHeader}

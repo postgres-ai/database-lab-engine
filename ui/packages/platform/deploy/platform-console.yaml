@@ -49,3 +49,5 @@ spec:
             value: "$REACT_APP_STRIPE_API_KEY"
           - name: REACT_APP_WS_URL
             value: "$REACT_APP_WS_URL"
+          - name: REACT_APP_BOT_API_URL
+            value: "$REACT_APP_BOT_API_URL"
