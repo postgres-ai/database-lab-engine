@@ -47,6 +47,9 @@ ENV REACT_APP_SENTRY_DSN=$ARG_REACT_APP_SENTRY_DSN
 ARG ARG_REACT_APP_WS_URL
 ENV REACT_APP_WS_URL=$ARG_REACT_APP_WS_URL
 
+ARG ARG_REACT_APP_BOT_API_URL
+ENV REACT_APP_BOT_API_URL=$ARG_REACT_APP_BOT_API_URL
+
 RUN apk add --no-cache --update git && \
     npm i -g pnpm@7.30.5; \
     pnpm config set store-dir /app/.pnpm-store; \
