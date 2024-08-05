@@ -4,7 +4,6 @@ import { makeStyles } from '@material-ui/core'
 import { Button } from '@postgres.ai/shared/components/Button'
 import { TextField } from '@postgres.ai/shared/components/TextField'
 
-import { useFloatingIntercom } from 'hooks/useFloatingIntercom'
 
 import {
   checkIsSendCmd,
@@ -133,11 +132,6 @@ export const Command = React.memo((props: Props) => {
     inputRef.current.focus()
   }, [])
 
-  // Floating intercom.
-  const sendButtonRef = useRef<HTMLButtonElement | null>(null)
-
-  useFloatingIntercom(sendButtonRef)
-
   return (
     <div className={classes.root}>
       <TextField
@@ -162,7 +156,6 @@ export const Command = React.memo((props: Props) => {
       <Button
         className={classes.button}
         onClick={triggerSend}
-        ref={sendButtonRef}
       >
         Send
       </Button>

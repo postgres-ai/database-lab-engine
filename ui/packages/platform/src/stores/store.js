@@ -380,42 +380,6 @@ const Store = Reflux.createStore({
     if (!this.data.userProfile.error && data.length > 0) {
       this.data.userProfile.data = data[0];
       this.data.userProfile.isProcessed = true;
-
-      if (window.intercomSettings) {
-        let name = null;
-
-        if (data[0].info.email.split('@').length > 0) {
-          name = data[0].info.email.split('@')[0];
-        }
-
-        if (data[0].info.first_name) {
-          name = data[0].info.first_name;
-          if (data[0].info.last_name) {
-            name = name + ' ' + data[0].info.last_name;
-          }
-        }
-        window.intercomSettings.name = name;
-        window.intercomSettings.email = data[0].info.email;
-        window.intercomSettings.user_id = data[0].info.id;
-        window.intercomSettings.created_at = data[0].info.created_at;
-
-        if (data[0].orgs) {
-          window.intercomSettings.companies = [];
-
-          for (let i in data[0].orgs) {
-            if (data[0].orgs.hasOwnProperty(i)) {
-              window.intercomSettings.companies.push({
-                company_id: data[0].orgs[i].id,
-                name: data[0].orgs[i].name
-              });
-            }
-          }
-        }
-
-        if (window.Intercom) {
-          window.Intercom('update');
-        }
-      }
     }
 
     this.trigger(this.data);
