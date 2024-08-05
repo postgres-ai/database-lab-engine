@@ -107,12 +107,32 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
     const orgId = this.props.orgId
     const onlyProjects = this.props.onlyProjects
 
-    this.unsubscribe = (Store.listen as RefluxTypes['listen'])(function () {
+    this.unsubscribe = (Store.listen as RefluxTypes['listen'])(async function () {
       that.setState({ data: this.data })
+
       const auth: DashboardState['data']['auth'] =
         this.data && this.data.auth ? this.data.auth : null
       const userProfile: DashboardState['data']['userProfile'] =
         this.data && this.data.userProfile ? this.data.userProfile : null
+
+      const cookieName = "pgai_tmp_thread_id=";
+      const cookies = document.cookie.split(';').map(cookie => cookie.trim());
+      const pgaiTmpThreadId = cookies.find(cookie => cookie.startsWith(cookieName))?.substring(cookieName.length) || null;
+      if (pgaiTmpThreadId) {
+        try {
+          const data = await convertThread(pgaiTmpThreadId);
+          if (data?.response?.final_thread_id) {
+            document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname.split('.').slice(-2).join('.')}`;
+            if (userProfile && userProfile.data && userProfile.data.orgs) {
+              if (userProfile.data.orgs.hasOwnProperty('demo')) {
+                that.props.history.push(`demo/bot/${data.response.final_thread_id}`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error converting thread:', error);
+        }
+      }
 
       if (onlyProjects) {
         const projects: DashboardState['data']['projects'] =
@@ -164,8 +184,6 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
     })
 
     Actions.refresh()
-
-    this.convertThreadAndRedirectToBot()
   }
 
   componentWillUnmount() {
@@ -213,24 +231,6 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
 
   filterOrgsInputHandler = (event: React.ChangeEvent<HTMLInputElement>) => {
     this.setState({ filterValue: event.target.value })
-  }
-
-  convertThreadAndRedirectToBot = async () => {
-    const cookieName = "pgai_tmp_thread_id=";
-    const cookies = document.cookie.split(';').map(cookie => cookie.trim());
-    const pgaiTmpThreadId = cookies.find(cookie => cookie.startsWith(cookieName))?.substring(cookieName.length) || null;
-
-    if (pgaiTmpThreadId) {
-      try {
-        const data = await convertThread(pgaiTmpThreadId);
-        if (data?.response?.final_thread_id) {
-          document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname.split('.').slice(-2).join('.')}`;
-          this.props.history.push(`demo/bot/${data.response.final_thread_id}`);
-        }
-      } catch (error) {
-        console.error('Error converting thread:', error);
-      }
-    }
   }
 
   render() {
