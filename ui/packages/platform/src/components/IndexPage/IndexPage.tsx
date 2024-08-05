@@ -1322,13 +1322,6 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
     if (raw) {
       return (
         <>
-          <style>
-            {`
-              div.intercom-lightweight-app {
-                display: none!important;
-              }
-            `}
-          </style>
           <Switch>
             <Route
               path="/:org"

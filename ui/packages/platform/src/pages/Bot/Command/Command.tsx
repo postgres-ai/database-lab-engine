@@ -16,8 +16,6 @@ import { theme } from "@postgres.ai/shared/styles/theme";
 import { isMobileDevice } from "../../../utils/utils";
 import { useAiBot } from "../hooks";
 import { ReadyState } from "react-use-websocket";
-import { useFloatingIntercom } from "../../../hooks/useFloatingIntercom";
-
 
 type Props = {
   threadId?: string

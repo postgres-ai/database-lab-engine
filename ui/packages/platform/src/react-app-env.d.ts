@@ -16,8 +16,3 @@ declare namespace NodeJS {
     readonly BUILD_TIMESTAMP: number
   }
 }
-
-// Intercom types.
-declare interface Window {
-  Intercom?: (action: 'show') => void
-}
