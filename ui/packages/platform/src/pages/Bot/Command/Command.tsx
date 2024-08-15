@@ -85,10 +85,11 @@ export const Command = React.memo((props: Props) => {
     wsLoading,
     loading,
     sendMessage,
-    chatVisibility
+    chatVisibility,
+    isStreamingInProcess
   } = useAiBot();
 
-  const sendDisabled = error !== null || loading || wsLoading || wsReadyState !== ReadyState.OPEN;
+  const sendDisabled = error !== null || loading || wsLoading || wsReadyState !== ReadyState.OPEN || isStreamingInProcess;
 
   // Handle value.
   const [value, setValue] = useState('')

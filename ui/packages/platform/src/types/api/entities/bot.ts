@@ -41,3 +41,10 @@ export type StateMessage = {
   state: string | null
   thread_id: string
 }
+
+export type StreamMessage = {
+  type: 'stream'
+  content: string
+  ai_model: string
+  thread_id: string
+}

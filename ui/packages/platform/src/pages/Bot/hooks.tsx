@@ -8,7 +8,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import useWebSocket, {ReadyState} from "react-use-websocket";
 import { useLocation } from "react-router-dom";
-import { BotMessage, DebugMessage, AiModel, StateMessage } from "../../types/api/entities/bot";
+import { BotMessage, DebugMessage, AiModel, StateMessage, StreamMessage } from "../../types/api/entities/bot";
 import {getChatsWithWholeThreads} from "../../api/bot/getChatsWithWholeThreads";
 import {getChats} from "api/bot/getChats";
 import {useAlertSnackbar} from "@postgres.ai/shared/components/AlertSnackbar/useAlertSnackbar";
@@ -58,6 +58,8 @@ type UseAiBotReturnType = {
   aiModelsLoading: UseAiModelsList['loading'];
   debugMessagesLoading: boolean;
   stateMessage: StateMessage | null;
+  isStreamingInProcess: boolean
+  currentStreamMessage: StreamMessage | null
 }
 
 type UseAiBotArgs = {
@@ -90,6 +92,8 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
   const [wsLoading, setWsLoading] = useState<boolean>(false);
   const [chatVisibility, setChatVisibility] = useState<UseAiBotReturnType['chatVisibility']>('public');
   const [stateMessage, setStateMessage] = useState<StateMessage | null>(null)
+  const [currentStreamMessage, setCurrentStreamMessage] = useState<StreamMessage | null>(null)
+  const [isStreamingInProcess, setStreamingInProcess] = useState<boolean>(false)
 
   const [isChangeVisibilityLoading, setIsChangeVisibilityLoading] = useState<boolean>(false);
   
@@ -102,51 +106,35 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
 
   const onWebSocketMessage = (event: WebSocketEventMap['message']) => {
     if (event.data) {
-      const messageData: BotMessage | DebugMessage | StateMessage = JSON.parse(event.data);
+      const messageData: BotMessage | DebugMessage | StateMessage | StreamMessage = JSON.parse(event.data);
       if (messageData) {
         const isThreadMatching = threadId && threadId === messageData.thread_id;
         const isParentMatching = !threadId && 'parent_id' in messageData && messageData.parent_id && messages;
         const isDebugMessage = messageData.type === 'debug';
         const isStateMessage = messageData.type === 'state';
-        if (isThreadMatching || isParentMatching || isDebugMessage || isStateMessage) {
-          if (isDebugMessage) {
-            let currentDebugMessages = [...(debugMessages || [])];
-            currentDebugMessages.push(messageData)
-            setDebugMessages(currentDebugMessages)
-          } else if (isStateMessage) {
-            if (isThreadMatching || !threadId) {
-              if (messageData.state) {
-                setStateMessage(messageData)
-              } else {
-                setStateMessage(null)
-              }
-            }
-          } else {
-            // Check if the last message needs its data updated
-            let currentMessages = [...(messages || [])];
-            const lastMessage = currentMessages[currentMessages.length - 1];
-            if (lastMessage && !lastMessage.id && messageData.parent_id) {
-              lastMessage.id = messageData.parent_id;
-              lastMessage.created_at = messageData.created_at;
-              lastMessage.is_public = messageData.is_public;
-            }
+        const isStreamMessage = messageData.type === 'stream';
 
-            currentMessages.push(messageData);
-            setMessages(currentMessages);
-            setWsLoading(false);
-            if (document.visibilityState === "hidden") {
-              if (Notification.permission === "granted") {
-                new Notification("New message", {
-                  body: 'New message from Postgres.AI Bot',
-                  icon: '/images/bot_avatar.png'
-                });
-              }
-            }
+        if (isThreadMatching || isParentMatching || isDebugMessage || isStateMessage || isStreamMessage) {
+          switch (messageData.type) {
+            case 'debug':
+              handleDebugMessage(messageData)
+              break;
+            case 'state':
+              handleStateMessage(messageData, Boolean(isThreadMatching))
+              break;
+            case 'stream':
+              handleStreamMessage(messageData, Boolean(isThreadMatching))
+              break;
+            case 'message':
+              handleBotMessage(messageData)
+              break;
           }
         } else if (threadId !== messageData.thread_id) {
           const threadInList = chatsList?.find((item) => item.thread_id === messageData.thread_id)
           if (!threadInList) getChatsList()
-          setWsLoading(false);
+          if (currentStreamMessage) setCurrentStreamMessage(null)
+          if (wsLoading) setWsLoading(false);
+          if (isStreamingInProcess) setStreamingInProcess(false)
         }
       } else {
         showMessage('An error occurred. Please try again')
@@ -156,6 +144,56 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     }
 
     setLoading(false);
+  }
+
+  const handleDebugMessage = (message: DebugMessage) => {
+    let currentDebugMessages = [...(debugMessages || [])];
+    currentDebugMessages.push(message)
+    setDebugMessages(currentDebugMessages)
+  }
+
+  const handleStateMessage = (message: StateMessage, isThreadMatching?: boolean) => {
+    if (isThreadMatching || !threadId) {
+      if (message.state) {
+        setStateMessage(message)
+      } else {
+        setStateMessage(null)
+      }
+    }
+  }
+
+  const handleStreamMessage = (message: StreamMessage, isThreadMatching?: boolean) => {
+    if (isThreadMatching || !threadId) {
+      if (!isStreamingInProcess) setStreamingInProcess(true)
+      setCurrentStreamMessage(message)
+      setWsLoading(false);
+    }
+  }
+
+  const handleBotMessage = (message: BotMessage) => {
+    if (messages && messages.length > 0) {
+      let currentMessages = [...messages];
+      const lastMessage = currentMessages[currentMessages.length - 1];
+      if (lastMessage && !lastMessage.id && message.parent_id) {
+        lastMessage.id = message.parent_id;
+        lastMessage.created_at = message.created_at;
+        lastMessage.is_public = message.is_public;
+      }
+
+      currentMessages.push(message);
+      if (currentStreamMessage) setCurrentStreamMessage(null)
+      setMessages(currentMessages);
+      setWsLoading(false);
+      setStreamingInProcess(false);
+      if (document.visibilityState === "hidden") {
+        if (Notification.permission === "granted") {
+          new Notification("New message", {
+            body: 'New message from Postgres.AI Bot',
+            icon: '/images/bot_avatar.png'
+          });
+        }
+      }
+    }
   }
 
   const onWebSocketOpen = () => {
@@ -381,6 +419,8 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     debugMessages,
     debugMessagesLoading,
     stateMessage,
+    isStreamingInProcess,
+    currentStreamMessage
   }
 }
 
