@@ -156,9 +156,9 @@ export const BotPage = (props: BotPageProps) => {
   }
 
   useEffect(() => {
-    if (!match.params.threadId && !prevThreadId && messages && messages.length > 1 && messages[1].parent_id) {
+    if (!match.params.threadId && !prevThreadId && messages && messages.length > 0 && messages[0].id) {
       // hack that skip additional loading chats_ancestors_and_descendants
-      history.replace(`/${match.params.org}/bot/${messages[1].parent_id}`, { skipReloading: true })
+      history.replace(`/${match.params.org}/bot/${messages[0].id}`, { skipReloading: true })
       getChatsList();
     } else if (prevThreadId && !match.params.threadId) {
       clearChat()

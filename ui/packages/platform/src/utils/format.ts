@@ -264,6 +264,8 @@ const Format = {
   },
 
   timeAgo: function (date: string | Date): string | null {
+    if (!date) return null
+
     const now = new Date();
     const past = new Date(date);
     const diff = Math.abs(now.getTime() - past.getTime());

@@ -111,14 +111,7 @@ const useStyles = makeStyles(
       padding: 10
     }
   }),
-
 )
-
-type MessagesProps = {
-  messages: BotMessageWithDebugInfo[] | null
-  isLoading: boolean
-  isWaitingForAnswer: boolean
-}
 
 type Time = string
 
@@ -127,7 +120,13 @@ type FormattedTime = {
 }
 
 export const Messages = React.memo(() => {
-  const { messages, loading: isLoading, wsLoading: isWaitingForAnswer, stateMessage } = useAiBot();
+  const {
+    messages,
+    loading: isLoading,
+    wsLoading: isWaitingForAnswer,
+    stateMessage,
+    currentStreamMessage
+  } = useAiBot();
 
   const rootRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -275,6 +274,14 @@ export const Messages = React.memo(() => {
                 />
               )
             })}
+          {
+            currentStreamMessage && <Message
+              id={null}
+              isAi
+              content={currentStreamMessage.content}
+              aiModel={currentStreamMessage.ai_model}
+            />
+          }
           {isWaitingForAnswer &&
             <Message id={null} isLoading isAi={true} stateMessage={stateMessage} />
           }

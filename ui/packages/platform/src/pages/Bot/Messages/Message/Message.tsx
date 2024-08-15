@@ -203,6 +203,7 @@ const useStyles = makeStyles(
         marginBlockEnd: '1em',
         marginInlineStart: 0,
         marginInlineEnd: 0,
+        //animation: `$typing 0.5s steps(30, end), $blinkCaret 0.75s step-end infinite`,
       },
       '& .MuiExpansionPanel-root div': {
         marginBlockStart: 0,
@@ -216,6 +217,7 @@ const useStyles = makeStyles(
       marginInlineStart: 0,
       marginInlineEnd: 0,
       fontSize: 14,
+      color: colors.pgaiDarkGray,
       '&:after': {
         overflow: 'hidden',
         display: 'inline-block',
@@ -229,7 +231,16 @@ const useStyles = makeStyles(
       'to': {
         width: '0.9em'
       },
-    }
+    },
+    '@keyframes typing': {
+      from: { width: 0 },
+      to: { width: '100%' },
+    },
+    '@keyframes blinkCaret': {
+      from: { borderRightColor: 'transparent' },
+      to: { borderRightColor: 'transparent' },
+      '50%': { borderRightColor: 'black' },
+    },
   }),
 
 )
@@ -336,7 +347,8 @@ export const Message = React.memo((props: MessageProps) => {
         </div>
         <div>
           {isLoading
-            ? <div className={classes.markdown}>
+            ?
+            <div className={classes.markdown}>
               <div className={classes.loading}>
                 {stateMessage && stateMessage.state ? stateMessage.state : 'Thinking'}
               </div>
