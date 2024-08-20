@@ -1,4 +1,4 @@
-const pluralize = (single: string, multiple: string) => (val: number) =>
+export const pluralize = (single: string, multiple: string) => (val: number) =>
   val === 1 ? single : multiple
 
 const MS_IN_SECOND = 1000
