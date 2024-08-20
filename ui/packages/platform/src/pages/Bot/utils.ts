@@ -37,10 +37,10 @@ export const createMessageFragment = (messages: DebugMessage[]): DocumentFragmen
 
   messages.forEach((item) => {
     const textBeforeLink = `[${item.created_at}]: `;
-    const parts = item.content.split(/(https?:\/\/[^\s]+)/g);
+    const parts = item.content.split(/(https?:\/\/[^\s)"']+)/g);
 
     const messageContent = parts.map((part) => {
-      if (/https?:\/\/[^\s]+/.test(part)) {
+      if(/https?:\/\/[^\s)"']+/.test(part)) {
         const link = document.createElement('a');
         link.href = part;
         link.target = '_blank';
