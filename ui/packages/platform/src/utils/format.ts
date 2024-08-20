@@ -6,6 +6,7 @@
  */
 
 import moment from 'moment'
+import { pluralize } from "./time";
 
 const Format = {
   formatSeconds: function (seconds: number, decimal: number, separator = ' ') {
@@ -266,6 +267,7 @@ const Format = {
   timeAgo: function (date: string | Date): string | null {
     if (!date) return null
 
+
     const now = new Date();
     const past = new Date(date);
     const diff = Math.abs(now.getTime() - past.getTime());
@@ -275,13 +277,13 @@ const Format = {
     const days = Math.floor(hours / 24);
 
     if (seconds < 60) {
-      return `${seconds} seconds ago`;
+      return `${seconds} ${pluralize('second', 'seconds')(seconds)} ago`;
     } else if (minutes < 60) {
-      return `${minutes} minutes ago`;
+      return `${minutes} ${pluralize('minute', 'minutes')(minutes)} ago`;
     } else if (hours < 24) {
-      return `${hours} hours ago`;
+      return `${hours} ${pluralize('hour', 'hours')(hours)} ago`;
     } else {
-      return `${days} days ago`;
+      return `${days} ${pluralize('day', 'days')(seconds)} ago`;
     }
   }
 }
