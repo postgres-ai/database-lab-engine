@@ -125,6 +125,9 @@ export const ChatsList = (props: ChatsListProps) => {
   const handleClick = (threadId: string) => {
     if (onLinkClick) {
       onLinkClick(threadId)
+      if (matches) {
+        onClose()
+      }
     }
   }
 
