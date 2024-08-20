@@ -1,8 +1,10 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { makeStyles } from '@material-ui/core'
 import SendRoundedIcon from '@material-ui/icons/SendRounded';
 import IconButton from "@material-ui/core/IconButton";
 import { TextField } from '@postgres.ai/shared/components/TextField'
+import { ReadyState } from "react-use-websocket";
+import { useLocation } from "react-router-dom";
 import {
   checkIsSendCmd,
   checkIsNewLineCmd,
@@ -15,7 +17,6 @@ import { useCaret } from './useCaret'
 import { theme } from "@postgres.ai/shared/styles/theme";
 import { isMobileDevice } from "../../../utils/utils";
 import { useAiBot } from "../hooks";
-import { ReadyState } from "react-use-websocket";
 
 type Props = {
   threadId?: string
@@ -103,6 +104,8 @@ export const Command = React.memo((props: Props) => {
   // Input caret.
   const caret = useCaret(inputRef)
 
+  let location = useLocation<{skipReloading?: boolean}>();
+
   const onSend = async (message: string) => {
     await sendMessage({
       content: message,
@@ -186,11 +189,11 @@ export const Command = React.memo((props: Props) => {
     // Skip other keyboard events to fill input.
   }
 
-  // Autofocus.
+  // Autofocus and clear on thread changed
   useEffect(() => {
     if (!inputRef.current) return
     if (window.innerWidth > theme.breakpoints.values.md) inputRef.current.focus()
-    setValue('')
+    if (!location.state?.skipReloading) setValue('')
   }, [threadId]);
 
   return (
