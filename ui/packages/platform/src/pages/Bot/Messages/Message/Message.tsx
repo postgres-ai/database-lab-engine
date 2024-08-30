@@ -10,6 +10,7 @@ import { DebugDialog } from "../../DebugDialog/DebugDialog";
 import { CodeBlock } from "./CodeBlock";
 import { disallowedHtmlTagsForMarkdown, permalinkLinkBuilder } from "../../utils";
 import { StateMessage } from "../../../../types/api/entities/bot";
+import { MermaidDiagram } from "./MermaidDiagram";
 
 
 type BaseMessageProps = {
@@ -275,11 +276,17 @@ export const Message = React.memo((props: MessageProps) => {
     img: ({ node, ...props }) => <img style={{ maxWidth: '60%' }} {...props} />,
     code: ({ node, inline, className, children, ...props }) => {
       const match = /language-(\w+)/.exec(className || '');
-      return !inline ? (
-        <CodeBlock value={String(children).replace(/\n$/, '')} language={match?.[1]} />
-      ) : (
-        <code {...props}>{children}</code>
-      );
+      const matchMermaid = /language-mermaid/.test(className || '');
+      if (!inline) {
+        return (
+          <>
+            {matchMermaid && <MermaidDiagram chart={String(children).replace(/\n$/, '')} />}
+            <CodeBlock value={String(children).replace(/\n$/, '')} language={match?.[1]} />
+          </>
+        )
+      } else {
+        return <code {...props}>{children}</code>
+      }
     },
   }), []);
 
