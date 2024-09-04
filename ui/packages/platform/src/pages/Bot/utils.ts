@@ -58,3 +58,37 @@ export const createMessageFragment = (messages: DebugMessage[]): DocumentFragmen
 
   return fragment;
 };
+
+export const formatLanguageName = (language: string): string => {
+  const specificCases: { [key: string]: string } = {
+    "sql": "SQL",
+    "pl/pgsql": "PL/pgSQL",
+    "pl/python": "PL/Python",
+    "json": "JSON",
+    "yaml": "YAML",
+    "html": "HTML",
+    "xml": "XML",
+    "css": "CSS",
+    "csv": "CSV",
+    "toml": "TOML",
+    "ini": "INI",
+    "r": "R",
+    "php": "PHP",
+    "sqlalchemy": "SQLAlchemy",
+    "xslt": "XSLT",
+    "xsd": "XSD",
+    "ajax": "AJAX",
+    "tsql": "TSQL",
+    "pl/sql": "PL/SQL",
+    "dax": "DAX",
+    "sparql": "SPARQL"
+  };
+
+  const normalizedLanguage = language.toLowerCase();
+
+  if (specificCases[normalizedLanguage]) {
+    return specificCases[normalizedLanguage];
+  } else {
+    return language.charAt(0).toUpperCase() + language.slice(1).toLowerCase();
+  }
+}

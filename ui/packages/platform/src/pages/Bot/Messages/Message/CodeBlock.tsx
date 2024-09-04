@@ -7,6 +7,7 @@ import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import FileCopyOutlinedIcon from '@material-ui/icons/FileCopyOutlined';
 import CheckCircleOutlineIcon from '@material-ui/icons/CheckCircleOutline';
 import CodeIcon from '@material-ui/icons/Code';
+import { formatLanguageName } from "../../utils";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -131,7 +132,7 @@ export const CodeBlock = memo(({ value, language }: CodeBlockProps) => {
             className={classes.summaryText}
           >
             <CodeIcon className={classes.summaryTextIcon} />
-            {expanded ? 'Hide' : 'Show'} code block ({codeLines.length} LOC)
+            {expanded ? 'Hide' : 'Show'}{language ? ` ${formatLanguageName(language)}` : ''} code block ({codeLines.length} LOC)
           </Typography>
         </AccordionSummary>
         <AccordionDetails className={classes.details}>
