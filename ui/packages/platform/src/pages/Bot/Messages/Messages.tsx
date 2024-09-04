@@ -125,7 +125,8 @@ export const Messages = React.memo(() => {
     loading: isLoading,
     wsLoading: isWaitingForAnswer,
     stateMessage,
-    currentStreamMessage
+    currentStreamMessage,
+    isStreamingInProcess
   } = useAiBot();
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -174,10 +175,10 @@ export const Messages = React.memo(() => {
   }, [prevUserMessagesCount, userMessagesCount]);
 
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && !isStreamingInProcess) {
       scrollBottomIfNeed();
     }
-  }, [isLoading, scrollBottomIfNeed]);
+  }, [isLoading, scrollBottomIfNeed, isStreamingInProcess]);
 
   useEffect(() => {
     const updateTimes = () => {
