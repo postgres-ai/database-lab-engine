@@ -11,7 +11,7 @@ export const getChats = async (req: Req): Promise<{ response: BotMessage[] | nul
   const apiServer = process.env.REACT_APP_API_URL_PREFIX || '';
 
   try {
-    const response = await request(`${apiServer}/chats${query ? query : ''}`, {
+    const response = await request(`${apiServer}/chats_auth${query ? query : ''}`, {
       method: 'GET',
     });
 
