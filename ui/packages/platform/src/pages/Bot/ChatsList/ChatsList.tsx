@@ -9,7 +9,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { useParams } from "react-router";
 import cn from "classnames";
-import { makeStyles, Theme, useMediaQuery } from "@material-ui/core";
+import { ListItem, ListItemIcon, makeStyles, Theme, useMediaQuery } from "@material-ui/core";
 import Drawer from '@material-ui/core/Drawer';
 import List from "@material-ui/core/List";
 import Divider from "@material-ui/core/Divider";
@@ -17,9 +17,9 @@ import ListSubheader from '@material-ui/core/ListSubheader';
 import Box from "@mui/material/Box";
 import { Spinner } from "@postgres.ai/shared/components/Spinner";
 import { HeaderButtons, HeaderButtonsProps } from "../HeaderButtons/HeaderButtons";
-import { BotMessage } from "../../../types/api/entities/bot";
 import { theme } from "@postgres.ai/shared/styles/theme";
 import { useAiBot } from "../hooks";
+import VisibilityOffIcon from '@material-ui/icons/VisibilityOff';
 
 
 const useStyles = makeStyles<Theme, ChatsListProps>((theme) => ({
@@ -73,12 +73,22 @@ const useStyles = makeStyles<Theme, ChatsListProps>((theme) => ({
       whiteSpace: 'nowrap',
       textDecoration: "none",
       flex: '0 0 2.5rem',
+      display: 'block',
       '&:hover': {
+        background: 'rgba(0, 0, 0, 0.04)'
+      },
+      '&:focus': {
+        outline: 'none',
         background: 'rgba(0, 0, 0, 0.04)'
       }
     },
     listItemLinkActive: {
       background: 'rgba(0, 0, 0, 0.04)'
+    },
+    listItemIcon: {
+      transform: 'translateY(2px)',
+      marginRight: 2,
+      minWidth: 'auto',
     },
     loader: {
       width: '100%',
@@ -165,15 +175,22 @@ export const ChatsList = (props: ChatsListProps) => {
         const isActive = item.id === params.threadId
         const link = linkBuilder(item.id)
         return (
-          <Link
+          <ListItem
+            component={Link}
             to={link}
             key={item.id}
             className={cn(classes.listItemLink, {[classes.listItemLinkActive]: isActive})}
             id={item.id}
             onClick={() => handleClick(item.id)}
+            autoFocus={isActive}
           >
+            <ListItemIcon
+              className={classes.listItemIcon}
+              title={item.is_public ? 'This thread is public' : 'This thread is private'}>
+              {!item.is_public && <VisibilityOffIcon />}
+            </ListItemIcon>
             {item.content}
-          </Link>
+          </ListItem>
         )
       })
       }
