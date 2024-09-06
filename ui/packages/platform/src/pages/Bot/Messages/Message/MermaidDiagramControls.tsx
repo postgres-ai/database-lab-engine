@@ -44,11 +44,18 @@ const useStyles = makeStyles(
     divider: {
       width: 'calc(100% - 8px)',
     },
+    actionButtonWrapper: {
+      border: '1px solid rgba(0, 0, 0, 0.12)',
+      borderRadius: 8,
+      background: 'white',
+      marginBottom: 8,
+      overflow: 'hidden'
+    },
     actionButton: {
       fontSize: '1.5rem',
       color: 'rgba(0, 0, 0, 0.72)',
       padding: 8,
-      marginBottom: 8,
+      borderRadius: 0,
       '&:hover': {
         color: 'rgba(0, 0, 0, 0.95)',
       },
@@ -95,23 +102,26 @@ export const MermaidDiagramControls = (props: MermaidDiagramControlsProps) => {
 
   return (
     <div className={classes.container}>
-      <IconButton
-        title="Copy contents"
-        aria-label="Copy contents"
-        className={classes.actionButton}
-        onClick={handleCopyClick}
-      >
-        <FileCopyOutlined />
-      </IconButton>
-      <IconButton
-        title="Download as SVG"
-        aria-label="Download diagram as SVG"
-        className={classes.actionButton}
-        onClick={handleSaveClick}
-      >
-        <SaveAltRounded />
-      </IconButton>
-
+      <div className={classes.actionButtonWrapper}>
+        <IconButton
+          title="Copy contents"
+          aria-label="Copy contents"
+          className={classes.actionButton}
+          onClick={handleCopyClick}
+        >
+          <FileCopyOutlined />
+        </IconButton>
+      </div>
+      <div className={classes.actionButtonWrapper}>
+        <IconButton
+          title="Download as SVG"
+          aria-label="Download diagram as SVG"
+          className={classes.actionButton}
+          onClick={handleSaveClick}
+        >
+          <SaveAltRounded />
+        </IconButton>
+      </div>
       <div className={classes.controlButtons}>
         <IconButton
           onClick={handleZoomIn}
