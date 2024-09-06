@@ -8,19 +8,34 @@ type MermaidDiagramProps = {
   chart: string
 }
 
+type DiagramPosition = {
+  x: number,
+  y: number
+}
+
+type DiagramState = {
+  scale: number,
+  position: DiagramPosition,
+  startPosition: DiagramPosition,
+  dragging: boolean
+}
+
 const useStyles = makeStyles(
-  () => ({
+  (theme) => ({
     container: {
       position: 'relative',
       width: '100%',
       overflow: 'hidden'
     },
     mermaid: {
-      minHeight: 300,
+      [theme.breakpoints.up('sm')]: {
+        display: 'flex',
+        justifyContent: 'center',
+      }
     },
   }))
 
-mermaid.initialize({ startOnLoad: true, er: { diagramPadding: 20, useMaxWidth: false } });
+mermaid.initialize({ startOnLoad: true, er: {  useMaxWidth: false } });
 
 export const MermaidDiagram = React.memo((props: MermaidDiagramProps) => {
   const { chart } = props;
@@ -28,7 +43,7 @@ export const MermaidDiagram = React.memo((props: MermaidDiagramProps) => {
   const classes = useStyles();
 
   // Consolidated state management
-  const [diagramState, setDiagramState] = useState({
+  const [diagramState, setDiagramState] = useState<DiagramState>({
     scale: 1,
     position: { x: 0, y: 0 },
     dragging: false,
@@ -134,7 +149,7 @@ export const MermaidDiagram = React.memo((props: MermaidDiagramProps) => {
           ref={diagramRef}
           style={{
             transform: `scale(${diagramState.scale}) translate(${diagramState.position.x}px, ${diagramState.position.y}px)`,
-            transformOrigin: '0 0',
+            transformOrigin: '50% 50%',
             cursor: diagramState.dragging ? 'grabbing' : 'grab',
           }}
           onMouseDown={handleMouseDown}
