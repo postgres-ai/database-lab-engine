@@ -281,6 +281,7 @@ export const Messages = React.memo(() => {
               isAi
               content={currentStreamMessage.content}
               aiModel={currentStreamMessage.ai_model}
+              isCurrentStreamMessage
             />
           }
           {isWaitingForAnswer &&
