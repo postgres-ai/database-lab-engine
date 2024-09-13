@@ -122,7 +122,7 @@ export const BotPage = (props: BotPageProps) => {
       org={match.params.org}
       project={project}
       breadcrumbs={[
-        { name: 'Bot', url: 'bot' },
+        { name: 'Assistant', url: 'assistant' },
       ]}
     />
   );
@@ -146,7 +146,7 @@ export const BotPage = (props: BotPageProps) => {
 
   const handleCreateNewChat = () => {
     clearChat();
-    history.push(`/${match.params.org}/bot`);
+    history.push(`/${match.params.org}/assistant`);
   }
 
   const handleChatListLinkClick = (targetThreadId: string) => {
@@ -158,7 +158,7 @@ export const BotPage = (props: BotPageProps) => {
   useEffect(() => {
     if (!match.params.threadId && !prevThreadId && messages && messages.length > 0 && messages[0].id) {
       // hack that skip additional loading chats_ancestors_and_descendants
-      history.replace(`/${match.params.org}/bot/${messages[0].id}`, { skipReloading: true })
+      history.replace(`/${match.params.org}/assistant/${messages[0].id}`, { skipReloading: true })
       getChatsList();
     } else if (prevThreadId && !match.params.threadId) {
       clearChat()

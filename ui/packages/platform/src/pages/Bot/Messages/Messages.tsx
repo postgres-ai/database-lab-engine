@@ -221,7 +221,7 @@ export const Messages = React.memo(() => {
     return (
       <div className={cn(classes.root, classes.emptyChat)}>
         <Typography className={classes.emptyChatMessage}>
-          Postgres.AI Bot can make mistakes. <br />
+          Postgres.AI Assistant can make mistakes. <br />
           Consider checking important information. <br />
           Depending on settings, LLM service provider such as GCP or OpenAI is used.
         </Typography>

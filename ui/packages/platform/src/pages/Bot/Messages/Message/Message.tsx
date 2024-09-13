@@ -302,7 +302,7 @@ export const Message = React.memo((props: MessageProps) => {
           {isAi
             ? <img
               src="/images/bot_avatar.png"
-              alt="Postgres.AI Bot avatar"
+              alt="Postgres.AI Assistant avatar"
               className={classes.messageAvatarImage}
             />
             : icons.userChatIcon}
