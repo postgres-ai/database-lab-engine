@@ -6,7 +6,13 @@
  */
 
 import { API_URL_PREFIX } from "../../config/env";
-import { BotMessage, BotMessageWithDebugInfo, DebugMessage } from "../../types/api/entities/bot";
+import { DebugMessage } from "../../types/api/entities/bot";
+import { HintType } from "./hints";
+import { FunctionComponent } from "react";
+import { ArrowGrowthIcon } from "./HintCards/ArrowGrowthIcon/ArrowGrowthIcon";
+import { WrenchIcon } from "./HintCards/WrenchIcon/WrenchIcon";
+import { TableIcon } from "./HintCards/TableIcon/TableIcon";
+import { CommonTypeIcon } from "./HintCards/CommonTypeIcon/CommonTypeIcon";
 
 export const permalinkLinkBuilder = (id: string): string => {
   const apiUrl = process.env.REACT_APP_API_URL_PREFIX || API_URL_PREFIX;
@@ -90,5 +96,18 @@ export const formatLanguageName = (language: string): string => {
     return specificCases[normalizedLanguage];
   } else {
     return language.charAt(0).toUpperCase() + language.slice(1).toLowerCase();
+  }
+}
+
+export function matchHintTypeAndIcon(hintType: HintType): FunctionComponent<SVGElement> {
+  switch (hintType) {
+    case 'performance':
+      return ArrowGrowthIcon
+    case 'settings':
+      return WrenchIcon
+    case 'design':
+      return TableIcon
+    default:
+      return CommonTypeIcon
   }
 }

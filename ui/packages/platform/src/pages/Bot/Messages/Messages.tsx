@@ -14,9 +14,10 @@ import {PageSpinner} from "@postgres.ai/shared/components/PageSpinner";
 import { usePrev } from 'hooks/usePrev';
 import { getMaxScrollTop, getUserMessagesCount } from './utils';
 import Format from "../../../utils/format";
-import { BotMessage, BotMessageWithDebugInfo } from "../../../types/api/entities/bot";
+import { BotMessage } from "../../../types/api/entities/bot";
 import { Message } from "./Message/Message";
 import { useAiBot } from "../hooks";
+import { HintCards } from "../HintCards/HintCards";
 
 const useStyles = makeStyles(
   (theme) => ({
@@ -119,7 +120,7 @@ type FormattedTime = {
   [id: string]: Time
 }
 
-export const Messages = React.memo(() => {
+export const Messages = React.memo(({orgId}: {orgId: number}) => {
   const {
     messages,
     loading: isLoading,
@@ -225,6 +226,7 @@ export const Messages = React.memo(() => {
           Consider checking important information. <br />
           Depending on settings, LLM service provider such as GCP or OpenAI is used.
         </Typography>
+        <HintCards orgId={orgId} />
       </div>
     )
   }

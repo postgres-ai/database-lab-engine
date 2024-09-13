@@ -199,6 +199,7 @@
     "tsql",
     "TSQL",
     "sparql",
-    "SPARQL"
+    "SPARQL",
+    "subtransactions"
   ]
 }
