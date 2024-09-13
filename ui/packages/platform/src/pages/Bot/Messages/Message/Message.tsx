@@ -22,12 +22,14 @@ type BaseMessageProps = {
   formattedTime?: string;
   aiModel?: string
   stateMessage?: StateMessage | null
+  isCurrentStreamMessage?: boolean
 }
 
 type AiMessageProps = BaseMessageProps & {
   isAi: true;
   content: string;
   aiModel: string
+  isCurrentStreamMessage?: boolean
 }
 
 type HumanMessageProps = BaseMessageProps & {
@@ -256,7 +258,8 @@ export const Message = React.memo((props: MessageProps) => {
     created_at,
     isLoading,
     aiModel,
-    stateMessage
+    stateMessage,
+    isCurrentStreamMessage
   } = props;
 
   const [isDebugVisible, setDebugVisible] = useState(false);
@@ -280,7 +283,7 @@ export const Message = React.memo((props: MessageProps) => {
       if (!inline) {
         return (
           <>
-            {matchMermaid && <MermaidDiagram chart={String(children).replace(/\n$/, '')} />}
+            {matchMermaid && !isCurrentStreamMessage && <MermaidDiagram chart={String(children).replace(/\n$/, '')} />}
             <CodeBlock value={String(children).replace(/\n$/, '')} language={match?.[1]} />
           </>
         )
