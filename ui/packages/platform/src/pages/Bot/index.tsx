@@ -226,7 +226,7 @@ export const BotPage = (props: BotPageProps) => {
         </Box>
       </Box>
       <Box className={cn(classes.contentContainer, {[classes.isChatsListVisible]: isChatsListVisible})}>
-        <Messages />
+        <Messages orgId={orgData.id} />
         <Command
           threadId={match.params.threadId}
           orgId={orgData.id}
