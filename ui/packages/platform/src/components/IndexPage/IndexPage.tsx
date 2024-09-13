@@ -362,12 +362,12 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
             <NavLink
               className={parentProps.classes.menuSectionHeaderLink}
               activeClassName={cn(parentProps.classes.menuSectionHeaderActiveLink, parentProps.classes.menuSingleSectionHeaderActiveLink)}
-              to={'/' + org + '/bot'}
+              to={'/' + org + '/assistant'}
             >
               <span className={parentProps.classes.menuSectionHeaderIcon}>
                 {icons.aiBotIcon}
               </span>
-              AI Bot<span className={cn(parentProps.classes.menuItemLabel, parentProps.classes.headerLinkMenuItemLabel)}>NEW</span>
+              AI Assistant<span className={cn(parentProps.classes.menuItemLabel, parentProps.classes.headerLinkMenuItemLabel)}>NEW</span>
             </NavLink>
           </ListItem>}
           <ListItem
@@ -589,7 +589,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
               activeClassName={parentProps.classes.menuItemActiveLink}
               to={'/' + org + '/bot-settings'}
             >
-              AI Bot
+              AI Assistant
             </NavLink>
           </ListItem>*/}
           <ListItem
@@ -862,18 +862,34 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
         )}
       />
       <Route
-        path="/:org/bot/:threadId"
+        path="/:org/assistant/:threadId"
         exact
         render={(props) => (
           <BotWrapper {...props} {...customProps} {...queryProps} />
         )}
       />
       <Route
-        path="/:org/bot"
+        path="/:org/assistant"
         exact
         render={(props) => (
           <BotWrapper {...props} {...customProps} {...queryProps} />
         )}
+      />
+      <Route
+        path="/:org/bot/:threadId"
+        exact
+        render={(props) => {
+          const { org, threadId } = props.match.params;
+          return <Redirect to={`/${org}/assistant/${threadId}`} />;
+        }}
+      />
+      <Route
+        path="/:org/bot"
+        exact
+        render={(props) => {
+          const { org } = props.match.params;
+          return <Redirect to={`/${org}/assistant`} />;
+        }}
       />
       <Route
         path="/:org/joe-instances"
@@ -894,7 +910,7 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
         )}
       />
       <Route
-        path="/:org/bot-settings"
+        path="/:org/assistant-settings"
         render={(props) => (
           <BotSettingsFormWrapper {...props} {...customProps} {...queryProps} />
         )}

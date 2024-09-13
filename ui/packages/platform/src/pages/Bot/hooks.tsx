@@ -188,7 +188,7 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
       if (document.visibilityState === "hidden") {
         if (Notification.permission === "granted") {
           new Notification("New message", {
-            body: 'New message from Postgres.AI Bot',
+            body: 'New message from Postgres.AI Assistant',
             icon: '/images/bot_avatar.png'
           });
         }

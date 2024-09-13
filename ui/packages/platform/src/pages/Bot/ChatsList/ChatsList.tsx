@@ -126,9 +126,9 @@ export const ChatsList = (props: ChatsListProps) => {
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
   const linkBuilder = (msgId: string) => {
     if (params.org) {
-      return `/${params.org}/bot/${msgId}`
+      return `/${params.org}/assistant/${msgId}`
     } else {
-      return `/bot/${msgId}`
+      return `/assistant/${msgId}`
     }
   }
 

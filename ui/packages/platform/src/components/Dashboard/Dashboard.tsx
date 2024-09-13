@@ -128,7 +128,7 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
                 document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname.split('.').slice(-2).join('.')}`;
                 if (userProfile && userProfile.data && userProfile.data.orgs) {
                   if (userProfile.data.orgs.hasOwnProperty('demo')) {
-                    that.props.history.push(`demo/bot/${response.final_thread_id}`);
+                    that.props.history.push(`demo/assistant/${response.final_thread_id}`);
                   }
                 }
               }
