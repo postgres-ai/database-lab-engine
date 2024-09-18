@@ -33,4 +33,4 @@ sudo zpool destroy test_dblab_pool \
 sudo rm -f "${ZFS_FILE}"
 
 # Remove CLI configuration
-dblab config remove test || { echo "Cannot remove CLI configuration but this was optional (ignore the error)."; }
+dblab config remove test || true
