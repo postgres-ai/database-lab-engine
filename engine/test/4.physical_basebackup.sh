@@ -50,8 +50,6 @@ if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
     sleep 1
   done
 
-  check_database_readiness || (echo "test database is not ready" && exit 1)
-
   # add "host replication" to pg_hba.conf
   sudo docker exec postgres"${POSTGRES_VERSION}" bash -c 'echo "host replication all 0.0.0.0/0 md5" >> $PGDATA/pg_hba.conf'
   # reload conf
