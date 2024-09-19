@@ -45,8 +45,6 @@ for i in {1..300}; do
   sleep 1
 done
 
-check_database_readiness || (echo "test database is not ready" && exit 1)
-
 # Restart container explicitly after initdb to make sure that the server will not receive a shutdown request and queries will not be interrupted.
 sudo docker restart dblab_pg_initdb
 
@@ -54,8 +52,6 @@ for i in {1..300}; do
   check_database_readiness && break || echo "test database is not ready yet"
   sleep 1
 done
-
-check_database_readiness || (echo "test database is not ready" && exit 1)
 
 # Create the test database
 sudo docker exec dblab_pg_initdb psql -U postgres -c 'create database test'

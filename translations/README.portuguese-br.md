@@ -80,7 +80,7 @@ Leia mais:
 - Clonagem the bancos de dados Postgres ultrarrápidos - apenas alguns segundos para criar um novo clone pronto para aceitar conexões e queries, independentemente do tamanho do banco de dados.
 - O número máximo teórico de snapshots e clones é 2<sup>64</sup> ([ZFS](https://en.wikipedia.org/wiki/ZFS), default).
 - O número máximo teórico de do diretório de dados do PostgreSQL: 256 quatrilhões zebibytes, ou 2<sup>128</sup> bytes ([ZFS](https://en.wikipedia.org/wiki/ZFS), default).
-- Versões _major_ do PostgreSQL suportadas: 9.6–16.
+- Versões _major_ do PostgreSQL suportadas: 9.6–17.
 - Duas tecnologias são suportadas para viabilizar o thin cloning ([CoW](https://en.wikipedia.org/wiki/Copy-on-write)): [ZFS](https://en.wikipedia.org/wiki/ZFS) e [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).
 - Todos os componentes estão empacotados em docker containers.
 - UI para tornar o trabalho manual mais conveniente.
