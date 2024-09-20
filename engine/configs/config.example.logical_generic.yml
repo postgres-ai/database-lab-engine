@@ -98,10 +98,13 @@ databaseContainer: &db_container
   # We need to specify which Postgres Docker image is to be used for that.
   # The default is the extended Postgres image built on top of the official Postgres image
   # (See https://postgres.ai/docs/database-lab/supported_databases).
-  # It is possible to choose any custom or official Docker image that runs Postgres. Our Dockerfile
-  # (See https://gitlab.com/postgres-ai/custom-images/-/tree/master/extended)
-  # is recommended in case if customization is needed.
-  dockerImage: "postgresai/extended-postgres:16-0.4.6"
+  #
+  # For paid customers, Postgres.AI maintains a set of images compatible with
+  # RDS and RDS Aurora, GCP CloudSQL, Heroku, Timescale Cloud, Supabase, PostGIS.
+  #
+  # IMPORTANT: Postgres version of this image should match the source's Postgres version.
+  # For logical mode, it is a recommendation. For physical mode, it is a *requirement*.
+  dockerImage: "postgresai/extended-postgres:16-0.5.0"
 
   # Container parameters, see
   # https://docs.docker.com/engine/reference/run/#runtime-constraints-on-resources
