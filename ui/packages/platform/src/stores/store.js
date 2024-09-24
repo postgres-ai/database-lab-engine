@@ -380,42 +380,6 @@ const Store = Reflux.createStore({
     if (!this.data.userProfile.error && data.length > 0) {
       this.data.userProfile.data = data[0];
       this.data.userProfile.isProcessed = true;
-
-      if (window.intercomSettings) {
-        let name = null;
-
-        if (data[0].info.email.split('@').length > 0) {
-          name = data[0].info.email.split('@')[0];
-        }
-
-        if (data[0].info.first_name) {
-          name = data[0].info.first_name;
-          if (data[0].info.last_name) {
-            name = name + ' ' + data[0].info.last_name;
-          }
-        }
-        window.intercomSettings.name = name;
-        window.intercomSettings.email = data[0].info.email;
-        window.intercomSettings.user_id = data[0].info.id;
-        window.intercomSettings.created_at = data[0].info.created_at;
-
-        if (data[0].orgs) {
-          window.intercomSettings.companies = [];
-
-          for (let i in data[0].orgs) {
-            if (data[0].orgs.hasOwnProperty(i)) {
-              window.intercomSettings.companies.push({
-                company_id: data[0].orgs[i].id,
-                name: data[0].orgs[i].name
-              });
-            }
-          }
-        }
-
-        if (window.Intercom) {
-          window.Intercom('update');
-        }
-      }
     }
 
     this.trigger(this.data);
@@ -592,6 +556,35 @@ const Store = Reflux.createStore({
         this.data.orgProfile.updateErrorFields.push('alias');
         this.data.orgProfile.updateError = true;
       }
+    }
+
+    this.trigger(this.data);
+  },
+
+  //bot settings
+
+  onUpdateAiBotSettingsFailed: function (error) {
+    this.data.orgProfile.isUpdating = false;
+    this.data.orgProfile.updateError = true;
+    this.data.orgProfile.updateErrorMessage = error.message;
+    this.trigger(this.data);
+  },
+
+  onUpdateAiBotSettingsProgressed: function (data) {
+    this.data.orgProfile.updateErrorFields = null;
+    this.data.orgProfile.isUpdating = true;
+
+    this.trigger(this.data);
+  },
+
+  onUpdateAiBotSettingsCompleted: function (data) {
+    this.data.orgProfile.isUpdating = false;
+    this.data.orgProfile.updateErrorMessage = this.getError(data);
+    this.data.orgProfile.updateError = !!this.data.orgProfile.updateErrorMessage;
+
+    if (!this.data.orgProfile.updateError && data.length > 0) {
+      this.data.orgProfile.updateErrorFields = null;
+      Actions.showNotification('AI Bot settings successfully saved.', 'success');
     }
 
     this.trigger(this.data);
@@ -2967,5 +2960,6 @@ const Store = Reflux.createStore({
     this.trigger(this.data);
   }
 });
+
 
 export default Store;

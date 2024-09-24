@@ -467,7 +467,12 @@ bash-test-15:
 bash-test-16:
   <<: *bash_test
   variables:
-    POSTGRES_VERSION: 16rc1
+    POSTGRES_VERSION: 16
+
+bash-test-17:
+  <<: *bash_test
+  variables:
+    POSTGRES_VERSION: 17rc1
 
 integration-test:
   services:

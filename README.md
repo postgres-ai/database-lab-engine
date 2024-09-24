@@ -64,10 +64,10 @@ Try it yourself right now:
     - [Pricing](https://postgres.ai/pricing) (starting at $62/month)
     - [Doc: How to install DBLab SE](https://postgres.ai/docs/how-to-guides/administration/install-dle-from-postgres-ai)
 - Demo: https://demo.aws.postgres.ai (use the token `demo-token` to access)
-- if you are looking for DBLab 4.0, with branching and snapshotting support in API/CLI/UI, check out this demo instance: https://branching.aws.postgres.ai:446/instance, use the token `demo-token` to enter
+- Looking for a free version? Install DBLab Community Edition by [following this tutorial](https://postgres.ai/docs/tutorials/database-lab-tutorial)
 
 ## How it works
-Thin cloning is fast because it uses [Copy-on-Write (CoW)](https://en.wikipedia.org/wiki/Copy-on-write#In_computer_storage). DBLab supports two technologies to enable CoW and thin cloning: [ZFS](https://en.wikipedia.org/wiki/ZFS) (default) and [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).
+Thin cloning is fast because it is based on [Copy-on-Write (CoW)](https://en.wikipedia.org/wiki/Copy-on-write#In_computer_storage). DBLab employs two technologies for enabling thin cloning: [ZFS](https://en.wikipedia.org/wiki/ZFS) (default) and [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).
 
 Using ZFS, DBLab routinely takes new snapshots of the data directory, managing a collection of them and removing old or unused ones. When requesting a fresh clone, users have the option to select their preferred snapshot.
 
@@ -87,33 +87,39 @@ Read more:
 - GitLab: [How GitLab iterates on SQL performance optimization workflow to reduce downtime risks](https://postgres.ai/resources/case-studies/gitlab)
 
 ## Features
-- Blazing-fast cloning of Postgres databases – a few seconds to create a new clone ready to accept connections and queries, regardless of database size.
-- The theoretical maximum number of snapshots and clones is 2<sup>64</sup> ([ZFS](https://en.wikipedia.org/wiki/ZFS), default).
-- The theoretical maximum size of PostgreSQL data directory: 256 quadrillion zebibytes, or 2<sup>128</sup> bytes ([ZFS](https://en.wikipedia.org/wiki/ZFS), default).
-- PostgreSQL major versions supported: 9.6–14.
-- Two technologies are supported to enable thin cloning ([CoW](https://en.wikipedia.org/wiki/Copy-on-write)): [ZFS](https://en.wikipedia.org/wiki/ZFS) and [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).
-- All components are packaged in Docker containers.
-- UI to make manual work more convenient.
-- API and CLI to automate the work with DBLab snapshots, branches, and clones (Postgres endpoints).
-- By default, PostgreSQL containers include many popular extensions ([docs](https://postgres.ai/docs/database-lab/supported-databases#extensions-included-by-default)).
-- PostgreSQL containers can be customized ([docs](https://postgres.ai/docs/database-lab/supported-databases#how-to-add-more-extensions)).
-- Source database can be located anywhere (self-managed Postgres, AWS RDS, GCP CloudSQL, Azure, Timescale Cloud, and so on) and does NOT require any adjustments. There are NO requirements to install ZFS or Docker to the source (production) databases.
-- Initial data provisioning can be done at either the physical (pg_basebackup, backup / archiving tools such as WAL-G or pgBackRest) or logical (dump/restore directly from the source or from files stored at AWS S3) level.
-- For logical mode, partial data retrieval is supported (specific databases, specific tables).
-- For physical mode, a continuously updated state is supported ("sync container"), making DBLab a specialized version of standby Postgres.
-- For logical mode, periodic full refresh is supported, automated, and controlled by DBLab. It is possible to use multiple disks containing different versions of the database, so full refresh won't require downtime.
-- Fast Point in Time Recovery (PITR) to the points available in DBLab snapshots.
-- Unused clones are automatically deleted.
-- "Deletion protection" flag can be used to block automatic or manual deletion of clones.
-- Snapshot retention policies supported in DBLab configuration.
-- Persistent clones: clones survive DBLab restarts (including full VM reboots).
-- The "reset" command can be used to switch to a different version of data.
-- DB Migration Checker component collects various artifacts useful for DB testing in CI ([docs](https://postgres.ai/docs/db-migration-checker)).
-- SSH port forwarding for API and Postgres connections.
-- Docker container config parameters can be specified in the DBLab config.
-- Resource usage quotas for clones: CPU, RAM (container quotas, supported by Docker)
-- Postgres config parameters can be specified in the DBLab config (separately for clones, the "sync" container, and the "promote" container).
-- Monitoring: auth-free `/healthz` API endpoint, extended `/status` (requires auth), [Netdata module](https://gitlab.com/postgres-ai/netdata_for_dle).
+- Speed & scale
+    - Blazing-fast cloning of Postgres databases – clone in seconds, irrespective of database size
+    - Theoretical max of snapshots/clones: 2<sup>64</sup> ([ZFS](https://en.wikipedia.org/wiki/ZFS), default)
+    - Maximum size of PostgreSQL data directory: 256 quadrillion zebibytes, or 2<sup>128</sup> bytes ([ZFS](https://en.wikipedia.org/wiki/ZFS), default)
+- Support & technologies
+    - Supported PostgreSQL versions: 9.6–17
+    - Thin cloning ([CoW](https://en.wikipedia.org/wiki/Copy-on-write)) technologies: [ZFS](https://en.wikipedia.org/wiki/ZFS) and [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux))
+    - UI for manual tasks and API & CLI for automation
+    - Packaged in Docker containers for all components
+- Postgres containers
+    - Popular extensions including contrib modules, pgvector, HypoPG and many others ([docs](https://postgres.ai/docs/database-lab/supported-databases#extensions-included-by-default))
+    - Customization capabilities for containers ([docs](https://postgres.ai/docs/database-lab/supported-databases#how-to-add-more-extensions))
+    - Docker container and Postgres config parameters in DBLab config
+- Source database requirements
+    - Location flexibility: self-managed Postgres, AWS RDS, GCP CloudSQL, Azure, etc. No source adjustments needed
+    - No ZFS or Docker requirements for source databases
+- Data provisioning & retrieval
+    - Physical (pg_basebackup, WAL-G, pgBackRest) and logical (dump/restore) provisioning
+    - Partial data retrieval in logical mode (specific databases/tables)
+    - Continuous update in physical mode
+    - Periodic full refresh in logical mode without downtime
+- Recovery & management
+    - Fast Point in Time Recovery (PITR) for physical mode
+    - Auto-deletion of unused clones
+    - Snapshot retention policies in DBLab configuration
+- Clones
+    - "Deletion protection" for preventing clone deletion
+    - Persistent clones withstand DBLab restarts
+    - "Reset" command for data version switching
+    - Resource quotas: CPU, RAM
+- Monitoring & security
+    - `/healthz` API endpoint (no auth), extended `/status` endpoint ([API docs](https://api.dblab.dev))
+    - Netdata module for insights
 
 ## How to contribute
 ### Support us on GitHub/GitLab
@@ -182,7 +188,7 @@ More you can find in [the "How-to guides" section](https://postgres.ai/docs/how-
 ## License
 DBLab source code is licensed under the OSI-approved open source license [Apache 2.0](https://opensource.org/license/apache-2-0/).
 
-Reach out to the Postgres.ai team if you use or want to start using DBLab Standard Edition (DBLab SE) or Enterprise Edition (DBLab EE): [Contact page](https://postgres.ai/contact).
+Reach out to the Postgres.ai team if you want a trial or commercial license that does not contain the GPL clauses: [Contact page](https://postgres.ai/contact).
 
 ## Community & Support
 - ["Database Lab Engine Community Covenant Code of Conduct"](./CODE_OF_CONDUCT.md)

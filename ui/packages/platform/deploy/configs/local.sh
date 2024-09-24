@@ -17,5 +17,9 @@ export REACT_APP_ROOT_URL="https://postgres.ai"
 export PUBLIC_URL=""
 
 # Public Stripe key, it is ok to keep it here.
-export REACT_APP_STRIPE_API_KEY="pk_test_f8joWMK94CaOPVnc0QzqEGOX00PwnHa3BG"
+export REACT_APP_STRIPE_API_KEY="xxx"
 export REACT_APP_SENTRY_DSN=""
+
+# AI Bot
+export REACT_APP_WS_URL="ws://localhost:9100/"  # don't forget trailing slash if GET path is used!
+export REACT_APP_BOT_API_URL="https://v2.postgres.ai/ai-bot-api/bot"

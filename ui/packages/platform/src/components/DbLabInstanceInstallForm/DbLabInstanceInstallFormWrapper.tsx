@@ -10,21 +10,19 @@ import { RouteComponentProps } from 'react-router'
 import DbLabInstanceInstallForm from 'components/DbLabInstanceInstallForm/DbLabInstanceInstallForm'
 
 import { useInstanceFormStyles } from 'components/DbLabInstanceForm/DbLabInstanceFormWrapper'
+import { OrgPermissions } from 'components/types'
 
 export interface DbLabInstanceFormProps {
   edit?: boolean
   orgId: number
   project: string | undefined
   history: RouteComponentProps['history']
-  orgPermissions: {
-    dblabInstanceCreate?: boolean
-  }
+  orgPermissions: OrgPermissions
 }
 
 export const DbLabInstanceFormInstallWrapper = (
   props: DbLabInstanceFormProps,
 ) => {
-
   const classes = useInstanceFormStyles()
 
   return <DbLabInstanceInstallForm {...props} classes={classes} />

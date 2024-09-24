@@ -80,7 +80,7 @@ Lee más:
 - Clonación ultrarrápida de bases de datos de Postgres: unos segundos para crear un nuevo clon listo para aceptar conexiones y consultas, independientemente del tamaño de la base de datos.
 - El número máximo teórico de instantáneas y clones es 2<sup>64</sup> ([ZFS](https://en.wikipedia.org/wiki/ZFS), predeterminado).
 - El tamaño máximo teórico del directorio de datos de PostgreSQL: 256 cuatrillones de zebibytes, o 2<sup>128</sup> bytes ([ZFS](https://en.wikipedia.org/wiki/ZFS), predeterminado).
-- Versiones principales de PostgreSQL admitidas: 9.6–14.
+- Versiones principales de PostgreSQL admitidas: 9.6–17.
 - Se admiten dos tecnologías para permitir la clonación ligera ([CoW](https://en.wikipedia.org/wiki/Copy-on-write)): [ZFS](https://en.wikipedia.org/wiki/ZFS) y [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).
 - Todos los componentes están empaquetados en contenedores Docker.
 - Interfaz de usuario para que el trabajo manual sea más conveniente.

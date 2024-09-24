@@ -46,6 +46,7 @@ import { ProductCardWrapper } from 'components/ProductCard/ProductCardWrapper'
 import { DashboardProps } from 'components/Dashboard/DashboardWrapper'
 import { FilteredTableMessage } from 'components/AccessTokens/FilteredTableMessage/FilteredTableMessage'
 import { CreatedDbLabCards } from 'components/CreateDbLabCards/CreateDbLabCards'
+import { convertThread } from "../../api/bot/convertThread";
 
 interface DashboardWithStylesProps extends DashboardProps {
   classes: ClassesType
@@ -100,6 +101,7 @@ interface DashboardState {
 }
 
 class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
+  isThreadConverted = false;
   unsubscribe: Function
   componentDidMount() {
     const that = this
@@ -108,10 +110,35 @@ class Dashboard extends Component<DashboardWithStylesProps, DashboardState> {
 
     this.unsubscribe = (Store.listen as RefluxTypes['listen'])(function () {
       that.setState({ data: this.data })
+
       const auth: DashboardState['data']['auth'] =
         this.data && this.data.auth ? this.data.auth : null
       const userProfile: DashboardState['data']['userProfile'] =
         this.data && this.data.userProfile ? this.data.userProfile : null
+
+      const cookieName = "pgai_tmp_thread_id=";
+      const cookies = document.cookie.split(';').map(cookie => cookie.trim());
+      const pgaiTmpThreadId = cookies.find(cookie => cookie.startsWith(cookieName))?.substring(cookieName.length) || null;
+      if (pgaiTmpThreadId && !that.isThreadConverted) {
+        that.isThreadConverted = true;
+        try {
+          convertThread(pgaiTmpThreadId)
+            .then(({response, error}) => {
+              if (response?.final_thread_id) {
+                document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname.split('.').slice(-2).join('.')}`;
+                if (userProfile && userProfile.data && userProfile.data.orgs) {
+                  if (userProfile.data.orgs.hasOwnProperty('demo')) {
+                    that.props.history.push(`demo/assistant/${response.final_thread_id}`);
+                  }
+                }
+              }
+            })
+        } catch (error) {
+          console.error('Error converting thread:', error);
+        }
+      } else {
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname.split('.').slice(-2).join('.')}`;
+      }
 
       if (onlyProjects) {
         const projects: DashboardState['data']['projects'] =

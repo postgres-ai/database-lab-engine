@@ -1,4 +1,7 @@
-import { CloneDto, formatCloneDto } from '@postgres.ai/shared/types/api/entities/clone'
+import {
+  CloneDto,
+  formatCloneDto,
+} from '@postgres.ai/shared/types/api/entities/clone'
 
 import { request } from 'helpers/request'
 
@@ -8,16 +11,18 @@ type Request = {
 }
 
 export const getClone = async (req: Request) => {
-  const response = await request('/rpc/dblab_clone_status', {
+  const response = (await request('/rpc/dblab_clone_status', {
     method: 'POST',
     body: JSON.stringify({
       instance_id: req.instanceId,
       clone_id: req.cloneId,
-    })
-  })
+    }),
+  }))
 
   return {
-    response: response.ok ? formatCloneDto(await response.json() as CloneDto) : null,
+    response: response.ok
+      ? formatCloneDto((await response.json()) as CloneDto)
+      : null,
     error: response.ok ? null : response,
   }
 }

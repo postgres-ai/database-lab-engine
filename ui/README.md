@@ -1,6 +1,6 @@
-# Database Lab Engine and Database Lab Engine UI
+# Database Lab Engine UI and DBLab Platform UI
 
-## Database Lab - thin database clones for faster development
+## DBLab - thin database clones and database branching for faster development
 
 _Proceed to [Database Lab Engine repository](https://gitlab.com/postgres-ai/database-lab) for more information about technology itself._
 Database Lab Engine (DLE) is an open-source (Apache 2.0) technology that allows blazing-fast cloning of Postgres databases of any size in seconds. This helps solve many problems such as:
@@ -27,7 +27,6 @@ At the root:
 - `<npm command> -w <package-name>` - for specific package
 
 #### Examples
-
 - `npm ci -ws` - install deps of all packages
 - `npm run build -ws` - build all packages
 - `npm run start -w @postgres.ai/platform` - run platform UI locally in dev mode
@@ -35,16 +34,16 @@ At the root:
 
 _Important note: don't use commands for `@postgres.ai/shared` - it's dependent package, which can't be running or built_
 
-### How to start "platform"
-
-- `cd ui`
-- `npm ci -ws` - install dependencies, must be done once to install dependencies for all packages
-- `source packages/platform/deploy/configs/production.sh` - set up environment variables, should be run for each new terminal session
-- `npm run start -w @postgres.ai/platform` - start dev server
-- To sign in locally - sign in on [console.postgres.ai](https://console.postgres.ai) and copy `token` from Local Storage to your localhost's Local Storage
+### How to start Platform UI with a predefined JWT token
+- `cd ui/packages/platform`
+- `cp .env_example_dev .env`
+- edit `.env` setting:
+    - `REACT_APP_API_URL_PREFIX` to point to dev API server (e.g., staging API server: `https://v2.postgres.ai/api/general`).
+    - `REACT_APP_TOKEN_DEBUG` to have your JWT ready work with the same server. Note that it has an expiration date so it needs to be periodically refreshed.
+- `pnpm install` - to install packages if they are not found
+- `pnpm run start` - start Platform for local debugging/development
 
 ### How to start "ce"
-
 - `cd ui`
 - `npm ci -ws` - install dependencies, must be done once to install dependencies for all packages
 - `npm run start -w @postgres.ai/ce` - start dev server

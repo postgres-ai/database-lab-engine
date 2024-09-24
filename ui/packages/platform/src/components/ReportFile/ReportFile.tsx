@@ -6,7 +6,7 @@
  */
 
 import { Component, HTMLAttributeAnchorTarget } from 'react'
-import { TextField, Button } from '@material-ui/core'
+import { Button, TextField } from '@material-ui/core'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
@@ -124,15 +124,13 @@ const textAreaStyles = (
 
 class ReportFile extends Component<ReportFileWithStylesProps, ReportFileState> {
   getFileId() {
-    let id = parseInt(this.props.match.params.fileId, 10)
-    /* eslint eqeqeq: 1 */
-    id =
-      id == parseInt(this.props.match.params.fileId)
-        ? id
-        : parseInt(this.props.match.params.fileId)
-    /* eslint eqeqeq: 0 */
+    let fileID = this.props.match.params.fileId
+    let parseID = parseInt(fileID, 10)
 
-    return id
+    // To distinct different fileIDs. For example, "72215" and "1_1.sql".
+    // {ORG_URL}/reports/268/files/72215/md
+    // {ORG_URL}/reports/268/files/1_1.sql/sql?raw
+    return (fileID.toString() == parseID.toString()) ? parseID : fileID
   }
 
   componentDidMount() {

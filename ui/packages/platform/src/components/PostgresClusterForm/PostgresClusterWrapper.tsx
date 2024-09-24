@@ -5,26 +5,22 @@
  *--------------------------------------------------------------------------
  */
 
- import { RouteComponentProps } from 'react-router'
- 
- 
+import { RouteComponentProps } from 'react-router'
+
 import { useInstanceFormStyles } from 'components/DbLabInstanceForm/DbLabInstanceFormWrapper'
 import PostgresCluster from './PostgresCluster'
- 
- export interface PostgresClusterWrapperProps {
-   edit?: boolean
-   orgId: number
-   project: string | undefined
-   history: RouteComponentProps['history']
-   orgPermissions: {
-     dblabInstanceCreate?: boolean
-   }
- }
- 
- export const PostgresClusterWrapper = (props: PostgresClusterWrapperProps) => {
- 
-   const classes = useInstanceFormStyles()
- 
-   return <PostgresCluster {...props} classes={classes} />
- }
- 
+import { OrgPermissions } from 'components/types'
+
+export interface PostgresClusterWrapperProps {
+  edit?: boolean
+  orgId: number
+  project: string | undefined
+  history: RouteComponentProps['history']
+  orgPermissions: OrgPermissions
+}
+
+export const PostgresClusterWrapper = (props: PostgresClusterWrapperProps) => {
+  const classes = useInstanceFormStyles()
+
+  return <PostgresCluster {...props} classes={classes} />
+}

@@ -186,6 +186,20 @@
     "pgnode",
     "pgbackrest",
     "vitabaks",
-    "distro"
+    "distro",
+    "pgaudit",
+    "pgrouting",
+    "timescaledb",
+    "citus",
+    "pgvector",
+    "partman",
+    "fstype",
+    "pgsql",
+    "sqlalchemy",
+    "tsql",
+    "TSQL",
+    "sparql",
+    "SPARQL",
+    "subtransactions"
   ]
 }

@@ -17,7 +17,7 @@ function encodeData(data) {
 class Api {
   constructor(setting) {
     this.server = setting.server
-    this.apiServer = setting.apiServer
+    this.apiServer = process.env.REACT_APP_API_URL_PREFIX || setting.apiServer // if set in .env (e.g., for dev/debug), use it
   }
 
   get(url, query, options) {
@@ -447,6 +447,29 @@ class Api {
     };
 
     return this.delete(`${this.apiServer}/org_domains?id=eq.${domainId}`, {}, {
+      headers: headers
+    });
+  }
+
+  updateAiBotSettings(token, orgId, orgData) {
+    let params = {};
+    let data = {};
+    let headers = {
+      Authorization: 'Bearer ' + token,
+      prefer: 'return=representation'
+    };
+
+    // if (typeof orgData.custom_prompt !== 'undefined') {
+    //   data.custom_prompt = orgData.custom_prompt;
+    // }
+    if (typeof orgData.model !== 'undefined') {
+      data.ai_model = orgData.model;
+    }
+    params.data = {
+      ai_bot: data
+    }
+
+    return this.patch(`${this.apiServer}/orgs?id=eq.` + orgId, params, {
       headers: headers
     });
   }

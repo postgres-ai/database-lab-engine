@@ -221,4 +221,10 @@ export default {
       uuid
     )
   },
+
+  linkBotChat: function (props: PropsType, msgId: string) {
+    const basePath = this.getBasePath(props)
+
+    return basePath + '/assistant/' + msgId
+  },
 }

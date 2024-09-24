@@ -168,15 +168,6 @@ class SharedUrl extends Component<SharedUrlWithStylesProps, SharedUrlState> {
 
     return (
       <>
-        <style>
-          {`
-            .intercom-lightweight-app-launcher,
-            iframe.intercom-launcher-frame {
-              bottom: 30px!important;
-              right: 30px!important;
-            }
-          `}
-        </style>
         {page}
         {showBanner && banner}
       </>

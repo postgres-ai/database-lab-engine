@@ -86,6 +86,9 @@
   script:
     # Substitute env variables in deploy config.
     - bash ./ui/packages/platform/do.sh subs_envs ./ui/packages/platform/deploy/platform-console.yaml /tmp/platform-console.yaml
+    # Context
+    - kubectl config get-contexts
+    - kubectl config use-context postgres-ai/database-lab:k8s-cluster-1
     # Deploy to k8s cluster.
     - kubectl apply --filename /tmp/platform-console.yaml -n $NAMESPACE
 

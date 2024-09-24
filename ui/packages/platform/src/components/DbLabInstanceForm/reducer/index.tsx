@@ -7,11 +7,12 @@
 
 import { ReducerAction } from 'react'
 
-import { CloudRegion } from 'api/cloud/getCloudRegions'
 import { CloudInstance } from 'api/cloud/getCloudInstances'
+import { CloudRegion } from 'api/cloud/getCloudRegions'
 import { CloudVolumes } from 'api/cloud/getCloudVolumes'
 
 import { availableTags } from 'components/DbLabInstanceForm/utils'
+import { clusterExtensionsState } from 'components/PostgresClusterInstallForm/reducer'
 
 export const initialState = {
   isLoading: false,
@@ -21,9 +22,9 @@ export const initialState = {
   storage: 30,
   region: 'North America',
   tag: availableTags[0],
-  serviceProviders: [],
-  cloudRegions: [],
-  cloudInstances: [],
+  serviceProviders: [] as string[],
+  cloudRegions: [] as CloudRegion[],
+  cloudInstances: [] as CloudInstance[],
   volumes: [] as CloudVolumes[],
   api_name: 'ssd',
   databaseSize: 10,
@@ -38,14 +39,16 @@ export const initialState = {
   publicKeys: '',
   verificationToken: '',
   numberOfInstances: 3,
-  version: '',
+  version: 16,
   database_public_access: false,
   with_haproxy_load_balancing: false,
   pgbouncer_install: true,
   synchronous_mode: false,
   synchronous_node_count: 1,
   netdata_install: true,
-  taskID: ''
+  taskID: '',
+  fileSystem: 'zfs',
+  ...clusterExtensionsState,
 }
 
 export const reducer = (
@@ -100,6 +103,7 @@ export const reducer = (
         ...state,
         provider: action.provider,
         region: initialState.region,
+        isReloading: action.isReloading,
         databaseSize: initialState.databaseSize,
         snapshots: initialState.snapshots,
         storage: initialState.storage,
@@ -116,19 +120,6 @@ export const reducer = (
       return {
         ...state,
         location: action.location,
-      }
-    }
-    case 'change_plan': {
-      return {
-        ...state,
-        plan: action.plan,
-        size: action.size,
-      }
-    }
-    case 'change_size': {
-      return {
-        ...state,
-        size: action.size,
       }
     }
     case 'change_name': {
@@ -180,18 +171,7 @@ export const reducer = (
         storage: action.storage,
       }
     }
-    case 'set_is_loading': {
-      return {
-        ...state,
-        isLoading: action.isLoading,
-      }
-    }
-    case 'set_is_reloading': {
-      return {
-        ...state,
-        isReloading: action.isReloading,
-      }
-    }
+
     case 'set_form_step': {
       return {
         ...state,

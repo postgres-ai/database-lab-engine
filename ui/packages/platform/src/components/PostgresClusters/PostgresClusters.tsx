@@ -5,52 +5,42 @@
  *--------------------------------------------------------------------------
  */
 
-import { Component, MouseEvent } from 'react'
-import { formatDistanceToNowStrict } from 'date-fns'
 import {
+  Menu,
+  MenuItem,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
   TextField,
-  IconButton,
-  Menu,
-  MenuItem,
-  Tooltip,
 } from '@material-ui/core'
-import MoreVertIcon from '@material-ui/icons/MoreVert'
-import WarningIcon from '@material-ui/icons/Warning'
+import { Component, MouseEvent } from 'react'
 
-import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
-import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
-import { Spinner } from '@postgres.ai/shared/components/Spinner'
-import { Modal } from '@postgres.ai/shared/components/Modal'
-import { styles } from '@postgres.ai/shared/styles/styles'
 import {
   ClassesType,
   ProjectProps,
   RefluxTypes,
 } from '@postgres.ai/platform/src/components/types'
+import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
+import { Modal } from '@postgres.ai/shared/components/Modal'
+import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
+import { styles } from '@postgres.ai/shared/styles/styles'
 
-import Actions from '../../actions/actions'
-import ConsolePageTitle from './../ConsolePageTitle'
+import { InstanceDto } from '@postgres.ai/shared/types/api/entities/instance'
+import { InstanceStateDto } from '@postgres.ai/shared/types/api/entities/instanceState'
+import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
+import { ConsoleButtonWrapper } from 'components/ConsoleButton/ConsoleButtonWrapper'
+import { CreateClusterCards } from 'components/CreateClusterCards/CreateClusterCards'
+import { DbLabInstancesProps } from 'components/DbLabInstances/DbLabInstancesWrapper'
 import { ErrorWrapper } from 'components/Error/ErrorWrapper'
+import { WarningWrapper } from 'components/Warning/WarningWrapper'
+import { ProjectDataType, getProjectAliasById } from 'utils/aliases'
+import Actions from '../../actions/actions'
 import { messages } from '../../assets/messages'
 import Store from '../../stores/store'
 import Urls from '../../utils/urls'
-import format from '../../utils/format'
-import { isHttps } from '../../utils/utils'
-import { WarningWrapper } from 'components/Warning/WarningWrapper'
-import { ProjectDataType, getProjectAliasById } from 'utils/aliases'
-import { InstanceStateDto } from '@postgres.ai/shared/types/api/entities/instanceState'
-import { InstanceDto } from '@postgres.ai/shared/types/api/entities/instance'
-import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
-import { DbLabStatusWrapper } from 'components/DbLabStatus/DbLabStatusWrapper'
-import { DbLabInstancesProps } from 'components/DbLabInstances/DbLabInstancesWrapper'
-import { CreatedDbLabCards } from 'components/CreateDbLabCards/CreateDbLabCards'
-import { CreateClusterCards } from 'components/CreateClusterCards/CreateClusterCards'
-import { ConsoleButtonWrapper } from 'components/ConsoleButton/ConsoleButtonWrapper'
+import ConsolePageTitle from './../ConsolePageTitle'
 
 interface PostgresClustersProps extends DbLabInstancesProps {
   classes: ClassesType
@@ -293,19 +283,6 @@ class PostgresClusters extends Component<
     const deletePermitted =
       !orgPermissions || orgPermissions.dblabInstanceDelete
 
-    const getVersionDigits = (str: string) => {
-      if (!str) {
-        return 'N/A'
-      }
-
-      const digits = str.match(/\d+/g)
-
-      if (digits && digits.length > 0) {
-        return `${digits[0]}.${digits[1]}.${digits[2]}`
-      }
-      return ''
-    }
-
     const addInstanceButton = (
       <div className={classes.buttonContainer}>
         <ConsoleButtonWrapper
@@ -422,7 +399,11 @@ class PostgresClusters extends Component<
         aria-labelledby="simple-modal-title"
         aria-describedby="simple-modal-description"
       >
-        <CreateClusterCards isModal props={this.props} dblabPermitted={addPermitted} />
+        <CreateClusterCards
+          isModal
+          props={this.props}
+          dblabPermitted={addPermitted}
+        />
       </Modal>
     )
 

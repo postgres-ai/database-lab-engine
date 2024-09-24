@@ -39,6 +39,7 @@ import { WarningWrapper } from 'components/Warning/WarningWrapper'
 import { messages } from '../../assets/messages'
 import { formatAlias } from 'utils/aliases'
 import { OrgFormProps } from 'components/OrgForm/OrgFormWrapper'
+import { linksConfig } from "@postgres.ai/shared/config/links";
 
 interface OrgFormWithStylesProps extends OrgFormProps {
   classes: ClassesType
@@ -432,16 +433,13 @@ class OrgForm extends Component<OrgFormWithStylesProps, OrgFormState> {
                             No&nbsp;&nbsp;
                             <span className={classes.errorMessage}>
                               To confirm&nbsp;
-                              <span
-                                className={
-                                  window.Intercom && classes.supportLink
-                                }
-                                onClick={() =>
-                                  window.Intercom && window.Intercom('show')
-                                }
+                              <a
+                                className={classes.supportLink}
+                                href={linksConfig.support}
+                                target="_blank"
                               >
                                 contact support
-                              </span>
+                              </a>
                             </span>
                           </span>
                         )}

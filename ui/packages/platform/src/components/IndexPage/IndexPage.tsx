@@ -6,7 +6,7 @@
  */
 
 import { Component } from 'react'
-import { Switch, Route, NavLink, Redirect } from 'react-router-dom'
+import { Switch, Route, NavLink, Redirect, useRouteMatch } from 'react-router-dom'
 import {
   AppBar,
   Toolbar,
@@ -70,6 +70,7 @@ import { LoginDialogWrapper } from 'components/LoginDialog/LoginDialogWrapper'
 import { NotificationWrapper } from 'components/Notification/NotificationWrapper'
 import { SharedUrlWrapper } from 'components/SharedUrl/SharedUrlWrapper'
 import { ShareUrlDialogWrapper } from 'components/ShareUrlDialog/ShareUrlDialogWrapper'
+import { BotWrapper } from "pages/Bot/BotWrapper";
 
 import Actions from '../../actions/actions'
 import JoeConfig from '../JoeConfig'
@@ -82,6 +83,9 @@ import { IndexPageProps } from 'components/IndexPage/IndexPageWrapper'
 import { PostgresClusterWrapper } from 'components/PostgresClusterForm/PostgresClusterWrapper'
 import { PostgresClusterInstallWrapper } from 'components/PostgresClusterInstallForm/PostgresClusterInstallWrapper'
 import { PostgresClustersWrapper } from 'components/PostgresClusters/PostgresClustersWrapper'
+import cn from "classnames";
+import { BotSettingsFormWrapper } from "../BotSettingsForm/BotSettingsFormWrapper";
+
 
 interface IndexPageWithStylesProps extends IndexPageProps {
   classes: ClassesType
@@ -230,6 +234,10 @@ function ProjectWrapper(parentProps: Omit<ProjectWrapperProps, 'classes'>) {
         render={(props) => <JoeInstanceWrapper {...props} {...customProps} />}
       />
       <Route
+        path="/:org/:project/bot/:instanceId"
+        render={(props) => <JoeInstanceWrapper {...props} {...customProps} />}
+      />
+      <Route
         path="/:org/:project/joe-instances"
         render={(props) => <JoeInstancesWrapper {...props} {...customProps} />}
       />
@@ -283,6 +291,7 @@ function ProjectWrapper(parentProps: Omit<ProjectWrapperProps, 'classes'>) {
 }
 
 function OrganizationMenu(parentProps: OrganizationMenuProps) {
+  const isDemoOrg = useRouteMatch(`/${settings.demoOrgAlias}`)
   if (
     parentProps.env &&
     parentProps.env.data &&
@@ -344,6 +353,23 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
             </NavLink>
           </ListItem>
 
+          {Boolean(isDemoOrg) && <ListItem
+            button
+            className={parentProps.classes.menuSectionHeader}
+            disabled={isBlocked}
+            id="menuAiBotTitle"
+          >
+            <NavLink
+              className={parentProps.classes.menuSectionHeaderLink}
+              activeClassName={cn(parentProps.classes.menuSectionHeaderActiveLink, parentProps.classes.menuSingleSectionHeaderActiveLink)}
+              to={'/' + org + '/assistant'}
+            >
+              <span className={parentProps.classes.menuSectionHeaderIcon}>
+                {icons.aiBotIcon}
+              </span>
+              AI Assistant<span className={cn(parentProps.classes.menuItemLabel, parentProps.classes.headerLinkMenuItemLabel)}>NEW</span>
+            </NavLink>
+          </ListItem>}
           <ListItem
             button
             className={parentProps.classes.menuSectionHeader}
@@ -417,7 +443,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
               activeClassName={parentProps.classes.menuItemActiveLink}
               to={'/' + org + '/joe-instances'}
             >
-              Ask Joe<span className={parentProps.classes.botTag}>BOT</span>
+              Ask Joe
             </NavLink>
           </ListItem>
           <ListItem
@@ -552,6 +578,20 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
               </NavLink>
             </ListItem>
           )}
+          {/*<ListItem
+            disabled={isBlocked}
+            button
+            className={parentProps.classes.menuItem}
+            id="menuSettingsBot"
+          >
+            <NavLink
+              className={parentProps.classes.menuItemLink}
+              activeClassName={parentProps.classes.menuItemActiveLink}
+              to={'/' + org + '/bot-settings'}
+            >
+              AI Assistant
+            </NavLink>
+          </ListItem>*/}
           <ListItem
             disabled={isBlocked}
             button
@@ -790,7 +830,11 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
       <Route
         path="/:org/pg"
         render={(props) => (
-          <PostgresClustersWrapper {...props} {...customProps} {...queryProps} />
+          <PostgresClustersWrapper
+            {...props}
+            {...customProps}
+            {...queryProps}
+          />
         )}
       />
       <Route
@@ -818,6 +862,36 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
         )}
       />
       <Route
+        path="/:org/assistant/:threadId"
+        exact
+        render={(props) => (
+          <BotWrapper {...props} {...customProps} {...queryProps} />
+        )}
+      />
+      <Route
+        path="/:org/assistant"
+        exact
+        render={(props) => (
+          <BotWrapper {...props} {...customProps} {...queryProps} />
+        )}
+      />
+      <Route
+        path="/:org/bot/:threadId"
+        exact
+        render={(props) => {
+          const { org, threadId } = props.match.params;
+          return <Redirect to={`/${org}/assistant/${threadId}`} />;
+        }}
+      />
+      <Route
+        path="/:org/bot"
+        exact
+        render={(props) => {
+          const { org } = props.match.params;
+          return <Redirect to={`/${org}/assistant`} />;
+        }}
+      />
+      <Route
         path="/:org/joe-instances"
         render={(props) => (
           <JoeInstancesWrapper {...props} {...customProps} {...queryProps} />
@@ -833,6 +907,12 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
         path="/:org/settings"
         render={(props) => (
           <OrgFormWrapper {...props} {...customProps} {...queryProps} />
+        )}
+      />
+      <Route
+        path="/:org/assistant-settings"
+        render={(props) => (
+          <BotSettingsFormWrapper {...props} {...customProps} {...queryProps} />
         )}
       />
       <Route
@@ -1086,7 +1166,7 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
     const appBarLogo = (
       <Typography color="inherit" noWrap>
         <NavLink to={ROUTES.ROOT.path} className={classes.logo}>
-          Postgres.ai Console
+          Postgres.AI Console
         </NavLink>
       </Typography>
     )
@@ -1258,13 +1338,6 @@ class IndexPage extends Component<IndexPageWithStylesProps, IndexPageState> {
     if (raw) {
       return (
         <>
-          <style>
-            {`
-              div.intercom-lightweight-app {
-                display: none!important;
-              }
-            `}
-          </style>
           <Switch>
             <Route
               path="/:org"

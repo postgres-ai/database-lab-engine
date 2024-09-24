@@ -1,27 +1,27 @@
+import { Button } from '@material-ui/core'
 import { Box } from '@mui/material'
 import { useEffect, useState } from 'react'
-import { Button } from '@material-ui/core'
 
-import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
+import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
 
-import { getOrgKeys } from 'api/cloud/getOrgKeys'
 import { getCloudImages } from 'api/cloud/getCloudImages'
+import { getOrgKeys } from 'api/cloud/getOrgKeys'
 
-import {
-  getNetworkSubnet,
-  getGcpAccountContents,
-  getPlaybookCommand,
-} from 'components/DbLabInstanceForm/utils'
 import {
   InstanceDocumentation,
   formStyles,
 } from 'components/DbLabInstanceForm/DbLabFormSteps/AnsibleInstance'
 import { InstanceFormCreation } from 'components/DbLabInstanceForm/DbLabFormSteps/InstanceFormCreation'
+import {
+  getGcpAccountContents,
+  getNetworkSubnet,
+  getPlaybookCommand,
+} from 'components/DbLabInstanceForm/utils'
 
-import { initialState } from '../reducer'
 import { getClusterPlaybookCommand } from 'components/PostgresClusterForm/utils'
+import { useCloudProviderProps } from 'hooks/useCloudProvider'
 
 export const DockerInstance = ({
   cluster,
@@ -32,7 +32,7 @@ export const DockerInstance = ({
   formStep,
   setFormStep,
 }: {
-  state: typeof initialState
+  state: useCloudProviderProps['initialState']
   cluster?: boolean
   orgId: number
   goBack: () => void
@@ -150,8 +150,8 @@ export const DockerInstance = ({
           <SyntaxHighlight
             content={
               cluster
-                ? getClusterPlaybookCommand(state, cloudImages[0], orgKey)
-                : getPlaybookCommand(state, cloudImages[0], orgKey)
+                ? getClusterPlaybookCommand(state, cloudImages[0], orgKey, true)
+                : getPlaybookCommand(state, cloudImages[0], orgKey, true)
             }
           />
           {getNetworkSubnet(state.provider, classes)}

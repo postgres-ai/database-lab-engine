@@ -2,6 +2,7 @@ import { makeStyles } from '@material-ui/core'
 import { colors } from '@postgres.ai/shared/styles/colors'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import DbLabSession from 'components/DbLabSession/DbLabSession'
+import { OrgPermissions } from 'components/types'
 import { RouteComponentProps } from 'react-router'
 
 interface MatchParams {
@@ -9,10 +10,7 @@ interface MatchParams {
 }
 
 export interface DbLabSessionProps extends RouteComponentProps<MatchParams> {
-  orgPermissions: {
-    dblabSessionView?: boolean
-    dblabSessionArtifactsView?: boolean
-  }
+  orgPermissions: OrgPermissions
 }
 
 export interface ErrorProps {
