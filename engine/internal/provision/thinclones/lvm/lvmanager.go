@@ -156,6 +156,13 @@ func (m *LVManager) VerifyBranchMetadata() error {
 	return nil
 }
 
+// CreateDataset creates a new dataset.
+func (m *LVManager) CreateDataset(_ string) error {
+	log.Msg("CreateDataset is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
 // CreateBranch clones data as a new branch.
 func (m *LVManager) CreateBranch(_, _ string) error {
 	log.Msg("CreateBranch is not supported for LVM. Skip the operation")
@@ -271,6 +278,13 @@ func (m *LVManager) SetMountpoint(_, _ string) error {
 // Rename renames clone.
 func (m *LVManager) Rename(_, _ string) error {
 	log.Msg("Rename is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// Move moves snapshot diff.
+func (m *LVManager) Move(_, _, _ string) error {
+	log.Msg("Move is not supported for LVM. Skip the operation")
 
 	return nil
 }

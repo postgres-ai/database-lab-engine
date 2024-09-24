@@ -118,6 +118,10 @@ func (m mockFSManager) VerifyBranchMetadata() error {
 	return nil
 }
 
+func (m mockFSManager) CreateDataset(_ string) error {
+	return nil
+}
+
 func (m mockFSManager) CreateBranch(_, _ string) error {
 	return nil
 }
@@ -171,6 +175,10 @@ func (m mockFSManager) SetMessage(_, _ string) error {
 }
 
 func (m mockFSManager) SetMountpoint(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) Move(_, _, _ string) error {
 	return nil
 }
 

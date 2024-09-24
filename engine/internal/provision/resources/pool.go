@@ -95,6 +95,11 @@ func (p *Pool) BranchPath(branchName string) string {
 	return path.Join(p.BranchDir(), branchName)
 }
 
+// BranchName returns a full branch name in the data pool.
+func (p *Pool) BranchName(poolName, branchName string) string {
+	return path.Join(poolName, branchDir, branchName)
+}
+
 // Status gets the pool status.
 func (p *Pool) Status() PoolStatus {
 	p.mu.RLock()

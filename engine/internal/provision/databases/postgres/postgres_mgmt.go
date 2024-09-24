@@ -82,10 +82,18 @@ func CreateUser(c *resources.AppConfig, user resources.EphemeralUser) error {
 		dbName = user.AvailableDB
 	}
 
+	// check user
+	pgConnStr := getPgConnStr(c.Host, dbName, c.DB.Username, c.Port)
+
+	userExists, err := runExistsSQL(userExistsQuery(user.Name), pgConnStr)
+	if err != nil {
+		return fmt.Errorf("failed to check if user exists: %w", err)
+	}
+
 	if user.Restricted {
-		// create restricted user
-		query = restrictedUserQuery(user.Name, user.Password)
-		out, err := runSimpleSQL(query, getPgConnStr(c.Host, dbName, c.DB.Username, c.Port))
+		// Create or alter restricted user.
+		query = restrictedUserQuery(user.Name, user.Password, userExists)
+		out, err := runSimpleSQL(query, pgConnStr)
 
 		if err != nil {
 			return fmt.Errorf("failed to create restricted user: %w", err)
@@ -93,8 +101,18 @@ func CreateUser(c *resources.AppConfig, user resources.EphemeralUser) error {
 
 		log.Dbg("Restricted user has been created: ", out)
 
-		// set restricted user as owner for database objects
-		databaseList, err := runSQLSelectQuery(selectAllDatabases, getPgConnStr(c.Host, dbName, c.DB.Username, c.Port))
+		// Change user ownership.
+		query = restrictedUserOwnershipQuery(user.Name, user.Password)
+		out, err = runSimpleSQL(query, pgConnStr)
+
+		if err != nil {
+			return fmt.Errorf("failed to create restricted user: %w", err)
+		}
+
+		log.Dbg("Database ownership has been changed: ", out)
+
+		// Set restricted user as owner for database objects.
+		databaseList, err := runSQLSelectQuery(selectAllDatabases, pgConnStr)
 
 		if err != nil {
 			return fmt.Errorf("failed list all databases: %w", err)
@@ -111,26 +129,47 @@ func CreateUser(c *resources.AppConfig, user resources.EphemeralUser) error {
 			log.Dbg("Objects restriction applied", database, out)
 		}
 	} else {
-		query = superuserQuery(user.Name, user.Password)
+		query = superuserQuery(user.Name, user.Password, userExists)
 
-		out, err := runSimpleSQL(query, getPgConnStr(c.Host, dbName, c.DB.Username, c.Port))
+		out, err := runSimpleSQL(query, pgConnStr)
 		if err != nil {
 			return fmt.Errorf("failed to create superuser: %w", err)
 		}
 
-		log.Dbg("Super user has been created: ", out)
+		log.Dbg("Superuser has been created: ", out)
+
+		return nil
 	}
 
 	return nil
 }
 
-func superuserQuery(username, password string) string {
-	return fmt.Sprintf(`create user %s with password %s login superuser;`, pq.QuoteIdentifier(username), pq.QuoteLiteral(password))
+func superuserQuery(username, password string, exists bool) string {
+	if exists {
+		return fmt.Sprintf(`alter role %s with password %s login superuser;`,
+			pq.QuoteIdentifier(username), pq.QuoteLiteral(password))
+	}
+
+	return fmt.Sprintf(`create user %s with password %s login superuser;`,
+		pq.QuoteIdentifier(username), pq.QuoteLiteral(password))
+}
+
+func restrictedUserQuery(username, password string, exists bool) string {
+	if exists {
+		return fmt.Sprintf(`alter role %s with password %s login;`,
+			pq.QuoteIdentifier(username), pq.QuoteLiteral(password))
+	}
+
+	return fmt.Sprintf(`create user %s with password %s login;`,
+		pq.QuoteIdentifier(username), pq.QuoteLiteral(password))
+}
+
+func userExistsQuery(username string) string {
+	return fmt.Sprintf(`select exists (select from pg_roles where rolname = %s)`, pq.QuoteLiteral(username))
 }
 
 const restrictionUserCreationTemplate = `
--- create a new user 
-create user @username with password @password login;
+-- change owner
 do $$
 declare
   new_owner text;
@@ -307,7 +346,7 @@ end
 $$;
 `
 
-func restrictedUserQuery(username, password string) string {
+func restrictedUserOwnershipQuery(username, password string) string {
 	repl := strings.NewReplacer(
 		"@usernameStr", pq.QuoteLiteral(username),
 		"@username", pq.QuoteIdentifier(username),

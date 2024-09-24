@@ -55,6 +55,7 @@ type Snapshotter interface {
 type Branching interface {
 	InitBranching() error
 	VerifyBranchMetadata() error
+	CreateDataset(datasetName string) error
 	CreateBranch(branchName, snapshotID string) error
 	ListBranches() (map[string]string, error)
 	ListAllBranches() ([]models.BranchEntity, error)
@@ -62,6 +63,7 @@ type Branching interface {
 	GetAllRepo() (*models.Repo, error)
 	SetRelation(parent, snapshotName string) error
 	Snapshot(snapshotName string) error
+	Move(baseSnap, currentSnap, target string) error
 	SetMountpoint(path, branch string) error
 	Rename(oldName, branch string) error
 	AddBranchProp(branch, snapshotName string) error
