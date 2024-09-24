@@ -208,6 +208,15 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if fullDataset, _, found := strings.Cut(destroyRequest.SnapshotID, "@"); found {
+		cloneDataset := strings.TrimPrefix(fullDataset, poolName+"/")
+
+		if err = fsm.DestroyClone(cloneDataset); err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+	}
+
 	// TODO: update branching metadata.
 
 	log.Dbg(fmt.Sprintf("Snapshot %s has been deleted", destroyRequest.SnapshotID))

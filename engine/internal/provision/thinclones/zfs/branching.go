@@ -96,6 +96,13 @@ func (m *Manager) InitBranching() error {
 		leader = follower
 	}
 
+	// If not exists pool/branch/main, init main branch dataset.
+	brName := m.Pool().BranchName(m.Pool().Name, branching.DefaultBranch)
+
+	if err := m.CreateDataset(brName); err != nil {
+		return fmt.Errorf("failed to init main branch dataset: %w", err)
+	}
+
 	log.Msg("data branching has been successfully initialized")
 
 	return nil
@@ -151,11 +158,9 @@ func (m *Manager) VerifyBranchMetadata() error {
 
 // CreateBranch clones data as a new branch.
 func (m *Manager) CreateBranch(branchName, snapshotID string) error {
-	branchPath := m.config.Pool.BranchPath(branchName)
-
 	// zfs clone -p pool@snapshot_20221019094237 pool/branch/001-branch
 	cmd := []string{
-		"zfs clone -p", snapshotID, branchPath,
+		"zfs clone -p", snapshotID, branchName,
 	}
 
 	out, err := m.runner.Run(strings.Join(cmd, " "))
@@ -169,12 +174,26 @@ func (m *Manager) CreateBranch(branchName, snapshotID string) error {
 // Snapshot takes a snapshot of the current data state.
 func (m *Manager) Snapshot(snapshotName string) error {
 	cmd := []string{
-		"zfs snapshot -r", snapshotName,
+		"zfs snapshot ", snapshotName,
 	}
 
 	out, err := m.runner.Run(strings.Join(cmd, " "))
 	if err != nil {
 		return fmt.Errorf("zfs snapshot error: %w. Out: %v", err, out)
+	}
+
+	return nil
+}
+
+// Move sends and receives snapshot diff.
+func (m *Manager) Move(baseSnap, currentSnap, target string) error {
+	cmd := fmt.Sprintf(
+		"zfs send -I %s %s | zfs receive -F %s", baseSnap, currentSnap, target,
+	)
+
+	out, err := m.runner.Run(cmd)
+	if err != nil {
+		return fmt.Errorf("zfs moving snapshot error: %w. Out: %v", err, out)
 	}
 
 	return nil

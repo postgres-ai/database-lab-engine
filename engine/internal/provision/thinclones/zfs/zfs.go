@@ -262,12 +262,29 @@ func (m *Manager) ListClonesNames() ([]string, error) {
 	lines := strings.Split(strings.TrimSpace(cmdOutput), "\n")
 
 	for _, line := range lines {
+		if strings.HasPrefix(line, poolPrefix+"branch") {
+			continue
+		}
+
 		if strings.HasPrefix(line, poolPrefix) && !strings.Contains(line, m.config.PreSnapshotSuffix) {
 			cloneNames = append(cloneNames, strings.TrimPrefix(line, poolPrefix))
 		}
 	}
 
 	return util.Unique(cloneNames), nil
+}
+
+// CreateDataset creates a new dataset.
+func (m *Manager) CreateDataset(datasetName string) error {
+	datasetCmd := fmt.Sprintf("zfs create -p %s", datasetName)
+
+	cmdOutput, err := m.runner.Run(datasetCmd)
+	if err != nil {
+		log.Dbg(cmdOutput)
+		return fmt.Errorf("failed to create dataset: %w", err)
+	}
+
+	return nil
 }
 
 // CreateSnapshot creates a new snapshot.
@@ -416,7 +433,7 @@ func (m *Manager) moveBranchPointer(rel *snapshotRelation, snapshotName string) 
 }
 
 func (m *Manager) checkDependentClones(snapshotName string) (string, error) {
-	clonesCmd := fmt.Sprintf("zfs list -t snapshot -H -o clones -r %s %s", m.config.Pool.Name, snapshotName)
+	clonesCmd := fmt.Sprintf("zfs list -t snapshot -H -o clones %s", snapshotName)
 
 	clonesOutput, err := m.runner.Run(clonesCmd)
 	if err != nil {
@@ -467,8 +484,8 @@ func (m *Manager) getBusySnapshotList(clonesOutput string) []string {
 			continue
 		}
 
-		if cloneName, _ := strings.CutPrefix(cloneLine[0], userClonePrefix);
-			strings.HasPrefix(cloneLine[0], userClonePrefix) && !strings.Contains(cloneName, m.config.PreSnapshotSuffix) {
+		//nolint:lll
+		if cloneName, _ := strings.CutPrefix(cloneLine[0], userClonePrefix); strings.HasPrefix(cloneLine[0], userClonePrefix) && !strings.Contains(cloneName, m.config.PreSnapshotSuffix) {
 			origin := cloneLine[1]
 
 			if idx := strings.Index(origin, "@"); idx != -1 {

@@ -186,6 +186,33 @@ func getPgConnStr(host, dbname, username string, port uint) string {
 	return sb.String()
 }
 
+// runExistsSQL executes simple SQL commands which returns one bool value.
+func runExistsSQL(command, connStr string) (bool, error) {
+	db, err := sql.Open("postgres", connStr)
+
+	if err != nil {
+		return false, fmt.Errorf("cannot connect to database: %w", err)
+	}
+
+	var result bool
+
+	row := db.QueryRow(command)
+	err = row.Scan(&result)
+
+	defer func() {
+		err := db.Close()
+		if err != nil {
+			log.Err("Cannot close database connection.")
+		}
+	}()
+
+	if err != nil && err == sql.ErrNoRows {
+		return false, nil
+	}
+
+	return result, err
+}
+
 // runSimpleSQL executes simple SQL commands which returns one string value.
 func runSimpleSQL(command, connStr string) (string, error) {
 	db, err := sql.Open("postgres", connStr)

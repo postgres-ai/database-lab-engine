@@ -3,19 +3,24 @@ package srv
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 )
+
+var branchNameRegexp = regexp.MustCompile(`^[\p{L}\d_-]+$`)
 
 // listBranches returns branch list.
 func (s *Server) listBranches(w http.ResponseWriter, r *http.Request) {
@@ -118,7 +123,7 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if createRequest.BranchName == "" {
-		api.SendBadRequestError(w, r, "branchName must not be empty")
+		api.SendBadRequestError(w, r, "The branch name must not be empty")
 		return
 	}
 
@@ -127,8 +132,14 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !isValidBranchName(createRequest.BranchName) {
+		api.SendBadRequestError(w, r, "The branch name must contain only Unicode characters, numbers, underscores, and hyphens. "+
+			"Spaces and slashes are not allowed")
+		return
+	}
+
 	var err error
-	
+
 	fsm := s.pm.First()
 
 	if createRequest.BaseBranch != "" {
@@ -172,15 +183,43 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 		snapshotID = branchPointer
 	}
 
-	if err := fsm.AddBranchProp(createRequest.BranchName, snapshotID); err != nil {
+	poolName, err := s.detectPoolName(snapshotID)
+	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	if err := fsm.SetRoot(createRequest.BranchName, snapshotID); err != nil {
+	brName := fsm.Pool().BranchName(poolName, createRequest.BranchName)
+	dataStateAt := time.Now().Format(util.DataStateAtFormat)
+
+	if err := fsm.CreateBranch(brName, snapshotID); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
+
+	branchSnapshot := fmt.Sprintf("%s@%s", brName, dataStateAt)
+
+	if err := fsm.Snapshot(branchSnapshot); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if err := fsm.AddBranchProp(createRequest.BranchName, branchSnapshot); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if err := fsm.SetRoot(createRequest.BranchName, branchSnapshot); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if err := fsm.SetDSA(dataStateAt, branchSnapshot); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	fsm.RefreshSnapshotList()
 
 	branch := models.Branch{Name: createRequest.BranchName}
 
@@ -193,6 +232,10 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 		api.SendError(w, r, err)
 		return
 	}
+}
+
+func isValidBranchName(branchName string) bool {
+	return branchNameRegexp.MatchString(branchName)
 }
 
 func (s *Server) getSnapshot(w http.ResponseWriter, r *http.Request) {
@@ -311,7 +354,20 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := fsm.AddBranchProp(clone.Branch, snapshotName); err != nil {
+	if err := fsm.SetDSA(dataStateAt, snapshotName); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	targetBranchSnap := fmt.Sprintf("%[1]s@%[1]s", dataStateAt)
+	targetSnap := fmt.Sprintf("%s/%s", fsm.Pool().BranchName(clone.Snapshot.Pool, clone.Branch), targetBranchSnap)
+
+	if err := fsm.Move(currentSnapshotID, snapshotName, targetSnap); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if err := fsm.AddBranchProp(clone.Branch, targetSnap); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
@@ -321,23 +377,25 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := fsm.SetRelation(currentSnapshotID, snapshotName); err != nil {
+	if err := fsm.SetRelation(currentSnapshotID, targetSnap); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	if err := fsm.SetDSA(dataStateAt, snapshotName); err != nil {
+	if err := fsm.SetDSA(dataStateAt, targetSnap); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	if err := fsm.SetMessage(snapshotRequest.Message, snapshotName); err != nil {
+	if err := fsm.SetMessage(snapshotRequest.Message, targetSnap); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	// Since the snapshot is created from a clone, it already has one associated clone.
-	s.Cloning.IncrementCloneNumber(snapshotName)
+	if err := fsm.DestroySnapshot(snapshotName); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
 
 	fsm.RefreshSnapshotList()
 
@@ -346,7 +404,12 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snapshot, err := s.Cloning.GetSnapshotByID(snapshotName)
+	if err := s.Cloning.ResetClone(clone.ID, types.ResetCloneRequest{SnapshotID: targetSnap}); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	snapshot, err := s.Cloning.GetSnapshotByID(targetSnap)
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
@@ -357,10 +420,62 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.WriteJSON(w, http.StatusOK, types.SnapshotResponse{SnapshotID: snapshotName}); err != nil {
+	if err := api.WriteJSON(w, http.StatusOK, types.SnapshotResponse{SnapshotID: targetSnap}); err != nil {
 		api.SendError(w, r, err)
 		return
 	}
+}
+
+func (s *Server) getBranchSnapshots(w http.ResponseWriter, r *http.Request) {
+	branchRequest := mux.Vars(r)["branch"]
+
+	if branchRequest == "" {
+		api.SendBadRequestError(w, r, "branch must not be empty")
+		return
+	}
+
+	fsm, err := s.getFSManagerForBranch(branchRequest)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if fsm == nil {
+		api.SendBadRequestError(w, r, "no pool manager found")
+		return
+	}
+
+	snapshots, err := s.Cloning.GetSnapshots()
+	if err != nil {
+		api.SendError(w, r, err)
+		return
+	}
+
+	branchSnapshots := filterSnapshotsByBranch(fsm.Pool(), branchRequest, snapshots)
+
+	if err = api.WriteJSON(w, http.StatusOK, branchSnapshots); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
+}
+
+func filterSnapshotsByBranch(pool *resources.Pool, branch string, snapshots []models.Snapshot) []models.Snapshot {
+	filtered := make([]models.Snapshot, 0)
+
+	branchName := pool.BranchName(pool.Name, branch)
+
+	for _, sn := range snapshots {
+		dataset, _, found := strings.Cut(sn.ID, "@")
+		if !found {
+			continue
+		}
+
+		if strings.HasPrefix(dataset, branchName) || (branch == branching.DefaultBranch && pool.Name == dataset) {
+			filtered = append(filtered, sn)
+		}
+	}
+
+	return filtered
 }
 
 func (s *Server) log(w http.ResponseWriter, r *http.Request) {
