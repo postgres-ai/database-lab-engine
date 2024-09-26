@@ -23,6 +23,7 @@ type BaseMessageProps = {
   aiModel?: string
   stateMessage?: StateMessage | null
   isCurrentStreamMessage?: boolean
+  isPublic?: boolean;
 }
 
 type AiMessageProps = BaseMessageProps & {
@@ -35,7 +36,7 @@ type AiMessageProps = BaseMessageProps & {
 type HumanMessageProps = BaseMessageProps & {
   isAi: false;
   name: string;
-  content: string
+  content: string;
 }
 
 type LoadingMessageProps = BaseMessageProps & {
@@ -259,7 +260,8 @@ export const Message = React.memo((props: MessageProps) => {
     isLoading,
     aiModel,
     stateMessage,
-    isCurrentStreamMessage
+    isCurrentStreamMessage,
+    isPublic
   } = props;
 
   const [isDebugVisible, setDebugVisible] = useState(false);
@@ -322,7 +324,7 @@ export const Message = React.memo((props: MessageProps) => {
               {formattedTime}
             </span>}
           <div className={classes.additionalInfo}>
-            {id && <>
+            {id && isPublic && <>
               <span className={classes.messageInfo}>|</span>
               <a
                 className={cn(classes.messageInfo, classes.messageInfoActive)}
