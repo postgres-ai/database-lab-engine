@@ -229,7 +229,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", r.restoreContainerName(), contID))
 
-	if err = r.dockerClient.ContainerStart(ctx, contID, types.ContainerStartOptions{}); err != nil {
+	if err = r.dockerClient.ContainerStart(ctx, contID, container.StartOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to start container: %v", contID)
 	}
 
@@ -307,7 +307,7 @@ func (r *RestoreJob) startContainer(ctx context.Context, containerName string, c
 		return "", fmt.Errorf("failed to create container %q %w", containerName, err)
 	}
 
-	if err = r.dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
+	if err = r.dockerClient.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 		return "", errors.Wrapf(err, "failed to start container %s", containerName)
 	}
 

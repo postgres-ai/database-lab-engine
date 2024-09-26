@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -133,7 +132,7 @@ func (ui *UIManager) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to connect UI container to the internal Docker network: %w", err)
 	}
 
-	if err := ui.docker.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
+	if err := ui.docker.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 		return fmt.Errorf("failed to start container %q: %w", containerID, err)
 	}
 

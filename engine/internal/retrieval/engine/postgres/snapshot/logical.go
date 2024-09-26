@@ -11,7 +11,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 
@@ -248,7 +247,7 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", s.patchContainerName(), containerID))
 
-	if err := s.dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
+	if err := s.dockerClient.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 		return errors.Wrap(err, "failed to start container")
 	}
 

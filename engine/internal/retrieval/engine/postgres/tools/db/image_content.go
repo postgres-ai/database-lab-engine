@@ -207,7 +207,7 @@ func createContainer(ctx context.Context, docker *client.Client, image string, p
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", containerName, containerID))
 
-	if err := docker.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
+	if err := docker.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 		return "", fmt.Errorf("failed to start container %q: %w", containerName, err)
 	}
 
