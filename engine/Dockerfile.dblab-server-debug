@@ -1,7 +1,7 @@
 # How to start a container: https://postgres.ai/docs/how-to-guides/administration/engine-manage
 
 # Compile stage
-FROM golang:1.18 AS build-env
+FROM golang:1.23 AS build-env
 
 # Build Delve
 RUN go install github.com/go-delve/delve/cmd/dlv@latest

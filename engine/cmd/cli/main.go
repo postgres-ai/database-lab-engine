@@ -25,7 +25,7 @@ func main() {
 	app := &cli.App{
 		Version: version.GetVersion(),
 		CommandNotFound: func(c *cli.Context, command string) {
-			fmt.Fprintf(c.App.Writer, "[ERROR] Command %q not found.\n", command)
+			_, _ = fmt.Fprintf(c.App.Writer, "[ERROR] Command %q not found.\n", command)
 		},
 		Before: loadEnvironmentParams,
 		Commands: joinCommands(

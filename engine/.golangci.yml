@@ -2,10 +2,9 @@ run:
   timeout: 2m
   issues-exit-code: 1
   tests: true
-  skip-dirs:
-    - vendor
 output:
-  format: colored-line-number
+  formats:
+   - format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
 
@@ -22,10 +21,8 @@ linters-settings:
   gofmt:
     simplify: true
   gofumpt:
-    lang-version: "1.17"
     extra-rules: false
   gosimple:
-    go: "1.18"
     checks: [ "all" ]
   goimports:
     local-prefixes: gitlab.com/postgres-ai/database-lab
@@ -37,14 +34,17 @@ linters-settings:
   lll:
     line-length: 140
     tab-width: 1
-  gomnd:
-    settings:
-      mnd:
-        ignored-functions: strconv.Format*,os.*,strconv.Parse*,strings.SplitN,bytes.SplitN
+  mnd:
+    ignored-functions:
+      - strconv.Format*
+      - os.*
+      - strconv.Parse*
+      - strings.SplitN
+      - bytes.SplitN
   revive:
-    min-confidence: 0.8
+    confidence: 0.8
   unused:
-    check-exported: false
+    exported-fields-are-used: false
   unparam:
     check-exported: false
   nakedret:
@@ -71,15 +71,16 @@ linters:
     - gochecknoinits
     - goconst
     - gocritic
-    - gomnd
+    - goimports
     - gosimple
     - govet
     - ineffassign
     - lll
-    - megacheck
     - misspell
+    - mnd
     - prealloc
     - revive
+    - staticcheck
     - stylecheck
     - unconvert
     - unused
@@ -89,10 +90,7 @@ linters:
   disable:
     - depguard
     - gosec
-    - interfacer
     - gocyclo # currently unmaintained
-    - goimports # TODO: move it back to "enable" (Nik 2023-06-09)
-  presets:
   fast: false
 
 issues:
@@ -104,7 +102,9 @@ issues:
         - lll
         - errcheck
         - wsl
-        - gomnd
+        - mnd
+  exclude-dirs:
+    - vendor
 
   exclude-use-default: false
   max-issues-per-linter: 0

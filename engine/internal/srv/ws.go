@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/ahmetalpbalkan/dlog"
-	dockTypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/gorilla/websocket"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
@@ -68,7 +68,7 @@ func (s *Server) instanceLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	readCloser, err := s.docker.ContainerLogs(r.Context(), s.engProps.ContainerName, dockTypes.ContainerLogsOptions{
+	readCloser, err := s.docker.ContainerLogs(r.Context(), s.engProps.ContainerName, container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Since:      logsSinceInterval,

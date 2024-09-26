@@ -246,7 +246,8 @@ export const Messages = React.memo(({orgId}: {orgId: number}) => {
                 slack_profile,
                 created_at,
                 content,
-                ai_model
+                ai_model,
+                is_public
               } = message;
               let name = 'You';
 
@@ -274,6 +275,7 @@ export const Messages = React.memo(({orgId}: {orgId: number}) => {
                   content={content}
                   formattedTime={formattedTime}
                   aiModel={ai_model}
+                  isPublic={is_public}
                 />
               )
             })}

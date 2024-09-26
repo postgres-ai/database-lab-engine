@@ -20,7 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
@@ -513,6 +513,7 @@ func (p *Provisioner) allocatePort() (uint, error) {
 
 		if err := p.portChecker.checkPortAvailability(host, port); err != nil {
 			log.Msg(fmt.Sprintf("port %d is not available: %v", port, err))
+
 			attempts++
 
 			continue
@@ -803,7 +804,7 @@ func (p *Provisioner) ReconnectClone(ctx context.Context, cloneName string) erro
 
 // StartCloneContainer starts clone container.
 func (p *Provisioner) StartCloneContainer(ctx context.Context, containerName string) error {
-	return p.dockerClient.ContainerStart(ctx, containerName, types.ContainerStartOptions{})
+	return p.dockerClient.ContainerStart(ctx, containerName, container.StartOptions{})
 }
 
 // DetectDBVersion detects version of the database.

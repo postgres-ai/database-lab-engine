@@ -35,6 +35,7 @@ func Load(target interface{}, accessor Accessor, options LoadOptions) error {
 		} else {
 			field.Set(reflect.ValueOf(accessorValue))
 		}
+
 		return nil
 	},
 	)
@@ -46,22 +47,28 @@ func Store(target interface{}, accessor Accessor, options StoreOptions) error {
 		if !tag.matchesStore(options) {
 			return nil
 		}
+
 		var accessorValue interface{}
+
 		if tag.isPtr {
 			if field.IsNil() {
 				return nil
 			}
+
 			accessorValue = field.Elem().Interface()
 		} else {
 			accessorValue = field.Interface()
 		}
+
 		err := accessor.Set(FieldSet{
 			Path: tag.path, Value: accessorValue, Type: tag.fType,
 			CreateKey: tag.createKey,
 		})
+
 		if err != nil {
 			return err
 		}
+
 		return nil
 	},
 	)
