@@ -321,7 +321,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", d.dumpContainerName(), containerID))
 
-	if err := d.dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
+	if err := d.dockerClient.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 		collectDiagnostics(ctx, d.dockerClient, d.dumpContainerName(), dataDir)
 		return errors.Wrapf(err, "failed to start container %q", d.dumpContainerName())
 	}

@@ -203,7 +203,7 @@ func (s *Server) runCommands(ctx context.Context, clone *models.Clone, runID str
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", containerName, contRunner.ID))
 
-	if err := s.docker.ContainerStart(ctx, contRunner.ID, types.ContainerStartOptions{}); err != nil {
+	if err := s.docker.ContainerStart(ctx, contRunner.ID, container.StartOptions{}); err != nil {
 		return nil, errors.Wrapf(err, "failed to start container %q", containerName)
 	}
 

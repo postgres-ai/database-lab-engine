@@ -628,7 +628,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", p.promoteContainerName(), containerID))
 
-	if err := p.dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
+	if err := p.dockerClient.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 		return errors.Wrap(err, "failed to start container")
 	}
 

@@ -104,7 +104,7 @@ func StopControlContainers(ctx context.Context, dockerClient *client.Client, dbC
 
 		log.Msg("Removing control container:", containerName)
 
-		if err := dockerClient.ContainerRemove(ctx, controlCont.ID, types.ContainerRemoveOptions{
+		if err := dockerClient.ContainerRemove(ctx, controlCont.ID, container.RemoveOptions{
 			RemoveVolumes: true,
 			Force:         true,
 		}); err != nil {
@@ -141,7 +141,7 @@ func cleanUpContainers(ctx context.Context, dockerCli *client.Client, instanceID
 	for _, controlCont := range list {
 		log.Msg("Removing container:", getContainerName(controlCont))
 
-		if err := dockerCli.ContainerRemove(ctx, controlCont.ID, types.ContainerRemoveOptions{
+		if err := dockerCli.ContainerRemove(ctx, controlCont.ID, container.RemoveOptions{
 			RemoveVolumes: true,
 			Force:         true,
 		}); err != nil {
@@ -160,7 +160,7 @@ func getContainerList(ctx context.Context, d *client.Client, instanceID string, 
 		},
 	}, pairs...)
 
-	return d.ContainerList(ctx, types.ContainerListOptions{
+	return d.ContainerList(ctx, container.ListOptions{
 		Filters: filters.NewArgs(filterPairs...),
 	})
 }

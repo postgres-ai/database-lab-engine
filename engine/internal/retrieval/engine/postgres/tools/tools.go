@@ -378,7 +378,7 @@ func CheckContainerReadiness(ctx context.Context, dockerClient *client.Client, c
 
 // PrintContainerLogs prints container output.
 func PrintContainerLogs(ctx context.Context, dockerClient *client.Client, containerID string) {
-	logs, err := dockerClient.ContainerLogs(ctx, containerID, types.ContainerLogsOptions{
+	logs, err := dockerClient.ContainerLogs(ctx, containerID, container.LogsOptions{
 		Since:      essentialLogsInterval,
 		ShowStdout: true,
 		ShowStderr: true,
@@ -461,7 +461,7 @@ func RemoveContainer(ctx context.Context, dockerClient *client.Client, container
 
 	log.Msg(fmt.Sprintf("Container %q has been stopped", containerID))
 
-	if err := dockerClient.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{
+	if err := dockerClient.ContainerRemove(ctx, containerID, container.RemoveOptions{
 		RemoveVolumes: true,
 		Force:         true,
 	}); err != nil {
@@ -638,7 +638,7 @@ func CreateContainerIfMissing(ctx context.Context, docker *client.Client, contai
 // ListContainersByLabel lists containers by label name and value.
 func ListContainersByLabel(ctx context.Context, docker *client.Client, filterArgs filters.Args) ([]string, error) {
 	list, err := docker.ContainerList(ctx,
-		types.ContainerListOptions{
+		container.ListOptions{
 			All:     true,
 			Filters: filterArgs,
 		})
@@ -658,7 +658,7 @@ func ListContainersByLabel(ctx context.Context, docker *client.Client, filterArg
 
 // CopyContainerLogs collects container logs.
 func CopyContainerLogs(ctx context.Context, docker *client.Client, containerName, filePath string) error {
-	reader, err := docker.ContainerLogs(ctx, containerName, types.ContainerLogsOptions{ShowStdout: true, ShowStderr: true, Timestamps: true})
+	reader, err := docker.ContainerLogs(ctx, containerName, container.LogsOptions{ShowStdout: true, ShowStderr: true, Timestamps: true})
 
 	if err != nil {
 		return err
