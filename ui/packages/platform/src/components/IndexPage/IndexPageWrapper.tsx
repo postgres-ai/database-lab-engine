@@ -224,7 +224,8 @@ export const IndexPageWrapper = (props: IndexPageProps) => {
         paddingLeft: '15px',
         color: '#000000',
         display: 'inline-flex',
-        alignItems: 'center'
+        alignItems: 'center',
+        whiteSpace: 'nowrap'
       },
       menuSectionHeaderActiveLink: {
         textDecoration: 'none',
