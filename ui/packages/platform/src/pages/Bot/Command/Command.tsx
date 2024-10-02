@@ -194,7 +194,7 @@ export const Command = React.memo((props: Props) => {
     if (!inputRef.current) return
     if (window.innerWidth > theme.breakpoints.values.md) inputRef.current.focus()
     if (!location.state?.skipReloading) setValue('')
-  }, [threadId]);
+  }, [threadId, loading]);
 
   return (
     <div className={classes.root}>
