@@ -20,7 +20,7 @@ import { getDebugMessages } from "../../api/bot/getDebugMessages";
 
 const WS_URL = process.env.REACT_APP_WS_URL || '';
 
-const DEFAULT_MODEL_NAME = 'gemini-1.5-pro'
+const DEFAULT_MODEL_NAME = 'gpt-4o-mini'
 
 type ErrorType = {
   code?: number;
