@@ -197,7 +197,7 @@ Reach out to the Postgres.ai team if you want a trial or commercial license that
 
 Many thanks to our amazing contributors!
 
-<a href = "https://github.com/postgresml/pgcat/graphs/contributors">
+<a href = "https://github.com/postgres-ai/database-lab/graphs/contributors">
   <img src = "https://contrib.rocks/image?repo=postgres-ai/database-lab"/>
 </a>
 
