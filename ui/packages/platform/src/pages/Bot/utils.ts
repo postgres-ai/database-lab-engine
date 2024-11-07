@@ -36,6 +36,10 @@ export const disallowedHtmlTagsForMarkdown= [
   'frameset',
   'audio',
   'video',
+  'button',
+  'select',
+  'option',
+  'textarea'
 ];
 
 export const createMessageFragment = (messages: DebugMessage[]): DocumentFragment => {
