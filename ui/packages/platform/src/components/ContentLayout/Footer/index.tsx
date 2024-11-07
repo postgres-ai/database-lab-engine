@@ -5,10 +5,13 @@
  *--------------------------------------------------------------------------
  */
 
-import { makeStyles } from '@material-ui/core'
+import { makeStyles, useMediaQuery } from '@material-ui/core'
 import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
+import { useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 
 import settings from 'utils/settings'
+import cn from "classnames";
 
 const useStyles = makeStyles(
   (theme) => ({
@@ -23,6 +26,9 @@ const useStyles = makeStyles(
         padding: '12px 12px',
         flexDirection: 'column',
       },
+    },
+    hidden: {
+      display: 'none'
     },
     footerCopyrightItem: {
       marginRight: 50,
@@ -66,9 +72,15 @@ const useStyles = makeStyles(
 
 export const Footer = () => {
   const classes = useStyles()
+  const location = useLocation();
+  const isMobile = useMediaQuery('(max-width:480px)');
+
+  const isAssistantPage = useMemo(() => {
+    return /^\/[^\/]+\/assistant(\/[^\/]+)?\/?$/.test(location.pathname);
+  }, [location.pathname]);
 
   return (
-    <footer className={classes.footer}>
+    <footer className={cn(classes.footer, {[classes.hidden]: isAssistantPage && isMobile})}>
       <div className={classes.footerCopyrightItem}>
         {new Date().getFullYear()} © Postgres.AI
       </div>
