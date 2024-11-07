@@ -275,7 +275,6 @@ export const Message = React.memo((props: MessageProps) => {
     setDebugVisible(prevState => !prevState)
   }
 
-
   const renderers = useMemo<Components>(() => ({
     p: ({ node, ...props }) => <div {...props} />,
     img: ({ node, ...props }) => <img style={{ maxWidth: '60%' }} {...props} />,
@@ -368,7 +367,7 @@ export const Message = React.memo((props: MessageProps) => {
             : <ReactMarkdown
                 className={classes.markdown}
                 children={contentToRender || ''}
-                rehypePlugins={[rehypeRaw]}
+                rehypePlugins={isAi ? [rehypeRaw] : []}
                 remarkPlugins={[remarkGfm]}
                 linkTarget='_blank'
                 components={renderers}
