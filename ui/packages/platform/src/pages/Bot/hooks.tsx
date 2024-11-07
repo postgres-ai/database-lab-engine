@@ -517,25 +517,52 @@ const useAiModelsList = (): UseAiModelsList => {
 
   const getModels = useCallback(async () => {
     let models = null;
-    setLoading(true)
+    setLoading(true);
     try {
       const { response } = await getAiModels();
-      setLLMModels(response)
-      const currentModel = window.localStorage.getItem('bot.ai_model')
-      const parsedModel: AiModel = currentModel ? JSON.parse(currentModel) : null
-      if (currentModel && parsedModel.name !== userModel?.name) {
-        setUserModel(parsedModel)
+      setLLMModels(response);
+      const currentModel = window.localStorage.getItem('bot.ai_model');
+      const parsedModel: AiModel = currentModel ? JSON.parse(currentModel) : null;
+
+      if (currentModel && parsedModel.name !== userModel?.name && response) {
+        // Check if the parsedModel exists in the response models
+        const modelInResponse = response.find(
+          (model) =>
+            model.name.includes(parsedModel.name)
+        );
+
+        if (modelInResponse) {
+          setUserModel(modelInResponse);
+          window.localStorage.setItem('bot.ai_model', JSON.stringify(modelInResponse));
+        } else {
+          // Model from localStorage does not exist in response
+          // Find a default model
+          const defaultModel = response.find((model) =>
+            model.name.includes(DEFAULT_MODEL_NAME)
+          );
+
+          if (defaultModel) {
+            setUserModel(defaultModel);
+            window.localStorage.setItem('bot.ai_model', JSON.stringify(defaultModel));
+          }
+        }
       } else if (response) {
-        const regex = new RegExp(`^${DEFAULT_MODEL_NAME}`);
-        const matchingModel = response.find(model => regex.test(model.name));
-        if (matchingModel) setModel(matchingModel)
+        // Find a model where the model name includes the DEFAULT_MODEL_NAME
+        const matchingModel = response.find((model) =>
+          model.name.includes(DEFAULT_MODEL_NAME)
+        );
+        if (matchingModel) {
+          setModel(matchingModel);
+          window.localStorage.setItem('bot.ai_model', JSON.stringify(matchingModel));
+        }
       }
     } catch (e) {
-      setError(e as unknown as Response)
+      setError(e as unknown as Response);
     }
-    setLoading(false)
-    return models
+    setLoading(false);
+    return models;
   }, []);
+
 
   useEffect(() => {
     let isCancelled = false;
