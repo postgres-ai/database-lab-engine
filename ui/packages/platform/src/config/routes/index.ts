@@ -53,6 +53,14 @@ export const ROUTES = {
       },
 
       INSTANCES: PROJECT_INSTANCES,
+
+      ASSISTANT: {
+        createPath: ({
+            org = ':org',
+            id,
+          }: { org?: string; id?: string } = {}) =>
+            id ? `/${org}/assistant/${id}` : `/${org}/assistant`,
+      }
     },
   },
 }
