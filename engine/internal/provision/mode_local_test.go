@@ -126,6 +126,10 @@ func (m mockFSManager) CreateBranch(_, _ string) error {
 	return nil
 }
 
+func (m mockFSManager) DestroyBranch(_ string) error {
+	return nil
+}
+
 func (m mockFSManager) Snapshot(_ string) error {
 	return nil
 }
