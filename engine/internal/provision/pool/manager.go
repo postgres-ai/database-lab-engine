@@ -57,6 +57,7 @@ type Branching interface {
 	VerifyBranchMetadata() error
 	CreateDataset(datasetName string) error
 	CreateBranch(branchName, snapshotID string) error
+	DestroyBranch(branchName string) (err error)
 	ListBranches() (map[string]string, error)
 	ListAllBranches() ([]models.BranchEntity, error)
 	GetRepo() (*models.Repo, error)

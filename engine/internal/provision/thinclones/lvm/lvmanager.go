@@ -170,6 +170,13 @@ func (m *LVManager) CreateBranch(_, _ string) error {
 	return nil
 }
 
+// DestroyBranch destroys branch.
+func (m *LVManager) DestroyBranch(_ string) error {
+	log.Msg("DestroyBranch is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
 // Snapshot takes a snapshot of the current data state.
 func (m *LVManager) Snapshot(_ string) error {
 	log.Msg("Snapshot is not supported for LVM. Skip the operation")

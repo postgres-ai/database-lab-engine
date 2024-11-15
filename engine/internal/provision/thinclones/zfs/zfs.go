@@ -389,6 +389,17 @@ func (m *Manager) DestroySnapshot(snapshotName string) error {
 	return nil
 }
 
+// DestroyBranch destroys the branch with all dependent commits.
+func (m *Manager) DestroyBranch(branchName string) error {
+	cmd := fmt.Sprintf("zfs destroy -R %s", branchName)
+
+	if _, err := m.runner.Run(cmd); err != nil {
+		return fmt.Errorf("failed to run command: %w", err)
+	}
+
+	return nil
+}
+
 type snapshotRelation struct {
 	parent string
 	branch string

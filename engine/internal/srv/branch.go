@@ -45,20 +45,33 @@ func (s *Server) listBranches(w http.ResponseWriter, r *http.Request) {
 
 	branchDetails := make([]models.BranchView, 0, len(branches))
 
+	// branchRegistry is used to display the "main" branch with only the most recent snapshot.
+	branchRegistry := make(map[string]int, 0)
+
 	for _, branchEntity := range branches {
 		snapshotDetails, ok := repo.Snapshots[branchEntity.SnapshotID]
 		if !ok {
 			continue
 		}
 
-		branchDetails = append(branchDetails,
-			models.BranchView{
-				Name:        branchEntity.Name,
-				Parent:      findBranchParent(repo.Snapshots, snapshotDetails.ID, branchEntity.Name),
-				DataStateAt: snapshotDetails.DataStateAt,
-				SnapshotID:  snapshotDetails.ID,
-				Dataset:     snapshotDetails.Dataset,
-			})
+		branchView := models.BranchView{
+			Name:        branchEntity.Name,
+			Parent:      findBranchParent(repo.Snapshots, snapshotDetails.ID, branchEntity.Name),
+			DataStateAt: snapshotDetails.DataStateAt,
+			SnapshotID:  snapshotDetails.ID,
+			Dataset:     snapshotDetails.Dataset,
+		}
+
+		if position, ok := branchRegistry[branchEntity.Name]; ok {
+			if branchView.DataStateAt > branchDetails[position].DataStateAt {
+				branchDetails[position] = branchView
+			}
+
+			continue
+		}
+
+		branchRegistry[branchView.Name] = len(branchDetails)
+		branchDetails = append(branchDetails, branchView)
 	}
 
 	if err := api.WriteJSON(w, http.StatusOK, branchDetails); err != nil {
@@ -209,7 +222,12 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := fsm.SetRoot(createRequest.BranchName, branchSnapshot); err != nil {
+	if err := fsm.SetRoot(createRequest.BranchName, snapshotID); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if err := fsm.SetRelation(snapshotID, branchSnapshot); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
@@ -360,6 +378,7 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	targetBranchSnap := fmt.Sprintf("%[1]s@%[1]s", dataStateAt)
+
 	targetSnap := fmt.Sprintf("%s/%s", fsm.Pool().BranchName(clone.Snapshot.Pool, clone.Branch), targetBranchSnap)
 
 	if err := fsm.Move(currentSnapshotID, snapshotName, targetSnap); err != nil {
@@ -560,26 +579,47 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 
 	toRemove := snapshotsToRemove(repo, snapshotID, deleteRequest.BranchName)
 
-	// Pre-check.
-	for _, snapshotID := range toRemove {
-		if cloneNum := s.Cloning.GetCloneNumber(snapshotID); cloneNum > 0 {
-			log.Warn(fmt.Sprintf("cannot delete branch %q because snapshot %q contains %d clone(s)",
-				deleteRequest.BranchName, snapshotID, cloneNum))
-		}
-	}
-
-	for _, snapshotID := range toRemove {
-		if err := fsm.DestroySnapshot(snapshotID); err != nil {
-			log.Warn(fmt.Sprintf("failed to remove snapshot %q:", snapshotID), err.Error())
-		}
-	}
-
 	if len(toRemove) > 0 {
+		// Pre-check.
+		preCheckList := make(map[string]int)
+
+		for _, snapshotID := range toRemove {
+			if cloneNum := s.Cloning.GetCloneNumber(snapshotID); cloneNum > 0 {
+				preCheckList[snapshotID] = cloneNum
+			}
+		}
+
+		if len(preCheckList) > 0 {
+			errMsg := fmt.Sprintf("cannot delete branch %q because", deleteRequest.BranchName)
+
+			for snapID, cloneNum := range preCheckList {
+				errMsg += fmt.Sprintf(" snapshot %q contains %d clone(s)", snapID, cloneNum)
+			}
+
+			log.Warn(errMsg)
+			api.SendBadRequestError(w, r, errMsg)
+
+			return
+		}
+
+		brName := fsm.Pool().BranchName(fsm.Pool().Name, deleteRequest.BranchName)
+
+		if err := fsm.DestroyBranch(brName); err != nil {
+			log.Warn(fmt.Sprintf("failed to remove snapshot %q:", brName), err)
+			api.SendBadRequestError(w, r, fmt.Sprintf("failed to remove snapshot %q:", brName))
+
+			return
+		}
+
 		datasetFull := strings.Split(toRemove[0], "@")
 		datasetName, _ := strings.CutPrefix(datasetFull[0], fsm.Pool().Name+"/")
 
 		if err := fsm.DestroyClone(datasetName); err != nil {
-			log.Warn("cannot destroy the underlying branch dataset", err)
+			errMsg := fmt.Sprintf("cannot destroy the underlying branch dataset: %s", datasetName)
+			log.Warn(errMsg, err)
+			api.SendBadRequestError(w, r, errMsg)
+
+			return
 		}
 	}
 
