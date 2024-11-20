@@ -568,7 +568,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 	if syState.Err != nil {
 		recoveryConfig = buildRecoveryConfig(recoveryFileConfig, p.options.Promotion.Recovery)
 
-		if err := cfgManager.ApplyRecovery(recoveryFileConfig); err != nil {
+		if err := cfgManager.ApplyRecovery(recoveryConfig); err != nil {
 			return errors.Wrap(err, "failed to apply recovery configuration")
 		}
 	} else if err := cfgManager.RemoveRecoveryConfig(); err != nil {
