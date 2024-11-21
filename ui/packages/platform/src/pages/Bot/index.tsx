@@ -5,10 +5,10 @@
  *--------------------------------------------------------------------------
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import cn from "classnames";
 import Box from '@mui/material/Box/Box';
-import { makeStyles, useMediaQuery } from "@material-ui/core";
+import { makeStyles, Typography, useMediaQuery } from "@material-ui/core";
 import { useHistory, useRouteMatch } from "react-router-dom";
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper';
 import { ErrorWrapper } from "../../components/Error/ErrorWrapper";
@@ -25,8 +25,22 @@ import { theme } from "@postgres.ai/shared/styles/theme";
 import { colors } from "@postgres.ai/shared/styles/colors";
 import { SettingsPanel } from "./SettingsPanel/SettingsPanel";
 import { DebugConsole } from "./DebugConsole/DebugConsole";
+import Store from "../../stores/store";
+import Actions from "../../actions/actions";
+import { Link } from "@postgres.ai/shared/components/Link2";
 
 type BotPageProps = BotWrapperProps;
+
+type DbLabInstance = {
+  id: number;
+  plan: string | null;
+}
+
+type RefluxState = {
+  dbLabInstances: {
+    data: Record<number, DbLabInstance>;
+  }
+} | null
 
 const useStyles = makeStyles(
   (theme) => ({
@@ -86,13 +100,19 @@ const useStyles = makeStyles(
     },
     labelPrivate: {
       backgroundColor: colors.pgaiDarkGray,
+    },
+    publicChatNote: {
+      marginTop: 4,
+      marginBottom: -14,
+      alignSelf: 'center',
+      fontSize: 12
     }
   }),
   { index: 1 },
 )
 
 export const BotPage = (props: BotPageProps) => {
-  const { match, project, orgData } = props;
+  const { match, project, orgData, orgId } = props;
 
   const {
     messages,
@@ -101,6 +121,7 @@ export const BotPage = (props: BotPageProps) => {
     unsubscribe,
     getDebugMessagesForWholeThread,
     getChatsList,
+    chatVisibility
   } = useAiBot();
 
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
@@ -108,6 +129,7 @@ export const BotPage = (props: BotPageProps) => {
   const [isChatsListVisible, setChatsListVisible] = useState(window?.innerWidth > 640);
   const [isSettingsDialogVisible, setSettingsDialogVisible] = useState(false);
   const [isDebugConsoleVisible, setDebugConsoleVisible] = useState(false);
+  const [refluxData, setRefluxData] = useState<RefluxState>(null)
 
   const history = useHistory();
 
@@ -155,6 +177,59 @@ export const BotPage = (props: BotPageProps) => {
     }
   }
 
+  const isSubscriber = useMemo(() => {
+    const hasEEPlan = orgData?.data?.plan === 'EE';
+    const hasSEPlan = refluxData?.dbLabInstances?.data
+      ? Object.values(refluxData.dbLabInstances.data).some((item) => item.plan === "SE")
+      : false;
+
+    return hasEEPlan || hasSEPlan;
+  }, [refluxData?.dbLabInstances?.data, orgData?.data?.plan]);
+
+  useEffect(() => {
+    const unsubscribe = Store.listen(function () {
+      const newStoreData = this.data;
+
+      if (JSON.stringify(newStoreData) !== JSON.stringify(refluxData)) {
+        const auth = newStoreData?.auth || null;
+        const dbLabInstances = newStoreData?.dbLabInstances || null;
+        const projectId = props.match?.params?.projectId || null;
+
+        if (
+          auth?.token &&
+          !dbLabInstances?.isProcessing &&
+          !dbLabInstances?.error
+        ) {
+          Actions.getDbLabInstances(auth.token, orgId, projectId);
+        }
+
+        setRefluxData(newStoreData);
+      }
+    });
+
+    Actions.refresh();
+
+    return () => {
+      unsubscribe();
+    };
+  }, [orgId, refluxData, props.match.params.projectId]);
+
+  const publicChatMessage = useMemo(() => {
+    if (isDemoOrg) {
+      return <>AI can make mistakes❗️ All chats here are currently public. To enable private conversations, <Link to="/addorg">create your organization</Link></>;
+    }
+
+    if (!isSubscriber) {
+      return <>AI can make mistakes❗️ All chats here are currently public. <Link to={`/${match.params.org}/instances`}>Connect DBLab SE</Link> or <Link to="https://postgres.ai/consulting">become a consulting client</Link> to enable private conversations</>;
+    }
+
+    if (isSubscriber && chatVisibility === 'public') {
+      return <>AI can make mistakes❗️ This chat is public, you can change it in Settings.</>
+    }
+
+    return null;
+  }, [isDemoOrg, match.params.org, chatVisibility, isSubscriber]);
+
   useEffect(() => {
     if (!match.params.threadId && !prevThreadId && messages && messages.length > 0 && messages[0].id) {
       // hack that skip additional loading chats_ancestors_and_descendants
@@ -173,6 +248,7 @@ export const BotPage = (props: BotPageProps) => {
   useEffect(() => {
     if (isDebugConsoleVisible) setDebugConsoleVisible(false)
   }, [match.params.threadId]);
+
 
   if (error && error.code === 404) {
     return (
@@ -197,6 +273,8 @@ export const BotPage = (props: BotPageProps) => {
         isOpen={isSettingsDialogVisible}
         onClose={toggleSettingsDialog}
         threadId={match.params.threadId || null}
+        orgAlias={match.params.org || ''}
+        isSubscriber={isSubscriber}
       />
       <ChatsList
         isOpen={isChatsListVisible}
@@ -231,6 +309,7 @@ export const BotPage = (props: BotPageProps) => {
           threadId={match.params.threadId}
           orgId={orgData.id}
         />
+        <Typography className={classes.publicChatNote}>{publicChatMessage}</Typography>
       </Box>
     </>
   )

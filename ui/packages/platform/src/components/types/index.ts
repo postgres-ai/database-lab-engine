@@ -38,6 +38,10 @@ export interface Orgs {
     name: string
     id: number
     owner_user_id: number
+    is_chat_public_by_default: boolean
+    data: {
+      plan: string
+    } | null
     projects: {
       [project: string]: {
         alias: string

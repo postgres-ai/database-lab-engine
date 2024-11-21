@@ -10,10 +10,22 @@ import cn from 'classnames'
 
 import styles from './styles.module.scss'
 
-type Props = LinkProps
+type Props = LinkProps & { external?: boolean }
 
 export const Link = (props: Props) => {
-  const { className, ...otherProps } = props
+  const { className, external, to, ...otherProps } = props
 
-  return <LinkBase {...otherProps} className={cn(styles.root, className)} />
+  if (external) {
+    return (
+      <a
+        href={to as string}
+        {...otherProps}
+        className={cn(styles.root, className)}
+        target="_blank"
+        rel="noopener noreferrer"
+      />
+    )
+  }
+
+  return <LinkBase to={to} {...otherProps} className={cn(styles.root, className)} />
 }

@@ -48,3 +48,9 @@ export type StreamMessage = {
   ai_model: string
   thread_id: string
 }
+
+export type ErrorMessage = {
+  type: 'error'
+  message: string
+  thread_id: string
+}

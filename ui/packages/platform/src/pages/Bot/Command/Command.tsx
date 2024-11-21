@@ -86,7 +86,6 @@ export const Command = React.memo((props: Props) => {
     wsLoading,
     loading,
     sendMessage,
-    chatVisibility,
     isStreamingInProcess
   } = useAiBot();
 
@@ -111,7 +110,6 @@ export const Command = React.memo((props: Props) => {
       content: message,
       thread_id: threadId || null,
       org_id: orgId,
-      is_public: chatVisibility === 'public'
     })
   }
 
