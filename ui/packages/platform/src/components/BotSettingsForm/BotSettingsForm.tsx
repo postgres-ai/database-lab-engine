@@ -5,37 +5,37 @@
  *--------------------------------------------------------------------------
  */
 
-import React, { Component } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Link } from '@postgres.ai/shared/components/Link2'
 import {
   Grid,
   Button,
-  TextField,
   InputLabel,
   FormControl,
-  Select,
-  MenuItem,
-  RadioGroup,
   FormControlLabel,
-  Radio
+  makeStyles,
+  Typography
 } from '@material-ui/core'
-import { styles } from '@postgres.ai/shared/styles/styles'
-import { ClassesType, RefluxTypes } from '@postgres.ai/platform/src/components/types'
 import Store from '../../stores/store'
 import Actions from '../../actions/actions'
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
-
 import ConsolePageTitle from '../ConsolePageTitle'
 import { BotSettingsFormProps } from './BotSettingsFormWrapper'
-import { GatewayLink } from "@postgres.ai/shared/components/GatewayLink";
+import { styles } from "@postgres.ai/shared/styles/styles";
+import { PageSpinner } from "@postgres.ai/shared/components/PageSpinner";
+import { WarningWrapper } from "../Warning/WarningWrapper";
+import { messages } from "../../assets/messages";
+import RadioGroup from '@mui/material/RadioGroup'
+import Radio from '@mui/material/Radio'
+import { ExternalIcon } from "@postgres.ai/shared/icons/External";
+import { useFormik } from "formik";
 
-interface BotSettingsFormWithStylesProps extends BotSettingsFormProps {
-  classes: ClassesType
+type DbLabInstance = {
+  id: number;
+  plan: string | null;
 }
 
-interface BotSettingState {
-  custom_prompt: string
-  model: string
-  threadVisibility: string
+type BotSettingState = {
   data: {
     auth: {
       token: string | null
@@ -51,183 +51,247 @@ interface BotSettingState {
       orgId: number | null
       updateErrorFields: string[]
       data: {
-        custom_prompt: string
-        ai_model: string
+        is_chat_public_by_default: boolean
       }
     } | null
+    dbLabInstances: {
+      data: Record<number, DbLabInstance>;
+    }
   } | null
 }
 
-
-
-class BotSettingsForm extends Component<BotSettingsFormWithStylesProps, BotSettingState> {
-  state = {
-    custom_prompt: '',
-    model: 'gemini-1.5-pro',
-    threadVisibility: 'public',
-    data: {
-      auth: {
-        token: null,
+const useStyles = makeStyles(
+  {
+    container: {
+      ...(styles.root as Object),
+      display: 'flex',
+      'flex-wrap': 'wrap',
+      'min-height': 0,
+      '&:not(:first-child)': {
+        'margin-top': '20px',
       },
-      orgProfile: {
-        isUpdating: false,
-        isProcessing: false,
-        error: false,
-        updateError: false,
-        errorMessage: undefined,
-        errorCode: undefined,
-        updateErrorMessage: null,
-        updateErrorFields: [''],
-        orgId: null,
-        data: {
-          custom_prompt: '',
-          ai_model: 'gemini-1.5-pro',
+    },
+    textField: {
+      ...styles.inputField,
+    },
+    instructionsField: {
+      ...styles.inputField,
+    },
+    selectField: {
+      marginTop: 4,
+      '& .MuiInputLabel-formControl': {
+        transform: 'none',
+        position: 'static'
+      }
+    },
+    label: {
+      color: '#000!important',
+      fontWeight: 'bold',
+    },
+    radioGroup: {
+      marginTop: 8
+    },
+    updateButtonContainer: {
+      marginTop: 20,
+      textAlign: 'left',
+    },
+    errorMessage: {
+      color: 'red',
+    },
+    unlockNote: {
+      marginTop: 8,
+      '& ol': {
+        paddingLeft: 24,
+        marginTop: 6,
+        marginBottom: 0
+      }
+    },
+    formControlLabel: {
+      '& .Mui-disabled > *, & .Mui-disabled': {
+        color: 'rgba(0, 0, 0, 0.6)'
+      }
+    },
+    externalIcon: {
+      width: 14,
+      height: 14,
+      marginLeft: 4,
+      transform: 'translateY(2px)',
+    }
+  },
+  { index: 1 },
+)
+
+const BotSettingsForm: React.FC<BotSettingsFormProps> = (props) => {
+  const { orgPermissions, orgData, orgId, org, project } = props;
+
+  const classes = useStyles()
+
+  const [threadVisibility, setThreadVisibility] = useState('private')
+  const [data, setData] = useState<BotSettingState['data'] | null>(null)
+
+  const isSubscriber = useMemo(() => {
+    const hasEEPlan = orgData?.data?.plan === 'EE';
+    const hasSEPlan = data?.dbLabInstances?.data
+      ? Object.values(data.dbLabInstances.data).some((item) => item.plan === "SE")
+      : false;
+
+    return hasEEPlan || hasSEPlan;
+  }, [data?.dbLabInstances?.data, orgData?.data?.plan]);
+
+
+  useEffect(() => {
+    const unsubscribe = Store.listen(function () {
+      const newStoreData = this.data;
+
+      if (JSON.stringify(newStoreData) !== JSON.stringify(data)) {
+        const auth = newStoreData?.auth || null;
+        const orgProfile = newStoreData?.orgProfile || null;
+        const dbLabInstances = newStoreData?.dbLabInstances || null;
+        const projectId = props.match?.params?.projectId || null;
+
+        if (
+          auth?.token &&
+          orgProfile &&
+          orgProfile.orgId !== orgId &&
+          !orgProfile.isProcessing
+        ) {
+          Actions.getOrgs(auth.token, orgId);
         }
+
+        if (
+          auth?.token &&
+          !dbLabInstances?.isProcessing &&
+          !dbLabInstances?.error
+        ) {
+          Actions.getDbLabInstances(auth.token, orgId, projectId);
+        }
+
+        setData(newStoreData);
       }
-    }
-  }
+    });
 
-  unsubscribe: Function
-  componentDidMount() {
-    const { orgId, mode } = this.props
-    const that = this
+    Actions.refresh();
 
-     this.unsubscribe = (Store.listen as RefluxTypes["listen"]) (function () {
-       const auth = this.data && this.data.auth ? this.data.auth : null
-       const orgProfile =
-         this.data && this.data.orgProfile ? this.data.orgProfile : null
+    return () => {
+      unsubscribe();
+    };
+  }, [orgId, data, props.match.params.projectId]);
 
-       that.setState({ data: this.data })
-    })
+  const formik = useFormik({
+    enableReinitialize: true,
+    initialValues: {
+      threadVisibility:
+        data?.orgProfile?.data?.is_chat_public_by_default ? 'public' : 'private',
+    },
+    onSubmit: () => {
+      const currentOrgId = orgId || null;
+      const auth = data?.auth || null;
 
-    Actions.refresh()
-  }
+      if (auth) {
+        let params: { is_chat_public_by_default?: boolean } = {
+          is_chat_public_by_default:
+            formik.values.threadVisibility === 'public',
+        };
 
-  componentWillUnmount() {
-    this.unsubscribe()
-  }
-
-  buttonHandler = () => {
-    const orgId = this.props.orgId ? this.props.orgId : null
-    const auth =
-      this.state.data && this.state.data.auth ? this.state.data.auth : null
-    const data = this.state.data ? this.state.data.orgProfile : null
-
-    if (auth) {
-      let params: { custom_prompt?: string, model?: string } = {
-        custom_prompt: this.state.custom_prompt,
-        model: this.state.model
-      };
-      /*if (data.data.custom_prompt !== this.state.custom_prompt) {
-        params.custom_prompt = this.state.custom_prompt;
-      }*/
-      if (data?.data?.ai_model !== this.state.model) {
-        params.model = this.state.model;
+        Actions.updateAiBotSettings(auth.token, currentOrgId, params);
       }
-      Actions.updateAiBotSettings(auth.token, orgId, params)
-    }
-  }
+    },
+  });
 
-  handleChangeModel = (event: React.ChangeEvent<{ value: unknown }>) => {
-    this.setState({model: event.target.value as string})
-  }
+  const handleChangeThreadVisibility = (
+    event: React.ChangeEvent<{ value: string }>
+  ) => {
+    formik.handleChange(event);
+  };
 
-  handleChangeThreadVisibility = (event: React.ChangeEvent<{ value: unknown }>) => {
-    this.setState({threadVisibility: event.target.value as string})
-  }
+  const breadcrumbs = (
+    <ConsoleBreadcrumbsWrapper
+      org={org}
+      project={project}
+      breadcrumbs={[{ name: 'AI Assistant' }]}
+    />
+  )
 
-  render() {
-    const { classes, orgPermissions, mode } = this.props
-    const orgId = this.props.orgId ? this.props.orgId : null
+  const pageTitle = (
+    <ConsolePageTitle title="AI Assistant settings" />
+  )
 
-
+  if (orgPermissions && !orgPermissions.settingsOrganizationUpdate) {
     return (
       <>
-        <ConsoleBreadcrumbsWrapper
-          org={this.props.org}
-          project={this.props.project}
-          breadcrumbs={[{ name: 'AI Bot' }]}
-        />
+        {breadcrumbs}
 
-        <ConsolePageTitle title="AI Bot settings" />
+        {pageTitle}
 
-        {/*<div className={classes.errorMessage}>
-          {data && data.updateErrorMessage ? data.updateErrorMessage : null}
-        </div>*/}
+        <WarningWrapper>{messages.noPermissionPage}</WarningWrapper>
+      </>
+    )
+  }
 
+  if (!data || (data && data.orgProfile && data.orgProfile.isProcessing)) {
+    return (
+      <div>
+        {breadcrumbs}
+
+        {pageTitle}
+
+        <PageSpinner/>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {breadcrumbs}
+
+      {pageTitle}
+      <form onSubmit={formik.handleSubmit}>
         <Grid container spacing={3}>
           <Grid item xs={12} sm={12} lg={12} className={classes.container}>
-            <Grid
-              xs={12}
-              sm={12}
-              lg={8}
-              item
-              container
-              direction={'column'}
-            >
+            <Grid container item xs={12} sm={12} lg={8} direction={'column'}>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  id="instructionsText"
-                  label="Custom prompt"
-                  fullWidth
-                  minRows={4}
-                  multiline
-                  variant="outlined"
-                  value={this.state.custom_prompt}
-                  className={classes.instructionsField}
-                  onChange={(e) => {
-                    this.setState({
-                      custom_prompt: e.target.value,
-                    })
-                  }}
-                  /*error={
-                    data?.updateErrorFields &&
-                    data.updateErrorFields.indexOf('instructionsText') !== -1
-                  }*/
-                  margin="normal"
-                  inputProps={{
-                    name: 'instructionsText',
-                    id: 'instructionsText',
-                    shrink: 'true',
-                  }}
-                  InputLabelProps={{
-                    shrink: true,
-                    style: styles.inputFieldLabel,
-                  }}
-                  FormHelperTextProps={{
-                    style: styles.inputFieldHelper,
-                  }}
-                  helperText={
-                    <span>
-                        Example: Our Postgres clusters are on AWS RDS, version is 15.
-                    </span>
-                  }
-                />
                 <FormControl fullWidth className={classes.selectField}>
-                  <InputLabel id="model-radio-buttons-group-label">Model</InputLabel>
-                  <RadioGroup
-                    aria-labelledby="model-radio-buttons-group-label"
-                    defaultValue="gemini-1.5-pro"
-                    name="model-radio-buttons-group"
-                    value={this.state.model}
-                    onChange={this.handleChangeModel}
-                  >
-                    <FormControlLabel value="gemini-1.5-pro" control={<Radio />} label="gemini-1.5-pro" />
-                    <FormControlLabel value="gpt-4-turbo" control={<Radio />} label="gpt-4-turbo	" />
-                    <FormControlLabel disabled value="llama-3" control={<Radio />} label="Llama 3" />
-                  </RadioGroup>
-                </FormControl>
-                <FormControl fullWidth className={classes.selectField}>
-                  <InputLabel id="visibility-radio-buttons-group-label">Default thread visibility</InputLabel>
+                  <InputLabel className={classes.label} id="visibility-radio-buttons-group-label">
+                    AI chats default visibility
+                  </InputLabel>
                   <RadioGroup
                     aria-labelledby="visibility-radio-buttons-group-label"
                     defaultValue="public"
-                    name="visibility-radio-buttons-group"
-                    value={this.state.threadVisibility}
-                    onChange={this.handleChangeThreadVisibility}
+                    name="threadVisibility"
+                    value={formik.values.threadVisibility}
+                    onChange={handleChangeThreadVisibility}
+                    className={classes.radioGroup}
                   >
-                    <FormControlLabel value="public" control={<Radio />} label="Public" />
-                    <FormControlLabel disabled value="private" control={<Radio />} label="Private" />
+                    <FormControlLabel
+                      value="public"
+                      className={classes.formControlLabel}
+                      control={<Radio size="small"/>}
+                      label={<><b>Public:</b> anyone can view chats, but only team members can respond</>}
+                    />
+                    <FormControlLabel
+                      disabled={!isSubscriber}
+                      className={classes.formControlLabel}
+                      value="private"
+                      control={<Radio size="small"/>}
+                      label={<><b>Private:</b> chats are visible only to members of your organization</>}
+                    />
+                    {!isSubscriber && <Typography variant="body2" className={classes.unlockNote}>
+                      Unlock private conversations by either:
+                      <ol>
+                        <li>
+                          <Link to={`/${org}/instances`} target="_blank">
+                            Installing a DBLab SE instance
+                            <ExternalIcon className={classes.externalIcon}/>
+                          </Link>
+                        </li>
+                        <li>
+                          <Link external to="https://postgres.ai/consulting" target="_blank">
+                            Becoming a Postgres.AI consulting customer
+                            <ExternalIcon className={classes.externalIcon}/>
+                          </Link>
+                        </li>
+                      </ol>
+                    </Typography>}
                   </RadioGroup>
                 </FormControl>
               </Grid>
@@ -242,20 +306,18 @@ class BotSettingsForm extends Component<BotSettingsFormWithStylesProps, BotSetti
               <Button
                 variant="contained"
                 color="primary"
-                //disabled={data?.isUpdating}
+                disabled={data?.orgProfile?.isUpdating || !formik.dirty || !formik.isValid}
                 id="orgSaveButton"
-                onClick={this.buttonHandler}
+                type="submit"
               >
                 Save
               </Button>
             </Grid>
           </Grid>
         </Grid>
-
-        <div className={classes.bottomSpace} />
-      </>
-    )
-  }
+      </form>
+    </>
+  )
 }
 
 export default BotSettingsForm

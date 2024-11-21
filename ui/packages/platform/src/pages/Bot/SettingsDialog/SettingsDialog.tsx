@@ -6,16 +6,17 @@
  */
 
 import React, { useEffect, useState } from 'react'
+import { useRouteMatch } from "react-router-dom";
 import {
-  IconButton,
-  TextField,
+  Button,
   Dialog,
-  Typography,
+  FormControlLabel,
+  IconButton,
+  makeStyles,
   Radio,
   RadioGroup,
-  FormControlLabel,
-  Button,
-  makeStyles,
+  TextField,
+  Typography,
 } from '@material-ui/core'
 import MuiDialogTitle from '@material-ui/core/DialogTitle'
 import MuiDialogContent from '@material-ui/core/DialogContent'
@@ -24,11 +25,11 @@ import FormLabel from '@mui/material/FormLabel'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
-import { colors } from "@postgres.ai/shared/styles/colors";
-import { useAiBot } from "../hooks";
+import { useAiBot, Visibility } from "../hooks";
 import { AiModel } from "../../../types/api/entities/bot";
-
-export type Visibility = 'public' | 'private';
+import settings from "../../../utils/settings";
+import { Link } from "@postgres.ai/shared/components/Link2";
+import { ExternalIcon } from "@postgres.ai/shared/icons/External";
 
 type DialogTitleProps = {
   id: string
@@ -40,6 +41,8 @@ type PublicChatDialogProps = {
   isOpen: boolean
   onClose: () => void
   threadId: string | null
+  orgAlias: string
+  isSubscriber: boolean
 }
 
 const useDialogTitleStyles = makeStyles(
@@ -135,8 +138,9 @@ const useDialogStyles = makeStyles(
     remark: {
       fontSize: 12,
       lineHeight: '12px',
-      color: colors.state.warning,
+
       paddingLeft: 20,
+      paddingBottom: 5,
     },
     remarkIcon: {
       display: 'block',
@@ -149,12 +153,34 @@ const useDialogStyles = makeStyles(
       marginTop: 10,
       paddingLeft: 22,
     },
-    radioLabel: {
+    radioGroup: {
       fontSize: 12,
+      '&:not(:last-child)': {
+        marginBottom: 12
+      }
     },
     dialogContent: {
       paddingTop: 10,
     },
+    unlockNote: {
+      marginTop: 2,
+      '& ol': {
+        paddingLeft: 18,
+        marginTop: 4,
+        marginBottom: 0
+      }
+    },
+    formControlLabel: {
+      '& .Mui-disabled > *, & .Mui-disabled': {
+        color: 'rgba(0, 0, 0, 0.6)'
+      }
+    },
+    externalIcon: {
+      width: 14,
+      height: 14,
+      marginLeft: 4,
+      transform: 'translateY(2px)',
+    }
   }),
   { index: 1 },
 )
@@ -164,8 +190,9 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
     onClose,
     isOpen,
     threadId,
+    orgAlias,
+    isSubscriber
   } = props;
-
 
   const {
     chatVisibility,
@@ -175,14 +202,17 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
     aiModels,
     aiModel: activeModel,
     setAiModel: setActiveModel,
+    setChatVisibility
   } = useAiBot();
 
   const [model, setModel] = useState<AiModel | null>(activeModel)
-  const [visibility, setVisibility] = useState<string>(chatVisibility);
+  const [visibility, setVisibility] = useState<Visibility>(chatVisibility);
 
   const classes = useDialogStyles();
 
   const publicUrl = `https://postgres.ai/chats/${threadId}`;
+
+  const isDemoOrg = useRouteMatch(`/${settings.demoOrgAlias}`);
 
   const handleCopyUrl = () => {
     if ('clipboard' in navigator) {
@@ -195,10 +225,11 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
       setActiveModel(model)
     }
     if (visibility !== chatVisibility && threadId) {
-      changeChatVisibility(threadId, visibility === 'public')
+      changeChatVisibility(threadId, visibility === Visibility.PUBLIC)
       getChatsList();
+    } else if (visibility !== chatVisibility) {
+      setChatVisibility(visibility)
     }
-
     onClose()
   }
 
@@ -258,10 +289,10 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
         id="customized-dialog-title"
         onClose={onClose}
       >
-        Chat Settings
+        Chat settings
       </DialogTitle>
       <DialogContent>
-        {threadId && <>
+        <>
           <FormLabel component="legend">Visibility</FormLabel>
           <RadioGroup
             aria-label="shareUrl"
@@ -270,24 +301,44 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
             onChange={(event) => {
               setVisibility(event.target.value as Visibility)
             }}
-            className={classes.radioLabel}
+            className={classes.radioGroup}
           >
             <FormControlLabel
-              value="private"
+              value={Visibility.PUBLIC}
+              className={classes.formControlLabel}
               control={<Radio />}
-              label="Only members of the organization can view"
+              label={<><b>Public:</b> anyone can view chats, but only team members can respond</>}
             />
-
-            <FormControlLabel
-              value="public"
-              control={<Radio />}
-              label="Anyone with a special link and members of the organization can view"
-            />
-          </RadioGroup>
-          {visibility && (
+            {visibility === Visibility.PUBLIC && threadId && (
               <div className={classes.urlContainer}>{urlField}</div>
             )}
-        </>}
+            <FormControlLabel
+              value={Visibility.PRIVATE}
+              className={classes.formControlLabel}
+              control={<Radio />}
+              label={<><b>Private:</b> chats are visible only to members of your organization</>}
+              disabled={Boolean(isDemoOrg) || !isSubscriber}
+            />
+            {Boolean(isDemoOrg) && <Typography className={classes.remark}>Private chats are not allowed in "Demo"</Typography>}
+            {!Boolean(isDemoOrg) && !isSubscriber && <Typography variant="body2" className={classes.unlockNote}>
+              Unlock private conversations by either:
+              <ol>
+                <li>
+                  <Link to={`/${orgAlias}/instances`} target="_blank">
+                    Installing a DBLab SE instance
+                    <ExternalIcon className={classes.externalIcon}/>
+                  </Link>
+                </li>
+                <li>
+                  <Link external to="https://postgres.ai/consulting" target="_blank">
+                    Becoming a Postgres.AI consulting customer
+                    <ExternalIcon className={classes.externalIcon}/>
+                  </Link>
+                </li>
+              </ol>
+            </Typography>}
+          </RadioGroup>
+        </>
         {aiModels && <>
           <FormLabel component="legend">Model</FormLabel>
           <RadioGroup
@@ -298,7 +349,7 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
               const selectedModel = aiModels?.find((model) => `${model.vendor}/${model.name}` === event.target.value)
               setModel(selectedModel!)
             }}
-            className={classes.radioLabel}
+            className={classes.radioGroup}
           >
             {aiModels.map((model) =>
                 <FormControlLabel

@@ -584,7 +584,10 @@ const Store = Reflux.createStore({
 
     if (!this.data.orgProfile.updateError && data.length > 0) {
       this.data.orgProfile.updateErrorFields = null;
-      Actions.showNotification('AI Bot settings successfully saved.', 'success');
+      this.data.orgProfile.data = data[0];
+      Actions.getUserProfile(this.data.auth.token);
+      Actions.getOrgs(this.data.auth.token, this.data.orgProfile.orgId);
+      Actions.showNotification('AI Assistant settings successfully saved.', 'success');
     }
 
     this.trigger(this.data);

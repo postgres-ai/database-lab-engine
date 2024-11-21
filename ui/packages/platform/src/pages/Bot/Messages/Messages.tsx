@@ -18,6 +18,7 @@ import { BotMessage } from "../../../types/api/entities/bot";
 import { Message } from "./Message/Message";
 import { useAiBot } from "../hooks";
 import { HintCards } from "../HintCards/HintCards";
+import { ErrorMessage } from "./ErrorMessage/ErrorMessage";
 
 const useStyles = makeStyles(
   (theme) => ({
@@ -127,7 +128,8 @@ export const Messages = React.memo(({orgId}: {orgId: number}) => {
     wsLoading: isWaitingForAnswer,
     stateMessage,
     currentStreamMessage,
-    isStreamingInProcess
+    isStreamingInProcess,
+    errorMessage
   } = useAiBot();
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -290,6 +292,9 @@ export const Messages = React.memo(({orgId}: {orgId: number}) => {
           }
           {isWaitingForAnswer &&
             <Message id={null} isLoading isAi={true} stateMessage={stateMessage} />
+          }
+          {
+            errorMessage && <ErrorMessage content={errorMessage.message} />
           }
         </div>
       </div>

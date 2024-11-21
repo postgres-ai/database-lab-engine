@@ -353,7 +353,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
             </NavLink>
           </ListItem>
 
-          {Boolean(isDemoOrg) && <ListItem
+          <ListItem
             button
             className={parentProps.classes.menuSectionHeader}
             disabled={isBlocked}
@@ -369,7 +369,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
               </span>
               AI Assistant<span className={cn(parentProps.classes.menuItemLabel, parentProps.classes.headerLinkMenuItemLabel)}>NEW</span>
             </NavLink>
-          </ListItem>}
+          </ListItem>
           <ListItem
             button
             className={parentProps.classes.menuSectionHeader}
@@ -578,20 +578,22 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
               </NavLink>
             </ListItem>
           )}
-          {/*<ListItem
-            disabled={isBlocked}
-            button
-            className={parentProps.classes.menuItem}
-            id="menuSettingsBot"
-          >
-            <NavLink
-              className={parentProps.classes.menuItemLink}
-              activeClassName={parentProps.classes.menuItemActiveLink}
-              to={'/' + org + '/bot-settings'}
+          {orgPermissions && orgPermissions.settingsOrganizationUpdate && (
+            <ListItem
+              disabled={isBlocked}
+              button
+              className={parentProps.classes.menuItem}
+              id="menuSettingsBot"
             >
-              AI Assistant
-            </NavLink>
-          </ListItem>*/}
+              <NavLink
+                className={parentProps.classes.menuItemLink}
+                activeClassName={parentProps.classes.menuItemActiveLink}
+                to={'/' + org + '/assistant-settings'}
+              >
+                AI Assistant
+              </NavLink>
+            </ListItem>
+          )}
           <ListItem
             disabled={isBlocked}
             button

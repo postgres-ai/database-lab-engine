@@ -453,20 +453,13 @@ class Api {
 
   updateAiBotSettings(token, orgId, orgData) {
     let params = {};
-    let data = {};
     let headers = {
       Authorization: 'Bearer ' + token,
       prefer: 'return=representation'
     };
 
-    // if (typeof orgData.custom_prompt !== 'undefined') {
-    //   data.custom_prompt = orgData.custom_prompt;
-    // }
-    if (typeof orgData.model !== 'undefined') {
-      data.ai_model = orgData.model;
-    }
-    params.data = {
-      ai_bot: data
+    if (typeof orgData.is_chat_public_by_default !== 'undefined') {
+      params.is_chat_public_by_default = orgData.is_chat_public_by_default;
     }
 
     return this.patch(`${this.apiServer}/orgs?id=eq.` + orgId, params, {

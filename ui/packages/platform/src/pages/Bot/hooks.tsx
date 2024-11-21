@@ -5,10 +5,17 @@
  *--------------------------------------------------------------------------
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, Dispatch, SetStateAction, useCallback, useContext, useEffect, useState } from "react";
 import useWebSocket, {ReadyState} from "react-use-websocket";
 import { useLocation } from "react-router-dom";
-import { BotMessage, DebugMessage, AiModel, StateMessage, StreamMessage } from "../../types/api/entities/bot";
+import {
+  BotMessage,
+  DebugMessage,
+  AiModel,
+  StateMessage,
+  StreamMessage,
+  ErrorMessage
+} from "../../types/api/entities/bot";
 import {getChatsWithWholeThreads} from "../../api/bot/getChatsWithWholeThreads";
 import {getChats} from "api/bot/getChats";
 import {useAlertSnackbar} from "@postgres.ai/shared/components/AlertSnackbar/useAlertSnackbar";
@@ -22,6 +29,11 @@ const WS_URL = process.env.REACT_APP_WS_URL || '';
 
 const DEFAULT_MODEL_NAME = 'gpt-4o-mini'
 
+export enum Visibility {
+  PUBLIC = 'public',
+  PRIVATE = 'private'
+}
+
 type ErrorType = {
   code?: number;
   message: string;
@@ -32,7 +44,6 @@ type SendMessageType = {
   content: string;
   thread_id?: string | null;
   org_id?: number | null;
-  is_public?: boolean;
 }
 
 type UseAiBotReturnType = {
@@ -46,7 +57,8 @@ type UseAiBotReturnType = {
   changeChatVisibility: (threadId: string, isPublic: boolean) => void;
   isChangeVisibilityLoading: boolean;
   unsubscribe: (threadId: string) => void;
-  chatVisibility: 'public' | 'private';
+  chatVisibility: Visibility;
+  setChatVisibility: Dispatch<SetStateAction<Visibility>>;
   debugMessages: DebugMessage[] | null;
   getDebugMessagesForWholeThread: () => void;
   chatsList: UseBotChatsListHook['chatsList'];
@@ -58,17 +70,19 @@ type UseAiBotReturnType = {
   aiModelsLoading: UseAiModelsList['loading'];
   debugMessagesLoading: boolean;
   stateMessage: StateMessage | null;
-  isStreamingInProcess: boolean
-  currentStreamMessage: StreamMessage | null
+  isStreamingInProcess: boolean;
+  currentStreamMessage: StreamMessage | null;
+  errorMessage: ErrorMessage | null;
 }
 
 type UseAiBotArgs = {
   threadId?: string;
   orgId?: number
+  isPublicByDefault?: boolean
 }
 
 export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType => {
-  const { threadId, orgId } = args;
+  const { threadId, orgId, isPublicByDefault } = args;
   const { showMessage, closeSnackbar } = useAlertSnackbar();
   const {
     aiModels,
@@ -85,12 +99,13 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
   } = useBotChatsList(orgId);
 
   const [messages, setMessages] = useState<BotMessage[] | null>(null);
+  const [errorMessage, setErrorMessage] = useState<ErrorMessage | null>(null)
   const [debugMessages, setDebugMessages] = useState<DebugMessage[] | null>(null);
   const [debugMessagesLoading, setDebugMessagesLoading] = useState<boolean>(false);
   const [isLoading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<ErrorType | null>(null);
   const [wsLoading, setWsLoading] = useState<boolean>(false);
-  const [chatVisibility, setChatVisibility] = useState<UseAiBotReturnType['chatVisibility']>('public');
+  const [chatVisibility, setChatVisibility] = useState<UseAiBotReturnType['chatVisibility']>(Visibility.PUBLIC);
   const [stateMessage, setStateMessage] = useState<StateMessage | null>(null)
   const [currentStreamMessage, setCurrentStreamMessage] = useState<StreamMessage | null>(null)
   const [isStreamingInProcess, setStreamingInProcess] = useState<boolean>(false)
@@ -106,15 +121,16 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
 
   const onWebSocketMessage = (event: WebSocketEventMap['message']) => {
     if (event.data) {
-      const messageData: BotMessage | DebugMessage | StateMessage | StreamMessage = JSON.parse(event.data);
+      const messageData: BotMessage | DebugMessage | StateMessage | StreamMessage | ErrorMessage = JSON.parse(event.data);
       if (messageData) {
         const isThreadMatching = threadId && threadId === messageData.thread_id;
         const isParentMatching = !threadId && 'parent_id' in messageData && messageData.parent_id && messages;
         const isDebugMessage = messageData.type === 'debug';
         const isStateMessage = messageData.type === 'state';
         const isStreamMessage = messageData.type === 'stream';
+        const isErrorMessage = messageData.type === 'error';
 
-        if (isThreadMatching || isParentMatching || isDebugMessage || isStateMessage || isStreamMessage) {
+        if (isThreadMatching || isParentMatching || isDebugMessage || isStateMessage || isStreamMessage || isErrorMessage) {
           switch (messageData.type) {
             case 'debug':
               handleDebugMessage(messageData)
@@ -127,6 +143,9 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
               break;
             case 'message':
               handleBotMessage(messageData)
+              break;
+            case 'error':
+              handleErrorMessage(messageData)
               break;
           }
         } else if (threadId !== messageData.thread_id) {
@@ -196,6 +215,31 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     }
   }
 
+  const handleErrorMessage = (message: ErrorMessage) => {
+    if (message && message.message) {
+      let error = {
+        hint: null,
+        details: null
+      };
+      const jsonMatch = message.message.match(/{.*}/);
+      const json = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+
+      if (json) {
+        const { hint, details } = json;
+        if (hint) error["hint"] = hint
+        if (details) error["details"] = details
+      }
+      const errorMessage: ErrorMessage = {
+        type: "error",
+        message: `${error.details}\n\n${error.hint}`,
+        thread_id: message.thread_id
+      }
+      setLoading(false)
+      setWsLoading(false)
+      setErrorMessage(errorMessage)
+    }
+  }
+
   const onWebSocketOpen = () => {
     console.log('WebSocket connection established');
     if (threadId) {
@@ -222,7 +266,8 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
 
   const getChatMessages = useCallback(async (threadId: string) => {
     setError(null);
-    setDebugMessages(null)
+    setDebugMessages(null);
+    setErrorMessage(null);
     if (threadId) {
       setLoading(true);
       try {
@@ -289,8 +334,9 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     };
   }, [readyState, threadId]);
 
-  const sendMessage = async ({content, thread_id, org_id, is_public}: SendMessageType) => {
+  const sendMessage = async ({content, thread_id, org_id}: SendMessageType) => {
     setWsLoading(true)
+    setErrorMessage(null)
     if (!thread_id) {
       setLoading(true)
     }
@@ -307,8 +353,8 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
           content,
           thread_id,
           org_id,
-          is_public,
-          ai_model: `${aiModel?.vendor}/${aiModel?.name}`
+          ai_model: `${aiModel?.vendor}/${aiModel?.name}`,
+          is_public: chatVisibility === 'public'
         }
       }))
       setError(error)
@@ -391,10 +437,20 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
   }, [])
 
   useEffect(() => {
-    if (messages && messages.length > 0 && threadId) {
-      setChatVisibility(messages[0].is_public ? 'public' : 'private')
+    if (messages && messages.length > 0) {
+      const newVisibility = messages[0].is_public ? Visibility.PUBLIC : Visibility.PRIVATE;
+      if (newVisibility !== chatVisibility) {
+        setChatVisibility(newVisibility)
+      }
     }
   }, [messages]);
+
+  useEffect(() => {
+    const newVisibility = isPublicByDefault ? Visibility.PUBLIC : Visibility.PRIVATE;
+    if (newVisibility !== chatVisibility) {
+      setChatVisibility(newVisibility)
+    }
+  }, [isPublicByDefault, threadId]);
 
   return {
     error: error,
@@ -416,11 +472,13 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     aiModels,
     aiModelsLoading,
     chatVisibility,
+    setChatVisibility,
     debugMessages,
     debugMessagesLoading,
     stateMessage,
     isStreamingInProcess,
-    currentStreamMessage
+    currentStreamMessage,
+    errorMessage
   }
 }
 
@@ -509,7 +567,7 @@ type UseAiModelsList = {
   setAiModel: (model: AiModel) => void
 }
 
-const useAiModelsList = (): UseAiModelsList => {
+export const useAiModelsList = (): UseAiModelsList => {
   const [llmModels, setLLMModels] = useState<UseAiModelsList['aiModels']>(null);
   const [error, setError] = useState<Response | null>(null);
   const [userModel, setUserModel] = useState<AiModel | null>(null);
