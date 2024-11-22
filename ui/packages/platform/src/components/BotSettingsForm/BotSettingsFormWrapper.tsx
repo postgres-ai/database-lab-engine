@@ -10,6 +10,8 @@ export interface BotSettingsFormProps {
     settingsOrganizationUpdate?: boolean
   }
   orgData?: {
+    priveleged_until: Date
+    chats_private_allowed: boolean
     data?: {
       plan?: string
     } | null

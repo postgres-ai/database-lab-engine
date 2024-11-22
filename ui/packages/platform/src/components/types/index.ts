@@ -39,6 +39,7 @@ export interface Orgs {
     id: number
     owner_user_id: number
     is_chat_public_by_default: boolean
+    chats_private_allowed: boolean
     data: {
       plan: string
     } | null
