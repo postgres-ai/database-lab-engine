@@ -13,6 +13,8 @@ export interface BotWrapperProps {
   orgData: {
     id: number,
     is_chat_public_by_default: boolean
+    priveleged_until: Date
+    chats_private_allowed: boolean
     data: {
       plan: string
     } | null

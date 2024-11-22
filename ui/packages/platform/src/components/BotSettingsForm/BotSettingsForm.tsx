@@ -126,17 +126,7 @@ const BotSettingsForm: React.FC<BotSettingsFormProps> = (props) => {
 
   const classes = useStyles()
 
-  const [threadVisibility, setThreadVisibility] = useState('private')
   const [data, setData] = useState<BotSettingState['data'] | null>(null)
-
-  const isSubscriber = useMemo(() => {
-    const hasEEPlan = orgData?.data?.plan === 'EE';
-    const hasSEPlan = data?.dbLabInstances?.data
-      ? Object.values(data.dbLabInstances.data).some((item) => item.plan === "SE")
-      : false;
-
-    return hasEEPlan || hasSEPlan;
-  }, [data?.dbLabInstances?.data, orgData?.data?.plan]);
 
 
   useEffect(() => {
@@ -146,8 +136,6 @@ const BotSettingsForm: React.FC<BotSettingsFormProps> = (props) => {
       if (JSON.stringify(newStoreData) !== JSON.stringify(data)) {
         const auth = newStoreData?.auth || null;
         const orgProfile = newStoreData?.orgProfile || null;
-        const dbLabInstances = newStoreData?.dbLabInstances || null;
-        const projectId = props.match?.params?.projectId || null;
 
         if (
           auth?.token &&
@@ -156,14 +144,6 @@ const BotSettingsForm: React.FC<BotSettingsFormProps> = (props) => {
           !orgProfile.isProcessing
         ) {
           Actions.getOrgs(auth.token, orgId);
-        }
-
-        if (
-          auth?.token &&
-          !dbLabInstances?.isProcessing &&
-          !dbLabInstances?.error
-        ) {
-          Actions.getDbLabInstances(auth.token, orgId, projectId);
         }
 
         setData(newStoreData);
@@ -269,13 +249,13 @@ const BotSettingsForm: React.FC<BotSettingsFormProps> = (props) => {
                       label={<><b>Public:</b> anyone can view chats, but only team members can respond</>}
                     />
                     <FormControlLabel
-                      disabled={!isSubscriber}
+                      disabled={!orgData?.chats_private_allowed}
                       className={classes.formControlLabel}
                       value="private"
                       control={<Radio size="small"/>}
                       label={<><b>Private:</b> chats are visible only to members of your organization</>}
                     />
-                    {!isSubscriber && <Typography variant="body2" className={classes.unlockNote}>
+                    {!orgData?.chats_private_allowed && <Typography variant="body2" className={classes.unlockNote}>
                       Unlock private conversations by either:
                       <ol>
                         <li>

@@ -129,7 +129,6 @@ export const BotPage = (props: BotPageProps) => {
   const [isChatsListVisible, setChatsListVisible] = useState(window?.innerWidth > 640);
   const [isSettingsDialogVisible, setSettingsDialogVisible] = useState(false);
   const [isDebugConsoleVisible, setDebugConsoleVisible] = useState(false);
-  const [refluxData, setRefluxData] = useState<RefluxState>(null)
 
   const history = useHistory();
 
@@ -177,42 +176,7 @@ export const BotPage = (props: BotPageProps) => {
     }
   }
 
-  const isSubscriber = useMemo(() => {
-    const hasEEPlan = orgData?.data?.plan === 'EE';
-    const hasSEPlan = refluxData?.dbLabInstances?.data
-      ? Object.values(refluxData.dbLabInstances.data).some((item) => item.plan === "SE")
-      : false;
-
-    return hasEEPlan || hasSEPlan;
-  }, [refluxData?.dbLabInstances?.data, orgData?.data?.plan]);
-
-  useEffect(() => {
-    const unsubscribe = Store.listen(function () {
-      const newStoreData = this.data;
-
-      if (JSON.stringify(newStoreData) !== JSON.stringify(refluxData)) {
-        const auth = newStoreData?.auth || null;
-        const dbLabInstances = newStoreData?.dbLabInstances || null;
-        const projectId = props.match?.params?.projectId || null;
-
-        if (
-          auth?.token &&
-          !dbLabInstances?.isProcessing &&
-          !dbLabInstances?.error
-        ) {
-          Actions.getDbLabInstances(auth.token, orgId, projectId);
-        }
-
-        setRefluxData(newStoreData);
-      }
-    });
-
-    Actions.refresh();
-
-    return () => {
-      unsubscribe();
-    };
-  }, [orgId, refluxData, props.match.params.projectId]);
+  const isSubscriber = useMemo(() => orgData?.chats_private_allowed, [orgData?.chats_private_allowed]);
 
   const publicChatMessage = useMemo(() => {
     if (isDemoOrg) {
