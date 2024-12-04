@@ -14,7 +14,11 @@ const useStyles = makeStyles((theme) => ({
       justifyContent: 'center',
     },
     [theme.breakpoints.down(480)]: {
-      marginBottom: '1.5rem',
+      marginBottom: '1rem',
+    },
+    [theme.breakpoints.down(380)]: {
+      marginTop: '1rem',
+      marginBottom: '.5rem',
     },
     [theme.breakpoints.down(760)]: {
       '& > *:nth-child(n+3)': {

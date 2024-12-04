@@ -19,6 +19,7 @@ import { Message } from "./Message/Message";
 import { useAiBot } from "../hooks";
 import { HintCards } from "../HintCards/HintCards";
 import { ErrorMessage } from "./ErrorMessage/ErrorMessage";
+import { KBStats } from "../../../components/KBStats/KBStats";
 
 const useStyles = makeStyles(
   (theme) => ({
@@ -36,7 +37,10 @@ const useStyles = makeStyles(
     },
     emptyChatMessage: {
       maxWidth: '80%',
-      fontSize: '0.875rem'
+      fontSize: 14,
+      [theme.breakpoints.down(330)]: {
+        fontSize: 12
+      }
     },
     messages: {
       overflowY: 'auto',
@@ -229,6 +233,7 @@ export const Messages = React.memo(({orgId}: {orgId: number}) => {
           Depending on settings, LLM service provider such as GCP or OpenAI is used.
         </Typography>
         <HintCards orgId={orgId} />
+        <KBStats />
       </div>
     )
   }

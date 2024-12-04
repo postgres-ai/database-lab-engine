@@ -200,6 +200,7 @@
     "TSQL",
     "sparql",
     "SPARQL",
-    "subtransactions"
+    "subtransactions",
+    "mbox"
   ]
 }
