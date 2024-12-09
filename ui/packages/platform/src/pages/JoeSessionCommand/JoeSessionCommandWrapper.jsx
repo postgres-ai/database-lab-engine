@@ -38,6 +38,9 @@ export const JoeSessionCommandWrapper = (props) => {
       bottomSpace: {
         ...styles.bottomSpace,
       },
+      warningContainer: {
+        marginTop: theme.spacing(2)
+      }
     }),
     { index: 1 },
   )
