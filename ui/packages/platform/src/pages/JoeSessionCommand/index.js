@@ -35,6 +35,7 @@ import Permissions from 'utils/permissions';
 import format from 'utils/format';
 
 import { TabPanel } from './TabPanel';
+import Alert from "@mui/material/Alert";
 
 const hashLinkVisualizePrefix = 'visualize-';
 
@@ -138,6 +139,19 @@ class JoeSessionCommand extends Component {
     const data = this.getCommandData();
     return !!data && data.command === 'explain';
   };
+
+  planHasNoRows = () => {
+    if (!this.isExplain()) return false;
+    const data = this.getCommandData();
+    const planExecJson = data && data.planExecJson;
+    if (!planExecJson) return false;
+
+    const planExecJsonParsed = JSON.parse(planExecJson);
+    if (!Array.isArray(planExecJsonParsed) || planExecJsonParsed.length === 0) return false;
+
+    const plan = planExecJsonParsed[0] && planExecJsonParsed[0]["Plan"];
+    return plan && plan["Actual Rows"] === 0;
+  }
 
   showExternalVisualization = (type) => {
     const data = this.getCommandData();
@@ -350,6 +364,11 @@ class JoeSessionCommand extends Component {
             </Button>
           </div>
         }
+
+        {this.planHasNoRows() && <div className={classes.warningContainer}>
+          <Alert severity="warning">Query returned 0 rows. This may not reflect production performance or use the same query plan. If you expect results, try adjusting parameters (e.g., different ID values).
+</Alert>
+        </div>}
 
         <div>
           <h4>Author:</h4>
