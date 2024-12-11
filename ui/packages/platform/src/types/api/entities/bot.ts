@@ -30,6 +30,7 @@ export type BotMessageWithDebugInfo = BotMessage & {
 }
 
 export type AiModel = {
+  comment: string;
   name: string;
   vendor: string;
   isThirdParty: boolean;

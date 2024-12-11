@@ -356,7 +356,7 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
                   key={`${model.vendor}/${model.name}`}
                   value={`${model.vendor}/${model.name}`}
                   control={<Radio />}
-                  label={model.name}
+                  label={`${model.name} ${model.comment ? model.comment : ''}`}
                 />
               )
             }
