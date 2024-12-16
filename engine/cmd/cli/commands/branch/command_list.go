@@ -20,6 +20,9 @@ func List() []*cli.Command {
 					Name:    "delete",
 					Aliases: []string{"d"},
 				},
+				&cli.StringFlag{
+					Name: "parent-branch",
+				},
 			},
 			ArgsUsage: "BRANCH_NAME",
 		},

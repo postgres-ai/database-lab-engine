@@ -181,9 +181,15 @@ func create(cliCtx *cli.Context) error {
 
 	branchName := cliCtx.Args().First()
 
+	baseBranch := cliCtx.String("parent-branch")
+
+	if baseBranch == "" {
+		baseBranch = getBaseBranch(cliCtx)
+	}
+
 	branchRequest := types.BranchCreateRequest{
 		BranchName: branchName,
-		BaseBranch: getBaseBranch(cliCtx),
+		BaseBranch: baseBranch,
 	}
 
 	branch, err := dblabClient.CreateBranch(cliCtx.Context, branchRequest)
