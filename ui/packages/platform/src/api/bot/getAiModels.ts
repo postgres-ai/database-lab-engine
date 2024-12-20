@@ -20,9 +20,9 @@ export const getAiModels = async (orgId?: number): Promise<{ response: AiModel[]
       return { response: null, error: response };
     }
 
-    const responseData: { bot_llm_models: AiModel[] | null } = await response.json();
+    const responseData: AiModel[]  | null  = await response.json();
 
-    return { response: responseData?.bot_llm_models, error: null };
+    return { response: responseData, error: null };
 
   } catch (error) {
     return { response: null, error: error as Response };
