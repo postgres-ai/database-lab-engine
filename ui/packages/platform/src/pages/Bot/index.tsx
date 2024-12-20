@@ -184,7 +184,7 @@ export const BotPage = (props: BotPageProps) => {
     }
 
     if (!isSubscriber) {
-      return <>AI can make mistakes❗️ All chats here are currently public. <Link to={`/${match.params.org}/instances`}>Connect DBLab SE</Link> or <Link to="https://postgres.ai/consulting">become a consulting client</Link> to enable private conversations</>;
+      return <>AI can make mistakes❗️ All chats here are currently public. <Link to={`/${match.params.org}/instances`}>Connect DBLab SE</Link> or <Link external to="https://postgres.ai/consulting">become a consulting client</Link> to enable private conversations</>;
     }
 
     if (isSubscriber && chatVisibility === 'public') {
