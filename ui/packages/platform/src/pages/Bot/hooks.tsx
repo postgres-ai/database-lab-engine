@@ -89,7 +89,7 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     aiModel,
     setAiModel,
     loading: aiModelsLoading
-  } = useAiModelsList();
+  } = useAiModelsList(orgId);
   let location = useLocation<{skipReloading?: boolean}>();
 
   const {
@@ -567,7 +567,7 @@ type UseAiModelsList = {
   setAiModel: (model: AiModel) => void
 }
 
-export const useAiModelsList = (): UseAiModelsList => {
+export const useAiModelsList = (orgId?: number): UseAiModelsList => {
   const [llmModels, setLLMModels] = useState<UseAiModelsList['aiModels']>(null);
   const [error, setError] = useState<Response | null>(null);
   const [userModel, setUserModel] = useState<AiModel | null>(null);
@@ -577,7 +577,7 @@ export const useAiModelsList = (): UseAiModelsList => {
     let models = null;
     setLoading(true);
     try {
-      const { response } = await getAiModels();
+      const { response } = await getAiModels(orgId);
       setLLMModels(response);
       const currentModel = window.localStorage.getItem('bot.ai_model');
       const parsedModel: AiModel = currentModel ? JSON.parse(currentModel) : null;
