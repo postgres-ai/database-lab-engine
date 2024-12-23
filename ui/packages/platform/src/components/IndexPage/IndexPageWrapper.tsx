@@ -9,7 +9,7 @@ export interface IndexPageProps
     Omit<ProjectWrapperProps, 'location' | 'match'> {}
 
 export const IndexPageWrapper = (props: IndexPageProps) => {
-  const drawerWidth = 185
+  const drawerWidth = 190
 
   const useStyles = makeStyles(
     (theme) => ({
@@ -205,6 +205,9 @@ export const IndexPageWrapper = (props: IndexPageProps) => {
         padding: '0px',
         marginTop: '10px',
       },
+      menuSectionHeaderCollapsible: {
+        marginTop: 0
+      },
       bottomFixedMenuItem: {
         fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
         fontStyle: 'normal',
@@ -236,15 +239,28 @@ export const IndexPageWrapper = (props: IndexPageProps) => {
         paddingLeft: '15px',
         color: '#000000',
       },
+      menuSectionHeaderLinkText: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        fontWeight: 'bold'
+      },
       menuSingleSectionHeaderActiveLink: {
         backgroundColor: colors.consoleStroke,
       },
       menuPointer: {
         height: '100%',
       },
+      menuContainer: {
+        height: 'calc(100% - 90px)',
+        display: 'flex',
+        flexDirection: 'column'
+      },
+      navMenuContainer: {
+        flex: 1,
+        overflowY: 'auto'
+      },
       navMenu: {
         padding: '0px',
-        height: 'calc(100% - 160px)',
         overflowY: 'auto',
         
         display: 'flex',
@@ -252,6 +268,11 @@ export const IndexPageWrapper = (props: IndexPageProps) => {
       },
       menuSectionHeaderIcon: {
         marginRight: '13px',
+      },
+      menuSectionHeaderExpandIcon: {
+        marginLeft: 4,
+        width: 16,
+        height: 16
       },
       menuItem: {
         fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
