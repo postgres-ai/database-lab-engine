@@ -45,12 +45,12 @@ interface AuditWithStylesProps extends AuditProps {
 
 export interface AuditLogData {
   id: number
-  data_before: string
-  data_after: string
   action: string
   actor: string
   action_data: {
     processed_row_count: number
+    data_before: Record<string, string>[]
+    data_after: Record<string, string>[]
   }
   created_at: string
   table_name: string
@@ -193,9 +193,9 @@ class Audit extends Component<AuditWithStylesProps, AuditState> {
   }
 
   getChangesTitle = (r: AuditLogData) => {
-    const displayedCount = r.data_before
-      ? r.data_before?.length
-      : r.data_after?.length
+    const displayedCount = r.action_data && r.action_data.data_before
+      ? r.action_data.data_before?.length
+      : r.action_data?.data_after?.length
     const objCount =
       r.action_data && r.action_data.processed_row_count
         ? r.action_data.processed_row_count
@@ -243,15 +243,6 @@ class Audit extends Component<AuditWithStylesProps, AuditState> {
     const pageTitle = (
       <ConsolePageTitle
         title={auditTitle}
-        filterProps={
-          logs && logs.length > 0
-            ? {
-                filterValue: this.state.filterValue,
-                filterHandler: this.filterInputHandler,
-                placeholder: 'Search audit log',
-              }
-            : null
-        }
       />
     )
 
@@ -310,7 +301,7 @@ class Audit extends Component<AuditWithStylesProps, AuditState> {
                       <TableRow hover className={classes?.row} key={r.id}>
                         <TableCell className={classes?.cell}>
                           {this.formatAction(r)}
-                          {(r.data_before || r.data_after) && (
+                          {((r.action_data && r.action_data.data_before) || (r.action_data && r.action_data.data_after)) && (
                             <div>
                               <ExpansionPanel
                                 className={classes?.expansionPanel}
@@ -326,7 +317,7 @@ class Audit extends Component<AuditWithStylesProps, AuditState> {
                                 <ExpansionPanelDetails
                                   className={classes?.expansionPanelDetails}
                                 >
-                                  {r.data_before && (
+                                  {r.action_data && r.action_data.data_before && (
                                     <div className={classes?.data}>
                                       {this.getDataSectionTitle(r, true)}
                                       <TextField
@@ -335,7 +326,7 @@ class Audit extends Component<AuditWithStylesProps, AuditState> {
                                         multiline
                                         fullWidth
                                         value={JSON.stringify(
-                                          r.data_before,
+                                          r.action_data.data_before,
                                           null,
                                           4,
                                         )}
@@ -347,7 +338,7 @@ class Audit extends Component<AuditWithStylesProps, AuditState> {
                                       />
                                     </div>
                                   )}
-                                  {r.data_after && (
+                                  {r.action_data && r.action_data.data_after && (
                                     <div className={classes?.data}>
                                       {this.getDataSectionTitle(r, false)}
                                       <TextField
@@ -356,7 +347,7 @@ class Audit extends Component<AuditWithStylesProps, AuditState> {
                                         multiline
                                         fullWidth
                                         value={JSON.stringify(
-                                          r.data_after,
+                                          r.action_data.data_after,
                                           null,
                                           4,
                                         )}
