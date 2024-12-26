@@ -466,7 +466,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                 <span className={parentProps.classes.menuSectionHeaderIcon}>
                   {icons.sqlOptimizationIcon}
                 </span>
-                SQL Optimization
+                Joe bot
                 {activeMenuItems.has('sqlOptimization')
                   ? <ExpandLess className={parentProps.classes.menuSectionHeaderExpandIcon} />
                   : <ExpandMore className={parentProps.classes.menuSectionHeaderExpandIcon} />}
