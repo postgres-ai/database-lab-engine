@@ -50,7 +50,7 @@ export interface AuditLogData {
   action: string
   actor: string
   action_data: {
-    processed_rows_count: number
+    processed_row_count: number
   }
   created_at: string
   table_name: string
@@ -155,11 +155,11 @@ class Audit extends Component<AuditWithStylesProps, AuditState> {
       actorSrc = ' (changed directly in database) '
     }
 
-    if (r.action_data && r.action_data.processed_rows_count) {
+    if (r.action_data && r.action_data.processed_row_count) {
       rows =
-        r.action_data.processed_rows_count +
+        r.action_data.processed_row_count +
         ' ' +
-        (r.action_data.processed_rows_count > 1 ? 'rows' : 'row')
+        (r.action_data.processed_row_count > 1 ? 'rows' : 'row')
     }
 
     switch (r.action) {
@@ -197,8 +197,8 @@ class Audit extends Component<AuditWithStylesProps, AuditState> {
       ? r.data_before?.length
       : r.data_after?.length
     const objCount =
-      r.action_data && r.action_data.processed_rows_count
-        ? r.action_data.processed_rows_count
+      r.action_data && r.action_data.processed_row_count
+        ? r.action_data.processed_row_count
         : null
 
     if (displayedCount && (objCount as number) > displayedCount) {

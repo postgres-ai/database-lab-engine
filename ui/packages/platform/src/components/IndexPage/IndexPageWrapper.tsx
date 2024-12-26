@@ -206,7 +206,7 @@ export const IndexPageWrapper = (props: IndexPageProps) => {
         marginTop: '10px',
       },
       menuSectionHeaderCollapsible: {
-        marginTop: 0
+        //marginTop: 0
       },
       bottomFixedMenuItem: {
         fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
@@ -228,7 +228,12 @@ export const IndexPageWrapper = (props: IndexPageProps) => {
         color: '#000000',
         display: 'inline-flex',
         alignItems: 'center',
-        whiteSpace: 'nowrap'
+        whiteSpace: 'nowrap',
+        margin: 0
+      },
+      menuSectionHeaderLinkCollapsible: {
+        paddingTop: '10px!important',
+        paddingBottom: '10px!important',
       },
       menuSectionHeaderActiveLink: {
         textDecoration: 'none',

@@ -236,7 +236,8 @@ const initialState = {
     isLogDownloading: false,
     logs: {}
   },
-  auditLog: storeItem
+  auditLog: storeItem,
+  auditEvents: {...storeItem}
 };
 
 const Store = Reflux.createStore({
@@ -588,6 +589,58 @@ const Store = Reflux.createStore({
       Actions.getUserProfile(this.data.auth.token);
       Actions.getOrgs(this.data.auth.token, this.data.orgProfile.orgId);
       Actions.showNotification('AI Assistant settings successfully saved.', 'success');
+    }
+
+    this.trigger(this.data);
+  },
+
+
+  onUpdateAuditSettingsFailed: function (error) {
+    this.data.orgProfile.isUpdating = false;
+    this.data.orgProfile.updateError = true;
+    this.data.orgProfile.updateErrorMessage = error.message;
+    this.trigger(this.data);
+  },
+
+  onUpdateAuditSettingsProgressed: function (data) {
+    this.data.orgProfile.updateErrorFields = null;
+    this.data.orgProfile.isUpdating = true;
+
+    this.trigger(this.data);
+  },
+
+  onUpdateAuditSettingsCompleted: function (data) {
+    this.data.orgProfile.isUpdating = false;
+    this.data.orgProfile.updateErrorMessage = this.getError(data);
+    this.data.orgProfile.updateError = !!this.data.orgProfile.updateErrorMessage;
+
+    if (!this.data.orgProfile.updateError && data.length > 0) {
+      this.data.orgProfile.updateErrorFields = null;
+      this.data.orgProfile.data = data[0];
+      Actions.getUserProfile(this.data.auth.token);
+      Actions.getOrgs(this.data.auth.token, this.data.orgProfile.orgId);
+      Actions.showNotification('Audit settings successfully saved.', 'success');
+    }
+
+    this.trigger(this.data);
+  },
+
+  onTestSiemServiceConnectionFailed: function (error) {
+    this.data.orgProfile.isUpdating = false;
+    this.trigger(this.data);
+  },
+
+  onTestSiemServiceConnectionProgressed: function (data) {
+    this.data.orgProfile.isUpdating = true;
+    this.trigger(this.data);
+  },
+
+  onTestSiemServiceConnectionCompleted: function (data) {
+    this.data.orgProfile.isUpdating = false;
+    if (data && data.test_siem_connection && data.test_siem_connection.status && data.test_siem_connection.status < 300) {
+      Actions.showNotification('Connection successful', 'success');
+    } else {
+      Actions.showNotification('Connection error', 'error');
     }
 
     this.trigger(this.data);
@@ -2961,7 +3014,40 @@ const Store = Reflux.createStore({
     }
 
     this.trigger(this.data);
-  }
+  },
+
+  onGetAuditEventsFailed: function (error) {
+    this.data.auditEvents.isProcessing = false;
+    this.data.auditEvents.error = true;
+    this.data.auditEvents.errorMessage = error.message;
+    this.trigger(this.data);
+  },
+
+  onGetAuditEventsProgressed: function (data) {
+    this.data.auditEvents.isProcessing = true;
+
+    this.trigger(this.data);
+  },
+
+  onGetAuditEventsCompleted: function (data) {
+    this.data.auditEvents.isProcessing = false;
+    this.data.auditEvents.errorMessage = this.getError(data.data);
+    this.data.auditEvents.error = this.data.orgProfile.errorMessage;
+
+    if (!this.data.auditEvents.error) {
+      if (data.data.length > 0) {
+        this.data.auditEvents.isProcessed = true;
+        this.data.auditEvents = {...data};
+      } else {
+        this.data.auditEvents.error = true;
+        this.data.auditEvents.errorMessage =
+          'You do not have permission to view this page.';
+        this.data.auditEvents.errorCode = 403;
+      }
+    }
+
+    this.trigger(this.data);
+  },
 });
 
 
