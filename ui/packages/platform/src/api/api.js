@@ -467,6 +467,71 @@ class Api {
     });
   }
 
+  updateAuditSettings(token, orgId, orgData) {
+    let params = {};
+    let headers = {
+      Authorization: 'Bearer ' + token,
+      prefer: 'return=representation'
+    };
+
+    if (typeof orgData.enableSiemIntegration !== 'undefined') {
+      params.siem_integration_enabled = orgData.enableSiemIntegration;
+    }
+
+    if (typeof orgData.urlSchema !== 'undefined') {
+      params.siem_integration_url = orgData.urlSchema;
+    }
+
+    if (typeof orgData.auditEvents !== "undefined") {
+      params.audit_events_to_log = orgData.auditEvents.map((item) => item.event_name)
+    }
+
+    if (typeof orgData.headers !== 'undefined' && Array.isArray(orgData.headers)) {
+      orgData.headers = orgData.headers.filter(item => item.key && item.value);
+      if (Object.keys(orgData.headers).length > 0) {
+        params.siem_integration_request_headers = orgData.headers.reduce((acc, item) => {
+          acc[item.key] = item.value;
+          return acc;
+        }, {});
+      } else {
+        params.siem_integration_request_headers = null
+      }
+    }
+
+    return this.patch(`${this.apiServer}/orgs?id=eq.` + orgId, params, {
+      headers: headers
+    });
+  }
+
+  testSiemServiceConnection(token, data) {
+    let params = {};
+    let headers = {
+      Accept: 'application/vnd.pgrst.object+json',
+      Authorization: 'Bearer ' + token,
+      prefer: 'return=representation'
+    };
+
+    if (typeof data.urlSchema !== 'undefined') {
+      params.api_url = data.urlSchema;
+    }
+
+    if (typeof data.headers !== 'undefined' && Array.isArray(data.headers)) {
+      data.headers = data.headers.filter(item => item.key && item.value);
+      if (Object.keys(data.headers).length > 0) {
+        params.http_headers_extra = data.headers.reduce((acc, item) => {
+          acc[item.key] = item.value;
+          return acc;
+        }, {});
+      } else {
+        params.http_headers_extra = null
+      }
+    }
+
+    return this.post(`${this.apiServer}/rpc/test_siem_connection`, params, {
+      headers: headers
+    });
+  }
+
   inviteUser(token, orgId, email) {
     let headers = {
       Authorization: 'Bearer ' + token
@@ -991,6 +1056,17 @@ class Api {
       {},
       { headers }
     );
+  }
+
+  getAuditEvents(token) {
+    let params = {};
+    let headers = {
+      Authorization: 'Bearer ' + token
+    };
+
+    return this.get(`${this.apiServer}/audit_events`, params, {
+      headers: headers
+    });
   }
 }
 

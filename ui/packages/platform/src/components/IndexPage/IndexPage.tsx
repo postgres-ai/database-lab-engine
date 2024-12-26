@@ -87,6 +87,7 @@ import { PostgresClusterInstallWrapper } from 'components/PostgresClusterInstall
 import { PostgresClustersWrapper } from 'components/PostgresClusters/PostgresClustersWrapper'
 import cn from "classnames";
 import { BotSettingsFormWrapper } from "../BotSettingsForm/BotSettingsFormWrapper";
+import { AuditSettingsFormWrapper } from "../AuditSettingsForm/AuditSettingsFormWrapper";
 import { ExpandLess, ExpandMore } from "@material-ui/icons";
 
 
@@ -397,6 +398,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
               <ListItemText
                 className={cn(
                   parentProps.classes.menuSectionHeaderLink,
+                  parentProps.classes.menuSectionHeaderLinkCollapsible,
                   {[parentProps.classes.menuSectionHeaderActiveLink]: activeMenuItems.has('dblab')}
                 )}
                 classes={{primary: parentProps.classes.menuSectionHeaderLinkText}}
@@ -456,6 +458,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
               <ListItemText
                 className={cn(
                   parentProps.classes.menuSectionHeaderLink,
+                  parentProps.classes.menuSectionHeaderLinkCollapsible,
                   {[parentProps.classes.menuSectionHeaderActiveLink]: activeMenuItems.has('sqlOptimization')}
                 )}
                 classes={{primary: parentProps.classes.menuSectionHeaderLinkText}}
@@ -563,6 +566,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
               <ListItemText
                 className={cn(
                   parentProps.classes.menuSectionHeaderLink,
+                  parentProps.classes.menuSectionHeaderLinkCollapsible,
                   {[parentProps.classes.menuSectionHeaderActiveLink]: activeMenuItems.has('checkup')}
                 )}
                 classes={{primary: parentProps.classes.menuSectionHeaderLinkText}}
@@ -598,6 +602,27 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                 </ListItem>
               </List>
             </Collapse>
+            {orgPermissions && orgPermissions.auditLogView && (<ListItem
+              button
+              className={cn(parentProps.classes.menuSectionHeader, parentProps.classes.menuSectionHeaderCollapsible)}
+              disabled={isBlocked}
+              id="menuSettingsTitle"
+            >
+              <NavLink
+                className={parentProps.classes.menuSectionHeaderLink}
+                activeClassName={cn(parentProps.classes.menuSectionHeaderActiveLink, parentProps.classes.menuSingleSectionHeaderActiveLink)}
+                to={
+                  orgPermissions && orgPermissions.settingsOrganizationUpdate
+                    ? '/' + org + '/audit'
+                    : '#'
+                }
+              >
+                <span className={parentProps.classes.menuSectionHeaderIcon}>
+                  {icons.auditLogIcon}
+                </span>
+                Audit
+              </NavLink>
+            </ListItem>)}
             <ListItem
               button
               className={cn(parentProps.classes.menuSectionHeader, parentProps.classes.menuSectionHeaderCollapsible)}
@@ -608,6 +633,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
               <ListItemText
                 className={cn(
                   parentProps.classes.menuSectionHeaderLink,
+                  parentProps.classes.menuSectionHeaderLinkCollapsible,
                   {[parentProps.classes.menuSectionHeaderActiveLink]: activeMenuItems.has('settings')}
                 )}
                 classes={{primary: parentProps.classes.menuSectionHeaderLinkText}}
@@ -615,7 +641,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                 <span className={parentProps.classes.menuSectionHeaderIcon}>
                   {icons.settingsIcon}
                 </span>
-                Settings
+                Manage
                 {activeMenuItems.has('settings')
                   ? <ExpandLess className={parentProps.classes.menuSectionHeaderExpandIcon} />
                   : <ExpandMore className={parentProps.classes.menuSectionHeaderExpandIcon} />}
@@ -639,7 +665,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                       activeClassName={parentProps.classes.menuItemActiveLink}
                       to={'/' + org + '/settings'}
                     >
-                      General
+                      General settings
                     </NavLink>
                   </ListItem>
                 )}
@@ -655,7 +681,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                       activeClassName={parentProps.classes.menuItemActiveLink}
                       to={'/' + org + '/assistant-settings'}
                     >
-                      AI Assistant
+                      AI Assistant settings
                     </NavLink>
                   </ListItem>
                 )}
@@ -702,7 +728,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                     </NavLink>
                   </ListItem>
                 )}
-                {orgPermissions && orgPermissions.auditLogView && (
+                {orgData !== null && orgPermissions && Permissions.isAdmin(orgData) && orgPermissions.auditLogView && (
                   <ListItem
                     disabled={
                       (orgPermissions && !orgPermissions.auditLogView) || isBlocked
@@ -714,9 +740,9 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                     <NavLink
                       className={parentProps.classes.menuItemLink}
                       activeClassName={parentProps.classes.menuItemActiveLink}
-                      to={'/' + org + '/audit'}
+                      to={'/' + org + '/audit-settings'}
                     >
-                      Audit
+                      Audit settings
                     </NavLink>
                   </ListItem>
                 )}
@@ -983,6 +1009,12 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
         path="/:org/assistant-settings"
         render={(props) => (
           <BotSettingsFormWrapper {...props} {...customProps} {...queryProps} />
+        )}
+      />
+      <Route
+        path="/:org/audit-settings"
+        render={(props) => (
+          <AuditSettingsFormWrapper {...props} {...customProps} {...queryProps} />
         )}
       />
       <Route
