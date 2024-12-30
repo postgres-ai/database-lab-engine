@@ -434,6 +434,11 @@ func (s *Server) patchClone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.tm.SendEvent(context.Background(), telemetry.CloneUpdatedEvent, telemetry.CloneUpdated{
+		ID:        util.HashID(cloneID),
+		Protected: patchClone.Protected,
+	})
+
 	if err := api.WriteJSON(w, http.StatusOK, updatedClone); err != nil {
 		api.SendError(w, r, err)
 		return
