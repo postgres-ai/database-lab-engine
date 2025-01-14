@@ -99,7 +99,7 @@ func (m *LVManager) CreateSnapshot(_, _ string) (string, error) {
 }
 
 // DestroySnapshot is not supported in LVM mode.
-func (m *LVManager) DestroySnapshot(_ string) error {
+func (m *LVManager) DestroySnapshot(_ string, _ thinclones.DestroyOptions) error {
 	log.Msg("Destroying a snapshot is not supported in LVM mode. Skip the operation.")
 
 	return nil
@@ -205,6 +205,13 @@ func (m *LVManager) ListAllBranches() ([]models.BranchEntity, error) {
 	return nil, nil
 }
 
+// GetSnapshotProperties get custom snapshot properties.
+func (m *LVManager) GetSnapshotProperties(_ string) (thinclones.SnapshotProperties, error) {
+	log.Msg("GetSnapshotProperties is not supported for LVM. Skip the operation")
+
+	return thinclones.SnapshotProperties{}, nil
+}
+
 // AddBranchProp adds branch to snapshot property.
 func (m *LVManager) AddBranchProp(_, _ string) error {
 	log.Msg("AddBranchProp is not supported for LVM. Skip the operation")
@@ -297,8 +304,22 @@ func (m *LVManager) Move(_, _, _ string) error {
 }
 
 // HasDependentEntity checks if snapshot has dependent entities.
-func (m *LVManager) HasDependentEntity(_ string) error {
+func (m *LVManager) HasDependentEntity(_ string) ([]string, error) {
 	log.Msg("HasDependentEntity is not supported for LVM. Skip the operation")
 
+	return nil, nil
+}
+
+// KeepRelation keeps relation between adjacent snapshots.
+func (m *LVManager) KeepRelation(_ string) error {
+	log.Msg("KeepRelation is not supported for LVM. Skip the operation")
+
 	return nil
+}
+
+// FindBranchBySnapshot finds the branch which the snapshot belongs to.
+func (m *LVManager) FindBranchBySnapshot(_ string) (string, error) {
+	log.Msg("KeepRelation is not supported for LVM. Skip the operation")
+
+	return "", nil
 }

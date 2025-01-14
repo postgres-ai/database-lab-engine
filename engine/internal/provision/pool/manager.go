@@ -45,7 +45,7 @@ type StateReporter interface {
 // Snapshotter describes methods of snapshot management.
 type Snapshotter interface {
 	CreateSnapshot(poolSuffix, dataStateAt string) (snapshotName string, err error)
-	DestroySnapshot(snapshotName string) (err error)
+	DestroySnapshot(snapshotName string, options thinclones.DestroyOptions) (err error)
 	CleanupSnapshots(retentionLimit int) ([]string, error)
 	SnapshotList() []resources.Snapshot
 	RefreshSnapshotList()
@@ -67,6 +67,7 @@ type Branching interface {
 	Move(baseSnap, currentSnap, target string) error
 	SetMountpoint(path, branch string) error
 	Rename(oldName, branch string) error
+	GetSnapshotProperties(snapshotName string) (thinclones.SnapshotProperties, error)
 	AddBranchProp(branch, snapshotName string) error
 	DeleteBranchProp(branch, snapshotName string) error
 	DeleteChildProp(childSnapshot, snapshotName string) error
@@ -75,7 +76,9 @@ type Branching interface {
 	SetDSA(dsa, snapshotName string) error
 	SetMessage(message, snapshotName string) error
 	Reset(snapshotID string, options thinclones.ResetOptions) error
-	HasDependentEntity(snapshotName string) error
+	HasDependentEntity(snapshotName string) ([]string, error)
+	KeepRelation(snapshotName string) error
+	FindBranchBySnapshot(snapshot string) (string, error)
 }
 
 // Pooler describes methods for Pool providing.

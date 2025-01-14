@@ -366,13 +366,19 @@ func getSnapshotName(pool, dataStateAt string) string {
 }
 
 // DestroySnapshot destroys the snapshot.
-func (m *Manager) DestroySnapshot(snapshotName string) error {
+func (m *Manager) DestroySnapshot(snapshotName string, opts thinclones.DestroyOptions) error {
 	rel, err := m.detectBranching(snapshotName)
 	if err != nil {
 		return fmt.Errorf("failed to inspect snapshot properties: %w", err)
 	}
 
-	cmd := fmt.Sprintf("zfs destroy %s", snapshotName)
+	flags := ""
+
+	if opts.Force {
+		flags = "-R"
+	}
+
+	cmd := fmt.Sprintf("zfs destroy %s %s", flags, snapshotName)
 
 	if _, err := m.runner.Run(cmd); err != nil {
 		return fmt.Errorf("failed to run command: %w", err)
@@ -473,6 +479,8 @@ func (m *Manager) CleanupSnapshots(retentionLimit int) ([]string, error) {
 
 	out, err := m.runner.Run(cleanupCmd)
 	if err != nil {
+		log.Dbg(out)
+
 		return nil, errors.Wrap(err, "failed to clean up snapshots")
 	}
 
@@ -485,6 +493,7 @@ func (m *Manager) CleanupSnapshots(retentionLimit int) ([]string, error) {
 
 func (m *Manager) getBusySnapshotList(clonesOutput string) []string {
 	systemClones, userClones := make(map[string]string), make(map[string]struct{})
+	branchingSnapshots := []string{}
 
 	userClonePrefix := m.config.Pool.Name + "/"
 
@@ -492,6 +501,13 @@ func (m *Manager) getBusySnapshotList(clonesOutput string) []string {
 		cloneLine := strings.FieldsFunc(line, unicode.IsSpace)
 
 		if len(cloneLine) != 2 || cloneLine[1] == "-" {
+			continue
+		}
+
+		// Keep the user-defined snapshot and the snapshot it is based on.
+		if strings.HasPrefix(cloneLine[0], userClonePrefix+"branch") {
+			branchingSnapshots = append(branchingSnapshots, cloneLine[0], cloneLine[1])
+
 			continue
 		}
 
@@ -514,8 +530,12 @@ func (m *Manager) getBusySnapshotList(clonesOutput string) []string {
 	busySnapshots := make([]string, 0, len(userClones))
 
 	for userClone := range userClones {
-		busySnapshots = append(busySnapshots, systemClones[userClone])
+		if systemClones[userClone] != "" {
+			busySnapshots = append(busySnapshots, systemClones[userClone])
+		}
 	}
+
+	busySnapshots = append(busySnapshots, branchingSnapshots...)
 
 	return busySnapshots
 }
