@@ -1,6 +1,7 @@
 package srv
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -13,6 +14,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
@@ -247,6 +249,10 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 		EntityID:  branch.Name,
 	}
 
+	s.tm.SendEvent(context.Background(), telemetry.BranchCreatedEvent, telemetry.BranchCreated{
+		Name: branch.Name,
+	})
+
 	if err := api.WriteJSON(w, http.StatusOK, branch); err != nil {
 		api.SendError(w, r, err)
 		return
@@ -439,6 +445,8 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
+
+	s.tm.SendEvent(context.Background(), telemetry.SnapshotCreatedEvent, telemetry.SnapshotCreated{})
 
 	if err := api.WriteJSON(w, http.StatusOK, types.SnapshotResponse{SnapshotID: targetSnap}); err != nil {
 		api.SendError(w, r, err)
@@ -642,6 +650,10 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 		EventType: webhooks.BranchDeleteEvent,
 		EntityID:  deleteRequest.BranchName,
 	}
+
+	s.tm.SendEvent(context.Background(), telemetry.BranchDestroyedEvent, telemetry.BranchDestroyed{
+		Name: deleteRequest.BranchName,
+	})
 
 	if err := api.WriteJSON(w, http.StatusOK, models.Response{
 		Status:  models.ResponseOK,

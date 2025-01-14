@@ -49,10 +49,29 @@ type CloneCreated struct {
 	DSADiff     *float64 `json:"dsa_diff,omitempty"`
 }
 
+// CloneUpdated describes the clone updates.
+type CloneUpdated struct {
+	ID        string `json:"id"`
+	Protected bool   `json:"protected"`
+}
+
 // CloneDestroyed describes a clone destruction event.
 type CloneDestroyed struct {
 	ID string `json:"id"`
 }
+
+// BranchCreated describes a branch creation event.
+type BranchCreated struct {
+	Name string `json:"name"`
+}
+
+// BranchDestroyed describes a branch destruction event.
+type BranchDestroyed struct {
+	Name string `json:"name"`
+}
+
+// ConfigUpdated describes the config updates.
+type ConfigUpdated struct{}
 
 // Alert describes alert events.
 type Alert struct {

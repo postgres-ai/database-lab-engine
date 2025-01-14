@@ -29,8 +29,19 @@ const (
 	// CloneDestroyedEvent describes a clone destruction event.
 	CloneDestroyedEvent = "clone_destroyed"
 
+	// CloneUpdatedEvent describes a clone update event.
+	CloneUpdatedEvent = "clone_updated"
+
 	// SnapshotCreatedEvent describes a snapshot creation event.
 	SnapshotCreatedEvent = "snapshot_created"
+
+	// BranchCreatedEvent describes a branch creation event.
+	BranchCreatedEvent = "branch_created"
+
+	// BranchDestroyedEvent describes a branch destruction event.
+	BranchDestroyedEvent = "branch_destroyed"
+
+	ConfigUpdatedEvent = "config_updated"
 
 	// AlertEvent describes alert events.
 	AlertEvent = "alert"
