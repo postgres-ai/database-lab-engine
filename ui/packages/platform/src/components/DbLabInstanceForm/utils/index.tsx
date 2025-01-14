@@ -8,9 +8,9 @@ import { useCloudProviderProps } from 'hooks/useCloudProvider'
 const API_SERVER = process.env.REACT_APP_API_SERVER
 export const DEBUG_API_SERVER = 'https://v2.postgres.ai/api/general'
 
-export const availableTags = ['3.5.0', '3.4.0', '4.0.0-alpha.6']
+export const availableTags = ['3.5.0', '3.4.0', '4.0.0-beta.0']
 
-export const sePackageTag = 'v1.3'
+export const sePackageTag = 'v1.4'
 
 export const dockerRunCommand = (provider: string) => {
   switch (provider) {
