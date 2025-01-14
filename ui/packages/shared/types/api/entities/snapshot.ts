@@ -1,7 +1,7 @@
 import { parseDate } from '@postgres.ai/shared/utils/date'
 
 export type SnapshotDto = {
-  numClones: string
+  numClones: string | number
   createdAt: string
   dataStateAt: string
   id: string

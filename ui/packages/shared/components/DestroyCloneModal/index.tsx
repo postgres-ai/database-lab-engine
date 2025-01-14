@@ -28,16 +28,12 @@ export const DestroyCloneModal = (props: Props) => {
   }
 
   return (
-    <Modal
-      title={`Destroy clone ${cloneId}`}
-      onClose={onClose}
-      isOpen={isOpen}
-    >
+    <Modal title={`Destroy clone ${cloneId}`} onClose={onClose} isOpen={isOpen}>
       <Text>
         Are you sure you want to destroy clone{' '}
-        <ImportantText>{cloneId}</ImportantText>?
+        <ImportantText>{cloneId}</ImportantText>? This action cannot be undone.
       </Text>
-      
+
       <SimpleModalControls
         items={[
           {
@@ -48,7 +44,7 @@ export const DestroyCloneModal = (props: Props) => {
             text: 'Destroy clone',
             variant: 'primary',
             onClick: handleClickDestroy,
-          }
+          },
         ]}
       />
     </Modal>

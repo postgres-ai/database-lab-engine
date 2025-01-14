@@ -5,10 +5,10 @@ import { NavPath } from 'components/NavPath'
 import { ROUTES } from 'config/routes'
 import { getInstance } from 'api/instances/getInstance'
 import { getInstanceRetrieval } from 'api/instances/getInstanceRetrieval'
-import { getSnapshots } from 'api/snapshots/getSnapshots'
 import { createClone } from 'api/clones/createClone'
 import { getClone } from 'api/clones/getClone'
 import { getBranches } from 'api/branches/getBranches'
+import { getBranchSnapshots } from 'api/snapshots/getBranchSnapshots'
 
 export const CreateClone = () => {
   const routes = {
@@ -17,12 +17,12 @@ export const CreateClone = () => {
   }
 
   const api = {
-    getSnapshots,
     getInstance,
     getInstanceRetrieval,
     createClone,
     getClone,
     getBranches,
+    getBranchSnapshots,
   }
 
   const elements = {

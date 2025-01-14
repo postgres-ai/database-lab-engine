@@ -51,7 +51,7 @@ export const DestroySnapshotModal = ({
 
   const handleClickDestroy = () => {
     destroySnapshot(snapshotId).then((res) => {
-     if (res?.error?.message) {
+      if (res?.error?.message) {
         setDeleteError(res.error.message)
       } else {
         afterSubmitClick()
@@ -60,12 +60,12 @@ export const DestroySnapshotModal = ({
     })
   }
 
-
   return (
     <Modal title={'Confirmation'} onClose={handleClose} isOpen={isOpen}>
       <Text>
         Are you sure you want to destroy snapshot{' '}
-        <ImportantText>{snapshotId}</ImportantText>?
+        <ImportantText>{snapshotId}</ImportantText>? This action cannot be
+        undone.
       </Text>
       {deleteError && <p className={classes.errorMessage}>{deleteError}</p>}
       <SimpleModalControls

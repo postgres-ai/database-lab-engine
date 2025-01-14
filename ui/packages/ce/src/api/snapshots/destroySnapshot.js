@@ -6,13 +6,17 @@
  */
 
 import { request } from 'helpers/request'
-import { formatBranchesDto } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 
-export const getBranches = async () => {
-  const response = await request(`/branches`)
+export const destroySnapshot = async (snapshotId) => {
+  const response = await request(`/snapshot/delete`, {
+    method: 'POST',
+    body: JSON.stringify({
+      snapshotID: snapshotId,
+    }),
+  })
 
   return {
-    response: response.ok ? formatBranchesDto(await response.json()) : null,
+    response: response.ok ? true : null,
     error: response.ok ? null : response,
   }
 }

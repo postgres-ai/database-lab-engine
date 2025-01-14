@@ -12,11 +12,8 @@ import {
   CreateBranch,
   CreateBranchFormValues,
 } from '@postgres.ai/shared/types/api/endpoints/createBranch'
-import {
-  GetSnapshotList,
-  GetSnapshotListResponseType,
-} from '@postgres.ai/shared/types/api/endpoints/getSnapshotList'
-import { GetBranchesResponseType } from '@postgres.ai/shared/types/api/endpoints/getBranches'
+import { Branch } from '@postgres.ai/shared/types/api/endpoints/getBranches'
+import { GetBranchSnapshots } from 'types/api/endpoints/getBranchSnapshots'
 
 type Error = {
   title?: string
@@ -26,19 +23,18 @@ type Error = {
 export type MainStoreApi = {
   getBranches: GetBranches
   createBranch: CreateBranch
-  getSnapshotList: GetSnapshotList
+  getBranchSnapshots: GetBranchSnapshots
 }
 
 export class MainStore {
-  snapshotListError: Error | null = null
+  branchSnapshotsError: Error | null = null
   getBranchesError: Error | null = null
   createBranchError: Error | null = null
 
   isBranchesLoading = false
   isCreatingBranch = false
 
-  branchesList: GetBranchesResponseType[] = []
-  snapshotsList: GetSnapshotListResponseType[] = []
+  branchesList: Branch[] = []
   private readonly api: MainStoreApi
 
   constructor(api: MainStoreApi) {
@@ -46,21 +42,12 @@ export class MainStore {
     makeAutoObservable(this)
   }
 
-  load = async (baseBranch: string) => {
-    await this.getBranches()
-      .then((response) => {
-        if (response) {
-          this.branchesList = response
-        }
-      })
-      .then(() => {
-        this.getSnapshotList(baseBranch).then((res) => {
-          if (res) {
-            const filteredSnapshots = res.filter((snapshot) => snapshot.id)
-            this.snapshotsList = filteredSnapshots
-          }
-        })
-      })
+  load = async () => {
+    await this.getBranches().then((response) => {
+      if (response) {
+        this.branchesList = response
+      }
+    })
   }
 
   createBranch = async (values: CreateBranchFormValues) => {
@@ -84,20 +71,20 @@ export class MainStore {
 
     const { response, error } = await this.api.getBranches()
 
+    this.isBranchesLoading = false
+
     if (error) this.getBranchesError = await error.json().then((err) => err)
 
     return response
   }
 
-  getSnapshotList = async (branchName: string) => {
-    if (!this.api.getSnapshotList) return
+  getBranchSnapshots = async (branchName: string) => {
+    if (!this.api.getBranchSnapshots) return
 
-    const { response, error } = await this.api.getSnapshotList(branchName)
-
-    this.isBranchesLoading = false
+    const { response, error } = await this.api.getBranchSnapshots(branchName)
 
     if (error) {
-      this.snapshotListError = await error.json().then((err) => err)
+      this.branchSnapshotsError = await error.json().then((err) => err)
     }
 
     return response

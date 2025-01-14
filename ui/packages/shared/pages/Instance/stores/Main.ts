@@ -72,7 +72,6 @@ export class MainStore {
   getFullConfigError: string | null = null
   getBranchesError: Error | null = null
   snapshotListError: string | null = null
-  deleteBranchError: Error | null = null
   seImagesError: string | undefined | null = null
 
   unstableClones = new Set<string>()
@@ -369,19 +368,14 @@ export class MainStore {
     return response
   }
 
-  deleteBranch = async (branchName: string) => {
-    if (!branchName || !this.api.deleteBranch) return
+deleteBranch = async (branchName: string) => {
+  if (!branchName || !this.api.deleteBranch) return
 
-    this.deleteBranchError = null
+  const { response, error } = await this.api.deleteBranch(branchName)
 
-    const { response, error } = await this.api.deleteBranch(branchName)
 
-    if (error) {
-      this.deleteBranchError = await error.json().then((err) => err)
-    }
-
-    return response
-  }
+  return { response, error }
+}
 
   getSnapshotList = async (branchName: string) => {
     if (!this.api.getSnapshotList) return

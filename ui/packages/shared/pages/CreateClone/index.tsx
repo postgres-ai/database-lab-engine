@@ -12,7 +12,6 @@ import { Select } from '@postgres.ai/shared/components/Select'
 import { Button } from '@postgres.ai/shared/components/Button'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
-import { compareSnapshotsDesc } from '@postgres.ai/shared/utils/snapshot'
 import { round } from '@postgres.ai/shared/utils/numbers'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
@@ -23,9 +22,11 @@ import {
   validatePassword,
 } from '@postgres.ai/shared/helpers/getEntropy'
 
+import { Snapshot } from 'types/api/entities/snapshot'
 import { useCreatedStores, MainStoreApi } from './useCreatedStores'
 import { useForm, FormValues } from './useForm'
 import { getCliCloneStatus, getCliCreateCloneCommand } from './utils'
+import { compareSnapshotsDesc } from '@postgres.ai/shared/utils/snapshot'
 
 import styles from './styles.module.scss'
 
@@ -45,9 +46,9 @@ type Props = Host
 export const CreateClone = observer((props: Props) => {
   const history = useHistory()
   const stores = useCreatedStores(props.api)
-  const cloneError = stores.main.cloneError
   const timer = useTimer()
   const [branchesList, setBranchesList] = useState<string[]>([])
+  const [snapshots, setSnapshots] = useState([] as Snapshot[])
 
   // Form.
   const onSubmit = async (values: FormValues) => {
@@ -65,44 +66,65 @@ export const CreateClone = observer((props: Props) => {
 
     formik.setFieldError('dbPassword', '')
 
-    if (!isSuccess || cloneError) {
+    if (!isSuccess || stores.main.cloneError) {
       timer.pause()
       timer.reset()
     }
   }
 
+  const fetchBranchSnapshotsData = async (branchName: string) => {
+    const snapshotsRes =
+      (await stores.main.getBranchSnapshots(branchName)) ?? []
+    setSnapshots(snapshotsRes)
+    formik.setFieldValue('snapshotId', snapshotsRes[0]?.id)
+  }
+
+  const handleSelectBranch = async (
+    e: React.ChangeEvent<{ value: string }>,
+  ) => {
+    const selectedBranch = e.target.value
+    formik.setFieldValue('branch', selectedBranch)
+
+    if (props.api.getBranchSnapshots) {
+      await fetchBranchSnapshotsData(selectedBranch)
+    }
+  }
+
   const formik = useForm(onSubmit)
+
+  const fetchData = async () => {
+    try {
+      await stores.main.load(props.instanceId)
+
+      const branches = (await stores.main.getBranches()) ?? []
+      const initiallySelectedBranch = branches[0]?.name
+      setBranchesList(branches.map((branch) => branch.name))
+      formik.setFieldValue('branch', initiallySelectedBranch)
+
+      if (props.api.getBranchSnapshots) {
+        await fetchBranchSnapshotsData(initiallySelectedBranch)
+      } else {
+        const allSnapshots = stores.main?.snapshots?.data ?? []
+        setSnapshots(allSnapshots)
+        const [firstSnapshot] = allSnapshots ?? []
+        formik.setFieldValue('snapshotId', firstSnapshot?.id)
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    }
+  }
 
   // Initial loading data.
   useEffect(() => {
-    stores.main.load(props.instanceId)
-
-    stores.main.getBranches().then((response) => {
-      if (response) {
-        setBranchesList(response.map((branch) => branch.name))
-      }
-    })
+    fetchData()
   }, [])
 
   // Redirect when clone is created and stable.
   useEffect(() => {
-    if (!stores.main.clone) return
-    if (!stores.main.isCloneStable) return
+    if (!stores.main.clone || !stores.main.isCloneStable) return
 
     history.push(props.routes.clone(stores.main.clone.id))
   }, [stores.main.clone, stores.main.isCloneStable])
-
-  // Snapshots.
-  const sortedSnapshots = stores.main.snapshots.data
-    ?.slice()
-    .sort(compareSnapshotsDesc)
-
-  useEffect(() => {
-    const [firstSnapshot] = sortedSnapshots ?? []
-    if (!firstSnapshot) return
-
-    formik.setFieldValue('snapshotId', firstSnapshot.id)
-  }, [Boolean(sortedSnapshots)])
 
   const headRendered = (
     <>
@@ -114,7 +136,7 @@ export const CreateClone = observer((props: Props) => {
   )
 
   // Initial loading spinner.
-  if (!stores.main.instance || !stores.main.snapshots.data)
+  if (!stores.main.instance)
     return (
       <>
         {headRendered}
@@ -124,22 +146,26 @@ export const CreateClone = observer((props: Props) => {
     )
 
   // Instance/branches getting error.
-  if (stores.main.instanceError || stores.main.getBranchesError)
+  if (
+    stores.main.instanceError ||
+    stores.main.getBranchesError ||
+    stores.main.getBranchSnapshotsError ||
+    stores.main?.snapshots?.error
+  )
     return (
       <>
         {headRendered}
 
         <ErrorStub
           message={
-            stores.main.instanceError || stores.main.getBranchesError?.message
+            stores.main.instanceError ||
+            stores.main.getBranchesError?.message ||
+            stores.main.getBranchSnapshotsError?.message ||
+            (stores.main?.snapshots?.error as string)
           }
         />
       </>
     )
-
-  // Snapshots getting error.
-  if (stores.main.snapshots.error)
-    return <ErrorStub message={stores.main.snapshots.error} />
 
   const isCloneUnstable = Boolean(
     stores.main.clone && !stores.main.isCloneStable,
@@ -159,7 +185,7 @@ export const CreateClone = observer((props: Props) => {
                 label="Branch"
                 value={formik.values.branch}
                 disabled={!branchesList || isCreatingClone}
-                onChange={(e) => formik.setFieldValue('branch', e.target.value)}
+                onChange={handleSelectBranch}
                 error={Boolean(formik.errors.branch)}
                 items={
                   branchesList?.map((snapshot) => {
@@ -185,33 +211,36 @@ export const CreateClone = observer((props: Props) => {
               fullWidth
               label="Data state time *"
               value={formik.values.snapshotId}
-              disabled={!sortedSnapshots || isCreatingClone}
+              disabled={!snapshots || isCreatingClone}
               onChange={(e) =>
                 formik.setFieldValue('snapshotId', e.target.value)
               }
               error={Boolean(formik.errors.snapshotId)}
               items={
-                sortedSnapshots?.map((snapshot, i) => {
-                  const isLatest = i === 0
-                  return {
-                    value: snapshot.id,
-                    children: (
-                      <>
-                        {snapshot.dataStateAt}
-                        {isLatest && (
-                          <span className={styles.snapshotTag}>Latest</span>
-                        )}
-                      </>
-                    ),
-                  }
-                }) ?? []
+                snapshots
+                  .slice()
+                  .sort(compareSnapshotsDesc)
+                  .map((snapshot, i) => {
+                    const isLatest = i === 0
+                    return {
+                      value: snapshot.id,
+                      children: (
+                        <>
+                          {snapshot.dataStateAt}
+                          {isLatest && (
+                            <span className={styles.snapshotTag}>Latest</span>
+                          )}
+                        </>
+                      ),
+                    }
+                  }) ?? []
               }
             />
 
             <p className={styles.remark}>
               By default latest snapshot of database is used. You can
               select&nbsp; different snapshots if earlier database state is
-              needed
+              needed.
             </p>
           </div>
 
@@ -237,22 +266,24 @@ export const CreateClone = observer((props: Props) => {
               label="Database password *"
               type="password"
               value={formik.values.dbPassword}
-              onChange={(e) =>
-               { formik.setFieldValue('dbPassword', e.target.value)
+              onChange={(e) => {
+                formik.setFieldValue('dbPassword', e.target.value)
 
-              if (formik.errors.dbPassword) {
-                formik.setFieldError('dbPassword', '')
-              }
-            }} error={Boolean(formik.errors.dbPassword)}
+                if (formik.errors.dbPassword) {
+                  formik.setFieldError('dbPassword', '')
+                }
+              }}
+              error={Boolean(formik.errors.dbPassword)}
               disabled={isCreatingClone}
-            /><p
-            className={cn(
-              formik.errors.dbPassword && styles.error,
-              styles.remark,
-            )}
-          >
-            {formik.errors.dbPassword}
-          </p>
+            />
+            <p
+              className={cn(
+                formik.errors.dbPassword && styles.error,
+                styles.remark,
+              )}
+            >
+              {formik.errors.dbPassword}
+            </p>
           </div>
 
           <div className={styles.form}>
@@ -271,12 +302,12 @@ export const CreateClone = observer((props: Props) => {
             />
 
             <p className={styles.remark}>
-              When enabled no one can delete this clone and automated deletion
+              When enabled no one can destroy this clone and automated deletion
               is also disabled.
               <br />
               Please be careful: abandoned clones with this checkbox enabled may
               cause out-of-disk-space events. Check disk space on daily basis
-              and delete this clone once the work is done.
+              and destroy this clone once the work is done.
             </p>
           </div>
 

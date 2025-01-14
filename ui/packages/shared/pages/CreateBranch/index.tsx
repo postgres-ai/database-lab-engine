@@ -8,7 +8,7 @@
 import cn from 'classnames'
 import { useHistory } from 'react-router'
 import { observer } from 'mobx-react-lite'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { TextField, makeStyles } from '@material-ui/core'
 
 import { Button } from '@postgres.ai/shared/components/Button'
@@ -25,6 +25,7 @@ import { useForm } from './useForm'
 import { MainStoreApi } from './stores/Main'
 import { useCreatedStores } from './useCreatedStores'
 import { getCliBranchListCommand, getCliCreateBranchCommand } from './utils'
+import { Snapshot } from 'types/api/entities/snapshot'
 
 interface CreateBranchProps {
   api: MainStoreApi
@@ -94,17 +95,18 @@ export const CreateBranchPage = observer(
     const stores = useCreatedStores(api)
     const classes = useStyles()
     const history = useHistory()
+    const [branchSnapshots, setBranchSnapshots] = useState<Snapshot[]>([])
 
     const {
       load,
-      snapshotListError,
+      branchesList,
       getBranchesError,
       createBranch,
       createBranchError,
       isBranchesLoading,
       isCreatingBranch,
-      branchesList,
-      snapshotsList,
+      getBranchSnapshots,
+      branchSnapshotsError,
     } = stores.main
 
     const handleSubmit = async (values: CreateBranchFormValues) => {
@@ -115,17 +117,24 @@ export const CreateBranchPage = observer(
       })
     }
 
+    const handleParentBranchChange = async (
+      e: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+      const branchName = e.target.value
+      formik.setFieldValue('baseBranch', branchName)
+      await getBranchSnapshots(branchName).then((response) => {
+        if (response) {
+          setBranchSnapshots(response)
+          formik.setFieldValue('snapshotID', response[0]?.id)
+        }
+      })
+    }
+
     const [{ formik }] = useForm(handleSubmit)
 
     useEffect(() => {
-      load(formik.values.baseBranch)
+      load()
     }, [formik.values.baseBranch])
-
-    useEffect(() => {
-      if (snapshotsList?.length) {
-        formik.setFieldValue('snapshotID', snapshotsList[0]?.id)
-      }
-    }, [snapshotsList])
 
     if (isBranchesLoading) {
       return <StubSpinner />
@@ -137,11 +146,11 @@ export const CreateBranchPage = observer(
         <div className={classes.wrapper}>
           <div className={classes.container}>
             <SectionTitle tag="h1" level={1} text="Create branch" />
-            {(snapshotListError || getBranchesError) && (
+            {(branchSnapshotsError || getBranchesError) && (
               <div className={classes.marginTop}>
                 <ErrorStub
                   message={
-                    snapshotListError?.message || getBranchesError?.message
+                    branchSnapshotsError?.message || getBranchesError?.message
                   }
                 />
               </div>
@@ -174,9 +183,7 @@ export const CreateBranchPage = observer(
                 label="Parent branch"
                 value={formik.values.baseBranch}
                 disabled={!branchesList || formik.isSubmitting}
-                onChange={(e) =>
-                  formik.setFieldValue('baseBranch', e.target.value)
-                }
+                onChange={handleParentBranchChange}
                 error={Boolean(formik.errors.baseBranch)}
                 items={
                   branchesList
@@ -206,8 +213,8 @@ export const CreateBranchPage = observer(
                 }
                 error={Boolean(formik.errors.baseBranch)}
                 items={
-                  snapshotsList
-                    ? snapshotsList.map((snapshot, i) => {
+                  branchSnapshots
+                    ? branchSnapshots.map((snapshot, i) => {
                         const isLatest = i === 0
                         return {
                           value: snapshot.id,
@@ -252,7 +259,10 @@ export const CreateBranchPage = observer(
               form, copy the command below and paste it into your terminal.
             </p>
             <SyntaxHighlight
-              content={getCliCreateBranchCommand(formik.values.branchName, formik.values.baseBranch)}
+              content={getCliCreateBranchCommand(
+                formik.values.branchName,
+                formik.values.baseBranch,
+              )}
             />
             <SectionTitle
               className={classes.marginTop}

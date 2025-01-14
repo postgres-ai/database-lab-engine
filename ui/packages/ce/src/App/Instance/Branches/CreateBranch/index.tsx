@@ -1,6 +1,6 @@
 import { getBranches } from 'api/branches/getBranches'
 import { createBranch } from 'api/branches/createBranch'
-import { getSnapshotList } from 'api/branches/getSnapshotList'
+import { getBranchSnapshots } from 'api/snapshots/getBranchSnapshots'
 
 import { CreateBranchPage } from '@postgres.ai/shared/pages/CreateBranch'
 
@@ -12,7 +12,7 @@ export const CreateBranch = () => {
   const api = {
     getBranches,
     createBranch,
-    getSnapshotList,
+    getBranchSnapshots,
   }
 
   const elements = {
