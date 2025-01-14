@@ -371,17 +371,13 @@ export const SnapshotPage = observer((props: Props) => {
             className={classes.marginTop}
             tag="h2"
             level={2}
-            text={'Delete snapshot using CLI'}
+            text={'Destroy snapshot using CLI'}
           />
           <p className={classes.cliText}>
-            You can delete this snapshot using CLI. To do this, run the command
+            You can destroy this snapshot using CLI. To do this, run the command
             below:
           </p>
-          <SyntaxHighlight
-            content={
-              `dblab snapshot delete ${snapshot?.id}`
-            }
-          />
+          <SyntaxHighlight content={`dblab snapshot delete ${snapshot?.id}`} />
           <SectionTitle
             className={classes.marginTop}
             tag="h2"

@@ -8,11 +8,11 @@
 import { makeAutoObservable } from 'mobx'
 
 import { GetBranches } from '@postgres.ai/shared/types/api/endpoints/getBranches'
-import { GetBranchesResponseType } from '@postgres.ai/shared/types/api/endpoints/getBranches'
+import { Branch } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 import { DeleteBranch } from '@postgres.ai/shared/types/api/endpoints/deleteBranch'
 import {
+  SnapshotList,
   GetSnapshotList,
-  GetSnapshotListResponseType,
 } from '@postgres.ai/shared/types/api/endpoints/getSnapshotList'
 
 type Error = {
@@ -29,15 +29,14 @@ export type Api = {
 export class MainStore {
   getBranchError: Error | null = null
   snapshotListError: Error | null = null
-  deleteBranchError: Error | null = null
   getBranchesError: Error | null = null
 
   isReloading = false
   isBranchesLoading = false
 
-  branches: GetBranchesResponseType[] = []
-  branch: GetBranchesResponseType | null = null
-  snapshotList: GetSnapshotListResponseType[] | null = null
+  branches: Branch[] | null = null
+  branch: Branch | null = null
+  snapshotList: SnapshotList[] | null = null
 
   private readonly api: Api
 
@@ -100,15 +99,10 @@ export class MainStore {
   deleteBranch = async (branchName: string) => {
     if (!branchName) return
 
-    this.deleteBranchError = null
-
     const { response, error } = await this.api.deleteBranch(branchName)
 
-    if (error) {
-      this.deleteBranchError = await error.json().then((err) => err)
-    }
 
-    return response
+    return { response, error }
   }
 
   getSnapshotList = async (branchName: string) => {

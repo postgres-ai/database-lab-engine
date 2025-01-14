@@ -126,7 +126,7 @@ export const Clones = observer((props: ClonesProps) => {
             : instance.state.cloning.clones
         }
         isDisabled={stores.main.isDisabledInstance}
-        emptyStubText="This instance has no active clones"
+        emptyStubText="This instance has no active clones."
       />
 
       {showListSizeButton && !onlyRenderList && (

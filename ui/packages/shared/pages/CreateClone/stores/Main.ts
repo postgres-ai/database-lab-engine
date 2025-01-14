@@ -6,6 +6,7 @@ import { GetInstance } from '@postgres.ai/shared/types/api/endpoints/getInstance
 import { CreateClone } from '@postgres.ai/shared/types/api/endpoints/createClone'
 import { GetClone } from '@postgres.ai/shared/types/api/endpoints/getClone'
 import { GetBranches } from '@postgres.ai/shared/types/api/endpoints/getBranches'
+import { GetBranchSnapshots } from '@postgres.ai/shared/types/api/endpoints/getBranchSnapshots'
 import {
   SnapshotsStore,
   SnapshotsApi,
@@ -22,12 +23,14 @@ export type MainStoreApi = SnapshotsApi & {
   createClone: CreateClone
   getClone: GetClone
   getBranches?: GetBranches
+  getBranchSnapshots?: GetBranchSnapshots
 }
 
 export class MainStore {
   instance: Instance | null = null
   instanceError: string | null = null
   getBranchesError: Error | null = null
+  getBranchSnapshotsError: Error | null = null
 
   clone: Clone | null = null
   cloneError: string | null = null
@@ -36,13 +39,15 @@ export class MainStore {
 
   private readonly api: MainStoreApi
 
-  readonly snapshots: SnapshotsStore
+  readonly snapshots?: SnapshotsStore
 
   constructor(api: MainStoreApi) {
     makeAutoObservable(this)
 
     this.api = api
-    this.snapshots = new SnapshotsStore(api)
+    if (!api.getBranchSnapshots) {
+      this.snapshots = new SnapshotsStore(api)
+    }
   }
 
   get isCloneStable() {
@@ -53,7 +58,7 @@ export class MainStore {
   load = async (instanceId: string) => {
     const [instance, isLoadedSnapshots] = await Promise.all([
       this.api.getInstance({ instanceId }),
-      this.snapshots.load(instanceId),
+      this.snapshots?.load(instanceId) ?? true,
     ])
 
     if (instance.response) this.instance = instance.response
@@ -91,6 +96,16 @@ export class MainStore {
     const { response, error } = await this.api.getBranches()
 
     if (error) this.getBranchesError = await error.json().then((err) => err)
+
+    return response
+  }
+
+  getBranchSnapshots = async (branchId: string) => {
+    if (!this.api.getBranchSnapshots) return
+    const { response, error } = await this.api.getBranchSnapshots(branchId)
+
+    if (error)
+      this.getBranchSnapshotsError = await error.json().then((err) => err)
 
     return response
   }

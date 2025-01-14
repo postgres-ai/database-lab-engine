@@ -40,6 +40,7 @@ import {
 
 import { useCreatedStores } from './useCreatedStores'
 import { Host } from './context'
+import { DeleteBranch } from 'types/api/endpoints/deleteBranch'
 
 type Props = Host
 
@@ -152,14 +153,8 @@ export const BranchesPage = observer((props: Props) => {
     isBranchesLoading,
     getBranchesError,
     snapshotListError,
-    deleteBranchError,
     getBranchError,
   } = stores.main
-
-  const handleDestroyBranch = async () => {
-    const isSuccess = await deleteBranch(props.branchId)
-    if (isSuccess) history.push(props.routes.branch())
-  }
 
   const hasBranchError = getBranchesError || getBranchError || snapshotListError
 
@@ -359,11 +354,11 @@ export const BranchesPage = observer((props: Props) => {
             className={classes.marginTop}
             tag="h2"
             level={2}
-            text={'Delete branch using CLI'}
+            text={'Destroy branch using CLI'}
           />
           <p className={classes.cliText}>
-            You can delete this branch using CLI. To do this, run the
-            command below:
+            You can destroy this branch using CLI. To do this, run the command
+            below:
           </p>
           <SyntaxHighlight content={`dblab branch delete ${props.branchId}`} />
 
@@ -374,8 +369,8 @@ export const BranchesPage = observer((props: Props) => {
             text={'Get branches using CLI'}
           />
           <p className={classes.marginTop}>
-            You can get a list of all branches using CLI. Copy the command
-            below and paste it into your terminal.
+            To list all branches using CLI, copy
+            and paste it into your terminal.
           </p>
           <SyntaxHighlight content={getCliBranchListCommand()} />
 
@@ -394,8 +389,7 @@ export const BranchesPage = observer((props: Props) => {
         <DeleteBranchModal
           isOpen={isOpenDestroyModal}
           onClose={() => setIsOpenDestroyModal(false)}
-          deleteBranchError={deleteBranchError}
-          deleteBranch={handleDestroyBranch}
+          deleteBranch={deleteBranch as DeleteBranch}
           branchName={props.branchId}
         />
       </div>

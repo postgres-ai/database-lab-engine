@@ -1,4 +1,8 @@
-import { Snapshot } from '@postgres.ai/shared/types/api/entities/snapshot'
-
-export const compareSnapshotsDesc = (a: Snapshot, b: Snapshot) =>
-  b.dataStateAtDate.getTime() - a.dataStateAtDate.getTime()
+export const compareSnapshotsDesc = (
+  a: { dataStateAtDate: Date },
+  b: { dataStateAtDate: Date },
+): number => {
+  const { dataStateAtDate: dateA } = a
+  const { dataStateAtDate: dateB } = b
+  return dateB.getTime() - dateA.getTime()
+}

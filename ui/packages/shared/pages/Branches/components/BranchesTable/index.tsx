@@ -10,9 +10,11 @@ import { useEffect, useState } from 'react'
 import copy from 'copy-to-clipboard'
 import { makeStyles } from '@material-ui/core'
 import { useHistory } from 'react-router-dom'
+import { formatDistanceToNowStrict } from 'date-fns'
 
+import { isValidDate } from '@postgres.ai/shared/utils/date'
 import { ArrowDropDownIcon } from '@postgres.ai/shared/icons/ArrowDropDown'
-import { GetBranchesResponseType } from '@postgres.ai/shared/types/api/endpoints/getBranches'
+import { Branch } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
 import {
   Table,
@@ -25,6 +27,7 @@ import {
 } from '@postgres.ai/shared/components/Table'
 
 import { DeleteBranchModal } from '../Modals/DeleteBranchModal'
+import { DeleteBranch } from 'types/api/endpoints/deleteBranch'
 
 const useStyles = makeStyles(
   {
@@ -57,22 +60,20 @@ const useStyles = makeStyles(
 )
 
 export const BranchesTable = ({
-  branchesData,
+  branches,
   emptyTableText,
   deleteBranch,
-  deleteBranchError,
 }: {
-  branchesData: GetBranchesResponseType[]
+  branches: Branch[]
   emptyTableText: string
-  deleteBranch: (branchId: string) => void
-  deleteBranchError: { title?: string; message?: string } | null
+  deleteBranch: DeleteBranch
 }) => {
   const history = useHistory()
   const classes = useStyles()
 
   const [state, setState] = useState({
     sortByParent: 'desc',
-    branches: [] as GetBranchesResponseType[],
+    branches: [] as Branch[],
   })
   const [branchId, setBranchId] = useState('')
   const [isOpenDestroyModal, setIsOpenDestroyModal] = useState(false)
@@ -97,9 +98,9 @@ export const BranchesTable = ({
   useEffect(() => {
     setState({
       sortByParent: 'desc',
-      branches: branchesData ?? [],
+      branches: branches ?? [],
     })
-  }, [branchesData])
+  }, [branches])
 
   if (!state.branches.length) {
     return <p className={classes.marginTop}>{emptyTableText}</p>
@@ -145,7 +146,7 @@ export const BranchesTable = ({
                     onClick: () => copy(branch.snapshotID),
                   },
                   {
-                    name: 'Delete branch',
+                    name: 'Destroy branch',
                     onClick: () => {
                       setBranchId(branch.name)
                       setIsOpenDestroyModal(true)
@@ -156,7 +157,15 @@ export const BranchesTable = ({
 
               <TableBodyCell>{branch.name}</TableBodyCell>
               <TableBodyCell>{branch.parent}</TableBodyCell>
-              <TableBodyCell>{branch.dataStateAt || '-'}</TableBodyCell>
+              <TableBodyCell>
+                {branch.dataStateAt} (
+                {isValidDate(new Date(branch.dataStateAt))
+                  ? formatDistanceToNowStrict(new Date(branch.dataStateAt), {
+                      addSuffix: true,
+                    })
+                  : '-'}
+                )
+              </TableBodyCell>
               <TableBodyCell>{branch.snapshotID}</TableBodyCell>
             </TableRow>
           ))}
@@ -167,7 +176,6 @@ export const BranchesTable = ({
             setIsOpenDestroyModal(false)
             setBranchId('')
           }}
-          deleteBranchError={deleteBranchError}
           deleteBranch={deleteBranch}
           branchName={branchId}
         />

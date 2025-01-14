@@ -12,13 +12,14 @@ import React, { useEffect, useState } from 'react'
 
 import { useStores, useHost } from '@postgres.ai/shared/pages/Instance/context'
 import { Button } from '@postgres.ai/shared/components/Button2'
-import { GetBranchesResponseType } from '@postgres.ai/shared/types/api/endpoints/getBranches'
+import { Branch } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 import { BranchesTable } from '@postgres.ai/shared/pages/Branches/components/BranchesTable'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { InfoIcon } from '@postgres.ai/shared/icons/Info'
+import { DeleteBranch } from 'types/api/endpoints/deleteBranch'
 
 const useStyles = makeStyles(
   {
@@ -45,28 +46,20 @@ export const Branches = observer((): React.ReactElement => {
   const stores = useStores()
   const classes = useStyles()
   const history = useHistory()
-  const [branchesList, setBranchesList] = useState<GetBranchesResponseType[]>(
-    [],
-  )
+  const [branches, setBranches] = useState<Branch[]>([])
   const {
     instance,
     getBranches,
     isBranchesLoading,
     getBranchesError,
-    deleteBranchError,
     deleteBranch,
   } = stores.main
 
   const goToBranchAddPage = () => history.push(host.routes.createBranch())
 
-  const handleDestroyBranch = async (branchId: string) => {
-    const isSuccess = await deleteBranch(branchId)
-    if (isSuccess) history.push('/instance/branches')
-  }
-
   useEffect(() => {
     getBranches().then((response) => {
-      response && setBranchesList(response)
+      response && setBranches(response)
     })
   }, [])
 
@@ -89,18 +82,18 @@ export const Branches = observer((): React.ReactElement => {
           <SectionTitle
             level={2}
             tag="h2"
-            text={`Branches (${branchesList?.length || 0})`}
+            text={`Branches (${branches?.length || 0})`}
             rightContent={
               <>
                 <Button
                   theme="primary"
-                  isDisabled={!branchesList.length}
+                  isDisabled={!branches.length}
                   onClick={goToBranchAddPage}
                 >
                   Create branch
                 </Button>
 
-                {!branchesList.length && (
+                {!branches.length && (
                   <Tooltip content="No existing branch">
                     <div style={{ display: 'flex' }}>
                       <InfoIcon className={classes.infoIcon} />
@@ -111,10 +104,9 @@ export const Branches = observer((): React.ReactElement => {
             }
           />
           <BranchesTable
-            branchesData={branchesList}
-            deleteBranch={handleDestroyBranch}
-            deleteBranchError={deleteBranchError}
-            emptyTableText="This instance has no active branches"
+            branches={branches}
+            deleteBranch={deleteBranch as DeleteBranch}
+            emptyTableText="This instance has no active branches."
           />
         </>
       )}

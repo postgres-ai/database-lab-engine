@@ -1,4 +1,4 @@
 export type DestroySnapshot = (snapshotId: string) => Promise<{
-  response: true | null
+  response: boolean | null
   error: Response | null
 }>

@@ -1,4 +1,4 @@
-export interface GetSnapshotListResponseType {
+export interface SnapshotList {
   branch: string[]
   id: string
   dataStateAt: string
@@ -6,6 +6,6 @@ export interface GetSnapshotListResponseType {
 }
 
 export type GetSnapshotList = (branchName: string) => Promise<{
-  response: GetSnapshotListResponseType[] | null
+  response: SnapshotList[] | null
   error: Response | null
 }>

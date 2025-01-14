@@ -64,7 +64,7 @@ export const ClonesModal = observer(() => {
             !snapshotId || snapshotId === clone.snapshot?.id
           return isMatchedByPool && isMatchedBySnapshot
         })}
-        emptyStubText="No clones found"
+        emptyStubText="No clones found."
       />
     </Modal>
   )

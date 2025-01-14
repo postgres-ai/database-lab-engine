@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { makeStyles } from '@material-ui/core'
 
 import { Modal } from '@postgres.ai/shared/components/Modal'
@@ -13,9 +13,9 @@ import { ModalProps } from '@postgres.ai/shared/pages/Branches/components/Modals
 import { SimpleModalControls } from '@postgres.ai/shared/components/SimpleModalControls'
 import { ImportantText } from '@postgres.ai/shared/components/ImportantText'
 import { Text } from '@postgres.ai/shared/components/Text'
+import { DeleteBranch } from 'types/api/endpoints/deleteBranch'
 interface DeleteBranchModalProps extends ModalProps {
-  deleteBranchError: { title?: string; message?: string } | null
-  deleteBranch: (branchName: string) => void
+  deleteBranch: DeleteBranch
   branchName: string
 }
 
@@ -32,31 +32,33 @@ const useStyles = makeStyles(
 export const DeleteBranchModal = ({
   isOpen,
   onClose,
-  deleteBranchError,
   deleteBranch,
   branchName,
 }: DeleteBranchModalProps) => {
   const classes = useStyles()
-  const [deleteError, setDeleteError] = useState(deleteBranchError?.message)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const handleSubmit = () => {
-    deleteBranch(branchName)
+  const handleDelete = async () => {
+    const deleteRes = await deleteBranch(branchName)
+
+    if (deleteRes?.error) {
+      setDeleteError(deleteRes.error?.message)
+    } else {
+      window.location.reload()
+    }
   }
 
   const handleClose = () => {
-    setDeleteError('')
+    setDeleteError(null)
     onClose()
   }
-
-  useEffect(() => {
-    setDeleteError(deleteBranchError?.message)
-  }, [deleteBranchError])
 
   return (
     <Modal title="Confirmation" onClose={handleClose} isOpen={isOpen} size="xs">
       <Text>
         Are you sure you want to destroy branch{' '}
-        <ImportantText>{branchName}</ImportantText>?
+        <ImportantText>{branchName}</ImportantText>? This action cannot be
+        undone.
       </Text>
       {deleteError && <p className={classes.errorMessage}>{deleteError}</p>}
       <SimpleModalControls
@@ -68,7 +70,7 @@ export const DeleteBranchModal = ({
           {
             text: 'Destroy branch',
             variant: 'primary',
-            onClick: handleSubmit,
+            onClick: handleDelete,
             isDisabled: branchName === 'main',
           },
         ]}

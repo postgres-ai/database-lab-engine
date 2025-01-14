@@ -5,20 +5,13 @@
  *--------------------------------------------------------------------------
  */
 
-import { DestroySnapshot } from '@postgres.ai/shared/types/api/endpoints/destroySnapshot'
-
 import { request } from 'helpers/request'
 
-export const destroySnapshot: DestroySnapshot = async (snapshotId) => {
-  const response = await request(`/snapshot/delete`, {
-    method: 'POST',
-    body: JSON.stringify({
-      snapshotID: snapshotId,
-    }),
-  })
+export const getBranchSnapshots = async (branch: string) => {
+  const response = await request(`/branch/snapshots/${branch}`)
 
   return {
-    response: response.ok ? true : null,
+    response: response.ok ? await response.json() : null,
     error: response.ok ? null : response,
   }
 }

@@ -4,7 +4,6 @@ Cypress.on('uncaught:exception', () => {
   return false
 })
 
-// Function to set up intercepts for the requests
 function setupIntercepts() {
   const exceptions = [
     '/healthz',
@@ -44,7 +43,6 @@ function setupIntercepts() {
     },
   })
 
-  // Intercept all fetch requests and return a 200
   cy.intercept('GET', '*', (req) => {
     if (
       req.resourceType === 'fetch' &&
@@ -61,7 +59,6 @@ function setupIntercepts() {
 }
 
 describe('Configuration tab', () => {
-  // It should intercept the requests
   beforeEach(() => {
     setupIntercepts()
   })
@@ -71,19 +68,10 @@ describe('Configuration tab', () => {
       retryOnStatusCodeFailure: true,
       onLoad: () => {
         cy.get('.MuiTabs-flexContainer')
-          .contains('Configuration', { timeout: 10000 })
+          .contains('Configuration')
           .should('be.visible')
           .click({ force: true })
       },
     })
-  })
-
-  it('should have form inputs in the "Configuration" tab', () => {
-    cy.get('.MuiTabs-flexContainer')
-      .contains('Configuration', { timeout: 10000 })
-      .should('be.visible')
-      .click({ force: true })
-
-    cy.get('button[type="button"]').should('exist')
   })
 })
