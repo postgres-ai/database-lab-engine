@@ -149,6 +149,12 @@ func (s *LogicalInitial) Run(ctx context.Context) error {
 		}
 	}
 
+	log.Dbg("Cleaning up old snapshots from a dataset")
+
+	if _, err := s.cloneManager.CleanupSnapshots(0); err != nil {
+		return errors.Wrap(err, "failed to destroy old snapshots")
+	}
+
 	dataStateAt := extractDataStateAt(s.dbMarker)
 
 	if _, err := s.cloneManager.CreateSnapshot("", dataStateAt); err != nil {

@@ -32,6 +32,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
@@ -346,7 +347,7 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 
 	defer func() {
 		if err != nil {
-			if errDestroy := p.cloneManager.DestroySnapshot(snapshotName); errDestroy != nil {
+			if errDestroy := p.cloneManager.DestroySnapshot(snapshotName, thinclones.DestroyOptions{}); errDestroy != nil {
 				log.Err(fmt.Sprintf("Failed to destroy the %q snapshot: %v", snapshotName, errDestroy))
 			}
 		}

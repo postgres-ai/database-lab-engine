@@ -83,7 +83,7 @@ func (m mockFSManager) CreateSnapshot(_, _ string) (snapshotName string, err err
 	return "", nil
 }
 
-func (m mockFSManager) DestroySnapshot(_ string) (err error) {
+func (m mockFSManager) DestroySnapshot(_ string, _ thinclones.DestroyOptions) (err error) {
 	return nil
 }
 
@@ -146,6 +146,10 @@ func (m mockFSManager) ListAllBranches() ([]models.BranchEntity, error) {
 	return nil, nil
 }
 
+func (m mockFSManager) GetSnapshotProperties(_ string) (thinclones.SnapshotProperties, error) {
+	return thinclones.SnapshotProperties{}, nil
+}
+
 func (m mockFSManager) AddBranchProp(_, _ string) error {
 	return nil
 }
@@ -202,8 +206,16 @@ func (m mockFSManager) DeleteRootProp(_, _ string) error {
 	return nil
 }
 
-func (m mockFSManager) HasDependentEntity(_ string) error {
+func (m mockFSManager) HasDependentEntity(_ string) ([]string, error) {
+	return nil, nil
+}
+
+func (m mockFSManager) KeepRelation(_ string) error {
 	return nil
+}
+
+func (m mockFSManager) FindBranchBySnapshot(snapshot string) (string, error) {
+	return "", nil
 }
 
 func TestBuildPoolEntry(t *testing.T) {

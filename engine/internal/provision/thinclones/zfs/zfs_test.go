@@ -119,22 +119,26 @@ func TestBusySnapshotList(t *testing.T) {
 	m := Manager{config: Config{Pool: &resources.Pool{Name: "dblab_pool"}, PreSnapshotSuffix: preSnapshotSuffix}}
 
 	out := `dblab_pool	-
-dblab_pool/clone_pre_20210127105215	dblab_pool@snapshot_20210127105215_pre
-dblab_pool/clone_pre_20210127113000	dblab_pool@snapshot_20210127113000_pre
-dblab_pool/clone_pre_20210127120000	dblab_pool@snapshot_20210127120000_pre
-dblab_pool/clone_pre_20210127123000	dblab_pool@snapshot_20210127123000_pre
-dblab_pool/clone_pre_20210127130000	dblab_pool@snapshot_20210127130000_pre
-dblab_pool/clone_pre_20210127133000	dblab_pool@snapshot_20210127133000_pre
-dblab_pool/clone_pre_20210127140000	dblab_pool@snapshot_20210127140000_pre
-dblab_pool/cls19p20l4rc73bc2v9g	dblab_pool/clone_pre_20210127133000@snapshot_20210127133008
-dblab_pool/cls19p20l4rc73bc2v9g	dblab_pool/clone_pre_20210127123000@snapshot_20210127133008
-`
-	expected := []string{"dblab_pool@snapshot_20210127133000_pre", "dblab_pool@snapshot_20210127123000_pre"}
+	dblab_pool/clone_pre_20210127105215	dblab_pool@snapshot_20210127105215_pre
+	dblab_pool/clone_pre_20210127113000	dblab_pool@snapshot_20210127113000_pre
+	dblab_pool/clone_pre_20210127120000	dblab_pool@snapshot_20210127120000_pre
+	dblab_pool/clone_pre_20210127123000	dblab_pool@snapshot_20210127123000_pre
+	dblab_pool/clone_pre_20210127130000	dblab_pool@snapshot_20210127130000_pre
+	dblab_pool/clone_pre_20210127133000	dblab_pool@snapshot_20210127133000_pre
+	dblab_pool/clone_pre_20210127140000	dblab_pool@snapshot_20210127140000_pre
+	dblab_pool/cls19p20l4rc73bc2v9g	dblab_pool/clone_pre_20210127133000@snapshot_20210127133008
+	dblab_pool/cls19p20l4rc73bc2v9g	dblab_pool/clone_pre_20210127123000@snapshot_20210127133008
+	dblab_pool/branch/main/20241121094823 dblab_pool@snapshot_20241121094523
+	`
+	expected := []string{"dblab_pool@snapshot_20210127133000_pre", "dblab_pool@snapshot_20210127123000_pre", "dblab_pool/branch/main/20241121094823",
+		"dblab_pool@snapshot_20241121094523"}
 
 	list := m.getBusySnapshotList(out)
-	require.Equal(t, 2, len(list))
+	require.Equal(t, 4, len(list))
 	assert.Contains(t, list, expected[0])
 	assert.Contains(t, list, expected[1])
+	assert.Contains(t, list, expected[2])
+	assert.Contains(t, list, expected[3])
 }
 
 func TestExcludingBusySnapshots(t *testing.T) {

@@ -15,6 +15,8 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
@@ -198,12 +200,91 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := fsm.HasDependentEntity(destroyRequest.SnapshotID); err != nil {
+	// Check if snapshot exists.
+	if _, err := fsm.GetSnapshotProperties(destroyRequest.SnapshotID); err != nil {
+		if runnerError, ok := err.(runners.RunnerError); ok {
+			api.SendBadRequestError(w, r, runnerError.Stderr)
+		} else {
+			api.SendBadRequestError(w, r, err.Error())
+		}
+
+		return
+	}
+
+	cloneIDs := []string{}
+	protectedClones := []string{}
+
+	dependentCloneDatasets, err := fsm.HasDependentEntity(destroyRequest.SnapshotID)
+	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	if err = fsm.DestroySnapshot(destroyRequest.SnapshotID); err != nil {
+	for _, cloneDataset := range dependentCloneDatasets {
+		cloneID := strings.TrimPrefix(cloneDataset, poolName+"/")
+		clone, err := s.Cloning.GetClone(cloneID)
+
+		if err != nil {
+			continue
+		}
+
+		cloneIDs = append(cloneIDs, clone.ID)
+
+		if clone.Protected {
+			protectedClones = append(protectedClones, clone.ID)
+		}
+	}
+
+	if len(protectedClones) != 0 {
+		api.SendBadRequestError(w, r, fmt.Sprintf("cannot remove snapshot %s because it has dependent protected clones: %s",
+			destroyRequest.SnapshotID, strings.Join(protectedClones, ",")))
+		return
+	}
+
+	if len(cloneIDs) != 0 && !destroyRequest.Force {
+		api.SendBadRequestError(w, r, fmt.Sprintf("cannot remove snapshot %s because it has dependent clones: %s",
+			destroyRequest.SnapshotID, strings.Join(cloneIDs, ",")))
+		return
+	}
+
+	// Remove dependent clones.
+	for _, cloneID := range cloneIDs {
+		if err = s.Cloning.DestroyClone(cloneID); err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+	}
+
+	// Remove snapshot and dependent datasets.
+	if !destroyRequest.Force {
+		if err := fsm.KeepRelation(destroyRequest.SnapshotID); err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+	}
+
+	snapshotProperties, err := fsm.GetSnapshotProperties(destroyRequest.SnapshotID)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if snapshotProperties.Parent != "" {
+		branchName, err := fsm.FindBranchBySnapshot(destroyRequest.SnapshotID)
+		if err == nil && branchName != "" {
+			if err := fsm.AddBranchProp(branchName, snapshotProperties.Parent); err != nil {
+				api.SendBadRequestError(w, r, err.Error())
+				return
+			}
+		}
+
+		if err := fsm.DeleteChildProp(destroyRequest.SnapshotID, snapshotProperties.Parent); err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+	}
+
+	if err = fsm.DestroySnapshot(destroyRequest.SnapshotID, thinclones.DestroyOptions{Force: destroyRequest.Force}); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
@@ -217,11 +298,12 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// TODO: update branching metadata.
-
 	log.Dbg(fmt.Sprintf("Snapshot %s has been deleted", destroyRequest.SnapshotID))
 
-	if err := api.WriteJSON(w, http.StatusOK, ""); err != nil {
+	if err := api.WriteJSON(w, http.StatusOK, models.Response{
+		Status:  models.ResponseOK,
+		Message: "Deleted snapshot",
+	}); err != nil {
 		api.SendError(w, r, err)
 		return
 	}

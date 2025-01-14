@@ -11,6 +11,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
@@ -411,7 +412,7 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := fsm.DestroySnapshot(snapshotName); err != nil {
+	if err := fsm.DestroySnapshot(snapshotName, thinclones.DestroyOptions{}); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
@@ -634,6 +635,8 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
+
+	fsm.RefreshSnapshotList()
 
 	s.webhookCh <- webhooks.BasicEvent{
 		EventType: webhooks.BranchDeleteEvent,

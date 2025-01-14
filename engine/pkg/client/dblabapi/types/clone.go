@@ -47,6 +47,7 @@ type SnapshotCreateRequest struct {
 // SnapshotDestroyRequest describes params for destroying snapshot request.
 type SnapshotDestroyRequest struct {
 	SnapshotID string `json:"snapshotID"`
+	Force      bool   `json:"force"`
 }
 
 // SnapshotCloneCreateRequest describes params for creating snapshot request from clone.

@@ -7,6 +7,7 @@ package zfs
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -410,6 +411,43 @@ func unwindField(field string) []string {
 	return items
 }
 
+// GetSnapshotProperties get custom snapshot properties.
+func (m *Manager) GetSnapshotProperties(snapshotName string) (thinclones.SnapshotProperties, error) {
+	strFields := bytes.TrimRight(bytes.Repeat([]byte(`%s,`), len(repoFields)), ",")
+
+	// Get ZFS snapshot (-t) with options (-o) without output headers (-H) filtered by snapshot.
+	format := `zfs list -H -t snapshot -o ` + string(strFields) + ` %s`
+
+	args := append(repoFields, snapshotName)
+
+	out, err := m.runner.Run(fmt.Sprintf(format, args...))
+	if err != nil {
+		log.Dbg(out)
+
+		return thinclones.SnapshotProperties{}, err
+	}
+
+	fields := strings.Fields(strings.TrimSpace(out))
+
+	if len(fields) != len(repoFields) {
+		log.Dbg("Retrieved fields values:", fields)
+
+		return thinclones.SnapshotProperties{}, errors.New("some snapshot properties could not be retrieved")
+	}
+
+	properties := thinclones.SnapshotProperties{
+		Name:        strings.Trim(fields[0], empty),
+		Parent:      strings.Trim(fields[1], empty),
+		Child:       strings.Trim(fields[2], empty),
+		Branch:      strings.Trim(fields[3], empty),
+		Root:        strings.Trim(fields[4], empty),
+		DataStateAt: strings.Trim(fields[5], empty),
+		Message:     decodeCommitMessage(fields[6]),
+	}
+
+	return properties, nil
+}
+
 // AddBranchProp adds branch to snapshot property.
 func (m *Manager) AddBranchProp(branch, snapshotName string) error {
 	return m.addToSet(branchProp, snapshotName, branch)
@@ -464,35 +502,98 @@ func (m *Manager) SetMessage(message, snapshotName string) error {
 }
 
 // HasDependentEntity gets the root property of the snapshot.
-func (m *Manager) HasDependentEntity(snapshotName string) error {
+func (m *Manager) HasDependentEntity(snapshotName string) ([]string, error) {
 	root, err := m.getProperty(rootProp, snapshotName)
 	if err != nil {
-		return fmt.Errorf("failed to check root property: %w", err)
+		return nil, fmt.Errorf("failed to check root property: %w", err)
 	}
 
 	if root != "" {
-		return fmt.Errorf("snapshot has dependent branches: %s", root)
+		return nil, fmt.Errorf("snapshot has dependent branches: %s", root)
 	}
 
+	child, err := m.getProperty(childProp, snapshotName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check snapshot child property: %w", err)
+	}
+
+	if child != "" {
+		log.Warn(fmt.Sprintf("snapshot %s has dependent snapshots: %s", snapshotName, child))
+	}
+
+	clones, err := m.checkDependentClones(snapshotName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check dependent clones: %w", err)
+	}
+
+	dependentClones := strings.Split(clones, ",")
+
+	// Check clones of dependent snapshots.
+	if child != "" {
+		// TODO: limit the max level of recursion.
+		childClones, err := m.HasDependentEntity(child)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check dependent clones of dependent snapshots: %w", err)
+		}
+
+		dependentClones = append(dependentClones, childClones...)
+	}
+
+	return dependentClones, nil
+}
+
+// KeepRelation keeps relation between adjacent snapshots.
+func (m *Manager) KeepRelation(snapshotName string) error {
 	child, err := m.getProperty(childProp, snapshotName)
 	if err != nil {
 		return fmt.Errorf("failed to check snapshot child property: %w", err)
 	}
 
-	if child != "" {
-		return fmt.Errorf("snapshot has dependent snapshots: %s", child)
-	}
-
-	clones, err := m.checkDependentClones(snapshotName)
+	parent, err := m.getProperty(parentProp, snapshotName)
 	if err != nil {
-		return fmt.Errorf("failed to check dependent clones: %w", err)
+		return fmt.Errorf("failed to check snapshot parent property: %w", err)
 	}
 
-	if len(clones) != 0 {
-		return fmt.Errorf("snapshot has dependent clones: %s", clones)
+	if parent != "" {
+		if err := m.DeleteChildProp(snapshotName, parent); err != nil {
+			return fmt.Errorf("failed to delete child: %w", err)
+		}
+
+		if err := m.addChild(parent, child); err != nil {
+			return fmt.Errorf("failed to add child: %w", err)
+		}
+	}
+
+	if child != "" {
+		if err := m.setParent(parent, child); err != nil {
+			return fmt.Errorf("failed to set parent: %w", err)
+		}
 	}
 
 	return nil
+}
+
+// FindBranchBySnapshot finds the branch which the snapshot belongs to.
+func (m *Manager) FindBranchBySnapshot(snapshot string) (string, error) {
+	branch, err := m.getProperty(branchProp, snapshot)
+	if err != nil {
+		return "", err
+	}
+
+	if branch != "" {
+		return branch, nil
+	}
+
+	child, err := m.getProperty(childProp, snapshot)
+	if err != nil {
+		return "", fmt.Errorf("failed to check snapshot child property: %w", err)
+	}
+
+	if child != "" {
+		return m.FindBranchBySnapshot(child)
+	}
+
+	return "", nil
 }
 
 func (m *Manager) addToSet(property, snapshot, value string) error {
