@@ -35,6 +35,8 @@ export type TextFieldProps = {
   placeholder?: string
   onBlur?: TextFieldPropsBase['onBlur']
   onFocus?: TextFieldPropsBase['onFocus']
+  name?: TextFieldPropsBase['name']
+  helperText?: TextFieldPropsBase['helperText']
 }
 
 const useStyles = makeStyles(
@@ -51,6 +53,9 @@ const useStyles = makeStyles(
     input: {
       padding: '8px',
     },
+    helperText: {
+      fontSize: 12
+    }
   },
   { index: 1 },
 )
@@ -72,7 +77,7 @@ export const TextField = (props: TextFieldProps) => {
       value={props.value}
       margin="normal"
       fullWidth={props.fullWidth}
-      classes={{}}
+      classes={{ }}
       InputProps={{
         ...props.InputProps,
 
@@ -92,6 +97,11 @@ export const TextField = (props: TextFieldProps) => {
 
         ...props.InputLabelProps,
       }}
+      FormHelperTextProps={{
+        classes: {
+          root: classes.helperText
+        }
+      }}
       onChange={props.onChange}
       children={props.children}
       select={props.select}
@@ -100,6 +110,8 @@ export const TextField = (props: TextFieldProps) => {
       placeholder={props.placeholder}
       onBlur={props.onBlur}
       onFocus={props.onFocus}
+      name={props.name}
+      helperText={props.helperText}
     />
   )
 }

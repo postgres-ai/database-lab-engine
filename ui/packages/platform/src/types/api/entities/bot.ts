@@ -18,11 +18,12 @@ export type BotMessage = {
   last_name: string | null
   display_name: string | null
   slack_profile: string | null
-  user_id: string
+  user_id: number
   org_id: string
   thread_id: string
   type: 'message' | undefined
   ai_model: string
+  status?: MessageStatus
 }
 
 export type BotMessageWithDebugInfo = BotMessage & {
@@ -55,3 +56,5 @@ export type ErrorMessage = {
   message: string
   thread_id: string
 }
+
+export type MessageStatus = 'read' | 'new' | null
