@@ -284,7 +284,7 @@ Actions.updateUserProfile.listen(function (token, data) {
       result.json()
         .then(json => {
           if (json) {
-            action.completed({ data: json?.result });
+            action.completed({ data: json });
           } else {
             action.failed(new Error('wrong_reply'));
           }
