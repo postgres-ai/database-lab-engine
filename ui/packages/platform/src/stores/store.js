@@ -386,6 +386,32 @@ const Store = Reflux.createStore({
     this.trigger(this.data);
   },
 
+  onUpdateUserProfileFailed: function (error) {
+    this.data.userProfile.isProcessing = false;
+    this.data.userProfile.error = true;
+    this.data.userProfile.errorMessage = error.message;
+    Actions.showNotification(error.message, 'error');
+    this.trigger(this.data);
+  },
+
+  onUpdateUserProfileProgressed: function () {
+    this.data.userProfile.isProcessing = true;
+    this.trigger(this.data);
+  },
+
+  onUpdateUserProfileCompleted: function (data) {
+    this.data.userProfile.isProcessing = false;
+    this.data.userProfile.errorMessage = this.getError(data);
+    this.data.userProfile.error = !!this.data.userProfile.errorMessage;
+
+    if (!this.data.userProfile.error && data?.data?.length > 0) {
+      this.data.userProfile.data = data?.data?.[0];
+      this.data.userProfile.isProcessed = true;
+      Actions.showNotification('Profile settings successfully saved.', 'success');
+    }
+
+    this.trigger(this.data);
+  },
 
   onGetOrgsFailed: function (error) {
     this.data.orgProfile.isProcessing = false;

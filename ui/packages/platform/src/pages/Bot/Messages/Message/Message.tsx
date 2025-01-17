@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import cn from "classnames";
 import ReactMarkdown, { Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
@@ -9,8 +9,9 @@ import { icons } from "@postgres.ai/shared/styles/icons";
 import { DebugDialog } from "../../DebugDialog/DebugDialog";
 import { CodeBlock } from "./CodeBlock";
 import { disallowedHtmlTagsForMarkdown, permalinkLinkBuilder } from "../../utils";
-import { StateMessage } from "../../../../types/api/entities/bot";
+import { MessageStatus, StateMessage } from "../../../../types/api/entities/bot";
 import { MermaidDiagram } from "./MermaidDiagram";
+import { useAiBot } from "../../hooks";
 
 
 type BaseMessageProps = {
@@ -20,17 +21,19 @@ type BaseMessageProps = {
   name?: string;
   isLoading?: boolean;
   formattedTime?: string;
-  aiModel?: string
-  stateMessage?: StateMessage | null
-  isCurrentStreamMessage?: boolean
+  aiModel?: string;
+  stateMessage?: StateMessage | null;
+  isCurrentStreamMessage?: boolean;
   isPublic?: boolean;
+  threadId?: string;
+  status?: MessageStatus
 }
 
 type AiMessageProps = BaseMessageProps & {
   isAi: true;
   content: string;
-  aiModel: string
-  isCurrentStreamMessage?: boolean
+  aiModel: string;
+  isCurrentStreamMessage?: boolean;
 }
 
 type HumanMessageProps = BaseMessageProps & {
@@ -42,8 +45,8 @@ type HumanMessageProps = BaseMessageProps & {
 type LoadingMessageProps = BaseMessageProps & {
   isLoading: true;
   isAi: true;
-  content?: undefined
-  stateMessage: StateMessage | null
+  content?: undefined;
+  stateMessage: StateMessage | null;
 }
 
 type MessageProps = AiMessageProps | HumanMessageProps | LoadingMessageProps;
@@ -261,13 +264,43 @@ export const Message = React.memo((props: MessageProps) => {
     aiModel,
     stateMessage,
     isCurrentStreamMessage,
-    isPublic
+    isPublic,
+    threadId,
+    status
   } = props;
+
+  const { updateMessageStatus } = useAiBot()
+
+  const elementRef = useRef<HTMLDivElement | null>(null);
+
 
   const [isDebugVisible, setDebugVisible] = useState(false);
 
 
   const classes = useStyles();
+
+  useEffect(() => {
+    if (!isAi || isCurrentStreamMessage || status === 'read') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && threadId && id) {
+          updateMessageStatus(threadId, id, 'read');
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (elementRef.current) {
+      observer.observe(elementRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [id, updateMessageStatus, isCurrentStreamMessage, isAi, threadId, status]);
 
   const contentToRender: string = content?.replace(/\n/g, '  \n') || ''
 
@@ -301,7 +334,7 @@ export const Message = React.memo((props: MessageProps) => {
         onClose={toggleDebugDialog}
         messageId={id}
       />}
-      <div className={classes.message}>
+      <div ref={elementRef} className={classes.message}>
         <div className={classes.messageAvatar}>
           {isAi
             ? <img

@@ -161,7 +161,7 @@ const BotSettingsForm: React.FC<BotSettingsFormProps> = (props) => {
     enableReinitialize: true,
     initialValues: {
       threadVisibility:
-        data?.orgProfile?.data?.is_chat_public_by_default ? 'public' : 'private',
+        data?.orgProfile?.data?.is_chat_public_by_default ? 'public' : 'private'
     },
     onSubmit: () => {
       const currentOrgId = orgId || null;

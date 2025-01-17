@@ -7,6 +7,7 @@ export interface BotWrapperProps {
   orgId?: number;
   envData: {
     info?: {
+      id?: number | null
       user_name?: string
     }
   };
@@ -38,7 +39,8 @@ export const BotWrapper = (props: BotWrapperProps) => {
         args={{
           threadId: props.match.params.threadId,
           orgId: props.orgData.id,
-          isPublicByDefault: props.orgData.is_chat_public_by_default
+          isPublicByDefault: props.orgData.is_chat_public_by_default,
+          userId: props.envData.info?.id,
       }}>
         <BotPage {...props} />
       </AiBotProvider>

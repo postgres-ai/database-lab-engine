@@ -14,7 +14,7 @@ import {
   AiModel,
   StateMessage,
   StreamMessage,
-  ErrorMessage
+  ErrorMessage, MessageStatus
 } from "../../types/api/entities/bot";
 import {getChatsWithWholeThreads} from "../../api/bot/getChatsWithWholeThreads";
 import {getChats} from "api/bot/getChats";
@@ -73,16 +73,18 @@ type UseAiBotReturnType = {
   isStreamingInProcess: boolean;
   currentStreamMessage: StreamMessage | null;
   errorMessage: ErrorMessage | null;
+  updateMessageStatus: (threadId: string, messageId: string, status: MessageStatus) => void
 }
 
 type UseAiBotArgs = {
   threadId?: string;
   orgId?: number
   isPublicByDefault?: boolean
+  userId?: number | null
 }
 
 export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType => {
-  const { threadId, orgId, isPublicByDefault } = args;
+  const { threadId, orgId, isPublicByDefault, userId } = args;
   const { showMessage, closeSnackbar } = useAlertSnackbar();
   const {
     aiModels,
@@ -413,6 +415,27 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     }))
   }
 
+  const updateMessageStatus = (threadId: string, messageId: string, status: MessageStatus) => {
+    wsSendMessage(JSON.stringify({
+        action: 'message_status_update',
+        payload: {
+          thread_id: threadId,
+          message_id: messageId,
+          read_by: userId,
+          status
+        }
+      }))
+    if (messages && messages.length > 0) {
+      const updatedMessages = messages.map((item) => {
+        if (item.id === messageId) {
+          item["status"] = status
+        }
+        return item
+      });
+      setMessages(updatedMessages)
+    }
+  }
+
   const getDebugMessagesForWholeThread = async () => {
     setDebugMessagesLoading(true)
     if (threadId) {
@@ -478,7 +501,8 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     stateMessage,
     isStreamingInProcess,
     currentStreamMessage,
-    errorMessage
+    errorMessage,
+    updateMessageStatus
   }
 }
 

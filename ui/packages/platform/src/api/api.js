@@ -112,6 +112,31 @@ class Api {
     });
   }
 
+  updateUserProfile(token, data) {
+    let headers = {
+      Authorization: 'Bearer ' + token,
+      Accept: 'application/vnd.pgrst.object+json'
+    };
+
+    let body = {};
+
+    if (data.is_chats_email_notifications_enabled !== 'undefined') {
+      body.chats_email_notifications_enabled = data.is_chats_email_notifications_enabled;
+    }
+
+    if (data.first_name !== 'undefined') {
+      body.first_name = data.first_name;
+    }
+
+    if (data.last_name !== 'undefined') {
+      body.last_name = data.last_name;
+    }
+
+    return this.post(`${this.apiServer}/rpc/update_user_profile`, body, {
+      headers: headers
+    });
+  }
+
   getAccessTokens(token, orgId) {
     let params = {};
     let headers = {

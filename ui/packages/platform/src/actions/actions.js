@@ -38,6 +38,7 @@ const Actions = Reflux.createActions([{
   ASYNC_ACTION: ASYNC_ACTION,
   doAuth: ASYNC_ACTION,
   getUserProfile: ASYNC_ACTION,
+  updateUserProfile: ASYNC_ACTION,
   getAccessTokens: ASYNC_ACTION,
   getAccessToken: ASYNC_ACTION,
   hideGeneratedAccessToken: {},
@@ -265,6 +266,42 @@ Actions.getUserProfile.listen(function (token) {
       this.completed(json);
     }
   );
+});
+
+Actions.updateUserProfile.listen(function (token, data) {
+  let action = this;
+
+  if (!api) {
+    settings.init(function () {
+      api = new Api(settings);
+    });
+  }
+
+  this.progressed();
+
+  timeoutPromise(REQUEST_TIMEOUT, api.updateUserProfile(token, data))
+    .then(result => {
+      result.json()
+        .then(json => {
+          if (json) {
+            action.completed({ data: json?.result });
+          } else {
+            action.failed(new Error('wrong_reply'));
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          action.failed(new Error('wrong_reply'));
+        });
+    })
+    .catch(err => {
+      console.error(err);
+      if (err && err.message && err.message === 'timeout') {
+        action.failed(new Error('failed_fetch'));
+      } else {
+        action.failed(new Error('wrong_reply'));
+      }
+    });
 });
 
 Actions.getAccessTokens.listen(function (token, orgId) {

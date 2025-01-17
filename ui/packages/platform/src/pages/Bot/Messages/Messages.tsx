@@ -125,7 +125,7 @@ type FormattedTime = {
   [id: string]: Time
 }
 
-export const Messages = React.memo(({orgId}: {orgId: number}) => {
+export const Messages = React.memo(({orgId, threadId}: {orgId: number, threadId?: string}) => {
   const {
     messages,
     loading: isLoading,
@@ -254,7 +254,8 @@ export const Messages = React.memo(({orgId}: {orgId: number}) => {
                 created_at,
                 content,
                 ai_model,
-                is_public
+                is_public,
+                status
               } = message;
               let name = 'You';
 
@@ -283,6 +284,8 @@ export const Messages = React.memo(({orgId}: {orgId: number}) => {
                   formattedTime={formattedTime}
                   aiModel={ai_model}
                   isPublic={is_public}
+                  threadId={threadId}
+                  status={status}
                 />
               )
             })}
