@@ -180,7 +180,7 @@ class Profile extends Component {
                       }
                     />
                   }
-                  label="Notify about new messages in the AI Assistant"
+                  label="Send an email notification if a new message from AI Assistant remains unread for more than one minute"
                 />
               </Grid>
               <Grid
