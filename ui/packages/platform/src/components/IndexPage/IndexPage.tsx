@@ -602,27 +602,6 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                 </ListItem>
               </List>
             </Collapse>
-            {orgPermissions && orgPermissions.auditLogView && (<ListItem
-              button
-              className={cn(parentProps.classes.menuSectionHeader, parentProps.classes.menuSectionHeaderCollapsible)}
-              disabled={isBlocked}
-              id="menuSettingsTitle"
-            >
-              <NavLink
-                className={parentProps.classes.menuSectionHeaderLink}
-                activeClassName={cn(parentProps.classes.menuSectionHeaderActiveLink, parentProps.classes.menuSingleSectionHeaderActiveLink)}
-                to={
-                  orgPermissions && orgPermissions.settingsOrganizationUpdate
-                    ? '/' + org + '/audit'
-                    : '#'
-                }
-              >
-                <span className={parentProps.classes.menuSectionHeaderIcon}>
-                  {icons.auditLogIcon}
-                </span>
-                Audit
-              </NavLink>
-            </ListItem>)}
             <ListItem
               button
               className={cn(parentProps.classes.menuSectionHeader, parentProps.classes.menuSectionHeaderCollapsible)}
@@ -728,6 +707,24 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                     </NavLink>
                   </ListItem>
                 )}
+                {orgPermissions && orgPermissions.auditLogView && (
+                  <ListItem
+                    disabled={
+                      (orgPermissions && !orgPermissions.auditLogView) || isBlocked
+                    }
+                    button
+                    className={parentProps.classes.menuItem}
+                    id="menuSettingsAuditLogs"
+                  >
+                    <NavLink
+                      className={parentProps.classes.menuItemLink}
+                      activeClassName={parentProps.classes.menuItemActiveLink}
+                      to={'/' + org + '/audit'}
+                    >
+                      Audit logs
+                    </NavLink>
+                  </ListItem>
+                )}
                 {orgData !== null && orgPermissions && Permissions.isAdmin(orgData) && orgPermissions.auditLogView && (
                   <ListItem
                     disabled={
@@ -735,7 +732,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                     }
                     button
                     className={parentProps.classes.menuItem}
-                    id="menuSettingsAudit"
+                    id="menuSettingsAuditSettings"
                   >
                     <NavLink
                       className={parentProps.classes.menuItemLink}

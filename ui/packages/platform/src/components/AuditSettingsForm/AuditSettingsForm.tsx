@@ -91,6 +91,9 @@ const useStyles = makeStyles(
         'margin-top': '20px',
       },
     },
+    formContainer: {
+      flexWrap: 'nowrap'
+    },
     textField: {
       ...styles.inputField,
     },
@@ -304,7 +307,7 @@ const AuditSettingsForm: React.FC<AuditSettingsFormProps> = (props) => {
       <form onSubmit={formik.handleSubmit}>
         <Grid container spacing={3}>
           <Grid item xs={12} sm={12} lg={12} className={classes.container}>
-            <Grid container item xs={12} sm={12} lg={8} direction={'column'}>
+            <Grid container item lg={8} direction={'column'} className={classes.formContainer}>
               {!isAuditLogsSettingsAvailable && <Typography variant="body2" className={classes.unlockNote}>
                 <Link external to="https://postgres.ai/contact/" target="_blank">
                   Become an Enterprise customer
