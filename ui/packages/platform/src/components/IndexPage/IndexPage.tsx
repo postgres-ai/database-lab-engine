@@ -73,6 +73,7 @@ import { NotificationWrapper } from 'components/Notification/NotificationWrapper
 import { SharedUrlWrapper } from 'components/SharedUrl/SharedUrlWrapper'
 import { ShareUrlDialogWrapper } from 'components/ShareUrlDialog/ShareUrlDialogWrapper'
 import { BotWrapper } from "pages/Bot/BotWrapper";
+import { ConsultingWrapper } from "pages/Consulting/ConsultingWrapper";
 
 import Actions from '../../actions/actions'
 import JoeConfig from '../JoeConfig'
@@ -625,6 +626,23 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
             </ListItem>)}
             <ListItem
               button
+              className={parentProps.classes.menuSectionHeader}
+              disabled={isBlocked}
+              id="menuConsultingTitle"
+            >
+              <NavLink
+                className={parentProps.classes.menuSectionHeaderLink}
+                activeClassName={cn(parentProps.classes.menuSectionHeaderActiveLink, parentProps.classes.menuSingleSectionHeaderActiveLink)}
+                to={'/' + org + '/consulting'}
+              >
+                <span className={parentProps.classes.menuSectionHeaderIcon}>
+                  {icons.consultingIcon}
+                </span>
+                Consulting
+              </NavLink>
+            </ListItem>
+            <ListItem
+              button
               className={cn(parentProps.classes.menuSectionHeader, parentProps.classes.menuSectionHeaderCollapsible)}
               disabled={isBlocked}
               id="menuSettingsTitle"
@@ -986,6 +1004,13 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
           const { org } = props.match.params;
           return <Redirect to={`/${org}/assistant`} />;
         }}
+      />
+      <Route
+        path="/:org/consulting"
+        exact
+        render={(props) => (
+          <ConsultingWrapper {...props} {...customProps} {...queryProps} />
+        )}
       />
       <Route
         path="/:org/joe-instances"

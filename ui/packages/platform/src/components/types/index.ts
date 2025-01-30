@@ -40,6 +40,7 @@ export interface Orgs {
     owner_user_id: number
     is_chat_public_by_default: boolean
     chats_private_allowed: boolean
+    consulting_type: string | null
     data: {
       plan: string
     } | null
