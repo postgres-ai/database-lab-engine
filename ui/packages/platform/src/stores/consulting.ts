@@ -3,7 +3,7 @@ import { request } from "../helpers/request";
 
 const apiServer = process.env.REACT_APP_API_URL_PREFIX || '';
 
-interface Transaction {
+export interface Transaction {
   id: string;
   org_id: number;
   issue_id: number;

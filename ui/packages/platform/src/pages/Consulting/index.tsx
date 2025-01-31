@@ -1,12 +1,7 @@
 import React, { useEffect } from "react";
 import ConsolePageTitle from "../../components/ConsolePageTitle";
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import { Grid, Paper, Typography } from "@mui/material";
+import Alert from "@mui/material/Alert";
+import { Grid, Typography } from "@mui/material";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box/Box";
 import { observer } from "mobx-react-lite";
@@ -16,11 +11,9 @@ import { makeStyles } from "@material-ui/core";
 import { PageSpinner } from "@postgres.ai/shared/components/PageSpinner";
 import { ProductCardWrapper } from "../../components/ProductCard/ProductCardWrapper";
 import { Link } from "@postgres.ai/shared/components/Link2";
-import Permissions from "../../utils/permissions";
-import { WarningWrapper } from "../../components/Warning/WarningWrapper";
-import { messages } from "../../assets/messages";
 import { ConsoleBreadcrumbsWrapper } from "../../components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper";
 import { formatPostgresInterval } from "./utils";
+import { TransactionsTable } from "./TransactionsTable/TransactionsTable";
 
 
 
@@ -88,16 +81,6 @@ export const Consulting = observer((props: ConsultingWrapperProps) => {
     )
   }
 
-  if (orgData === null || !Permissions.isAdmin(orgData)) {
-    return (
-        <Box>
-          {breadcrumbs}
-          <ConsolePageTitle title={"Consulting"} />
-          <WarningWrapper>{messages.noPermissionPage}</WarningWrapper>
-        </Box>
-      )
-  }
-
   if (orgData.consulting_type === null) {
     return (
       <Box>
@@ -132,19 +115,11 @@ export const Consulting = observer((props: ConsultingWrapperProps) => {
       {breadcrumbs}
       <ConsolePageTitle title={"Consulting"} />
       <Grid container spacing={3}>
-        {orgData.consulting_type === 'retainer' && <Grid item xs={12} md={8}>
-          <Typography variant="h6" classes={{root: classes.sectionLabel}}>
-            Retainer balance:
-          </Typography>
-          <Typography variant="h5" sx={{ marginTop: 1}}>
-            {formatPostgresInterval(consultingStore.orgBalance?.[0]?.balance || '00') || 0}
-          </Typography>
-        </Grid>}
         <Grid item xs={12} md={8}>
           <Box>
-            <Button variant="contained" component="a" href="https://buy.stripe.com/7sI5odeXt3tB0Eg3cm" target="_blank">
-              Replenish consulting hours
-            </Button>
+            <Typography variant="body1" sx={{ fontSize: 14 }}>
+              Thank you for choosing Postgres.AI as your PostgreSQL consulting partner. Your plan: {orgData.consulting_type.toUpperCase()}.
+            </Typography>
           </Box>
         </Grid>
         <Grid item xs={12} md={8}>
@@ -172,6 +147,37 @@ export const Consulting = observer((props: ConsultingWrapperProps) => {
           </Box>
         </Grid>
         <Grid item xs={12} md={8}>
+          <Box>
+            <Typography variant="h6" classes={{root: classes.sectionLabel}}>
+              Email:
+            </Typography>
+            <Typography variant="body1" sx={{ marginTop: 1, fontSize: 14}}>
+              <Link to={`mailto:consulting@postgres.ai`} external target="_blank">
+                consulting@postgres.ai
+              </Link>
+            </Typography>
+          </Box>
+        </Grid>
+        {consultingStore.orgBalance?.[0]?.balance?.charAt(0) === '-' && <Grid item xs={12} md={8}>
+          <Alert severity="warning">Consulting hours overdrawn</Alert>
+        </Grid>}
+        {orgData.consulting_type === 'retainer' && <Grid item xs={12} md={8}>
+          <Typography variant="h6" classes={{root: classes.sectionLabel}}>
+            Retainer balance:
+          </Typography>
+          <Typography variant="h5" sx={{ marginTop: 1}}>
+            {formatPostgresInterval(consultingStore.orgBalance?.[0]?.balance || '00') || 0}
+          </Typography>
+        </Grid>}
+        {orgData.consulting_type === 'retainer' && <Grid item xs={12} md={8}>
+          <Box>
+            <Button variant="contained" component="a" href="https://buy.stripe.com/7sI5odeXt3tB0Eg3cm" target="_blank">
+              Replenish consulting hours
+            </Button>
+          </Box>
+        </Grid>}
+
+        {orgData.consulting_type === 'retainer' && <Grid item xs={12} md={8}>
           <Typography variant="h6" classes={{root: classes.sectionLabel}}>
             Activity:
           </Typography>
@@ -180,44 +186,11 @@ export const Consulting = observer((props: ConsultingWrapperProps) => {
               ? <Typography variant="body1" sx={{ marginTop: 1}}>
                   No activity yet
                 </Typography>
-              : <TableContainer component={Paper} sx={{ marginTop: 1}}>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Action</TableCell>
-                        <TableCell>Amount</TableCell>
-                        <TableCell>Date</TableCell>
-                        <TableCell>Details</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {
-                        consultingStore.transactions.map((transaction, index) => {
-                          return (
-                            <TableRow key={index}>
-                              <TableCell sx={{whiteSpace: 'nowrap'}}>{transaction.amount.charAt(0) === '-' ? 'Utilize' : 'Replenish'}</TableCell>
-                              <TableCell sx={{color: transaction.amount.charAt(0) === '-' ? 'red' : 'green', whiteSpace: 'nowrap'}}>
-                                {formatPostgresInterval(transaction.amount || '00')}
-                              </TableCell>
-                              <TableCell sx={{whiteSpace: 'nowrap'}}>{new Date(transaction.created_at)?.toISOString()?.split('T')?.[0]}</TableCell>
-                              <TableCell>
-                                {transaction.issue_id
-                                  ? <Link external to={`https://gitlab.com/postgres-ai/postgresql-consulting/support/${orgData.alias}/-/issues/${transaction.issue_id}`} target="_blank">
-                                    {transaction.description}
-                                    </Link>
-                                  : transaction.description
-                                }
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                      }
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+              : <TransactionsTable transactions={consultingStore.transactions} alias={orgData.alias} />
           }
-        </Grid>
+        </Grid>}
       </Grid>
     </div>
   );
 });
+
