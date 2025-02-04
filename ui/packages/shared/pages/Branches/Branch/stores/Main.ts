@@ -91,6 +91,7 @@ export class MainStore {
         title: 'Error',
         message: `Branch "${branchId}" not found`,
       }
+      this.isBranchesLoading = false
     }
 
     return !!currentBranch
@@ -101,6 +102,10 @@ export class MainStore {
 
     const { response, error } = await this.api.deleteBranch(branchName)
 
+    if (response) {
+      this.branches =
+        this.branches?.filter((branch) => branch.name !== branchName) || []
+    }
 
     return { response, error }
   }
