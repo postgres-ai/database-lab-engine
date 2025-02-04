@@ -44,7 +44,7 @@ export const DeleteBranchModal = ({
     if (deleteRes?.error) {
       setDeleteError(deleteRes.error?.message)
     } else {
-      window.location.reload()
+      window.location.replace('/instance/branches')
     }
   }
 
