@@ -18,11 +18,11 @@ import (
 	"github.com/docker/go-connections/nat"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/docker"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/runners"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/engine"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/networks"
 )

@@ -28,7 +28,6 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv"
@@ -36,6 +35,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/runners"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/networks"
 	"gitlab.com/postgres-ai/database-lab/v3/version"
 )

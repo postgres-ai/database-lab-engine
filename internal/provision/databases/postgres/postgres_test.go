@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/runners"
 )
 
 type MockRunner struct {

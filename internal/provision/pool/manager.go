@@ -12,11 +12,11 @@ import (
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/lvm"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/zfs"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/runners"
 )
 
 // FSManager defines an interface to work different thin-clone managers.
