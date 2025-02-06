@@ -49,6 +49,7 @@ export const CreateClone = observer((props: Props) => {
   const timer = useTimer()
   const [branchesList, setBranchesList] = useState<string[]>([])
   const [snapshots, setSnapshots] = useState([] as Snapshot[])
+  const [isLoadingSnapshots, setIsLoadingSnapshots] = useState(false)
 
   // Form.
   const onSubmit = async (values: FormValues) => {
@@ -94,6 +95,7 @@ export const CreateClone = observer((props: Props) => {
 
   const fetchData = async () => {
     try {
+      setIsLoadingSnapshots(true)
       await stores.main.load(props.instanceId)
 
       const branches = (await stores.main.getBranches()) ?? []
@@ -105,12 +107,15 @@ export const CreateClone = observer((props: Props) => {
         await fetchBranchSnapshotsData(initiallySelectedBranch)
       } else {
         const allSnapshots = stores.main?.snapshots?.data ?? []
-        setSnapshots(allSnapshots)
+        const sortedSnapshots = allSnapshots.slice().sort(compareSnapshotsDesc)
+        setSnapshots(sortedSnapshots)
         const [firstSnapshot] = allSnapshots ?? []
         formik.setFieldValue('snapshotId', firstSnapshot?.id)
       }
     } catch (error) {
       console.error('Error fetching data:', error)
+    } finally {
+      setIsLoadingSnapshots(false)
     }
   }
 
@@ -136,7 +141,7 @@ export const CreateClone = observer((props: Props) => {
   )
 
   // Initial loading spinner.
-  if (!stores.main.instance)
+  if (!stores.main.instance || isLoadingSnapshots)
     return (
       <>
         {headRendered}
@@ -217,23 +222,20 @@ export const CreateClone = observer((props: Props) => {
               }
               error={Boolean(formik.errors.snapshotId)}
               items={
-                snapshots
-                  .slice()
-                  .sort(compareSnapshotsDesc)
-                  .map((snapshot, i) => {
-                    const isLatest = i === 0
-                    return {
-                      value: snapshot.id,
-                      children: (
-                        <>
-                          {snapshot.dataStateAt}
-                          {isLatest && (
-                            <span className={styles.snapshotTag}>Latest</span>
-                          )}
-                        </>
-                      ),
-                    }
-                  }) ?? []
+                snapshots.map((snapshot, i) => {
+                  const isLatest = i === 0
+                  return {
+                    value: snapshot.id,
+                    children: (
+                      <>
+                        {snapshot.dataStateAt}
+                        {isLatest && (
+                          <span className={styles.snapshotTag}>Latest</span>
+                        )}
+                      </>
+                    ),
+                  }
+                }) ?? []
               }
             />
 
