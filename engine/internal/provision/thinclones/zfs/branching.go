@@ -104,6 +104,8 @@ func (m *Manager) InitBranching() error {
 		return fmt.Errorf("failed to init main branch dataset: %w", err)
 	}
 
+	m.RefreshSnapshotList()
+
 	log.Msg("data branching has been successfully initialized")
 
 	return nil

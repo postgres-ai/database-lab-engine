@@ -41,6 +41,7 @@ var defaultFields = snapshotFields{
 	"usedbysnapshots",
 	"usedbychildren",
 	dataStateAtLabel,
+	branchProp,
 }
 
 var defaultSorting = snapshotSorting{

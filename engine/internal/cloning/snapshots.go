@@ -48,6 +48,7 @@ func (c *Base) fetchSnapshots() error {
 			PhysicalSize: entry.Used,
 			LogicalSize:  entry.LogicalReferenced,
 			Pool:         entry.Pool,
+			Branch:       entry.Branch,
 			NumClones:    numClones,
 		}
 

@@ -116,6 +116,9 @@ type ListEntry struct {
 
 	// Data state timestamp.
 	DataStateAt time.Time
+
+	// Branch to which the snapshot belongs.
+	Branch string
 }
 
 type setFunc func(s string) error
@@ -671,6 +674,7 @@ func (m *Manager) getSnapshots() ([]resources.Snapshot, error) {
 			Used:              entry.Used,
 			LogicalReferenced: entry.LogicalReferenced,
 			Pool:              m.config.Pool.Name,
+			Branch:            entry.Branch,
 		}
 
 		snapshots = append(snapshots, snapshot)
@@ -796,7 +800,7 @@ func (m *Manager) listDetails(filter snapshotFilter) ([]*ListEntry, error) {
 		return nil, NewEmptyPoolError(filter.dsType, filter.pool)
 	}
 
-	numberFields := len([]string(filter.fields)) // 14
+	numberFields := len([]string(filter.fields)) // 15
 	entries := make([]*ListEntry, len(lines)-headerOffset)
 
 	for i := headerOffset; i < len(lines); i++ {
@@ -822,6 +826,7 @@ func (m *Manager) listDetails(filter snapshotFilter) ([]*ListEntry, error) {
 			MountPoint: fields[2],
 			Type:       fields[5],
 			Origin:     fields[6],
+			Branch:     fields[14],
 		}
 
 		setRules := []setTuple{
