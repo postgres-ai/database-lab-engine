@@ -10,11 +10,12 @@ import { DestroyClone } from '@postgres.ai/shared/types/api/endpoints/destroyClo
 import { request } from 'helpers/request'
 
 export const destroyClone: DestroyClone = async (req) => {
-  const response = await request('/rpc/dblab_clone_destroy', {
+  const response = await request('/rpc/dblab_api_call', {
     method: 'POST',
     body: JSON.stringify({
+      action: '/clone/' + encodeURIComponent(req.cloneId),
       instance_id: req.instanceId,
-      clone_id: req.cloneId,
+      method: 'delete'
     }),
   })
 
