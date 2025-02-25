@@ -11,17 +11,18 @@ type Request = {
 }
 
 export const getClone = async (req: Request) => {
-  const response = (await request('/rpc/dblab_clone_status', {
+  const response = (await request('/rpc/dblab_api_call', {
     method: 'POST',
     body: JSON.stringify({
+      action: '/clone/' + encodeURIComponent(req.cloneId),
       instance_id: req.instanceId,
-      clone_id: req.cloneId,
-    }),
+      method: 'get'
+    })
   }))
 
   return {
     response: response.ok
-      ? formatCloneDto((await response.json()) as CloneDto)
+      ? formatCloneDto(await response.json() as CloneDto)
       : null,
     error: response.ok ? null : response,
   }
