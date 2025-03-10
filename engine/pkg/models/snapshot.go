@@ -13,6 +13,7 @@ type Snapshot struct {
 	LogicalSize  uint64     `json:"logicalSize"`
 	Pool         string     `json:"pool"`
 	NumClones    int        `json:"numClones"`
+	Clones       []string   `json:"clones"`
 	Branch       string     `json:"branch"`
 }
 

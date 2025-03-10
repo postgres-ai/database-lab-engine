@@ -158,11 +158,13 @@ func TestInitialCloneCounter(t *testing.T) {
 	c.clones["test_clone002"] = cloneWrapper02
 	c.clones["test_clone003"] = cloneWrapper03
 
-	counters := c.cloneCounter()
+	counters := c.counterClones()
 
-	require.Equal(t, 2, len(counters))
-	require.Equal(t, 2, counters["testSnapshotID"])
-	require.Equal(t, 1, counters["testSnapshotID2"])
+	require.Len(t, counters, 2)
+	require.Len(t, counters["testSnapshotID"], 2)
+	require.Len(t, counters["testSnapshotID2"], 1)
+	require.Len(t, counters["testSnapshotID3"], 0)
+	require.ElementsMatch(t, []string{"test_clone001", "test_clone002"}, counters["testSnapshotID"])
 }
 
 func TestLatestSnapshots(t *testing.T) {

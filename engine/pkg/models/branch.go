@@ -33,11 +33,12 @@ type SnapshotDetails struct {
 
 // BranchView describes branch view.
 type BranchView struct {
-	Name        string `json:"name"`
-	Parent      string `json:"parent"`
-	DataStateAt string `json:"dataStateAt"`
-	SnapshotID  string `json:"snapshotID"`
-	Dataset     string `json:"dataset"`
+	Name         string `json:"name"`
+	Parent       string `json:"parent"`
+	DataStateAt  string `json:"dataStateAt"`
+	SnapshotID   string `json:"snapshotID"`
+	Dataset      string `json:"dataset"`
+	NumSnapshots int    `json:"numSnapshots"`
 }
 
 // BranchEntity defines a branch-snapshot pair.

@@ -57,12 +57,15 @@ func (s *Server) listBranches(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		numSnapshots, parentSnapshot := findBranchParent(repo.Snapshots, snapshotDetails.ID, branchEntity.Name)
+
 		branchView := models.BranchView{
-			Name:        branchEntity.Name,
-			Parent:      findBranchParent(repo.Snapshots, snapshotDetails.ID, branchEntity.Name),
-			DataStateAt: snapshotDetails.DataStateAt,
-			SnapshotID:  snapshotDetails.ID,
-			Dataset:     snapshotDetails.Dataset,
+			Name:         branchEntity.Name,
+			Parent:       parentSnapshot,
+			DataStateAt:  snapshotDetails.DataStateAt,
+			SnapshotID:   snapshotDetails.ID,
+			Dataset:      snapshotDetails.Dataset,
+			NumSnapshots: numSnapshots,
 		}
 
 		if position, ok := branchRegistry[branchEntity.Name]; ok {
@@ -83,13 +86,16 @@ func (s *Server) listBranches(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func findBranchParent(snapshots map[string]models.SnapshotDetails, parentID, branch string) string {
+func findBranchParent(snapshots map[string]models.SnapshotDetails, parentID, branch string) (int, string) {
+	snapshotCounter := 0
+
 	for i := len(snapshots); i > 0; i-- {
 		snapshotPointer := snapshots[parentID]
+		snapshotCounter++
 
 		if containsString(snapshotPointer.Root, branch) {
 			if len(snapshotPointer.Branch) > 0 {
-				return snapshotPointer.Branch[0]
+				return snapshotCounter, snapshotPointer.Branch[0]
 			}
 
 			break
@@ -102,7 +108,7 @@ func findBranchParent(snapshots map[string]models.SnapshotDetails, parentID, bra
 		parentID = snapshotPointer.Parent
 	}
 
-	return "-"
+	return snapshotCounter, "-"
 }
 
 func containsString(slice []string, s string) bool {
