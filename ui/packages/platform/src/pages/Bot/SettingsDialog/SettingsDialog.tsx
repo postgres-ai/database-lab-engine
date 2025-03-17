@@ -15,7 +15,7 @@ import {
   makeStyles,
   Radio,
   RadioGroup,
-  TextField,
+  TextField, Theme,
   Typography,
 } from '@material-ui/core'
 import MuiDialogTitle from '@material-ui/core/DialogTitle'
@@ -30,6 +30,8 @@ import { AiModel } from "../../../types/api/entities/bot";
 import settings from "../../../utils/settings";
 import { Link } from "@postgres.ai/shared/components/Link2";
 import { ExternalIcon } from "@postgres.ai/shared/icons/External";
+import Divider from "@material-ui/core/Divider";
+import cn from "classnames";
 
 type DialogTitleProps = {
   id: string
@@ -123,35 +125,30 @@ const DialogActions = (props: { children: React.ReactNode }) => {
   )
 }
 
-const useDialogStyles = makeStyles(
-  () => ({
+const useDialogStyles = makeStyles<Theme>(
+  (theme) => ({
     textField: {
       ...styles.inputField,
       marginTop: '0px',
       width: 480,
+      [theme.breakpoints.down('sm')]: {
+
+      }
     },
     copyButton: {
       marginTop: '-3px',
       fontSize: '20px',
     },
-    dialog: {},
-    remark: {
-      fontSize: 12,
-      lineHeight: '12px',
-
-      paddingLeft: 20,
-      paddingBottom: 5,
-    },
-    remarkIcon: {
-      display: 'block',
-      height: '20px',
-      width: '22px',
-      float: 'left',
-      paddingTop: '5px',
-    },
     urlContainer: {
-      marginTop: 10,
-      paddingLeft: 22,
+      marginTop: 8,
+      paddingLeft: 20,
+      [theme.breakpoints.down('sm')]: {
+        padding: 0,
+        width: '100%',
+        '& .MuiTextField-root': {
+          maxWidth: 'calc(100% - 36px)'
+        }
+      },
     },
     radioGroup: {
       fontSize: 12,
@@ -170,9 +167,24 @@ const useDialogStyles = makeStyles(
         marginBottom: 0
       }
     },
+    unlockNoteDemo: {
+      paddingLeft: 20
+    },
     formControlLabel: {
       '& .Mui-disabled > *, & .Mui-disabled': {
         color: 'rgba(0, 0, 0, 0.6)'
+      },
+      [theme.breakpoints.down('sm')]: {
+        marginRight: 0,
+        alignItems: 'flex-start',
+        '&:first-child': {
+          marginTop: 6
+        }
+      },
+    },
+    formControlLabelRadio: {
+      [theme.breakpoints.down('sm')]: {
+        padding: '4px 9px'
       }
     },
     externalIcon: {
@@ -180,6 +192,9 @@ const useDialogStyles = makeStyles(
       height: 14,
       marginLeft: 4,
       transform: 'translateY(2px)',
+    },
+    divider: {
+      margin: '12px 0'
     }
   }),
   { index: 1 },
@@ -295,8 +310,8 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
         <>
           <FormLabel component="legend">Visibility</FormLabel>
           <RadioGroup
-            aria-label="shareUrl"
-            name="shareUrl"
+            aria-label="Thread visibility"
+            name="threadVisibility"
             value={visibility}
             onChange={(event) => {
               setVisibility(event.target.value as Visibility)
@@ -306,8 +321,9 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
             <FormControlLabel
               value={Visibility.PUBLIC}
               className={classes.formControlLabel}
-              control={<Radio />}
+              control={<Radio className={classes.formControlLabelRadio} />}
               label={<><b>Public:</b> anyone can view chats, but only team members can respond</>}
+              aria-label="Public: anyone can view chats, but only team members can respond"
             />
             {visibility === Visibility.PUBLIC && threadId && (
               <div className={classes.urlContainer}>{urlField}</div>
@@ -315,11 +331,12 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
             <FormControlLabel
               value={Visibility.PRIVATE}
               className={classes.formControlLabel}
-              control={<Radio />}
+              control={<Radio className={classes.formControlLabelRadio} />}
               label={<><b>Private:</b> chats are visible only to members of your organization</>}
+              aria-label="Private: chats are visible only to members of your organization"
               disabled={Boolean(isDemoOrg) || !isSubscriber}
             />
-            {Boolean(isDemoOrg) && <Typography className={classes.remark}>Private chats are not allowed in "Demo"</Typography>}
+            {Boolean(isDemoOrg) && <Typography className={cn(classes.unlockNote, classes.unlockNoteDemo)}>Private chats are not allowed in "Demo"</Typography>}
             {!Boolean(isDemoOrg) && !isSubscriber && <Typography variant="body2" className={classes.unlockNote}>
               Unlock private conversations by either:
               <ol>
@@ -339,29 +356,6 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
             </Typography>}
           </RadioGroup>
         </>
-        {aiModels && <>
-          <FormLabel component="legend">Model</FormLabel>
-          <RadioGroup
-            aria-label="model"
-            name="model"
-            value={`${model?.vendor}/${model?.name}`}
-            onChange={(event) => {
-              const selectedModel = aiModels?.find((model) => `${model.vendor}/${model.name}` === event.target.value)
-              setModel(selectedModel!)
-            }}
-            className={classes.radioGroup}
-          >
-            {aiModels.map((model) =>
-                <FormControlLabel
-                  key={`${model.vendor}/${model.name}`}
-                  value={`${model.vendor}/${model.name}`}
-                  control={<Radio />}
-                  label={`${model.name} ${model.comment ? model.comment : ''}`}
-                />
-              )
-            }
-          </RadioGroup>
-        </>}
       </DialogContent>
 
       <DialogActions>

@@ -31,7 +31,7 @@ const useStyles = makeStyles<Theme, ChatsListProps>((theme) => ({
       [theme.breakpoints.down('sm')]: {
         height: '100vh!important',
         marginTop: '0!important',
-        width: 320,
+        width: 'min(100%, 360px)',
         zIndex: 9999
       },
       '& > ul': {
@@ -57,6 +57,11 @@ const useStyles = makeStyles<Theme, ChatsListProps>((theme) => ({
       background: 'white',
       [theme.breakpoints.down('sm')]: {
         padding: 0
+      },
+      "@media (max-width: 960px)": {
+        "& .MuiFormControl-root": {
+          display: "none" // Hide model selector in chats list
+        }
       }
     },
     listItemLink: {
