@@ -7,6 +7,8 @@ import { theme } from "@postgres.ai/shared/styles/theme";
 import { permalinkLinkBuilder } from "../utils";
 import { useAiBot } from "../hooks";
 import DeveloperModeIcon from "@material-ui/icons/DeveloperMode";
+import { ModelSelector } from "../ModelSelector/ModelSelector";
+import { Skeleton } from "@mui/material";
 
 export type SettingsPanelProps = {
   onSettingsClick: () => void;
@@ -31,23 +33,12 @@ const useStyles = makeStyles((theme) => ({
       }
     },
     labelVisibility: {
-      marginLeft: '0.5rem',
+      marginRight: '0.5rem',
       [theme.breakpoints.down('sm')]: {
-        marginLeft: '0.25rem'
+        marginRight: '0.25rem'
       },
       '&:hover': {
         backgroundColor: colors.secondary1.main
-      }
-    },
-    labelModel: {
-      background: colors.secondary1.main,
-    },
-    labelModelInvalid: {
-      background: colors.state.error,
-      border: "none",
-      cursor: 'pointer',
-      '&:hover': {
-        backgroundColor: colors.primary.dark
       }
     },
     labelPrivate: {
@@ -74,48 +65,33 @@ const useStyles = makeStyles((theme) => ({
 
 export const SettingsPanel = (props: SettingsPanelProps) => {
   const { onSettingsClick, onConsoleClick } = props;
+  const { loading } = useAiBot()
   const classes = useStyles();
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
-  const { messages, chatVisibility, aiModel, aiModelsLoading } = useAiBot();
+  const { messages, chatVisibility, aiModelsLoading } = useAiBot();
   const permalinkId = useMemo(() => messages?.[0]?.id, [messages]);
-
-  let modelLabel;
-
-  if (aiModel) {
-    modelLabel = (
-      <span
-        className={cn(classes.label, classes.labelModel)}
-      >
-        {aiModel.name}
-      </span>
-    )
-  } else {
-    modelLabel = (
-      <button
-        className={cn(classes.label, classes.labelModelInvalid)}
-        onClick={onSettingsClick}
-      >
-        Model not set
-      </button>
-    )
-  }
 
   return (
     <>
-      {!aiModelsLoading && modelLabel}
-      {permalinkId && <a
-        href={permalinkId && chatVisibility === 'public' ? permalinkLinkBuilder(permalinkId) : ''}
-        className={cn(classes.label, classes.labelVisibility,
-          {
-            [classes.labelPrivate]: chatVisibility === 'private',
-            [classes.disabled]: chatVisibility === 'private' || !permalinkId
-          }
-        )}
-        target="_blank"
-        aria-disabled={chatVisibility === 'private' || !permalinkId}
-      >
-        <span>{chatVisibility}</span> thread
-      </a>}
+      {permalinkId && <>
+        {loading
+          ? <Skeleton variant="rectangular" className={cn(classes.label, classes.labelVisibility)} width={64} height={16} />
+          : <a
+              href={permalinkId && chatVisibility === 'public' ? permalinkLinkBuilder(permalinkId) : ''}
+              className={cn(classes.label, classes.labelVisibility,
+                {
+                  [classes.labelPrivate]: chatVisibility === 'private',
+                  [classes.disabled]: chatVisibility === 'private' || !permalinkId
+                }
+              )}
+              target="_blank"
+              aria-disabled={chatVisibility === 'private' || !permalinkId}
+            >
+              <span>{chatVisibility}</span> thread
+            </a>
+        }
+      </>}
+      {!aiModelsLoading && <ModelSelector />}
       <Button
         variant="outlined"
         onClick={onSettingsClick}

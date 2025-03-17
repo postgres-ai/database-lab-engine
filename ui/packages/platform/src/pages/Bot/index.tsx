@@ -51,15 +51,21 @@ const useStyles = makeStyles(
       marginTop: -20,
       [theme.breakpoints.down('sm')]: {
         marginTop: -22
+      },
+      '@media (max-width: 370px)': {
+        '& > button': {
+          display: 'none' // hide settings and debug window buttons on smallest screens
+        }
       }
     },
     hiddenButtons: {
       width: 192,
       marginLeft: 52,
       [theme.breakpoints.down('sm')]: {
-        width: 'min(100%, 320px)',
+        //width: 'min(100%, 320px)',
+        width: 79,
         marginLeft: 'auto'
-      }
+      },
     },
     toggleListButton: {
       flex: '0 0 auto',
@@ -245,13 +251,13 @@ export const BotPage = (props: BotPageProps) => {
         onCreateNewChat={handleCreateNewChat}
         onClose={toggleChatsList}
         isDemoOrg={Boolean(isDemoOrg)}
-        withChatVisibilityButton={matches && Boolean(match.params.threadId)}
+        withChatVisibilityButton={matches}
         onSettingsClick={toggleSettingsDialog}
         onLinkClick={handleChatListLinkClick}
         onConsoleClick={handleOpenDebugConsole}
       />
       <Box className={classes.actions}>
-        {!matches &&
+        {
           <SettingsPanel
             onSettingsClick={toggleSettingsDialog}
             onConsoleClick={handleOpenDebugConsole}
@@ -261,7 +267,7 @@ export const BotPage = (props: BotPageProps) => {
             isOpen={isChatsListVisible}
             onClose={toggleChatsList}
             onCreateNewChat={handleCreateNewChat}
-            withChatVisibilityButton={matches && Boolean(match.params.threadId)}
+            withChatVisibilityButton={false}
             onSettingsClick={toggleSettingsDialog}
             onConsoleClick={handleOpenDebugConsole}
           />
