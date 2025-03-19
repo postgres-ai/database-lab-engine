@@ -68,6 +68,8 @@ class Profile extends Component {
         is_chats_email_notifications_enabled: values.is_chats_email_notifications_enabled,
         first_name: values.first_name,
         last_name: values.last_name,
+        dblab_low_disk_space_notifications_enabled: values.is_dblab_low_disk_space_notifications_enabled,
+        dblab_old_clones_notifications_enabled: values.is_dblab_old_clones_notifications_enabled
       });
     }
   };
@@ -80,6 +82,8 @@ class Profile extends Component {
       first_name: data?.data?.info?.first_name || '',
       last_name: data?.data?.info?.last_name || '',
       is_chats_email_notifications_enabled: data?.data?.info?.chats_email_notifications_enabled || false,
+      is_dblab_low_disk_space_notifications_enabled: data?.data?.info?.dblab_low_disk_space_notifications_enabled,
+      is_dblab_old_clones_notifications_enabled: data?.data?.info?.dblab_old_clones_notifications_enabled
     };
 
 
@@ -181,6 +185,41 @@ class Profile extends Component {
                     />
                   }
                   label="Send an email notification if a new message from AI Assistant remains unread for more than one minute"
+                />
+                <InputLabel className={classes.subLabel} id="visibility-radio-buttons-group-sub-label">
+                  DBLab notifications
+                </InputLabel>
+                <FormControlLabel
+                  className={classes.formControlLabel}
+                  control={
+                    <Checkbox
+                      icon={<CheckBoxOutlineBlankIcon fontSize="large" />}
+                      checkedIcon={<CheckBoxIcon fontSize="large" />}
+                      name="is_dblab_low_disk_space_notifications_enabled"
+                      className={classes.formControlLabelCheckbox}
+                      checked={values.is_dblab_low_disk_space_notifications_enabled}
+                      onChange={(event) =>
+                        setFieldValue('is_dblab_low_disk_space_notifications_enabled', event.target.checked)
+                      }
+                    />
+                  }
+                  label="Receive notifications about low disk space" //@TODO: @Nik, help me with text here, I think it should be connected with "Administrators" role in org
+                />
+                <FormControlLabel
+                  className={classes.formControlLabel}
+                  control={
+                    <Checkbox
+                      icon={<CheckBoxOutlineBlankIcon fontSize="large" />}
+                      checkedIcon={<CheckBoxIcon fontSize="large" />}
+                      name="is_dblab_old_clones_notifications_enabled"
+                      className={classes.formControlLabelCheckbox}
+                      checked={values.is_dblab_old_clones_notifications_enabled}
+                      onChange={(event) =>
+                        setFieldValue('is_dblab_old_clones_notifications_enabled', event.target.checked)
+                      }
+                    />
+                  }
+                  label="Receive notifications about old clones"
                 />
               </Grid>
               <Grid

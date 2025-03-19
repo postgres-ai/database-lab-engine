@@ -39,6 +39,14 @@ export const ProfileWrapper = () => {
         color: '#000!important',
         fontWeight: 'bold',
       },
+      subLabel: {
+        marginTop: theme.spacing(2),
+        marginLeft: theme.spacing(1),
+        marginBottom: theme.spacing(1),
+        color: '#000!important',
+        fontWeight: 500,
+        width: '100%'
+      },
       dense: {
         marginTop: 16,
       },

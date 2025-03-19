@@ -56,6 +56,7 @@ const Actions = Reflux.createActions([{
   createOrg: ASYNC_ACTION,
   updateAiBotSettings: ASYNC_ACTION,
   updateAuditSettings: ASYNC_ACTION,
+  updateDBLabSettings: ASYNC_ACTION,
   inviteUser: ASYNC_ACTION,
   useDemoData: ASYNC_ACTION,
   setReportsProject: {},
@@ -705,6 +706,42 @@ Actions.updateAuditSettings.listen(function (token, orgId, orgData) {
 
   action.progressed({ orgId } + orgData);
   timeoutPromise(REQUEST_TIMEOUT, api.updateAuditSettings(token, orgId, orgData))
+
+    .then(result => {
+      result.json()
+        .then(json => {
+          if (json) {
+            action.completed(json);
+          } else {
+            action.failed(new Error('wrong_reply'));
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          action.failed(new Error('wrong_reply'));
+        });
+    })
+    .catch(err => {
+      console.error(err);
+      if (err && err.message && err.message === 'timeout') {
+        action.failed(new Error('failed_fetch'));
+      } else {
+        action.failed(new Error('wrong_reply'));
+      }
+    });
+});
+
+Actions.updateDBLabSettings.listen(function (token, orgId, orgData) {
+  let action = this;
+
+  if (!api) {
+    settings.init(function () {
+      api = new Api(settings);
+    });
+  }
+
+  action.progressed({ orgId } + orgData);
+  timeoutPromise(REQUEST_TIMEOUT, api.updateDBLabSettings(token, orgId, orgData))
 
     .then(result => {
       result.json()
