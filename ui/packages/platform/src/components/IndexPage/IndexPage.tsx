@@ -6,7 +6,7 @@
  */
 
 import React, { Component, useState } from 'react'
-import { Switch, Route, NavLink, Redirect, useRouteMatch } from 'react-router-dom'
+import { Switch, Route, NavLink, Redirect } from 'react-router-dom'
 import {
   AppBar,
   Toolbar,
@@ -90,6 +90,7 @@ import cn from "classnames";
 import { BotSettingsFormWrapper } from "../BotSettingsForm/BotSettingsFormWrapper";
 import { AuditSettingsFormWrapper } from "../AuditSettingsForm/AuditSettingsFormWrapper";
 import { ExpandLess, ExpandMore } from "@material-ui/icons";
+import { DBLabSettingsFormWrapper } from "../DBLabSettingsForm/DBLabSettingsFormWrapper";
 
 
 interface IndexPageWithStylesProps extends IndexPageProps {
@@ -725,6 +726,21 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                     </NavLink>
                   </ListItem>
                 )}
+                {orgData !== null && Permissions.isAdmin(orgData) && (
+                  <ListItem
+                    button
+                    className={parentProps.classes.menuItem}
+                    id="menuSettingsDBLab"
+                  >
+                    <NavLink
+                      className={parentProps.classes.menuItemLink}
+                      activeClassName={parentProps.classes.menuItemActiveLink}
+                      to={'/' + org + '/dblab-settings'}
+                    >
+                      DBLab settings
+                    </NavLink>
+                  </ListItem>
+                )}
                 {orgPermissions && orgPermissions.auditLogView && (
                   <ListItem
                     disabled={
@@ -1037,6 +1053,12 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
         path="/:org/audit-settings"
         render={(props) => (
           <AuditSettingsFormWrapper {...props} {...customProps} {...queryProps} />
+        )}
+      />
+      <Route
+        path="/:org/dblab-settings"
+        render={(props) => (
+          <DBLabSettingsFormWrapper {...props} {...customProps} {...queryProps} />
         )}
       />
       <Route

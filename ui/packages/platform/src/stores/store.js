@@ -651,6 +651,36 @@ const Store = Reflux.createStore({
     this.trigger(this.data);
   },
 
+  onUpdateDBLabSettingsFailed: function (error) {
+    this.data.orgProfile.isUpdating = false;
+    this.data.orgProfile.updateError = true;
+    this.data.orgProfile.updateErrorMessage = error.message;
+    this.trigger(this.data);
+  },
+
+  onUpdateDBLabSettingsProgressed: function (data) {
+    this.data.orgProfile.updateErrorFields = null;
+    this.data.orgProfile.isUpdating = true;
+
+    this.trigger(this.data);
+  },
+
+  onUpdateDBLabSettingsCompleted: function (data) {
+    this.data.orgProfile.isUpdating = false;
+    this.data.orgProfile.updateErrorMessage = this.getError(data);
+    this.data.orgProfile.updateError = !!this.data.orgProfile.updateErrorMessage;
+
+    if (!this.data.orgProfile.updateError && data.length > 0) {
+      this.data.orgProfile.updateErrorFields = null;
+      this.data.orgProfile.data = data[0];
+      Actions.getUserProfile(this.data.auth.token);
+      Actions.getOrgs(this.data.auth.token, this.data.orgProfile.orgId);
+      Actions.showNotification('DBLab settings successfully saved.', 'success');
+    }
+
+    this.trigger(this.data);
+  },
+
   onTestSiemServiceConnectionFailed: function (error) {
     this.data.orgProfile.isUpdating = false;
     this.trigger(this.data);

@@ -132,6 +132,14 @@ class Api {
       body.last_name = data.last_name;
     }
 
+    if (data.dblab_low_disk_space_notifications_enabled !== 'undefined') {
+      body.dblab_low_disk_space_notifications_enabled = data.dblab_low_disk_space_notifications_enabled;
+    }
+
+    if (data.dblab_old_clones_notifications_enabled !== 'undefined') {
+      body.dblab_old_clones_notifications_enabled = data.dblab_old_clones_notifications_enabled;
+    }
+
     return this.post(`${this.apiServer}/rpc/update_user_profile`, body, {
       headers: headers
     });
@@ -527,6 +535,27 @@ class Api {
       headers: headers
     });
   }
+
+  updateDBLabSettings(token, orgId, orgData) {
+    let params = {};
+    let headers = {
+      Authorization: 'Bearer ' + token,
+      prefer: 'return=representation'
+    };
+
+    if (typeof orgData.dblab_low_disk_space_notifications_threshold_percent !== 'undefined') {
+      params.dblab_low_disk_space_notifications_threshold_percent = orgData.dblab_low_disk_space_notifications_threshold_percent
+    }
+
+    if (typeof orgData.dblab_old_clones_notifications_threshold_hours !== 'undefined') {
+      params.dblab_old_clones_notifications_threshold_hours = orgData.dblab_old_clones_notifications_threshold_hours
+    }
+
+    return this.patch(`${this.apiServer}/orgs?id=eq.` + orgId, params, {
+      headers: headers
+    });
+  }
+
 
   testSiemServiceConnection(token, data) {
     let params = {};
