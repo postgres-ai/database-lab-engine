@@ -21,7 +21,7 @@ export type BotMessage = {
   user_id: number
   org_id: string
   thread_id: string
-  type: 'message' | undefined
+  type: 'message' | 'tool_call_result' | undefined
   ai_model: string
   status?: MessageStatus
 }
@@ -58,3 +58,21 @@ export type ErrorMessage = {
 }
 
 export type MessageStatus = 'read' | 'new' | null
+
+export type ToolCallDataItem = {
+  similarity: number
+  url: string
+  category: string
+  title: string
+  content: string
+}
+
+export type ToolCallResultItem = {
+  function_name: string
+  arguments: {
+    input: string,
+    match_count: number
+    categories: string[]
+  }
+  data: ToolCallDataItem[]
+}

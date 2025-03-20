@@ -5,7 +5,15 @@
  *--------------------------------------------------------------------------
  */
 
-import React, { createContext, Dispatch, SetStateAction, useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  Dispatch,
+  SetStateAction,
+  useCallback,
+  useContext,
+  useEffect,
+  useState
+} from "react";
 import useWebSocket, {ReadyState} from "react-use-websocket";
 import { useLocation } from "react-router-dom";
 import {
@@ -14,7 +22,8 @@ import {
   AiModel,
   StateMessage,
   StreamMessage,
-  ErrorMessage, MessageStatus
+  ErrorMessage,
+  MessageStatus
 } from "../../types/api/entities/bot";
 import {getChatsWithWholeThreads} from "../../api/bot/getChatsWithWholeThreads";
 import {getChats} from "api/bot/getChats";
@@ -108,9 +117,9 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
   const [error, setError] = useState<ErrorType | null>(null);
   const [wsLoading, setWsLoading] = useState<boolean>(false);
   const [chatVisibility, setChatVisibility] = useState<UseAiBotReturnType['chatVisibility']>(Visibility.PUBLIC);
-  const [stateMessage, setStateMessage] = useState<StateMessage | null>(null)
-  const [currentStreamMessage, setCurrentStreamMessage] = useState<StreamMessage | null>(null)
-  const [isStreamingInProcess, setStreamingInProcess] = useState<boolean>(false)
+  const [stateMessage, setStateMessage] = useState<StateMessage | null>(null);
+  const [currentStreamMessage, setCurrentStreamMessage] = useState<StreamMessage | null>(null);
+  const [isStreamingInProcess, setStreamingInProcess] = useState<boolean>(false);
 
   const [isChangeVisibilityLoading, setIsChangeVisibilityLoading] = useState<boolean>(false);
   
@@ -131,8 +140,9 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
         const isStateMessage = messageData.type === 'state';
         const isStreamMessage = messageData.type === 'stream';
         const isErrorMessage = messageData.type === 'error';
+        const isToolCallResultMessage = messageData.type === 'tool_call_result';
 
-        if (isThreadMatching || isParentMatching || isDebugMessage || isStateMessage || isStreamMessage || isErrorMessage) {
+        if (isThreadMatching || isParentMatching || isDebugMessage || isStateMessage || isStreamMessage || isErrorMessage || isToolCallResultMessage) {
           switch (messageData.type) {
             case 'debug':
               handleDebugMessage(messageData)
@@ -148,6 +158,9 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
               break;
             case 'error':
               handleErrorMessage(messageData)
+              break;
+            case 'tool_call_result':
+              handleToolCallResultMessage(messageData)
               break;
           }
         } else if (threadId !== messageData.thread_id) {
@@ -214,6 +227,21 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
           });
         }
       }
+    }
+  }
+
+  const handleToolCallResultMessage = (message: BotMessage) => {
+    if (messages && messages.length > 0) {
+      let currentMessages = [...messages];
+      const lastMessage = currentMessages[currentMessages.length - 1];
+      if (lastMessage && !lastMessage.id && message.parent_id) {
+        lastMessage.id = message.parent_id;
+        lastMessage.created_at = message.created_at;
+        lastMessage.is_public = message.is_public;
+      }
+
+      currentMessages.push(message);
+      setMessages(currentMessages);
     }
   }
 

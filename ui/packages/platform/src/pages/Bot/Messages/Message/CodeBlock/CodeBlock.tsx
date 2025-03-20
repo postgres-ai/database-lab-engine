@@ -7,7 +7,7 @@ import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import FileCopyOutlinedIcon from '@material-ui/icons/FileCopyOutlined';
 import CheckCircleOutlineIcon from '@material-ui/icons/CheckCircleOutline';
 import CodeIcon from '@material-ui/icons/Code';
-import { formatLanguageName } from "../../utils";
+import { formatLanguageName } from "../../../utils";
 
 const useStyles = makeStyles((theme) => ({
   container: {

@@ -296,6 +296,7 @@ export const Messages = React.memo(({orgId, threadId}: {orgId: number, threadId?
               content={currentStreamMessage.content}
               aiModel={currentStreamMessage.ai_model}
               isCurrentStreamMessage
+              stateMessage={stateMessage}
             />
           }
           {isWaitingForAnswer &&
