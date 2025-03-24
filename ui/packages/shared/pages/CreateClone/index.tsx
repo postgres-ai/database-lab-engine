@@ -304,7 +304,7 @@ export const CreateClone = observer((props: Props) => {
             />
 
             <p className={styles.remark}>
-              When enabled no one can destroy this clone and automated deletion
+              When enabled, no one can destroy this clone and automated deletion
               is also disabled.
               <br />
               Please be careful: abandoned clones with this checkbox enabled may
