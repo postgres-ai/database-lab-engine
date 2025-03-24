@@ -17,6 +17,36 @@ export const ProfileWrapper = () => {
         marginLeft: theme.spacing(1),
         marginRight: theme.spacing(1),
       },
+      formControlLabel: {
+        marginLeft: theme.spacing(0),
+        marginRight: theme.spacing(1),
+      },
+      formControlLabelCheckbox: {
+        '& svg': {
+          fontSize: 18
+        }
+      },
+      updateButtonContainer: {
+        marginTop: theme.spacing(3),
+        marginLeft: theme.spacing(1),
+        marginRight: theme.spacing(1),
+      },
+      label: {
+        marginTop: theme.spacing(2),
+        marginBottom: theme.spacing(1),
+        marginLeft: theme.spacing(1),
+        marginRight: theme.spacing(1),
+        color: '#000!important',
+        fontWeight: 'bold',
+      },
+      subLabel: {
+        marginTop: theme.spacing(2),
+        marginLeft: theme.spacing(1),
+        marginBottom: theme.spacing(1),
+        color: '#000!important',
+        fontWeight: 500,
+        width: '100%'
+      },
       dense: {
         marginTop: 16,
       },

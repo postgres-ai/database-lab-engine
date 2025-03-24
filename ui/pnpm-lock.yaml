@@ -28,7 +28,7 @@ overrides:
   semver@>=7.0.0 <7.5.2: '>=7.5.2'
   semver@<5.7.2: '>=5.7.2'
   semver@>=6.0.0 <6.3.1: '>=6.3.1'
-  minimatch@<3.0.5: '>=3.0.5'
+  minimatch: 3.1.2
   json5@<1.0.2: '>=1.0.2'
   json5@>=2.0.0 <2.2.2: '>=2.2.2'
   ip@<1.1.9: '>=1.1.9'
@@ -384,6 +384,9 @@ importers:
       moment:
         specifier: '>=2.29.2'
         version: 2.30.1
+      postgres-interval:
+        specifier: ^4.0.2
+        version: 4.0.2
       prop-types:
         specifier: ^15.7.2
         version: 15.8.1
@@ -4175,12 +4178,6 @@ packages:
       '@types/react': 17.0.39
     dev: false
 
-  /@types/react-transition-group@4.4.3:
-    resolution: {integrity: sha512-fUx5muOWSYP8Bw2BUQ9M9RK9+W1XBK/7FLJ8PTQpnpTEkn0ccyMffyEQvan4C3h53gHdx7KE5Qrxi/LnUGQtdg==}
-    dependencies:
-      '@types/react': 17.0.39
-    dev: false
-
   /@types/react-transition-group@4.4.5:
     resolution: {integrity: sha512-juKD/eiSM3/xZYzjuzH6ZwpP+/lejltmiS3QEzV/vmb/Q8+HfDmxu+Baga8UEMGBqV88Nbg4l2hY/K2DkyaLLA==}
     dependencies:
@@ -5177,12 +5174,6 @@ packages:
     dependencies:
       balanced-match: 1.0.2
       concat-map: 0.0.1
-
-  /brace-expansion@2.0.1:
-    resolution: {integrity: sha512-XnAIvQ8eM+kC6aULx6wuQiwVsnzsi9d3WxzV3FpWTGA19F621kwdbsAcFKXgKUHZWsy+mY6iL1sHTxWEFCytDA==}
-    dependencies:
-      balanced-match: 1.0.2
-    dev: false
 
   /braces@3.0.3:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
@@ -7969,7 +7960,7 @@ packages:
   /filelist@1.0.4:
     resolution: {integrity: sha512-w1cEuf3S+DrLCQL7ET6kz+gmlJdbq9J7yXCSjK/OZCPA+qEN1WyF4ZAf0YYJa4/shHJra2t/d/r8SV4Ji+x+8Q==}
     dependencies:
-      minimatch: 5.1.0
+      minimatch: 3.1.2
     dev: false
 
   /filesize@8.0.7:
@@ -8087,7 +8078,7 @@ packages:
       fs-extra: 9.1.0
       glob: 7.2.3
       memfs: 3.4.7
-      minimatch: 5.1.0
+      minimatch: 3.1.2
       schema-utils: 2.7.0
       semver: 7.5.4
       tapable: 1.1.3
@@ -9254,7 +9245,7 @@ packages:
       async: 3.2.4
       chalk: 4.1.2
       filelist: 1.0.4
-      minimatch: 5.1.0
+      minimatch: 3.1.2
     dev: false
 
   /jest-changed-files@27.5.1:
@@ -10887,13 +10878,6 @@ packages:
     dependencies:
       brace-expansion: 1.1.11
 
-  /minimatch@5.1.0:
-    resolution: {integrity: sha512-9TPBGGak4nHfGZsPBohm9AWg6NoT7QTCehS3BIJABslyZbzxfV78QM2Y6+i741OPZIafFAaiiEMh5OyIrJPgtg==}
-    engines: {node: '>=10'}
-    dependencies:
-      brace-expansion: 2.0.1
-    dev: false
-
   /minimist-options@4.1.0:
     resolution: {integrity: sha512-Q4r8ghd80yhO/0j1O3B2BjweX3fiHg9cdOwjJd2J76Q135c+NDxGCqdYKQ1SKBuFfgWbAUzBfvYjPUEeNgqN1A==}
     engines: {node: '>= 6'}
@@ -12319,6 +12303,11 @@ packages:
       picocolors: 1.0.0
       source-map-js: 1.2.0
 
+  /postgres-interval@4.0.2:
+    resolution: {integrity: sha512-EMsphSQ1YkQqKZL2cuG0zHkmjCCzQqQ71l2GXITqRwjhRleCdv00bDk/ktaSi0LnlaPzAc3535KTrjXsTdtx7A==}
+    engines: {node: '>=12'}
+    dev: false
+
   /prelude-ls@1.1.2:
     resolution: {integrity: sha512-ESF23V4SKG6lVSGZgYNpbsiaAkdab6ZgOxe52p7+Kid3W3u3bxR4Vfd/o21dmN7jSt0IwgZ4v5MUd26FEtXE9w==}
     engines: {node: '>= 0.8.0'}
@@ -12996,7 +12985,7 @@ packages:
     resolution: {integrity: sha512-nRCcW9Sj7NuZwa2XvH9co8NPeXUBhZP7CRKJtU+cS6PW9FpCIFoI5ib0NT1ZrbNuPoRy0ylyCaUL8Gih4LSyFg==}
     engines: {node: '>=0.10.0'}
     dependencies:
-      minimatch: 5.1.0
+      minimatch: 3.1.2
     dev: false
 
   /redent@3.0.0:
@@ -14359,7 +14348,7 @@ packages:
     dependencies:
       '@istanbuljs/schema': 0.1.3
       glob: 7.2.3
-      minimatch: 5.1.0
+      minimatch: 3.1.2
     dev: false
 
   /text-table@0.2.0:

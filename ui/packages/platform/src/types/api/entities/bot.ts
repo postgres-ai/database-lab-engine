@@ -18,11 +18,12 @@ export type BotMessage = {
   last_name: string | null
   display_name: string | null
   slack_profile: string | null
-  user_id: string
+  user_id: number
   org_id: string
   thread_id: string
-  type: 'message' | undefined
+  type: 'message' | 'tool_call_result' | undefined
   ai_model: string
+  status?: MessageStatus
 }
 
 export type BotMessageWithDebugInfo = BotMessage & {
@@ -30,6 +31,7 @@ export type BotMessageWithDebugInfo = BotMessage & {
 }
 
 export type AiModel = {
+  comment: string;
   name: string;
   vendor: string;
   isThirdParty: boolean;
@@ -47,4 +49,30 @@ export type StreamMessage = {
   content: string
   ai_model: string
   thread_id: string
+}
+
+export type ErrorMessage = {
+  type: 'error'
+  message: string
+  thread_id: string
+}
+
+export type MessageStatus = 'read' | 'new' | null
+
+export type ToolCallDataItem = {
+  similarity: number
+  url: string
+  category: string
+  title: string
+  content: string
+}
+
+export type ToolCallResultItem = {
+  function_name: string
+  arguments: {
+    input: string,
+    match_count: number
+    categories: string[]
+  }
+  data: ToolCallDataItem[]
 }

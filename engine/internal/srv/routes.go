@@ -27,6 +27,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
@@ -104,6 +105,21 @@ func (s *Server) getSnapshots(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		api.SendError(w, r, err)
 		return
+	}
+
+	if branchRequest := r.URL.Query().Get("branch"); branchRequest != "" {
+		fsm, err := s.getFSManagerForBranch(branchRequest)
+		if err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+
+		if fsm == nil {
+			api.SendBadRequestError(w, r, "no pool manager found")
+			return
+		}
+
+		snapshots = filterSnapshotsByBranch(fsm.Pool(), branchRequest, snapshots)
 	}
 
 	if err = api.WriteJSON(w, http.StatusOK, snapshots); err != nil {
@@ -221,7 +237,12 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, cloneDataset := range dependentCloneDatasets {
-		cloneID := strings.TrimPrefix(cloneDataset, poolName+"/")
+		cloneID, ok := branching.ParseCloneName(cloneDataset, poolName)
+		if !ok {
+			log.Dbg(fmt.Sprintf("cannot parse clone ID from %q", cloneDataset))
+			continue
+		}
+
 		clone, err := s.Cloning.GetClone(cloneID)
 
 		if err != nil {
@@ -247,6 +268,18 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	snapshotProperties, err := fsm.GetSnapshotProperties(destroyRequest.SnapshotID)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if snapshotProperties.Clones != "" && !destroyRequest.Force {
+		api.SendBadRequestError(w, r, fmt.Sprintf("cannot remove snapshot %s because it has dependent datasets: %s",
+			destroyRequest.SnapshotID, snapshotProperties.Clones))
+		return
+	}
+
 	// Remove dependent clones.
 	for _, cloneID := range cloneIDs {
 		if err = s.Cloning.DestroyClone(cloneID); err != nil {
@@ -263,38 +296,25 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	snapshotProperties, err := fsm.GetSnapshotProperties(destroyRequest.SnapshotID)
-	if err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	if snapshotProperties.Parent != "" {
-		branchName, err := fsm.FindBranchBySnapshot(destroyRequest.SnapshotID)
-		if err == nil && branchName != "" {
-			if err := fsm.AddBranchProp(branchName, snapshotProperties.Parent); err != nil {
-				api.SendBadRequestError(w, r, err.Error())
-				return
-			}
-		}
-
-		if err := fsm.DeleteChildProp(destroyRequest.SnapshotID, snapshotProperties.Parent); err != nil {
-			api.SendBadRequestError(w, r, err.Error())
-			return
-		}
-	}
-
 	if err = fsm.DestroySnapshot(destroyRequest.SnapshotID, thinclones.DestroyOptions{Force: destroyRequest.Force}); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	if fullDataset, _, found := strings.Cut(destroyRequest.SnapshotID, "@"); found {
-		cloneDataset := strings.TrimPrefix(fullDataset, poolName+"/")
+	if snapshotProperties.Clones == "" {
+		if fullDataset, _, found := strings.Cut(destroyRequest.SnapshotID, "@"); found {
+			if err = fsm.DestroyDataset(fullDataset); err != nil {
+				api.SendBadRequestError(w, r, err.Error())
+				return
+			}
 
-		if err = fsm.DestroyClone(cloneDataset); err != nil {
-			api.SendBadRequestError(w, r, err.Error())
-			return
+			// TODO: review all available revisions. Destroy base dataset only if there no any revision.
+			if baseDataset, found := strings.CutSuffix(fullDataset, "/r0"); found {
+				if err = fsm.DestroyDataset(baseDataset); err != nil {
+					api.SendBadRequestError(w, r, err.Error())
+					return
+				}
+			}
 		}
 	}
 
@@ -612,7 +632,7 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.Observer.AddObservingClone(clone.ID, uint(port), observingClone)
+	s.Observer.AddObservingClone(clone.ID, clone.Branch, uint(port), observingClone)
 
 	// Start session on the Platform.
 	platformRequest := platform.StartObservationRequest{

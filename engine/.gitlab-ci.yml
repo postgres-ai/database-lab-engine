@@ -420,6 +420,8 @@ build-image-swagger-release:
   artifacts:
     paths:
       - engine/bin
+  before_script:
+    - bash engine/test/_cleanup.sh
   script:
     - bash engine/test/1.synthetic.sh
     - bash engine/test/2.logical_generic.sh
@@ -482,7 +484,7 @@ integration-test:
   stage: integration-test
   variables:
     # Instruct Testcontainers to use the daemon of DinD.
-    DOCKER_HOST: "tcp://docker:2375"
+#    DOCKER_HOST: "tcp://docker:2375"
     # Instruct Docker not to start over TLS.
     DOCKER_TLS_CERTDIR: ""
     # Improve performance with overlayfs.

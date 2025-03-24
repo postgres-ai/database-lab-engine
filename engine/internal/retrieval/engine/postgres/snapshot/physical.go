@@ -48,6 +48,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 )
 
 const (
@@ -303,6 +304,8 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 }
 
 func (p *PhysicalInitial) run(ctx context.Context) (err error) {
+	log.Msg("Run job: ", p.Name())
+
 	select {
 	case <-ctx.Done():
 		if p.scheduler != nil {
@@ -353,18 +356,18 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 		}
 	}()
 
-	if err := p.cloneManager.CreateClone(cloneName, snapshotName); err != nil {
+	if err := p.cloneManager.CreateClone(branching.DefaultBranch, cloneName, snapshotName, branching.DefaultRevision); err != nil {
 		return errors.Wrapf(err, "failed to create \"pre\" clone %s", cloneName)
 	}
 
-	cloneDataDir := path.Join(p.fsPool.ClonesDir(), cloneName, p.fsPool.DataSubDir)
+	cloneDataDir := path.Join(p.fsPool.CloneLocation(branching.DefaultBranch, cloneName, branching.DefaultRevision), p.fsPool.DataSubDir)
 	if err := fs.CleanupLogsDir(cloneDataDir); err != nil {
 		log.Warn("Failed to clean up logs directory:", err.Error())
 	}
 
 	defer func() {
 		if err != nil {
-			if errDestroy := p.cloneManager.DestroyClone(cloneName); errDestroy != nil {
+			if errDestroy := p.cloneManager.DestroyClone(branching.DefaultBranch, cloneName, branching.DefaultRevision); errDestroy != nil {
 				log.Err(fmt.Sprintf("Failed to destroy clone %q: %v", cloneName, errDestroy))
 			}
 		}
@@ -390,8 +393,9 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	}
 
 	// Create a snapshot.
-	if _, err := p.cloneManager.CreateSnapshot(cloneName, p.dbMark.DataStateAt); err != nil {
-		return errors.Wrap(err, "failed to create a snapshot")
+	fullClonePath := path.Join(branching.BranchDir, branching.DefaultBranch, cloneName, branching.RevisionSegment(branching.DefaultRevision))
+	if _, err := p.cloneManager.CreateSnapshot(fullClonePath, p.dbMark.DataStateAt); err != nil {
+		return errors.Wrap(err, "failed to create snapshot")
 	}
 
 	p.updateDataStateAt()
@@ -569,7 +573,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 	if syState.Err != nil {
 		recoveryConfig = buildRecoveryConfig(recoveryFileConfig, p.options.Promotion.Recovery)
 
-		if err := cfgManager.ApplyRecovery(recoveryFileConfig); err != nil {
+		if err := cfgManager.ApplyRecovery(recoveryConfig); err != nil {
 			return errors.Wrap(err, "failed to apply recovery configuration")
 		}
 	} else if err := cfgManager.RemoveRecoveryConfig(); err != nil {

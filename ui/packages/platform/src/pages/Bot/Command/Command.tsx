@@ -86,7 +86,6 @@ export const Command = React.memo((props: Props) => {
     wsLoading,
     loading,
     sendMessage,
-    chatVisibility,
     isStreamingInProcess
   } = useAiBot();
 
@@ -111,7 +110,6 @@ export const Command = React.memo((props: Props) => {
       content: message,
       thread_id: threadId || null,
       org_id: orgId,
-      is_public: chatVisibility === 'public'
     })
   }
 
@@ -135,15 +133,6 @@ export const Command = React.memo((props: Props) => {
         top: 0,
         behavior: 'smooth'
       })
-      const footer: HTMLElement | null = document.querySelector("footer")
-      if (footer) footer.style.display = 'flex';
-    }
-  }
-
-  const handleFocus = () => {
-    if ((window.innerWidth < theme.breakpoints.values.sm)  && isMobile) {
-      const footer: HTMLElement | null = document.querySelector("footer")
-      if (footer) footer.style.display = 'none';
     }
   }
 
@@ -205,7 +194,6 @@ export const Command = React.memo((props: Props) => {
         onKeyDown={handleKeyDown}
         onChange={handleChange}
         onBlur={handleBlur}
-        onFocus={handleFocus}
         InputProps={{
           inputRef,
           classes: {

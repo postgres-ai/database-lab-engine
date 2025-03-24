@@ -5,10 +5,10 @@
  *--------------------------------------------------------------------------
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import cn from "classnames";
 import Box from '@mui/material/Box/Box';
-import { makeStyles, useMediaQuery } from "@material-ui/core";
+import { makeStyles, Typography, useMediaQuery } from "@material-ui/core";
 import { useHistory, useRouteMatch } from "react-router-dom";
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper';
 import { ErrorWrapper } from "../../components/Error/ErrorWrapper";
@@ -25,8 +25,22 @@ import { theme } from "@postgres.ai/shared/styles/theme";
 import { colors } from "@postgres.ai/shared/styles/colors";
 import { SettingsPanel } from "./SettingsPanel/SettingsPanel";
 import { DebugConsole } from "./DebugConsole/DebugConsole";
+import Store from "../../stores/store";
+import Actions from "../../actions/actions";
+import { Link } from "@postgres.ai/shared/components/Link2";
 
 type BotPageProps = BotWrapperProps;
+
+type DbLabInstance = {
+  id: number;
+  plan: string | null;
+}
+
+type RefluxState = {
+  dbLabInstances: {
+    data: Record<number, DbLabInstance>;
+  }
+} | null
 
 const useStyles = makeStyles(
   (theme) => ({
@@ -37,15 +51,21 @@ const useStyles = makeStyles(
       marginTop: -20,
       [theme.breakpoints.down('sm')]: {
         marginTop: -22
+      },
+      '@media (max-width: 370px)': {
+        '& > button': {
+          display: 'none' // hide settings and debug window buttons on smallest screens
+        }
       }
     },
     hiddenButtons: {
       width: 192,
       marginLeft: 52,
       [theme.breakpoints.down('sm')]: {
-        width: 'min(100%, 320px)',
+        //width: 'min(100%, 320px)',
+        width: 79,
         marginLeft: 'auto'
-      }
+      },
     },
     toggleListButton: {
       flex: '0 0 auto',
@@ -86,13 +106,19 @@ const useStyles = makeStyles(
     },
     labelPrivate: {
       backgroundColor: colors.pgaiDarkGray,
+    },
+    publicChatNote: {
+      marginTop: 4,
+      marginBottom: -14,
+      alignSelf: 'center',
+      fontSize: 12
     }
   }),
   { index: 1 },
 )
 
 export const BotPage = (props: BotPageProps) => {
-  const { match, project, orgData } = props;
+  const { match, project, orgData, orgId } = props;
 
   const {
     messages,
@@ -101,6 +127,7 @@ export const BotPage = (props: BotPageProps) => {
     unsubscribe,
     getDebugMessagesForWholeThread,
     getChatsList,
+    chatVisibility
   } = useAiBot();
 
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
@@ -155,6 +182,24 @@ export const BotPage = (props: BotPageProps) => {
     }
   }
 
+  const isSubscriber = useMemo(() => orgData?.chats_private_allowed, [orgData?.chats_private_allowed]);
+
+  const publicChatMessage = useMemo(() => {
+    if (isDemoOrg) {
+      return <>AI can make mistakes❗️ All chats here are currently public. To enable private conversations, <Link to="/addorg">create your organization</Link></>;
+    }
+
+    if (!isSubscriber) {
+      return <>AI can make mistakes❗️ All chats here are currently public. <Link to={`/${match.params.org}/instances`}>Connect DBLab SE</Link> or <Link external to="https://postgres.ai/consulting">become a consulting client</Link> to enable private conversations</>;
+    }
+
+    if (isSubscriber && chatVisibility === 'public') {
+      return <>AI can make mistakes❗️ This chat is public, you can change it in Settings.</>
+    }
+
+    return null;
+  }, [isDemoOrg, match.params.org, chatVisibility, isSubscriber]);
+
   useEffect(() => {
     if (!match.params.threadId && !prevThreadId && messages && messages.length > 0 && messages[0].id) {
       // hack that skip additional loading chats_ancestors_and_descendants
@@ -173,6 +218,7 @@ export const BotPage = (props: BotPageProps) => {
   useEffect(() => {
     if (isDebugConsoleVisible) setDebugConsoleVisible(false)
   }, [match.params.threadId]);
+
 
   if (error && error.code === 404) {
     return (
@@ -197,19 +243,21 @@ export const BotPage = (props: BotPageProps) => {
         isOpen={isSettingsDialogVisible}
         onClose={toggleSettingsDialog}
         threadId={match.params.threadId || null}
+        orgAlias={match.params.org || ''}
+        isSubscriber={isSubscriber}
       />
       <ChatsList
         isOpen={isChatsListVisible}
         onCreateNewChat={handleCreateNewChat}
         onClose={toggleChatsList}
         isDemoOrg={Boolean(isDemoOrg)}
-        withChatVisibilityButton={matches && Boolean(match.params.threadId)}
+        withChatVisibilityButton={matches}
         onSettingsClick={toggleSettingsDialog}
         onLinkClick={handleChatListLinkClick}
         onConsoleClick={handleOpenDebugConsole}
       />
       <Box className={classes.actions}>
-        {!matches &&
+        {
           <SettingsPanel
             onSettingsClick={toggleSettingsDialog}
             onConsoleClick={handleOpenDebugConsole}
@@ -219,18 +267,19 @@ export const BotPage = (props: BotPageProps) => {
             isOpen={isChatsListVisible}
             onClose={toggleChatsList}
             onCreateNewChat={handleCreateNewChat}
-            withChatVisibilityButton={matches && Boolean(match.params.threadId)}
+            withChatVisibilityButton={false}
             onSettingsClick={toggleSettingsDialog}
             onConsoleClick={handleOpenDebugConsole}
           />
         </Box>
       </Box>
       <Box className={cn(classes.contentContainer, {[classes.isChatsListVisible]: isChatsListVisible})}>
-        <Messages orgId={orgData.id} />
+        <Messages orgId={orgData.id} threadId={match.params.threadId} />
         <Command
           threadId={match.params.threadId}
           orgId={orgData.id}
         />
+        <Typography className={classes.publicChatNote}>{publicChatMessage}</Typography>
       </Box>
     </>
   )

@@ -55,6 +55,7 @@
     "mobx": "^6.3.2",
     "mobx-react-lite": "^3.2.0",
     "moment": "^2.24.0",
+    "postgres-interval": "^4.0.2",
     "prop-types": "^15.7.2",
     "qs": "^6.11.0",
     "react": "^17.0.2",

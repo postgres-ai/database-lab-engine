@@ -38,6 +38,7 @@ const Actions = Reflux.createActions([{
   ASYNC_ACTION: ASYNC_ACTION,
   doAuth: ASYNC_ACTION,
   getUserProfile: ASYNC_ACTION,
+  updateUserProfile: ASYNC_ACTION,
   getAccessTokens: ASYNC_ACTION,
   getAccessToken: ASYNC_ACTION,
   hideGeneratedAccessToken: {},
@@ -54,6 +55,8 @@ const Actions = Reflux.createActions([{
   updateOrg: ASYNC_ACTION,
   createOrg: ASYNC_ACTION,
   updateAiBotSettings: ASYNC_ACTION,
+  updateAuditSettings: ASYNC_ACTION,
+  updateDBLabSettings: ASYNC_ACTION,
   inviteUser: ASYNC_ACTION,
   useDemoData: ASYNC_ACTION,
   setReportsProject: {},
@@ -114,7 +117,9 @@ const Actions = Reflux.createActions([{
   downloadDblabSessionArtifact: ASYNC_ACTION,
   sendUserCode: ASYNC_ACTION,
   confirmUserEmail: ASYNC_ACTION,
-  confirmTosAgreement: ASYNC_ACTION
+  confirmTosAgreement: ASYNC_ACTION,
+  testSiemServiceConnection: ASYNC_ACTION,
+  getAuditEvents: ASYNC_ACTION
 }]);
 
 function timeoutPromise(ms, promise) {
@@ -262,6 +267,42 @@ Actions.getUserProfile.listen(function (token) {
       this.completed(json);
     }
   );
+});
+
+Actions.updateUserProfile.listen(function (token, data) {
+  let action = this;
+
+  if (!api) {
+    settings.init(function () {
+      api = new Api(settings);
+    });
+  }
+
+  this.progressed();
+
+  timeoutPromise(REQUEST_TIMEOUT, api.updateUserProfile(token, data))
+    .then(result => {
+      result.json()
+        .then(json => {
+          if (json) {
+            action.completed({ data: json });
+          } else {
+            action.failed(new Error('wrong_reply'));
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          action.failed(new Error('wrong_reply'));
+        });
+    })
+    .catch(err => {
+      console.error(err);
+      if (err && err.message && err.message === 'timeout') {
+        action.failed(new Error('failed_fetch'));
+      } else {
+        action.failed(new Error('wrong_reply'));
+      }
+    });
 });
 
 Actions.getAccessTokens.listen(function (token, orgId) {
@@ -629,6 +670,78 @@ Actions.updateAiBotSettings.listen(function (token, orgId, orgData) {
 
   action.progressed({ orgId } + orgData);
   timeoutPromise(REQUEST_TIMEOUT, api.updateAiBotSettings(token, orgId, orgData))
+
+    .then(result => {
+      result.json()
+        .then(json => {
+          if (json) {
+            action.completed(json);
+          } else {
+            action.failed(new Error('wrong_reply'));
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          action.failed(new Error('wrong_reply'));
+        });
+    })
+    .catch(err => {
+      console.error(err);
+      if (err && err.message && err.message === 'timeout') {
+        action.failed(new Error('failed_fetch'));
+      } else {
+        action.failed(new Error('wrong_reply'));
+      }
+    });
+});
+
+Actions.updateAuditSettings.listen(function (token, orgId, orgData) {
+  let action = this;
+
+  if (!api) {
+    settings.init(function () {
+      api = new Api(settings);
+    });
+  }
+
+  action.progressed({ orgId } + orgData);
+  timeoutPromise(REQUEST_TIMEOUT, api.updateAuditSettings(token, orgId, orgData))
+
+    .then(result => {
+      result.json()
+        .then(json => {
+          if (json) {
+            action.completed(json);
+          } else {
+            action.failed(new Error('wrong_reply'));
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          action.failed(new Error('wrong_reply'));
+        });
+    })
+    .catch(err => {
+      console.error(err);
+      if (err && err.message && err.message === 'timeout') {
+        action.failed(new Error('failed_fetch'));
+      } else {
+        action.failed(new Error('wrong_reply'));
+      }
+    });
+});
+
+Actions.updateDBLabSettings.listen(function (token, orgId, orgData) {
+  let action = this;
+
+  if (!api) {
+    settings.init(function () {
+      api = new Api(settings);
+    });
+  }
+
+  action.progressed({ orgId } + orgData);
+  timeoutPromise(REQUEST_TIMEOUT, api.updateDBLabSettings(token, orgId, orgData))
 
     .then(result => {
       result.json()
@@ -1569,6 +1682,79 @@ Actions.confirmTosAgreement.listen(function (token) {
       this.failed(err);
     }
   );
+});
+
+
+Actions.testSiemServiceConnection.listen(function (token, data) {
+  let action = this;
+
+  if (!api) {
+    settings.init(function () {
+      api = new Api(settings);
+    });
+  }
+
+  action.progressed(data);
+  timeoutPromise(REQUEST_TIMEOUT, api.testSiemServiceConnection(token, data))
+
+    .then(result => {
+      result.json()
+        .then(json => {
+          if (json) {
+            action.completed(json);
+          } else {
+            action.failed(new Error('wrong_reply'));
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          action.failed(new Error('wrong_reply'));
+        });
+    })
+    .catch(err => {
+      console.error(err);
+      if (err && err.message && err.message === 'timeout') {
+        action.failed(new Error('failed_fetch'));
+      } else {
+        action.failed(new Error('wrong_reply'));
+      }
+    });
+});
+
+Actions.getAuditEvents.listen(function (token) {
+  let action = this;
+
+  if (!api) {
+    settings.init(function () {
+      api = new Api(settings);
+    });
+  }
+
+  action.progressed();
+
+  timeoutPromise(REQUEST_TIMEOUT, api.getAuditEvents(token))
+    .then(result => {
+      result.json()
+        .then(json => {
+          if (json) {
+            action.completed({ data: json });
+          } else {
+            action.failed(new Error('wrong_reply'));
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          action.failed(new Error('wrong_reply'));
+        });
+    })
+    .catch(err => {
+      console.error(err);
+      if (err && err.message && err.message === 'timeout') {
+        action.failed(new Error('failed_fetch'));
+      } else {
+        action.failed(new Error('wrong_reply'));
+      }
+    });
 });
 
 export default Actions;

@@ -217,7 +217,6 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/branch/snapshot/{id:.*}", authMW.Authorized(s.getCommit)).Methods(http.MethodGet)
 	r.HandleFunc("/branch/create", authMW.Authorized(s.createBranch)).Methods(http.MethodPost)
 	r.HandleFunc("/branch/snapshot", authMW.Authorized(s.snapshot)).Methods(http.MethodPost)
-	r.HandleFunc("/branch/snapshots/{branch}", authMW.Authorized(s.getBranchSnapshots)).Methods(http.MethodGet)
 	r.HandleFunc("/branch/log", authMW.Authorized(s.log)).Methods(http.MethodPost)
 	r.HandleFunc("/branch/delete", authMW.Authorized(s.deleteBranch)).Methods(http.MethodPost)
 

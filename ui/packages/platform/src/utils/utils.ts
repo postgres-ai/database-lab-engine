@@ -5,6 +5,8 @@
  *--------------------------------------------------------------------------
  */
 
+import parse, { IPostgresInterval } from "postgres-interval";
+
 export const generateToken = function () {
   const a =
     'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'.split('')
@@ -68,4 +70,35 @@ export const isMobileDevice = (): boolean => {
   const isMobileScreen = window.innerWidth <= 1366;
 
   return hasTouchScreen && isMobileScreen;
+}
+
+export const pgIntervalToHours = (interval?: string | null): number | null => {
+  if (!interval) {
+    return null;
+  }
+
+  const parsed: IPostgresInterval = parse(interval);
+
+  const yearsToHours = (parsed.years ?? 0) * 365 * 24;
+  const monthsToHours = (parsed.months ?? 0) * 30 * 24;
+  const daysToHours = (parsed.days ?? 0) * 24;
+  const hours = parsed.hours ?? 0;
+  const minutesToHours = (parsed.minutes ?? 0) / 60;
+  const secondsToHours = (parsed.seconds ?? 0) / 3600;
+
+  return yearsToHours + monthsToHours + daysToHours + hours + minutesToHours + secondsToHours;
+}
+
+export const hoursToPgInterval = (hours: number): string => {
+  const totalMinutes = Math.floor(hours * 60);
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const remainingMinutes = totalMinutes % (24 * 60);
+  const h = Math.floor(remainingMinutes / 60);
+  const m = remainingMinutes % 60;
+
+  if (days > 0) {
+    return `${days} days ${h}:${m}:00`;
+  } else {
+    return `${h}:${m}:00`;
+  }
 }

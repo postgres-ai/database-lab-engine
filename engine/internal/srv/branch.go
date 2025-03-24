@@ -12,7 +12,6 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
@@ -121,7 +120,6 @@ func containsString(slice []string, s string) bool {
 	return false
 }
 
-//nolint:unused
 func (s *Server) getFSManagerForBranch(branchName string) (pool.FSManager, error) {
 	allBranches, err := s.pm.First().ListAllBranches()
 	if err != nil {
@@ -376,8 +374,7 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 	log.Dbg("Current snapshot ID", currentSnapshotID)
 
 	dataStateAt := time.Now().Format(util.DataStateAtFormat)
-
-	snapshotBase := fmt.Sprintf("%s/%s", clone.Snapshot.Pool, clone.ID)
+	snapshotBase := fsm.Pool().CloneName(clone.Branch, clone.ID, clone.Revision)
 	snapshotName := fmt.Sprintf("%s@%s", snapshotBase, dataStateAt)
 
 	if err := fsm.Snapshot(snapshotName); err != nil {
@@ -390,16 +387,7 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	targetBranchSnap := fmt.Sprintf("%[1]s@%[1]s", dataStateAt)
-
-	targetSnap := fmt.Sprintf("%s/%s", fsm.Pool().BranchName(clone.Snapshot.Pool, clone.Branch), targetBranchSnap)
-
-	if err := fsm.Move(currentSnapshotID, snapshotName, targetSnap); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	if err := fsm.AddBranchProp(clone.Branch, targetSnap); err != nil {
+	if err := fsm.AddBranchProp(clone.Branch, snapshotName); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
@@ -409,22 +397,17 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := fsm.SetRelation(currentSnapshotID, targetSnap); err != nil {
+	if err := fsm.SetRelation(currentSnapshotID, snapshotName); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	if err := fsm.SetDSA(dataStateAt, targetSnap); err != nil {
+	if err := fsm.SetDSA(dataStateAt, snapshotName); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	if err := fsm.SetMessage(snapshotRequest.Message, targetSnap); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	if err := fsm.DestroySnapshot(snapshotName, thinclones.DestroyOptions{}); err != nil {
+	if err := fsm.SetMessage(snapshotRequest.Message, snapshotName); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
@@ -436,12 +419,7 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.Cloning.ResetClone(clone.ID, types.ResetCloneRequest{SnapshotID: targetSnap}); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	snapshot, err := s.Cloning.GetSnapshotByID(targetSnap)
+	snapshot, err := s.Cloning.GetSnapshotByID(snapshotName)
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
@@ -454,40 +432,7 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 
 	s.tm.SendEvent(context.Background(), telemetry.SnapshotCreatedEvent, telemetry.SnapshotCreated{})
 
-	if err := api.WriteJSON(w, http.StatusOK, types.SnapshotResponse{SnapshotID: targetSnap}); err != nil {
-		api.SendError(w, r, err)
-		return
-	}
-}
-
-func (s *Server) getBranchSnapshots(w http.ResponseWriter, r *http.Request) {
-	branchRequest := mux.Vars(r)["branch"]
-
-	if branchRequest == "" {
-		api.SendBadRequestError(w, r, "branch must not be empty")
-		return
-	}
-
-	fsm, err := s.getFSManagerForBranch(branchRequest)
-	if err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	if fsm == nil {
-		api.SendBadRequestError(w, r, "no pool manager found")
-		return
-	}
-
-	snapshots, err := s.Cloning.GetSnapshots()
-	if err != nil {
-		api.SendError(w, r, err)
-		return
-	}
-
-	branchSnapshots := filterSnapshotsByBranch(fsm.Pool(), branchRequest, snapshots)
-
-	if err = api.WriteJSON(w, http.StatusOK, branchSnapshots); err != nil {
+	if err := api.WriteJSON(w, http.StatusOK, types.SnapshotResponse{SnapshotID: snapshotName}); err != nil {
 		api.SendError(w, r, err)
 		return
 	}
@@ -616,50 +561,12 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 
 			return
 		}
-
-		brName := fsm.Pool().BranchName(fsm.Pool().Name, deleteRequest.BranchName)
-
-		if err := fsm.DestroyBranch(brName); err != nil {
-			log.Warn(fmt.Sprintf("failed to remove snapshot %q:", brName), err)
-			api.SendBadRequestError(w, r, fmt.Sprintf("failed to remove snapshot %q:", brName))
-
-			return
-		}
-
-		datasetFull := strings.Split(toRemove[0], "@")
-		datasetName, _ := strings.CutPrefix(datasetFull[0], fsm.Pool().Name+"/")
-
-		if err := fsm.DestroyClone(datasetName); err != nil {
-			errMsg := fmt.Sprintf("cannot destroy the underlying branch dataset: %s", datasetName)
-			log.Warn(errMsg, err)
-			api.SendBadRequestError(w, r, errMsg)
-
-			return
-		}
 	}
 
-	// Re-request the repository as the list of snapshots may change significantly.
-	repo, err = fsm.GetRepo()
-	if err != nil {
+	if err := s.destroyBranchDataset(fsm, deleteRequest.BranchName); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
-
-	if err := cleanupSnapshotProperties(repo, fsm, deleteRequest.BranchName); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	fsm.RefreshSnapshotList()
-
-	s.webhookCh <- webhooks.BasicEvent{
-		EventType: webhooks.BranchDeleteEvent,
-		EntityID:  deleteRequest.BranchName,
-	}
-
-	s.tm.SendEvent(context.Background(), telemetry.BranchDestroyedEvent, telemetry.BranchDestroyed{
-		Name: deleteRequest.BranchName,
-	})
 
 	if err := api.WriteJSON(w, http.StatusOK, models.Response{
 		Status:  models.ResponseOK,
@@ -719,4 +626,39 @@ func snapshotsToRemove(repo *models.Repo, snapshotID, branchName string) []strin
 	}
 
 	return removingList
+}
+
+func (s *Server) destroyBranchDataset(fsm pool.FSManager, branchName string) error {
+	branchDatasetName := fsm.Pool().BranchName(fsm.Pool().Name, branchName)
+
+	if err := fsm.DestroyDataset(branchDatasetName); err != nil {
+		log.Warn(fmt.Sprintf("failed to remove dataset %q:", branchDatasetName), err)
+
+		return err
+	}
+
+	// Re-request the repository as the list of snapshots may change significantly.
+	repo, err := fsm.GetRepo()
+	if err != nil {
+		return err
+	}
+
+	if err := cleanupSnapshotProperties(repo, fsm, branchName); err != nil {
+		return err
+	}
+
+	fsm.RefreshSnapshotList()
+
+	s.webhookCh <- webhooks.BasicEvent{
+		EventType: webhooks.BranchDeleteEvent,
+		EntityID:  branchName,
+	}
+
+	s.tm.SendEvent(context.Background(), telemetry.BranchDestroyedEvent, telemetry.BranchDestroyed{
+		Name: branchName,
+	})
+
+	log.Dbg(fmt.Sprintf("Branch %s has been deleted", branchName))
+
+	return nil
 }

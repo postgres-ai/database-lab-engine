@@ -6,16 +6,17 @@
  */
 
 import React, { useEffect, useState } from 'react'
+import { useRouteMatch } from "react-router-dom";
 import {
-  IconButton,
-  TextField,
+  Button,
   Dialog,
-  Typography,
+  FormControlLabel,
+  IconButton,
+  makeStyles,
   Radio,
   RadioGroup,
-  FormControlLabel,
-  Button,
-  makeStyles,
+  TextField, Theme,
+  Typography,
 } from '@material-ui/core'
 import MuiDialogTitle from '@material-ui/core/DialogTitle'
 import MuiDialogContent from '@material-ui/core/DialogContent'
@@ -24,11 +25,13 @@ import FormLabel from '@mui/material/FormLabel'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
-import { colors } from "@postgres.ai/shared/styles/colors";
-import { useAiBot } from "../hooks";
+import { useAiBot, Visibility } from "../hooks";
 import { AiModel } from "../../../types/api/entities/bot";
-
-export type Visibility = 'public' | 'private';
+import settings from "../../../utils/settings";
+import { Link } from "@postgres.ai/shared/components/Link2";
+import { ExternalIcon } from "@postgres.ai/shared/icons/External";
+import Divider from "@material-ui/core/Divider";
+import cn from "classnames";
 
 type DialogTitleProps = {
   id: string
@@ -40,6 +43,8 @@ type PublicChatDialogProps = {
   isOpen: boolean
   onClose: () => void
   threadId: string | null
+  orgAlias: string
+  isSubscriber: boolean
 }
 
 const useDialogTitleStyles = makeStyles(
@@ -120,41 +125,77 @@ const DialogActions = (props: { children: React.ReactNode }) => {
   )
 }
 
-const useDialogStyles = makeStyles(
-  () => ({
+const useDialogStyles = makeStyles<Theme>(
+  (theme) => ({
     textField: {
       ...styles.inputField,
       marginTop: '0px',
       width: 480,
+      [theme.breakpoints.down('sm')]: {
+
+      }
     },
     copyButton: {
       marginTop: '-3px',
       fontSize: '20px',
     },
-    dialog: {},
-    remark: {
-      fontSize: 12,
-      lineHeight: '12px',
-      color: colors.state.warning,
-      paddingLeft: 20,
-    },
-    remarkIcon: {
-      display: 'block',
-      height: '20px',
-      width: '22px',
-      float: 'left',
-      paddingTop: '5px',
-    },
     urlContainer: {
-      marginTop: 10,
-      paddingLeft: 22,
+      marginTop: 8,
+      paddingLeft: 20,
+      [theme.breakpoints.down('sm')]: {
+        padding: 0,
+        width: '100%',
+        '& .MuiTextField-root': {
+          maxWidth: 'calc(100% - 36px)'
+        }
+      },
     },
-    radioLabel: {
+    radioGroup: {
       fontSize: 12,
+      '&:not(:last-child)': {
+        marginBottom: 12
+      }
     },
     dialogContent: {
       paddingTop: 10,
     },
+    unlockNote: {
+      marginTop: 2,
+      '& ol': {
+        paddingLeft: 18,
+        marginTop: 4,
+        marginBottom: 0
+      }
+    },
+    unlockNoteDemo: {
+      paddingLeft: 20
+    },
+    formControlLabel: {
+      '& .Mui-disabled > *, & .Mui-disabled': {
+        color: 'rgba(0, 0, 0, 0.6)'
+      },
+      [theme.breakpoints.down('sm')]: {
+        marginRight: 0,
+        alignItems: 'flex-start',
+        '&:first-child': {
+          marginTop: 6
+        }
+      },
+    },
+    formControlLabelRadio: {
+      [theme.breakpoints.down('sm')]: {
+        padding: '4px 9px'
+      }
+    },
+    externalIcon: {
+      width: 14,
+      height: 14,
+      marginLeft: 4,
+      transform: 'translateY(2px)',
+    },
+    divider: {
+      margin: '12px 0'
+    }
   }),
   { index: 1 },
 )
@@ -164,8 +205,9 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
     onClose,
     isOpen,
     threadId,
+    orgAlias,
+    isSubscriber
   } = props;
-
 
   const {
     chatVisibility,
@@ -175,14 +217,17 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
     aiModels,
     aiModel: activeModel,
     setAiModel: setActiveModel,
+    setChatVisibility
   } = useAiBot();
 
   const [model, setModel] = useState<AiModel | null>(activeModel)
-  const [visibility, setVisibility] = useState<string>(chatVisibility);
+  const [visibility, setVisibility] = useState<Visibility>(chatVisibility);
 
   const classes = useDialogStyles();
 
   const publicUrl = `https://postgres.ai/chats/${threadId}`;
+
+  const isDemoOrg = useRouteMatch(`/${settings.demoOrgAlias}`);
 
   const handleCopyUrl = () => {
     if ('clipboard' in navigator) {
@@ -195,10 +240,11 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
       setActiveModel(model)
     }
     if (visibility !== chatVisibility && threadId) {
-      changeChatVisibility(threadId, visibility === 'public')
+      changeChatVisibility(threadId, visibility === Visibility.PUBLIC)
       getChatsList();
+    } else if (visibility !== chatVisibility) {
+      setChatVisibility(visibility)
     }
-
     onClose()
   }
 
@@ -258,59 +304,58 @@ export const SettingsDialog = (props: PublicChatDialogProps) => {
         id="customized-dialog-title"
         onClose={onClose}
       >
-        Chat Settings
+        Chat settings
       </DialogTitle>
       <DialogContent>
-        {threadId && <>
+        <>
           <FormLabel component="legend">Visibility</FormLabel>
           <RadioGroup
-            aria-label="shareUrl"
-            name="shareUrl"
+            aria-label="Thread visibility"
+            name="threadVisibility"
             value={visibility}
             onChange={(event) => {
               setVisibility(event.target.value as Visibility)
             }}
-            className={classes.radioLabel}
+            className={classes.radioGroup}
           >
             <FormControlLabel
-              value="private"
-              control={<Radio />}
-              label="Only members of the organization can view"
+              value={Visibility.PUBLIC}
+              className={classes.formControlLabel}
+              control={<Radio className={classes.formControlLabelRadio} />}
+              label={<><b>Public:</b> anyone can view chats, but only team members can respond</>}
+              aria-label="Public: anyone can view chats, but only team members can respond"
             />
-
-            <FormControlLabel
-              value="public"
-              control={<Radio />}
-              label="Anyone with a special link and members of the organization can view"
-            />
-          </RadioGroup>
-          {visibility && (
+            {visibility === Visibility.PUBLIC && threadId && (
               <div className={classes.urlContainer}>{urlField}</div>
             )}
-        </>}
-        {aiModels && <>
-          <FormLabel component="legend">Model</FormLabel>
-          <RadioGroup
-            aria-label="model"
-            name="model"
-            value={`${model?.vendor}/${model?.name}`}
-            onChange={(event) => {
-              const selectedModel = aiModels?.find((model) => `${model.vendor}/${model.name}` === event.target.value)
-              setModel(selectedModel!)
-            }}
-            className={classes.radioLabel}
-          >
-            {aiModels.map((model) =>
-                <FormControlLabel
-                  key={`${model.vendor}/${model.name}`}
-                  value={`${model.vendor}/${model.name}`}
-                  control={<Radio />}
-                  label={model.name}
-                />
-              )
-            }
+            <FormControlLabel
+              value={Visibility.PRIVATE}
+              className={classes.formControlLabel}
+              control={<Radio className={classes.formControlLabelRadio} />}
+              label={<><b>Private:</b> chats are visible only to members of your organization</>}
+              aria-label="Private: chats are visible only to members of your organization"
+              disabled={Boolean(isDemoOrg) || !isSubscriber}
+            />
+            {Boolean(isDemoOrg) && <Typography className={cn(classes.unlockNote, classes.unlockNoteDemo)}>Private chats are not allowed in "Demo"</Typography>}
+            {!Boolean(isDemoOrg) && !isSubscriber && <Typography variant="body2" className={classes.unlockNote}>
+              Unlock private conversations by either:
+              <ol>
+                <li>
+                  <Link to={`/${orgAlias}/instances`} target="_blank">
+                    Installing a DBLab SE instance
+                    <ExternalIcon className={classes.externalIcon}/>
+                  </Link>
+                </li>
+                <li>
+                  <Link external to="https://postgres.ai/consulting" target="_blank">
+                    Becoming a Postgres.AI consulting customer
+                    <ExternalIcon className={classes.externalIcon}/>
+                  </Link>
+                </li>
+              </ol>
+            </Typography>}
           </RadioGroup>
-        </>}
+        </>
       </DialogContent>
 
       <DialogActions>

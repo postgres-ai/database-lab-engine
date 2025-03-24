@@ -7,7 +7,7 @@
  */
 
 import React from 'react'
-import { useRouteMatch } from 'react-router-dom'
+import { useLocation, useRouteMatch } from 'react-router-dom'
 import clsx from 'clsx'
 import { observer } from 'mobx-react-lite'
 
@@ -20,6 +20,7 @@ import { DeprecatedApiBanner } from './DeprecatedApiBanner'
 import { Footer } from './Footer'
 
 import styles from './styles.module.scss'
+import cn from "classnames";
 
 type Props = {
   children: React.ReactNode
@@ -27,6 +28,8 @@ type Props = {
 
 export const ContentLayout = React.memo(observer((props: Props) => {
   const { children } = props
+
+  const location = useLocation();
 
   const isOrgJoeInstance = Boolean(
     useRouteMatch(ROUTES.ORG.JOE_INSTANCES.JOE_INSTANCE.createPath()),
@@ -36,12 +39,16 @@ export const ContentLayout = React.memo(observer((props: Props) => {
     useRouteMatch(ROUTES.ORG.PROJECT.JOE_INSTANCES.JOE_INSTANCE.createPath()),
   )
 
+  const isAssistantPage = Boolean(
+    useRouteMatch(ROUTES.ORG.PROJECT.ASSISTANT.createPath())
+  )
+
   const isDemoOrg = Boolean(useRouteMatch(`/${settings.demoOrgAlias}`))
 
   const isHiddenFooter = isOrgJoeInstance || isProjectJoeInstance
 
   return (
-    <div className={styles.root}>
+    <div className={cn(styles.root, {[styles.rootAssistant]: isAssistantPage})}>
       {isDemoOrg && <DemoOrgNotice />}
       { bannersStore.isOpenDeprecatedApi && <DeprecatedApiBanner /> }
 

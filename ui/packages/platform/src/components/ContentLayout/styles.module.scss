@@ -17,6 +17,12 @@
   min-width: 0;
 }
 
+.rootAssistant {
+  @media (max-width: 480px) {
+    height: 100dvh;
+  }
+}
+
 .wrapper {
   flex: 1 1 100%;
   overflow: auto;

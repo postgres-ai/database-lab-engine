@@ -21,8 +21,8 @@ externalDocs:
   url: https://gitlab.com/postgres-ai/docs/tree/master/docs/database-lab
 
 servers:
-  - url: "https://demo.aws.postgres.ai/api"
-    description: "DBLab 3.x demo server; token: 'demo-token'"
+  - url: "https://demo.dblab.dev/api"
+    description: "DBLab demo server; token: 'demo-token'"
     x-examples:
       Verification-Token: "demo-token"
   - url: "{scheme}://{host}:{port}/{basePath}"

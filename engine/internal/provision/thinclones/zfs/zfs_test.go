@@ -36,8 +36,8 @@ func TestListClones(t *testing.T) {
 		},
 		{
 			caseName: "single clone",
-			cmdOutput: `datastore/clone_pre_20200831030000
-datastore/cls19p20l4rc73bc2v9g
+			cmdOutput: `datastore/branch/main/clone_pre_20200831030000
+datastore/branch/main/cls19p20l4rc73bc2v9g
 `,
 			cloneNames: []string{
 				"cls19p20l4rc73bc2v9g",
@@ -45,9 +45,9 @@ datastore/cls19p20l4rc73bc2v9g
 		},
 		{
 			caseName: "multiple clones",
-			cmdOutput: `datastore/clone_pre_20200831030000
-datastore/cls19p20l4rc73bc2v9g
-datastore/cls184a0l4rc73bc2v90
+			cmdOutput: `datastore/branch/main/clone_pre_20200831030000
+datastore/branch/main/cls19p20l4rc73bc2v9g
+datastore/branch/main/cls184a0l4rc73bc2v90
 `,
 			cloneNames: []string{
 				"cls19p20l4rc73bc2v9g",
@@ -56,9 +56,9 @@ datastore/cls184a0l4rc73bc2v90
 		},
 		{
 			caseName: "clone duplicate",
-			cmdOutput: `datastore/clone_pre_20200831030000
-datastore/cls19p20l4rc73bc2v9g
-datastore/cls19p20l4rc73bc2v9g
+			cmdOutput: `datastore/branch/main/clone_pre_20200831030000
+datastore/branch/main/cls19p20l4rc73bc2v9g
+datastore/branch/main/cls19p20l4rc73bc2v9g
 `,
 			cloneNames: []string{
 				"cls19p20l4rc73bc2v9g",
@@ -66,9 +66,9 @@ datastore/cls19p20l4rc73bc2v9g
 		},
 		{
 			caseName: "different pool",
-			cmdOutput: `datastore/clone_pre_20200831030000
-dblab_pool/cls19p20l4rc73bc2v9g
-datastore/cls184a0l4rc73bc2v90
+			cmdOutput: `datastore/branch/main/clone_pre_20200831030000
+dblab_pool/branch/main/cls19p20l4rc73bc2v9g
+datastore/branch/main/cls184a0l4rc73bc2v90
 `,
 			cloneNames: []string{
 				"cls184a0l4rc73bc2v90",
@@ -76,8 +76,8 @@ datastore/cls184a0l4rc73bc2v90
 		},
 		{
 			caseName: "no matched clone",
-			cmdOutput: `datastore/clone_pre_20200831030000
-dblab_pool/cls19p20l4rc73bc2v9g
+			cmdOutput: `datastore/branch/main/clone_pre_20200831030000
+dblab_pool/branch/main/cls19p20l4rc73bc2v9g
 `,
 			cloneNames: []string{},
 		},

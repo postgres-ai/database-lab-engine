@@ -8,6 +8,8 @@ ZFS_FILE="$(pwd)/zfs_file"
 # Stop and remove test Docker containers
 sudo docker ps -aq --filter label="test_dblab_pool" | xargs --no-run-if-empty sudo docker rm -f \
   || echo "Failed to remove test Docker containers, continuing..."
+sudo docker ps -aq --filter label="dblab_clone=test_dblab_pool" | xargs --no-run-if-empty sudo docker rm -f \
+  || echo "Failed to remove test Docker containers, continuing..."
 sudo docker ps -aq --filter label="dblab_test" | xargs --no-run-if-empty sudo docker rm -f \
   || echo "Failed to remove dblab_test Docker containers, continuing..."
 
@@ -18,6 +20,10 @@ sudo docker images --filter=reference='registry.gitlab.com/postgres-ai/database-
 # Clean up data directory
 sudo rm -rf ${DLE_TEST_MOUNT_DIR}/${DLE_TEST_POOL_NAME}/data/* \
   || echo "Data directory cleanup finished with errors but continuing..."
+
+# Clean up branch directory
+sudo rm -rf ${DLE_TEST_MOUNT_DIR}/${DLE_TEST_POOL_NAME}/branch/* \
+  || echo "Branch directory cleanup finished with errors but continuing..."
 
 # Remove dump directory
 sudo umount ${DLE_TEST_MOUNT_DIR}/${DLE_TEST_POOL_NAME}/dump \
