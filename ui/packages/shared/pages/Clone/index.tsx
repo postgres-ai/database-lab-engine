@@ -623,7 +623,7 @@ export const Clone = observer((props: Props) => {
             />
             <br />
             <span className={classes.remark}>
-              When enabled no one can destroy this clone and automated deletion
+              When enabled, no one can destroy this clone and automated deletion
               is also disabled.
               <br />
               Please be careful: abandoned clones with this checkbox enabled may
