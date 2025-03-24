@@ -12,11 +12,13 @@ type Req = {
 }
 
 export const createClone = async (req: Req) => {
-  const response = await request('/rpc/dblab_clone_create', {
+  const response = await request('/rpc/dblab_api_call', {
     method: 'POST',
     body: JSON.stringify({
       instance_id: req.instanceId,
-      clone_data: {
+      action: '/clone',
+      method: 'post',
+      data: {
         id: req.cloneId,
         snapshot: {
           id: req.snapshotId,
@@ -27,7 +29,7 @@ export const createClone = async (req: Req) => {
         },
         protected: req.isProtected,
       },
-    }),
+    })
   })
 
   return {

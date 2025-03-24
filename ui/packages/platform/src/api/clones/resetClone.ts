@@ -10,12 +10,13 @@ import { ResetClone } from '@postgres.ai/shared/types/api/endpoints/resetClone'
 import { request } from 'helpers/request'
 
 export const resetClone: ResetClone = async (req) => {
-  const response = await request('/rpc/dblab_clone_reset', {
+  const response = await request('/rpc/dblab_api_call', {
     method: 'post',
     body: JSON.stringify({
+      action: '/clone/' + encodeURIComponent(req.cloneId) + '/reset',
       instance_id: req.instanceId,
-      clone_id: req.cloneId,
-      reset_options: {
+      method: 'post',
+      data: {
         snapshotID: req.snapshotId,
         latest: false,
       },

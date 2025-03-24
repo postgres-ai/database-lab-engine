@@ -186,6 +186,11 @@ paths:
         required: true
         schema:
           type: string
+      - name: branch
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         200:
           description: Returned a list of snapshots

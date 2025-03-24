@@ -18,6 +18,8 @@ import { BotMessage } from "../../../types/api/entities/bot";
 import { Message } from "./Message/Message";
 import { useAiBot } from "../hooks";
 import { HintCards } from "../HintCards/HintCards";
+import { ErrorMessage } from "./ErrorMessage/ErrorMessage";
+import { KBStats } from "../../../components/KBStats/KBStats";
 
 const useStyles = makeStyles(
   (theme) => ({
@@ -35,7 +37,10 @@ const useStyles = makeStyles(
     },
     emptyChatMessage: {
       maxWidth: '80%',
-      fontSize: '0.875rem'
+      fontSize: 14,
+      [theme.breakpoints.down(330)]: {
+        fontSize: 12
+      }
     },
     messages: {
       overflowY: 'auto',
@@ -120,14 +125,15 @@ type FormattedTime = {
   [id: string]: Time
 }
 
-export const Messages = React.memo(({orgId}: {orgId: number}) => {
+export const Messages = React.memo(({orgId, threadId}: {orgId: number, threadId?: string}) => {
   const {
     messages,
     loading: isLoading,
     wsLoading: isWaitingForAnswer,
     stateMessage,
     currentStreamMessage,
-    isStreamingInProcess
+    isStreamingInProcess,
+    errorMessage
   } = useAiBot();
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -227,6 +233,7 @@ export const Messages = React.memo(({orgId}: {orgId: number}) => {
           Depending on settings, LLM service provider such as GCP or OpenAI is used.
         </Typography>
         <HintCards orgId={orgId} />
+        <KBStats />
       </div>
     )
   }
@@ -247,7 +254,8 @@ export const Messages = React.memo(({orgId}: {orgId: number}) => {
                 created_at,
                 content,
                 ai_model,
-                is_public
+                is_public,
+                status
               } = message;
               let name = 'You';
 
@@ -276,6 +284,8 @@ export const Messages = React.memo(({orgId}: {orgId: number}) => {
                   formattedTime={formattedTime}
                   aiModel={ai_model}
                   isPublic={is_public}
+                  threadId={threadId}
+                  status={status}
                 />
               )
             })}
@@ -286,10 +296,14 @@ export const Messages = React.memo(({orgId}: {orgId: number}) => {
               content={currentStreamMessage.content}
               aiModel={currentStreamMessage.ai_model}
               isCurrentStreamMessage
+              stateMessage={stateMessage}
             />
           }
           {isWaitingForAnswer &&
             <Message id={null} isLoading isAi={true} stateMessage={stateMessage} />
+          }
+          {
+            errorMessage && <ErrorMessage content={errorMessage.message} />
           }
         </div>
       </div>

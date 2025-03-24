@@ -5,10 +5,26 @@
  *--------------------------------------------------------------------------
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  Dispatch,
+  SetStateAction,
+  useCallback,
+  useContext,
+  useEffect,
+  useState
+} from "react";
 import useWebSocket, {ReadyState} from "react-use-websocket";
 import { useLocation } from "react-router-dom";
-import { BotMessage, DebugMessage, AiModel, StateMessage, StreamMessage } from "../../types/api/entities/bot";
+import {
+  BotMessage,
+  DebugMessage,
+  AiModel,
+  StateMessage,
+  StreamMessage,
+  ErrorMessage,
+  MessageStatus
+} from "../../types/api/entities/bot";
 import {getChatsWithWholeThreads} from "../../api/bot/getChatsWithWholeThreads";
 import {getChats} from "api/bot/getChats";
 import {useAlertSnackbar} from "@postgres.ai/shared/components/AlertSnackbar/useAlertSnackbar";
@@ -22,6 +38,11 @@ const WS_URL = process.env.REACT_APP_WS_URL || '';
 
 const DEFAULT_MODEL_NAME = 'gpt-4o-mini'
 
+export enum Visibility {
+  PUBLIC = 'public',
+  PRIVATE = 'private'
+}
+
 type ErrorType = {
   code?: number;
   message: string;
@@ -32,7 +53,6 @@ type SendMessageType = {
   content: string;
   thread_id?: string | null;
   org_id?: number | null;
-  is_public?: boolean;
 }
 
 type UseAiBotReturnType = {
@@ -46,7 +66,8 @@ type UseAiBotReturnType = {
   changeChatVisibility: (threadId: string, isPublic: boolean) => void;
   isChangeVisibilityLoading: boolean;
   unsubscribe: (threadId: string) => void;
-  chatVisibility: 'public' | 'private';
+  chatVisibility: Visibility;
+  setChatVisibility: Dispatch<SetStateAction<Visibility>>;
   debugMessages: DebugMessage[] | null;
   getDebugMessagesForWholeThread: () => void;
   chatsList: UseBotChatsListHook['chatsList'];
@@ -58,24 +79,28 @@ type UseAiBotReturnType = {
   aiModelsLoading: UseAiModelsList['loading'];
   debugMessagesLoading: boolean;
   stateMessage: StateMessage | null;
-  isStreamingInProcess: boolean
-  currentStreamMessage: StreamMessage | null
+  isStreamingInProcess: boolean;
+  currentStreamMessage: StreamMessage | null;
+  errorMessage: ErrorMessage | null;
+  updateMessageStatus: (threadId: string, messageId: string, status: MessageStatus) => void
 }
 
 type UseAiBotArgs = {
   threadId?: string;
   orgId?: number
+  isPublicByDefault?: boolean
+  userId?: number | null
 }
 
 export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType => {
-  const { threadId, orgId } = args;
+  const { threadId, orgId, isPublicByDefault, userId } = args;
   const { showMessage, closeSnackbar } = useAlertSnackbar();
   const {
     aiModels,
     aiModel,
     setAiModel,
     loading: aiModelsLoading
-  } = useAiModelsList();
+  } = useAiModelsList(orgId);
   let location = useLocation<{skipReloading?: boolean}>();
 
   const {
@@ -85,15 +110,16 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
   } = useBotChatsList(orgId);
 
   const [messages, setMessages] = useState<BotMessage[] | null>(null);
+  const [errorMessage, setErrorMessage] = useState<ErrorMessage | null>(null)
   const [debugMessages, setDebugMessages] = useState<DebugMessage[] | null>(null);
   const [debugMessagesLoading, setDebugMessagesLoading] = useState<boolean>(false);
   const [isLoading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<ErrorType | null>(null);
   const [wsLoading, setWsLoading] = useState<boolean>(false);
-  const [chatVisibility, setChatVisibility] = useState<UseAiBotReturnType['chatVisibility']>('public');
-  const [stateMessage, setStateMessage] = useState<StateMessage | null>(null)
-  const [currentStreamMessage, setCurrentStreamMessage] = useState<StreamMessage | null>(null)
-  const [isStreamingInProcess, setStreamingInProcess] = useState<boolean>(false)
+  const [chatVisibility, setChatVisibility] = useState<UseAiBotReturnType['chatVisibility']>(Visibility.PUBLIC);
+  const [stateMessage, setStateMessage] = useState<StateMessage | null>(null);
+  const [currentStreamMessage, setCurrentStreamMessage] = useState<StreamMessage | null>(null);
+  const [isStreamingInProcess, setStreamingInProcess] = useState<boolean>(false);
 
   const [isChangeVisibilityLoading, setIsChangeVisibilityLoading] = useState<boolean>(false);
   
@@ -106,15 +132,17 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
 
   const onWebSocketMessage = (event: WebSocketEventMap['message']) => {
     if (event.data) {
-      const messageData: BotMessage | DebugMessage | StateMessage | StreamMessage = JSON.parse(event.data);
+      const messageData: BotMessage | DebugMessage | StateMessage | StreamMessage | ErrorMessage = JSON.parse(event.data);
       if (messageData) {
         const isThreadMatching = threadId && threadId === messageData.thread_id;
         const isParentMatching = !threadId && 'parent_id' in messageData && messageData.parent_id && messages;
         const isDebugMessage = messageData.type === 'debug';
         const isStateMessage = messageData.type === 'state';
         const isStreamMessage = messageData.type === 'stream';
+        const isErrorMessage = messageData.type === 'error';
+        const isToolCallResultMessage = messageData.type === 'tool_call_result';
 
-        if (isThreadMatching || isParentMatching || isDebugMessage || isStateMessage || isStreamMessage) {
+        if (isThreadMatching || isParentMatching || isDebugMessage || isStateMessage || isStreamMessage || isErrorMessage || isToolCallResultMessage) {
           switch (messageData.type) {
             case 'debug':
               handleDebugMessage(messageData)
@@ -127,6 +155,12 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
               break;
             case 'message':
               handleBotMessage(messageData)
+              break;
+            case 'error':
+              handleErrorMessage(messageData)
+              break;
+            case 'tool_call_result':
+              handleToolCallResultMessage(messageData)
               break;
           }
         } else if (threadId !== messageData.thread_id) {
@@ -196,6 +230,46 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     }
   }
 
+  const handleToolCallResultMessage = (message: BotMessage) => {
+    if (messages && messages.length > 0) {
+      let currentMessages = [...messages];
+      const lastMessage = currentMessages[currentMessages.length - 1];
+      if (lastMessage && !lastMessage.id && message.parent_id) {
+        lastMessage.id = message.parent_id;
+        lastMessage.created_at = message.created_at;
+        lastMessage.is_public = message.is_public;
+      }
+
+      currentMessages.push(message);
+      setMessages(currentMessages);
+    }
+  }
+
+  const handleErrorMessage = (message: ErrorMessage) => {
+    if (message && message.message) {
+      let error = {
+        hint: null,
+        details: null
+      };
+      const jsonMatch = message.message.match(/{.*}/);
+      const json = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+
+      if (json) {
+        const { hint, details } = json;
+        if (hint) error["hint"] = hint
+        if (details) error["details"] = details
+      }
+      const errorMessage: ErrorMessage = {
+        type: "error",
+        message: `${error.details}\n\n${error.hint}`,
+        thread_id: message.thread_id
+      }
+      setLoading(false)
+      setWsLoading(false)
+      setErrorMessage(errorMessage)
+    }
+  }
+
   const onWebSocketOpen = () => {
     console.log('WebSocket connection established');
     if (threadId) {
@@ -222,7 +296,8 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
 
   const getChatMessages = useCallback(async (threadId: string) => {
     setError(null);
-    setDebugMessages(null)
+    setDebugMessages(null);
+    setErrorMessage(null);
     if (threadId) {
       setLoading(true);
       try {
@@ -289,8 +364,9 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     };
   }, [readyState, threadId]);
 
-  const sendMessage = async ({content, thread_id, org_id, is_public}: SendMessageType) => {
+  const sendMessage = async ({content, thread_id, org_id}: SendMessageType) => {
     setWsLoading(true)
+    setErrorMessage(null)
     if (!thread_id) {
       setLoading(true)
     }
@@ -307,8 +383,8 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
           content,
           thread_id,
           org_id,
-          is_public,
-          ai_model: `${aiModel?.vendor}/${aiModel?.name}`
+          ai_model: `${aiModel?.vendor}/${aiModel?.name}`,
+          is_public: chatVisibility === 'public'
         }
       }))
       setError(error)
@@ -367,6 +443,27 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     }))
   }
 
+  const updateMessageStatus = (threadId: string, messageId: string, status: MessageStatus) => {
+    wsSendMessage(JSON.stringify({
+        action: 'message_status_update',
+        payload: {
+          thread_id: threadId,
+          message_id: messageId,
+          read_by: userId,
+          status
+        }
+      }))
+    if (messages && messages.length > 0) {
+      const updatedMessages = messages.map((item) => {
+        if (item.id === messageId) {
+          item["status"] = status
+        }
+        return item
+      });
+      setMessages(updatedMessages)
+    }
+  }
+
   const getDebugMessagesForWholeThread = async () => {
     setDebugMessagesLoading(true)
     if (threadId) {
@@ -391,10 +488,20 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
   }, [])
 
   useEffect(() => {
-    if (messages && messages.length > 0 && threadId) {
-      setChatVisibility(messages[0].is_public ? 'public' : 'private')
+    if (messages && messages.length > 0) {
+      const newVisibility = messages[0].is_public ? Visibility.PUBLIC : Visibility.PRIVATE;
+      if (newVisibility !== chatVisibility) {
+        setChatVisibility(newVisibility)
+      }
     }
   }, [messages]);
+
+  useEffect(() => {
+    const newVisibility = isPublicByDefault ? Visibility.PUBLIC : Visibility.PRIVATE;
+    if (newVisibility !== chatVisibility) {
+      setChatVisibility(newVisibility)
+    }
+  }, [isPublicByDefault, threadId]);
 
   return {
     error: error,
@@ -416,11 +523,14 @@ export const useAiBotProviderValue = (args: UseAiBotArgs): UseAiBotReturnType =>
     aiModels,
     aiModelsLoading,
     chatVisibility,
+    setChatVisibility,
     debugMessages,
     debugMessagesLoading,
     stateMessage,
     isStreamingInProcess,
-    currentStreamMessage
+    currentStreamMessage,
+    errorMessage,
+    updateMessageStatus
   }
 }
 
@@ -509,7 +619,7 @@ type UseAiModelsList = {
   setAiModel: (model: AiModel) => void
 }
 
-const useAiModelsList = (): UseAiModelsList => {
+export const useAiModelsList = (orgId?: number): UseAiModelsList => {
   const [llmModels, setLLMModels] = useState<UseAiModelsList['aiModels']>(null);
   const [error, setError] = useState<Response | null>(null);
   const [userModel, setUserModel] = useState<AiModel | null>(null);
@@ -517,25 +627,52 @@ const useAiModelsList = (): UseAiModelsList => {
 
   const getModels = useCallback(async () => {
     let models = null;
-    setLoading(true)
+    setLoading(true);
     try {
-      const { response } = await getAiModels();
-      setLLMModels(response)
-      const currentModel = window.localStorage.getItem('bot.ai_model')
-      const parsedModel: AiModel = currentModel ? JSON.parse(currentModel) : null
-      if (currentModel && parsedModel.name !== userModel?.name) {
-        setUserModel(parsedModel)
+      const { response } = await getAiModels(orgId);
+      setLLMModels(response);
+      const currentModel = window.localStorage.getItem('bot.ai_model');
+      const parsedModel: AiModel = currentModel ? JSON.parse(currentModel) : null;
+
+      if (currentModel && parsedModel.name !== userModel?.name && response) {
+        // Check if the parsedModel exists in the response models
+        const modelInResponse = response.find(
+          (model) =>
+            model.name.includes(parsedModel.name)
+        );
+
+        if (modelInResponse) {
+          setUserModel(modelInResponse);
+          window.localStorage.setItem('bot.ai_model', JSON.stringify(modelInResponse));
+        } else {
+          // Model from localStorage does not exist in response
+          // Find a default model
+          const defaultModel = response.find((model) =>
+            model.name.includes(DEFAULT_MODEL_NAME)
+          );
+
+          if (defaultModel) {
+            setUserModel(defaultModel);
+            window.localStorage.setItem('bot.ai_model', JSON.stringify(defaultModel));
+          }
+        }
       } else if (response) {
-        const regex = new RegExp(`^${DEFAULT_MODEL_NAME}`);
-        const matchingModel = response.find(model => regex.test(model.name));
-        if (matchingModel) setModel(matchingModel)
+        // Find a model where the model name includes the DEFAULT_MODEL_NAME
+        const matchingModel = response.find((model) =>
+          model.name.includes(DEFAULT_MODEL_NAME)
+        );
+        if (matchingModel) {
+          setModel(matchingModel);
+          window.localStorage.setItem('bot.ai_model', JSON.stringify(matchingModel));
+        }
       }
     } catch (e) {
-      setError(e as unknown as Response)
+      setError(e as unknown as Response);
     }
-    setLoading(false)
-    return models
+    setLoading(false);
+    return models;
   }, []);
+
 
   useEffect(() => {
     let isCancelled = false;

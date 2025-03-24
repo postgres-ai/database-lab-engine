@@ -67,11 +67,11 @@ type mockFSManager struct {
 	cloneList []string
 }
 
-func (m mockFSManager) CreateClone(_, _ string) error {
+func (m mockFSManager) CreateClone(_, _, _ string, _ int) error {
 	return nil
 }
 
-func (m mockFSManager) DestroyClone(_ string) error {
+func (m mockFSManager) DestroyClone(_, _ string, _ int) error {
 	return nil
 }
 
@@ -98,7 +98,7 @@ func (m mockFSManager) SnapshotList() []resources.Snapshot {
 func (m mockFSManager) RefreshSnapshotList() {
 }
 
-func (m mockFSManager) GetSessionState(_ string) (*resources.SessionState, error) {
+func (m mockFSManager) GetSessionState(_, _ string) (*resources.SessionState, error) {
 	return nil, nil
 }
 
@@ -126,7 +126,7 @@ func (m mockFSManager) CreateBranch(_, _ string) error {
 	return nil
 }
 
-func (m mockFSManager) DestroyBranch(_ string) error {
+func (m mockFSManager) DestroyDataset(_ string) error {
 	return nil
 }
 

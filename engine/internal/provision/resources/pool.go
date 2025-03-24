@@ -8,6 +8,8 @@ import (
 	"path"
 	"sync"
 	"time"
+
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 )
 
 // PoolStatus represents a pool status.
@@ -20,9 +22,6 @@ const (
 	RefreshingPool PoolStatus = "refreshing"
 	// EmptyPool defines the status of an inactive pool.
 	EmptyPool PoolStatus = "empty"
-
-	// branchDir defines branch directory in the pool.
-	branchDir = "branch"
 )
 
 // Pool describes a storage pool.
@@ -66,18 +65,23 @@ func (p *Pool) SocketDir() string {
 }
 
 // ObserverDir returns a path to the observer directory of the storage pool.
-func (p *Pool) ObserverDir(name string) string {
-	return path.Join(p.ClonePath(name), p.ObserverSubDir)
+func (p *Pool) ObserverDir(branch, name string) string {
+	return path.Join(p.ClonePath(branch, name), p.ObserverSubDir)
 }
 
 // ClonesDir returns a path to the clones directory of the storage pool.
-func (p *Pool) ClonesDir() string {
-	return path.Join(p.MountDir, p.PoolDirName, p.CloneSubDir)
+func (p *Pool) ClonesDir(branch string) string {
+	return path.Join(p.MountDir, p.PoolDirName, branching.BranchDir, branch)
 }
 
-// ClonePath returns a path to the initialized clone directory.
-func (p *Pool) ClonePath(name string) string {
-	return path.Join(p.MountDir, p.PoolDirName, p.CloneSubDir, name, p.DataSubDir)
+// ClonePath returns a path to the data clone directory.
+func (p *Pool) ClonePath(branchName, name string) string {
+	return path.Join(p.MountDir, p.PoolDirName, branching.BranchDir, branchName, name, p.DataSubDir)
+}
+
+// CloneLocation returns a path to the initialized clone directory.
+func (p *Pool) CloneLocation(branchName, name string, revision int) string {
+	return path.Join(p.MountDir, p.PoolDirName, branching.BranchDir, branchName, name, branching.RevisionSegment(revision))
 }
 
 // SocketCloneDir returns a path to the socket clone directory.
@@ -85,19 +89,13 @@ func (p *Pool) SocketCloneDir(name string) string {
 	return path.Join(p.SocketDir(), name)
 }
 
-// BranchDir returns a path to the branch directory of the storage pool.
-func (p *Pool) BranchDir() string {
-	return path.Join(p.MountDir, p.PoolDirName, branchDir)
-}
-
-// BranchPath returns a path to the specific branch in the storage pool.
-func (p *Pool) BranchPath(branchName string) string {
-	return path.Join(p.BranchDir(), branchName)
-}
-
 // BranchName returns a full branch name in the data pool.
 func (p *Pool) BranchName(poolName, branchName string) string {
-	return path.Join(poolName, branchDir, branchName)
+	return branching.BranchName(poolName, branchName)
+}
+
+func (p *Pool) CloneName(branchName, cloneName string, revision int) string {
+	return branching.CloneName(p.Name, branchName, cloneName, revision)
 }
 
 // Status gets the pool status.

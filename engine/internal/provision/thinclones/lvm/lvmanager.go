@@ -54,13 +54,13 @@ func (m *LVManager) UpdateConfig(pool *resources.Pool) {
 }
 
 // CreateClone creates a new volume.
-func (m *LVManager) CreateClone(name, _ string) error {
-	return CreateVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir())
+func (m *LVManager) CreateClone(branch, name, _ string, _ int) error {
+	return CreateVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir(branch))
 }
 
 // DestroyClone destroys volumes.
-func (m *LVManager) DestroyClone(name string) error {
-	return RemoveVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir())
+func (m *LVManager) DestroyClone(branch, name string, _ int) error {
+	return RemoveVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir(branch))
 }
 
 // ListClonesNames returns a list of clone names.
@@ -131,7 +131,7 @@ func (m *LVManager) RefreshSnapshotList() {
 }
 
 // GetSessionState is not implemented.
-func (m *LVManager) GetSessionState(_ string) (*resources.SessionState, error) {
+func (m *LVManager) GetSessionState(_, _ string) (*resources.SessionState, error) {
 	// TODO(anatoly): Implement.
 	return &resources.SessionState{}, nil
 }
@@ -170,9 +170,9 @@ func (m *LVManager) CreateBranch(_, _ string) error {
 	return nil
 }
 
-// DestroyBranch destroys branch.
-func (m *LVManager) DestroyBranch(_ string) error {
-	log.Msg("DestroyBranch is not supported for LVM. Skip the operation")
+// DestroyDataset destroys dataset.
+func (m *LVManager) DestroyDataset(_ string) error {
+	log.Msg("DestroyDataset is not supported for LVM; skipping operation")
 
 	return nil
 }

@@ -310,7 +310,7 @@ func (m *Manager) listBranches() (map[string]string, error) {
 	return branches, nil
 }
 
-var repoFields = []any{"name", parentProp, childProp, branchProp, rootProp, dataStateAtLabel, messageProp}
+var repoFields = []any{"name", parentProp, childProp, branchProp, rootProp, dataStateAtLabel, messageProp, "clones"}
 
 // GetRepo provides repository details about snapshots and branches filtered by data pool.
 func (m *Manager) GetRepo() (*models.Repo, error) {
@@ -364,6 +364,7 @@ func (m *Manager) getRepo(cmdCfg cmdCfg) (*models.Repo, error) {
 			DataStateAt: strings.Trim(fields[5], empty),
 			Message:     decodeCommitMessage(fields[6]),
 			Dataset:     dataset,
+			Clones:      unwindField(fields[7]),
 		}
 
 		repo.Snapshots[fields[0]] = snDetail
@@ -445,6 +446,7 @@ func (m *Manager) GetSnapshotProperties(snapshotName string) (thinclones.Snapsho
 		Root:        strings.Trim(fields[4], empty),
 		DataStateAt: strings.Trim(fields[5], empty),
 		Message:     decodeCommitMessage(fields[6]),
+		Clones:      strings.Trim(fields[7], empty),
 	}
 
 	return properties, nil

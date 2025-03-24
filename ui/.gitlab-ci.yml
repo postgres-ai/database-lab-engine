@@ -73,5 +73,6 @@ e2e-ce-ui-test:
 #    - pnpm config set store-dir /builds/postgres-ai/database-lab/.pnpm-store/
   script:
     - pnpm --dir ui/ i --no-frozen-lockfile
+    - pnpm --dir ui/ --filter @postgres.ai/ce exec cypress install
     - pnpm --dir ui/ --filter @postgres.ai/ce start & wait-on http://localhost:3001
     - pnpm --dir ui/ --filter @postgres.ai/ce cy:run

@@ -112,6 +112,39 @@ class Api {
     });
   }
 
+  updateUserProfile(token, data) {
+    let headers = {
+      Authorization: 'Bearer ' + token,
+      Accept: 'application/vnd.pgrst.object+json'
+    };
+
+    let body = {};
+
+    if (data.is_chats_email_notifications_enabled !== 'undefined') {
+      body.chats_email_notifications_enabled = data.is_chats_email_notifications_enabled;
+    }
+
+    if (data.first_name !== 'undefined') {
+      body.first_name = data.first_name;
+    }
+
+    if (data.last_name !== 'undefined') {
+      body.last_name = data.last_name;
+    }
+
+    if (data.dblab_low_disk_space_notifications_enabled !== 'undefined') {
+      body.dblab_low_disk_space_notifications_enabled = data.dblab_low_disk_space_notifications_enabled;
+    }
+
+    if (data.dblab_old_clones_notifications_enabled !== 'undefined') {
+      body.dblab_old_clones_notifications_enabled = data.dblab_old_clones_notifications_enabled;
+    }
+
+    return this.post(`${this.apiServer}/rpc/update_user_profile`, body, {
+      headers: headers
+    });
+  }
+
   getAccessTokens(token, orgId) {
     let params = {};
     let headers = {
@@ -453,23 +486,102 @@ class Api {
 
   updateAiBotSettings(token, orgId, orgData) {
     let params = {};
-    let data = {};
     let headers = {
       Authorization: 'Bearer ' + token,
       prefer: 'return=representation'
     };
 
-    // if (typeof orgData.custom_prompt !== 'undefined') {
-    //   data.custom_prompt = orgData.custom_prompt;
-    // }
-    if (typeof orgData.model !== 'undefined') {
-      data.ai_model = orgData.model;
-    }
-    params.data = {
-      ai_bot: data
+    if (typeof orgData.is_chat_public_by_default !== 'undefined') {
+      params.is_chat_public_by_default = orgData.is_chat_public_by_default;
     }
 
     return this.patch(`${this.apiServer}/orgs?id=eq.` + orgId, params, {
+      headers: headers
+    });
+  }
+
+  updateAuditSettings(token, orgId, orgData) {
+    let params = {};
+    let headers = {
+      Authorization: 'Bearer ' + token,
+      prefer: 'return=representation'
+    };
+
+    if (typeof orgData.enableSiemIntegration !== 'undefined') {
+      params.siem_integration_enabled = orgData.enableSiemIntegration;
+    }
+
+    if (typeof orgData.urlSchema !== 'undefined') {
+      params.siem_integration_url = orgData.urlSchema;
+    }
+
+    if (typeof orgData.auditEvents !== "undefined") {
+      params.audit_events_to_log = orgData.auditEvents.map((item) => item.event_name)
+    }
+
+    if (typeof orgData.headers !== 'undefined' && Array.isArray(orgData.headers)) {
+      orgData.headers = orgData.headers.filter(item => item.key && item.value);
+      if (Object.keys(orgData.headers).length > 0) {
+        params.siem_integration_request_headers = orgData.headers.reduce((acc, item) => {
+          acc[item.key] = item.value;
+          return acc;
+        }, {});
+      } else {
+        params.siem_integration_request_headers = null
+      }
+    }
+
+    return this.patch(`${this.apiServer}/orgs?id=eq.` + orgId, params, {
+      headers: headers
+    });
+  }
+
+  updateDBLabSettings(token, orgId, orgData) {
+    let params = {};
+    let headers = {
+      Authorization: 'Bearer ' + token,
+      prefer: 'return=representation'
+    };
+
+    if (typeof orgData.dblab_low_disk_space_notifications_threshold_percent !== 'undefined') {
+      params.dblab_low_disk_space_notifications_threshold_percent = orgData.dblab_low_disk_space_notifications_threshold_percent
+    }
+
+    if (typeof orgData.dblab_old_clones_notifications_threshold_hours !== 'undefined') {
+      params.dblab_old_clones_notifications_threshold_hours = orgData.dblab_old_clones_notifications_threshold_hours
+    }
+
+    return this.patch(`${this.apiServer}/orgs?id=eq.` + orgId, params, {
+      headers: headers
+    });
+  }
+
+
+  testSiemServiceConnection(token, data) {
+    let params = {};
+    let headers = {
+      Accept: 'application/vnd.pgrst.object+json',
+      Authorization: 'Bearer ' + token,
+      prefer: 'return=representation'
+    };
+
+    if (typeof data.urlSchema !== 'undefined') {
+      params.api_url = data.urlSchema;
+    }
+
+    if (typeof data.headers !== 'undefined' && Array.isArray(data.headers)) {
+      data.headers = data.headers.filter(item => item.key && item.value);
+      if (Object.keys(data.headers).length > 0) {
+        params.http_headers_extra = data.headers.reduce((acc, item) => {
+          acc[item.key] = item.value;
+          return acc;
+        }, {});
+      } else {
+        params.http_headers_extra = null
+      }
+    }
+
+    return this.post(`${this.apiServer}/rpc/test_siem_connection`, params, {
       headers: headers
     });
   }
@@ -998,6 +1110,17 @@ class Api {
       {},
       { headers }
     );
+  }
+
+  getAuditEvents(token) {
+    let params = {};
+    let headers = {
+      Authorization: 'Bearer ' + token
+    };
+
+    return this.get(`${this.apiServer}/audit_events`, params, {
+      headers: headers
+    });
   }
 }
 

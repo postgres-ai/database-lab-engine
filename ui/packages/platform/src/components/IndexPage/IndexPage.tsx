@@ -5,8 +5,8 @@
  *--------------------------------------------------------------------------
  */
 
-import { Component } from 'react'
-import { Switch, Route, NavLink, Redirect, useRouteMatch } from 'react-router-dom'
+import React, { Component, useState } from 'react'
+import { Switch, Route, NavLink, Redirect } from 'react-router-dom'
 import {
   AppBar,
   Toolbar,
@@ -16,13 +16,15 @@ import {
   ListItem,
   List,
   Drawer,
+  Collapse,
+  Box,
+  ListItemText
 } from '@material-ui/core'
 import qs from 'qs'
 
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { GatewayLink } from '@postgres.ai/shared/components/GatewayLink'
-import { Box } from '@mui/material'
 import {
   OrganizationWrapperProps,
   OrganizationMenuProps,
@@ -71,6 +73,7 @@ import { NotificationWrapper } from 'components/Notification/NotificationWrapper
 import { SharedUrlWrapper } from 'components/SharedUrl/SharedUrlWrapper'
 import { ShareUrlDialogWrapper } from 'components/ShareUrlDialog/ShareUrlDialogWrapper'
 import { BotWrapper } from "pages/Bot/BotWrapper";
+import { ConsultingWrapper } from "pages/Consulting/ConsultingWrapper";
 
 import Actions from '../../actions/actions'
 import JoeConfig from '../JoeConfig'
@@ -85,6 +88,9 @@ import { PostgresClusterInstallWrapper } from 'components/PostgresClusterInstall
 import { PostgresClustersWrapper } from 'components/PostgresClusters/PostgresClustersWrapper'
 import cn from "classnames";
 import { BotSettingsFormWrapper } from "../BotSettingsForm/BotSettingsFormWrapper";
+import { AuditSettingsFormWrapper } from "../AuditSettingsForm/AuditSettingsFormWrapper";
+import { ExpandLess, ExpandMore } from "@material-ui/icons";
+import { DBLabSettingsFormWrapper } from "../DBLabSettingsForm/DBLabSettingsFormWrapper";
 
 
 interface IndexPageWithStylesProps extends IndexPageProps {
@@ -291,7 +297,21 @@ function ProjectWrapper(parentProps: Omit<ProjectWrapperProps, 'classes'>) {
 }
 
 function OrganizationMenu(parentProps: OrganizationMenuProps) {
-  const isDemoOrg = useRouteMatch(`/${settings.demoOrgAlias}`)
+  const [activeMenuItems, setActiveMenuItems] = useState<Set<string>>(new Set());
+
+  const handleOpenMenuItem = (e: React.MouseEvent<HTMLDivElement, MouseEvent>, value: string) => {
+    e.stopPropagation()
+    setActiveMenuItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(value)) {
+        newSet.delete(value);
+      } else {
+        newSet.add(value);
+      }
+      return newSet;
+    });
+  };
+
   if (
     parentProps.env &&
     parentProps.env.data &&
@@ -315,7 +335,7 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
     }
 
     return (
-      <div style={{ height: '100%' }}>
+      <div className={parentProps.classes.menuContainer}>
         <div>
           <div className={parentProps.classes.orgHeaderContainer}>
             <span className={parentProps.classes.orgHeader}>Organization</span>
@@ -333,327 +353,434 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
         </div>
 
         <Divider />
+        <div className={parentProps.classes.navMenuContainer}>
+          <List component="nav" className={parentProps.classes.navMenu}>
+            <ListItem
+              button
+              className={parentProps.classes.menuSectionHeader}
+              disabled={isBlocked}
+              id="menuDashboard"
+            >
+              <NavLink
+                className={parentProps.classes.menuSectionHeaderLink}
+                activeClassName={parentProps.classes.menuSectionHeaderActiveLink}
+                to={'/' + org}
+              >
+                <span className={parentProps.classes.menuSectionHeaderIcon}>
+                  {icons.dashboardIcon}
+                </span>
+                Dashboard
+              </NavLink>
+            </ListItem>
 
-        <List component="nav" className={parentProps.classes.navMenu}>
-          <ListItem
-            button
-            className={parentProps.classes.menuSectionHeader}
-            disabled={isBlocked}
-            id="menuDashboard"
-          >
-            <NavLink
-              className={parentProps.classes.menuSectionHeaderLink}
-              activeClassName={parentProps.classes.menuSectionHeaderActiveLink}
-              to={'/' + org}
+            <ListItem
+              button
+              className={parentProps.classes.menuSectionHeader}
+              disabled={isBlocked}
+              id="menuAiBotTitle"
             >
-              <span className={parentProps.classes.menuSectionHeaderIcon}>
-                {icons.dashboardIcon}
-              </span>
-              Dashboard
-            </NavLink>
-          </ListItem>
-
-          {Boolean(isDemoOrg) && <ListItem
-            button
-            className={parentProps.classes.menuSectionHeader}
-            disabled={isBlocked}
-            id="menuAiBotTitle"
-          >
-            <NavLink
-              className={parentProps.classes.menuSectionHeaderLink}
-              activeClassName={cn(parentProps.classes.menuSectionHeaderActiveLink, parentProps.classes.menuSingleSectionHeaderActiveLink)}
-              to={'/' + org + '/assistant'}
+              <NavLink
+                className={parentProps.classes.menuSectionHeaderLink}
+                activeClassName={cn(parentProps.classes.menuSectionHeaderActiveLink, parentProps.classes.menuSingleSectionHeaderActiveLink)}
+                to={'/' + org + '/assistant'}
+              >
+                <span className={parentProps.classes.menuSectionHeaderIcon}>
+                  {icons.aiBotIcon}
+                </span>
+                AI Assistant<span className={cn(parentProps.classes.menuItemLabel, parentProps.classes.headerLinkMenuItemLabel)}>NEW</span>
+              </NavLink>
+            </ListItem>
+            <ListItem
+              button
+              className={cn(parentProps.classes.menuSectionHeader, parentProps.classes.menuSectionHeaderCollapsible)}
+              disabled={isBlocked}
+              id="menuDblabTitle"
+              onClick={(e) => handleOpenMenuItem(e, 'dblab')}
             >
-              <span className={parentProps.classes.menuSectionHeaderIcon}>
-                {icons.aiBotIcon}
-              </span>
-              AI Assistant<span className={cn(parentProps.classes.menuItemLabel, parentProps.classes.headerLinkMenuItemLabel)}>NEW</span>
-            </NavLink>
-          </ListItem>}
-          <ListItem
-            button
-            className={parentProps.classes.menuSectionHeader}
-            disabled={isBlocked}
-            id="menuDblabTitle"
-          >
-            <NavLink
-              className={parentProps.classes.menuSectionHeaderLink}
-              activeClassName={parentProps.classes.menuSectionHeaderActiveLink}
-              to={'/' + org + '/instances'}
+              <ListItemText
+                className={cn(
+                  parentProps.classes.menuSectionHeaderLink,
+                  parentProps.classes.menuSectionHeaderLinkCollapsible,
+                  {[parentProps.classes.menuSectionHeaderActiveLink]: activeMenuItems.has('dblab')}
+                )}
+                classes={{primary: parentProps.classes.menuSectionHeaderLinkText}}
+              >
+                <span className={parentProps.classes.menuSectionHeaderIcon}>
+                  {icons.databaseLabIcon}
+                </span>
+                Database Lab
+                {activeMenuItems.has('dblab')
+                  ? <ExpandLess className={parentProps.classes.menuSectionHeaderExpandIcon} />
+                  : <ExpandMore className={parentProps.classes.menuSectionHeaderExpandIcon} />}
+              </ListItemText>
+            </ListItem>
+            <Collapse
+              in={activeMenuItems.has('dblab')}
+              timeout="auto"
+              unmountOnExit
             >
-              <span className={parentProps.classes.menuSectionHeaderIcon}>
-                {icons.databaseLabIcon}
-              </span>
-              Database Lab
-            </NavLink>
-          </ListItem>
-          <ListItem
-            button
-            className={parentProps.classes.menuItem}
-            disabled={isBlocked}
-            id="menuDblabInstances"
-          >
-            <NavLink
-              className={parentProps.classes.menuItemLink}
-              activeClassName={parentProps.classes.menuItemActiveLink}
-              to={'/' + org + '/instances'}
+              <List component="div" disablePadding>
+                <ListItem
+                  button
+                  className={parentProps.classes.menuItem}
+                  disabled={isBlocked}
+                  id="menuDblabInstances"
+                >
+                  <NavLink
+                    className={parentProps.classes.menuItemLink}
+                    activeClassName={parentProps.classes.menuItemActiveLink}
+                    to={'/' + org + '/instances'}
+                  >
+                    Instances
+                  </NavLink>
+                </ListItem>
+                <ListItem
+                  button
+                  className={parentProps.classes.menuItem}
+                  disabled={isBlocked}
+                  id="menuDblabSessions"
+                >
+                  <NavLink
+                    className={parentProps.classes.menuItemLink}
+                    activeClassName={parentProps.classes.menuItemActiveLink}
+                    to={'/' + org + '/observed-sessions'}
+                  >
+                    Observed sessions
+                  </NavLink>
+                </ListItem>
+              </List>
+            </Collapse>
+            <ListItem
+              button
+              className={cn(parentProps.classes.menuSectionHeader, parentProps.classes.menuSectionHeaderCollapsible)}
+              disabled={isBlocked}
+              id="menuJoeTitle"
+              onClick={(e) => handleOpenMenuItem(e, 'sqlOptimization')}
             >
-              Instances
-            </NavLink>
-          </ListItem>
-          <ListItem
-            button
-            className={parentProps.classes.menuItem}
-            disabled={isBlocked}
-            id="menuDblabSessions"
-          >
-            <NavLink
-              className={parentProps.classes.menuItemLink}
-              activeClassName={parentProps.classes.menuItemActiveLink}
-              to={'/' + org + '/observed-sessions'}
+              <ListItemText
+                className={cn(
+                  parentProps.classes.menuSectionHeaderLink,
+                  parentProps.classes.menuSectionHeaderLinkCollapsible,
+                  {[parentProps.classes.menuSectionHeaderActiveLink]: activeMenuItems.has('sqlOptimization')}
+                )}
+                classes={{primary: parentProps.classes.menuSectionHeaderLinkText}}
+              >
+                <span className={parentProps.classes.menuSectionHeaderIcon}>
+                  {icons.sqlOptimizationIcon}
+                </span>
+                Joe bot
+                {activeMenuItems.has('sqlOptimization')
+                  ? <ExpandLess className={parentProps.classes.menuSectionHeaderExpandIcon} />
+                  : <ExpandMore className={parentProps.classes.menuSectionHeaderExpandIcon} />}
+              </ListItemText>
+            </ListItem>
+            <Collapse
+              in={activeMenuItems.has('sqlOptimization')}
+              timeout="auto"
+              unmountOnExit
             >
-              Observed sessions
-            </NavLink>
-          </ListItem>
-          <ListItem
-            button
-            className={parentProps.classes.menuSectionHeader}
-            disabled={isBlocked}
-            id="menuJoeTitle"
-          >
-            <NavLink
-              className={parentProps.classes.menuSectionHeaderLink}
-              activeClassName={parentProps.classes.menuSectionHeaderActiveLink}
-              to={'/' + org + '/joe-instances'}
+              <List component="div" disablePadding>
+                <ListItem
+                  button
+                  className={parentProps.classes.menuItem}
+                  disabled={isBlocked}
+                  id="menuJoeInstances"
+                >
+                  <NavLink
+                    className={parentProps.classes.menuItemLink}
+                    activeClassName={parentProps.classes.menuItemActiveLink}
+                    to={'/' + org + '/joe-instances'}
+                  >
+                    Ask Joe
+                  </NavLink>
+                </ListItem>
+                <ListItem
+                  button
+                  className={parentProps.classes.menuItem}
+                  disabled={isBlocked}
+                  id="menuJoeSessions"
+                >
+                  <NavLink
+                    className={parentProps.classes.menuItemLink}
+                    activeClassName={parentProps.classes.menuItemActiveLink}
+                    to={'/' + org + '/sessions?'}
+                  >
+                    History
+                  </NavLink>
+                </ListItem>
+                {false && (
+                  <ListItem
+                    button
+                    className={parentProps.classes.menuItem}
+                    disabled={isBlocked}
+                    id="menuJoeExplain"
+                  >
+                    <NavLink
+                      className={parentProps.classes.menuItemLink}
+                      activeClassName={parentProps.classes.menuItemActiveLink}
+                      to={'/' + org + '/explain'}
+                    >
+                      Plan visualization
+                    </NavLink>
+                  </ListItem>
+                )}
+              </List>
+            </Collapse>
+            {/* <ListItem
+              button
+              className={parentProps.classes.menuSectionHeader}
+              disabled={isBlocked}
+              id="menuPostgresTitle"
             >
-              <span className={parentProps.classes.menuSectionHeaderIcon}>
-                {icons.sqlOptimizationIcon}
-              </span>
-              SQL Optimization
-            </NavLink>
-          </ListItem>
-          <ListItem
-            button
-            className={parentProps.classes.menuItem}
-            disabled={isBlocked}
-            id="menuJoeInstances"
-          >
-            <NavLink
-              className={parentProps.classes.menuItemLink}
-              activeClassName={parentProps.classes.menuItemActiveLink}
-              to={'/' + org + '/joe-instances'}
-            >
-              Ask Joe
-            </NavLink>
-          </ListItem>
-          <ListItem
-            button
-            className={parentProps.classes.menuItem}
-            disabled={isBlocked}
-            id="menuJoeSessions"
-          >
-            <NavLink
-              className={parentProps.classes.menuItemLink}
-              activeClassName={parentProps.classes.menuItemActiveLink}
-              to={'/' + org + '/sessions?'}
-            >
-              History
-            </NavLink>
-          </ListItem>
-          {false && (
+              <NavLink
+                className={parentProps.classes.menuSectionHeaderLink}
+                activeClassName={parentProps.classes.menuSectionHeaderActiveLink}
+                to={'/' + org + '/pg'}
+              >
+                <span className={parentProps.classes.menuSectionHeaderIcon}>
+                  {icons.postgresSQLIcon}
+                </span>
+                Postgres
+              </NavLink>
+            </ListItem>
             <ListItem
               button
               className={parentProps.classes.menuItem}
               disabled={isBlocked}
-              id="menuJoeExplain"
+              id="menuDblabClusters"
             >
               <NavLink
                 className={parentProps.classes.menuItemLink}
                 activeClassName={parentProps.classes.menuItemActiveLink}
-                to={'/' + org + '/explain'}
+                to={'/' + org + '/pg'}
               >
-                Plan visualization
+                Clusters
               </NavLink>
-            </ListItem>
-          )}
+            </ListItem> */}
 
-          {/* <ListItem
-            button
-            className={parentProps.classes.menuSectionHeader}
-            disabled={isBlocked}
-            id="menuPostgresTitle"
-          >
-            <NavLink
-              className={parentProps.classes.menuSectionHeaderLink}
-              activeClassName={parentProps.classes.menuSectionHeaderActiveLink}
-              to={'/' + org + '/pg'}
-            >
-              <span className={parentProps.classes.menuSectionHeaderIcon}>
-                {icons.postgresSQLIcon}
-              </span>
-              Postgres
-            </NavLink>
-          </ListItem>
-          <ListItem
-            button
-            className={parentProps.classes.menuItem}
-            disabled={isBlocked}
-            id="menuDblabClusters"
-          >
-            <NavLink
-              className={parentProps.classes.menuItemLink}
-              activeClassName={parentProps.classes.menuItemActiveLink}
-              to={'/' + org + '/pg'}
-            >
-              Clusters
-            </NavLink>
-          </ListItem> */}
-
-          <ListItem
-            button
-            className={parentProps.classes.menuSectionHeader}
-            disabled={isBlocked}
-            id="menuCheckupTitle"
-          >
-            <NavLink
-              className={parentProps.classes.menuSectionHeaderLink}
-              activeClassName={parentProps.classes.menuSectionHeaderActiveLink}
-              to={'/' + org + '/reports'}
-            >
-              <span className={parentProps.classes.menuSectionHeaderIcon}>
-                {icons.checkupIcon}
-              </span>
-              Checkup
-            </NavLink>
-          </ListItem>
-          <ListItem
-            button
-            className={parentProps.classes.menuItem}
-            disabled={isBlocked}
-            id="menuCheckupReports"
-          >
-            <NavLink
-              className={parentProps.classes.menuItemLink}
-              activeClassName={parentProps.classes.menuItemActiveLink}
-              to={'/' + org + '/reports'}
-            >
-              Reports
-            </NavLink>
-          </ListItem>
-
-          <ListItem
-            button
-            className={parentProps.classes.menuSectionHeader}
-            disabled={isBlocked}
-            id="menuSettingsTitle"
-          >
-            <NavLink
-              className={parentProps.classes.menuSectionHeaderLink}
-              activeClassName={parentProps.classes.menuSectionHeaderActiveLink}
-              to={
-                orgPermissions && orgPermissions.settingsOrganizationUpdate
-                  ? '/' + org + '/settings'
-                  : '#'
-              }
-            >
-              <span className={parentProps.classes.menuSectionHeaderIcon}>
-                {icons.settingsIcon}
-              </span>
-              Settings
-            </NavLink>
-          </ListItem>
-          {orgPermissions && orgPermissions.settingsOrganizationUpdate && (
             <ListItem
               button
-              className={parentProps.classes.menuItem}
+              className={cn(parentProps.classes.menuSectionHeader, parentProps.classes.menuSectionHeaderCollapsible)}
               disabled={isBlocked}
-              id="menuSettingsGeneral"
+              id="menuCheckupTitle"
+              onClick={(e) => handleOpenMenuItem(e, 'checkup')}
             >
-              <NavLink
-                className={parentProps.classes.menuItemLink}
-                activeClassName={parentProps.classes.menuItemActiveLink}
-                to={'/' + org + '/settings'}
+              <ListItemText
+                className={cn(
+                  parentProps.classes.menuSectionHeaderLink,
+                  parentProps.classes.menuSectionHeaderLinkCollapsible,
+                  {[parentProps.classes.menuSectionHeaderActiveLink]: activeMenuItems.has('checkup')}
+                )}
+                classes={{primary: parentProps.classes.menuSectionHeaderLinkText}}
               >
-                General
-              </NavLink>
+                <span className={parentProps.classes.menuSectionHeaderIcon}>
+                  {icons.checkupIcon}
+                </span>
+                Checkup
+                {activeMenuItems.has('checkup')
+                  ? <ExpandLess className={parentProps.classes.menuSectionHeaderExpandIcon} />
+                  : <ExpandMore className={parentProps.classes.menuSectionHeaderExpandIcon} />}
+              </ListItemText>
             </ListItem>
-          )}
-          {/*<ListItem
-            disabled={isBlocked}
-            button
-            className={parentProps.classes.menuItem}
-            id="menuSettingsBot"
-          >
-            <NavLink
-              className={parentProps.classes.menuItemLink}
-              activeClassName={parentProps.classes.menuItemActiveLink}
-              to={'/' + org + '/bot-settings'}
+            <Collapse
+              in={activeMenuItems.has('checkup')}
+              timeout="auto"
+              unmountOnExit
             >
-              AI Assistant
-            </NavLink>
-          </ListItem>*/}
-          <ListItem
-            disabled={isBlocked}
-            button
-            className={parentProps.classes.menuItem}
-            id="menuSettingsMembers"
-          >
-            <NavLink
-              className={parentProps.classes.menuItemLink}
-              activeClassName={parentProps.classes.menuItemActiveLink}
-              to={'/' + org + '/members'}
-            >
-              Members
-            </NavLink>
-          </ListItem>
-          <ListItem
-            button
-            className={parentProps.classes.menuItem}
-            disabled={isBlocked}
-            id="menuSettingsTokens"
-          >
-            <NavLink
-              className={parentProps.classes.menuItemLink}
-              activeClassName={parentProps.classes.menuItemActiveLink}
-              to={'/' + org + '/tokens'}
-            >
-              Access tokens
-            </NavLink>
-          </ListItem>
-          {orgData !== null && Permissions.isAdmin(orgData) && (
+              <List component="div" disablePadding>
+                <ListItem
+                  button
+                  className={parentProps.classes.menuItem}
+                  disabled={isBlocked}
+                  id="menuCheckupReports"
+                >
+                  <NavLink
+                    className={parentProps.classes.menuItemLink}
+                    activeClassName={parentProps.classes.menuItemActiveLink}
+                    to={'/' + org + '/reports'}
+                  >
+                    Reports
+                  </NavLink>
+                </ListItem>
+              </List>
+            </Collapse>
             <ListItem
               button
-              className={parentProps.classes.menuItem}
-              id="menuSettingsBilling"
+              className={parentProps.classes.menuSectionHeader}
+              disabled={isBlocked}
+              id="menuConsultingTitle"
             >
               <NavLink
-                className={parentProps.classes.menuItemLink}
-                activeClassName={parentProps.classes.menuItemActiveLink}
-                to={'/' + org + '/billing'}
+                className={parentProps.classes.menuSectionHeaderLink}
+                activeClassName={cn(parentProps.classes.menuSectionHeaderActiveLink, parentProps.classes.menuSingleSectionHeaderActiveLink)}
+                to={'/' + org + '/consulting'}
               >
-                Billing
+                <span className={parentProps.classes.menuSectionHeaderIcon}>
+                  {icons.consultingIcon}
+                </span>
+                Consulting
               </NavLink>
             </ListItem>
-          )}
-          {orgPermissions && orgPermissions.auditLogView && (
             <ListItem
-              disabled={
-                (orgPermissions && !orgPermissions.auditLogView) || isBlocked
-              }
               button
-              className={parentProps.classes.menuItem}
-              id="menuSettingsAudit"
+              className={cn(parentProps.classes.menuSectionHeader, parentProps.classes.menuSectionHeaderCollapsible)}
+              disabled={isBlocked}
+              id="menuSettingsTitle"
+              onClick={(e) => handleOpenMenuItem(e, 'settings')}
             >
-              <NavLink
-                className={parentProps.classes.menuItemLink}
-                activeClassName={parentProps.classes.menuItemActiveLink}
-                to={'/' + org + '/audit'}
+              <ListItemText
+                className={cn(
+                  parentProps.classes.menuSectionHeaderLink,
+                  parentProps.classes.menuSectionHeaderLinkCollapsible,
+                  {[parentProps.classes.menuSectionHeaderActiveLink]: activeMenuItems.has('settings')}
+                )}
+                classes={{primary: parentProps.classes.menuSectionHeaderLinkText}}
               >
-                Audit
-              </NavLink>
+                <span className={parentProps.classes.menuSectionHeaderIcon}>
+                  {icons.settingsIcon}
+                </span>
+                Manage
+                {activeMenuItems.has('settings')
+                  ? <ExpandLess className={parentProps.classes.menuSectionHeaderExpandIcon} />
+                  : <ExpandMore className={parentProps.classes.menuSectionHeaderExpandIcon} />}
+              </ListItemText>
             </ListItem>
-          )}
-        </List>
+            <Collapse
+              in={activeMenuItems.has('settings')}
+              timeout="auto"
+              unmountOnExit
+            >
+              <List component="div" disablePadding>
+                {orgPermissions && orgPermissions.settingsOrganizationUpdate && (
+                  <ListItem
+                    button
+                    className={parentProps.classes.menuItem}
+                    disabled={isBlocked}
+                    id="menuSettingsGeneral"
+                  >
+                    <NavLink
+                      className={parentProps.classes.menuItemLink}
+                      activeClassName={parentProps.classes.menuItemActiveLink}
+                      to={'/' + org + '/settings'}
+                    >
+                      General settings
+                    </NavLink>
+                  </ListItem>
+                )}
+                {orgPermissions && orgPermissions.settingsOrganizationUpdate && (
+                  <ListItem
+                    disabled={isBlocked}
+                    button
+                    className={parentProps.classes.menuItem}
+                    id="menuSettingsBot"
+                  >
+                    <NavLink
+                      className={parentProps.classes.menuItemLink}
+                      activeClassName={parentProps.classes.menuItemActiveLink}
+                      to={'/' + org + '/assistant-settings'}
+                    >
+                      AI Assistant settings
+                    </NavLink>
+                  </ListItem>
+                )}
+                <ListItem
+                  disabled={isBlocked}
+                  button
+                  className={parentProps.classes.menuItem}
+                  id="menuSettingsMembers"
+                >
+                  <NavLink
+                    className={parentProps.classes.menuItemLink}
+                    activeClassName={parentProps.classes.menuItemActiveLink}
+                    to={'/' + org + '/members'}
+                  >
+                    Members
+                  </NavLink>
+                </ListItem>
+                <ListItem
+                  button
+                  className={parentProps.classes.menuItem}
+                  disabled={isBlocked}
+                  id="menuSettingsTokens"
+                >
+                  <NavLink
+                    className={parentProps.classes.menuItemLink}
+                    activeClassName={parentProps.classes.menuItemActiveLink}
+                    to={'/' + org + '/tokens'}
+                  >
+                    Access tokens
+                  </NavLink>
+                </ListItem>
+                {orgData !== null && Permissions.isAdmin(orgData) && (
+                  <ListItem
+                    button
+                    className={parentProps.classes.menuItem}
+                    id="menuSettingsBilling"
+                  >
+                    <NavLink
+                      className={parentProps.classes.menuItemLink}
+                      activeClassName={parentProps.classes.menuItemActiveLink}
+                      to={'/' + org + '/billing'}
+                    >
+                      Billing
+                    </NavLink>
+                  </ListItem>
+                )}
+                {orgData !== null && Permissions.isAdmin(orgData) && (
+                  <ListItem
+                    button
+                    className={parentProps.classes.menuItem}
+                    id="menuSettingsDBLab"
+                  >
+                    <NavLink
+                      className={parentProps.classes.menuItemLink}
+                      activeClassName={parentProps.classes.menuItemActiveLink}
+                      to={'/' + org + '/dblab-settings'}
+                    >
+                      DBLab settings
+                    </NavLink>
+                  </ListItem>
+                )}
+                {orgPermissions && orgPermissions.auditLogView && (
+                  <ListItem
+                    disabled={
+                      (orgPermissions && !orgPermissions.auditLogView) || isBlocked
+                    }
+                    button
+                    className={parentProps.classes.menuItem}
+                    id="menuSettingsAuditLogs"
+                  >
+                    <NavLink
+                      className={parentProps.classes.menuItemLink}
+                      activeClassName={parentProps.classes.menuItemActiveLink}
+                      to={'/' + org + '/audit'}
+                    >
+                      Audit logs
+                    </NavLink>
+                  </ListItem>
+                )}
+                {orgData !== null && orgPermissions && Permissions.isAdmin(orgData) && orgPermissions.auditLogView && (
+                  <ListItem
+                    disabled={
+                      (orgPermissions && !orgPermissions.auditLogView) || isBlocked
+                    }
+                    button
+                    className={parentProps.classes.menuItem}
+                    id="menuSettingsAuditSettings"
+                  >
+                    <NavLink
+                      className={parentProps.classes.menuItemLink}
+                      activeClassName={parentProps.classes.menuItemActiveLink}
+                      to={'/' + org + '/audit-settings'}
+                    >
+                      Audit settings
+                    </NavLink>
+                  </ListItem>
+                )}
+              </List>
+            </Collapse>
+          </List>
+        </div>
       </div>
     )
   }
@@ -892,6 +1019,13 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
         }}
       />
       <Route
+        path="/:org/consulting"
+        exact
+        render={(props) => (
+          <ConsultingWrapper {...props} {...customProps} {...queryProps} />
+        )}
+      />
+      <Route
         path="/:org/joe-instances"
         render={(props) => (
           <JoeInstancesWrapper {...props} {...customProps} {...queryProps} />
@@ -913,6 +1047,18 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
         path="/:org/assistant-settings"
         render={(props) => (
           <BotSettingsFormWrapper {...props} {...customProps} {...queryProps} />
+        )}
+      />
+      <Route
+        path="/:org/audit-settings"
+        render={(props) => (
+          <AuditSettingsFormWrapper {...props} {...customProps} {...queryProps} />
+        )}
+      />
+      <Route
+        path="/:org/dblab-settings"
+        render={(props) => (
+          <DBLabSettingsFormWrapper {...props} {...customProps} {...queryProps} />
         )}
       />
       <Route

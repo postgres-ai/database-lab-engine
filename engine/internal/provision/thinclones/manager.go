@@ -44,4 +44,5 @@ type SnapshotProperties struct {
 	Root        string
 	DataStateAt string
 	Message     string
+	Clones      string
 }

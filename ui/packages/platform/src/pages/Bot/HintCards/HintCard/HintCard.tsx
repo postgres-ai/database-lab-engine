@@ -45,12 +45,15 @@ const useStyles = makeStyles((theme) => ({
       fontSize: '0.813rem',
       height: 'auto',
     },
+    [theme.breakpoints.down(330)]: {
+      fontSize: '.75rem'
+    }
   },
 }));
 
 export const HintCard = (props: Hint & {orgId: number}) => {
   const { prompt, hint, type, orgId } = props;
-  const { sendMessage, chatVisibility } = useAiBot();
+  const { sendMessage } = useAiBot();
 
   const classes = useStyles();
 
@@ -58,7 +61,6 @@ export const HintCard = (props: Hint & {orgId: number}) => {
     await sendMessage({
       content: prompt,
       org_id: orgId,
-      is_public: chatVisibility === 'public'
     })
   }
 

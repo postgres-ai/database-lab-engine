@@ -29,6 +29,7 @@ type SnapshotDetails struct {
 	DataStateAt string   `json:"dataStateAt"`
 	Message     string   `json:"message"`
 	Dataset     string   `json:"dataset"`
+	Clones      []string `json:"clones"`
 }
 
 // BranchView describes branch view.

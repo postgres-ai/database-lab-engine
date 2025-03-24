@@ -38,6 +38,14 @@ export interface Orgs {
     name: string
     id: number
     owner_user_id: number
+    is_chat_public_by_default: boolean
+    chats_private_allowed: boolean
+    consulting_type: string | null
+    dblab_old_clones_notifications_threshold_hours: number | null
+    dblab_low_disk_space_notifications_threshold_percent: number | null
+    data: {
+      plan: string
+    } | null
     projects: {
       [project: string]: {
         alias: string

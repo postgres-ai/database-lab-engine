@@ -31,14 +31,14 @@ type FSManager interface {
 
 // Cloner describes methods of clone management.
 type Cloner interface {
-	CreateClone(name, snapshotID string) error
-	DestroyClone(name string) error
+	CreateClone(branch, name, snapshotID string, revision int) error
+	DestroyClone(branch, name string, revision int) error
 	ListClonesNames() ([]string, error)
 }
 
 // StateReporter describes methods of state reporting.
 type StateReporter interface {
-	GetSessionState(name string) (*resources.SessionState, error)
+	GetSessionState(branch, name string) (*resources.SessionState, error)
 	GetFilesystemState() (models.FileSystem, error)
 }
 
@@ -57,7 +57,7 @@ type Branching interface {
 	VerifyBranchMetadata() error
 	CreateDataset(datasetName string) error
 	CreateBranch(branchName, snapshotID string) error
-	DestroyBranch(branchName string) (err error)
+	DestroyDataset(branchName string) (err error)
 	ListBranches() (map[string]string, error)
 	ListAllBranches() ([]models.BranchEntity, error)
 	GetRepo() (*models.Repo, error)

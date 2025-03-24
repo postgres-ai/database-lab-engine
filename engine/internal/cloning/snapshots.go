@@ -13,7 +13,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 )
 
 // SnapshotBox contains instance snapshots.
@@ -204,7 +204,7 @@ func (c *Base) hasDependentSnapshots(w *CloneWrapper) bool {
 	c.snapshotBox.snapshotMutex.RLock()
 	defer c.snapshotBox.snapshotMutex.RUnlock()
 
-	poolName := util.GetPoolName(w.Clone.Snapshot.Pool, w.Clone.ID)
+	poolName := branching.CloneName(w.Clone.Snapshot.Pool, w.Clone.Branch, w.Clone.ID, w.Clone.Revision)
 
 	for name := range c.snapshotBox.items {
 		if strings.HasPrefix(name, poolName) {

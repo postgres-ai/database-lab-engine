@@ -171,6 +171,10 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 		}
 	}
 
+	if cloneRequest.Branch == "" {
+		cloneRequest.Branch = snapshot.Branch
+	}
+
 	clone := &models.Clone{
 		ID:        cloneRequest.ID,
 		Snapshot:  snapshot,
@@ -386,7 +390,7 @@ func (c *Base) refreshCloneMetadata(w *CloneWrapper) {
 		return
 	}
 
-	sessionState, err := c.provision.GetSessionState(w.Session, w.Clone.ID)
+	sessionState, err := c.provision.GetSessionState(w.Session, w.Clone.Branch, w.Clone.ID)
 	if err != nil {
 		// Session not ready yet.
 		log.Err(fmt.Errorf("failed to get a session state: %w", err))
@@ -480,6 +484,18 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 		Message: models.CloneMessageResetting,
 	}); err != nil {
 		return errors.Wrap(err, "failed to update clone status")
+	}
+
+	if c.hasDependentSnapshots(w) {
+		log.Warn("clone has dependent snapshots", cloneID)
+		c.cloneMutex.Lock()
+		w.Clone.Revision++
+		w.Clone.HasDependent = true
+		c.cloneMutex.Unlock()
+	} else {
+		c.cloneMutex.Lock()
+		w.Clone.HasDependent = false
+		c.cloneMutex.Unlock()
 	}
 
 	go func() {
@@ -719,9 +735,9 @@ func (c *Base) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 		return false, errors.New("failed to get clone session")
 	}
 
-	if _, err := c.provision.LastSessionActivity(session, wrapper.Clone.ID, minimumTime); err != nil {
+	if _, err := c.provision.LastSessionActivity(session, wrapper.Clone.Branch, wrapper.Clone.ID, minimumTime); err != nil {
 		if err == pglog.ErrNotFound {
-			log.Dbg(fmt.Sprintf("Not found recent activity for the session: %q. Clone name: %q",
+			log.Dbg(fmt.Sprintf("Not found recent activity for session: %q. Clone name: %q",
 				session.ID, wrapper.Clone.ID))
 
 			return hasNotQueryActivity(session)

@@ -80,7 +80,7 @@ func NewObserver(dockerClient *client.Client, cfg *Config, pm *pool.Manager) *Ob
 // GetCloneLog gets clone logs.
 // TODO (akartasov): Split log to chunks.
 func (o *Observer) GetCloneLog(ctx context.Context, obsClone *ObservingClone) ([]byte, error) {
-	fileSelector := pglog.NewSelector(obsClone.pool.ClonePath(obsClone.cloneID))
+	fileSelector := pglog.NewSelector(obsClone.pool.ClonePath(obsClone.branch, obsClone.cloneID))
 	fileSelector.SetMinimumTime(obsClone.session.StartedAt)
 
 	if err := fileSelector.DiscoverLogDir(); err != nil {
@@ -187,11 +187,12 @@ func (o *Observer) maskLogs(entry []string, maskedFieldIndexes []int) {
 }
 
 // AddObservingClone adds a new observing session to storage.
-func (o *Observer) AddObservingClone(cloneID string, port uint, session *ObservingClone) {
+func (o *Observer) AddObservingClone(cloneID, branch string, port uint, session *ObservingClone) {
 	o.sessionMu.Lock()
 	defer o.sessionMu.Unlock()
 	session.pool = o.pm.First().Pool()
 	session.cloneID = cloneID
+	session.branch = branch
 	session.port = port
 
 	o.storage[cloneID] = session

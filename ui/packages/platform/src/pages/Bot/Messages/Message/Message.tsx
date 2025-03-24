@@ -1,5 +1,4 @@
-import React, { useMemo, useState } from 'react'
-import cn from "classnames";
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown, { Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
@@ -7,30 +6,37 @@ import { makeStyles } from "@material-ui/core";
 import { colors } from "@postgres.ai/shared/styles/colors";
 import { icons } from "@postgres.ai/shared/styles/icons";
 import { DebugDialog } from "../../DebugDialog/DebugDialog";
-import { CodeBlock } from "./CodeBlock";
-import { disallowedHtmlTagsForMarkdown, permalinkLinkBuilder } from "../../utils";
-import { StateMessage } from "../../../../types/api/entities/bot";
-import { MermaidDiagram } from "./MermaidDiagram";
+import { CodeBlock } from "./CodeBlock/CodeBlock";
+import { disallowedHtmlTagsForMarkdown } from "../../utils";
+import { MessageStatus, StateMessage } from "../../../../types/api/entities/bot";
+import { MermaidDiagram } from "./MermaidDiagram/MermaidDiagram";
+import { useAiBot } from "../../hooks";
+import { ToolCallRenderer } from "./ToolCallRenderer/ToolCallRenderer";
+import { transformAllCustomTags } from "../utils";
+import { ThinkBlockRenderer } from './ThinkingCard/ThinkingCard';
+import { MessageHeader } from "./MessageHeader/MessageHeader";
 
 
-type BaseMessageProps = {
+export type BaseMessageProps = {
   id: string | null;
   created_at?: string;
   content?: string;
   name?: string;
   isLoading?: boolean;
   formattedTime?: string;
-  aiModel?: string
-  stateMessage?: StateMessage | null
-  isCurrentStreamMessage?: boolean
+  aiModel?: string;
+  stateMessage?: StateMessage | null;
+  isCurrentStreamMessage?: boolean;
   isPublic?: boolean;
+  threadId?: string;
+  status?: MessageStatus
 }
 
 type AiMessageProps = BaseMessageProps & {
   isAi: true;
   content: string;
-  aiModel: string
-  isCurrentStreamMessage?: boolean
+  aiModel: string;
+  isCurrentStreamMessage?: boolean;
 }
 
 type HumanMessageProps = BaseMessageProps & {
@@ -42,8 +48,8 @@ type HumanMessageProps = BaseMessageProps & {
 type LoadingMessageProps = BaseMessageProps & {
   isLoading: true;
   isAi: true;
-  content?: undefined
-  stateMessage: StateMessage | null
+  content?: undefined;
+  stateMessage: StateMessage | null;
 }
 
 type MessageProps = AiMessageProps | HumanMessageProps | LoadingMessageProps;
@@ -246,7 +252,6 @@ const useStyles = makeStyles(
       '50%': { borderRightColor: 'black' },
     },
   }),
-
 )
 
 export const Message = React.memo((props: MessageProps) => {
@@ -261,15 +266,48 @@ export const Message = React.memo((props: MessageProps) => {
     aiModel,
     stateMessage,
     isCurrentStreamMessage,
-    isPublic
+    isPublic,
+    threadId,
+    status
   } = props;
+
+  const { updateMessageStatus } = useAiBot()
+
+  const elementRef = useRef<HTMLDivElement | null>(null);
+
 
   const [isDebugVisible, setDebugVisible] = useState(false);
 
 
   const classes = useStyles();
 
-  const contentToRender: string = content?.replace(/\n/g, '  \n') || ''
+  useEffect(() => {
+    if (!isAi || isCurrentStreamMessage || status === 'read') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && threadId && id) {
+          updateMessageStatus(threadId, id, 'read');
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (elementRef.current) {
+      observer.observe(elementRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [id, updateMessageStatus, isCurrentStreamMessage, isAi, threadId, status]);
+
+  const contentToRender = useMemo(() => {
+    if (!content) return '';
+    return transformAllCustomTags(content?.replace(/\n/g, '  \n'));
+  }, [content]);
 
   const toggleDebugDialog = () => {
     setDebugVisible(prevState => !prevState)
@@ -293,6 +331,8 @@ export const Message = React.memo((props: MessageProps) => {
         return <code {...props}>{children}</code>
       }
     },
+    toolcall: ToolCallRenderer,
+    thinkblock: ThinkBlockRenderer,
   }), []);
 
   return (
@@ -302,7 +342,7 @@ export const Message = React.memo((props: MessageProps) => {
         onClose={toggleDebugDialog}
         messageId={id}
       />}
-      <div className={classes.message}>
+      <div ref={elementRef} className={classes.message}>
         <div className={classes.messageAvatar}>
           {isAi
             ? <img
@@ -312,51 +352,17 @@ export const Message = React.memo((props: MessageProps) => {
             />
             : icons.userChatIcon}
         </div>
-        <div className={classes.messageHeader}>
-          <span className={classes.messageAuthor}>
-            {isAi ? 'Postgres.AI' : name}
-          </span>
-          {created_at && formattedTime &&
-            <span
-              className={cn(classes.messageInfo)}
-              title={created_at}
-            >
-              {formattedTime}
-            </span>}
-          <div className={classes.additionalInfo}>
-            {id && isPublic && <>
-              <span className={classes.messageInfo}>|</span>
-              <a
-                className={cn(classes.messageInfo, classes.messageInfoActive)}
-                href={permalinkLinkBuilder(id)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                permalink
-              </a>
-            </>}
-            {!isLoading && isAi && id && <>
-              <span className={classes.messageInfo}>|</span>
-              <button
-                className={cn(classes.messageInfo, classes.messageInfoActive)}
-                onClick={toggleDebugDialog}
-              >
-                debug info
-              </button>
-            </>}
-            {
-              aiModel && isAi && <>
-                <span className={classes.messageInfo}>|</span>
-                <span
-                  className={cn(classes.messageInfo)}
-                  title={aiModel}
-                >
-                  {aiModel}
-                </span>
-              </>
-            }
-          </div>
-        </div>
+        <MessageHeader
+          name={name}
+          createdAt={created_at}
+          formattedTime={formattedTime}
+          id={id}
+          isPublic={isPublic}
+          isAi={isAi}
+          isLoading={isLoading}
+          toggleDebugDialog={toggleDebugDialog}
+          aiModel={aiModel}
+        />
         <div>
           {isLoading
             ?
@@ -365,16 +371,21 @@ export const Message = React.memo((props: MessageProps) => {
                 {stateMessage && stateMessage.state ? stateMessage.state : 'Thinking'}
               </div>
             </div>
-            : <ReactMarkdown
-                className={classes.markdown}
-                children={contentToRender || ''}
-                rehypePlugins={[rehypeRaw]}
-                remarkPlugins={[remarkGfm]}
-                linkTarget='_blank'
-                components={renderers}
-                disallowedElements={disallowedHtmlTagsForMarkdown}
-                unwrapDisallowed
-              />
+            : <>
+                <ReactMarkdown
+                  className={classes.markdown}
+                  children={contentToRender || ''}
+                  rehypePlugins={isAi ? [rehypeRaw] : []}
+                  remarkPlugins={[remarkGfm]}
+                  linkTarget='_blank'
+                  components={renderers}
+                  disallowedElements={disallowedHtmlTagsForMarkdown}
+                  unwrapDisallowed
+                />
+                {stateMessage && stateMessage.state && <div className={classes.loading}>
+                  {stateMessage.state}
+                </div>}
+              </>
           }
         </div>
       </div>

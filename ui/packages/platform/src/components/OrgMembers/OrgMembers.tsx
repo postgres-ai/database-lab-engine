@@ -361,6 +361,7 @@ class OrgSettings extends Component<
             <Table className={classes.table}>
               <TableHead>
                 <TableRow className={classes.row}>
+                  <TableCell>ID</TableCell>
                   <TableCell>Email</TableCell>
                   <TableCell>Role</TableCell>
                   <TableCell>First name</TableCell>
@@ -372,6 +373,7 @@ class OrgSettings extends Component<
                 {filteredUsers.map((u: UsersType) => {
                   return (
                     <TableRow hover className={classes.row} key={u.id}>
+                      <TableCell className={classes.cell}>{u.id}</TableCell>
                       <TableCell className={classes.cell}>{u.email}</TableCell>
                       <TableCell className={classes.cell}>
                         {this.roleSelector(u)}

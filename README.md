@@ -63,7 +63,7 @@ Try it yourself right now:
 - Visit [Postgres.ai Console](https://console.postgres.ai/), set up your first organization and provision a DBLab Standard Edition (DBLab SE) to any cloud or on-prem
     - [Pricing](https://postgres.ai/pricing) (starting at $62/month)
     - [Doc: How to install DBLab SE](https://postgres.ai/docs/how-to-guides/administration/install-dle-from-postgres-ai)
-- Demo: https://demo.aws.postgres.ai (use the token `demo-token` to access)
+- Demo: https://demo.dblab.dev (use the token `demo-token` to access)
 - Looking for a free version? Install DBLab Community Edition by [following this tutorial](https://postgres.ai/docs/tutorials/database-lab-tutorial)
 
 ## How it works
@@ -200,7 +200,7 @@ Reach out to the Postgres.ai team if you want a trial or commercial license that
 
 Many thanks to our amazing contributors!
 
-<a href = "https://github.com/postgresml/pgcat/graphs/contributors">
+<a href = "https://github.com/postgres-ai/database-lab/graphs/contributors">
   <img src = "https://contrib.rocks/image?repo=postgres-ai/database-lab"/>
 </a>
 

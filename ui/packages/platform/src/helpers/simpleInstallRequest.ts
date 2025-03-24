@@ -5,7 +5,7 @@ import {
 
 const sign = require('jwt-encode')
 
-export const SI_API_SERVER = 'https://si.aws.postgres.ai'
+export const SI_API_SERVER = 'https://si.dblab.dev'
 
 export const JWT_SECRET = 'some-jwt-secret'
 export const JWT_PAYLOAD = (userID?: number) => ({
