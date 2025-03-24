@@ -10,18 +10,19 @@ import * as Yup from 'yup'
 
 export type FormValues = {
   cloneID: string
-  comment?: string
+  message: string
 }
 
 const Schema = Yup.object().shape({
   cloneID: Yup.string().required('Clone ID is required'),
+  message: Yup.string().required('Message is required'),
 })
 
 export const useForm = (onSubmit: (values: FormValues) => void) => {
   const formik = useFormik<FormValues>({
     initialValues: {
       cloneID: '',
-      comment: '',
+      message: '',
     },
     validationSchema: Schema,
     onSubmit,

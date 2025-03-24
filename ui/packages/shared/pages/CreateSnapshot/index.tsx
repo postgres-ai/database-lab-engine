@@ -100,7 +100,7 @@ export const CreateSnapshotPage = observer(
     const clonesList = instance?.instance?.state?.cloning.clones || []
 
     const handleSubmit = async (values: FormValues) => {
-      await createSnapshot(values.cloneID, values.comment).then((snapshot) => {
+      await createSnapshot(values.cloneID, values.message).then((snapshot) => {
         if (snapshot && generateSnapshotPageId(snapshot.snapshotID)) {
           history.push(
             `/instance/snapshots/${generateSnapshotPageId(
@@ -165,18 +165,18 @@ export const CreateSnapshotPage = observer(
                     : []
                 }
               />
-              <strong>Comment</strong>
+              <strong>Message</strong>
               <p className={classes.marginTop}>
-                Optional comment to be added to the snapshot.
+                Message to be added to the snapshot.
               </p>
               <TextField
-                label="Comment"
+                label="Message *"
                 fullWidth
                 className={classes.marginBottom2x}
-                value={formik.values.comment}
-                error={Boolean(formik.errors.comment)}
+                value={formik.values.message}
+                error={Boolean(formik.errors.message)}
                 onChange={(e) =>
-                  formik.setFieldValue('comment', e.target.value)
+                  formik.setFieldValue('message', e.target.value)
                 }
               />
               <Button

@@ -94,12 +94,15 @@ export class MainStore {
     return response
   }
 
-  destroySnapshot = async (snapshotId: string) => {
+  destroySnapshot = async (snapshotId: string, forceDelete: boolean) => {
     if (!this.api.destroySnapshot || !snapshotId) return
 
-    const { response, error } = await this.api.destroySnapshot(snapshotId)
+    const { response, error } = await this.api.destroySnapshot(
+      snapshotId,
+      forceDelete,
+    )
 
-    return  {
+    return {
       response,
       error: error ? await error.json().then((err) => err) : null,
     }

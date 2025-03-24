@@ -2,7 +2,7 @@ export interface SnapshotList {
   branch: string[]
   id: string
   dataStateAt: string
-  comment?: string
+  message: string
 }
 
 export type GetSnapshotList = (branchName: string) => Promise<{
