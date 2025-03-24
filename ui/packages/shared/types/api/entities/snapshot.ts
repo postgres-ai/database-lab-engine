@@ -8,8 +8,8 @@ export type SnapshotDto = {
   pool: string
   physicalSize: number
   logicalSize: number
-  comment?: string
-  message?: string
+  message: string
+  branch: string
 }
 
 export const formatSnapshotDto = (dto: SnapshotDto) => ({

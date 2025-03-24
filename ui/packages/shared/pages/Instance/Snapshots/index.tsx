@@ -10,17 +10,22 @@ import { observer } from 'mobx-react-lite'
 import { makeStyles } from '@material-ui/core'
 
 import { useStores, useHost } from '@postgres.ai/shared/pages/Instance/context'
-import { SnapshotsTable } from '@postgres.ai/shared/pages/Instance/Snapshots/components/SnapshotsTable'
+import { SnapshotsList } from '@postgres.ai/shared/pages/Instance/Snapshots/components/SnapshotsList'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
-import { isSameDayUTC } from '@postgres.ai/shared/utils/date'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 import { Button } from '@postgres.ai/shared/components/Button2'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { InfoIcon } from '@postgres.ai/shared/icons/Info'
+import { useEffect, useMemo, useState } from 'react'
+import { Branch } from 'types/api/endpoints/getBranches'
+import { SnapshotHeader } from './components/SnapshotHeader'
 
 const useStyles = makeStyles(
   {
+    sectionTitle: {
+      borderBottom: 0,
+    },
     marginTop: {
       marginTop: '16px',
     },
@@ -44,41 +49,56 @@ export const Snapshots = observer(() => {
   const stores = useStores()
   const classes = useStyles()
   const history = useHistory()
+  const { getBranches, instance, snapshots } = stores.main
+  const [messageFilter, setMessageFilter] = useState('')
+  const [branches, setBranches] = useState<string[] | null>(null)
+  const [selectedBranch, setSelectedBranch] = useState<string>()
+  const [isLoadingBranches, setIsLoadingBranches] = useState(true)
 
-  const { snapshots, instance } = stores.main
+  const filteredSnapshots = useMemo(() => {
+    if (!snapshots.data) return []
 
-  const filteredSnapshots =
-    snapshots?.data &&
-    snapshots.data.filter((snapshot) => {
-      const isMatchedByDate =
-        !stores.snapshotsModal.date ||
-        isSameDayUTC(snapshot.dataStateAtDate, stores.snapshotsModal.date)
-
-      const isMatchedByPool =
-        !stores.snapshotsModal.pool ||
-        snapshot.pool === stores.snapshotsModal.pool
-
-      return isMatchedByDate && isMatchedByPool
-    })
+    return snapshots.data.filter((snapshot) =>
+      snapshot.message.toLowerCase().includes(messageFilter.toLowerCase()),
+    )
+  }, [snapshots.data, messageFilter])
 
   const clonesList = instance?.state?.cloning.clones || []
   const isEmpty = !filteredSnapshots?.length
   const hasClones = Boolean(clonesList?.length)
   const goToSnapshotAddPage = () => history.push(host.routes.createSnapshot())
 
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        setIsLoadingBranches(true)
+        const branches = await getBranches()
+        const branchNames = branches?.map(({ name }: Branch) => name) ?? []
+        setBranches(branchNames)
+      } catch (error) {
+        console.error('Error fetching initial data:', error)
+      } finally {
+        setIsLoadingBranches(false)
+        setSelectedBranch('main')
+      }
+    }
+
+    fetchInitialData()
+  }, [])
+
+  useEffect(() => {
+    if (selectedBranch) {
+      stores.main.reloadSnapshots(selectedBranch)
+    }
+  }, [selectedBranch])
+
   if (!instance && !snapshots.isLoading) return <></>
 
-  if (snapshots?.error)
-    return (
-      <ErrorStub
-        title={snapshots?.error?.title}
-        message={snapshots?.error?.message}
-      />
-    )
+  if (snapshots?.error) return <ErrorStub message={snapshots?.error} />
 
   return (
     <div className={classes.marginTop}>
-      {snapshots.isLoading ? (
+      {snapshots.isLoading || isLoadingBranches ? (
         <Spinner size="lg" className={classes.spinner} />
       ) : (
         <>
@@ -86,6 +106,7 @@ export const Snapshots = observer(() => {
             level={2}
             tag="h2"
             text={`Snapshots (${filteredSnapshots?.length || 0})`}
+            className={classes.sectionTitle}
             rightContent={
               <>
                 <Button
@@ -106,11 +127,24 @@ export const Snapshots = observer(() => {
               </>
             }
           />
+          <SnapshotHeader
+            branches={branches}
+            selectedBranch={selectedBranch || 'main'}
+            setMessageFilter={setMessageFilter}
+            setSelectedBranch={setSelectedBranch}
+          />
           {!isEmpty ? (
-            <SnapshotsTable />
+            <SnapshotsList filteredSnapshots={filteredSnapshots} />
           ) : (
             <p className={classes.marginTop}>
-              This instance has no active snapshots
+              {messageFilter.length ? (
+                <span>
+                  No active snapshots found. Try removing the filter and
+                  checking again
+                </span>
+              ) : (
+                <span> This instance has no active snapshots</span>
+              )}
             </p>
           )}
         </>

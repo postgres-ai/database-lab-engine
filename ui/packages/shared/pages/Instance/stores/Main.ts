@@ -136,9 +136,9 @@ export class MainStore {
     })
   }
 
-  reloadSnapshots = async () => {
+  reloadSnapshots = async (branchName?: string) => {
     if (!this.instance) return
-    await this.snapshots.reload(this.instance.id)
+    await this.snapshots.reload(this.instance.id, branchName)
   }
 
   reloadInstanceRetrieval = async () => {

@@ -337,7 +337,7 @@ export const BranchesPage = observer((props: Props) => {
                               {snapshot.dataStateAt || '-'}
                             </TableBodyCell>
                             <TableBodyCell>
-                              {snapshot.comment ?? '-'}
+                              {snapshot.message ?? '-'}
                             </TableBodyCell>
                           </TableRow>
                         ))}
