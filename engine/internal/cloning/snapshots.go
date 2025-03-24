@@ -32,13 +32,13 @@ func (c *Base) fetchSnapshots() error {
 	var latestSnapshot *models.Snapshot
 
 	snapshots := make(map[string]*models.Snapshot, len(entries))
-	cloneCounter := c.cloneCounter()
+	cloneCounters := c.counterClones()
 
 	for _, entry := range entries {
-		numClones := 0
+		cloneList := []string{}
 
-		if num, ok := cloneCounter[entry.ID]; ok {
-			numClones = num
+		if foundList, ok := cloneCounters[entry.ID]; ok {
+			cloneList = foundList
 		}
 
 		currentSnapshot := &models.Snapshot{
@@ -49,7 +49,8 @@ func (c *Base) fetchSnapshots() error {
 			LogicalSize:  entry.LogicalReferenced,
 			Pool:         entry.Pool,
 			Branch:       entry.Branch,
-			NumClones:    numClones,
+			NumClones:    len(cloneList),
+			Clones:       cloneList,
 		}
 
 		snapshots[entry.ID] = currentSnapshot
@@ -63,20 +64,21 @@ func (c *Base) fetchSnapshots() error {
 	return nil
 }
 
-func (c *Base) cloneCounter() map[string]int {
-	cloneCounter := make(map[string]int)
+func (c *Base) counterClones() map[string][]string {
+	clones := make(map[string][]string, 0)
 
 	c.cloneMutex.RLock()
 
 	for cloneName := range c.clones {
 		if c.clones[cloneName] != nil && c.clones[cloneName].Clone.Snapshot != nil {
-			cloneCounter[c.clones[cloneName].Clone.Snapshot.ID]++
+			snapshotID := c.clones[cloneName].Clone.Snapshot.ID
+			clones[snapshotID] = append(clones[snapshotID], cloneName)
 		}
 	}
 
 	c.cloneMutex.RUnlock()
 
-	return cloneCounter
+	return clones
 }
 
 func (c *Base) resetSnapshots(snapshotMap map[string]*models.Snapshot, latestSnapshot *models.Snapshot) {
