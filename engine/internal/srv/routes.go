@@ -301,7 +301,13 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if snapshotProperties.Clones == "" {
+	snapshot, err := s.Cloning.GetSnapshotByID(destroyRequest.SnapshotID)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if snapshotProperties.Clones == "" && snapshot.NumClones == 0 {
 		if fullDataset, _, found := strings.Cut(destroyRequest.SnapshotID, "@"); found {
 			if err = fsm.DestroyDataset(fullDataset); err != nil {
 				api.SendBadRequestError(w, r, err.Error())
