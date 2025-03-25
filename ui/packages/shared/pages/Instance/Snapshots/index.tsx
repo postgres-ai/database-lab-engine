@@ -58,8 +58,12 @@ export const Snapshots = observer(() => {
   const filteredSnapshots = useMemo(() => {
     if (!snapshots.data) return []
 
+    if (!messageFilter.trim()) {
+      return snapshots.data
+    }
+
     return snapshots.data.filter((snapshot) =>
-      snapshot.message.toLowerCase().includes(messageFilter.toLowerCase()),
+      snapshot?.message?.toLowerCase()?.includes(messageFilter.toLowerCase()),
     )
   }, [snapshots.data, messageFilter])
 

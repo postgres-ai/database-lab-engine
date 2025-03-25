@@ -75,7 +75,7 @@ export const CreateClone = observer((props: Props) => {
 
   const fetchBranchSnapshotsData = async (branchName: string) => {
     const snapshotsRes =
-      (await stores.main.getBranchSnapshots(branchName)) ?? []
+      (await stores.main.getSnapshots(props.instanceId, branchName)) ?? []
     setSnapshots(snapshotsRes)
     formik.setFieldValue('snapshotId', snapshotsRes[0]?.id)
   }
@@ -86,7 +86,7 @@ export const CreateClone = observer((props: Props) => {
     const selectedBranch = e.target.value
     formik.setFieldValue('branch', selectedBranch)
 
-    if (props.api.getBranchSnapshots) {
+    if (props.api.getSnapshots) {
       await fetchBranchSnapshotsData(selectedBranch)
     }
   }
@@ -103,7 +103,7 @@ export const CreateClone = observer((props: Props) => {
       setBranchesList(branches.map((branch) => branch.name))
       formik.setFieldValue('branch', initiallySelectedBranch)
 
-      if (props.api.getBranchSnapshots) {
+      if (props.api.getSnapshots) {
         await fetchBranchSnapshotsData(initiallySelectedBranch)
       } else {
         const allSnapshots = stores.main?.snapshots?.data ?? []
@@ -154,7 +154,7 @@ export const CreateClone = observer((props: Props) => {
   if (
     stores.main.instanceError ||
     stores.main.getBranchesError ||
-    stores.main.getBranchSnapshotsError ||
+    stores.main.getSnapshotsError ||
     stores.main?.snapshots?.error
   )
     return (
@@ -165,7 +165,7 @@ export const CreateClone = observer((props: Props) => {
           message={
             stores.main.instanceError ||
             stores.main.getBranchesError?.message ||
-            stores.main.getBranchSnapshotsError?.message ||
+            stores.main.getSnapshotsError?.message ||
             (stores.main?.snapshots?.error as string)
           }
         />

@@ -134,7 +134,7 @@ const SnapshotListItem = ({
     <div className={classes.commitItem}>
       <div className={classes.gridContainer}>
         <div className={classes.infoBlock}>
-          <div className={classes.header}>{snapshot.message}</div>
+          <div className={classes.header}>{snapshot.message || '-'}</div>
           <div className={classes.infoContent} title={snapshot.dataStateAt}>
             {timeAgo} ago
           </div>

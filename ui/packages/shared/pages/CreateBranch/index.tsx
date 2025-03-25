@@ -28,6 +28,7 @@ import { getCliBranchListCommand, getCliCreateBranchCommand } from './utils'
 import { Snapshot } from 'types/api/entities/snapshot'
 
 interface CreateBranchProps {
+  instanceId: string
   api: MainStoreApi
   elements: {
     breadcrumbs: React.ReactNode
@@ -91,7 +92,7 @@ const useStyles = makeStyles(
 )
 
 export const CreateBranchPage = observer(
-  ({ api, elements }: CreateBranchProps) => {
+  ({ instanceId, api, elements }: CreateBranchProps) => {
     const stores = useCreatedStores(api)
     const classes = useStyles()
     const history = useHistory()
@@ -105,8 +106,8 @@ export const CreateBranchPage = observer(
       createBranchError,
       isBranchesLoading,
       isCreatingBranch,
-      getBranchSnapshots,
-      branchSnapshotsError,
+      getSnapshots,
+      snapshotsError,
     } = stores.main
 
     const handleSubmit = async (values: CreateBranchFormValues) => {
@@ -117,12 +118,8 @@ export const CreateBranchPage = observer(
       })
     }
 
-    const handleParentBranchChange = async (
-      e: React.ChangeEvent<HTMLInputElement>,
-    ) => {
-      const branchName = e.target.value
-      formik.setFieldValue('baseBranch', branchName)
-      await getBranchSnapshots(branchName).then((response) => {
+    const fetchSnapshots = async (branchName: string) => {
+      await getSnapshots(instanceId, branchName).then((response) => {
         if (response) {
           setBranchSnapshots(response)
           formik.setFieldValue('snapshotID', response[0]?.id)
@@ -130,10 +127,19 @@ export const CreateBranchPage = observer(
       })
     }
 
+    const handleParentBranchChange = async (
+      e: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+      const branchName = e.target.value
+      formik.setFieldValue('baseBranch', branchName)
+      await fetchSnapshots(branchName)
+    }
+
     const [{ formik }] = useForm(handleSubmit)
 
     useEffect(() => {
       load()
+      fetchSnapshots(formik.values.baseBranch)
     }, [formik.values.baseBranch])
 
     if (isBranchesLoading) {
@@ -146,12 +152,10 @@ export const CreateBranchPage = observer(
         <div className={classes.wrapper}>
           <div className={classes.container}>
             <SectionTitle tag="h1" level={1} text="Create branch" />
-            {(branchSnapshotsError || getBranchesError) && (
+            {(snapshotsError || getBranchesError) && (
               <div className={classes.marginTop}>
                 <ErrorStub
-                  message={
-                    branchSnapshotsError?.message || getBranchesError?.message
-                  }
+                  message={snapshotsError?.message || getBranchesError?.message}
                 />
               </div>
             )}

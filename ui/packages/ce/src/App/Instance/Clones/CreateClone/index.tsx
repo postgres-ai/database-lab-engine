@@ -8,7 +8,7 @@ import { getInstanceRetrieval } from 'api/instances/getInstanceRetrieval'
 import { createClone } from 'api/clones/createClone'
 import { getClone } from 'api/clones/getClone'
 import { getBranches } from 'api/branches/getBranches'
-import { getBranchSnapshots } from 'api/snapshots/getBranchSnapshots'
+import { getSnapshots } from 'api/snapshots/getSnapshots'
 
 export const CreateClone = () => {
   const routes = {
@@ -22,7 +22,7 @@ export const CreateClone = () => {
     createClone,
     getClone,
     getBranches,
-    getBranchSnapshots,
+    getSnapshots,
   }
 
   const elements = {

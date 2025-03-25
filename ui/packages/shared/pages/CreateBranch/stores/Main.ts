@@ -13,7 +13,7 @@ import {
   CreateBranchFormValues,
 } from '@postgres.ai/shared/types/api/endpoints/createBranch'
 import { Branch } from '@postgres.ai/shared/types/api/endpoints/getBranches'
-import { GetBranchSnapshots } from 'types/api/endpoints/getBranchSnapshots'
+import { GetSnapshots } from 'types/api/endpoints/getSnapshots'
 
 type Error = {
   title?: string
@@ -23,11 +23,11 @@ type Error = {
 export type MainStoreApi = {
   getBranches: GetBranches
   createBranch: CreateBranch
-  getBranchSnapshots: GetBranchSnapshots
+  getSnapshots: GetSnapshots
 }
 
 export class MainStore {
-  branchSnapshotsError: Error | null = null
+  snapshotsError: Error | null = null
   getBranchesError: Error | null = null
   createBranchError: Error | null = null
 
@@ -78,13 +78,16 @@ export class MainStore {
     return response
   }
 
-  getBranchSnapshots = async (branchName: string) => {
-    if (!this.api.getBranchSnapshots) return
+  getSnapshots = async (instanceId: string, branchName?: string) => {
+    if (!this.api.getSnapshots) return
 
-    const { response, error } = await this.api.getBranchSnapshots(branchName)
+    const { response, error } = await this.api.getSnapshots({
+      instanceId,
+      branchName,
+    })
 
     if (error) {
-      this.branchSnapshotsError = await error.json().then((err) => err)
+      this.snapshotsError = await error.json().then((err) => err)
     }
 
     return response
