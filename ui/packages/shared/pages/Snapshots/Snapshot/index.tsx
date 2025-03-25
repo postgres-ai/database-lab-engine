@@ -390,12 +390,12 @@ export const SnapshotPage = observer((props: Props) => {
           </p>
           <SyntaxHighlight content={`dblab snapshot list`} />
         </div>
-        <DestroySnapshotModal
+        {snapshot && <DestroySnapshotModal
           isOpen={isOpenDestroyModal}
           onClose={() => setIsOpenDestroyModal(false)}
-          snapshotId={props.snapshotId}
+          snapshotId={snapshot.id}
           afterSubmitClick={redirectToSnapshot}
-        />
+        />}
       </div>
     </>
   )
