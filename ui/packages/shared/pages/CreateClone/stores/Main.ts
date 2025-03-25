@@ -6,7 +6,7 @@ import { GetInstance } from '@postgres.ai/shared/types/api/endpoints/getInstance
 import { CreateClone } from '@postgres.ai/shared/types/api/endpoints/createClone'
 import { GetClone } from '@postgres.ai/shared/types/api/endpoints/getClone'
 import { GetBranches } from '@postgres.ai/shared/types/api/endpoints/getBranches'
-import { GetBranchSnapshots } from '@postgres.ai/shared/types/api/endpoints/getBranchSnapshots'
+import { GetSnapshots } from '@postgres.ai/shared/types/api/endpoints/getSnapshots'
 import {
   SnapshotsStore,
   SnapshotsApi,
@@ -23,14 +23,14 @@ export type MainStoreApi = SnapshotsApi & {
   createClone: CreateClone
   getClone: GetClone
   getBranches?: GetBranches
-  getBranchSnapshots?: GetBranchSnapshots
+  getSnapshots?: GetSnapshots
 }
 
 export class MainStore {
   instance: Instance | null = null
   instanceError: string | null = null
   getBranchesError: Error | null = null
-  getBranchSnapshotsError: Error | null = null
+  getSnapshotsError: Error | null = null
 
   clone: Clone | null = null
   cloneError: string | null = null
@@ -45,7 +45,7 @@ export class MainStore {
     makeAutoObservable(this)
 
     this.api = api
-    if (!api.getBranchSnapshots) {
+    if (!api.getSnapshots) {
       this.snapshots = new SnapshotsStore(api)
     }
   }
@@ -100,12 +100,14 @@ export class MainStore {
     return response
   }
 
-  getBranchSnapshots = async (branchId: string) => {
-    if (!this.api.getBranchSnapshots) return
-    const { response, error } = await this.api.getBranchSnapshots(branchId)
+  getSnapshots = async (instanceId: string, branchName?: string) => {
+    if (!this.api.getSnapshots) return
+    const { response, error } = await this.api.getSnapshots({
+      instanceId,
+      branchName,
+    })
 
-    if (error)
-      this.getBranchSnapshotsError = await error.json().then((err) => err)
+    if (error) this.getSnapshotsError = await error.json().then((err) => err)
 
     return response
   }
