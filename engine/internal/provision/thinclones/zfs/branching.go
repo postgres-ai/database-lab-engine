@@ -513,7 +513,7 @@ func (m *Manager) HasDependentEntity(snapshotName string) ([]string, error) {
 	}
 
 	if root != "" {
-		return nil, fmt.Errorf("snapshot has dependent branches: %s", root)
+		log.Warn(fmt.Errorf("snapshot has dependent branches: %s", root))
 	}
 
 	child, err := m.getProperty(childProp, snapshotName)
