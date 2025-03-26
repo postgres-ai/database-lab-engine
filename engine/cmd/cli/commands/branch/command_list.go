@@ -21,7 +21,12 @@ func List() []*cli.Command {
 					Aliases: []string{"d"},
 				},
 				&cli.StringFlag{
-					Name: "parent-branch",
+					Name:  "parent-branch",
+					Usage: "specify branch name as starting point for new branch; cannot be used together with --snapshot-id",
+				},
+				&cli.StringFlag{
+					Name:  "snapshot-id",
+					Usage: "specify snapshot ID is starting point for new branch; cannot be used together with --parent-branch",
 				},
 			},
 			ArgsUsage: "BRANCH_NAME",

@@ -182,6 +182,11 @@ func create(cliCtx *cli.Context) error {
 	branchName := cliCtx.Args().First()
 
 	baseBranch := cliCtx.String("parent-branch")
+	snapshotID := cliCtx.String("snapshot-id")
+
+	if baseBranch != "" && snapshotID != "" {
+		return commands.NewActionError("either --parent-branch or --snapshot-id must be specified")
+	}
 
 	if baseBranch == "" {
 		baseBranch = getBaseBranch(cliCtx)
@@ -190,6 +195,7 @@ func create(cliCtx *cli.Context) error {
 	branchRequest := types.BranchCreateRequest{
 		BranchName: branchName,
 		BaseBranch: baseBranch,
+		SnapshotID: snapshotID,
 	}
 
 	branch, err := dblabClient.CreateBranch(cliCtx.Context, branchRequest)
