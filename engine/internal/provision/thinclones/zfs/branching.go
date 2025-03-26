@@ -534,13 +534,18 @@ func (m *Manager) HasDependentEntity(snapshotName string) ([]string, error) {
 
 	// Check clones of dependent snapshots.
 	if child != "" {
-		// TODO: limit the max level of recursion.
-		childClones, err := m.HasDependentEntity(child)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check dependent clones of dependent snapshots: %w", err)
-		}
+		// check all child snapshots
+		childList := strings.Split(child, ",")
 
-		dependentClones = append(dependentClones, childClones...)
+		for _, childSnapshot := range childList {
+			// TODO: limit the max level of recursion.
+			childClones, err := m.HasDependentEntity(childSnapshot)
+			if err != nil {
+				return nil, fmt.Errorf("failed to check dependent clones of dependent snapshots: %w", err)
+			}
+
+			dependentClones = append(dependentClones, childClones...)
+		}
 	}
 
 	return dependentClones, nil
