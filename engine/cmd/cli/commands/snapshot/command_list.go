@@ -35,6 +35,10 @@ func CommandList() []*cli.Command {
 							Name:  "clone-id",
 							Usage: "create a snapshot from existing clone",
 						},
+						&cli.StringFlag{
+							Name:  "message",
+							Usage: "optional message for new snapshot created from existing clone",
+						},
 					},
 				},
 				{

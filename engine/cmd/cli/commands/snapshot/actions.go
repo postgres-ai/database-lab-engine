@@ -91,9 +91,11 @@ func createOnPool(cliCtx *cli.Context, client *dblabapi.Client) ([]byte, error) 
 // createFromClone runs a request to create a new snapshot from clone.
 func createFromClone(cliCtx *cli.Context, client *dblabapi.Client) ([]byte, error) {
 	cloneID := cliCtx.String("clone-id")
+	message := cliCtx.String("message")
 
 	snapshotRequest := types.SnapshotCloneCreateRequest{
 		CloneID: cloneID,
+		Message: message,
 	}
 
 	snapshot, err := client.CreateSnapshotFromClone(cliCtx.Context, snapshotRequest)
