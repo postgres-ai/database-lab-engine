@@ -5,87 +5,93 @@
  *--------------------------------------------------------------------------
  */
 
- import React from 'react'
- import {
-   makeStyles,
-   Tab as TabComponent,
-   Tabs as TabsComponent,
- } from '@material-ui/core'
- import { colors } from '@postgres.ai/shared/styles/colors'
- 
- const useStyles = makeStyles(
-   {
-     tabsRoot: {
-       minHeight: 0,
-       marginTop: '-8px',
-     },
-     tabsIndicator: {
-       height: '3px',
-     },
-     tabRoot: {
-       fontWeight: 400,
-       minWidth: 0,
-       minHeight: 0,
-       padding: '6px 16px',
-       borderBottom: `3px solid ${colors.consoleStroke}`,
- 
-       '& + $tabRoot': {
-         marginLeft: '10px',
-       },
- 
-       '&.Mui-disabled': {
-         opacity: 1,
-         color: colors.pgaiDarkGray,
-       },
-     },
-     tabHidden: {
-       display: 'none',
-     },
-   },
-   { index: 1 },
- )
- 
- type Props = {
-   value: number
-   handleChange: (event: React.ChangeEvent<{}>, newValue: number) => void
-   hasLogs: boolean
-   isPlatform?: boolean
- }
- 
- export const PlatformTabs = (props: Props) => {
-   const classes = useStyles()
- 
-   const { value, handleChange, hasLogs } = props
- 
-   return (
-     <TabsComponent
-       value={value}
-       onChange={handleChange}
-       classes={{ root: classes.tabsRoot, indicator: classes.tabsIndicator }}
-     >
-       <TabComponent
-         label="Overview"
-         classes={{
-           root: classes.tabRoot,
-         }}
-         value={0}
-       />
-       <TabComponent
-         label="Logs"
-         disabled={!hasLogs}
-         classes={{
-           root: props.isPlatform ? classes.tabHidden : classes.tabRoot,
-         }}
-         value={1}
-       />
-       <TabComponent
-         label="Configuration"
-         classes={{
-           root: props.isPlatform ? classes.tabHidden : classes.tabRoot,
-         }}
-         value={2}
-       />
-     </TabsComponent>
-   )
- }
- 
+import React from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { Tab as TabComponent, Tabs as TabsComponent } from '@material-ui/core'
+
+import { TABS_INDEX } from '.'
+import { useTabsStyles } from './styles'
+import { PostgresSQLIcon } from '@postgres.ai/shared/icons/PostgresSQL'
+
+type Props = {
+  value: number
+  handleChange: (event: React.ChangeEvent<{}>, newValue: number) => void
+  hasLogs: boolean
+  isPlatform?: boolean
+  hideInstanceTabs?: boolean
+}
+
+export const PlatformTabs = ({
+  value,
+  handleChange,
+  hasLogs,
+  hideInstanceTabs,
+}: Props) => {
+  const classes = useTabsStyles()
+  const { org, instanceId } = useParams<{ org: string; instanceId: string }>()
+
+  const tabs = [
+    {
+      label: '👁️ Overview',
+      to: 'overview',
+      value: TABS_INDEX.OVERVIEW,
+    },
+    {
+      label: '🖖 Branches',
+      to: 'branches',
+      value: TABS_INDEX.BRANCHES,
+      hide: hideInstanceTabs,
+    },
+    {
+      label: '⚡ Snapshots',
+      to: 'snapshots',
+      value: TABS_INDEX.SNAPSHOTS,
+      hide: hideInstanceTabs,
+    },
+    {
+      label: (
+        <div className={classes.flexRow}>
+          <PostgresSQLIcon /> Clones
+        </div>
+      ),
+      to: 'clones',
+      value: TABS_INDEX.CLONES,
+      hide: hideInstanceTabs,
+    },
+    {
+      label: '📓 Logs',
+      to: 'logs',
+      value: TABS_INDEX.LOGS,
+      disabled: !hasLogs,
+      hide: hideInstanceTabs,
+    },
+    {
+      label: '🛠️ Configuration',
+      to: 'configuration',
+      value: TABS_INDEX.CONFIGURATION,
+      hide: hideInstanceTabs,
+    },
+  ]
+
+  return (
+    <TabsComponent
+      value={value}
+      onChange={handleChange}
+      classes={{ root: classes.tabsRoot, indicator: classes.tabsIndicator }}
+    >
+      {tabs.map(({ label, to, value, hide, disabled }) => (
+        <Link key={value} to={`/${org}/instances/${instanceId}/${to}`}>
+          <TabComponent
+            label={label}
+            value={value}
+            disabled={disabled}
+            classes={{
+              root: hide ? classes.tabHidden : classes.tabRoot,
+            }}
+            onClick={(event) => handleChange(event, value)}
+          />
+        </Link>
+      ))}
+    </TabsComponent>
+  )
+}

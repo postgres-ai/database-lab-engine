@@ -49,6 +49,10 @@ export const CreateClone = () => {
         breadcrumbs={[
           { name: 'Database Lab Instances', url: 'instances' },
           { name: 'Instance #' + params.instanceId, url: params.instanceId },
+          {
+            name: 'Clones',
+            url: 'clones',
+          },
           { name: 'Create clone', url: null },
         ]}
       />

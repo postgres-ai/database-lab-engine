@@ -17,6 +17,7 @@ const Schema = Yup.object().shape({
 export const useForm = (onSubmit: (values: CreateBranchFormValues) => void) => {
   const formik = useFormik<CreateBranchFormValues>({
     initialValues: {
+      instanceId: '',
       branchName: '',
       baseBranch: 'main',
       snapshotID: '',

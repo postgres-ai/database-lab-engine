@@ -8,6 +8,8 @@ export type Host = {
   snapshotId: string
   routes: {
     snapshot: () => string
+    branch: (branchName: string) => string
+    clone: (cloneId: string) => string
   }
   api: Api
   elements: {

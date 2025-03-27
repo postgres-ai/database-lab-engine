@@ -5,7 +5,10 @@ export interface SnapshotList {
   message: string
 }
 
-export type GetSnapshotList = (branchName: string) => Promise<{
+export type GetSnapshotList = (
+  branchName: string,
+  instanceId: string,
+) => Promise<{
   response: SnapshotList[] | null
   error: Response | null
 }>

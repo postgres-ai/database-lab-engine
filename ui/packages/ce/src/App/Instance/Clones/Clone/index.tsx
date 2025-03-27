@@ -14,6 +14,7 @@ import { createSnapshot } from 'api/snapshots/createSnapshot'
 import { PageContainer } from 'components/PageContainer'
 import { NavPath } from 'components/NavPath'
 import { ROUTES } from 'config/routes'
+import { destroySnapshot } from 'api/snapshots/destroySnapshot'
 
 type Params = {
   cloneId: string
@@ -29,6 +30,7 @@ export const Clone = () => {
     getClone,
     resetClone,
     destroyClone,
+    destroySnapshot,
     updateClone,
     createSnapshot,
   }
@@ -55,6 +57,8 @@ export const Clone = () => {
         cloneId={cloneId}
         routes={{
           instance: () => ROUTES.INSTANCE.path,
+          snapshot: (snapshotId: string) =>
+            ROUTES.INSTANCE.SNAPSHOTS.SNAPSHOT.createPath(snapshotId),
         }}
         api={api}
         elements={elements}

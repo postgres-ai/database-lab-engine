@@ -2,6 +2,7 @@ import { CreateBranchResponse } from '@postgres.ai/shared/types/api/entities/cre
 
 export type CreateBranchFormValues = {
   branchName: string
+  instanceId: string
   baseBranch: string
   snapshotID: string
   creationType?: 'branch' | 'snapshot'

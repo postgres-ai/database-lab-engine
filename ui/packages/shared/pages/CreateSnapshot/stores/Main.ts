@@ -38,17 +38,25 @@ export class MainStore {
     makeAutoObservable(this)
   }
 
-  load = async () => {
-    this.instance.load('')
+  load = async (instanceId: string) => {
+    this.instance.load(instanceId)
   }
 
-  createSnapshot = async (cloneID: string, message?: string) => {
+  createSnapshot = async (
+    cloneID: string,
+    message: string,
+    instanceId: string,
+  ) => {
     if (!this.api.createSnapshot) return
 
     this.snapshotError = null
     this.isCreatingSnapshot = true
 
-    const { response, error } = await this.api.createSnapshot(cloneID, message)
+    const { response, error } = await this.api.createSnapshot(
+      cloneID,
+      message,
+      instanceId,
+    )
 
     this.isCreatingSnapshot = false
 

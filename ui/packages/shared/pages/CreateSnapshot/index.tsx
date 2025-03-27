@@ -26,7 +26,11 @@ import { useCreatedStores } from './useCreatedStores'
 import { getCliCreateSnapshotCommand } from './utils'
 
 interface CreateSnapshotProps {
+  instanceId: string
   api: MainStoreApi
+  routes: {
+    snapshot: (snapshotId: string) => string
+  }
   elements: {
     breadcrumbs: React.ReactNode
   }
@@ -84,7 +88,7 @@ const useStyles = makeStyles(
 )
 
 export const CreateSnapshotPage = observer(
-  ({ api, elements }: CreateSnapshotProps) => {
+  ({ instanceId, api, elements, routes }: CreateSnapshotProps) => {
     const stores = useCreatedStores(api)
     const classes = useStyles()
     const history = useHistory()
@@ -100,15 +104,17 @@ export const CreateSnapshotPage = observer(
     const clonesList = instance?.instance?.state?.cloning.clones || []
 
     const handleSubmit = async (values: FormValues) => {
-      await createSnapshot(values.cloneID, values.message).then((snapshot) => {
-        if (snapshot && generateSnapshotPageId(snapshot.snapshotID)) {
-          history.push(
-            `/instance/snapshots/${generateSnapshotPageId(
-              snapshot.snapshotID,
-            )}`,
-          )
-        }
-      })
+      await createSnapshot(values.cloneID, values.message, instanceId).then(
+        (snapshot) => {
+          if (snapshot && generateSnapshotPageId(snapshot.snapshotID)) {
+            history.push(
+              routes.snapshot(
+                generateSnapshotPageId(snapshot.snapshotID) as string,
+              ),
+            )
+          }
+        },
+      )
     }
 
     const [{ formik }] = useForm(handleSubmit)
@@ -118,7 +124,7 @@ export const CreateSnapshotPage = observer(
     }
 
     useEffect(() => {
-      load()
+      load(instanceId)
     }, [])
 
     return (
@@ -191,21 +197,21 @@ export const CreateSnapshotPage = observer(
                 )}
               </Button>
               {snapshotError && (
-                <ResponseMessage
-                  type={'error'}
-                  message={snapshotError}
-                />
+                <ResponseMessage type={'error'} message={snapshotError} />
               )}
             </div>
           </div>{' '}
           <div className={classes.snippetContainer}>
             <SectionTitle tag="h1" level={1} text="The same using CLI" />
             <p className={classes.marginTop}>
-              Alternatively, you can create a new snapshot using CLI. Fill
-              the form, copy the command below and paste it into your terminal.
+              Alternatively, you can create a new snapshot using CLI. Fill the
+              form, copy the command below and paste it into your terminal.
             </p>
             <SyntaxHighlight
-              content={getCliCreateSnapshotCommand(formik.values.cloneID)}
+              content={getCliCreateSnapshotCommand(
+                formik.values.cloneID,
+                formik.values.message,
+              )}
             />
           </div>
         </div>

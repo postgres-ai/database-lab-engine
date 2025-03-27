@@ -40,14 +40,23 @@ export class SnapshotsStore {
     return this.loadData(instanceId)
   }
 
-  reload = (instanceId: string, branchName?: string) => this.loadData(instanceId, branchName)
+  reload = (instanceId: string, branchName?: string) =>
+    this.loadData(instanceId, branchName)
 
-  createSnapshot = async (cloneId: string) => {
+  createSnapshot = async (
+    cloneId: string,
+    message: string,
+    instanceId: string,
+  ) => {
     if (!this.api.createSnapshot || !cloneId) return
     this.snapshotDataLoading = true
     this.snapshotDataError = null
 
-    const { response, error } = await this.api.createSnapshot(cloneId)
+    const { response, error } = await this.api.createSnapshot(
+      cloneId,
+      message,
+      instanceId,
+    )
 
     this.snapshotDataLoading = false
 
@@ -68,7 +77,10 @@ export class SnapshotsStore {
 
     this.isLoading = true
 
-    const { response, error } = await this.api.getSnapshots({ instanceId, branchName })
+    const { response, error } = await this.api.getSnapshots({
+      instanceId,
+      branchName,
+    })
 
     this.isLoading = false
 

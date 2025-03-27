@@ -30,6 +30,7 @@ import { GetSnapshotList } from '@postgres.ai/shared/types/api/endpoints/getSnap
 import { GetBranches } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 import { DeleteBranch } from '@postgres.ai/shared/types/api/endpoints/deleteBranch'
 import { GetSeImages } from '@postgres.ai/shared/types/api/endpoints/getSeImages'
+import { DestroySnapshot } from '@postgres.ai/shared/types/api/endpoints/destroySnapshot'
 
 const UNSTABLE_CLONE_STATUS_CODES = ['CREATING', 'RESETTING', 'DELETING']
 
@@ -52,6 +53,7 @@ export type Api = {
   getBranches?: GetBranches
   getSnapshotList?: GetSnapshotList
   deleteBranch?: DeleteBranch
+  destroySnapshot?: DestroySnapshot
 }
 
 type Error = {
@@ -103,16 +105,19 @@ export class MainStore {
   load = (instanceId: string) => {
     this.instance = null
     this.isReloadingInstance = true
-    this.getBranches()
+    this.getBranches(instanceId)
     this.loadInstance(instanceId, false).then(() => {
-      if (this.instance?.createdAt && this.instance?.url || !this.instance?.createdAt) {
+      if (
+        (this.instance?.createdAt && this.instance?.url) ||
+        !this.instance?.createdAt
+      ) {
         this.snapshots.load(instanceId)
       }
     })
     this.loadInstanceRetrieval(instanceId).then(() => {
       if (this.instanceRetrieval) {
-        this.getConfig()
-        this.getFullConfig()
+        this.getConfig(instanceId)
+        this.getFullConfig(instanceId)
       }
     })
   }
@@ -124,14 +129,17 @@ export class MainStore {
       if (this.api.refreshInstance)
         this.api.refreshInstance({ instanceId: instanceId })
 
-        if (this.instance?.createdAt && this.instance?.url || !this.instance?.createdAt) {
+      if (
+        (this.instance?.createdAt && this.instance?.url) ||
+        !this.instance?.createdAt
+      ) {
         this.snapshots.load(instanceId)
       }
     })
     this.loadInstanceRetrieval(instanceId).then(() => {
       if (this.instanceRetrieval) {
-        this.getConfig()
-        this.getFullConfig()
+        this.getConfig(instanceId)
+        this.getFullConfig(instanceId)
       }
     })
   }
@@ -206,13 +214,13 @@ export class MainStore {
     return !!response
   }
 
-  getConfig = async () => {
+  getConfig = async (instanceId: string) => {
     if (!this.api.getConfig) return
 
     this.isConfigurationLoading = true
     this.isConfigLoading = true
 
-    const { response, error } = await this.api.getConfig()
+    const { response, error } = await this.api.getConfig(instanceId)
 
     this.isConfigurationLoading = false
     this.isConfigLoading = false
@@ -229,26 +237,33 @@ export class MainStore {
     return response
   }
 
-  updateConfig = async (values: Config) => {
+  updateConfig = async (values: Config, instanceId: string) => {
     if (!this.api.updateConfig) return
 
-    const { response, error } = await this.api.updateConfig({ ...values })
+    const { response, error } = await this.api.updateConfig(
+      { ...values },
+      instanceId,
+    )
 
     if (error) this.configError = await error.json().then((err) => err.message)
 
     return response
   }
 
-  getFullConfig = async () => {
+  getFullConfig = async (instanceId: string) => {
     if (!this.api.getFullConfig) return
 
-    const { response, error } = await this.api.getFullConfig()
+    const { response, error } = await this.api.getFullConfig(instanceId)
+
     if (response) {
       this.fullConfig = response
 
       const splitYML = this.fullConfig.split('---')
       this.platformUrl = splitYML[0]?.split('url: ')[1]?.split('\n')[0]
-      this.uiVersion = splitYML[0]?.split('dockerImage: "postgresai/ce-ui:')[2]?.split('\n')[0]?.replace(/['"]+/g, '')
+      this.uiVersion = splitYML[0]
+        ?.split('dockerImage: "postgresai/ce-ui:')[2]
+        ?.split('\n')[0]
+        ?.replace(/['"]+/g, '')
     }
 
     if (error)
@@ -278,12 +293,12 @@ export class MainStore {
     return response
   }
 
-  getEngine = async () => {
+  getEngine = async (instanceId: string) => {
     if (!this.api.getEngine) return
 
     this.configError = null
 
-    const { response, error } = await this.api.getEngine()
+    const { response, error } = await this.api.getEngine(instanceId)
 
     if (response) {
       this.dleEdition = response.edition
@@ -355,11 +370,11 @@ export class MainStore {
     this.isReloadingClones = false
   }
 
-  getBranches = async () => {
+  getBranches = async (instanceId: string) => {
     if (!this.api.getBranches) return
     this.isBranchesLoading = true
 
-    const { response, error } = await this.api.getBranches()
+    const { response, error } = await this.api.getBranches(instanceId)
 
     this.isBranchesLoading = false
 
@@ -368,19 +383,24 @@ export class MainStore {
     return response
   }
 
-deleteBranch = async (branchName: string) => {
-  if (!branchName || !this.api.deleteBranch) return
+  deleteBranch = async (branchName: string, instanceId: string) => {
+    if (!branchName || !this.api.deleteBranch) return
 
-  const { response, error } = await this.api.deleteBranch(branchName)
+    const { response, error } = await this.api.deleteBranch(
+      branchName,
+      instanceId,
+    )
 
+    return { response, error }
+  }
 
-  return { response, error }
-}
-
-  getSnapshotList = async (branchName: string) => {
+  getSnapshotList = async (branchName: string, instanceId: string) => {
     if (!this.api.getSnapshotList) return
 
-    const { response, error } = await this.api.getSnapshotList(branchName)
+    const { response, error } = await this.api.getSnapshotList(
+      branchName,
+      instanceId,
+    )
 
     this.isBranchesLoading = false
 
@@ -389,5 +409,24 @@ deleteBranch = async (branchName: string) => {
     }
 
     return response
+  }
+
+  destroySnapshot = async (
+    snapshotId: string,
+    forceDelete: boolean,
+    instanceId: string,
+  ) => {
+    if (!this.api.destroySnapshot || !snapshotId) return
+
+    const { response, error } = await this.api.destroySnapshot(
+      snapshotId,
+      forceDelete,
+      instanceId,
+    )
+
+    return {
+      response,
+      error: error ? await error.json().then((err) => err) : null,
+    }
   }
 }

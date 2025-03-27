@@ -18,7 +18,7 @@ import { Button } from '@postgres.ai/shared/components/Button2'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { InfoIcon } from '@postgres.ai/shared/icons/Info'
 import { useEffect, useMemo, useState } from 'react'
-import { Branch } from 'types/api/endpoints/getBranches'
+import { Branch } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 import { SnapshotHeader } from './components/SnapshotHeader'
 
 const useStyles = makeStyles(
@@ -44,115 +44,128 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
-export const Snapshots = observer(() => {
-  const host = useHost()
-  const stores = useStores()
-  const classes = useStyles()
-  const history = useHistory()
-  const { getBranches, instance, snapshots } = stores.main
-  const [messageFilter, setMessageFilter] = useState('')
-  const [branches, setBranches] = useState<string[] | null>(null)
-  const [selectedBranch, setSelectedBranch] = useState<string>()
-  const [isLoadingBranches, setIsLoadingBranches] = useState(true)
+interface SnapshotsProps {
+  instanceId: string
+}
 
-  const filteredSnapshots = useMemo(() => {
-    if (!snapshots.data) return []
+export const Snapshots: React.FC<SnapshotsProps> = observer(
+  ({ instanceId }) => {
+    const host = useHost()
+    const stores = useStores()
+    const classes = useStyles()
+    const history = useHistory()
+    const { getBranches, instance, snapshots } = stores.main
+    const [messageFilter, setMessageFilter] = useState('')
+    const [branches, setBranches] = useState<string[] | null>(null)
+    const [selectedBranch, setSelectedBranch] = useState<string>('All branches')
+    const [isLoadingBranches, setIsLoadingBranches] = useState(true)
 
-    if (!messageFilter.trim()) {
-      return snapshots.data
-    }
+    const filteredSnapshots = useMemo(() => {
+      if (!snapshots.data) return []
 
-    return snapshots.data.filter((snapshot) =>
-      snapshot?.message?.toLowerCase()?.includes(messageFilter.toLowerCase()),
-    )
-  }, [snapshots.data, messageFilter])
-
-  const clonesList = instance?.state?.cloning.clones || []
-  const isEmpty = !filteredSnapshots?.length
-  const hasClones = Boolean(clonesList?.length)
-  const goToSnapshotAddPage = () => history.push(host.routes.createSnapshot())
-
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        setIsLoadingBranches(true)
-        const branches = await getBranches()
-        const branchNames = branches?.map(({ name }: Branch) => name) ?? []
-        setBranches(branchNames)
-      } catch (error) {
-        console.error('Error fetching initial data:', error)
-      } finally {
-        setIsLoadingBranches(false)
-        setSelectedBranch('main')
+      if (!messageFilter.trim()) {
+        return snapshots.data
       }
-    }
 
-    fetchInitialData()
-  }, [])
+      return snapshots.data.filter((snapshot) =>
+        snapshot?.message?.toLowerCase()?.includes(messageFilter.toLowerCase()),
+      )
+    }, [snapshots.data, messageFilter])
 
-  useEffect(() => {
-    if (selectedBranch) {
-      stores.main.reloadSnapshots(selectedBranch)
-    }
-  }, [selectedBranch])
+    const clonesList = instance?.state?.cloning.clones || []
+    const isEmpty = !filteredSnapshots?.length
+    const hasClones = Boolean(clonesList?.length)
+    const goToSnapshotAddPage = () => history.push(host.routes.createSnapshot())
+    const snapshotPagePath = (snapshotId: string) =>
+      host.routes.snapshot(snapshotId)
 
-  if (!instance && !snapshots.isLoading) return <></>
+    useEffect(() => {
+      const fetchInitialData = async () => {
+        try {
+          setIsLoadingBranches(true)
+          const branches = await getBranches(instanceId)
+          const branchNames = branches?.map(({ name }: Branch) => name) ?? []
+          setBranches(['All branches', ...branchNames])
+        } catch (error) {
+          console.error('Error fetching initial data:', error)
+        } finally {
+          setIsLoadingBranches(false)
+        }
+      }
 
-  if (snapshots?.error) return <ErrorStub message={snapshots?.error} />
+      fetchInitialData()
+    }, [])
 
-  return (
-    <div className={classes.marginTop}>
-      {snapshots.isLoading || isLoadingBranches ? (
-        <Spinner size="lg" className={classes.spinner} />
-      ) : (
-        <>
-          <SectionTitle
-            level={2}
-            tag="h2"
-            text={`Snapshots (${filteredSnapshots?.length || 0})`}
-            className={classes.sectionTitle}
-            rightContent={
-              <>
-                <Button
-                  theme="primary"
-                  onClick={goToSnapshotAddPage}
-                  isDisabled={!hasClones}
-                >
-                  Create snapshot
-                </Button>
+    useEffect(() => {
+      if (selectedBranch) {
+        stores.main.reloadSnapshots(
+          selectedBranch === 'All branches' ? '' : selectedBranch,
+        )
+      }
+    }, [selectedBranch])
 
-                {!hasClones && (
-                  <Tooltip content="No clones">
-                    <div style={{ display: 'flex' }}>
-                      <InfoIcon className={classes.infoIcon} />
-                    </div>
-                  </Tooltip>
+    if (!instance && !snapshots.isLoading) return <></>
+
+    if (snapshots?.error) return <ErrorStub message={snapshots?.error} />
+
+    return (
+      <div className={classes.marginTop}>
+        {snapshots.isLoading || isLoadingBranches ? (
+          <Spinner size="lg" className={classes.spinner} />
+        ) : (
+          <>
+            <SectionTitle
+              level={2}
+              tag="h2"
+              text={`Snapshots (${filteredSnapshots?.length || 0})`}
+              className={classes.sectionTitle}
+              rightContent={
+                <>
+                  <Button
+                    theme="primary"
+                    onClick={goToSnapshotAddPage}
+                    isDisabled={!hasClones}
+                  >
+                    Create snapshot
+                  </Button>
+
+                  {!hasClones && (
+                    <Tooltip content="No clones">
+                      <div style={{ display: 'flex' }}>
+                        <InfoIcon className={classes.infoIcon} />
+                      </div>
+                    </Tooltip>
+                  )}
+                </>
+              }
+            />
+            <SnapshotHeader
+              branches={branches}
+              selectedBranch={selectedBranch}
+              setMessageFilter={setMessageFilter}
+              setSelectedBranch={setSelectedBranch}
+            />
+            {!isEmpty ? (
+              <SnapshotsList
+                routes={{ snapshot: snapshotPagePath }}
+                instanceId={instanceId}
+                filteredSnapshots={filteredSnapshots}
+              />
+            ) : (
+              <p className={classes.marginTop}>
+                {messageFilter.length || selectedBranch ? (
+                  <span>
+                    No active snapshots found. Try removing the filter and
+                    checking again
+                  </span>
+                ) : (
+                  <span> This instance has no active snapshots</span>
                 )}
-              </>
-            }
-          />
-          <SnapshotHeader
-            branches={branches}
-            selectedBranch={selectedBranch || 'main'}
-            setMessageFilter={setMessageFilter}
-            setSelectedBranch={setSelectedBranch}
-          />
-          {!isEmpty ? (
-            <SnapshotsList filteredSnapshots={filteredSnapshots} />
-          ) : (
-            <p className={classes.marginTop}>
-              {messageFilter.length ? (
-                <span>
-                  No active snapshots found. Try removing the filter and
-                  checking again
-                </span>
-              ) : (
-                <span> This instance has no active snapshots</span>
-              )}
-            </p>
-          )}
-        </>
-      )}
-    </div>
-  )
-})
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    )
+  },
+)

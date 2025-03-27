@@ -7,14 +7,10 @@
 
 import React from 'react'
 import { Link } from 'react-router-dom'
-import {
-  makeStyles,
-  Tab as TabComponent,
-  Tabs as TabsComponent,
-} from '@material-ui/core'
+import { Tab as TabComponent, Tabs as TabsComponent } from '@material-ui/core'
 
-import { colors } from '@postgres.ai/shared/styles/colors'
 import { PostgresSQLIcon } from '@postgres.ai/shared/icons/PostgresSQL'
+import { useTabsStyles } from './styles'
 
 export const TABS_INDEX = {
   OVERVIEW: 0,
@@ -24,59 +20,6 @@ export const TABS_INDEX = {
   LOGS: 4,
   CONFIGURATION: 5,
 }
-
-const useStyles = makeStyles(
-  {
-    tabsRoot: {
-      minHeight: 0,
-      marginTop: '-8px',
-
-      '& .MuiTabs-fixed': {
-        overflowX: 'auto!important',
-      },
-
-      '& .postgres-logo': {
-        width: '18px',
-        height: '18px',
-      },
-
-      '& a': {
-        color: colors.black,
-        textDecoration: 'none',
-      },
-    },
-
-    flexRow: {
-      display: 'flex',
-      flexDirection: 'row',
-      gap: '5px',
-    },
-    tabsIndicator: {
-      height: '3px',
-    },
-    tabRoot: {
-      fontWeight: 400,
-      minWidth: 0,
-      minHeight: 0,
-      padding: '6px 16px',
-      borderBottom: `3px solid ${colors.consoleStroke}`,
-
-      '& + $tabRoot': {
-        marginLeft: '10px',
-      },
-
-      '&.Mui-disabled': {
-        opacity: 1,
-        color: colors.pgaiDarkGray,
-      },
-    },
-    tabHidden: {
-      display: 'none',
-    },
-  },
-  { index: 1 },
-)
-
 export interface TabsProps {
   value: number
   handleChange: (event: React.ChangeEvent<{}>, newValue: number) => void
@@ -85,10 +28,51 @@ export interface TabsProps {
   hideInstanceTabs?: boolean
 }
 
-export const Tabs = (props: TabsProps) => {
-  const classes = useStyles()
+export const Tabs = ({
+  value,
+  handleChange,
+  hasLogs,
+  hideInstanceTabs,
+}: TabsProps) => {
+  const classes = useTabsStyles()
 
-  const { value, handleChange, hasLogs } = props
+  const tabData = [
+    { label: '👁️ Overview', to: '/instance', value: TABS_INDEX.OVERVIEW },
+    {
+      label: '🖖 Branches',
+      to: '/instance/branches',
+      value: TABS_INDEX.BRANCHES,
+      hide: hideInstanceTabs,
+    },
+    {
+      label: '⚡ Snapshots',
+      to: '/instance/snapshots',
+      value: TABS_INDEX.SNAPSHOTS,
+      hide: hideInstanceTabs,
+    },
+    {
+      label: (
+        <div className={classes.flexRow}>
+          <PostgresSQLIcon /> Clones
+        </div>
+      ),
+      to: '/instance/clones',
+      value: TABS_INDEX.CLONES,
+      hide: hideInstanceTabs,
+    },
+    {
+      label: '📓 Logs',
+      to: '/instance/logs',
+      value: TABS_INDEX.LOGS,
+      disabled: !hasLogs,
+    },
+    {
+      label: '🛠️ Configuration',
+      to: '/instance/configuration',
+      value: TABS_INDEX.CONFIGURATION,
+      hide: hideInstanceTabs,
+    },
+  ]
 
   return (
     <TabsComponent
@@ -96,65 +80,18 @@ export const Tabs = (props: TabsProps) => {
       onChange={handleChange}
       classes={{ root: classes.tabsRoot, indicator: classes.tabsIndicator }}
     >
-      <Link to="/instance">
-        <TabComponent
-          label="👁️ Overview"
-          classes={{
-            root: classes.tabRoot,
-          }}
-          value={TABS_INDEX.OVERVIEW}
-        />
-      </Link>
-      <Link to="/instance/branches">
-        <TabComponent
-          label="🖖 Branches"
-          classes={{
-            root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
-          }}
-          value={TABS_INDEX.BRANCHES}
-        />
-      </Link>
-      <Link to="/instance/snapshots">
-        <TabComponent
-          label="⚡ Snapshots"
-          classes={{
-            root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
-          }}
-          value={TABS_INDEX.SNAPSHOTS}
-        />
-      </Link>
-      <Link to="/instance/clones">
-        <TabComponent
-          label={
-            <div className={classes.flexRow}>
-              <PostgresSQLIcon /> Clones
-            </div>
-          }
-          classes={{
-            root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
-          }}
-          value={TABS_INDEX.CLONES}
-        />
-      </Link>
-      <Link to="/instance/logs">
-        <TabComponent
-          label="📓 Logs"
-          disabled={!hasLogs}
-          classes={{
-            root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
-          }}
-          value={TABS_INDEX.LOGS}
-        />
-      </Link>
-      <Link to="/instance/configuration">
-        <TabComponent
-          label="🛠️ Configuration"
-          classes={{
-            root: props.hideInstanceTabs ? classes.tabHidden : classes.tabRoot,
-          }}
-          value={TABS_INDEX.CONFIGURATION}
-        />
-      </Link>
+      {tabData.map(({ label, to, value, hide, disabled }) => (
+        <Link key={value} to={to}>
+          <TabComponent
+            label={label}
+            value={value}
+            disabled={disabled}
+            classes={{
+              root: hide ? classes.tabHidden : classes.tabRoot,
+            }}
+          />
+        </Link>
+      ))}
     </TabsComponent>
   )
 }

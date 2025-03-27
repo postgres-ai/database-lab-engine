@@ -8,6 +8,7 @@ import { getClone } from 'api/clones/getClone'
 import { resetClone } from 'api/clones/resetClone'
 import { destroyClone } from 'api/clones/destroyClone'
 import { updateClone } from 'api/clones/updateClone'
+import { createSnapshot } from 'api/snapshots/createSnapshot'
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
 
 import { ROUTES } from 'config/routes'
@@ -31,10 +32,24 @@ export const Clone = () => {
             instanceId: params.instanceId,
           })
         : ROUTES.ORG.INSTANCES.INSTANCE.createPath(params),
+    snapshot: (snapshotId: string) =>
+      params.project
+        ? ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.SNAPSHOTS.SNAPSHOT.createPath({
+            org: params.org,
+            project: params.project,
+            instanceId: params.instanceId,
+            snapshotId,
+          })
+        : ROUTES.ORG.INSTANCES.INSTANCE.SNAPSHOTS.SNAPSHOT.createPath({
+            org: params.org,
+            instanceId: params.instanceId,
+            snapshotId,
+          }),
   }
 
   const api = {
     getSnapshots,
+    createSnapshot,
     getInstance,
     getClone,
     resetClone,
@@ -51,6 +66,10 @@ export const Clone = () => {
         breadcrumbs={[
           { name: 'Database Lab Instances', url: 'instances' },
           { name: 'Instance #' + params.instanceId, url: params.instanceId },
+          {
+            name: 'Clones',
+            url: 'clones',
+          },
           {
             name: 'Clone ' + params.cloneId,
             url: null,

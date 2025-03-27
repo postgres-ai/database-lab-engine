@@ -19,7 +19,7 @@ import { BranchesTable } from '@postgres.ai/shared/pages/Branches/components/Bra
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { InfoIcon } from '@postgres.ai/shared/icons/Info'
-import { DeleteBranch } from 'types/api/endpoints/deleteBranch'
+import { DeleteBranch } from '@postgres.ai/shared/types/api/endpoints/deleteBranch'
 
 const useStyles = makeStyles(
   {
@@ -41,12 +41,17 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
-export const Branches = observer((): React.ReactElement => {
+interface BranchesProps {
+  instanceId: string
+}
+
+export const Branches: React.FC<BranchesProps> = observer(({ instanceId }) => {
   const host = useHost()
   const stores = useStores()
   const classes = useStyles()
   const history = useHistory()
   const [branches, setBranches] = useState<Branch[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const {
     instance,
     getBranches,
@@ -57,10 +62,16 @@ export const Branches = observer((): React.ReactElement => {
 
   const goToBranchAddPage = () => history.push(host.routes.createBranch())
 
+  const loadBranches = () => {
+    getBranches(instanceId)
+      .then((response) => {
+        response && setBranches(response)
+      })
+      .finally(() => setIsLoading(false))
+  }
+
   useEffect(() => {
-    getBranches().then((response) => {
-      response && setBranches(response)
-    })
+    loadBranches()
   }, [])
 
   if (!instance && !isBranchesLoading) return <></>
@@ -75,7 +86,7 @@ export const Branches = observer((): React.ReactElement => {
 
   return (
     <div className={classes.container}>
-      {isBranchesLoading ? (
+      {isBranchesLoading || isLoading ? (
         <Spinner size="lg" className={classes.spinner} />
       ) : (
         <>
@@ -105,6 +116,8 @@ export const Branches = observer((): React.ReactElement => {
           />
           <BranchesTable
             branches={branches}
+            branchesRoute={host.routes.branches()}
+            reloadBranches={loadBranches}
             deleteBranch={deleteBranch as DeleteBranch}
             emptyTableText="This instance has no active branches."
           />

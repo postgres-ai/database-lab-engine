@@ -22,7 +22,7 @@ import {
   validatePassword,
 } from '@postgres.ai/shared/helpers/getEntropy'
 
-import { Snapshot } from 'types/api/entities/snapshot'
+import { Snapshot } from '@postgres.ai/shared/types/api/entities/snapshot'
 import { useCreatedStores, MainStoreApi } from './useCreatedStores'
 import { useForm, FormValues } from './useForm'
 import { getCliCloneStatus, getCliCreateCloneCommand } from './utils'
@@ -98,7 +98,7 @@ export const CreateClone = observer((props: Props) => {
       setIsLoadingSnapshots(true)
       await stores.main.load(props.instanceId)
 
-      const branches = (await stores.main.getBranches()) ?? []
+      const branches = (await stores.main.getBranches(props.instanceId)) ?? []
       const initiallySelectedBranch = branches[0]?.name
       setBranchesList(branches.map((branch) => branch.name))
       formik.setFieldValue('branch', initiallySelectedBranch)
@@ -227,12 +227,17 @@ export const CreateClone = observer((props: Props) => {
                   return {
                     value: snapshot.id,
                     children: (
-                      <>
-                        {snapshot.dataStateAt}
-                        {isLatest && (
-                          <span className={styles.snapshotTag}>Latest</span>
+                      <div className={styles.snapshotItem}>
+                        <span>
+                          {snapshot.dataStateAt}
+                          {isLatest && (
+                            <span className={styles.snapshotTag}>Latest</span>
+                          )}
+                        </span>
+                        {snapshot.message && (
+                          <span>Message: {snapshot.message}</span>
                         )}
-                      </>
+                      </div>
                     ),
                   }
                 }) ?? []

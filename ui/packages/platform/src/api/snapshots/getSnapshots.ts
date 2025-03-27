@@ -14,10 +14,15 @@ import { GetSnapshots } from '@postgres.ai/shared/types/api/endpoints/getSnapsho
 import { request } from 'helpers/request'
 
 export const getSnapshots: GetSnapshots = async (req) => {
-  const response = await request('/rpc/dblab_instance_snapshots', {
+  const branchName = req.branchName?.trim()
+  const action = branchName ? `/snapshots?branch=${branchName}` : '/snapshots'
+
+  const response = await request('/rpc/dblab_api_call', {
     method: 'POST',
     body: JSON.stringify({
       instance_id: req.instanceId,
+      method: 'get',
+      action,
     }),
   })
 

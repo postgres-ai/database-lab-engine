@@ -27,6 +27,12 @@
   border-radius: 4px;
 }
 
+.snapshotItem {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
 .section {
   & + .section {
     margin-top: 24px;

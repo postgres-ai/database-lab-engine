@@ -16,15 +16,23 @@ import {
 import { Modal } from '@postgres.ai/shared/components/Modal'
 import { ImportantText } from '@postgres.ai/shared/components/ImportantText'
 import { Text } from '@postgres.ai/shared/components/Text'
-import { destroySnapshot as destroySnapshotAPI } from '@postgres.ai/ce/src/api/snapshots/destroySnapshot'
 import { SimpleModalControls } from '@postgres.ai/shared/components/SimpleModalControls'
-import { useCreatedStores } from '../useCreatedStores'
+import { DestroySnapshot } from '@postgres.ai/shared/types/api/endpoints/destroySnapshot'
 
 type Props = {
   snapshotId: string
+  instanceId: string
   isOpen: boolean
   onClose: () => void
   afterSubmitClick: () => void
+  destroySnapshot: DestroySnapshot
+}
+
+interface ErrorResponse {
+  error?: {
+    message?: string
+    details?: string
+  }
 }
 
 const useStyles = makeStyles(
@@ -51,16 +59,15 @@ const useStyles = makeStyles(
 
 export const DestroySnapshotModal = ({
   snapshotId,
+  instanceId,
   isOpen,
   onClose,
   afterSubmitClick,
+  destroySnapshot,
 }: Props) => {
   const classes = useStyles()
-  const props = { api: { destroySnapshot: destroySnapshotAPI } }
-  const stores = useCreatedStores(props.api)
-  const { destroySnapshot } = stores.main
   const [forceDelete, setForceDelete] = useState(false)
-  const [deleteError, setDeleteError] = useState(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [isForceDeleteOptionVisible, setForceDeleteOptionVisible] =
     useState(false)
 
@@ -70,9 +77,12 @@ export const DestroySnapshotModal = ({
   }
 
   const handleClickDestroy = () => {
-    destroySnapshot(snapshotId, forceDelete).then((res) => {
-      if (res?.error?.message) {
-        setDeleteError(res.error.message)
+    destroySnapshot(snapshotId, forceDelete, instanceId).then((res) => {
+      if (res?.error) {
+        const errorMessage =
+          (res as ErrorResponse)?.error?.message ||
+          (res as ErrorResponse)?.error?.details
+        setDeleteError(errorMessage || null)
         setForceDeleteOptionVisible(true)
       } else {
         afterSubmitClick()
@@ -82,7 +92,12 @@ export const DestroySnapshotModal = ({
   }
 
   return (
-    <Modal title={'Confirmation'} onClose={handleClose} isOpen={isOpen} size='sm'>
+    <Modal
+      title={'Confirmation'}
+      onClose={handleClose}
+      isOpen={isOpen}
+      size="sm"
+    >
       <Text>
         Are you sure you want to destroy snapshot{' '}
         <ImportantText>{snapshotId}</ImportantText>? This action cannot be
@@ -105,7 +120,9 @@ export const DestroySnapshotModal = ({
             label={'Force delete'}
           />
           <Typography className={classes.grayText}>
-          If the snapshot cannot be deleted due to dependencies, enabling “Force delete” will remove it along with all dependent snapshots and clones.
+            If the snapshot cannot be deleted due to dependencies, enabling
+            “Force delete” will remove it along with all dependent snapshots and
+            clones.
           </Typography>
         </div>
       )}

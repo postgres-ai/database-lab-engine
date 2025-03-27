@@ -25,11 +25,14 @@ import { useForm } from './useForm'
 import { MainStoreApi } from './stores/Main'
 import { useCreatedStores } from './useCreatedStores'
 import { getCliBranchListCommand, getCliCreateBranchCommand } from './utils'
-import { Snapshot } from 'types/api/entities/snapshot'
+import { Snapshot } from '@postgres.ai/shared/types/api/entities/snapshot'
 
 interface CreateBranchProps {
   instanceId: string
   api: MainStoreApi
+  routes: {
+    branch: (branchName: string) => string
+  }
   elements: {
     breadcrumbs: React.ReactNode
   }
@@ -92,7 +95,7 @@ const useStyles = makeStyles(
 )
 
 export const CreateBranchPage = observer(
-  ({ instanceId, api, elements }: CreateBranchProps) => {
+  ({ instanceId, api, elements, routes }: CreateBranchProps) => {
     const stores = useCreatedStores(api)
     const classes = useStyles()
     const history = useHistory()
@@ -111,9 +114,12 @@ export const CreateBranchPage = observer(
     } = stores.main
 
     const handleSubmit = async (values: CreateBranchFormValues) => {
-      await createBranch(values).then((branch) => {
+      await createBranch({
+        ...values,
+        instanceId,
+      }).then((branch) => {
         if (branch && branch?.name) {
-          history.push(`/instance/branches/${branch.name}`)
+          history.push(routes.branch(branch.name))
         }
       })
     }
@@ -138,7 +144,7 @@ export const CreateBranchPage = observer(
     const [{ formik }] = useForm(handleSubmit)
 
     useEffect(() => {
-      load()
+      load(instanceId)
       fetchSnapshots(formik.values.baseBranch)
     }, [formik.values.baseBranch])
 
@@ -249,10 +255,7 @@ export const CreateBranchPage = observer(
                 )}
               </Button>
               {createBranchError && (
-                <ResponseMessage
-                  type={'error'}
-                  message={createBranchError?.message}
-                />
+                <ResponseMessage type={'error'} message={createBranchError} />
               )}
             </div>
           </div>{' '}

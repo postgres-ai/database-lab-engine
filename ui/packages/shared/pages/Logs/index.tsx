@@ -105,7 +105,7 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
-export const Logs = ({ api }: { api: Api }) => {
+export const Logs = ({ api, instanceId }: { api: Api; instanceId: string }) => {
   const classes = useStyles()
   const [isLoading, setIsLoading] = React.useState(true)
   const targetNode = document.getElementById('logs-container')
@@ -182,7 +182,7 @@ export const Logs = ({ api }: { api: Api }) => {
       <span
         onClick={() => {
           dispatch({ type })
-          restartConnection(api)
+          restartConnection(api, instanceId)
         }}
         className={
           filterType && type !== 'ERROR'
@@ -202,7 +202,7 @@ export const Logs = ({ api }: { api: Api }) => {
 
   useEffect(() => {
     if (api.initWS != undefined) {
-      establishConnection(api)
+      establishConnection(api, instanceId)
     }
   }, [api])
 
