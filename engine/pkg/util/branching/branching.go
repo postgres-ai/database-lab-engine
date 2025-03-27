@@ -27,6 +27,11 @@ func BranchName(poolName, branchName string) string {
 	return path.Join(poolName, BranchDir, branchName)
 }
 
+// CloneDataset returns a full clone dataset in the data pool.
+func CloneDataset(poolName, branchName, cloneName string) string {
+	return path.Join(BranchName(poolName, branchName), cloneName)
+}
+
 // CloneName returns a full clone name in the data pool.
 func CloneName(poolName, branchName, cloneName string, revision int) string {
 	return path.Join(BranchName(poolName, branchName), cloneName, RevisionSegment(revision))

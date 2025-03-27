@@ -230,8 +230,14 @@ func (p *Provisioner) StopSession(session *resources.Session, clone *models.Clon
 	}
 
 	if clone.Revision == branching.DefaultRevision {
+		// Destroy clone revision
 		if err := fsm.DestroyClone(clone.Branch, name, clone.Revision); err != nil {
 			return errors.Wrap(err, "failed to destroy clone")
+		}
+
+		// Destroy clone dataset
+		if err := fsm.DestroyDataset(fsm.Pool().CloneDataset(clone.Branch, name)); err != nil {
+			return errors.Wrap(err, "failed to destroy clone dataset")
 		}
 	}
 
