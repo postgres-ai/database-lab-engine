@@ -13,7 +13,7 @@ import {
   CreateBranchFormValues,
 } from '@postgres.ai/shared/types/api/endpoints/createBranch'
 import { Branch } from '@postgres.ai/shared/types/api/endpoints/getBranches'
-import { GetSnapshots } from 'types/api/endpoints/getSnapshots'
+import { GetSnapshots } from '@postgres.ai/shared/types/api/endpoints/getSnapshots'
 
 type Error = {
   title?: string
@@ -29,7 +29,7 @@ export type MainStoreApi = {
 export class MainStore {
   snapshotsError: Error | null = null
   getBranchesError: Error | null = null
-  createBranchError: Error | null = null
+  createBranchError: string | null = null
 
   isBranchesLoading = false
   isCreatingBranch = false
@@ -42,8 +42,8 @@ export class MainStore {
     makeAutoObservable(this)
   }
 
-  load = async () => {
-    await this.getBranches().then((response) => {
+  load = async (instanceId: string) => {
+    await this.getBranches(instanceId).then((response) => {
       if (response) {
         this.branchesList = response
       }
@@ -60,16 +60,17 @@ export class MainStore {
 
     this.isCreatingBranch = false
 
-    if (error) this.createBranchError = await error.json().then((err) => err)
+    if (error)
+      this.createBranchError = await error.json().then((err) => err.details)
 
     return response
   }
 
-  getBranches = async () => {
+  getBranches = async (instanceId: string) => {
     if (!this.api.getBranches) return
     this.isBranchesLoading = true
 
-    const { response, error } = await this.api.getBranches()
+    const { response, error } = await this.api.getBranches(instanceId)
 
     this.isBranchesLoading = false
 

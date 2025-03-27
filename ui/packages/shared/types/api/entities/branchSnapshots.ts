@@ -1,4 +1,4 @@
-import { parseDate } from 'utils/date'
+import { parseDate } from '@postgres.ai/shared/utils/date'
 import { SnapshotDto } from './snapshot'
 
 export const formatBranchSnapshotDto = (dto: SnapshotDto[]) =>

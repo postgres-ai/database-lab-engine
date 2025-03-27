@@ -6,21 +6,20 @@
  */
 
 import { request } from 'helpers/request'
+import { formatBranchesDto } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 
-export const destroySnapshot = async (
-  snapshotId: string,
-  forceDelete: boolean,
-) => {
-  const response = await request(`/snapshot/delete`, {
+export const getBranches = async (instanceId: string) => {
+  const response = await request('/rpc/dblab_api_call', {
     method: 'POST',
     body: JSON.stringify({
-      snapshotID: snapshotId,
-      force: forceDelete,
+      instance_id: instanceId,
+      action: '/branches',
+      method: 'get',
     }),
   })
 
   return {
-    response: response.ok ? true : null,
+    response: response.ok ? formatBranchesDto(await response.json()) : null,
     error: response.ok ? null : response,
   }
 }

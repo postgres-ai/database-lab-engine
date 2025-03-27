@@ -45,25 +45,25 @@ export class MainStore {
     makeAutoObservable(this)
   }
 
-  load = async (branchId: string) => {
+  load = async (branchId: string, instanceId: string) => {
     if (!branchId) return
 
     this.isBranchesLoading = true
 
-    await this.getBranches(branchId)
+    await this.getBranches(branchId, instanceId)
   }
 
-  reload = async (branchId: string) => {
+  reload = async (branchId: string, instanceId: string) => {
     if (!branchId) return
 
     this.isReloading = true
-    await this.getBranches(branchId)
+    await this.getBranches(branchId, instanceId)
     this.isReloading = false
   }
 
-  getBranches = async (branchId: string) => {
+  getBranches = async (branchId: string, instanceId: string) => {
     if (!this.api.getBranches) return
-    const { response, error } = await this.api.getBranches()
+    const { response, error } = await this.api.getBranches(instanceId)
 
     if (error) {
       this.isBranchesLoading = false
@@ -72,20 +72,20 @@ export class MainStore {
 
     if (response) {
       this.branches = response
-      this.getBranch(branchId)
+      this.getBranch(branchId, instanceId)
     }
 
     return response
   }
 
-  getBranch = async (branchId: string) => {
+  getBranch = async (branchId: string, instanceId: string) => {
     const currentBranch = this.branches?.filter((s) => {
       return s.name === branchId
     })
 
     if (currentBranch && currentBranch?.length > 0) {
       this.branch = currentBranch[0]
-      this.getSnapshotList(currentBranch[0].name)
+      this.getSnapshotList(currentBranch[0].name, instanceId)
     } else {
       this.getBranchError = {
         title: 'Error',
@@ -97,10 +97,13 @@ export class MainStore {
     return !!currentBranch
   }
 
-  deleteBranch = async (branchName: string) => {
+  deleteBranch = async (branchName: string, instanceId: string) => {
     if (!branchName) return
 
-    const { response, error } = await this.api.deleteBranch(branchName)
+    const { response, error } = await this.api.deleteBranch(
+      branchName,
+      instanceId,
+    )
 
     if (response) {
       this.branches =
@@ -110,10 +113,13 @@ export class MainStore {
     return { response, error }
   }
 
-  getSnapshotList = async (branchName: string) => {
+  getSnapshotList = async (branchName: string, instanceId: string) => {
     if (!this.api.getSnapshotList) return
 
-    const { response, error } = await this.api.getSnapshotList(branchName)
+    const { response, error } = await this.api.getSnapshotList(
+      branchName,
+      instanceId,
+    )
 
     this.isBranchesLoading = false
 

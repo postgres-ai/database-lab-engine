@@ -38,6 +38,7 @@ import {
 
 import { useCreatedStores } from './useCreatedStores'
 import { Host } from './context'
+import { DestroySnapshot } from '@postgres.ai/shared/types/api/endpoints/destroySnapshot'
 
 type Props = Host
 
@@ -108,6 +109,7 @@ const useStyles = makeStyles(
       position: 'relative',
       maxWidth: 525,
       width: '100%',
+      margin: '10px 0',
     },
     textField: {
       ...styles.inputField,
@@ -128,6 +130,15 @@ const useStyles = makeStyles(
     },
     pointerCursor: {
       cursor: 'pointer',
+    },
+    centerContent: {
+      display: 'flex',
+      gap: 1,
+      alignItems: 'center',
+    },
+    tableCellMenu: {
+      width: 50,
+      display: 'table-cell',
     },
   }),
   { index: 1 },
@@ -151,21 +162,23 @@ export const SnapshotPage = observer((props: Props) => {
 
   const redirectToSnapshot = () => {
     history.push(props.routes.snapshot())
+    window.location.reload()
   }
 
-  const BranchHeader = () => {
-    return (
-      <>
-        {props.elements.breadcrumbs}
-        <SectionTitle
-          className={classes.marginTop}
-          tag="h1"
-          level={1}
-          text={`Snapshot ${props.snapshotId}`}
-        />
-      </>
-    )
-  }
+  const headRendered = (
+    <>
+      <style>{'p { margin: 0;}'}</style>
+
+      {props.elements.breadcrumbs}
+
+      <SectionTitle
+        className={classes.marginTop}
+        tag="h1"
+        level={1}
+        text={`Snapshot ${props.snapshotId}`}
+      />
+    </>
+  )
 
   useEffect(() => {
     load(props.snapshotId, props.instanceId)
@@ -176,7 +189,7 @@ export const SnapshotPage = observer((props: Props) => {
   if (snapshotError || branchSnapshotError) {
     return (
       <>
-        <BranchHeader />
+        {headRendered}
         <ErrorStub
           title={snapshotError?.title || branchSnapshotError?.title}
           message={snapshotError?.message || branchSnapshotError?.message}
@@ -188,7 +201,7 @@ export const SnapshotPage = observer((props: Props) => {
 
   return (
     <>
-      <BranchHeader />
+      {headRendered}
       <div className={classes.wrapper}>
         <div className={classes.container}>
           <div className={classes.actions}>
@@ -313,7 +326,7 @@ export const SnapshotPage = observer((props: Props) => {
             <br />
             {branchSnapshot?.branch && branchSnapshot.branch?.length > 0 && (
               <>
-                <p>
+                <p className={classes.centerContent}>
                   <strong>
                     Related branches ({branchSnapshot.branch.length})
                   </strong>
@@ -344,21 +357,65 @@ export const SnapshotPage = observer((props: Props) => {
                             className={classes.pointerCursor}
                             hover
                             onClick={() =>
-                              history.push(`/instance/branches/${branch}`)
+                              history.push(props.routes.branch(branch))
                             }
                           >
-                            <TableBodyCellMenu
-                              actions={[
-                                {
-                                  name: 'Copy branch name',
-                                  onClick: () => copyToClipboard(branch),
-                                },
-                              ]}
-                            />
+                            <div className={classes.tableCellMenu}>
+                              <TableBodyCellMenu
+                                actions={[
+                                  {
+                                    name: 'Copy branch name',
+                                    onClick: () => copyToClipboard(branch),
+                                  },
+                                ]}
+                              />
+                            </div>
                             <TableBodyCell>{branch}</TableBodyCell>
                           </TableRow>
                         ),
                       )}
+                    </TableBody>
+                  </Table>
+                </HorizontalScrollContainer>
+              </>
+            )}
+            <br />
+            {snapshot?.clones && snapshot.clones.length > 0 && (
+              <>
+                <p>
+                  <strong>Clones ({snapshot.clones.length})</strong>
+                </p>
+                <HorizontalScrollContainer>
+                  <Table className={classes.tableContainer}>
+                    <TableHead>
+                      <TableRow>
+                        <TableHeaderCell />
+                        <TableHeaderCell>Name</TableHeaderCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {snapshot.clones.map((clone: string, id: number) => (
+                        <TableRow
+                          key={id}
+                          className={classes.pointerCursor}
+                          hover
+                          onClick={() =>
+                            history.push(props.routes.clone(clone))
+                          }
+                        >
+                          <div className={classes.tableCellMenu}>
+                            <TableBodyCellMenu
+                              actions={[
+                                {
+                                  name: 'Copy clone name',
+                                  onClick: () => copyToClipboard(clone),
+                                },
+                              ]}
+                            />
+                          </div>
+                          <TableBodyCell>{clone}</TableBodyCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </HorizontalScrollContainer>
@@ -390,12 +447,16 @@ export const SnapshotPage = observer((props: Props) => {
           </p>
           <SyntaxHighlight content={`dblab snapshot list`} />
         </div>
-        {snapshot && <DestroySnapshotModal
-          isOpen={isOpenDestroyModal}
-          onClose={() => setIsOpenDestroyModal(false)}
-          snapshotId={snapshot.id}
-          afterSubmitClick={redirectToSnapshot}
-        />}
+        {snapshot && (
+          <DestroySnapshotModal
+            isOpen={isOpenDestroyModal}
+            onClose={() => setIsOpenDestroyModal(false)}
+            snapshotId={snapshot.id}
+            instanceId={props.instanceId}
+            afterSubmitClick={redirectToSnapshot}
+            destroySnapshot={stores.main.destroySnapshot as DestroySnapshot}
+          />
+        )}
       </div>
     </>
   )

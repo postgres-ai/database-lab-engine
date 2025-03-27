@@ -1,4 +1,4 @@
-import { Snapshot } from 'types/api/entities/snapshot'
+import { Snapshot } from '@postgres.ai/shared/types/api/entities/snapshot'
 import { isSameDayUTC } from '@postgres.ai/shared/utils/date'
 
 export const generateSnapshotPageId = (id: string) => {

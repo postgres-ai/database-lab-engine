@@ -40,11 +40,15 @@ export const Branch = () => {
   return (
     <PageContainer>
       <BranchesPage
+        instanceId=""
         api={api}
         elements={elements}
         branchId={branchId}
         routes={{
           branch: () => ROUTES.INSTANCE.BRANCHES.BRANCHES.path,
+          branches: () => ROUTES.INSTANCE.BRANCHES.BRANCHES.path,
+          snapshot: (snapshotId: string) =>
+            ROUTES.INSTANCE.SNAPSHOTS.SNAPSHOT.createPath(snapshotId),
         }}
       />
     </PageContainer>

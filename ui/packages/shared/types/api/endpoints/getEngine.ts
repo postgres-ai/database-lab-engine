@@ -3,7 +3,7 @@ export type EngineDto = {
   edition?: string
 }
 
-export type GetEngine = () => Promise<{
+export type GetEngine = (instanceId: string) => Promise<{
   response: EngineType | null
   error: Response | null
 }>

@@ -51,10 +51,10 @@ export class MainStore {
     this.isSnapshotsLoading = true
 
     await this.snapshots.load(instanceId).then((loaded) => {
-      loaded && this.getSnapshot(snapshotId)
+      loaded && this.getSnapshot(snapshotId, instanceId)
     })
   }
-  getSnapshot = async (snapshotId: string) => {
+  getSnapshot = async (snapshotId: string, instanceId: string) => {
     if (!snapshotId) return
 
     const allSnapshots = this.snapshots.data
@@ -64,7 +64,7 @@ export class MainStore {
 
     if (snapshot && snapshot?.length > 0) {
       this.snapshot = snapshot[0]
-      this.getBranchSnapshot(snapshot[0].id)
+      this.getBranchSnapshot(snapshot[0].id, instanceId)
     } else {
       this.isSnapshotsLoading = false
       this.snapshotError = {
@@ -76,10 +76,13 @@ export class MainStore {
     return !!snapshot
   }
 
-  getBranchSnapshot = async (snapshotId: string) => {
+  getBranchSnapshot = async (snapshotId: string, instanceId: string) => {
     if (!snapshotId || !this.api.getBranchSnapshot) return
 
-    const { response, error } = await this.api.getBranchSnapshot(snapshotId)
+    const { response, error } = await this.api.getBranchSnapshot(
+      snapshotId,
+      instanceId,
+    )
 
     this.isSnapshotsLoading = false
 
@@ -94,12 +97,17 @@ export class MainStore {
     return response
   }
 
-  destroySnapshot = async (snapshotId: string, forceDelete: boolean) => {
+  destroySnapshot = async (
+    snapshotId: string,
+    forceDelete: boolean,
+    instanceId: string,
+  ) => {
     if (!this.api.destroySnapshot || !snapshotId) return
 
     const { response, error } = await this.api.destroySnapshot(
       snapshotId,
       forceDelete,
+      instanceId,
     )
 
     return {

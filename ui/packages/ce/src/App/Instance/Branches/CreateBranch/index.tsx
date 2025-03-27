@@ -9,6 +9,11 @@ import { NavPath } from 'components/NavPath'
 import { ROUTES } from 'config/routes'
 
 export const CreateBranch = () => {
+  const routes = {
+    branch: (branchName: string) =>
+      ROUTES.INSTANCE.BRANCHES.BRANCH.createPath(branchName),
+  }
+
   const api = {
     getBranches,
     createBranch,
@@ -29,7 +34,12 @@ export const CreateBranch = () => {
 
   return (
     <PageContainer>
-      <CreateBranchPage instanceId={''} api={api} elements={elements} />
+      <CreateBranchPage
+        instanceId={''}
+        routes={routes}
+        api={api}
+        elements={elements}
+      />
     </PageContainer>
   )
 }

@@ -1,13 +1,13 @@
-import moment from 'moment';
-import { Api } from '../Instance/stores/Main';
-import { stringContainsPattern, stringWithoutBrackets } from './utils';
+import moment from 'moment'
+import { Api } from '../Instance/stores/Main'
+import { stringContainsPattern, stringWithoutBrackets } from './utils'
 
-const logsEndpoint = '/instance/logs';
+const logsEndpoint = '/instance/logs'
 
 const LOGS_TIME_LIMIT = 20
 const LOGS_LINE_LIMIT = 1000
 
-export const establishConnection = async (api: Api) => {
+export const establishConnection = async (api: Api, instanceId: string) => {
   if (!api.getWSToken) return
 
   const logElement = document.getElementById('logs-container')
@@ -74,7 +74,7 @@ export const establishConnection = async (api: Api) => {
   }
 
   const { response, error } = await api.getWSToken({
-    instanceId: '',
+    instanceId: instanceId,
   })
 
   if (error || response == null) {
@@ -113,7 +113,7 @@ export const establishConnection = async (api: Api) => {
   }
 }
 
-export const restartConnection = (api: Api) => {
+export const restartConnection = (api: Api, instanceId: string) => {
   const logElement = document.getElementById('logs-container')
 
   if (logElement && logElement.childElementCount > 1) {
@@ -122,5 +122,5 @@ export const restartConnection = (api: Api) => {
     }
   }
 
-  establishConnection(api)
+  establishConnection(api, instanceId)
 }

@@ -36,7 +36,7 @@ export const ClonesModal = observer(() => {
 
   return (
     <Modal
-      title={`Clones (${instance.state?.cloning.clones.length})`}
+      title={`Clones (${instance.state?.cloning.clones?.length})`}
       isOpen={isOpenModal}
       onClose={closeModal}
       size="md"

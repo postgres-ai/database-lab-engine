@@ -276,13 +276,17 @@ export const Clone = observer((props: Props) => {
   }
 
   const createSnapshot = async () => {
-    await snapshots.createSnapshot(props.cloneId).then((snapshot) => {
-      if (snapshot && generateSnapshotPageId(snapshot.snapshotID)) {
-        history.push(
-          `/instance/snapshots/${generateSnapshotPageId(snapshot.snapshotID)}`,
-        )
-      }
-    })
+    await snapshots
+      .createSnapshot(props.cloneId, '', props.instanceId)
+      .then((snapshot) => {
+        if (snapshot && generateSnapshotPageId(snapshot.snapshotID)) {
+          history.push(
+            props.routes.snapshot(
+              generateSnapshotPageId(snapshot.snapshotID) as string,
+            ),
+          )
+        }
+      })
   }
 
   // Clone reload.
@@ -367,8 +371,8 @@ export const Clone = observer((props: Props) => {
           {stores.main.destroyCloneError ||
             (stores.main.resetCloneError && (
               <ErrorStub
-                title={'test' ? 'Destroying error' : 'Resetting error'}
-                message={'test' || stores.main.resetCloneError}
+                title={'Resetting error'}
+                message={stores.main.resetCloneError}
                 className={classes.errorStub}
               />
             ))}

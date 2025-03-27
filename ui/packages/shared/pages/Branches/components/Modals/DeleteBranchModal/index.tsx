@@ -13,10 +13,12 @@ import { ModalProps } from '@postgres.ai/shared/pages/Branches/components/Modals
 import { SimpleModalControls } from '@postgres.ai/shared/components/SimpleModalControls'
 import { ImportantText } from '@postgres.ai/shared/components/ImportantText'
 import { Text } from '@postgres.ai/shared/components/Text'
-import { DeleteBranch } from 'types/api/endpoints/deleteBranch'
+import { DeleteBranch } from '@postgres.ai/shared/types/api/endpoints/deleteBranch'
 interface DeleteBranchModalProps extends ModalProps {
   deleteBranch: DeleteBranch
   branchName: string
+  instanceId: string
+  afterSubmitClick: () => void
 }
 
 const useStyles = makeStyles(
@@ -34,17 +36,19 @@ export const DeleteBranchModal = ({
   onClose,
   deleteBranch,
   branchName,
+  instanceId,
+  afterSubmitClick,
 }: DeleteBranchModalProps) => {
   const classes = useStyles()
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const handleDelete = async () => {
-    const deleteRes = await deleteBranch(branchName)
+    const deleteRes = await deleteBranch(branchName, instanceId)
 
     if (deleteRes?.error) {
       setDeleteError(deleteRes.error?.message)
     } else {
-      window.location.replace('/instance/branches')
+      afterSubmitClick()
     }
   }
 

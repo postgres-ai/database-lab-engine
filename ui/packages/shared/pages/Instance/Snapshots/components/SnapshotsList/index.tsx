@@ -5,7 +5,7 @@ import copy from 'copy-to-clipboard'
 
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
 import { DestroySnapshotModal } from '@postgres.ai/shared/pages/Snapshots/Snapshot/DestorySnapshotModal'
-import { Snapshot } from 'types/api/entities/snapshot'
+import { Snapshot } from '@postgres.ai/shared/types/api/entities/snapshot'
 import { useStores } from '@postgres.ai/shared/pages/Instance/context'
 import { IconButton } from '@mui/material'
 import { icons } from '@postgres.ai/shared/styles/icons'
@@ -17,6 +17,7 @@ import {
 import { format, formatDistanceToNowStrict } from 'date-fns'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
 import { useHistory } from 'react-router'
+import { DestroySnapshot } from '@postgres.ai/shared/types/api/endpoints/destroySnapshot'
 
 const useStyles = makeStyles(
   {
@@ -202,7 +203,17 @@ const SnapshotListItem = ({
 }
 
 export const SnapshotsList = observer(
-  ({ filteredSnapshots }: { filteredSnapshots: Snapshot[] }) => {
+  ({
+    routes,
+    filteredSnapshots,
+    instanceId,
+  }: {
+    routes: {
+      snapshot: (snapshotId: string) => string
+    }
+    filteredSnapshots: Snapshot[]
+    instanceId: string
+  }) => {
     const classes = useStyles()
     const stores = useStores()
     const history = useHistory()
@@ -232,7 +243,7 @@ export const SnapshotsList = observer(
                     className={classes.pointerCursor}
                     onClick={() =>
                       snapshotPageId &&
-                      history.push(`/instance/snapshots/${snapshotPageId}`)
+                      history.push(routes.snapshot(snapshotPageId))
                     }
                   >
                     <SnapshotListItem
@@ -255,7 +266,9 @@ export const SnapshotsList = observer(
             isOpen={snapshotModal.isOpen}
             onClose={() => setSnapshotModal({ isOpen: false, snapshotId: '' })}
             snapshotId={snapshotModal.snapshotId}
+            instanceId={instanceId}
             afterSubmitClick={() => window.location.reload()}
+            destroySnapshot={stores.main.destroySnapshot as DestroySnapshot}
           />
         )}
       </HorizontalScrollContainer>

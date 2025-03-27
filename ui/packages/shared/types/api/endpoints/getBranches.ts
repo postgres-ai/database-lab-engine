@@ -5,6 +5,7 @@ export interface Branch {
   parent: string
   dataStateAt: string
   snapshotID: string
+  numSnapshots: number
 }
 
 export const formatBranchesDto = (dto: Branch[]) =>
@@ -13,7 +14,7 @@ export const formatBranchesDto = (dto: Branch[]) =>
     dataStateAt: formatDateToISO(item.dataStateAt),
   }))
 
-export type GetBranches = () => Promise<{
+export type GetBranches = (instanceId: string) => Promise<{
   response: Branch[] | null
   error: Response | null
 }>

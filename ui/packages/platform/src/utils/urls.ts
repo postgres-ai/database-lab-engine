@@ -116,6 +116,28 @@ export default {
     return basePath + '/instances/' + instanceId + '/clones/add'
   },
 
+  linkDbLabBranch: function (
+    props: PropsType,
+    instanceId: string,
+    branchId: string | number | boolean,
+  ) {
+    const basePath = this.getBasePath(props)
+
+    return (
+      basePath +
+      '/instances/' +
+      instanceId +
+      '/branches/' +
+      encodeURIComponent(branchId)
+    )
+  },
+
+  linkDbLabBranchAdd: function (props: PropsType, instanceId: string) {
+    const basePath = this.getBasePath(props)
+
+    return basePath + '/instances/' + instanceId + '/branches/add'
+  },
+
   linkDbLabInstanceEditProject: function (
     props: PropsType,
     instanceId: string,

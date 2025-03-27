@@ -40,7 +40,7 @@ import {
 
 import { useCreatedStores } from './useCreatedStores'
 import { Host } from './context'
-import { DeleteBranch } from 'types/api/endpoints/deleteBranch'
+import { DeleteBranch } from '@postgres.ai/shared/types/api/endpoints/deleteBranch'
 
 type Props = Host
 
@@ -49,7 +49,7 @@ const useStyles = makeStyles(
     wrapper: {
       display: 'flex',
       gap: '60px',
-      maxWidth: '1200px',
+      maxWidth: '100%',
       fontSize: '14px',
       marginTop: '20px',
 
@@ -166,22 +166,23 @@ export const BranchesPage = observer((props: Props) => {
     }
   }, 0)
 
-  const BranchHeader = () => {
-    return (
-      <>
-        {props.elements.breadcrumbs}
-        <SectionTitle
-          className={classes.marginTop}
-          tag="h1"
-          level={1}
-          text={`Branch ${props.branchId}`}
-        />
-      </>
-    )
-  }
+  const headRendered = (
+    <>
+      <style>{'p { margin: 0;}'}</style>
+
+      {props.elements.breadcrumbs}
+
+      <SectionTitle
+        className={classes.marginTop}
+        tag="h1"
+        level={1}
+        text={`Branch ${props.branchId}`}
+      />
+    </>
+  )
 
   useEffect(() => {
-    load(props.branchId)
+    load(props.branchId, props.instanceId)
   }, [])
 
   if (isBranchesLoading) return <PageSpinner />
@@ -189,7 +190,7 @@ export const BranchesPage = observer((props: Props) => {
   if (hasBranchError) {
     return (
       <>
-        <BranchHeader />
+        {headRendered}
         <ErrorStub
           title={
             getBranchesError?.title ||
@@ -209,7 +210,7 @@ export const BranchesPage = observer((props: Props) => {
 
   return (
     <>
-      <BranchHeader />
+      {headRendered}
       <div className={classes.wrapper}>
         <div className={classes.container}>
           <div className={classes.actions}>
@@ -226,7 +227,7 @@ export const BranchesPage = observer((props: Props) => {
             <Button
               variant="outlined"
               color="secondary"
-              onClick={() => reload(props.branchId)}
+              onClick={() => reload(props.branchId, props.instanceId)}
               disabled={isReloading}
               title={'Refresh branch information'}
               className={classes.actionButton}
@@ -304,8 +305,9 @@ export const BranchesPage = observer((props: Props) => {
                       <TableRow>
                         <TableHeaderCell />
                         <TableHeaderCell>Name</TableHeaderCell>
+                        <TableHeaderCell>Snapshot ID</TableHeaderCell>
                         <TableHeaderCell>Data state at</TableHeaderCell>
-                        <TableHeaderCell>Comment</TableHeaderCell>
+                        <TableHeaderCell>Message</TableHeaderCell>
                       </TableRow>
                     </TableHead>
                     {snapshotList?.map((snapshot, id) => (
@@ -318,9 +320,9 @@ export const BranchesPage = observer((props: Props) => {
                             onClick={() =>
                               generateSnapshotPageId(snapshot.id) &&
                               history.push(
-                                `/instance/snapshots/${generateSnapshotPageId(
-                                  snapshot.id,
-                                )}`,
+                                props.routes.snapshot(
+                                  generateSnapshotPageId(snapshot.id) || '',
+                                ),
                               )
                             }
                           >
@@ -330,9 +332,15 @@ export const BranchesPage = observer((props: Props) => {
                                   name: 'Copy branch name',
                                   onClick: () => copyToClipboard(item),
                                 },
+                                {
+                                  name: 'Copy snapshot ID',
+                                  onClick: () =>
+                                    copyToClipboard(snapshot.id || ''),
+                                },
                               ]}
                             />
                             <TableBodyCell>{item}</TableBodyCell>
+                            <TableBodyCell>{snapshot.id || '-'}</TableBodyCell>
                             <TableBodyCell>
                               {snapshot.dataStateAt || '-'}
                             </TableBodyCell>
@@ -369,8 +377,8 @@ export const BranchesPage = observer((props: Props) => {
             text={'Get branches using CLI'}
           />
           <p className={classes.marginTop}>
-            To list all branches using CLI, copy
-            and paste it into your terminal.
+            To list all branches using CLI, copy and paste it into your
+            terminal.
           </p>
           <SyntaxHighlight content={getCliBranchListCommand()} />
 
@@ -391,6 +399,11 @@ export const BranchesPage = observer((props: Props) => {
           onClose={() => setIsOpenDestroyModal(false)}
           deleteBranch={deleteBranch as DeleteBranch}
           branchName={props.branchId}
+          instanceId={props.instanceId}
+          afterSubmitClick={() => {
+            stores.main.reload(props.branchId, props.instanceId)
+            history.push(props.routes.branches())
+          }}
         />
       </div>
     </>

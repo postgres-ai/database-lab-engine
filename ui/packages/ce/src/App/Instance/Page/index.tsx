@@ -1,4 +1,3 @@
-
 import { Instance } from '@postgres.ai/shared/pages/Instance'
 
 import { PageContainer } from 'components/PageContainer'
@@ -30,6 +29,12 @@ export const Page = ({ renderCurrentTab }: { renderCurrentTab?: number }) => {
     createSnapshot: () => ROUTES.INSTANCE.SNAPSHOTS.CREATE.path,
     clone: (cloneId: string) =>
       ROUTES.INSTANCE.CLONES.CLONE.createPath(cloneId),
+    branch: (branchId: string) =>
+      ROUTES.INSTANCE.BRANCHES.BRANCH.createPath(branchId),
+    branches: () => ROUTES.INSTANCE.BRANCHES.path,
+    snapshots: () => ROUTES.INSTANCE.SNAPSHOTS.path,
+    snapshot: (snapshotId: string) =>
+      ROUTES.INSTANCE.SNAPSHOTS.SNAPSHOT.createPath(snapshotId),
   }
 
   const api = {
@@ -50,7 +55,7 @@ export const Page = ({ renderCurrentTab }: { renderCurrentTab?: number }) => {
     createBranch,
     getBranches,
     getSnapshotList,
-    deleteBranch
+    deleteBranch,
   }
 
   const elements = {

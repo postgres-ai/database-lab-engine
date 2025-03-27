@@ -91,9 +91,9 @@ export class MainStore {
     return Boolean(response)
   }
 
-  getBranches = async () => {
+  getBranches = async (instanceId: string) => {
     if (!this.api.getBranches) return
-    const { response, error } = await this.api.getBranches()
+    const { response, error } = await this.api.getBranches(instanceId)
 
     if (error) this.getBranchesError = await error.json().then((err) => err)
 

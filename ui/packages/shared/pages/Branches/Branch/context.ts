@@ -5,8 +5,11 @@ import { Stores } from './useCreatedStores'
 
 export type Host = {
   branchId: string
+  instanceId: string
   routes: {
     branch: () => string
+    branches: () => string
+    snapshot: (snapshotId: string) => string
   }
   api: Api
   elements: {

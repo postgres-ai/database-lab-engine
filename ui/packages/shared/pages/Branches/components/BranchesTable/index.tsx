@@ -16,6 +16,7 @@ import { isValidDate } from '@postgres.ai/shared/utils/date'
 import { ArrowDropDownIcon } from '@postgres.ai/shared/icons/ArrowDropDown'
 import { Branch } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
+import { useHost } from '@postgres.ai/shared/pages/Instance/context'
 import {
   Table,
   TableHead,
@@ -27,7 +28,7 @@ import {
 } from '@postgres.ai/shared/components/Table'
 
 import { DeleteBranchModal } from '../Modals/DeleteBranchModal'
-import { DeleteBranch } from 'types/api/endpoints/deleteBranch'
+import { DeleteBranch } from '@postgres.ai/shared/types/api/endpoints/deleteBranch'
 
 const useStyles = makeStyles(
   {
@@ -63,11 +64,16 @@ export const BranchesTable = ({
   branches,
   emptyTableText,
   deleteBranch,
+  branchesRoute,
+  reloadBranches,
 }: {
   branches: Branch[]
   emptyTableText: string
   deleteBranch: DeleteBranch
+  branchesRoute: string
+  reloadBranches: () => void
 }) => {
+  const host = useHost()
   const history = useHistory()
   const classes = useStyles()
 
@@ -128,47 +134,53 @@ export const BranchesTable = ({
               </div>
             </TableHeaderCell>
             <TableHeaderCell>Data state time</TableHeaderCell>
-            <TableHeaderCell>Snapshot ID</TableHeaderCell>
+            <TableHeaderCell>Latest Snapshot ID</TableHeaderCell>
+            <TableHeaderCell>Number of snapshots</TableHeaderCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {state.branches?.map((branch) => (
-            <TableRow
-              key={branch.name}
-              hover
-              onClick={() => history.push(`/instance/branches/${branch.name}`)}
-              className={classes.pointerCursor}
-            >
-              <TableBodyCellMenu
-                actions={[
-                  {
-                    name: 'Copy snapshot ID',
-                    onClick: () => copy(branch.snapshotID),
-                  },
-                  {
-                    name: 'Destroy branch',
-                    onClick: () => {
-                      setBranchId(branch.name)
-                      setIsOpenDestroyModal(true)
-                    },
-                  },
-                ]}
-              />
+          {state.branches?.map((branch) => {
+            const branchPagePath = host.routes.branch(branch.name)
 
-              <TableBodyCell>{branch.name}</TableBodyCell>
-              <TableBodyCell>{branch.parent}</TableBodyCell>
-              <TableBodyCell>
-                {branch.dataStateAt} (
-                {isValidDate(new Date(branch.dataStateAt))
-                  ? formatDistanceToNowStrict(new Date(branch.dataStateAt), {
-                      addSuffix: true,
-                    })
-                  : '-'}
-                )
-              </TableBodyCell>
-              <TableBodyCell>{branch.snapshotID}</TableBodyCell>
-            </TableRow>
-          ))}
+            return (
+              <TableRow
+                key={branch.name}
+                hover
+                onClick={() => history.push(branchPagePath)}
+                className={classes.pointerCursor}
+              >
+                <TableBodyCellMenu
+                  actions={[
+                    {
+                      name: 'Copy snapshot ID',
+                      onClick: () => copy(branch.snapshotID),
+                    },
+                    {
+                      name: 'Destroy branch',
+                      onClick: () => {
+                        setBranchId(branch.name)
+                        setIsOpenDestroyModal(true)
+                      },
+                    },
+                  ]}
+                />
+
+                <TableBodyCell>{branch.name}</TableBodyCell>
+                <TableBodyCell>{branch.parent}</TableBodyCell>
+                <TableBodyCell>
+                  {branch.dataStateAt} (
+                  {isValidDate(new Date(branch.dataStateAt))
+                    ? formatDistanceToNowStrict(new Date(branch.dataStateAt), {
+                        addSuffix: true,
+                      })
+                    : '-'}
+                  )
+                </TableBodyCell>
+                <TableBodyCell>{branch.snapshotID}</TableBodyCell>
+                <TableBodyCell>{branch.numSnapshots}</TableBodyCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
         <DeleteBranchModal
           isOpen={isOpenDestroyModal}
@@ -178,6 +190,11 @@ export const BranchesTable = ({
           }}
           deleteBranch={deleteBranch}
           branchName={branchId}
+          instanceId={host.instanceId}
+          afterSubmitClick={() => {
+            reloadBranches()
+            history.push(branchesRoute)
+          }}
         />
       </Table>
     </HorizontalScrollContainer>

@@ -66,7 +66,7 @@ const useStyles = makeStyles(
 export const Instance = observer((props: Props) => {
   const classes = useStyles()
 
-  const { instanceId, api } = props
+  const { instanceId, api, isPlatform } = props
   const [activeTab, setActiveTab] = React.useState(
     props?.renderCurrentTab || TABS_INDEX.OVERVIEW,
   )
@@ -88,7 +88,8 @@ export const Instance = observer((props: Props) => {
     if (tabID === 0) {
       load(props.instanceId)
     }
-    contentElement?.scroll(0, 0)
+
+    contentElement?.scrollTo(0, 0)
   }
 
   const isInstanceIntegrated =
@@ -98,14 +99,15 @@ export const Instance = observer((props: Props) => {
   const isConfigurationActive = instanceRetrieval?.mode !== 'physical'
 
   const InstanceTab = (props: TabsProps) =>
-    !props.isPlatform ? <Tabs {...props} /> : <PlatformTabs {...props} />
+    isPlatform ? <PlatformTabs {...props} /> : <Tabs {...props} />
 
   useEffect(() => {
     load(instanceId)
   }, [instanceId])
 
   useEffect(() => {
-    if (props.setProjectAlias) props.setProjectAlias(instance?.projectAlias || '')
+    if (props.setProjectAlias)
+      props.setProjectAlias(instance?.projectAlias || '')
   }, [instance])
 
   useEffect(() => {
@@ -113,7 +115,6 @@ export const Instance = observer((props: Props) => {
       instance &&
       instance.state?.retrieving?.status === 'pending' &&
       isConfigurationActive &&
-      !props.isPlatform &&
       !hasBeenRedirected
     ) {
       setActiveTab(TABS_INDEX.CONFIGURATION)
@@ -174,43 +175,42 @@ export const Instance = observer((props: Props) => {
               <SnapshotsModal />
             </TabPanel>
 
-            {!props.isPlatform && (
-              <>
-                <TabPanel value={activeTab} index={TABS_INDEX.CLONES}>
-                  {activeTab === TABS_INDEX.CLONES && (
-                    <div className={classes.content}>
-                      {!instanceError &&
-                        (instance ? (
-                          <Clones onlyRenderList />
-                        ) : (
-                          <StubSpinner />
-                        ))}
-                    </div>
-                  )}
-                </TabPanel>
-                <TabPanel value={activeTab} index={TABS_INDEX.LOGS}>
-                  {activeTab === TABS_INDEX.LOGS && <Logs api={api} />}
-                </TabPanel>
-                <TabPanel value={activeTab} index={TABS_INDEX.CONFIGURATION}>
-                  {activeTab === TABS_INDEX.CONFIGURATION && (
-                    <Configuration
-                      switchActiveTab={switchTab}
-                      isConfigurationActive={isConfigurationActive}
-                      reload={() => load(props.instanceId)}
-                      disableConfigModification={
-                        instance?.state?.engine.disableConfigModification
-                      }
-                    />
-                  )}
-                </TabPanel>
-                <TabPanel value={activeTab} index={TABS_INDEX.SNAPSHOTS}>
-                  {activeTab === TABS_INDEX.SNAPSHOTS && <Snapshots />}
-                </TabPanel>
-                <TabPanel value={activeTab} index={TABS_INDEX.BRANCHES}>
-                  {activeTab === TABS_INDEX.BRANCHES && <Branches />}
-                </TabPanel>
-              </>
-            )}
+            <TabPanel value={activeTab} index={TABS_INDEX.CLONES}>
+              {activeTab === TABS_INDEX.CLONES && (
+                <div className={classes.content}>
+                  {!instanceError &&
+                    (instance ? <Clones onlyRenderList /> : <StubSpinner />)}
+                </div>
+              )}
+            </TabPanel>
+            <TabPanel value={activeTab} index={TABS_INDEX.LOGS}>
+              {activeTab === TABS_INDEX.LOGS && (
+                <Logs api={api} instanceId={props.instanceId} />
+              )}
+            </TabPanel>
+            <TabPanel value={activeTab} index={TABS_INDEX.CONFIGURATION}>
+              {activeTab === TABS_INDEX.CONFIGURATION && (
+                <Configuration
+                  instanceId={instanceId}
+                  switchActiveTab={switchTab}
+                  isConfigurationActive={isConfigurationActive}
+                  reload={() => load(props.instanceId)}
+                  disableConfigModification={
+                    instance?.state?.engine.disableConfigModification
+                  }
+                />
+              )}
+            </TabPanel>
+            <TabPanel value={activeTab} index={TABS_INDEX.SNAPSHOTS}>
+              {activeTab === TABS_INDEX.SNAPSHOTS && (
+                <Snapshots instanceId={instanceId} />
+              )}
+            </TabPanel>
+            <TabPanel value={activeTab} index={TABS_INDEX.BRANCHES}>
+              {activeTab === TABS_INDEX.BRANCHES && (
+                <Branches instanceId={instanceId} />
+              )}
+            </TabPanel>
           </>
         ) : !isLoadingInstance && !instanceError ? (
           <TabPanel value={activeTab} index={activeTab}>

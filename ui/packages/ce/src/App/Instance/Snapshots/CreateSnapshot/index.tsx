@@ -27,7 +27,15 @@ export const CreateSnapshot = () => {
 
   return (
     <PageContainer>
-      <CreateSnapshotPage api={api} elements={elements} />
+      <CreateSnapshotPage
+        instanceId=""
+        api={api}
+        elements={elements}
+        routes={{
+          snapshot: (snapshotId: string) =>
+            ROUTES.INSTANCE.SNAPSHOTS.SNAPSHOT.createPath(snapshotId),
+        }}
+      />
     </PageContainer>
   )
 }

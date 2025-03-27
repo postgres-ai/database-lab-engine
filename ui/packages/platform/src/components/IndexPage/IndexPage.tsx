@@ -18,7 +18,7 @@ import {
   Drawer,
   Collapse,
   Box,
-  ListItemText
+  ListItemText,
 } from '@material-ui/core'
 import qs from 'qs'
 
@@ -38,6 +38,10 @@ import {
 import { ROUTES } from 'config/routes'
 import { Instance } from 'pages/Instance'
 import { Clone } from 'pages/Clone'
+import { Branch } from 'pages/Branch'
+import { CreateBranch } from 'pages/CreateBranch'
+import { Snapshot } from 'pages/Snapshot'
+import { CreateSnapshot } from 'pages/CreateSnapshot'
 import { CreateClone } from 'pages/CreateClone'
 import { ProfileWrapper } from 'pages/Profile/ProfileWrapper'
 import { SignInWrapper } from 'pages/SignIn/SignInWrapper'
@@ -72,8 +76,8 @@ import { LoginDialogWrapper } from 'components/LoginDialog/LoginDialogWrapper'
 import { NotificationWrapper } from 'components/Notification/NotificationWrapper'
 import { SharedUrlWrapper } from 'components/SharedUrl/SharedUrlWrapper'
 import { ShareUrlDialogWrapper } from 'components/ShareUrlDialog/ShareUrlDialogWrapper'
-import { BotWrapper } from "pages/Bot/BotWrapper";
-import { ConsultingWrapper } from "pages/Consulting/ConsultingWrapper";
+import { BotWrapper } from 'pages/Bot/BotWrapper'
+import { ConsultingWrapper } from 'pages/Consulting/ConsultingWrapper'
 
 import Actions from '../../actions/actions'
 import JoeConfig from '../JoeConfig'
@@ -86,12 +90,11 @@ import { IndexPageProps } from 'components/IndexPage/IndexPageWrapper'
 import { PostgresClusterWrapper } from 'components/PostgresClusterForm/PostgresClusterWrapper'
 import { PostgresClusterInstallWrapper } from 'components/PostgresClusterInstallForm/PostgresClusterInstallWrapper'
 import { PostgresClustersWrapper } from 'components/PostgresClusters/PostgresClustersWrapper'
-import cn from "classnames";
-import { BotSettingsFormWrapper } from "../BotSettingsForm/BotSettingsFormWrapper";
-import { AuditSettingsFormWrapper } from "../AuditSettingsForm/AuditSettingsFormWrapper";
-import { ExpandLess, ExpandMore } from "@material-ui/icons";
-import { DBLabSettingsFormWrapper } from "../DBLabSettingsForm/DBLabSettingsFormWrapper";
-
+import cn from 'classnames'
+import { BotSettingsFormWrapper } from '../BotSettingsForm/BotSettingsFormWrapper'
+import { AuditSettingsFormWrapper } from '../AuditSettingsForm/AuditSettingsFormWrapper'
+import { ExpandLess, ExpandMore } from '@material-ui/icons'
+import { DBLabSettingsFormWrapper } from '../DBLabSettingsForm/DBLabSettingsFormWrapper'
 
 interface IndexPageWithStylesProps extends IndexPageProps {
   classes: ClassesType
@@ -202,9 +205,61 @@ function ProjectWrapper(parentProps: Omit<ProjectWrapperProps, 'classes'>) {
         <CreateClone />
       </Route>
       <Route
+        exact
+        path={ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.CLONES.createPath()}
+      >
+        <Instance renderCurrentTab={3} />
+      </Route>
+      <Route
         path={ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.CLONES.CLONE.createPath()}
       >
         <Clone />
+      </Route>
+      <Route
+        exact
+        path={ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.BRANCHES.ADD.createPath()}
+      >
+        <CreateBranch />
+      </Route>
+      <Route
+        exact
+        path={ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.BRANCHES.createPath()}
+      >
+        <Instance renderCurrentTab={1} />
+      </Route>
+      <Route
+        path={ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.BRANCHES.BRANCH.createPath()}
+      >
+        <Branch />
+      </Route>
+      <Route
+        exact
+        path={ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.SNAPSHOTS.ADD.createPath()}
+      >
+        <CreateSnapshot />
+      </Route>
+      <Route
+        exact
+        path={ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.SNAPSHOTS.createPath()}
+      >
+        <Instance renderCurrentTab={2} />
+      </Route>
+      <Route
+        path={ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.SNAPSHOTS.SNAPSHOT.createPath()}
+      >
+        <Snapshot />
+      </Route>
+      <Route
+        exact
+        path={ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.LOGS.createPath()}
+      >
+        <Instance renderCurrentTab={4} />
+      </Route>
+      <Route
+        exact
+        path={ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.CONFIGURATION.createPath()}
+      >
+        <Instance renderCurrentTab={5} />
       </Route>
       <Route path={ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.createPath()}>
         <Instance />
@@ -297,20 +352,23 @@ function ProjectWrapper(parentProps: Omit<ProjectWrapperProps, 'classes'>) {
 }
 
 function OrganizationMenu(parentProps: OrganizationMenuProps) {
-  const [activeMenuItems, setActiveMenuItems] = useState<Set<string>>(new Set());
+  const [activeMenuItems, setActiveMenuItems] = useState<Set<string>>(new Set())
 
-  const handleOpenMenuItem = (e: React.MouseEvent<HTMLDivElement, MouseEvent>, value: string) => {
+  const handleOpenMenuItem = (
+    e: React.MouseEvent<HTMLDivElement, MouseEvent>,
+    value: string,
+  ) => {
     e.stopPropagation()
     setActiveMenuItems((prev) => {
-      const newSet = new Set(prev);
+      const newSet = new Set(prev)
       if (newSet.has(value)) {
-        newSet.delete(value);
+        newSet.delete(value)
       } else {
-        newSet.add(value);
+        newSet.add(value)
       }
-      return newSet;
-    });
-  };
+      return newSet
+    })
+  }
 
   if (
     parentProps.env &&
@@ -363,7 +421,9 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
             >
               <NavLink
                 className={parentProps.classes.menuSectionHeaderLink}
-                activeClassName={parentProps.classes.menuSectionHeaderActiveLink}
+                activeClassName={
+                  parentProps.classes.menuSectionHeaderActiveLink
+                }
                 to={'/' + org}
               >
                 <span className={parentProps.classes.menuSectionHeaderIcon}>
@@ -381,18 +441,32 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
             >
               <NavLink
                 className={parentProps.classes.menuSectionHeaderLink}
-                activeClassName={cn(parentProps.classes.menuSectionHeaderActiveLink, parentProps.classes.menuSingleSectionHeaderActiveLink)}
+                activeClassName={cn(
+                  parentProps.classes.menuSectionHeaderActiveLink,
+                  parentProps.classes.menuSingleSectionHeaderActiveLink,
+                )}
                 to={'/' + org + '/assistant'}
               >
                 <span className={parentProps.classes.menuSectionHeaderIcon}>
                   {icons.aiBotIcon}
                 </span>
-                AI Assistant<span className={cn(parentProps.classes.menuItemLabel, parentProps.classes.headerLinkMenuItemLabel)}>NEW</span>
+                AI Assistant
+                <span
+                  className={cn(
+                    parentProps.classes.menuItemLabel,
+                    parentProps.classes.headerLinkMenuItemLabel,
+                  )}
+                >
+                  NEW
+                </span>
               </NavLink>
             </ListItem>
             <ListItem
               button
-              className={cn(parentProps.classes.menuSectionHeader, parentProps.classes.menuSectionHeaderCollapsible)}
+              className={cn(
+                parentProps.classes.menuSectionHeader,
+                parentProps.classes.menuSectionHeaderCollapsible,
+              )}
               disabled={isBlocked}
               id="menuDblabTitle"
               onClick={(e) => handleOpenMenuItem(e, 'dblab')}
@@ -401,17 +475,28 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                 className={cn(
                   parentProps.classes.menuSectionHeaderLink,
                   parentProps.classes.menuSectionHeaderLinkCollapsible,
-                  {[parentProps.classes.menuSectionHeaderActiveLink]: activeMenuItems.has('dblab')}
+                  {
+                    [parentProps.classes.menuSectionHeaderActiveLink]:
+                      activeMenuItems.has('dblab'),
+                  },
                 )}
-                classes={{primary: parentProps.classes.menuSectionHeaderLinkText}}
+                classes={{
+                  primary: parentProps.classes.menuSectionHeaderLinkText,
+                }}
               >
                 <span className={parentProps.classes.menuSectionHeaderIcon}>
                   {icons.databaseLabIcon}
                 </span>
                 Database Lab
-                {activeMenuItems.has('dblab')
-                  ? <ExpandLess className={parentProps.classes.menuSectionHeaderExpandIcon} />
-                  : <ExpandMore className={parentProps.classes.menuSectionHeaderExpandIcon} />}
+                {activeMenuItems.has('dblab') ? (
+                  <ExpandLess
+                    className={parentProps.classes.menuSectionHeaderExpandIcon}
+                  />
+                ) : (
+                  <ExpandMore
+                    className={parentProps.classes.menuSectionHeaderExpandIcon}
+                  />
+                )}
               </ListItemText>
             </ListItem>
             <Collapse
@@ -452,7 +537,10 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
             </Collapse>
             <ListItem
               button
-              className={cn(parentProps.classes.menuSectionHeader, parentProps.classes.menuSectionHeaderCollapsible)}
+              className={cn(
+                parentProps.classes.menuSectionHeader,
+                parentProps.classes.menuSectionHeaderCollapsible,
+              )}
               disabled={isBlocked}
               id="menuJoeTitle"
               onClick={(e) => handleOpenMenuItem(e, 'sqlOptimization')}
@@ -461,17 +549,28 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                 className={cn(
                   parentProps.classes.menuSectionHeaderLink,
                   parentProps.classes.menuSectionHeaderLinkCollapsible,
-                  {[parentProps.classes.menuSectionHeaderActiveLink]: activeMenuItems.has('sqlOptimization')}
+                  {
+                    [parentProps.classes.menuSectionHeaderActiveLink]:
+                      activeMenuItems.has('sqlOptimization'),
+                  },
                 )}
-                classes={{primary: parentProps.classes.menuSectionHeaderLinkText}}
+                classes={{
+                  primary: parentProps.classes.menuSectionHeaderLinkText,
+                }}
               >
                 <span className={parentProps.classes.menuSectionHeaderIcon}>
                   {icons.sqlOptimizationIcon}
                 </span>
                 Joe bot
-                {activeMenuItems.has('sqlOptimization')
-                  ? <ExpandLess className={parentProps.classes.menuSectionHeaderExpandIcon} />
-                  : <ExpandMore className={parentProps.classes.menuSectionHeaderExpandIcon} />}
+                {activeMenuItems.has('sqlOptimization') ? (
+                  <ExpandLess
+                    className={parentProps.classes.menuSectionHeaderExpandIcon}
+                  />
+                ) : (
+                  <ExpandMore
+                    className={parentProps.classes.menuSectionHeaderExpandIcon}
+                  />
+                )}
               </ListItemText>
             </ListItem>
             <Collapse
@@ -560,7 +659,10 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
 
             <ListItem
               button
-              className={cn(parentProps.classes.menuSectionHeader, parentProps.classes.menuSectionHeaderCollapsible)}
+              className={cn(
+                parentProps.classes.menuSectionHeader,
+                parentProps.classes.menuSectionHeaderCollapsible,
+              )}
               disabled={isBlocked}
               id="menuCheckupTitle"
               onClick={(e) => handleOpenMenuItem(e, 'checkup')}
@@ -569,17 +671,28 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                 className={cn(
                   parentProps.classes.menuSectionHeaderLink,
                   parentProps.classes.menuSectionHeaderLinkCollapsible,
-                  {[parentProps.classes.menuSectionHeaderActiveLink]: activeMenuItems.has('checkup')}
+                  {
+                    [parentProps.classes.menuSectionHeaderActiveLink]:
+                      activeMenuItems.has('checkup'),
+                  },
                 )}
-                classes={{primary: parentProps.classes.menuSectionHeaderLinkText}}
+                classes={{
+                  primary: parentProps.classes.menuSectionHeaderLinkText,
+                }}
               >
                 <span className={parentProps.classes.menuSectionHeaderIcon}>
                   {icons.checkupIcon}
                 </span>
                 Checkup
-                {activeMenuItems.has('checkup')
-                  ? <ExpandLess className={parentProps.classes.menuSectionHeaderExpandIcon} />
-                  : <ExpandMore className={parentProps.classes.menuSectionHeaderExpandIcon} />}
+                {activeMenuItems.has('checkup') ? (
+                  <ExpandLess
+                    className={parentProps.classes.menuSectionHeaderExpandIcon}
+                  />
+                ) : (
+                  <ExpandMore
+                    className={parentProps.classes.menuSectionHeaderExpandIcon}
+                  />
+                )}
               </ListItemText>
             </ListItem>
             <Collapse
@@ -612,7 +725,10 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
             >
               <NavLink
                 className={parentProps.classes.menuSectionHeaderLink}
-                activeClassName={cn(parentProps.classes.menuSectionHeaderActiveLink, parentProps.classes.menuSingleSectionHeaderActiveLink)}
+                activeClassName={cn(
+                  parentProps.classes.menuSectionHeaderActiveLink,
+                  parentProps.classes.menuSingleSectionHeaderActiveLink,
+                )}
                 to={'/' + org + '/consulting'}
               >
                 <span className={parentProps.classes.menuSectionHeaderIcon}>
@@ -623,7 +739,10 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
             </ListItem>
             <ListItem
               button
-              className={cn(parentProps.classes.menuSectionHeader, parentProps.classes.menuSectionHeaderCollapsible)}
+              className={cn(
+                parentProps.classes.menuSectionHeader,
+                parentProps.classes.menuSectionHeaderCollapsible,
+              )}
               disabled={isBlocked}
               id="menuSettingsTitle"
               onClick={(e) => handleOpenMenuItem(e, 'settings')}
@@ -632,17 +751,28 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                 className={cn(
                   parentProps.classes.menuSectionHeaderLink,
                   parentProps.classes.menuSectionHeaderLinkCollapsible,
-                  {[parentProps.classes.menuSectionHeaderActiveLink]: activeMenuItems.has('settings')}
+                  {
+                    [parentProps.classes.menuSectionHeaderActiveLink]:
+                      activeMenuItems.has('settings'),
+                  },
                 )}
-                classes={{primary: parentProps.classes.menuSectionHeaderLinkText}}
+                classes={{
+                  primary: parentProps.classes.menuSectionHeaderLinkText,
+                }}
               >
                 <span className={parentProps.classes.menuSectionHeaderIcon}>
                   {icons.settingsIcon}
                 </span>
                 Manage
-                {activeMenuItems.has('settings')
-                  ? <ExpandLess className={parentProps.classes.menuSectionHeaderExpandIcon} />
-                  : <ExpandMore className={parentProps.classes.menuSectionHeaderExpandIcon} />}
+                {activeMenuItems.has('settings') ? (
+                  <ExpandLess
+                    className={parentProps.classes.menuSectionHeaderExpandIcon}
+                  />
+                ) : (
+                  <ExpandMore
+                    className={parentProps.classes.menuSectionHeaderExpandIcon}
+                  />
+                )}
               </ListItemText>
             </ListItem>
             <Collapse
@@ -744,7 +874,8 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                 {orgPermissions && orgPermissions.auditLogView && (
                   <ListItem
                     disabled={
-                      (orgPermissions && !orgPermissions.auditLogView) || isBlocked
+                      (orgPermissions && !orgPermissions.auditLogView) ||
+                      isBlocked
                     }
                     button
                     className={parentProps.classes.menuItem}
@@ -759,24 +890,28 @@ function OrganizationMenu(parentProps: OrganizationMenuProps) {
                     </NavLink>
                   </ListItem>
                 )}
-                {orgData !== null && orgPermissions && Permissions.isAdmin(orgData) && orgPermissions.auditLogView && (
-                  <ListItem
-                    disabled={
-                      (orgPermissions && !orgPermissions.auditLogView) || isBlocked
-                    }
-                    button
-                    className={parentProps.classes.menuItem}
-                    id="menuSettingsAuditSettings"
-                  >
-                    <NavLink
-                      className={parentProps.classes.menuItemLink}
-                      activeClassName={parentProps.classes.menuItemActiveLink}
-                      to={'/' + org + '/audit-settings'}
+                {orgData !== null &&
+                  orgPermissions &&
+                  Permissions.isAdmin(orgData) &&
+                  orgPermissions.auditLogView && (
+                    <ListItem
+                      disabled={
+                        (orgPermissions && !orgPermissions.auditLogView) ||
+                        isBlocked
+                      }
+                      button
+                      className={parentProps.classes.menuItem}
+                      id="menuSettingsAuditSettings"
                     >
-                      Audit settings
-                    </NavLink>
-                  </ListItem>
-                )}
+                      <NavLink
+                        className={parentProps.classes.menuItemLink}
+                        activeClassName={parentProps.classes.menuItemActiveLink}
+                        to={'/' + org + '/audit-settings'}
+                      >
+                        Audit settings
+                      </NavLink>
+                    </ListItem>
+                  )}
               </List>
             </Collapse>
           </List>
@@ -942,8 +1077,46 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
       <Route exact path={ROUTES.ORG.INSTANCES.INSTANCE.CLONES.ADD.createPath()}>
         <CreateClone />
       </Route>
+      <Route exact path={ROUTES.ORG.INSTANCES.INSTANCE.CLONES.createPath()}>
+        <Instance renderCurrentTab={3} />
+      </Route>
       <Route path={ROUTES.ORG.INSTANCES.INSTANCE.CLONES.CLONE.createPath()}>
         <Clone />
+      </Route>
+      <Route
+        exact
+        path={ROUTES.ORG.INSTANCES.INSTANCE.BRANCHES.ADD.createPath()}
+      >
+        <CreateBranch />
+      </Route>
+      <Route exact path={ROUTES.ORG.INSTANCES.INSTANCE.BRANCHES.createPath()}>
+        <Instance renderCurrentTab={1} />
+      </Route>
+      <Route path={ROUTES.ORG.INSTANCES.INSTANCE.BRANCHES.BRANCH.createPath()}>
+        <Branch />
+      </Route>
+      <Route
+        exact
+        path={ROUTES.ORG.INSTANCES.INSTANCE.SNAPSHOTS.ADD.createPath()}
+      >
+        <CreateSnapshot />
+      </Route>
+      <Route exact path={ROUTES.ORG.INSTANCES.INSTANCE.SNAPSHOTS.createPath()}>
+        <Instance renderCurrentTab={2} />
+      </Route>
+      <Route
+        path={ROUTES.ORG.INSTANCES.INSTANCE.SNAPSHOTS.SNAPSHOT.createPath()}
+      >
+        <Snapshot />
+      </Route>
+      <Route exact path={ROUTES.ORG.INSTANCES.INSTANCE.LOGS.createPath()}>
+        <Instance renderCurrentTab={4} />
+      </Route>
+      <Route
+        exact
+        path={ROUTES.ORG.INSTANCES.INSTANCE.CONFIGURATION.createPath()}
+      >
+        <Instance renderCurrentTab={5} />
       </Route>
       <Route path={ROUTES.ORG.INSTANCES.INSTANCE.createPath()}>
         <Instance />
@@ -1006,16 +1179,16 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
         path="/:org/bot/:threadId"
         exact
         render={(props) => {
-          const { org, threadId } = props.match.params;
-          return <Redirect to={`/${org}/assistant/${threadId}`} />;
+          const { org, threadId } = props.match.params
+          return <Redirect to={`/${org}/assistant/${threadId}`} />
         }}
       />
       <Route
         path="/:org/bot"
         exact
         render={(props) => {
-          const { org } = props.match.params;
-          return <Redirect to={`/${org}/assistant`} />;
+          const { org } = props.match.params
+          return <Redirect to={`/${org}/assistant`} />
         }}
       />
       <Route
@@ -1052,13 +1225,21 @@ function OrganizationWrapper(parentProps: OrganizationWrapperProps) {
       <Route
         path="/:org/audit-settings"
         render={(props) => (
-          <AuditSettingsFormWrapper {...props} {...customProps} {...queryProps} />
+          <AuditSettingsFormWrapper
+            {...props}
+            {...customProps}
+            {...queryProps}
+          />
         )}
       />
       <Route
         path="/:org/dblab-settings"
         render={(props) => (
-          <DBLabSettingsFormWrapper {...props} {...customProps} {...queryProps} />
+          <DBLabSettingsFormWrapper
+            {...props}
+            {...customProps}
+            {...queryProps}
+          />
         )}
       />
       <Route
