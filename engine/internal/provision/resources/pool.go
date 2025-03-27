@@ -94,6 +94,12 @@ func (p *Pool) BranchName(poolName, branchName string) string {
 	return branching.BranchName(poolName, branchName)
 }
 
+// CloneDataset returns a full clone dataset in the data pool.
+func (p *Pool) CloneDataset(branchName, cloneName string) string {
+	return branching.CloneDataset(p.Name, branchName, cloneName)
+}
+
+// CloneName returns a full clone name in the data pool.
 func (p *Pool) CloneName(branchName, cloneName string, revision int) string {
 	return branching.CloneName(p.Name, branchName, cloneName, revision)
 }

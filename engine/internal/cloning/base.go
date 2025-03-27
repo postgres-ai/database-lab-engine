@@ -7,6 +7,7 @@ package cloning
 import (
 	"context"
 	"database/sql"
+	stderrors "errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -308,6 +309,22 @@ func (c *Base) DestroyClone(cloneID string) error {
 		return models.New(models.ErrCodeNotFound, "clone not found")
 	}
 
+	if err := c.destroyPreChecks(cloneID, w); err != nil {
+		if stderrors.Is(err, errNoSession) {
+			return nil
+		}
+
+		return err
+	}
+
+	go c.destroyClone(cloneID, w)
+
+	return nil
+}
+
+var errNoSession = errors.New("no clone session")
+
+func (c *Base) destroyPreChecks(cloneID string, w *CloneWrapper) error {
 	if w.Clone.Protected && w.Clone.Status.Code != models.StatusFatal {
 		return models.New(models.ErrCodeBadRequest, "clone is protected")
 	}
@@ -330,46 +347,65 @@ func (c *Base) DestroyClone(cloneID string) error {
 			c.decrementCloneNumber(w.Clone.Snapshot.ID)
 		}
 
-		return nil
+		return errNoSession
 	}
 
-	go func() {
-		if err := c.provision.StopSession(w.Session, w.Clone); err != nil {
-			log.Errf("Failed to delete a clone: %v.", err)
+	return nil
+}
 
-			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
-				Code:    models.StatusFatal,
-				Message: errors.Cause(err).Error(),
-			}); updateErr != nil {
-				log.Errf("Failed to update clone status: %v", updateErr)
-			}
+func (c *Base) DestroyCloneSync(cloneID string) error {
+	w, ok := c.findWrapper(cloneID)
+	if !ok {
+		return models.New(models.ErrCodeNotFound, "clone not found")
+	}
 
-			return
+	if err := c.destroyPreChecks(cloneID, w); err != nil {
+		if stderrors.Is(err, errNoSession) {
+			return nil
 		}
 
-		c.deleteClone(cloneID)
+		return err
+	}
 
-		if w.Clone.Snapshot != nil {
-			c.decrementCloneNumber(w.Clone.Snapshot.ID)
-		}
-		c.observingCh <- cloneID
-
-		c.SaveClonesState()
-
-		c.webhookCh <- webhooks.CloneEvent{
-			BasicEvent: webhooks.BasicEvent{
-				EventType: webhooks.CloneDeleteEvent,
-				EntityID:  cloneID,
-			},
-			Host:          c.config.AccessHost,
-			Port:          w.Session.Port,
-			Username:      w.Clone.DB.Username,
-			DBName:        w.Clone.DB.DBName,
-			ContainerName: cloneID,
-		}
-	}()
+	c.destroyClone(cloneID, w)
 
 	return nil
+}
+
+func (c *Base) destroyClone(cloneID string, w *CloneWrapper) {
+	if err := c.provision.StopSession(w.Session, w.Clone); err != nil {
+		log.Errf("Failed to delete a clone: %v.", err)
+
+		if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
+			Code:    models.StatusFatal,
+			Message: errors.Cause(err).Error(),
+		}); updateErr != nil {
+			log.Errf("Failed to update clone status: %v", updateErr)
+		}
+
+		return
+	}
+
+	c.deleteClone(cloneID)
+
+	if w.Clone.Snapshot != nil {
+		c.decrementCloneNumber(w.Clone.Snapshot.ID)
+	}
+	c.observingCh <- cloneID
+
+	c.SaveClonesState()
+
+	c.webhookCh <- webhooks.CloneEvent{
+		BasicEvent: webhooks.BasicEvent{
+			EventType: webhooks.CloneDeleteEvent,
+			EntityID:  cloneID,
+		},
+		Host:          c.config.AccessHost,
+		Port:          w.Session.Port,
+		Username:      w.Clone.DB.Username,
+		DBName:        w.Clone.DB.DBName,
+		ContainerName: cloneID,
+	}
 }
 
 // GetClone returns clone by ID.

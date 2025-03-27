@@ -282,7 +282,7 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 
 	// Remove dependent clones.
 	for _, cloneID := range cloneIDs {
-		if err = s.Cloning.DestroyClone(cloneID); err != nil {
+		if err = s.Cloning.DestroyCloneSync(cloneID); err != nil {
 			api.SendBadRequestError(w, r, err.Error())
 			return
 		}
@@ -308,10 +308,29 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if snapshotProperties.Clones == "" && snapshot.NumClones == 0 {
+		// Destroy dataset if there are no related objects
 		if fullDataset, _, found := strings.Cut(destroyRequest.SnapshotID, "@"); found {
 			if err = fsm.DestroyDataset(fullDataset); err != nil {
 				api.SendBadRequestError(w, r, err.Error())
 				return
+			}
+
+			// Remove dle:branch and dle:root from parent snapshot
+			if snapshotProperties.Parent != "" {
+				branchName := snapshotProperties.Branch
+				if branchName == "" {
+					branchName, _ = branching.ParseBranchName(fullDataset, poolName)
+				}
+
+				if branchName != "" {
+					if err := fsm.DeleteBranchProp(branchName, snapshotProperties.Parent); err != nil {
+						log.Err(err.Error())
+					}
+
+					if err := fsm.DeleteRootProp(branchName, snapshotProperties.Parent); err != nil {
+						log.Err(err.Error())
+					}
+				}
 			}
 
 			// TODO: review all available revisions. Destroy base dataset only if there no any revision.
