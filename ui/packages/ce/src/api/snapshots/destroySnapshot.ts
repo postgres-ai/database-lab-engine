@@ -7,13 +7,9 @@
 
 import { request } from 'helpers/request'
 
-export const destroySnapshot = async (snapshotId, forceDelete) => {
-  const response = await request(`/snapshot/delete`, {
-    method: 'POST',
-    body: JSON.stringify({
-      snapshotID: snapshotId,
-      force: forceDelete,
-    }),
+export const destroySnapshot = async (snapshotId: string, forceDelete: boolean) => {
+  const response = await request(`/snapshot/${snapshotId}?force=${forceDelete}`, {
+    method: 'DELETE'
   })
 
   return {
