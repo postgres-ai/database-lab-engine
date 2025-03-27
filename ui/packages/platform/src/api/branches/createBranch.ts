@@ -14,7 +14,7 @@ export const createBranch = async (req: CreateBranchFormValues) => {
     method: 'POST',
     body: JSON.stringify({
       instance_id: req.instanceId,
-      action: '/branch/create',
+      action: '/branch',
       method: 'post',
       data: {
         branchName: req.branchName,

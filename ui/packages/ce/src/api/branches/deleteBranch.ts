@@ -8,11 +8,8 @@
 import { request } from 'helpers/request'
 
 export const deleteBranch = async (branchName: string) => {
-  const response = await request('/branch/delete', {
-    method: 'POST',
-    body: JSON.stringify({
-      branchName,
-    }),
+  const response = await request(`/branch/${branchName}`, {
+    method: 'DELETE'
   })
 
   return {

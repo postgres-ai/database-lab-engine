@@ -15,11 +15,8 @@ export const getSnapshotList = async (
     method: 'POST',
     body: JSON.stringify({
       instance_id: instanceId,
-      action: '/branch/log',
-      method: 'post',
-      data: {
-        branchName: branchName,
-      },
+      action: `/branch/${branchName}/log`,
+      method: 'get'
     }),
   })
 
