@@ -193,20 +193,33 @@ func (s *Server) createSnapshot(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
-	var destroyRequest types.SnapshotDestroyRequest
-	if err := api.ReadJSON(r, &destroyRequest); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
+	snapshotID := mux.Vars(r)["id"]
+	if snapshotID == "" {
+		api.SendBadRequestError(w, r, "snapshot ID must not be empty")
 		return
 	}
 
-	poolName, err := s.detectPoolName(destroyRequest.SnapshotID)
+	forceParam := r.URL.Query().Get("force")
+	force := false
+
+	if forceParam != "" {
+		var err error
+		force, err = strconv.ParseBool(forceParam)
+
+		if err != nil {
+			api.SendBadRequestError(w, r, "invalid value for `force`, must be boolean")
+			return
+		}
+	}
+
+	poolName, err := s.detectPoolName(snapshotID)
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
 	if poolName == "" {
-		api.SendBadRequestError(w, r, fmt.Sprintf("pool for the requested snapshot (%s) not found", destroyRequest.SnapshotID))
+		api.SendBadRequestError(w, r, fmt.Sprintf("pool for requested snapshot (%s) not found", snapshotID))
 		return
 	}
 
@@ -217,7 +230,7 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if snapshot exists.
-	if _, err := fsm.GetSnapshotProperties(destroyRequest.SnapshotID); err != nil {
+	if _, err := fsm.GetSnapshotProperties(snapshotID); err != nil {
 		if runnerError, ok := err.(runners.RunnerError); ok {
 			api.SendBadRequestError(w, r, runnerError.Stderr)
 		} else {
@@ -230,7 +243,7 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 	cloneIDs := []string{}
 	protectedClones := []string{}
 
-	dependentCloneDatasets, err := fsm.HasDependentEntity(destroyRequest.SnapshotID)
+	dependentCloneDatasets, err := fsm.HasDependentEntity(snapshotID)
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
@@ -257,26 +270,26 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(protectedClones) != 0 {
-		api.SendBadRequestError(w, r, fmt.Sprintf("cannot remove snapshot %s because it has dependent protected clones: %s",
-			destroyRequest.SnapshotID, strings.Join(protectedClones, ",")))
+		api.SendBadRequestError(w, r, fmt.Sprintf("cannot delete snapshot %s because it has dependent protected clones: %s",
+			snapshotID, strings.Join(protectedClones, ",")))
 		return
 	}
 
-	if len(cloneIDs) != 0 && !destroyRequest.Force {
-		api.SendBadRequestError(w, r, fmt.Sprintf("cannot remove snapshot %s because it has dependent clones: %s",
-			destroyRequest.SnapshotID, strings.Join(cloneIDs, ",")))
+	if len(cloneIDs) != 0 && !force {
+		api.SendBadRequestError(w, r, fmt.Sprintf("cannot delete snapshot %s because it has dependent clones: %s",
+			snapshotID, strings.Join(cloneIDs, ",")))
 		return
 	}
 
-	snapshotProperties, err := fsm.GetSnapshotProperties(destroyRequest.SnapshotID)
+	snapshotProperties, err := fsm.GetSnapshotProperties(snapshotID)
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	if snapshotProperties.Clones != "" && !destroyRequest.Force {
-		api.SendBadRequestError(w, r, fmt.Sprintf("cannot remove snapshot %s because it has dependent datasets: %s",
-			destroyRequest.SnapshotID, snapshotProperties.Clones))
+	if snapshotProperties.Clones != "" && !force {
+		api.SendBadRequestError(w, r, fmt.Sprintf("cannot delete snapshot %s because it has dependent datasets: %s",
+			snapshotID, snapshotProperties.Clones))
 		return
 	}
 
@@ -289,19 +302,19 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove snapshot and dependent datasets.
-	if !destroyRequest.Force {
-		if err := fsm.KeepRelation(destroyRequest.SnapshotID); err != nil {
+	if !force {
+		if err := fsm.KeepRelation(snapshotID); err != nil {
 			api.SendBadRequestError(w, r, err.Error())
 			return
 		}
 	}
 
-	if err = fsm.DestroySnapshot(destroyRequest.SnapshotID, thinclones.DestroyOptions{Force: destroyRequest.Force}); err != nil {
+	if err = fsm.DestroySnapshot(snapshotID, thinclones.DestroyOptions{Force: force}); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
 
-	snapshot, err := s.Cloning.GetSnapshotByID(destroyRequest.SnapshotID)
+	snapshot, err := s.Cloning.GetSnapshotByID(snapshotID)
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
@@ -309,7 +322,7 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 
 	if snapshotProperties.Clones == "" && snapshot.NumClones == 0 {
 		// Destroy dataset if there are no related objects
-		if fullDataset, _, found := strings.Cut(destroyRequest.SnapshotID, "@"); found {
+		if fullDataset, _, found := strings.Cut(snapshotID, "@"); found {
 			if err = fsm.DestroyDataset(fullDataset); err != nil {
 				api.SendBadRequestError(w, r, err.Error())
 				return
@@ -343,7 +356,7 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	log.Dbg(fmt.Sprintf("Snapshot %s has been deleted", destroyRequest.SnapshotID))
+	log.Dbg(fmt.Sprintf("Snapshot %s has been deleted", snapshotID))
 
 	if err := api.WriteJSON(w, http.StatusOK, models.Response{
 		Status:  models.ResponseOK,
@@ -361,7 +374,7 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 
 	s.webhookCh <- webhooks.BasicEvent{
 		EventType: webhooks.SnapshotDeleteEvent,
-		EntityID:  destroyRequest.SnapshotID,
+		EntityID:  snapshotID,
 	}
 }
 

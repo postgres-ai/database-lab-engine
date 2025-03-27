@@ -56,7 +56,7 @@ func (c *Client) ListSnapshotsRaw(ctx context.Context) (io.ReadCloser, error) {
 
 // CreateSnapshot creates a new snapshot.
 func (c *Client) CreateSnapshot(ctx context.Context, snapshotRequest types.SnapshotCreateRequest) (*models.Snapshot, error) {
-	u := c.URL("/snapshot/create")
+	u := c.URL("/snapshot")
 
 	return c.createRequest(ctx, snapshotRequest, u)
 }
@@ -101,14 +101,9 @@ func (c *Client) createRequest(ctx context.Context, snapshotRequest any, u *url.
 //
 //nolint:dupl
 func (c *Client) DeleteSnapshot(ctx context.Context, snapshotRequest types.SnapshotDestroyRequest) error {
-	u := c.URL("/snapshot/delete")
+	u := c.URL(fmt.Sprintf("/snapshot/%s", snapshotRequest.SnapshotID))
 
-	body := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(body).Encode(snapshotRequest); err != nil {
-		return fmt.Errorf("failed to encode snapshotDestroyRequest: %w", err)
-	}
-
-	request, err := http.NewRequest(http.MethodPost, u.String(), body)
+	request, err := http.NewRequest(http.MethodDelete, u.String(), nil)
 	if err != nil {
 		return fmt.Errorf("failed to make a request: %w", err)
 	}

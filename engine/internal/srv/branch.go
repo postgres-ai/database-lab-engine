@@ -458,13 +458,9 @@ func filterSnapshotsByBranch(pool *resources.Pool, branch string, snapshots []mo
 }
 
 func (s *Server) log(w http.ResponseWriter, r *http.Request) {
-	var logRequest types.LogRequest
-	if err := api.ReadJSON(r, &logRequest); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
+	branchName := mux.Vars(r)["branchName"]
 
-	fsm, err := s.getFSManagerForBranch(logRequest.BranchName)
+	fsm, err := s.getFSManagerForBranch(branchName)
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
@@ -481,9 +477,9 @@ func (s *Server) log(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snapshotID, ok := repo.Branches[logRequest.BranchName]
+	snapshotID, ok := repo.Branches[branchName]
 	if !ok {
-		api.SendBadRequestError(w, r, "branch not found: "+logRequest.BranchName)
+		api.SendBadRequestError(w, r, "branch not found: "+branchName)
 		return
 	}
 
@@ -508,13 +504,9 @@ func (s *Server) log(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
-	var deleteRequest types.BranchDeleteRequest
-	if err := api.ReadJSON(r, &deleteRequest); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
+	branchName := mux.Vars(r)["branchName"]
 
-	fsm, err := s.getFSManagerForBranch(deleteRequest.BranchName)
+	fsm, err := s.getFSManagerForBranch(branchName)
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
@@ -531,13 +523,13 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snapshotID, ok := repo.Branches[deleteRequest.BranchName]
+	snapshotID, ok := repo.Branches[branchName]
 	if !ok {
-		api.SendBadRequestError(w, r, "branch not found: "+deleteRequest.BranchName)
+		api.SendBadRequestError(w, r, "branch not found: "+branchName)
 		return
 	}
 
-	toRemove := snapshotsToRemove(repo, snapshotID, deleteRequest.BranchName)
+	toRemove := snapshotsToRemove(repo, snapshotID, branchName)
 
 	if len(toRemove) > 0 {
 		// Pre-check.
@@ -550,7 +542,7 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if len(preCheckList) > 0 {
-			errMsg := fmt.Sprintf("cannot delete branch %q because", deleteRequest.BranchName)
+			errMsg := fmt.Sprintf("cannot delete branch %q because", branchName)
 
 			for snapID, cloneNum := range preCheckList {
 				errMsg += fmt.Sprintf(" snapshot %q contains %d clone(s)", snapID, cloneNum)
@@ -563,7 +555,7 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := s.destroyBranchDataset(fsm, deleteRequest.BranchName); err != nil {
+	if err := s.destroyBranchDataset(fsm, branchName); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}

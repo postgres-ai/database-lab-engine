@@ -11,12 +11,9 @@ export const deleteBranch = async (branchName: string, instanceId: string) => {
   const response = await request('/rpc/dblab_api_call', {
     method: 'POST',
     body: JSON.stringify({
-      action: '/branch/delete',
+      action: `/branch/${branchName}`,
       instance_id: instanceId,
-      method: 'post',
-      data: {
-        branchName,
-      },
+      method: 'delete'
     }),
   })
 

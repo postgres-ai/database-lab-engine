@@ -1,10 +1,10 @@
 {
 	"info": {
-		"_postman_id": "e064b320-9989-468d-8438-39e5a83bea1c",
-		"name": "DBLab API 4.0.0-alpha.5",
+		"_postman_id": "ed8af9f0-1cde-4633-8a57-a47e10d12bfa",
+		"name": "DBLab API 4.0.0-beta.2",
 		"description": "This page provides the OpenAPI specification for the Database Lab (DBLab) API, previously recognized as the DLE API (Database Lab Engine API).\n\nContact Support:\n Name: DBLab API Support\n Email: api@postgres.ai",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "23678518"
+		"_exporter_id": "34026417"
 	},
 	"item": [
 		{
@@ -49,9 +49,9 @@
 						"method": "GET",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Accept",
@@ -76,9 +76,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -113,9 +113,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -185,9 +185,9 @@
 						"method": "GET",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Accept",
@@ -213,9 +213,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -251,9 +251,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -399,9 +399,9 @@
 						"method": "GET",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Accept",
@@ -426,9 +426,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -463,9 +463,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -514,7 +514,8 @@
 									"});",
 									""
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -522,9 +523,9 @@
 						"method": "POST",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Content-Type",
@@ -537,7 +538,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"cloneID\": \"aliquip sit nisi\",\n  \"message\": \"do\"\n}"
+							"raw": "{\n  \"cloneID\": \"test3\",\n  \"message\": \"do\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/branch/snapshot",
@@ -558,9 +559,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -600,9 +601,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -656,7 +657,8 @@
 									"});",
 									""
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -664,9 +666,9 @@
 						"method": "GET",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Accept",
@@ -686,8 +688,7 @@
 							"variable": [
 								{
 									"key": "id",
-									"value": "Ut magna qui deserunt",
-									"description": "(Required) ID of the branch snapshot"
+									"value": ""
 								}
 							]
 						},
@@ -700,9 +701,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -746,9 +747,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -785,6 +786,114 @@
 							],
 							"cookie": [],
 							"body": "{\n  \"code\": \"incididunt minim nulla\",\n  \"message\": \"qui fugiat\",\n  \"detail\": \"occaecat\",\n  \"hint\": \"anim\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Delete a snapshot",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Verification-Token",
+								"value": "{{verificationToken}}",
+								"description": "(Required) ",
+								"type": "text"
+							},
+							{
+								"key": "Accept",
+								"value": "*/*",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/snapshot/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"snapshot",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "lorem"
+								}
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "OK",
+							"originalRequest": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Verification-Token",
+										"value": "{{verificationToken}}",
+										"type": "text"
+									},
+									{
+										"key": "Accept",
+										"value": "*/*",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/snapshot/dblab_pool/dataset_3@snapshot_20250324084404",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"snapshot",
+										"dblab_pool",
+										"dataset_3@snapshot_20250324084404"
+									]
+								}
+							},
+							"_postman_previewlanguage": null,
+							"header": null,
+							"cookie": [],
+							"body": null
+						},
+						{
+							"name": "Bad request",
+							"originalRequest": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Verification-Token",
+										"value": "{{verificationToken}}",
+										"type": "text"
+									},
+									{
+										"key": "Accept",
+										"value": "*/*",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/snapshot/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"snapshot",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": ""
+										}
+									]
+								}
+							},
+							"_postman_previewlanguage": null,
+							"header": null,
+							"cookie": [],
+							"body": "{\n  \"code\": \"incididunt minim nulla\",\n  \"message\": \"qui fugiat\"\n}"
 						}
 					]
 				}
@@ -832,9 +941,9 @@
 						"method": "GET",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Accept",
@@ -859,9 +968,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -896,9 +1005,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -968,9 +1077,9 @@
 						"method": "POST",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Content-Type",
@@ -1007,9 +1116,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -1053,9 +1162,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -1099,9 +1208,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -1180,9 +1289,9 @@
 						"method": "GET",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Accept",
@@ -1215,9 +1324,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -1260,9 +1369,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -1305,9 +1414,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -1377,9 +1486,9 @@
 						"method": "DELETE",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Accept",
@@ -1412,9 +1521,9 @@
 								"method": "DELETE",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -1457,9 +1566,9 @@
 								"method": "DELETE",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -1502,9 +1611,9 @@
 								"method": "DELETE",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -1582,9 +1691,9 @@
 						"method": "PATCH",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Content-Type",
@@ -1630,9 +1739,9 @@
 								"method": "PATCH",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -1684,9 +1793,9 @@
 								"method": "PATCH",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -1765,9 +1874,9 @@
 						"method": "POST",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Content-Type",
@@ -1814,9 +1923,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -1869,9 +1978,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -1951,9 +2060,9 @@
 						"method": "GET",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Accept",
@@ -1978,9 +2087,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -2015,9 +2124,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -2066,7 +2175,8 @@
 									"});",
 									""
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -2074,9 +2184,9 @@
 						"method": "POST",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Content-Type",
@@ -2092,13 +2202,12 @@
 							"raw": "{\n  \"branchName\": \"aute do laborum\",\n  \"baseBranch\": \"tempor aliqua consectetur\",\n  \"snapshotID\": \"mollit velit\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/branch/create",
+							"raw": "{{baseUrl}}/branch",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
-								"branch",
-								"create"
+								"branch"
 							]
 						}
 					},
@@ -2109,9 +2218,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -2151,9 +2260,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -2207,17 +2316,18 @@
 									"});",
 									""
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
 					"request": {
-						"method": "POST",
+						"method": "DELETE",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Content-Type",
@@ -2230,16 +2340,22 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"branchName\": \"dolore aliqua laboris offi\"\n}"
+							"raw": ""
 						},
 						"url": {
-							"raw": "{{baseUrl}}/branch/delete",
+							"raw": "{{baseUrl}}/branch/:branchName",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"branch",
-								"delete"
+								":branchName"
+							],
+							"variable": [
+								{
+									"key": "branchName",
+									"value": ""
+								}
 							]
 						},
 						"description": "Permanently delete the specified branch. It cannot be undone."
@@ -2248,12 +2364,12 @@
 						{
 							"name": "OK",
 							"originalRequest": {
-								"method": "POST",
+								"method": "DELETE",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -2290,12 +2406,12 @@
 						{
 							"name": "Bad request",
 							"originalRequest": {
-								"method": "POST",
+								"method": "DELETE",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -2349,17 +2465,21 @@
 									"});",
 									""
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
 					"request": {
-						"method": "POST",
+						"method": "GET",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Content-Type",
@@ -2375,13 +2495,20 @@
 							"raw": "{\n  \"branchName\": \"in exercitation eiusmod voluptate eu\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/branch/log",
+							"raw": "{{baseUrl}}/branch/:branchName/log",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"branch",
+								":branchName",
 								"log"
+							],
+							"variable": [
+								{
+									"key": "branchName",
+									"value": ""
+								}
 							]
 						},
 						"description": "Retrieve a log of the specified branch (history of snapshots)."
@@ -2393,9 +2520,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -2475,9 +2602,9 @@
 						"method": "GET",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Accept",
@@ -2503,9 +2630,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -2541,9 +2668,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -2614,9 +2741,9 @@
 						"method": "POST",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Content-Type",
@@ -2655,9 +2782,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -2702,9 +2829,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -2749,9 +2876,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -2818,9 +2945,9 @@
 						"method": "GET",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Accept",
@@ -2846,9 +2973,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -2884,9 +3011,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -2939,9 +3066,9 @@
 						"method": "POST",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Content-Type",
@@ -2979,9 +3106,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									}
 								],
 								"body": {
@@ -3022,9 +3149,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -3069,9 +3196,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -3138,9 +3265,9 @@
 						"method": "POST",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "{{verificationToken}}"
+								"value": "{{verificationToken}}",
+								"description": "(Required) "
 							},
 							{
 								"key": "Accept",
@@ -3165,9 +3292,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -3203,9 +3330,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -3241,9 +3368,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -3300,9 +3427,9 @@
 						"method": "POST",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "Ut magna qui deserunt"
+								"value": "Ut magna qui deserunt",
+								"description": "(Required) "
 							},
 							{
 								"key": "Content-Type",
@@ -3341,9 +3468,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -3388,9 +3515,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -3451,9 +3578,9 @@
 						"method": "POST",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "Ut magna qui deserunt"
+								"value": "Ut magna qui deserunt",
+								"description": "(Required) "
 							},
 							{
 								"key": "Content-Type",
@@ -3492,9 +3619,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -3539,9 +3666,9 @@
 								"method": "POST",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -3602,9 +3729,9 @@
 						"method": "GET",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "Ut magna qui deserunt"
+								"value": "Ut magna qui deserunt",
+								"description": "(Required) "
 							},
 							{
 								"key": "Accept",
@@ -3644,9 +3771,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -3696,9 +3823,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",
@@ -3761,9 +3888,9 @@
 						"method": "GET",
 						"header": [
 							{
-								"description": "(Required) ",
 								"key": "Verification-Token",
-								"value": "Ut magna qui deserunt"
+								"value": "Ut magna qui deserunt",
+								"description": "(Required) "
 							},
 							{
 								"key": "Accept",
@@ -3809,9 +3936,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									}
 								],
 								"url": {
@@ -3863,9 +3990,9 @@
 								"method": "GET",
 								"header": [
 									{
-										"description": "(Required) ",
 										"key": "Verification-Token",
-										"value": "Ut magna qui deserunt"
+										"value": "Ut magna qui deserunt",
+										"description": "(Required) "
 									},
 									{
 										"key": "Accept",

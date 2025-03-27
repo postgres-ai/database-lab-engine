@@ -53,7 +53,7 @@ func (c *Client) ListBranches(ctx context.Context) ([]string, error) {
 //
 //nolint:dupl
 func (c *Client) CreateBranch(ctx context.Context, branchRequest types.BranchCreateRequest) (*models.Branch, error) {
-	u := c.URL("/branch/create")
+	u := c.URL("/branch")
 
 	body := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(body).Encode(branchRequest); err != nil {
@@ -117,14 +117,9 @@ func (c *Client) CreateSnapshotForBranch(
 
 // BranchLog provides snapshot list for branch.
 func (c *Client) BranchLog(ctx context.Context, logRequest types.LogRequest) ([]models.SnapshotDetails, error) {
-	u := c.URL("/branch/log")
+	u := c.URL(fmt.Sprintf("/branch/%s/log", logRequest.BranchName))
 
-	body := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(body).Encode(logRequest); err != nil {
-		return nil, fmt.Errorf("failed to encode LogRequest: %w", err)
-	}
-
-	request, err := http.NewRequest(http.MethodPost, u.String(), body)
+	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make a request: %w", err)
 	}
@@ -149,14 +144,9 @@ func (c *Client) BranchLog(ctx context.Context, logRequest types.LogRequest) ([]
 //
 //nolint:dupl
 func (c *Client) DeleteBranch(ctx context.Context, r types.BranchDeleteRequest) error {
-	u := c.URL("/branch/delete")
+	u := c.URL(fmt.Sprintf("/branch/%s", r.BranchName))
 
-	body := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(body).Encode(r); err != nil {
-		return fmt.Errorf("failed to encode BranchDeleteRequest: %w", err)
-	}
-
-	request, err := http.NewRequest(http.MethodPost, u.String(), body)
+	request, err := http.NewRequest(http.MethodDelete, u.String(), nil)
 	if err != nil {
 		return fmt.Errorf("failed to make a request: %w", err)
 	}

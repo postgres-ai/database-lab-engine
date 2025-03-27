@@ -16,7 +16,7 @@ info:
   license:
     name: Apache 2.0
     url: https://github.com/postgres-ai/database-lab-engine/blob/dle-4-0/LICENSE
-  version: 4.0.0-alpha.5
+  version: 4.0.0
 externalDocs:
   description: DBLab Docs
   url: https://gitlab.com/postgres-ai/docs/tree/master/docs/database-lab
@@ -224,6 +224,84 @@ paths:
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
+  /snapshot:
+    post:
+      tags:
+        - Snapshots
+      summary: Create a snapshot
+      description: "Create a new snapshot from the current state of the selected pool.
+        This snapshot can later be used to create clones or new branches."
+      parameters:
+        - name: Verification-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: "Optional parameters for snapshot creation.
+          If no pool name is provided, the first available pool is used."
+        content:
+          '*/*':
+            schema:
+              type: object
+              properties:
+                poolName:
+                  type: string
+                  description: Name of the pool to create snapshot in.
+        required: false
+      responses:
+        200:
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Snapshot'
+        400:
+          description: Bad request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /snapshot/{id}:
+    delete:
+      tags:
+        - Snapshots
+      summary: Delete a snapshot
+      description: "Permanently delete the specified snapshot.
+        If the snapshot has dependent clones or datasets, `force=true` can be provided as a query parameter."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The ID of the snapshot to delete.
+          schema:
+            type: string
+            pattern: '.*'
+        - name: force
+          in: query
+          required: false
+          description: Force deletion even if dependent clones or datasets exist.
+          schema:
+            type: boolean
+        - name: Verification-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseStatus'
+        400:
+          description: Bad request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
   /clones:
     get:
       tags:
@@ -715,7 +793,7 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/Error'
-  /branch/create:
+  /branch:
     post:
       tags:
       - Branches
@@ -805,28 +883,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
-  /branch/delete:
-    post:
+  /branch/{branchName}:
+    delete:
       tags:
       - Branches
       summary: Delete a branch
       description: "Permanently delete the specified branch. It cannot be undone."
       parameters:
-      - name: Verification-Token
-        in: header
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          '*/*':
-            schema:
-              type: object
-              properties:
-                branchName:
-                  type: string
-                  description: "The name of the branch to be deleted."
-        required: true
+        - name: branchName
+          in: path
+          required: true
+          schema:
+            type: string
+            description: "The name of the branch to be deleted."
+        - name: Verification-Token
+          in: header
+          required: true
+          schema:
+            type: string
       responses:
         200:
           description: OK
@@ -841,28 +915,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
-  /branch/log:
-    post:
+  /branch/{branchName}/log:
+    get:
       tags:
       - Branches
       summary: Retrieve a branch log
       description: Retrieve a log of the specified branch (history of snapshots).
       parameters:
-      - name: Verification-Token
-        in: header
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          '*/*':
-            schema:
-              type: object
-              properties:
-                branchName:
-                  type: string
-                  description: The name of the branch.
-        required: false
+        - name: branchName
+          in: path
+          required: true
+          schema:
+            type: string
+            description: The name of the branch.
+        - name: Verification-Token
+          in: header
+          required: true
+          schema:
+            type: string
       responses:
         200:
           description: OK

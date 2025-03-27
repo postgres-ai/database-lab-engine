@@ -12,12 +12,8 @@ export const destroySnapshot = async (snapshotId, forceDelete, instanceId) => {
     method: 'POST',
     body: JSON.stringify({
       instance_id: instanceId,
-      action: '/snapshot/delete',
-      method: 'post',
-      data: {
-        snapshotID: snapshotId,
-        force: forceDelete,
-      },
+      action: `/snapshot/${snapshotId}?force=${forceDelete}`,
+      method: 'delete'
     }),
   })
 

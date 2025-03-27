@@ -8,11 +8,8 @@
 import { request } from 'helpers/request'
 
 export const getSnapshotList = async (branchName: string) => {
-  const response = await request('/branch/log', {
-    method: 'POST',
-    body: JSON.stringify({
-      branchName: branchName,
-    }),
+  const response = await request(`/branch/${branchName}/log`, {
+    method: 'GET'
   })
 
   return {

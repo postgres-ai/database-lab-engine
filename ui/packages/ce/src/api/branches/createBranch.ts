@@ -10,7 +10,7 @@ import { request } from 'helpers/request'
 import { CreateBranchFormValues } from '@postgres.ai/shared/types/api/endpoints/createBranch'
 
 export const createBranch = async (req: CreateBranchFormValues) => {
-  const response = await request('/branch/create', {
+  const response = await request('/branch', {
     method: 'POST',
     body: JSON.stringify({
       branchName: req.branchName,
