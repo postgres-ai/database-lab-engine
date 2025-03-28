@@ -32,7 +32,6 @@ const useStyles = makeStyles(
       '&  > span': {
         display: 'flex',
         flexDirection: 'row',
-        gap: '5px',
         alignItems: 'center',
         border: '1px solid #898E9A',
         padding: '3px 8px',
@@ -46,9 +45,13 @@ const useStyles = makeStyles(
         background: 'none',
         outline: 'none',
         border: 0,
-        width: '18px',
-        height: '18px',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
         cursor: 'pointer',
+        paddingBottom: 0,
+        paddingRight: 0,
       },
     },
     //  we need important since id has higher priority than class
@@ -80,6 +83,12 @@ const useStyles = makeStyles(
     passiveButton: {
       '& svg': {
         transform: 'rotate(45deg) scale(0.75)',
+      },
+    },
+    buttonClassName: {
+      '& svg': {
+        width: '14px',
+        height: '14px',
       },
     },
     activeError: {
@@ -193,7 +202,11 @@ export const Logs = ({ api, instanceId }: { api: Api; instanceId: string }) => {
         }
       >
         <span>{type.toLowerCase()}</span>
-        <button aria-label="close" type="button">
+        <button
+          aria-label="close"
+          type="button"
+          className={classes.buttonClassName}
+        >
           <PlusIcon />
         </button>
       </span>
