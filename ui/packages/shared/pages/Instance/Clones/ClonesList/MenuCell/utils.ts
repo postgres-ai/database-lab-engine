@@ -6,7 +6,7 @@
  */
 
 export const destroyRestriction = (cloneId: string) => {
-  const message = `The clone "${cloneId}" is marked as protected. To destroy it, disable the destroy protection first.`
+  const message = `The clone "${cloneId}" is marked as protected. To delete it, disable the delete protection first.`
   window.alert(message)
 }
 
@@ -16,6 +16,6 @@ export const getResetApprove = (cloneId: string) => {
 }
 
 export const getDestroyApprove = (cloneId: string) => {
-  const message = `Are you sure you want to destroy the Database Lab clone: "${cloneId}"?`
+  const message = `Are you sure you want to delete the Database Lab clone: "${cloneId}"?`
   return window.confirm(message)
 }

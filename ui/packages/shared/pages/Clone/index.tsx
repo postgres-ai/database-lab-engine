@@ -335,10 +335,10 @@ export const Clone = observer((props: Props) => {
               color="primary"
               onClick={requestDestroyClone}
               disabled={isDisabledControls}
-              title={'Destroy this clone'}
+              title={'Delete this clone'}
               className={classes.actionButton}
             >
-              Destroy clone
+              Delete clone
               {isDestroyingClone && (
                 <Spinner size="sm" className={classes.spinner} />
               )}
@@ -348,7 +348,7 @@ export const Clone = observer((props: Props) => {
               color="primary"
               onClick={createSnapshot}
               disabled={isDisabledControls}
-              title={'Destroy this clone'}
+              title={'Delete this clone'}
               className={classes.actionButton}
             >
               Create snapshot
@@ -627,12 +627,12 @@ export const Clone = observer((props: Props) => {
             />
             <br />
             <span className={classes.remark}>
-              When enabled, no one can destroy this clone and automated deletion
+              When enabled, no one can delete this clone and automated deletion
               is also disabled.
               <br />
               Please be careful: abandoned clones with this checkbox enabled may
               cause out-of-disk-space events. Check disk space on daily basis
-              and destroy this clone once the work is done.
+              and delete this clone once the work is done.
             </span>
           </p>
           {stores.main.updateCloneError && (
@@ -655,10 +655,10 @@ export const Clone = observer((props: Props) => {
             className={classes.title}
             tag="h2"
             level={2}
-            text={'Destroy clone using CLI'}
+            text={'Delete clone using CLI'}
           />
           <p className={classes.tooltip}>
-            You can destroy the clone using CLI using the following command:
+            You can delete the clone using CLI using the following command:
           </p>
           <SyntaxHighlight content={getCliDestroyCloneCommand(props.cloneId)} />
 

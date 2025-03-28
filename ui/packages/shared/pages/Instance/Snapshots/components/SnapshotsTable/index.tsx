@@ -180,7 +180,7 @@ export const SnapshotsTable: React.FC<SnapshotsTableProps> = observer(
                           }),
                       },
                       {
-                        name: 'Destroy snapshot',
+                        name: 'Delete snapshot',
                         onClick: () =>
                           setSnapshotModal({
                             isOpen: true,

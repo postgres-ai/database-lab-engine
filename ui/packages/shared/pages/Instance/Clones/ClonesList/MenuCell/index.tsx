@@ -61,7 +61,7 @@ export const MenuCell = observer((props: Props) => {
           onClick: () => onConnect(clone.id),
         },
         {
-          name: 'Destroy clone',
+          name: 'Delete clone',
           onClick: handleClickDestroyClone,
         },
         {

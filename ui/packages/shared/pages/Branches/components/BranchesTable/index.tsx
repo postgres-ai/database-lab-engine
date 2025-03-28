@@ -156,7 +156,7 @@ export const BranchesTable = ({
                       onClick: () => copy(branch.snapshotID),
                     },
                     {
-                      name: 'Destroy branch',
+                      name: 'Delete branch',
                       onClick: () => {
                         setBranchId(branch.name)
                         setIsOpenDestroyModal(true)

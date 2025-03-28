@@ -186,7 +186,7 @@ const SnapshotListItem = ({
                   onClick: () => openClonesModal(),
                 },
                 {
-                  name: 'Destroy snapshot',
+                  name: 'Delete snapshot',
                   onClick: () =>
                     setSnapshotModal({
                       isOpen: true,
@@ -267,7 +267,7 @@ export const SnapshotsList = observer(
             onClose={() => setSnapshotModal({ isOpen: false, snapshotId: '' })}
             snapshotId={snapshotModal.snapshotId}
             instanceId={instanceId}
-            afterSubmitClick={() => window.location.reload()}
+            afterSubmitClick={() => stores.main.load(instanceId)}
             destroySnapshot={stores.main.destroySnapshot as DestroySnapshot}
           />
         )}

@@ -99,7 +99,7 @@ export const DestroySnapshotModal = ({
       size="sm"
     >
       <Text>
-        Are you sure you want to destroy snapshot{' '}
+        Are you sure you want to delete snapshot{' '}
         <ImportantText>{snapshotId}</ImportantText>? This action cannot be
         undone.
       </Text>
@@ -133,7 +133,7 @@ export const DestroySnapshotModal = ({
             onClick: handleClose,
           },
           {
-            text: 'Destroy snapshot',
+            text: 'Delete snapshot',
             variant: 'primary',
             onClick: handleClickDestroy,
           },

@@ -60,7 +60,7 @@ export const DeleteBranchModal = ({
   return (
     <Modal title="Confirmation" onClose={handleClose} isOpen={isOpen} size="xs">
       <Text>
-        Are you sure you want to destroy branch{' '}
+        Are you sure you want to delete branch{' '}
         <ImportantText>{branchName}</ImportantText>? This action cannot be
         undone.
       </Text>
@@ -72,7 +72,7 @@ export const DeleteBranchModal = ({
             onClick: handleClose,
           },
           {
-            text: 'Destroy branch',
+            text: 'Delete branch',
             variant: 'primary',
             onClick: handleDelete,
             isDisabled: branchName === 'main',

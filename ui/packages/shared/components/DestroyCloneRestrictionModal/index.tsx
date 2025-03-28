@@ -25,9 +25,9 @@ export const DestroyCloneRestrictionModal = observer((props: Props) => {
   const { isOpen, onClose, cloneId, clonePagePath } = props
 
   return (
-    <Modal title="Cannot destroy clone" isOpen={isOpen} onClose={onClose}>
+    <Modal title="Cannot delete clone" isOpen={isOpen} onClose={onClose}>
       <Text>
-        Cannot destroy clone <ImportantText>{cloneId}</ImportantText> because
+        Cannot delete clone <ImportantText>{cloneId}</ImportantText> because
         deletion protection is enabled. You can disable deletion protection on{' '}
         {clonePagePath ? (
           <Link to={clonePagePath}>the clone page</Link>
