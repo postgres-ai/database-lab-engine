@@ -219,10 +219,10 @@ export const BranchesPage = observer((props: Props) => {
               color="primary"
               onClick={() => setIsOpenDestroyModal(true)}
               disabled={isReloading}
-              title={'Destroy this branch'}
+              title={'Delete this branch'}
               className={classes.actionButton}
             >
-              Destroy branch
+              Delete branch
             </Button>
             <Button
               variant="outlined"
@@ -362,10 +362,10 @@ export const BranchesPage = observer((props: Props) => {
             className={classes.marginTop}
             tag="h2"
             level={2}
-            text={'Destroy branch using CLI'}
+            text={'Delete branch using CLI'}
           />
           <p className={classes.cliText}>
-            You can destroy this branch using CLI. To do this, run the command
+            You can delete this branch using CLI. To do this, run the command
             below:
           </p>
           <SyntaxHighlight content={`dblab branch delete ${props.branchId}`} />

@@ -8,6 +8,7 @@ export type Host = {
   snapshotId: string
   routes: {
     snapshot: () => string
+    snapshots: () => string
     branch: (branchName: string) => string
     clone: (cloneId: string) => string
   }

@@ -160,9 +160,9 @@ export const SnapshotPage = observer((props: Props) => {
     load,
   } = stores.main
 
-  const redirectToSnapshot = () => {
-    history.push(props.routes.snapshot())
-    window.location.reload()
+  const afterSubmitClick = () => {
+    history.push(props.routes.snapshots())
+    load(props.snapshotId, props.instanceId)
   }
 
   const headRendered = (
@@ -209,10 +209,10 @@ export const SnapshotPage = observer((props: Props) => {
               variant="contained"
               color="primary"
               onClick={() => setIsOpenDestroyModal(true)}
-              title={'Destroy this snapshot'}
+              title={'Delete this snapshot'}
               className={classes.actionButton}
             >
-              Destroy snapshot
+              Delete snapshot
             </Button>
           </div>
           <br />
@@ -428,10 +428,10 @@ export const SnapshotPage = observer((props: Props) => {
             className={classes.marginTop}
             tag="h2"
             level={2}
-            text={'Destroy snapshot using CLI'}
+            text={'Delete snapshot using CLI'}
           />
           <p className={classes.cliText}>
-            You can destroy this snapshot using CLI. To do this, run the command
+            You can delete this snapshot using CLI. To do this, run the command
             below:
           </p>
           <SyntaxHighlight content={`dblab snapshot delete ${snapshot?.id}`} />
@@ -453,7 +453,7 @@ export const SnapshotPage = observer((props: Props) => {
             onClose={() => setIsOpenDestroyModal(false)}
             snapshotId={snapshot.id}
             instanceId={props.instanceId}
-            afterSubmitClick={redirectToSnapshot}
+            afterSubmitClick={afterSubmitClick}
             destroySnapshot={stores.main.destroySnapshot as DestroySnapshot}
           />
         )}

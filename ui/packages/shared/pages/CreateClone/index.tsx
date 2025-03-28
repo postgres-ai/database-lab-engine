@@ -309,12 +309,12 @@ export const CreateClone = observer((props: Props) => {
             />
 
             <p className={styles.remark}>
-              When enabled, no one can destroy this clone and automated deletion
+              When enabled, no one can delete this clone and automated deletion
               is also disabled.
               <br />
               Please be careful: abandoned clones with this checkbox enabled may
-              cause out-of-disk-space events. Check disk space on daily basis
-              and destroy this clone once the work is done.
+              cause out-of-disk-space events. Check disk space on a daily basis
+              and delete this clone once the work is done.
             </p>
           </div>
 
