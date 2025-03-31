@@ -44,6 +44,7 @@ export const Snapshot = () => {
         instanceId={''}
         snapshotId={snapshotId}
         routes={{
+          snapshots: () => ROUTES.INSTANCE.SNAPSHOTS.SNAPSHOTS.path,
           snapshot: () => ROUTES.INSTANCE.SNAPSHOTS.SNAPSHOTS.path,
           branch: (branchName: string) =>
             ROUTES.INSTANCE.BRANCHES.BRANCH.createPath(branchName),

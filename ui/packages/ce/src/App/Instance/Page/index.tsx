@@ -21,6 +21,7 @@ import { createBranch } from 'api/branches/createBranch'
 import { getBranches } from 'api/branches/getBranches'
 import { getSnapshotList } from 'api/branches/getSnapshotList'
 import { deleteBranch } from 'api/branches/deleteBranch'
+import { destroySnapshot } from 'api/snapshots/destroySnapshot'
 
 export const Page = ({ renderCurrentTab }: { renderCurrentTab?: number }) => {
   const routes = {
@@ -56,6 +57,7 @@ export const Page = ({ renderCurrentTab }: { renderCurrentTab?: number }) => {
     getBranches,
     getSnapshotList,
     deleteBranch,
+    destroySnapshot
   }
 
   const elements = {
