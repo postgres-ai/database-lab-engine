@@ -6,7 +6,7 @@ import copy from 'copy-to-clipboard'
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
 import { DestroySnapshotModal } from '@postgres.ai/shared/pages/Snapshots/Snapshot/DestorySnapshotModal'
 import { Snapshot } from '@postgres.ai/shared/types/api/entities/snapshot'
-import { useStores } from '@postgres.ai/shared/pages/Instance/context'
+import { useHost, useStores } from '@postgres.ai/shared/pages/Instance/context'
 import { IconButton } from '@mui/material'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { RowMenu } from '@postgres.ai/shared/components/Table/RowMenu'
@@ -131,6 +131,9 @@ const SnapshotListItem = ({
   const classes = useStyles()
   const timeAgo = formatDistanceToNowStrict(snapshot.createdAtDate)
 
+  const history = useHistory()
+  const host = useHost()
+
   return (
     <div className={classes.commitItem}>
       <div className={classes.gridContainer}>
@@ -186,13 +189,17 @@ const SnapshotListItem = ({
                   onClick: () => openClonesModal(),
                 },
                 {
+                  name: 'Create new clone',
+                  onClick: () => history.push(host.routes.createClone()),
+                },
+                {
                   name: 'Delete snapshot',
                   onClick: () =>
                     setSnapshotModal({
                       isOpen: true,
                       snapshotId: snapshot.id,
                     }),
-                },
+                }
               ]}
             />
           </div>

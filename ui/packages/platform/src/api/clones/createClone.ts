@@ -9,6 +9,7 @@ type Req = {
   dbUser: string
   dbPassword: string
   isProtected: boolean
+  branch?: string
 }
 
 export const createClone = async (req: Req) => {
@@ -19,6 +20,7 @@ export const createClone = async (req: Req) => {
       action: '/clone',
       method: 'post',
       data: {
+        branch: req.branch,
         id: req.cloneId,
         snapshot: {
           id: req.snapshotId,

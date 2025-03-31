@@ -10,6 +10,7 @@ export type Host = {
     branch: () => string
     branches: () => string
     snapshot: (snapshotId: string) => string
+    createClone: () => string
   }
   api: Api
   elements: {

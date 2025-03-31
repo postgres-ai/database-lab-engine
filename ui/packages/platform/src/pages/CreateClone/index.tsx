@@ -7,6 +7,7 @@ import { getInstance } from 'api/instances/getInstance'
 import { getSnapshots } from 'api/snapshots/getSnapshots'
 import { createClone } from 'api/clones/createClone'
 import { getClone } from 'api/clones/getClone'
+import { getBranches } from 'api/branches/getBranches'
 import { ConsoleBreadcrumbsWrapper } from 'components/ConsoleBreadcrumbs/ConsoleBreadcrumbsWrapper'
 
 type Params = {
@@ -38,6 +39,7 @@ export const CreateClone = () => {
     getInstance,
     createClone,
     getClone,
+    getBranches
   }
 
   const elements = {
