@@ -229,6 +229,14 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Prevent deletion of the last snapshot in the pool.
+	snapshotCnt := len(fsm.SnapshotList())
+
+	if fullDataset, _, found := strings.Cut(snapshotID, "@"); found && fullDataset == poolName && snapshotCnt == 1 {
+		api.SendBadRequestError(w, r, "cannot destroy the last snapshot in the pool")
+		return
+	}
+
 	// Check if snapshot exists.
 	if _, err := fsm.GetSnapshotProperties(snapshotID); err != nil {
 		if runnerError, ok := err.(runners.RunnerError); ok {
@@ -322,7 +330,7 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 
 	if snapshotProperties.Clones == "" && snapshot.NumClones == 0 {
 		// Destroy dataset if there are no related objects
-		if fullDataset, _, found := strings.Cut(snapshotID, "@"); found {
+		if fullDataset, _, found := strings.Cut(snapshotID, "@"); found && fullDataset != poolName {
 			if err = fsm.DestroyDataset(fullDataset); err != nil {
 				api.SendBadRequestError(w, r, err.Error())
 				return
@@ -504,6 +512,19 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 		}
 
 		cloneRequest.Snapshot = &types.SnapshotCloneFieldRequest{ID: snapshotID}
+	} else {
+		cloneRequest.Branch = branching.DefaultBranch
+	}
+
+	if cloneRequest.ID != "" {
+		fsm, err := s.getFSManagerForBranch(cloneRequest.Branch)
+		if err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+
+		// Check if there is any clone revision under the dataset.
+		cloneRequest.Revision = findMaxCloneRevision(fsm.Pool().CloneRevisionLocation(cloneRequest.Branch, cloneRequest.ID))
 	}
 
 	newClone, err := s.Cloning.CreateClone(cloneRequest)
@@ -531,6 +552,39 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 	})
 
 	log.Dbg(fmt.Sprintf("Clone ID=%s is being created", newClone.ID))
+}
+
+func findMaxCloneRevision(path string) int {
+	files, err := os.ReadDir(path)
+	if err != nil {
+		log.Err(err)
+		return 0
+	}
+
+	maxIndex := -1
+
+	for _, file := range files {
+		if !file.IsDir() {
+			continue
+		}
+
+		revisionIndex, ok := strings.CutPrefix(file.Name(), "r")
+		if !ok {
+			continue
+		}
+
+		index, err := strconv.Atoi(revisionIndex)
+		if err != nil {
+			log.Err(err)
+			continue
+		}
+
+		if index > maxIndex {
+			maxIndex = index
+		}
+	}
+
+	return maxIndex + 1
 }
 
 func (s *Server) destroyClone(w http.ResponseWriter, r *http.Request) {

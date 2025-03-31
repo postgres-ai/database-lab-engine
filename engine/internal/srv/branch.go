@@ -523,6 +523,11 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if branchName == branching.DefaultBranch {
+		api.SendBadRequestError(w, r, fmt.Sprintf("cannot delete default branch: %s", branching.DefaultBranch))
+		return
+	}
+
 	snapshotID, ok := repo.Branches[branchName]
 	if !ok {
 		api.SendBadRequestError(w, r, "branch not found: "+branchName)

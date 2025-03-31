@@ -13,6 +13,7 @@ type CloneCreateRequest struct {
 	Snapshot  *SnapshotCloneFieldRequest `json:"snapshot"`
 	ExtraConf map[string]string          `json:"extra_conf"`
 	Branch    string                     `json:"branch"`
+	Revision  int                        `json:"-"`
 }
 
 // CloneUpdateRequest represents params of an update request.

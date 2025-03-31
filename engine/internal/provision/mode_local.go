@@ -229,18 +229,6 @@ func (p *Provisioner) StopSession(session *resources.Session, clone *models.Clon
 		return errors.Wrap(err, "failed to stop container")
 	}
 
-	if clone.Revision == branching.DefaultRevision {
-		// Destroy clone revision
-		if err := fsm.DestroyClone(clone.Branch, name, clone.Revision); err != nil {
-			return errors.Wrap(err, "failed to destroy clone")
-		}
-
-		// Destroy clone dataset
-		if err := fsm.DestroyDataset(fsm.Pool().CloneDataset(clone.Branch, name)); err != nil {
-			return errors.Wrap(err, "failed to destroy clone dataset")
-		}
-	}
-
 	if err := p.FreePort(session.Port); err != nil {
 		return errors.Wrap(err, "failed to unbind a port")
 	}
