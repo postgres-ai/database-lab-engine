@@ -84,6 +84,11 @@ func (p *Pool) CloneLocation(branchName, name string, revision int) string {
 	return path.Join(p.MountDir, p.PoolDirName, branching.BranchDir, branchName, name, branching.RevisionSegment(revision))
 }
 
+// CloneRevisionLocation returns a path to the clone revisions.
+func (p *Pool) CloneRevisionLocation(branchName, name string) string {
+	return path.Join(p.MountDir, p.PoolDirName, branching.BranchDir, branchName, name)
+}
+
 // SocketCloneDir returns a path to the socket clone directory.
 func (p *Pool) SocketCloneDir(name string) string {
 	return path.Join(p.SocketDir(), name)
