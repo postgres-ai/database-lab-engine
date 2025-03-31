@@ -217,6 +217,16 @@ export const BranchesPage = observer((props: Props) => {
             <Button
               variant="contained"
               color="primary"
+              onClick={() => history.push(props.routes.createClone())}
+              disabled={isReloading}
+              title={'Create clone'}
+              className={classes.actionButton}
+            >
+              Create clone
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
               onClick={() => setIsOpenDestroyModal(true)}
               disabled={isReloading}
               title={'Delete this branch'}

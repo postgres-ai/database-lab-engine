@@ -214,7 +214,7 @@ export const CreateClone = observer((props: Props) => {
 
             <Select
               fullWidth
-              label="Data state time *"
+              label="Snapshot *"
               value={formik.values.snapshotId}
               disabled={!snapshots || isCreatingClone}
               onChange={(e) =>
@@ -228,12 +228,12 @@ export const CreateClone = observer((props: Props) => {
                     value: snapshot.id,
                     children: (
                       <div className={styles.snapshotItem}>
-                        <span>
-                          {snapshot.dataStateAt}
-                          {isLatest && (
-                            <span className={styles.snapshotTag}>Latest</span>
-                          )}
-                        </span>
+                        <strong className={styles.snapshotOverflow}>
+                          {snapshot?.id} {isLatest && <span>Latest</span>}
+                        </strong>
+                        {snapshot?.dataStateAt && (
+                          <p>Data state at: {snapshot?.dataStateAt}</p>
+                        )}
                         {snapshot.message && (
                           <span>Message: {snapshot.message}</span>
                         )}

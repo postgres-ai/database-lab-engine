@@ -208,6 +208,15 @@ export const SnapshotPage = observer((props: Props) => {
             <Button
               variant="contained"
               color="primary"
+              onClick={() => history.push(props.routes.createClone())}
+              title={'Create clone'}
+              className={classes.actionButton}
+            >
+              Create clone
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
               onClick={() => setIsOpenDestroyModal(true)}
               title={'Delete this snapshot'}
               className={classes.actionButton}
