@@ -27,6 +27,13 @@ export const ROUTES = {
       CREATE: {
         name: 'Create snapshot',
         path: `/instance/snapshots/create`,
+        createPath: (cloneId?: string) => {
+          const params = new URLSearchParams();
+          if (cloneId) params.set('clone_id', cloneId);
+
+          const query = params.toString();
+          return `/instance/snapshots/create${query ? `?${query}` : ''}`;
+        }
       },
 
       SNAPSHOTS: {

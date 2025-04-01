@@ -276,17 +276,7 @@ export const Clone = observer((props: Props) => {
   }
 
   const createSnapshot = async () => {
-    await snapshots
-      .createSnapshot(props.cloneId, '', props.instanceId)
-      .then((snapshot) => {
-        if (snapshot && generateSnapshotPageId(snapshot.snapshotID)) {
-          history.push(
-            props.routes.snapshot(
-              generateSnapshotPageId(snapshot.snapshotID) as string,
-            ),
-          )
-        }
-      })
+    history.push(props.routes.createSnapshot(props.cloneId))
   }
 
   // Clone reload.

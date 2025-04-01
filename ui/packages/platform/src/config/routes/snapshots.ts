@@ -5,8 +5,12 @@ export const ORG_SNAPSHOTS = {
     return `/${org}/instances/${instanceId}/snapshots`
   },
   ADD: {
-    createPath: (args?: { org: string; instanceId: string }) => {
-      const { org = ':org', instanceId = ':instanceId' } = args ?? {}
+    createPath: (args?: { org: string; instanceId: string, cloneId?: string }) => {
+      const { org = ':org', instanceId = ':instanceId', cloneId = undefined } = args ?? {}
+
+      if (cloneId) {
+        return `/${org}/instances/${instanceId}/snapshots/add?clone_id=${cloneId}`
+      }
 
       return `/${org}/instances/${instanceId}/snapshots/add`
     },
@@ -44,12 +48,18 @@ export const PROJECT_SNAPSHOTS = {
       org: string
       project: string
       instanceId: string
+      cloneId?: string
     }) => {
       const {
         org = ':org',
         project = ':project',
         instanceId = ':instanceId',
+        cloneId = undefined,
       } = args ?? {}
+
+      if (cloneId) {
+        return `/${org}/${project}/instances/${instanceId}/snapshots/add?clone_id=${cloneId}`
+      }
 
       return `/${org}/${project}/instances/${instanceId}/snapshots/add`
     },
