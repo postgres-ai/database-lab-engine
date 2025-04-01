@@ -127,6 +127,23 @@ export const CreateSnapshotPage = observer(
       load(instanceId)
     }, [])
 
+    useEffect(() => {
+      if (!history.location.search) return
+
+      const queryString = history.location.search.split('?')[1]
+
+      if (!queryString) return
+
+      const params = new URLSearchParams(queryString)
+
+      const cloneID = params.get('clone_id')
+
+      if (!cloneID) return
+
+      formik.setFieldValue('cloneID', cloneID)
+
+    }, [history.location.search, formik.initialValues])
+
     return (
       <>
         {elements.breadcrumbs}

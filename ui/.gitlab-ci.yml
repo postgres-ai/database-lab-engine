@@ -72,7 +72,10 @@ e2e-ce-ui-test:
     # TODO: Set up caching.
 #    - pnpm config set store-dir /builds/postgres-ai/database-lab/.pnpm-store/
   script:
-    - pnpm --dir ui/ i --no-frozen-lockfile
+    - pnpm --dir ui/ --filter @postgres.ai/ce install
+    - pnpm --dir ui/ --filter @postgres.ai/ce build
     - pnpm --dir ui/ --filter @postgres.ai/ce exec cypress install
-    - pnpm --dir ui/ --filter @postgres.ai/ce start & wait-on http://localhost:3001
+    - npx serve -s ui/packages/ce/build -l 3001 > server.log 2>&1 &
+    - sleep 20
+    - timeout 120s wait-on http://localhost:3001 || (echo "❌ UI didn't start in time"; cat server.log; exit 1)
     - pnpm --dir ui/ --filter @postgres.ai/ce cy:run

@@ -45,6 +45,19 @@ export const Clone = () => {
             instanceId: params.instanceId,
             snapshotId,
           }),
+    createSnapshot: () =>
+      params.project
+        ? ROUTES.ORG.PROJECT.INSTANCES.INSTANCE.SNAPSHOTS.ADD.createPath({
+            org: params.org,
+            project: params.project,
+            instanceId: params.instanceId,
+            cloneId: params.cloneId,
+          })
+        : ROUTES.ORG.INSTANCES.INSTANCE.SNAPSHOTS.ADD.createPath({
+            org: params.org,
+            instanceId: params.instanceId,
+            cloneId: params.cloneId,
+          })
   }
 
   const api = {

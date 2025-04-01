@@ -59,6 +59,7 @@ export const Clone = () => {
           instance: () => ROUTES.INSTANCE.path,
           snapshot: (snapshotId: string) =>
             ROUTES.INSTANCE.SNAPSHOTS.SNAPSHOT.createPath(snapshotId),
+          createSnapshot: (cloneId: string) => ROUTES.INSTANCE.SNAPSHOTS.CREATE.createPath(cloneId),
         }}
         api={api}
         elements={elements}
