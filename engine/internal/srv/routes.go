@@ -229,11 +229,9 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Prevent deletion of the last snapshot in the pool.
-	snapshotCnt := len(fsm.SnapshotList())
-
-	if fullDataset, _, found := strings.Cut(snapshotID, "@"); found && fullDataset == poolName && snapshotCnt == 1 {
-		api.SendBadRequestError(w, r, "cannot destroy the last snapshot in the pool")
+	// Prevent deletion of automatic snapshots in the pool.
+	if fullDataset, _, found := strings.Cut(snapshotID, "@"); found && fullDataset == poolName {
+		api.SendBadRequestError(w, r, "cannot destroy automatic snapshot in the pool")
 		return
 	}
 
