@@ -508,7 +508,7 @@ func (m *Manager) CleanupSnapshots(retentionLimit int) ([]string, error) {
 	busySnapshots := m.getBusySnapshotList(clonesOutput)
 
 	cleanupCmd := fmt.Sprintf(
-		"zfs list -t snapshot -H -o name -s %s -s creation -r %s | grep -v clone | head -n -%d %s"+
+		"zfs list -t snapshot -H -o name -s %s -s creation -r %s | grep -v clone | grep _pre$ | head -n -%d %s"+
 			"| xargs -n1 --no-run-if-empty zfs destroy -R ",
 		dataStateAtLabel, m.config.Pool.Name, retentionLimit, excludeBusySnapshots(busySnapshots))
 
@@ -527,10 +527,10 @@ func (m *Manager) CleanupSnapshots(retentionLimit int) ([]string, error) {
 }
 
 func (m *Manager) getBusySnapshotList(clonesOutput string) []string {
-	systemClones, userClones := make(map[string]string), make(map[string]struct{})
-	branchingSnapshots := []string{}
+	systemClones := make(map[string]string)
+	branchingSnapshotDatasets := []string{}
 
-	userClonePrefix := m.config.Pool.Name + "/"
+	systemDatasetPrefix := fmt.Sprintf("%s/%s/%s/clone_pre_", m.config.Pool.Name, branching.BranchDir, branching.DefaultBranch)
 
 	for _, line := range strings.Split(clonesOutput, "\n") {
 		cloneLine := strings.FieldsFunc(line, unicode.IsSpace)
@@ -539,38 +539,31 @@ func (m *Manager) getBusySnapshotList(clonesOutput string) []string {
 			continue
 		}
 
-		// Keep the user-defined snapshot and the snapshot it is based on.
-		if strings.HasPrefix(cloneLine[0], userClonePrefix+"branch") {
-			branchingSnapshots = append(branchingSnapshots, cloneLine[0], cloneLine[1])
-
+		// Make dataset-snapshot map for system snapshots.
+		if strings.HasPrefix(cloneLine[0], systemDatasetPrefix) {
+			systemClones[cloneLine[0]] = cloneLine[1]
 			continue
 		}
 
-		//nolint:lll
-		if cloneName, _ := strings.CutPrefix(cloneLine[0], userClonePrefix); strings.HasPrefix(cloneLine[0], userClonePrefix) && !strings.Contains(cloneName, m.config.PreSnapshotSuffix) {
-			origin := cloneLine[1]
-
-			if idx := strings.Index(origin, "@"); idx != -1 {
-				origin = origin[:idx]
+		// Keep snapshots related to the user-defined datasets.
+		if strings.HasPrefix(cloneLine[1], systemDatasetPrefix) {
+			systemDataset, _, found := strings.Cut(cloneLine[1], "@")
+			if found {
+				branchingSnapshotDatasets = append(branchingSnapshotDatasets, systemDataset)
 			}
 
-			userClones[origin] = struct{}{}
-
 			continue
 		}
-
-		systemClones[cloneLine[0]] = cloneLine[1]
 	}
 
-	busySnapshots := make([]string, 0, len(userClones))
+	busySnapshots := make([]string, 0, len(branchingSnapshotDatasets))
 
-	for userClone := range userClones {
-		if systemClones[userClone] != "" {
-			busySnapshots = append(busySnapshots, systemClones[userClone])
+	for _, busyDataset := range branchingSnapshotDatasets {
+		busySnapshot, ok := systemClones[busyDataset]
+		if ok {
+			busySnapshots = append(busySnapshots, busySnapshot)
 		}
 	}
-
-	busySnapshots = append(busySnapshots, branchingSnapshots...)
 
 	return busySnapshots
 }

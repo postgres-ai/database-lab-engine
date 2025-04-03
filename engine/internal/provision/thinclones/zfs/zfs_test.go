@@ -116,29 +116,34 @@ func TestFailedListClones(t *testing.T) {
 
 func TestBusySnapshotList(t *testing.T) {
 	const preSnapshotSuffix = "_pre"
-	m := Manager{config: Config{Pool: &resources.Pool{Name: "dblab_pool"}, PreSnapshotSuffix: preSnapshotSuffix}}
+	m := Manager{config: Config{Pool: &resources.Pool{Name: "test_dblab_pool"}, PreSnapshotSuffix: preSnapshotSuffix}}
 
-	out := `dblab_pool	-
-	dblab_pool/clone_pre_20210127105215	dblab_pool@snapshot_20210127105215_pre
-	dblab_pool/clone_pre_20210127113000	dblab_pool@snapshot_20210127113000_pre
-	dblab_pool/clone_pre_20210127120000	dblab_pool@snapshot_20210127120000_pre
-	dblab_pool/clone_pre_20210127123000	dblab_pool@snapshot_20210127123000_pre
-	dblab_pool/clone_pre_20210127130000	dblab_pool@snapshot_20210127130000_pre
-	dblab_pool/clone_pre_20210127133000	dblab_pool@snapshot_20210127133000_pre
-	dblab_pool/clone_pre_20210127140000	dblab_pool@snapshot_20210127140000_pre
-	dblab_pool/cls19p20l4rc73bc2v9g	dblab_pool/clone_pre_20210127133000@snapshot_20210127133008
-	dblab_pool/cls19p20l4rc73bc2v9g	dblab_pool/clone_pre_20210127123000@snapshot_20210127133008
-	dblab_pool/branch/main/20241121094823 dblab_pool@snapshot_20241121094523
-	`
-	expected := []string{"dblab_pool@snapshot_20210127133000_pre", "dblab_pool@snapshot_20210127123000_pre", "dblab_pool/branch/main/20241121094823",
-		"dblab_pool@snapshot_20241121094523"}
+	out := `test_dblab_pool	-
+test_dblab_pool/branch	-
+test_dblab_pool/branch/main	-
+test_dblab_pool/branch/main/clone_pre_20250403061908	-
+test_dblab_pool/branch/main/clone_pre_20250403061908/r0	test_dblab_pool@snapshot_20250403061908_pre
+test_dblab_pool/branch/main/clone_pre_20250403085500	-
+test_dblab_pool/branch/main/clone_pre_20250403085500/r0	test_dblab_pool@snapshot_20250403085500_pre
+test_dblab_pool/branch/main/clone_pre_20250403090000	-
+test_dblab_pool/branch/main/clone_pre_20250403090000/r0	test_dblab_pool@snapshot_20250403090000_pre
+test_dblab_pool/branch/main/clone_pre_20250403090500	-
+test_dblab_pool/branch/main/clone_pre_20250403090500/r0	test_dblab_pool@snapshot_20250403090500_pre
+test_dblab_pool/branch/main/cvn2j50n9i6s73as3k9g	-
+test_dblab_pool/branch/main/cvn2j50n9i6s73as3k9g/r0	test_dblab_pool/branch/main/clone_pre_20250403061908/r0@snapshot_20250403061908
+test_dblab_pool/branch/main/cvn2kdon9i6s73as3ka0	-
+test_dblab_pool/branch/main/cvn2kdon9i6s73as3ka0/r0	test_dblab_pool/branch/new001@20250403062641
+test_dblab_pool/branch/new001	test_dblab_pool/branch/main/cvn2j50n9i6s73as3k9g/r0@20250403062503
+test_dblab_pool/branch/new001/cvn4n38n9i6s73as3kag	-
+test_dblab_pool/branch/new001/cvn4n38n9i6s73as3kag/r0	test_dblab_pool/branch/new001@20250403062641
+`
+	expected := []string{
+		"test_dblab_pool@snapshot_20250403061908_pre",
+	}
 
 	list := m.getBusySnapshotList(out)
-	require.Equal(t, 4, len(list))
-	assert.Contains(t, list, expected[0])
-	assert.Contains(t, list, expected[1])
-	assert.Contains(t, list, expected[2])
-	assert.Contains(t, list, expected[3])
+	require.Len(t, list, len(expected))
+	assert.ElementsMatch(t, list, expected)
 }
 
 func TestExcludingBusySnapshots(t *testing.T) {
