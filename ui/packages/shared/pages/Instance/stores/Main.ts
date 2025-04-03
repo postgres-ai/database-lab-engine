@@ -102,10 +102,23 @@ export class MainStore {
     return this.instance.state?.status.code === 'NO_RESPONSE'
   }
 
-  load = (instanceId: string) => {
+  load = (instanceId: string, isPlatform: boolean = false) => {
     this.instance = null
     this.isReloadingInstance = true
-    this.getBranches(instanceId)
+
+    if (!isPlatform) {
+      this.getBranches(instanceId)
+    }
+
+    const runRetrieval = () => {
+      this.loadInstanceRetrieval(instanceId).then(() => {
+        if (this.instanceRetrieval) {
+          this.getConfig(instanceId)
+          this.getFullConfig(instanceId)
+        }
+      })
+    }
+
     this.loadInstance(instanceId, false).then(() => {
       if (
         (this.instance?.createdAt && this.instance?.url) ||
@@ -113,13 +126,16 @@ export class MainStore {
       ) {
         this.snapshots.load(instanceId)
       }
-    })
-    this.loadInstanceRetrieval(instanceId).then(() => {
-      if (this.instanceRetrieval) {
-        this.getConfig(instanceId)
-        this.getFullConfig(instanceId)
+
+      if (isPlatform && this.instance?.url) {
+        this.getBranches(instanceId)
+        runRetrieval()
       }
     })
+
+    if (!isPlatform) {
+      runRetrieval()
+    }
   }
 
   reload = (instanceId: string) => {

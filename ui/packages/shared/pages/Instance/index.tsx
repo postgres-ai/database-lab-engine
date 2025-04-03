@@ -102,7 +102,7 @@ export const Instance = observer((props: Props) => {
     isPlatform ? <PlatformTabs {...props} /> : <Tabs {...props} />
 
   useEffect(() => {
-    load(instanceId)
+    load(instanceId, isPlatform)
   }, [instanceId])
 
   useEffect(() => {
@@ -133,7 +133,7 @@ export const Instance = observer((props: Props) => {
           className={classes.title}
           rightContent={
             <Button
-              onClick={() => load(props.instanceId)}
+              onClick={() => load(props.instanceId, isPlatform)}
               isDisabled={!instance && !instanceError}
               className={classes.reloadButton}
             >
