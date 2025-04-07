@@ -6,10 +6,10 @@
 package validator
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
 	passwordvalidator "github.com/wagslane/go-password-validator"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
@@ -36,7 +36,7 @@ func (v Service) ValidateCloneRequest(cloneRequest *types.CloneCreateRequest) er
 	}
 
 	if cloneRequest.ID != "" && strings.Contains(cloneRequest.ID, "/") {
-		return errors.New("Clone ID cannot contain slash ('/'). Please choose another ID")
+		return errors.New("clone ID cannot contain slash ('/'). Please choose another ID")
 	}
 
 	if err := passwordvalidator.Validate(cloneRequest.DB.Password, minEntropyBits); err != nil {

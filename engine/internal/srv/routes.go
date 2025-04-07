@@ -485,7 +485,30 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if cloneRequest.Branch != "" {
+	if cloneRequest.Snapshot != nil && cloneRequest.Snapshot.ID != "" {
+		fsm, err := s.getFSManagerForSnapshot(cloneRequest.Snapshot.ID)
+		if err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+
+		if fsm == nil {
+			api.SendBadRequestError(w, r, "no pool manager found")
+			return
+		}
+
+		branch := branching.ParseBranchNameFromSnapshot(cloneRequest.Snapshot.ID, fsm.Pool().Name)
+		if branch == "" {
+			branch = branching.DefaultBranch
+		}
+
+		// Snapshot ID takes precedence over the branch name.
+		cloneRequest.Branch = branch
+	} else {
+		if cloneRequest.Branch == "" {
+			cloneRequest.Branch = branching.DefaultBranch
+		}
+
 		fsm, err := s.getFSManagerForBranch(cloneRequest.Branch)
 		if err != nil {
 			api.SendBadRequestError(w, r, err.Error())
@@ -510,8 +533,6 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 		}
 
 		cloneRequest.Snapshot = &types.SnapshotCloneFieldRequest{ID: snapshotID}
-	} else {
-		cloneRequest.Branch = branching.DefaultBranch
 	}
 
 	if cloneRequest.ID != "" {

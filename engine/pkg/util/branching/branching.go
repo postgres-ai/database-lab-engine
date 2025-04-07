@@ -84,3 +84,27 @@ func parseCloneDataset(cloneDataset, poolName string) []string {
 
 	return splits
 }
+
+// ParseBranchNameFromSnapshot parses branch name from the snapshot ID.
+func ParseBranchNameFromSnapshot(snapshot, poolName string) string {
+	dataset, _, found := strings.Cut(snapshot, "@")
+	if !found {
+		return ""
+	}
+
+	branchPrefix := poolName + "/" + BranchDir + "/"
+	if !strings.HasPrefix(dataset, branchPrefix) {
+		return ""
+	}
+
+	trimmedDataset := strings.TrimPrefix(dataset, branchPrefix)
+
+	splits := strings.SplitN(trimmedDataset, "/", 2)
+	if len(splits) < 1 {
+		return ""
+	}
+
+	branch := splits[0]
+
+	return branch
+}
