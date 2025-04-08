@@ -65,8 +65,8 @@ func (p *Pool) SocketDir() string {
 }
 
 // ObserverDir returns a path to the observer directory of the storage pool.
-func (p *Pool) ObserverDir(branch, name string) string {
-	return path.Join(p.ClonePath(branch, name), p.ObserverSubDir)
+func (p *Pool) ObserverDir(branch, name string, revision int) string {
+	return path.Join(p.ClonePath(branch, name, revision), p.ObserverSubDir)
 }
 
 // ClonesDir returns a path to the clones directory of the storage pool.
@@ -75,8 +75,8 @@ func (p *Pool) ClonesDir(branch string) string {
 }
 
 // ClonePath returns a path to the data clone directory.
-func (p *Pool) ClonePath(branchName, name string) string {
-	return path.Join(p.MountDir, p.PoolDirName, branching.BranchDir, branchName, name, p.DataSubDir)
+func (p *Pool) ClonePath(branchName, name string, revision int) string {
+	return path.Join(p.MountDir, p.PoolDirName, branching.BranchDir, branchName, name, branching.RevisionSegment(revision), p.DataSubDir)
 }
 
 // CloneLocation returns a path to the initialized clone directory.
