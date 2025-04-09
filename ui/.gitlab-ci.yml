@@ -1,6 +1,5 @@
 include:
   - local: 'ui/packages/ce/.gitlab-ci.yml'
-  - local: 'ui/packages/platform/.gitlab-ci.yml'
 
 .ui_checks: &ui_checks
   rules:
@@ -31,7 +30,6 @@ check-code-style:
   script:
     - pnpm --dir ui/ i
     - pnpm --dir ui/ --filter @postgres.ai/ce lint
-    - pnpm --dir ui/ --filter @postgres.ai/platform lint
   interruptible: true
   cache:
     <<: *cache
