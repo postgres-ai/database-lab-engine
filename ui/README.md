@@ -1,4 +1,4 @@
-# Database Lab Engine UI and DBLab Platform UI
+# Database Lab Engine UI
 
 ## DBLab - thin database clones and database branching for faster development
 
@@ -15,7 +15,6 @@ As an example, cloning a 10 TiB PostgreSQL database can take less than 2 seconds
 
 ### List packages:
 
-- `@postgres.ai/platform` - platform version of UI
 - `@postgres.ai/ce` - community edition version of UI
 - `@postgres.ai/shared` - common modules
 
@@ -29,31 +28,14 @@ At the root:
 #### Examples
 - `npm ci -ws` - install deps of all packages
 - `npm run build -ws` - build all packages
-- `npm run start -w @postgres.ai/platform` - run platform UI locally in dev mode
 - `npm run start -w @postgres.ai/ce` - run community edition UI locally in dev mode
 
 _Important note: don't use commands for `@postgres.ai/shared` - it's dependent package, which can't be running or built_
-
-### How to start Platform UI with a predefined JWT token
-- `cd ui/packages/platform`
-- `cp .env_example_dev .env`
-- edit `.env` setting:
-    - `REACT_APP_API_URL_PREFIX` to point to dev API server (e.g., staging API server: `https://v2.postgres.ai/api/general`).
-    - `REACT_APP_TOKEN_DEBUG` to have your JWT ready work with the same server. Note that it has an expiration date so it needs to be periodically refreshed.
-- `pnpm install` - to install packages if they are not found
-- `pnpm run start` - start Platform for local debugging/development
 
 ### How to start "ce"
 - `cd ui`
 - `npm ci -ws` - install dependencies, must be done once to install dependencies for all packages
 - `npm run start -w @postgres.ai/ce` - start dev server
-
-### How to build "platform"
-
-- `cd ui`
-- `npm ci -ws` - install dependencies, must be done once to install dependencies for all packages
-- `source packages/platform/deploy/configs/production.sh` - set up environment variables, should be run for each new terminal session
-- `npm run build -w @postgres.ai/platform`
 
 ### How to build "ce"
 
@@ -91,5 +73,4 @@ Ways to resolve (ordered by preference):
 ## Moving to Typescript
 - `@postgres.ai/shared` is written on Typescript
 - `@postgres.ai/ce` is written on Typescript
-- `@postgres.ai/platform` is written on JavaScript and patially on Typescript. The target - is moving `@postgres.ai/platform` to Typescript fully. It should takes approximately 120-160 hours.
 - There are potential problems with typing - old versions of packages may don't have their typings. Recommended to update them or replace. If it's impossible you can write your own typing in file named like `<package-name>.d.ts` inside `src` directory of the selected package.
