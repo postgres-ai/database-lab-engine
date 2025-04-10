@@ -6,6 +6,7 @@
 package zfs
 
 import (
+	"encoding/base64"
 	"fmt"
 	"path"
 	"strconv"
@@ -120,6 +121,9 @@ type ListEntry struct {
 
 	// Branch to which the snapshot belongs.
 	Branch string
+
+	// Message associated with the snapshot.
+	Message string
 }
 
 type setFunc func(s string) error
@@ -700,6 +704,7 @@ func (m *Manager) getSnapshots() ([]resources.Snapshot, error) {
 			LogicalReferenced: entry.LogicalReferenced,
 			Pool:              m.config.Pool.Name,
 			Branch:            entry.Branch,
+			Message:           entry.Message,
 		}
 
 		snapshots = append(snapshots, snapshot)
@@ -825,7 +830,7 @@ func (m *Manager) listDetails(filter snapshotFilter) ([]*ListEntry, error) {
 		return nil, NewEmptyPoolError(filter.dsType, filter.pool)
 	}
 
-	numberFields := len([]string(filter.fields)) // 15
+	numberFields := len([]string(filter.fields)) // 16
 	entries := make([]*ListEntry, len(lines)-headerOffset)
 
 	for i := headerOffset; i < len(lines); i++ {
@@ -865,6 +870,7 @@ func (m *Manager) listDetails(filter snapshotFilter) ([]*ListEntry, error) {
 			{field: fields[11], setFunc: zfsListEntry.setUsedBySnapshots},
 			{field: fields[12], setFunc: zfsListEntry.setUsedByChildren},
 			{field: fields[13], setFunc: zfsListEntry.setDataStateAt},
+			{field: fields[15], setFunc: zfsListEntry.setMessage},
 		}
 
 		for _, rule := range setRules {
@@ -992,6 +998,22 @@ func (z *ListEntry) setDataStateAt(field string) error {
 	}
 
 	z.DataStateAt = stateAt
+
+	return nil
+}
+
+func (z *ListEntry) setMessage(field string) error {
+	if field == empty || field == "" {
+		z.Message = field
+		return nil
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(field)
+	if err != nil {
+		return err
+	}
+
+	z.Message = string(decoded)
 
 	return nil
 }

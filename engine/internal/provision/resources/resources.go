@@ -40,6 +40,7 @@ type Snapshot struct {
 	LogicalReferenced uint64    `json:"logicalReferenced"`
 	Pool              string    `json:"pool"`
 	Branch            string    `json:"branch"`
+	Message           string    `json:"message"`
 }
 
 // SessionState defines current state of a Session.
