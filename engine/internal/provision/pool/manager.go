@@ -78,7 +78,6 @@ type Branching interface {
 	Reset(snapshotID string, options thinclones.ResetOptions) error
 	HasDependentEntity(snapshotName string) ([]string, error)
 	KeepRelation(snapshotName string) error
-	FindBranchBySnapshot(snapshot string) (string, error)
 }
 
 // Pooler describes methods for Pool providing.

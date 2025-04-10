@@ -582,29 +582,6 @@ func (m *Manager) KeepRelation(snapshotName string) error {
 	return nil
 }
 
-// FindBranchBySnapshot finds the branch which the snapshot belongs to.
-func (m *Manager) FindBranchBySnapshot(snapshot string) (string, error) {
-	branch, err := m.getProperty(branchProp, snapshot)
-	if err != nil {
-		return "", err
-	}
-
-	if branch != "" {
-		return branch, nil
-	}
-
-	child, err := m.getProperty(childProp, snapshot)
-	if err != nil {
-		return "", fmt.Errorf("failed to check snapshot child property: %w", err)
-	}
-
-	if child != "" {
-		return m.FindBranchBySnapshot(child)
-	}
-
-	return "", nil
-}
-
 func (m *Manager) addToSet(property, snapshot, value string) error {
 	original, err := m.getProperty(property, snapshot)
 	if err != nil {

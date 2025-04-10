@@ -316,10 +316,3 @@ func (m *LVManager) KeepRelation(_ string) error {
 
 	return nil
 }
-
-// FindBranchBySnapshot finds the branch which the snapshot belongs to.
-func (m *LVManager) FindBranchBySnapshot(_ string) (string, error) {
-	log.Msg("KeepRelation is not supported for LVM. Skip the operation")
-
-	return "", nil
-}
