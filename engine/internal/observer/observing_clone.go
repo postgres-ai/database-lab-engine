@@ -44,6 +44,7 @@ type ObservingClone struct {
 	pool        *resources.Pool
 	cloneID     string
 	branch      string
+	revision    int
 	port        uint
 	superUserDB *pgx.Conn
 
@@ -480,7 +481,7 @@ func (c *ObservingClone) currentArtifactsSessionPath() string {
 }
 
 func (c *ObservingClone) artifactsSessionPath(sessionID uint64) string {
-	return path.Join(c.pool.ObserverDir(c.branch, c.cloneID), c.cloneID, strconv.FormatUint(sessionID, 10))
+	return path.Join(c.pool.ObserverDir(c.branch, c.cloneID, c.revision), c.cloneID, strconv.FormatUint(sessionID, 10))
 }
 
 // CheckPerformanceRequirements checks monitoring data and returns an error if any of performance requires was not satisfied.

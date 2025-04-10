@@ -660,7 +660,8 @@ func (p *Provisioner) getProvisionHosts() string {
 }
 
 // LastSessionActivity returns the time of the last session activity.
-func (p *Provisioner) LastSessionActivity(session *resources.Session, branch, cloneID string, minimumTime time.Time) (*time.Time, error) {
+func (p *Provisioner) LastSessionActivity(session *resources.Session, branch, cloneID string, revision int,
+	minimumTime time.Time) (*time.Time, error) {
 	fsm, err := p.pm.GetFSManager(session.Pool)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find filesystem manager")
@@ -669,7 +670,7 @@ func (p *Provisioner) LastSessionActivity(session *resources.Session, branch, cl
 	ctx, cancel := context.WithCancel(p.ctx)
 	defer cancel()
 
-	clonePath := fsm.Pool().ClonePath(branch, cloneID)
+	clonePath := fsm.Pool().ClonePath(branch, cloneID, revision)
 	fileSelector := pglog.NewSelector(clonePath)
 
 	if err := fileSelector.DiscoverLogDir(); err != nil {

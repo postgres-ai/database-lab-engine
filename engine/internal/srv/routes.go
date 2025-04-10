@@ -743,7 +743,7 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.Observer.AddObservingClone(clone.ID, clone.Branch, uint(port), observingClone)
+	s.Observer.AddObservingClone(clone.ID, clone.Branch, clone.Revision, uint(port), observingClone)
 
 	// Start session on the Platform.
 	platformRequest := platform.StartObservationRequest{

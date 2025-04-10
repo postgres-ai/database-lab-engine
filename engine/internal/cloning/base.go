@@ -767,7 +767,8 @@ func (c *Base) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 		return false, errors.New("failed to get clone session")
 	}
 
-	if _, err := c.provision.LastSessionActivity(session, wrapper.Clone.Branch, wrapper.Clone.ID, minimumTime); err != nil {
+	if _, err := c.provision.LastSessionActivity(session, wrapper.Clone.Branch, wrapper.Clone.ID, wrapper.Clone.Revision,
+		minimumTime); err != nil {
 		if err == pglog.ErrNotFound {
 			log.Dbg(fmt.Sprintf("Not found recent activity for session: %q. Clone name: %q",
 				session.ID, wrapper.Clone.ID))
