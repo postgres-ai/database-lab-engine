@@ -33,6 +33,9 @@ const (
 
 	// PoolMode defines the zfs filesystem name.
 	PoolMode = "zfs"
+
+	// Clone must have 3 segments: branch, name, revision.
+	numCloneSegments = 3
 )
 
 // ListEntry defines entry of ZFS list command.
@@ -285,7 +288,7 @@ func (m *Manager) ListClonesNames() ([]string, error) {
 
 		segments := strings.Split(bc, "/")
 
-		if len(segments) <= 1 {
+		if len(segments) != numCloneSegments {
 			// It's a branch dataset, not a clone. Skip it.
 			continue
 		}
@@ -696,6 +699,16 @@ func (m *Manager) getSnapshots() ([]resources.Snapshot, error) {
 			continue
 		}
 
+		branch := entry.Branch
+
+		if branch == empty {
+			if parsedBranch := branching.ParseBranchNameFromSnapshot(entry.Name, m.config.Pool.Name); parsedBranch != "" {
+				branch = parsedBranch
+			} else {
+				branch = branching.DefaultBranch
+			}
+		}
+
 		snapshot := resources.Snapshot{
 			ID:                entry.Name,
 			CreatedAt:         entry.Creation,
@@ -703,7 +716,7 @@ func (m *Manager) getSnapshots() ([]resources.Snapshot, error) {
 			Used:              entry.Used,
 			LogicalReferenced: entry.LogicalReferenced,
 			Pool:              m.config.Pool.Name,
-			Branch:            entry.Branch,
+			Branch:            branch,
 			Message:           entry.Message,
 		}
 

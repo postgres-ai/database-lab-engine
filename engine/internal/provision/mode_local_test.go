@@ -214,10 +214,6 @@ func (m mockFSManager) KeepRelation(_ string) error {
 	return nil
 }
 
-func (m mockFSManager) FindBranchBySnapshot(snapshot string) (string, error) {
-	return "", nil
-}
-
 func TestBuildPoolEntry(t *testing.T) {
 	testCases := []struct {
 		pool          *resources.Pool
