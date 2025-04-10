@@ -15,6 +15,7 @@ type Snapshot struct {
 	NumClones    int        `json:"numClones"`
 	Clones       []string   `json:"clones"`
 	Branch       string     `json:"branch"`
+	Message      string     `json:"message"`
 }
 
 // SnapshotView represents a view of snapshot.

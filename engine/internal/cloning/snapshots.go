@@ -51,6 +51,7 @@ func (c *Base) fetchSnapshots() error {
 			Branch:       entry.Branch,
 			NumClones:    len(cloneList),
 			Clones:       cloneList,
+			Message:      entry.Message,
 		}
 
 		snapshots[entry.ID] = currentSnapshot
