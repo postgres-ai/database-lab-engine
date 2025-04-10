@@ -140,7 +140,6 @@ The [postgres-ai/database-lab](https://gitlab.com/postgres-ai/database-lab) repo
   - [Database Lab CLI](https://gitlab.com/postgres-ai/database-lab/-/tree/master/engine/cmd/cli)
 - [Database Lab UI](https://gitlab.com/postgres-ai/database-lab/-/tree/master/ui)
   - [Community Edition](https://gitlab.com/postgres-ai/database-lab/-/tree/master/ui/packages/ce)
-  - [Platform](https://gitlab.com/postgres-ai/database-lab/-/tree/master/ui/packages/platform)
   - [Shared components](https://gitlab.com/postgres-ai/database-lab/-/tree/master/ui/packages/shared)
 
 Components have a separate version, denoted by either:
