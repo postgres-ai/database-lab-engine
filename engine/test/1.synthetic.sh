@@ -164,12 +164,6 @@ if [[ $(dblab snapshot list | jq length) -eq 0 ]] ; then
   echo "No snapshot found" && exit 1
 fi
 
-dblab snapshot delete "$(dblab snapshot list | jq -r .[0].id)"
-
-if [[ $(dblab snapshot list | jq length) -ne 0 ]] ; then
-  echo "Snapshot has not been deleted" && exit 1
-fi
-
 dblab snapshot create
 
 if [[ $(dblab snapshot list | jq length) -eq 0 ]] ; then
@@ -284,6 +278,18 @@ dblab clone list
 dblab snapshot list
 
 dblab switch main
+
+dblab clone create \
+  --username alice \
+  --password secret_password_123 \
+  --branch 001-branch \
+  --id branchclone003 || (echo "Failed to create a clone on branch" && exit 1)
+
+dblab commit --clone-id branchclone003 --message branchclone001 || (echo "Failed to create a snapshot" && exit 1)
+
+dblab snapshot delete "$(dblab snapshot list | jq -r .[0].id)" || (echo "Failed to delete a snapshot" && exit 1)
+
+dblab clone destroy branchclone003 || (echo "Failed to destroy clone" && exit 1)
 
 dblab branch --delete 001-branch || (echo "Failed to delete data branch" && exit 1)
 
