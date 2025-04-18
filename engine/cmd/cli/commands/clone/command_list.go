@@ -19,7 +19,7 @@ const (
 func CommandList() []*cli.Command {
 	return []*cli.Command{{
 		Name:  "clone",
-		Usage: "create, update, delete, reset, or retrieve clone",
+		Usage: "manages clones",
 		Subcommands: []*cli.Command{
 			{
 				Name:   "list",
