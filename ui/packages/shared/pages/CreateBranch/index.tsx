@@ -8,7 +8,7 @@
 import cn from 'classnames'
 import { useHistory } from 'react-router'
 import { observer } from 'mobx-react-lite'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { TextField, makeStyles } from '@material-ui/core'
 
 import { Button } from '@postgres.ai/shared/components/Button'
@@ -26,6 +26,7 @@ import { MainStoreApi } from './stores/Main'
 import { useCreatedStores } from './useCreatedStores'
 import { getCliBranchListCommand, getCliCreateBranchCommand } from './utils'
 import { Snapshot } from '@postgres.ai/shared/types/api/entities/snapshot'
+import { InstanceTabs, TABS_INDEX } from "../Instance/Tabs";
 
 interface CreateBranchProps {
   instanceId: string
@@ -36,6 +37,7 @@ interface CreateBranchProps {
   elements: {
     breadcrumbs: React.ReactNode
   }
+  isPlatform?: boolean
 }
 
 const useStyles = makeStyles(
@@ -78,6 +80,10 @@ const useStyles = makeStyles(
     marginTop: {
       marginTop: '8px',
     },
+    title: {
+      marginTop: '8px',
+      lineHeight: '26px'
+    },
     form: {
       marginTop: '16px',
     },
@@ -95,7 +101,7 @@ const useStyles = makeStyles(
 )
 
 export const CreateBranchPage = observer(
-  ({ instanceId, api, elements, routes }: CreateBranchProps) => {
+  ({ instanceId, api, elements, routes, isPlatform }: CreateBranchProps) => {
     const stores = useCreatedStores(api)
     const classes = useStyles()
     const history = useHistory()
@@ -155,9 +161,15 @@ export const CreateBranchPage = observer(
     return (
       <>
         {elements.breadcrumbs}
+        <SectionTitle tag="h1" level={1} text="Create branch" className={classes.title}>
+          <InstanceTabs
+            tab={TABS_INDEX.BRANCHES}
+            isPlatform={isPlatform}
+            instanceId={instanceId}
+          />
+        </SectionTitle>
         <div className={classes.wrapper}>
           <div className={classes.container}>
-            <SectionTitle tag="h1" level={1} text="Create branch" />
             {(snapshotsError || getBranchesError) && (
               <div className={classes.marginTop}>
                 <ErrorStub

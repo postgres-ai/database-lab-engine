@@ -14,8 +14,7 @@ import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 
-import { TABS_INDEX, Tabs, TabsProps } from './Tabs'
-import { PlatformTabs } from './Tabs/PlatformTabs'
+import { TABS_INDEX, InstanceTabs } from './Tabs'
 import { Logs } from '../Logs'
 import { Clones } from './Clones'
 import { Info } from './Info'
@@ -98,9 +97,6 @@ export const Instance = observer((props: Props) => {
 
   const isConfigurationActive = instanceRetrieval?.mode !== 'physical'
 
-  const InstanceTab = (props: TabsProps) =>
-    isPlatform ? <PlatformTabs {...props} /> : <Tabs {...props} />
-
   useEffect(() => {
     load(instanceId, isPlatform)
   }, [instanceId])
@@ -142,10 +138,11 @@ export const Instance = observer((props: Props) => {
           }
         >
           {isInstanceIntegrated && (
-            <InstanceTab
-              value={activeTab}
-              handleChange={switchTab}
-              hasLogs={api.initWS != undefined}
+            <InstanceTabs
+              instanceId={props.instanceId}
+              tab={activeTab}
+              onTabChange={(tabID) =>  setActiveTab(tabID)}
+              isPlatform={isPlatform!}
             />
           )}
         </SectionTitle>
