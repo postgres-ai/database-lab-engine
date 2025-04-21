@@ -950,3 +950,19 @@ func (s *Server) healthCheck(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 }
+
+func (s *Server) refresh(w http.ResponseWriter, r *http.Request) {
+	go func() {
+		if err := s.Retrieval.FullRefresh(context.Background()); err != nil {
+			log.Err("failed to initiate full refresh", err)
+		}
+	}()
+
+	if err := api.WriteJSON(w, http.StatusOK, models.Response{
+		Status:  models.ResponseOK,
+		Message: "Full refresh started",
+	}); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
+}
