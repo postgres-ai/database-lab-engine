@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { useHistory } from 'react-router'
 import { observer } from 'mobx-react-lite'
 import { makeStyles } from '@material-ui/core'
@@ -24,6 +24,7 @@ import { FormValues, useForm } from './useForm'
 import { MainStoreApi } from './stores/Main'
 import { useCreatedStores } from './useCreatedStores'
 import { getCliCreateSnapshotCommand } from './utils'
+import { InstanceTabs, TABS_INDEX } from "../Instance/Tabs";
 
 interface CreateSnapshotProps {
   instanceId: string
@@ -34,6 +35,7 @@ interface CreateSnapshotProps {
   elements: {
     breadcrumbs: React.ReactNode
   }
+  isPlatform?: boolean
 }
 
 const useStyles = makeStyles(
@@ -83,12 +85,16 @@ const useStyles = makeStyles(
       marginLeft: '8px',
       color: '#fff',
     },
+    title: {
+      marginTop: '8px',
+      lineHeight: '26px'
+    },
   },
   { index: 1 },
 )
 
 export const CreateSnapshotPage = observer(
-  ({ instanceId, api, elements, routes }: CreateSnapshotProps) => {
+  ({ instanceId, api, elements, routes, isPlatform }: CreateSnapshotProps) => {
     const stores = useCreatedStores(api)
     const classes = useStyles()
     const history = useHistory()
@@ -147,9 +153,15 @@ export const CreateSnapshotPage = observer(
     return (
       <>
         {elements.breadcrumbs}
+        <SectionTitle tag="h1" level={1} text="Create snapshot" className={classes.title}>
+          <InstanceTabs
+            tab={TABS_INDEX.SNAPSHOTS}
+            isPlatform={isPlatform}
+            instanceId={instanceId}
+          />
+        </SectionTitle>
         <div className={classes.wrapper}>
           <div className={classes.container}>
-            <SectionTitle tag="h1" level={1} text="Create Snapshot" />
             <div className={classes.marginTop2x}>
               <strong>Clone ID</strong>
               <p className={classes.marginTop}>

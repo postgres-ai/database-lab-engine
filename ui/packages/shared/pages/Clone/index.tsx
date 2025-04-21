@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { observer } from 'mobx-react-lite'
 import { useHistory } from 'react-router-dom'
 import copyToClipboard from 'copy-to-clipboard'
@@ -36,7 +36,6 @@ import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
-import { generateSnapshotPageId } from '@postgres.ai/shared/pages/Instance/Snapshots/utils'
 
 import { Status } from './Status'
 import { useCreatedStores } from './useCreatedStores'
@@ -47,6 +46,7 @@ import {
   getCliResetCloneCommand,
   getCreateSnapshotCommand,
 } from './utils'
+import { InstanceTabs, TABS_INDEX } from "../Instance/Tabs";
 
 const textFieldWidth = 525
 
@@ -65,7 +65,8 @@ const useStyles = makeStyles(
       },
     },
     title: {
-      marginTop: '16px',
+      marginTop: '8px',
+      lineHeight: '26px'
     },
     tooltip: {
       marginTop: '8px',
@@ -187,7 +188,7 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
-type Props = Host
+type Props = Host & { isPlatform?: boolean }
 
 export const Clone = observer((props: Props) => {
   const classes = useStyles()
@@ -227,7 +228,13 @@ export const Clone = observer((props: Props) => {
         tag="h1"
         level={1}
         text={`Clone ${props.cloneId}`}
-      />
+      >
+        <InstanceTabs
+          tab={TABS_INDEX.CLONES}
+          isPlatform={props.isPlatform}
+          instanceId={props.instanceId}
+        />
+      </SectionTitle>
     </>
   )
 

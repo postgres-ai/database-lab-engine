@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useHistory } from 'react-router'
 import { observer } from 'mobx-react-lite'
 import copyToClipboard from 'copy-to-clipboard'
@@ -41,8 +41,9 @@ import {
 import { useCreatedStores } from './useCreatedStores'
 import { Host } from './context'
 import { DeleteBranch } from '@postgres.ai/shared/types/api/endpoints/deleteBranch'
+import { InstanceTabs, TABS_INDEX } from "../../Instance/Tabs";
 
-type Props = Host
+type Props = Host & { isPlatform?: boolean }
 
 const useStyles = makeStyles(
   () => ({
@@ -60,6 +61,10 @@ const useStyles = makeStyles(
     },
     marginTop: {
       marginTop: '16px',
+    },
+    title: {
+      marginTop: '8px',
+      lineHeight: '26px'
     },
     container: {
       maxWidth: '100%',
@@ -173,11 +178,17 @@ export const BranchesPage = observer((props: Props) => {
       {props.elements.breadcrumbs}
 
       <SectionTitle
-        className={classes.marginTop}
+        className={classes.title}
         tag="h1"
         level={1}
         text={`Branch ${props.branchId}`}
-      />
+      >
+        <InstanceTabs
+          tab={TABS_INDEX.BRANCHES}
+          isPlatform={props.isPlatform}
+          instanceId={props.instanceId}
+        />
+      </SectionTitle>
     </>
   )
 

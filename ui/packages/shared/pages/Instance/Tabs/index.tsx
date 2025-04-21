@@ -11,6 +11,10 @@ import { Tab as TabComponent, Tabs as TabsComponent } from '@material-ui/core'
 
 import { PostgresSQLIcon } from '@postgres.ai/shared/icons/PostgresSQL'
 import { useTabsStyles } from './styles'
+import { PlatformTabs } from "./PlatformTabs";
+import { useCreatedStores } from "../useCreatedStores";
+import { Host } from '../context'
+import { initWS } from "@postgres.ai/ce/src/api/engine/initWS";
 
 export const TABS_INDEX = {
   OVERVIEW: 0,
@@ -94,4 +98,40 @@ export const Tabs = ({
       ))}
     </TabsComponent>
   )
+}
+
+type InstanceTabProps = {
+  tab: number
+  isPlatform?: boolean
+  onTabChange?: (tabID: number) => void
+  instanceId: string
+}
+
+export const InstanceTabs = (props: InstanceTabProps) => {
+  const stores = useCreatedStores({} as unknown as Host)
+  const {
+    load,
+  } = stores.main
+
+  const switchTab = (_: React.ChangeEvent<{}> | null, tabID: number) => {
+    const contentElement = document.getElementById('content-container')
+    if (props.onTabChange) {
+      props.onTabChange(tabID)
+    }
+
+    if (tabID === 0) {
+      load(props.instanceId)
+    }
+
+    contentElement?.scrollTo(0, 0)
+  }
+
+  const tabProps = {
+    value: props.tab,
+    handleChange: switchTab,
+    hasLogs: initWS !== undefined,
+    hideInstanceTabs: false,
+  }
+
+  return props.isPlatform ? <PlatformTabs {...tabProps} /> : <Tabs {...tabProps} />
 }

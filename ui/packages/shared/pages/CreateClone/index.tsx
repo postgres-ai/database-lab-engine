@@ -1,5 +1,5 @@
 import cn from 'classnames'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
 import { useTimer } from 'use-timer'
@@ -29,6 +29,7 @@ import { getCliCloneStatus, getCliCreateCloneCommand } from './utils'
 import { compareSnapshotsDesc } from '@postgres.ai/shared/utils/snapshot'
 
 import styles from './styles.module.scss'
+import { InstanceTabs, TABS_INDEX } from "../Instance/Tabs";
 
 type Host = {
   instanceId: string
@@ -41,7 +42,7 @@ type Host = {
   }
 }
 
-type Props = Host
+type Props = Host & { isPlatform?: boolean }
 
 export const CreateClone = observer((props: Props) => {
   const history = useHistory()
@@ -150,6 +151,13 @@ export const CreateClone = observer((props: Props) => {
       <style>{'p { margin: 0; }'}</style>
 
       {props.elements.breadcrumbs}
+      <SectionTitle tag="h1" level={1} text="Create clone"  className={styles.pageTitle}>
+        <InstanceTabs
+          tab={TABS_INDEX.CLONES}
+          isPlatform={props.isPlatform}
+          instanceId={props.instanceId}
+        />
+      </SectionTitle>
     </>
   )
 
@@ -195,7 +203,6 @@ export const CreateClone = observer((props: Props) => {
       {headRendered}
       <div className={styles.container}>
         <div className={styles.form}>
-          <SectionTitle tag="h1" level={1} text="Create clone" />
           <div className={styles.section}>
             {branchesList && branchesList.length > 0 && (
               <Select
