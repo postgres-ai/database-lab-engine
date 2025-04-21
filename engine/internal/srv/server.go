@@ -236,6 +236,9 @@ func (s *Server) InitHandlers() {
 	// Health check.
 	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet, http.MethodPost)
 
+	// Full refresh
+	r.HandleFunc("/full-refresh", authMW.Authorized(s.refresh)).Methods(http.MethodPost)
+
 	// Show Swagger UI on index page.
 	if err := attachAPI(r); err != nil {
 		log.Err("Cannot load API description.")

@@ -224,6 +224,38 @@ paths:
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
+  /full-refresh:
+    post:
+      tags:
+        - Instance
+      summary: Trigger full data refresh
+      description: "Initiates a full data refresh."
+      operationId: refresh
+      parameters:
+        - name: Verification-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Full refresh has been initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullRefresh'
+              example:
+                status: OK
+                message: Full refresh started
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
   /snapshot:
     post:
       tags:
@@ -1876,3 +1908,12 @@ components:
           format: date-time
         message:
           type: string
+    FullRefresh:
+      type: object
+      properties:
+        status:
+          type: string
+          example: OK
+        message:
+          type: string
+          example: Full refresh started
