@@ -73,11 +73,13 @@ export const CreateClone = observer((props: Props) => {
     }
   }
 
-  const fetchBranchSnapshotsData = async (branchName: string) => {
-    const snapshotsRes =
-      (await stores.main.getSnapshots(props.instanceId, branchName)) ?? []
+  const fetchBranchSnapshotsData = async (branchName: string, initialSnapshotId?: string) => {
+    const snapshotsRes = (await stores.main.getSnapshots(props.instanceId, branchName)) ?? []
     setSnapshots(snapshotsRes)
-    formik.setFieldValue('snapshotId', snapshotsRes[0]?.id)
+
+    const selectedSnapshot = snapshotsRes.find(s => s.id === initialSnapshotId) || snapshotsRes[0]
+
+    formik.setFieldValue('snapshotId', selectedSnapshot?.id)
   }
 
   const handleSelectBranch = async (
@@ -93,24 +95,30 @@ export const CreateClone = observer((props: Props) => {
 
   const formik = useForm(onSubmit)
 
-  const fetchData = async () => {
+  const fetchData = async (initialBranch?: string, initialSnapshotId?: string) => {
     try {
       setIsLoadingSnapshots(true)
       await stores.main.load(props.instanceId)
 
       const branches = (await stores.main.getBranches(props.instanceId)) ?? []
-      const initiallySelectedBranch = branches[0]?.name
+
+      let initiallySelectedBranch = branches[0]?.name;
+
+      if (initialBranch && branches.find((branch) => branch.name === initialBranch)) {
+        initiallySelectedBranch = initialBranch;
+      }
+
       setBranchesList(branches.map((branch) => branch.name))
       formik.setFieldValue('branch', initiallySelectedBranch)
 
       if (props.api.getSnapshots) {
-        await fetchBranchSnapshotsData(initiallySelectedBranch)
+        await fetchBranchSnapshotsData(initiallySelectedBranch, initialSnapshotId)
       } else {
         const allSnapshots = stores.main?.snapshots?.data ?? []
         const sortedSnapshots = allSnapshots.slice().sort(compareSnapshotsDesc)
         setSnapshots(sortedSnapshots)
-        const [firstSnapshot] = allSnapshots ?? []
-        formik.setFieldValue('snapshotId', firstSnapshot?.id)
+        let selectedSnapshot = allSnapshots.find(s => s.id === initialSnapshotId) || allSnapshots[0]
+        formik.setFieldValue('snapshotId', selectedSnapshot?.id)
       }
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -121,8 +129,13 @@ export const CreateClone = observer((props: Props) => {
 
   // Initial loading data.
   useEffect(() => {
-    fetchData()
-  }, [])
+    const queryString = history.location.search.split('?')[1]
+    const params = new URLSearchParams(queryString)
+    const branchId = params.get('branch_id') ?? undefined
+    const snapshotId = params.get('snapshot_id') ?? undefined
+
+    fetchData(branchId, snapshotId)
+  }, [history.location.search, formik.initialValues])
 
   // Redirect when clone is created and stable.
   useEffect(() => {

@@ -217,7 +217,7 @@ export const BranchesPage = observer((props: Props) => {
             <Button
               variant="contained"
               color="primary"
-              onClick={() => history.push(props.routes.createClone())}
+              onClick={() => history.push(props.routes.createClone(props.branchId))}
               disabled={isReloading}
               title={'Create clone'}
               className={classes.actionButton}
