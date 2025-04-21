@@ -73,6 +73,15 @@ export const ROUTES = {
       CREATE: {
         name: 'Create clone',
         path: `/instance/clones/create`,
+        createPath: (branchId?: string, snapshotId?: string) => {
+          const params = new URLSearchParams();
+
+          if (branchId) params.set('branch_id', branchId);
+          if (snapshotId) params.set('snapshot_id', snapshotId);
+
+          const query = params.toString();
+          return `/instance/clones/create${query ? `?${query}` : ''}`;
+        }
       },
 
       CLONES: {

@@ -50,7 +50,7 @@ export const Snapshot = () => {
             ROUTES.INSTANCE.BRANCHES.BRANCH.createPath(branchName),
           clone: (cloneId: string) =>
             ROUTES.INSTANCE.CLONES.CLONE.createPath(cloneId),
-          createClone: () => ROUTES.INSTANCE.CLONES.CREATE.path,
+          createClone: (branchId: string, snapshotId: string) => ROUTES.INSTANCE.CLONES.CREATE.createPath(branchId, snapshotId),
         }}
         api={api}
         elements={elements}

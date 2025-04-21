@@ -208,7 +208,7 @@ export const SnapshotPage = observer((props: Props) => {
             <Button
               variant="contained"
               color="primary"
-              onClick={() => history.push(props.routes.createClone())}
+              onClick={() => history.push(props.routes.createClone(snapshot?.branch as string, snapshot?.id as string))}
               title={'Create clone'}
               className={classes.actionButton}
             >

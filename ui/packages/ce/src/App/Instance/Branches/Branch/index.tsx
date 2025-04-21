@@ -49,7 +49,7 @@ export const Branch = () => {
           branches: () => ROUTES.INSTANCE.BRANCHES.BRANCHES.path,
           snapshot: (snapshotId: string) =>
             ROUTES.INSTANCE.SNAPSHOTS.SNAPSHOT.createPath(snapshotId),
-          createClone: () => ROUTES.INSTANCE.CLONES.CREATE.path,
+          createClone: (branchId: string) => ROUTES.INSTANCE.CLONES.CREATE.createPath(branchId),
         }}
       />
     </PageContainer>
