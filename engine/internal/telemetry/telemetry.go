@@ -74,6 +74,6 @@ func (a *Agent) SendEvent(ctx context.Context, eventType string, payload interfa
 	})
 
 	if err != nil {
-		log.Err("Failed to send telemetry event", err)
+		log.Err("failed to send telemetry event", err)
 	}
 }

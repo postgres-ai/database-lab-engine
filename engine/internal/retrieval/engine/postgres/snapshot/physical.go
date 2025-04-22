@@ -351,7 +351,7 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	defer func() {
 		if err != nil {
 			if errDestroy := p.cloneManager.DestroySnapshot(snapshotName, thinclones.DestroyOptions{}); errDestroy != nil {
-				log.Err(fmt.Sprintf("Failed to destroy the %q snapshot: %v", snapshotName, errDestroy))
+				log.Err(fmt.Sprintf("failed to destroy %q snapshot: %v", snapshotName, errDestroy))
 			}
 		}
 	}()
@@ -368,7 +368,7 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	defer func() {
 		if err != nil {
 			if errDestroy := p.cloneManager.DestroyClone(branching.DefaultBranch, cloneName, branching.DefaultRevision); errDestroy != nil {
-				log.Err(fmt.Sprintf("Failed to destroy clone %q: %v", cloneName, errDestroy))
+				log.Err(fmt.Sprintf("failed to destroy clone %q: %v", cloneName, errDestroy))
 			}
 		}
 	}()
@@ -626,7 +626,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 					Value: fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabPromoteLabel)})
 
 			if err := diagnostic.CollectDiagnostics(ctx, p.dockerClient, filterArgs, p.promoteContainerName(), clonePath); err != nil {
-				log.Err("Failed to collect container diagnostics", err)
+				log.Err("failed to collect container diagnostics", err)
 			}
 		}
 	}()
@@ -1107,7 +1107,7 @@ func (p *PhysicalInitial) markDatabaseData() error {
 func (p *PhysicalInitial) updateDataStateAt() {
 	dsaTime, err := time.Parse(util.DataStateAtFormat, p.dbMark.DataStateAt)
 	if err != nil {
-		log.Err("Invalid value for DataStateAt: ", p.dbMark.DataStateAt)
+		log.Err("invalid value for DataStateAt: ", p.dbMark.DataStateAt)
 		return
 	}
 

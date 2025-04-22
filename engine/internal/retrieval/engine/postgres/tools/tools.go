@@ -464,7 +464,7 @@ func StopContainer(ctx context.Context, dockerClient *client.Client, containerID
 	log.Msg(fmt.Sprintf("Stopping container ID: %v", containerID))
 
 	if err := dockerClient.ContainerStop(ctx, containerID, container.StopOptions{Timeout: pointer.ToInt(stopTimeout)}); err != nil {
-		log.Err("Failed to stop container: ", err)
+		log.Err("failed to stop container: ", err)
 	}
 
 	log.Msg(fmt.Sprintf("Container %q has been stopped", containerID))
@@ -475,7 +475,7 @@ func RemoveContainer(ctx context.Context, dockerClient *client.Client, container
 	log.Msg(fmt.Sprintf("Removing container ID: %v", containerID))
 
 	if err := dockerClient.ContainerStop(ctx, containerID, container.StopOptions{Timeout: pointer.ToInt(stopTimeout)}); err != nil {
-		log.Err("Failed to stop container: ", err)
+		log.Err("failed to stop container: ", err)
 	}
 
 	log.Msg(fmt.Sprintf("Container %q has been stopped", containerID))
@@ -484,7 +484,7 @@ func RemoveContainer(ctx context.Context, dockerClient *client.Client, container
 		RemoveVolumes: true,
 		Force:         true,
 	}); err != nil {
-		log.Err("Failed to remove container: ", err)
+		log.Err("failed to remove container: ", err)
 
 		return
 	}
@@ -514,7 +514,7 @@ func PullImage(ctx context.Context, dockerClient *client.Client, image string) e
 	defer func() { _ = pullOutput.Close() }()
 
 	if err := jsonmessage.DisplayJSONMessagesToStream(pullOutput, streams.NewOut(os.Stdout), nil); err != nil {
-		log.Err("Failed to render pull image output: ", err)
+		log.Err("failed to render pull image output: ", err)
 	}
 
 	return nil
@@ -686,7 +686,7 @@ func CopyContainerLogs(ctx context.Context, docker *client.Client, containerName
 	defer func() {
 		err := reader.Close()
 		if err != nil {
-			log.Err("Failed to close container output reader", err)
+			log.Err("failed to close container output reader", err)
 		}
 	}()
 
@@ -698,7 +698,7 @@ func CopyContainerLogs(ctx context.Context, docker *client.Client, containerName
 	defer func() {
 		err := writeFile.Close()
 		if err != nil {
-			log.Err("Failed to close container output file", err)
+			log.Err("failed to close container output file", err)
 		}
 	}()
 

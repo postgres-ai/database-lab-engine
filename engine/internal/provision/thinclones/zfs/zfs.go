@@ -676,7 +676,7 @@ func (m *Manager) SnapshotList() []resources.Snapshot {
 func (m *Manager) RefreshSnapshotList() {
 	snapshots, err := m.getSnapshots()
 	if err != nil {
-		log.Err("Failed to refresh snapshot list: ", err)
+		log.Err("failed to refresh snapshot list: ", err)
 		return
 	}
 

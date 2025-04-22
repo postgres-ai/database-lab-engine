@@ -291,7 +291,7 @@ func (s *Server) applyProjectedAdminConfig(ctx context.Context, obj interface{})
 
 		err = config.RotateConfig(cfgData)
 		if err != nil {
-			log.Errf("Failed to backup config: %v", err)
+			log.Errf("failed to backup config: %v", err)
 			return nil, err
 		}
 

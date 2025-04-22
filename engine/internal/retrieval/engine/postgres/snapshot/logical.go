@@ -246,7 +246,7 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 					Value: fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabPatchLabel)})
 
 			if err := diagnostic.CollectDiagnostics(ctx, s.dockerClient, filterArgs, s.patchContainerName(), dataDir); err != nil {
-				log.Err("Failed to collect container diagnostics", err)
+				log.Err("failed to collect container diagnostics", err)
 			}
 		}
 	}()

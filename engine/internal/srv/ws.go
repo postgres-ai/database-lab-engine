@@ -75,7 +75,7 @@ func (s *Server) instanceLogs(w http.ResponseWriter, r *http.Request) {
 		Follow:     true,
 	})
 	if err != nil {
-		log.Err("Failed to get container logs", err)
+		log.Err("failed to get container logs", err)
 
 		if writingErr := conn.WriteMessage(websocket.TextMessage, []byte(err.Error())); writingErr != nil {
 			log.Dbg("Failed to report about error", err)

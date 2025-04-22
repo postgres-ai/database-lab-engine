@@ -107,7 +107,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 				}
 			}
 		} else {
-			log.Err("Currently cannot connect to Postgres: ", out, err)
+			log.Err("currently cannot connect to Postgres: ", out, err)
 		}
 
 		cnt++
@@ -202,7 +202,7 @@ func runExistsSQL(command, connStr string) (bool, error) {
 	defer func() {
 		err := db.Close()
 		if err != nil {
-			log.Err("Cannot close database connection.")
+			log.Err("cannot close database connection")
 		}
 	}()
 
@@ -228,7 +228,7 @@ func runSimpleSQL(command, connStr string) (string, error) {
 	defer func() {
 		err := db.Close()
 		if err != nil {
-			log.Err("Cannot close database connection.")
+			log.Err("cannot close database connection")
 		}
 	}()
 

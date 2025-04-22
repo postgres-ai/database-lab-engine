@@ -121,7 +121,7 @@ func (o *Observer) processCSVLogFile(ctx context.Context, buf io.Writer, filenam
 
 	defer func() {
 		if err := logFile.Close(); err != nil {
-			log.Errf("Failed to close a CSV log file: %s", err.Error())
+			log.Errf("failed to close CSV log file: %s", err.Error())
 		}
 	}()
 

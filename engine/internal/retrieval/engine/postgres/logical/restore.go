@@ -528,7 +528,7 @@ func (r *RestoreJob) getDirectoryDumpDefinition(ctx context.Context, contID, dum
 
 	dbName, err := r.extractDBNameFromDump(ctx, contID, dumpDir)
 	if err != nil {
-		log.Err("Invalid dump: ", err)
+		log.Err("invalid dump: ", err)
 		return DumpDefinition{}, errors.Wrap(err, "invalid database name")
 	}
 
@@ -597,7 +597,7 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 	})
 
 	if err != nil && !r.RestoreOptions.IgnoreErrors {
-		log.Err("Restore command failed: ", output)
+		log.Err("restore command failed: ", output)
 
 		return fmt.Errorf("failed to exec restore command: %w. Output: %s", err, output)
 	}
@@ -607,7 +607,7 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 	}
 
 	if err := r.defineDSA(ctx, dbDefinition, contID, dbName); err != nil {
-		log.Err("Failed to define DataStateAt: ", err)
+		log.Err("failed to define DataStateAt: ", err)
 	}
 
 	if err := r.markDatabase(); err != nil {
@@ -778,7 +778,7 @@ func (r *RestoreJob) markDatabase() error {
 func (r *RestoreJob) updateDataStateAt() {
 	dsaTime, err := time.Parse(util.DataStateAtFormat, r.dbMark.DataStateAt)
 	if err != nil {
-		log.Err("Invalid value for DataStateAt: ", r.dbMark.DataStateAt)
+		log.Err("invalid value for DataStateAt: ", r.dbMark.DataStateAt)
 		return
 	}
 

@@ -175,7 +175,7 @@ func (r *Retrieval) reloadStatefulJobs() {
 		// todo should we remove if jobs are not there ?
 		// todo should we check for completion before ?
 		if err := job.Reload(cfg.Options); err != nil {
-			log.Err("Failed to reload configuration of the retrieval job", job.Name(), err)
+			log.Err("failed to reload configuration of retrieval job", job.Name(), err)
 		}
 	}
 }
@@ -621,7 +621,7 @@ func (r *Retrieval) FullRefresh(ctx context.Context) error {
 
 	// Stop service containers: sync-instance, etc.
 	if cleanUpErr := cont.CleanUpControlContainers(runCtx, r.docker, r.engineProps.InstanceID); cleanUpErr != nil {
-		log.Err("Failed to clean up service containers:", cleanUpErr)
+		log.Err("failed to clean up service containers:", cleanUpErr)
 
 		return cleanUpErr
 	}

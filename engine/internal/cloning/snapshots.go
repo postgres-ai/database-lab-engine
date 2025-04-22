@@ -140,7 +140,7 @@ func (c *Base) IncrementCloneNumber(snapshotID string) {
 
 	snapshot, ok := c.snapshotBox.items[snapshotID]
 	if !ok {
-		log.Err("Snapshot not found:", snapshotID)
+		log.Err("snapshot not found:", snapshotID)
 		return
 	}
 
@@ -153,12 +153,12 @@ func (c *Base) decrementCloneNumber(snapshotID string) {
 
 	snapshot, ok := c.snapshotBox.items[snapshotID]
 	if !ok {
-		log.Err("Snapshot not found:", snapshotID)
+		log.Err("snapshot not found:", snapshotID)
 		return
 	}
 
 	if snapshot.NumClones == 0 {
-		log.Err("The number of clones for the snapshot is negative. Snapshot ID:", snapshotID)
+		log.Err("number of clones for snapshot is negative. Snapshot ID:", snapshotID)
 		return
 	}
 
@@ -172,7 +172,7 @@ func (c *Base) GetCloneNumber(snapshotID string) int {
 
 	snapshot, ok := c.snapshotBox.items[snapshotID]
 	if !ok {
-		log.Err("Snapshot not found:", snapshotID)
+		log.Err("snapshot not found:", snapshotID)
 		return 0
 	}
 

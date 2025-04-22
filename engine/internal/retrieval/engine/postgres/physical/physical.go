@@ -176,7 +176,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		if err == nil && r.CopyOptions.Sync.Enabled {
 			go func() {
 				if syncErr := r.runSyncInstance(ctx); syncErr != nil {
-					log.Err("Failed to run sync instance: ", syncErr)
+					log.Err("failed to run sync instance: ", syncErr)
 
 					if ctx.Err() != nil {
 						// if context was canceled
@@ -249,7 +249,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Msg("Restoring job has been finished")
 
 	if err := r.markDatabaseData(); err != nil {
-		log.Err("Failed to mark database data: ", err)
+		log.Err("failed to mark database data: ", err)
 	}
 
 	cfgManager, err := pgconfig.NewCorrector(dataDir)
@@ -350,7 +350,7 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) (err error) {
 					Value: fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabSyncLabel)})
 
 			if err := diagnostic.CollectDiagnostics(ctx, r.dockerClient, filterArgs, r.syncInstanceName(), r.fsPool.DataDir()); err != nil {
-				log.Err("Failed to collect container diagnostics", err)
+				log.Err("failed to collect container diagnostics", err)
 			}
 		}
 	}()

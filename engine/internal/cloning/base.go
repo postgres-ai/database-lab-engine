@@ -86,11 +86,11 @@ func (c *Base) Run(ctx context.Context) error {
 	}
 
 	if _, err := c.GetSnapshots(); err != nil {
-		log.Err("No available snapshots: ", err)
+		log.Err("no available snapshots:", err)
 	}
 
 	if err := c.RestoreClonesState(); err != nil {
-		log.Err("Failed to load stored sessions:", err)
+		log.Err("failed to load stored sessions:", err)
 	}
 
 	c.restartCloneContainers(ctx)
@@ -210,13 +210,13 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 		session, err := c.provision.StartSession(clone, ephemeralUser, cloneRequest.ExtraConf)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
-			log.Errf("Failed to start session: %v.", err)
+			log.Errf("failed to start session: %v", err)
 
 			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: errors.Cause(err).Error(),
 			}); updateErr != nil {
-				log.Errf("Failed to update clone status: %v", updateErr)
+				log.Errf("failed to update clone status: %v", updateErr)
 			}
 
 			return
@@ -247,7 +247,7 @@ func (c *Base) fillCloneSession(cloneID string, session *resources.Session) {
 
 	w, ok := c.clones[cloneID]
 	if !ok {
-		log.Errf("Clone %q not found", cloneID)
+		log.Errf("clone %q not found", cloneID)
 		return
 	}
 
@@ -370,13 +370,13 @@ func (c *Base) DestroyCloneSync(cloneID string) error {
 
 func (c *Base) destroyClone(cloneID string, w *CloneWrapper) {
 	if err := c.provision.StopSession(w.Session, w.Clone); err != nil {
-		log.Errf("Failed to delete a clone: %v.", err)
+		log.Errf("failed to delete clone: %v", err)
 
 		if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 			Code:    models.StatusFatal,
 			Message: errors.Cause(err).Error(),
 		}); updateErr != nil {
-			log.Errf("Failed to update clone status: %v", updateErr)
+			log.Errf("failed to update clone status: %v", updateErr)
 		}
 
 		return
@@ -425,7 +425,7 @@ func (c *Base) refreshCloneMetadata(w *CloneWrapper) {
 	sessionState, err := c.provision.GetSessionState(w.Session, w.Clone.Branch, w.Clone.ID)
 	if err != nil {
 		// Session not ready yet.
-		log.Err(fmt.Errorf("failed to get a session state: %w", err))
+		log.Err(fmt.Errorf("failed to get session state: %w", err))
 
 		return
 	}
@@ -539,7 +539,7 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 
 		snapshot, err := c.provision.ResetSession(w.Session, w.Clone, snapshotID)
 		if err != nil {
-			log.Errf("Failed to reset clone: %v", err)
+			log.Errf("failed to reset clone: %v", err)
 
 			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
@@ -629,7 +629,7 @@ func (c *Base) GetClones() []*models.Clone {
 		if cloneWrapper.Clone.Snapshot != nil {
 			snapshot, err := c.getSnapshotByID(cloneWrapper.Clone.Snapshot.ID)
 			if err != nil {
-				log.Err("Snapshot not found: ", cloneWrapper.Clone.Snapshot.ID)
+				log.Err("snapshot not found: ", cloneWrapper.Clone.Snapshot.ID)
 			}
 
 			if snapshot != nil {
@@ -729,7 +729,7 @@ func (c *Base) destroyIdleClones(ctx context.Context) {
 		default:
 			isIdleClone, err := c.isIdleClone(cloneWrapper)
 			if err != nil {
-				log.Errf("Failed to check the idleness of clone %s: %v.", cloneWrapper.Clone.ID, err)
+				log.Errf("failed to check idleness of clone %s: %v", cloneWrapper.Clone.ID, err)
 				continue
 			}
 
@@ -737,7 +737,7 @@ func (c *Base) destroyIdleClones(ctx context.Context) {
 				log.Msg(fmt.Sprintf("Idle clone %q is going to be removed.", cloneWrapper.Clone.ID))
 
 				if err = c.DestroyClone(cloneWrapper.Clone.ID); err != nil {
-					log.Errf("Failed to destroy clone: %v.", err)
+					log.Errf("failed to destroy clone: %v", err)
 					continue
 				}
 			}
@@ -795,7 +795,7 @@ func hasNotQueryActivity(session *resources.Session) (bool, error) {
 
 	defer func() {
 		if err := db.Close(); err != nil {
-			log.Err("Cannot close database connection.")
+			log.Err("cannot close database connection")
 		}
 	}()
 
