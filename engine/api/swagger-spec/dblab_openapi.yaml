@@ -22,7 +22,7 @@ externalDocs:
   url: https://gitlab.com/postgres-ai/docs/tree/master/docs/database-lab
 
 servers:
-  - url: "https://branching.aws.postgres.ai:446/api"
+  - url: "https://demo.dblab.dev/api"
     description: "DBLab 4.0 demo server (with DB branching support); token: 'demo-token'"
     x-examples:
       Verification-Token: "demo-token"
