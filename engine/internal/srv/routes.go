@@ -848,12 +848,12 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 
 	logs, err := s.Observer.GetCloneLog(context.TODO(), observingClone)
 	if err != nil {
-		log.Err("Failed to get observation logs", err)
+		log.Err("failed to get observation logs", err)
 	}
 
 	if len(logs) > 0 {
 		if err := s.Platform.Client.UploadObservationLogs(context.Background(), logs, sessionID); err != nil {
-			log.Err("Failed to upload observation logs", err)
+			log.Err("failed to upload observation logs", err)
 		}
 	}
 
@@ -867,7 +867,7 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := s.Platform.Client.UploadObservationArtifact(context.Background(), data, sessionID, artifactType); err != nil {
-			log.Err("Failed to upload observation artifact", err)
+			log.Err("failed to upload observation artifact", err)
 		}
 	}
 

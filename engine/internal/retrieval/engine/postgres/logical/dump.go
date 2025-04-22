@@ -420,7 +420,7 @@ func collectDiagnostics(ctx context.Context, client *client.Client, postgresName
 			Value: fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabDumpLabel)})
 
 	if err := diagnostic.CollectDiagnostics(ctx, client, filterArgs, postgresName, dataDir); err != nil {
-		log.Err("Failed to collect container diagnostics", err)
+		log.Err("failed to collect container diagnostics", err)
 	}
 }
 
@@ -512,7 +512,7 @@ func (d *DumpJob) dumpDatabase(ctx context.Context, dumpContID, dbName string, d
 		Cmd: dumpCommand,
 		Env: d.getExecEnvironmentVariables(),
 	}); err != nil {
-		log.Err("Dump command failed: ", output)
+		log.Err("dump command failed: ", output)
 
 		return fmt.Errorf("failed to dump a database: %w. Output: %s", err, output)
 	}

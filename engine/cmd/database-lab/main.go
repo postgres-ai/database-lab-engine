@@ -202,7 +202,7 @@ func main() {
 	if cfg.EmbeddedUI.Enabled {
 		go func() {
 			if err := embeddedUI.Run(ctx); err != nil {
-				log.Err("Failed to start embedded UI container:", err.Error())
+				log.Err("failed to start embedded UI container:", err.Error())
 				return
 			}
 		}()
@@ -242,14 +242,14 @@ func main() {
 	go billingSvc.CollectUsage(ctx, systemMetrics)
 
 	if err := retrievalSvc.Run(ctx); err != nil {
-		log.Err("Failed to run the data retrieval service:", err)
+		log.Err("failed to run data retrieval service:", err)
 		log.Msg(contactSupport)
 	}
 
 	defer retrievalSvc.Stop()
 
 	if err := logCleaner.ScheduleLogCleanupJob(cfg.Diagnostic); err != nil {
-		log.Err("Failed to schedule a cleanup job of the diagnostic logs collector", err)
+		log.Err("failed to schedule cleanup job of diagnostic logs collector", err)
 	}
 
 	<-shutdownCh
@@ -387,7 +387,7 @@ func setReloadListener(ctx context.Context, engProp global.EngineProps, provisio
 			platformSvc,
 			embeddedUI, server,
 			cleaner, logFilter, whs); err != nil {
-			log.Err("Failed to reload configuration:", err)
+			log.Err("failed to reload configuration:", err)
 
 			continue
 		}
@@ -407,11 +407,11 @@ func shutdownDatabaseLabEngine(ctx context.Context, docker *client.Client, dbCfg
 	log.Msg("Stopping auxiliary containers")
 
 	if err := cont.StopControlContainers(ctx, docker, dbCfg, instanceID, fsm); err != nil {
-		log.Err("Failed to stop control containers", err)
+		log.Err("failed to stop control containers", err)
 	}
 
 	if err := cont.CleanUpSatelliteContainers(ctx, docker, instanceID); err != nil {
-		log.Err("Failed to stop satellite containers", err)
+		log.Err("failed to stop satellite containers", err)
 	}
 
 	log.Msg("Auxiliary containers have been stopped")

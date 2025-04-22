@@ -241,12 +241,12 @@ func (s *Server) InitHandlers() {
 
 	// Show Swagger UI on index page.
 	if err := attachAPI(r); err != nil {
-		log.Err("Cannot load API description.")
+		log.Err("cannot load API description")
 	}
 
 	// Show Swagger UI on index page.
 	if err := attachSwaggerUI(r); err != nil {
-		log.Err("Cannot start Swagger UI.")
+		log.Err("cannot start Swagger UI")
 	}
 
 	// Show not found error for all other possible routes.

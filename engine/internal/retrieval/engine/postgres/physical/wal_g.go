@@ -106,7 +106,7 @@ func getLastBackupName(ctx context.Context, dockerClient *client.Client, contain
 		}
 
 		// fallback to fetching last backup from list
-		log.Err("Failed to parse last backup from wal-g details", err)
+		log.Err("failed to parse last backup from wal-g details", err)
 	}
 
 	return parseLastBackupFromList(ctx, dockerClient, containerID)

@@ -111,7 +111,7 @@ func (s *Service) triggerWebhook(ctx context.Context, hook Hook, whEvent EventTy
 	resp, err := s.makeRequest(ctx, hook, whEvent)
 
 	if err != nil {
-		log.Err("Webhook error:", err)
+		log.Err("webhook error:", err)
 		return
 	}
 
@@ -119,7 +119,7 @@ func (s *Service) triggerWebhook(ctx context.Context, hook Hook, whEvent EventTy
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Err("Webhook error:", err)
+		log.Err("webhook error:", err)
 		return
 	}
 

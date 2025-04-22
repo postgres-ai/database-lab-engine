@@ -219,7 +219,7 @@ func (c *ObservingClone) RunSession() error {
 
 	defer func() {
 		if err := c.db.Close(ctx); err != nil {
-			log.Err("Failed to close a database connection after observation for SessionID: ", c.session.SessionID)
+			log.Err("failed to close database connection after observation for SessionID: ", c.session.SessionID)
 		}
 	}()
 
@@ -256,7 +256,7 @@ func (c *ObservingClone) RunSession() error {
 			log.Dbg("Stop observation for SessionID: ", c.session.SessionID)
 
 			if err := c.storeArtifacts(); err != nil {
-				log.Err("Failed to store artifacts: ", err)
+				log.Err("failed to store artifacts: ", err)
 			}
 
 			c.done <- struct{}{}

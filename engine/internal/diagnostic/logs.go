@@ -87,13 +87,13 @@ func CollectContainerDiagnostics(ctx context.Context, client *client.Client, con
 
 	err = collectContainerLogs(ctx, client, diagnosticsDir, containerName)
 	if err != nil {
-		log.Warn("Failed to collect container logs ", containerName, err)
+		log.Warn("failed to collect container logs ", containerName, err)
 	}
 
 	err = collectPostgresLogs(ctx, client, diagnosticsDir, containerName, dbDataDir)
 
 	if err != nil {
-		log.Warn("Failed to collect Postgres logs ", containerName, err)
+		log.Warn("failed to collect Postgres logs ", containerName, err)
 	}
 }
 
@@ -107,7 +107,7 @@ func collectContainersOutput(ctx context.Context, client *client.Client, diagnos
 	for _, containerName := range containerList {
 		err = collectContainerLogs(ctx, client, diagnosticDir, containerName)
 		if err != nil {
-			log.Warn("Failed to collect container logs ", containerName, err)
+			log.Warn("failed to collect container logs ", containerName, err)
 		}
 	}
 
@@ -236,7 +236,7 @@ func extractTar(dir string, reader *tar.Reader, header *tar.Header) error {
 
 		defer func() {
 			if err := f.Close(); err != nil {
-				log.Err("Failed to close TAR stream", err)
+				log.Err("failed to close TAR stream", err)
 			}
 		}()
 
@@ -255,14 +255,14 @@ func cleanLogsFunc(logRetentionDays int) func() {
 		log.Dbg("Cleaning old logs", logsDir)
 
 		if err != nil {
-			log.Err("Failed to fetch logs dir", err)
+			log.Err("failed to fetch logs dir", err)
 			return
 		}
 
 		err = cleanupLogsDir(logsDir, logRetentionDays)
 
 		if err != nil {
-			log.Err("Failed to fetch logs dir", err)
+			log.Err("failed to fetch logs dir", err)
 			return
 		}
 	}
@@ -273,7 +273,7 @@ func cleanupLogsDir(logsDir string, logRetentionDays int) error {
 	dirList, err := os.ReadDir(logsDir)
 
 	if err != nil {
-		log.Err("Failed list logs directories", err)
+		log.Err("failed to list logs directories", err)
 		return err
 	}
 
@@ -285,7 +285,7 @@ func cleanupLogsDir(logsDir string, logRetentionDays int) error {
 		dirTime, err := time.Parse(timeFormat, name)
 
 		if err != nil {
-			log.Warn("Failed to parse time", name, err)
+			log.Warn("failed to parse time", name, err)
 			continue
 		}
 
@@ -296,7 +296,7 @@ func cleanupLogsDir(logsDir string, logRetentionDays int) error {
 		log.Dbg("Removing old logs directory", name)
 
 		if err = os.RemoveAll(path.Join(logsDir, name)); err != nil {
-			log.Err("Directory removal failed", err)
+			log.Err("directory removal failed", err)
 		}
 	}
 

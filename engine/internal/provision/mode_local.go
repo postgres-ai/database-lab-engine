@@ -391,11 +391,11 @@ func (p *Provisioner) revertSession(fsm pool.FSManager, branch, name, port strin
 	log.Dbg(`Reverting start of session...`)
 
 	if runnerErr := postgres.Stop(p.runner, fsm.Pool(), name, port); runnerErr != nil {
-		log.Err("Stop Postgres:", runnerErr)
+		log.Err("stop Postgres:", runnerErr)
 	}
 
 	if runnerErr := fsm.DestroyClone(branch, name, revision); runnerErr != nil {
-		log.Err("Destroy clone:", runnerErr)
+		log.Err("destroy clone:", runnerErr)
 	}
 }
 
@@ -740,7 +740,7 @@ func (p *Provisioner) scanCSVLogFile(ctx context.Context, filename string, avail
 
 	defer func() {
 		if err := csvFile.Close(); err != nil {
-			log.Errf("Failed to close a CSV log file: %s", err.Error())
+			log.Errf("failed to close CSV log file: %s", err.Error())
 		}
 	}()
 

@@ -121,6 +121,45 @@ We encourage you to follow the principles described in the following documents:
 - [Effective Go](https://go.dev/doc/effective_go)
 - [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
 
+### Message style guide
+Consistent messaging is important throughout the codebase. Follow these guidelines for errors, logs, and user-facing messages:
+
+#### Error messages
+- Lowercase for internal errors and logs: `failed to start session` (no ending period)
+- Uppercase for user-facing errors: `Requested object does not exist. Specify your request.` (with ending period)
+- Omit articles ("a", "an", "the") for brevity: use `failed to update clone` not `failed to update the clone`
+- Be specific and actionable whenever possible
+- For variable interpolation, use consistent formatting: `failed to find clone: %s`
+
+#### CLI output
+- Use concise, action-oriented language
+- Present tense with ellipsis for in-progress actions: `Creating clone...` 
+  - Ellipsis (`...`) indicates an ongoing process where the user should wait
+  - Always follow up with a completion message when the operation finishes
+- Past tense with period for results: `Clone created successfully.`
+- Include relevant identifiers (IDs, names) in output
+
+#### Progress indication
+- Use ellipsis (`...`) to indicate that an operation is in progress and the user should wait
+- For longer operations, consider providing percentage or step indicators: `Cloning database... (25%)`
+- When an operation with ellipsis completes, always provide a completion message without ellipsis
+- Example sequence:
+  ```
+  Creating clone...
+  Clone "test-clone" created successfully.
+  ```
+
+#### UI messages
+- Be consistent with terminology across UI and documentation
+- For confirmations, use format: `{Resource} {action} successfully.`
+- For errors, provide clear next steps when possible
+- Use sentence case for all messages (capitalize first word only)
+
+#### Commit messages
+- Start with lowercase type prefix: `fix:`, `feat:`, `docs:`, etc.
+- Use imperative mood: `add feature` not `added feature`
+- Provide context in the body if needed
+
 ### Documentation styleguide
 Documentation for Database Lab Engine and additional components is hosted at https://postgres.ai/docs and is maintained in this GitLab repo: https://gitlab.com/postgres-ai/docs.
 
