@@ -15,7 +15,7 @@ func CommandList() []*cli.Command {
 	return []*cli.Command{
 		{
 			Name:  "snapshot",
-			Usage: "manage snapshots",
+			Usage: "create, retrieve, or delete snapshot",
 			Subcommands: []*cli.Command{
 				{
 					Name:   "list",
