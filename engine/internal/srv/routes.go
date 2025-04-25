@@ -952,6 +952,16 @@ func (s *Server) healthCheck(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) refresh(w http.ResponseWriter, r *http.Request) {
+	if err := s.Retrieval.CanStartRefresh(); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if err := s.Retrieval.HasAvailablePool(); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
 	go func() {
 		if err := s.Retrieval.FullRefresh(context.Background()); err != nil {
 			log.Err("failed to initiate full refresh", err)
@@ -963,6 +973,5 @@ func (s *Server) refresh(w http.ResponseWriter, r *http.Request) {
 		Message: "Full refresh started",
 	}); err != nil {
 		api.SendError(w, r, err)
-		return
 	}
 }
