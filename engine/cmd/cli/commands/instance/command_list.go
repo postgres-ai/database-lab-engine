@@ -25,6 +25,11 @@ func CommandList() []*cli.Command {
 					Usage:  "display instance's version",
 					Action: health,
 				},
+				{
+					Name:   "full-refresh",
+					Usage:  "initiate full refresh",
+					Action: refresh,
+				},
 			},
 		},
 	}

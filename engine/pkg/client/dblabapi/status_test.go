@@ -111,3 +111,58 @@ func TestClientStatusWithFailedRequest(t *testing.T) {
 	require.EqualError(t, err, "failed to get response: EOF")
 	require.Nil(t, status)
 }
+
+func TestClientFullRefresh(t *testing.T) {
+	expectedResponse := &models.Response{
+		Status:  "OK",
+		Message: "Full refresh started",
+	}
+
+	mockClient := NewTestClient(func(req *http.Request) *http.Response {
+		assert.Equal(t, req.URL.String(), "https://example.com/full-refresh")
+		assert.Equal(t, req.Method, http.MethodPost)
+
+		body, err := json.Marshal(expectedResponse)
+		require.NoError(t, err)
+
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewBuffer(body)),
+			Header:     make(http.Header),
+		}
+	})
+
+	c, err := NewClient(Options{
+		Host:              "https://example.com/",
+		VerificationToken: "testVerify",
+	})
+	require.NoError(t, err)
+
+	c.client = mockClient
+
+	resp, err := c.FullRefresh(context.Background())
+	require.NoError(t, err)
+	assert.EqualValues(t, expectedResponse, resp)
+}
+
+func TestClientFullRefreshWithFailedDecode(t *testing.T) {
+	mockClient := NewTestClient(func(req *http.Request) *http.Response {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewBuffer([]byte{})),
+			Header:     make(http.Header),
+		}
+	})
+
+	c, err := NewClient(Options{
+		Host:              "https://example.com/",
+		VerificationToken: "testVerify",
+	})
+	require.NoError(t, err)
+
+	c.client = mockClient
+
+	resp, err := c.FullRefresh(context.Background())
+	require.EqualError(t, err, "failed to get response: EOF")
+	require.Nil(t, resp)
+}
