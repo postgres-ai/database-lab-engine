@@ -1,0 +1,37 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+      "rootDir": ".",
+      "outDir": "dist",
+      "declaration": true,
+      "emitDeclarationOnly": false,
+      "noEmit": false,
+      "module": "esnext",
+      "target": "es2019",
+      "moduleResolution": "node",
+      "jsx": "react-jsx",
+      "resolveJsonModule": true,
+      "esModuleInterop": true
+    },
+    "include": [
+      "components/**/*",
+      "config/**/*",
+      "helpers/**/*",
+      "hooks/**/*",
+      "icons/**/*",
+      "pages/**/*",
+      "stores/**/*",
+      "styles/**/*",
+      "types/**/*",
+      "utils/**/*",
+      "react-app-env.d.ts",
+    ],
+    "exclude": [
+      "node_modules",
+      "dist",
+      "meta.json",
+      "craco.config.js",
+      "**/*.test.ts",
+      "**/*.test.tsx"
+    ]
+  }

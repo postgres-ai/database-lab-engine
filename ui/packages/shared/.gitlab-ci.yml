@@ -1,0 +1,65 @@
+.only_ui_feature: &only_ui_feature
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+.only_ui_tag_release: &only_ui_tag_release
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v[a-zA-Z0-9_.-]*/
+
+.shared_base: &shared_base
+  image: node:lts-alpine
+  allow_failure: true
+  cache:
+    key: "$CI_COMMIT_REF_SLUG"
+    paths:
+      - .pnpm-store
+  before_script:
+    - apk add --no-cache rsync jq
+    - corepack enable
+    - corepack prepare pnpm@8.9.2 --activate
+    - pnpm config set store-dir .pnpm-store
+    - pnpm --dir ui/packages/shared install --frozen-lockfile
+
+publish-shared-preview:
+  <<: [*shared_base, *only_ui_feature]
+  stage: build
+  script:
+    - cd ui/packages/shared
+    - echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
+
+    # Get base version from package.json (strip any -pr or other suffix)
+    - BASE_VERSION=$(jq -r .version package.json)
+    - BASE_VERSION=${BASE_VERSION%%-*}
+    - export PREID="pr-${CI_MERGE_REQUEST_IID:-preview}"
+
+    # Detect next available patch for same PR
+    - EXISTING_TAGS=$(npm view @postgres.ai/shared versions --json | jq -r '.[]' | grep "^${BASE_VERSION}-${PREID}" || true)
+    - COUNT=$(echo "$EXISTING_TAGS" | wc -l | xargs)
+    - if [ "$COUNT" -eq 0 ]; then VERSION="${BASE_VERSION}-${PREID}"; else VERSION="${BASE_VERSION}-${PREID}.${COUNT}"; fi
+    - echo "Publishing version $VERSION"
+    - npm version "$VERSION" --no-git-tag-version
+
+    # Build and pack
+    - pnpm run pack
+
+    # Publish .tgz archive
+    - TARBALL=$(ls postgres.ai-shared-*.tgz)
+    - pnpm publish "$TARBALL" --no-git-checks --tag "$PREID"
+
+publish-shared-release:
+  <<: [*shared_base, *only_ui_tag_release]
+  stage: build
+  script:
+    - cd ui/packages/shared
+    - echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
+
+    # Extract version from tag (remove leading "v")
+    - export VERSION=${CI_COMMIT_TAG#"v"}
+
+    # Build and pack
+    - npm version "$VERSION" --no-git-tag-version
+    - pnpm run pack
+
+    # Publish
+    - TARBALL=$(ls postgres.ai-shared-*.tgz)
+    - pnpm publish "$TARBALL" --no-git-checks

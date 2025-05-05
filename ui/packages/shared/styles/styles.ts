@@ -8,11 +8,11 @@
 import { colors } from './colors'
 import { theme } from './theme'
 
-export const styles = {
+export const styles: Record<string, any> = {
   root: {
-    'min-height': '100%',
+    'minHeight': '100%',
     width: '100%',
-    'z-index': 1,
+    'zIndex': 1,
     position: 'relative',
     [theme.breakpoints.down('sm')]: {
       maxWidth: '100vw',
