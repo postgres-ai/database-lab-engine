@@ -19,9 +19,12 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "baseUrl": "."
+    "baseUrl": ".",
+    "paths": {
+      "@postgres.ai/shared/*": ["./*"]
+    }
   },
   "include": [
-    ".",
+    "."
   ]
 }

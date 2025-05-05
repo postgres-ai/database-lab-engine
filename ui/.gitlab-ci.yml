@@ -1,5 +1,6 @@
 include:
   - local: 'ui/packages/ce/.gitlab-ci.yml'
+  - local: 'ui/packages/shared/.gitlab-ci.yml'
 
 .ui_checks: &ui_checks
   rules:

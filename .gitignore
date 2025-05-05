@@ -13,3 +13,5 @@ engine/bin/
 /engine/configs/ci_checker.yml
 
 engine/meta
+
+ui/packages/shared/dist/

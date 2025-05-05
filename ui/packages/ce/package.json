@@ -1,6 +1,6 @@
 {
   "name": "@postgres.ai/ce",
-  "version": "1.0.0",
+  "version": "3.5.0",
   "private": true,
   "dependencies": {
     "@craco/craco": "^6.4.3",
