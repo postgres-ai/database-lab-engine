@@ -10,11 +10,12 @@ import { resetClone } from 'api/clones/resetClone'
 import { destroyClone } from 'api/clones/destroyClone'
 import { updateClone } from 'api/clones/updateClone'
 import { createSnapshot } from 'api/snapshots/createSnapshot'
+import { initWS } from 'api/engine/initWS'
+import { destroySnapshot } from 'api/snapshots/destroySnapshot'
 
 import { PageContainer } from 'components/PageContainer'
 import { NavPath } from 'components/NavPath'
 import { ROUTES } from 'config/routes'
-import { destroySnapshot } from 'api/snapshots/destroySnapshot'
 
 type Params = {
   cloneId: string
@@ -33,6 +34,7 @@ export const Clone = () => {
     destroySnapshot,
     updateClone,
     createSnapshot,
+    initWS,
   }
 
   const elements = {

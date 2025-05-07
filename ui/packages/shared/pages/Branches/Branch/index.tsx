@@ -43,7 +43,7 @@ import { Host } from './context'
 import { DeleteBranch } from '@postgres.ai/shared/types/api/endpoints/deleteBranch'
 import { InstanceTabs, TABS_INDEX } from "../../Instance/Tabs";
 
-type Props = Host & { isPlatform?: boolean }
+type Props = Host & { isPlatform?: boolean, hideBranchingFeatures?: boolean }
 
 const useStyles = makeStyles(
   () => ({
@@ -187,6 +187,8 @@ export const BranchesPage = observer((props: Props) => {
           tab={TABS_INDEX.BRANCHES}
           isPlatform={props.isPlatform}
           instanceId={props.instanceId}
+          hasLogs={props.api.initWS !== undefined}
+          hideInstanceTabs={props.hideBranchingFeatures}
         />
       </SectionTitle>
     </>

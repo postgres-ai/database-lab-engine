@@ -31,7 +31,7 @@ export type Host = {
     breadcrumbs: React.ReactNode
   }
   wsHost?: string
-  hideInstanceTabs?: boolean
+  hideBranchingFeatures?: boolean
   renderCurrentTab?: number
   isPlatform?: boolean
   setProjectAlias?: (alias: string) => void

@@ -36,6 +36,7 @@ interface CreateSnapshotProps {
     breadcrumbs: React.ReactNode
   }
   isPlatform?: boolean
+  hideBranchingFeatures?: boolean
 }
 
 const useStyles = makeStyles(
@@ -94,7 +95,7 @@ const useStyles = makeStyles(
 )
 
 export const CreateSnapshotPage = observer(
-  ({ instanceId, api, elements, routes, isPlatform }: CreateSnapshotProps) => {
+  ({ instanceId, api, elements, routes, isPlatform, hideBranchingFeatures }: CreateSnapshotProps) => {
     const stores = useCreatedStores(api)
     const classes = useStyles()
     const history = useHistory()
@@ -158,6 +159,8 @@ export const CreateSnapshotPage = observer(
             tab={TABS_INDEX.SNAPSHOTS}
             isPlatform={isPlatform}
             instanceId={instanceId}
+            hasLogs={api.initWS !== undefined}
+            hideInstanceTabs={hideBranchingFeatures}
           />
         </SectionTitle>
         <div className={classes.wrapper}>

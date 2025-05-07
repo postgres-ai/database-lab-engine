@@ -188,7 +188,7 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
-type Props = Host & { isPlatform?: boolean }
+type Props = Host & { isPlatform?: boolean, hideBranchingFeatures?: boolean }
 
 export const Clone = observer((props: Props) => {
   const classes = useStyles()
@@ -233,6 +233,8 @@ export const Clone = observer((props: Props) => {
           tab={TABS_INDEX.CLONES}
           isPlatform={props.isPlatform}
           instanceId={props.instanceId}
+          hasLogs={props.api.initWS !== undefined}
+          hideInstanceTabs={props.hideBranchingFeatures}
         />
       </SectionTitle>
     </>
@@ -340,19 +342,19 @@ export const Clone = observer((props: Props) => {
                 <Spinner size="sm" className={classes.spinner} />
               )}
             </Button>
-            <Button
+            {!props.hideBranchingFeatures && <Button
               variant="contained"
               color="primary"
               onClick={createSnapshot}
               disabled={isDisabledControls}
-              title={'Delete this clone'}
+              title={'Create snapshot'}
               className={classes.actionButton}
             >
               Create snapshot
               {snapshots.snapshotDataLoading && (
                 <Spinner size="sm" className={classes.spinner} />
               )}
-            </Button>
+            </Button>}
             <Button
               variant="outlined"
               color="secondary"
@@ -373,12 +375,12 @@ export const Clone = observer((props: Props) => {
                 className={classes.errorStub}
               />
             ))}
-          <div>
+          {!props.hideBranchingFeatures && <div>
             <p>
               <strong>Branch</strong>
             </p>
             <p className={classes.text}>{clone.branch}</p>
-          </div>
+          </div>}
 
           <div className={classes.title}>
             <p>

@@ -43,6 +43,7 @@ type Props = {
   clones?: Clone[]
   isDisabled: boolean
   emptyStubText: string
+  hideBranchingFeatures?: boolean
 }
 
 export const ClonesList = (props: Props) => {
@@ -123,7 +124,7 @@ export const ClonesList = (props: Props) => {
               <TableHeaderCell />
               <TableHeaderCell>Status</TableHeaderCell>
               <TableHeaderCell>ID</TableHeaderCell>
-              <TableHeaderCell>
+              {!props.hideBranchingFeatures && <TableHeaderCell>
                 <div
                   onClick={handleSortByBranch}
                   className={cn(styles.interactiveRow, styles.verticalCentered)}
@@ -137,7 +138,7 @@ export const ClonesList = (props: Props) => {
                     )}
                   />
                 </div>
-              </TableHeaderCell>
+              </TableHeaderCell>}
               <TableHeaderCell>
                 <Tooltip content="When enabled, neither manual nor automated deletion of this clone is possible. Note that abandoned protected clones may lead to out-of-disk-space events because they hold old data, blocking cleanup and refresh processes.">
                   <div className={styles.verticalCentered}>
@@ -203,7 +204,7 @@ export const ClonesList = (props: Props) => {
                     </Tooltip>
                   </TableBodyCell>
                   <TableBodyCell>{clone.id}</TableBodyCell>
-                  <TableBodyCell>{clone.branch}</TableBodyCell>
+                  {!props.hideBranchingFeatures && <TableBodyCell>{clone.branch}</TableBodyCell>}
                   <TableBodyCell>
                     {clone.protected ? (
                       <Tooltip content="Clone is protected from manual and automated deletion. Note that abandoned protected clones may lead to out-of-disk-space events because they hold old data, blocking cleanup and refresh processes.">

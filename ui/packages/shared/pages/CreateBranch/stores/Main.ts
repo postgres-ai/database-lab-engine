@@ -14,6 +14,7 @@ import {
 } from '@postgres.ai/shared/types/api/endpoints/createBranch'
 import { Branch } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 import { GetSnapshots } from '@postgres.ai/shared/types/api/endpoints/getSnapshots'
+import { InitWS } from '@postgres.ai/shared/types/api/endpoints/initWS'
 
 type Error = {
   title?: string
@@ -24,6 +25,7 @@ export type MainStoreApi = {
   getBranches: GetBranches
   createBranch: CreateBranch
   getSnapshots: GetSnapshots
+  initWS?: InitWS
 }
 
 export class MainStore {

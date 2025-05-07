@@ -16,6 +16,7 @@ import { SnapshotDto } from '@postgres.ai/shared/types/api/entities/snapshot'
 import { GetBranchSnapshot } from '@postgres.ai/shared/types/api/endpoints/getBranchSnapshot'
 import { BranchSnapshotDto } from '@postgres.ai/shared/types/api/entities/branchSnapshot'
 import { generateSnapshotPageId } from '@postgres.ai/shared/pages/Instance/Snapshots/utils'
+import { InitWS } from '@postgres.ai/shared/types/api/endpoints/initWS'
 
 type Error = {
   title?: string
@@ -25,6 +26,7 @@ type Error = {
 export type Api = SnapshotsApi & {
   destroySnapshot: DestroySnapshot
   getBranchSnapshot?: GetBranchSnapshot
+  initWS?: InitWS
 }
 
 export class MainStore {

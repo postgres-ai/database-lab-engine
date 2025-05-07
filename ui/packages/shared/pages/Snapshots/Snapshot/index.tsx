@@ -41,7 +41,7 @@ import { Host } from './context'
 import { DestroySnapshot } from '@postgres.ai/shared/types/api/endpoints/destroySnapshot'
 import { InstanceTabs, TABS_INDEX } from "../../Instance/Tabs";
 
-type Props = Host & { isPlatform?: boolean }
+type Props = Host & { isPlatform?: boolean, hideBranchingFeatures?: boolean }
 
 const useStyles = makeStyles(
   () => ({
@@ -186,6 +186,8 @@ export const SnapshotPage = observer((props: Props) => {
           tab={TABS_INDEX.SNAPSHOTS}
           isPlatform={props.isPlatform}
           instanceId={props.instanceId}
+          hasLogs={props.api.initWS !== undefined}
+          hideInstanceTabs={props.hideBranchingFeatures}
         />
       </SectionTitle>
     </>

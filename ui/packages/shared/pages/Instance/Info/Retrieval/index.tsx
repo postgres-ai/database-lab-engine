@@ -35,7 +35,11 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
-export const Retrieval = observer(() => {
+type RetrievalProps = {
+  hideBranchingFeatures?: boolean
+}
+
+export const Retrieval = observer((props: RetrievalProps) => {
   const stores = useStores()
   const classes = useStyles()
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
@@ -72,14 +76,14 @@ export const Retrieval = observer(() => {
               </Button>
             </>
           )}
-          <Button
+          {!props.hideBranchingFeatures && <Button
             theme="secondary"
             onClick={() => setIsFullRefreshModalOpen(true)}
             isDisabled={!canCallFullRefresh}
             className={classes.detailsButton}
           >
             Full refresh
-          </Button>
+          </Button>}
         </Status>
       </Property>
       <Property name="Mode">{retrieving.mode}</Property>

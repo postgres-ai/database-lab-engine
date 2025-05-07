@@ -9,6 +9,7 @@ import { createClone } from 'api/clones/createClone'
 import { getClone } from 'api/clones/getClone'
 import { getBranches } from 'api/branches/getBranches'
 import { getSnapshots } from 'api/snapshots/getSnapshots'
+import { initWS } from 'api/engine/initWS'
 
 export const CreateClone = () => {
   const routes = {
@@ -23,6 +24,7 @@ export const CreateClone = () => {
     getClone,
     getBranches,
     getSnapshots,
+    initWS
   }
 
   const elements = {

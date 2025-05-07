@@ -33,7 +33,7 @@ import { useCreatedStores } from './useCreatedStores'
 
 import './styles.scss'
 
-type Props = Host
+type Props = Host & { hideBranchingFeatures?: boolean }
 
 const useStyles = makeStyles(
   (theme) => ({
@@ -143,6 +143,8 @@ export const Instance = observer((props: Props) => {
               tab={activeTab}
               onTabChange={(tabID) =>  setActiveTab(tabID)}
               isPlatform={isPlatform!}
+              hasLogs={api.initWS !== undefined}
+              hideInstanceTabs={props.hideBranchingFeatures}
             />
           )}
         </SectionTitle>
@@ -159,7 +161,7 @@ export const Instance = observer((props: Props) => {
                   {instance && instance.state?.retrieving?.status ? (
                     <>
                       <Clones />
-                      <Info />
+                      <Info hideBranchingFeatures={props.hideBranchingFeatures} />
                     </>
                   ) : (
                     <StubSpinner />
