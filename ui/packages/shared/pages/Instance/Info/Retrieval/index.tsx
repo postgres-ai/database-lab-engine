@@ -15,6 +15,7 @@ import { RefreshFailedAlert } from './RefreshFailedAlert'
 
 import { getTypeByStatus, isRetrievalUnknown } from './utils'
 import { RetrievalModal } from './RetrievalModal'
+import { ConfirmFullRefreshModal } from './ConfirmFullRefreshModal'
 
 const useStyles = makeStyles(
   () => ({
@@ -26,6 +27,9 @@ const useStyles = makeStyles(
     },
     detailsButton: {
       marginLeft: '8px',
+      '@media (max-width: 600px)': {
+        marginTop: '4px',
+      },
     },
   }),
   { index: 1 },
@@ -35,6 +39,7 @@ export const Retrieval = observer(() => {
   const stores = useStores()
   const classes = useStyles()
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
+  const [isFullRefreshModalOpen, setIsFullRefreshModalOpen] = useState<boolean>(false)
 
   const { instance, instanceRetrieval } = stores.main
   if (!instance) return null
@@ -43,9 +48,12 @@ export const Retrieval = observer(() => {
   if (!retrieving) return null
 
   if (!instanceRetrieval) return null
+
   const { mode, status, activity } = instanceRetrieval
+
   const isVisible = mode !== 'physical' && !isRetrievalUnknown(mode)
   const isActive = mode === 'logical' && status === 'refreshing'
+  const canCallFullRefresh = retrieving.status === 'finished' || retrieving.status === 'failed'
 
   return (
     <Section title="Retrieval">
@@ -64,6 +72,14 @@ export const Retrieval = observer(() => {
               </Button>
             </>
           )}
+          <Button
+            theme="secondary"
+            onClick={() => setIsFullRefreshModalOpen(true)}
+            isDisabled={!canCallFullRefresh}
+            className={classes.detailsButton}
+          >
+            Full refresh
+          </Button>
         </Status>
       </Property>
       <Property name="Mode">{retrieving.mode}</Property>
@@ -82,6 +98,11 @@ export const Retrieval = observer(() => {
         data={activity}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+      />
+      <ConfirmFullRefreshModal
+        isOpen={isFullRefreshModalOpen}
+        onClose={() => setIsFullRefreshModalOpen(false)}
+        instanceId={instance.id}
       />
     </Section>
   )
