@@ -9,6 +9,7 @@ import { PageContainer } from 'components/PageContainer'
 import { destroySnapshot } from 'api/snapshots/destroySnapshot'
 import { getSnapshots } from 'api/snapshots/getSnapshots'
 import { getBranchSnapshot } from 'api/snapshots/getBranchSnapshot'
+import { initWS } from 'api/engine/initWS'
 
 type Params = {
   snapshotId: string
@@ -21,6 +22,7 @@ export const Snapshot = () => {
     destroySnapshot,
     getSnapshots,
     getBranchSnapshot,
+    initWS,
   }
 
   const elements = {

@@ -42,7 +42,7 @@ type Host = {
   }
 }
 
-type Props = Host & { isPlatform?: boolean }
+type Props = Host & { isPlatform?: boolean, hideBranchingFeatures?: boolean }
 
 export const CreateClone = observer((props: Props) => {
   const history = useHistory()
@@ -156,6 +156,8 @@ export const CreateClone = observer((props: Props) => {
           tab={TABS_INDEX.CLONES}
           isPlatform={props.isPlatform}
           instanceId={props.instanceId}
+          hasLogs={props.api.initWS !== undefined}
+          hideInstanceTabs={props.hideBranchingFeatures}
         />
       </SectionTitle>
     </>

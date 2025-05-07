@@ -27,15 +27,25 @@ publish-shared-preview:
     - cd ui/packages/shared
     - echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
 
-    # Get base version from package.json (strip any -pr or other suffix)
+    # Get base version from package.json (strip any suffix)
     - BASE_VERSION=$(jq -r .version package.json)
     - BASE_VERSION=${BASE_VERSION%%-*}
     - export PREID="pr-${CI_MERGE_REQUEST_IID:-preview}"
 
-    # Detect next available patch for same PR
-    - EXISTING_TAGS=$(npm view @postgres.ai/shared versions --json | jq -r '.[]' | grep "^${BASE_VERSION}-${PREID}" || true)
-    - COUNT=$(echo "$EXISTING_TAGS" | wc -l | xargs)
-    - if [ "$COUNT" -eq 0 ]; then VERSION="${BASE_VERSION}-${PREID}"; else VERSION="${BASE_VERSION}-${PREID}.${COUNT}"; fi
+    # Get all existing versions
+    - EXISTING_TAGS=$(npm view @postgres.ai/shared versions --json | jq -r '.[]' || echo "")
+
+    # Find next available version suffix
+    - VERSION=""
+    - for i in $(seq 0 20); do
+        CANDIDATE="${BASE_VERSION}-${PREID}";
+        [ "$i" -gt 0 ] && CANDIDATE="${CANDIDATE}.${i}";
+        if ! echo "$EXISTING_TAGS" | grep -qx "$CANDIDATE"; then
+          VERSION="$CANDIDATE";
+          break;
+        fi;
+      done
+    - if [ -z "$VERSION" ]; then echo "❌ Failed to determine unique preview version"; exit 1; fi
     - echo "Publishing version $VERSION"
     - npm version "$VERSION" --no-git-tag-version
 

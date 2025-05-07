@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { getBranches } from 'api/branches/getBranches'
 import { deleteBranch } from 'api/branches/deleteBranch'
 import { getSnapshotList } from 'api/branches/getSnapshotList'
+import { initWS } from 'api/engine/initWS'
 
 import { PageContainer } from 'components/PageContainer'
 import { NavPath } from 'components/NavPath'
@@ -20,6 +21,7 @@ export const Branch = () => {
     getBranches,
     deleteBranch,
     getSnapshotList,
+    initWS
   }
 
   const elements = {

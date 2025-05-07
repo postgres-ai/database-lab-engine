@@ -1,5 +1,6 @@
 import { createSnapshot } from 'api/snapshots/createSnapshot'
 import { getInstance } from 'api/instances/getInstance'
+import { initWS } from 'api/engine/initWS'
 
 import { CreateSnapshotPage } from '@postgres.ai/shared/pages/CreateSnapshot'
 
@@ -11,6 +12,7 @@ export const CreateSnapshot = () => {
   const api = {
     createSnapshot,
     getInstance,
+    initWS
   }
 
   const elements = {

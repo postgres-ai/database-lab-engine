@@ -57,20 +57,7 @@ export const PlatformTabs = ({
       to: 'clones',
       value: TABS_INDEX.CLONES,
       hide: hideInstanceTabs,
-    },
-    {
-      label: '📓 Logs',
-      to: 'logs',
-      value: TABS_INDEX.LOGS,
-      disabled: !hasLogs,
-      hide: hideInstanceTabs,
-    },
-    {
-      label: '🛠️ Configuration',
-      to: 'configuration',
-      value: TABS_INDEX.CONFIGURATION,
-      hide: hideInstanceTabs,
-    },
+    }
   ]
 
   return (
@@ -79,12 +66,11 @@ export const PlatformTabs = ({
       onChange={handleChange}
       classes={{ root: classes.tabsRoot, indicator: classes.tabsIndicator }}
     >
-      {tabs.map(({ label, to, value, hide, disabled }) => (
+      {tabs.map(({ label, to, value, hide }) => (
         <Link key={value} to={`/${org}/instances/${instanceId}/${to}`}>
           <TabComponent
             label={label}
             value={value}
-            disabled={disabled}
             classes={{
               root: hide ? classes.tabHidden : classes.tabRoot,
             }}

@@ -20,6 +20,7 @@ import { Clone } from '@postgres.ai/shared/types/api/entities/clone'
 import { Instance } from '@postgres.ai/shared/types/api/entities/instance'
 import { checkIsCloneStable } from '@postgres.ai/shared/utils/clone'
 import { getTextFromUnknownApiError } from '@postgres.ai/shared/utils/api'
+import { InitWS } from '@postgres.ai/shared/types/api/endpoints/initWS'
 
 const UNSTABLE_CLONE_UPDATE_TIMEOUT = 1000
 
@@ -29,6 +30,7 @@ export type Api = SnapshotsApi & {
   resetClone: ResetClone
   destroyClone: DestroyClone
   updateClone: UpdateClone
+  initWS?: InitWS
 }
 
 type Error = {

@@ -12,6 +12,7 @@ import {
   MainStore as InstanceStore,
   Api as InstanceStoreApi,
 } from '@postgres.ai/shared/pages/Instance/stores/Main'
+import { InitWS } from '@postgres.ai/shared/types/api/endpoints/initWS'
 
 type Error = {
   title?: string
@@ -20,6 +21,7 @@ type Error = {
 
 export type MainStoreApi = InstanceStoreApi & {
   createSnapshot: CreateSnapshot
+  initWS?: InitWS
 }
 
 export class MainStore {

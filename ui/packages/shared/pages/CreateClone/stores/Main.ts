@@ -15,6 +15,7 @@ import { getTextFromUnknownApiError } from '@postgres.ai/shared/utils/api'
 import { checkIsCloneStable } from '@postgres.ai/shared/utils/clone'
 
 import { FormValues } from '../useForm'
+import { InitWS } from '@postgres.ai/shared/types/api/endpoints/initWS'
 
 const UNSTABLE_CLONE_UPDATE_TIMEOUT = 1000
 
@@ -24,6 +25,7 @@ export type MainStoreApi = SnapshotsApi & {
   getClone: GetClone
   getBranches?: GetBranches
   getSnapshots?: GetSnapshots
+  initWS?: InitWS
 }
 
 export class MainStore {

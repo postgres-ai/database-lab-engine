@@ -76,7 +76,11 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
-export const Info = () => {
+type InfoProps = {
+  hideBranchingFeatures?: boolean
+}
+
+export const Info = (props: InfoProps) => {
   const classes = useStyles()
   const width = useWindowDimensions()
   const [onHover, setOnHover] = useState(false)
@@ -122,7 +126,7 @@ export const Info = () => {
       {!isCollapsed && (
         <div>
           <Status />
-          <Retrieval />
+          <Retrieval hideBranchingFeatures={props.hideBranchingFeatures} />
           <Connection />
           <Disks />
           <Snapshots />

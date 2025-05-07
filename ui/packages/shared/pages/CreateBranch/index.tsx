@@ -38,6 +38,7 @@ interface CreateBranchProps {
     breadcrumbs: React.ReactNode
   }
   isPlatform?: boolean
+  hideBranchingFeatures?: boolean
 }
 
 const useStyles = makeStyles(
@@ -101,7 +102,7 @@ const useStyles = makeStyles(
 )
 
 export const CreateBranchPage = observer(
-  ({ instanceId, api, elements, routes, isPlatform }: CreateBranchProps) => {
+  ({ instanceId, api, elements, routes, isPlatform, hideBranchingFeatures }: CreateBranchProps) => {
     const stores = useCreatedStores(api)
     const classes = useStyles()
     const history = useHistory()
@@ -166,6 +167,8 @@ export const CreateBranchPage = observer(
             tab={TABS_INDEX.BRANCHES}
             isPlatform={isPlatform}
             instanceId={instanceId}
+            hasLogs={api.initWS !== undefined}
+            hideInstanceTabs={hideBranchingFeatures}
           />
         </SectionTitle>
         <div className={classes.wrapper}>

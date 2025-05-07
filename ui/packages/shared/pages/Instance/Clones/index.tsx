@@ -25,6 +25,7 @@ const SHORT_LIST_SIZE = 3
 
 interface ClonesProps {
   onlyRenderList?: boolean
+  hideBranchingFeatures?: boolean
 }
 
 const useStyles = makeStyles(
@@ -127,6 +128,7 @@ export const Clones = observer((props: ClonesProps) => {
         }
         isDisabled={stores.main.isDisabledInstance}
         emptyStubText="This instance has no active clones."
+        hideBranchingFeatures={props.hideBranchingFeatures}
       />
 
       {showListSizeButton && !onlyRenderList && (
