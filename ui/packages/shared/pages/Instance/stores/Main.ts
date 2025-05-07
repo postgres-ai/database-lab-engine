@@ -31,6 +31,7 @@ import { GetBranches } from '@postgres.ai/shared/types/api/endpoints/getBranches
 import { DeleteBranch } from '@postgres.ai/shared/types/api/endpoints/deleteBranch'
 import { GetSeImages } from '@postgres.ai/shared/types/api/endpoints/getSeImages'
 import { DestroySnapshot } from '@postgres.ai/shared/types/api/endpoints/destroySnapshot'
+import { FullRefresh } from "../../../types/api/endpoints/fullRefresh";
 
 const UNSTABLE_CLONE_STATUS_CODES = ['CREATING', 'RESETTING', 'DELETING']
 
@@ -54,6 +55,7 @@ export type Api = {
   getSnapshotList?: GetSnapshotList
   deleteBranch?: DeleteBranch
   destroySnapshot?: DestroySnapshot
+  fullRefresh?: FullRefresh
 }
 
 type Error = {
@@ -444,5 +446,25 @@ export class MainStore {
       response,
       error: error ? await error.json().then((err) => err) : null,
     }
+  }
+
+  fullRefresh = async (instanceId: string): Promise<{ response: string | null, error: Error | null } | undefined> => {
+    if (!this.api.fullRefresh) return
+
+    const { response, error } = await this.api.fullRefresh({
+      instanceId,
+    })
+
+    if (error) {
+      const parsedError = await error.json().then((err) => ({
+        message: err.message || 'An unknown error occurred',
+      }));
+
+      return { response: null, error: parsedError }
+    } else if (this.instance?.state?.retrieving) {
+      this.instance.state.retrieving.status = 'refreshing';
+    }
+
+    return { response: response ? String(response) : null, error: null }
   }
 }
