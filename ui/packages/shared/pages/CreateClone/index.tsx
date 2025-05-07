@@ -198,7 +198,9 @@ export const CreateClone = observer((props: Props) => {
   const isCloneUnstable = Boolean(
     stores.main.clone && !stores.main.isCloneStable,
   )
-  const isCreatingClone = formik.isSubmitting || isCloneUnstable
+
+  const isCreatingClone =
+    (formik.isSubmitting || isCloneUnstable) && !stores.main.cloneError
 
   return (
     <>
@@ -229,7 +231,10 @@ export const CreateClone = observer((props: Props) => {
               fullWidth
               label="Clone ID"
               value={formik.values.cloneId}
-              onChange={(e) => formik.setFieldValue('cloneId', e.target.value)}
+              onChange={(e) => {
+                const sanitizedCloneIdValue = e.target.value.replace(/\s/g, '')
+                formik.setFieldValue('cloneId', sanitizedCloneIdValue)
+              }}
               error={Boolean(formik.errors.cloneId)}
               disabled={isCreatingClone}
             />

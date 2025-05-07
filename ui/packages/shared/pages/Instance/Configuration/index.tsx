@@ -1156,7 +1156,7 @@ export const Configuration = observer(
                 <Button
                   variant="outlined"
                   color="secondary"
-                  onClick={() => switchActiveTab(null, 0)}
+                  onClick={switchTab}
                 >
                   Cancel
                 </Button>
