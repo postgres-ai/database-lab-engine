@@ -33,7 +33,7 @@ func (s *Server) listBranches(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	branches, err := fsm.ListAllBranches()
+	branches, err := s.getAllAvailableBranches(fsm)
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
@@ -85,6 +85,21 @@ func (s *Server) listBranches(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) getAllAvailableBranches(fsm pool.FSManager) ([]models.BranchEntity, error) {
+	if fsm == nil {
+		return nil, fmt.Errorf("no available pools")
+	}
+
+	// Filter by available pools in case if two or more DLE is running on the same pool and use the selectedPool feature.
+	poolNames := []string{}
+
+	for _, fsManager := range s.pm.GetFSManagerList() {
+		poolNames = append(poolNames, fsManager.Pool().Name)
+	}
+
+	return fsm.ListAllBranches(poolNames)
+}
+
 func findBranchParent(snapshots map[string]models.SnapshotDetails, parentID, branch string) (int, string) {
 	snapshotCounter := 0
 
@@ -121,13 +136,13 @@ func containsString(slice []string, s string) bool {
 }
 
 func (s *Server) getFSManagerForBranch(branchName string) (pool.FSManager, error) {
-	allBranches, err := s.pm.First().ListAllBranches()
+	allBranches, err := s.getAllAvailableBranches(s.pm.First())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get branch list: %w", err)
 	}
 
 	for _, branchEntity := range allBranches {
-		if branchEntity.Name == branchName {
+		if branchEntity.Name == branchName { // TODO: filter by pool name as well because branch name is ambiguous.
 			return s.getFSManagerForSnapshot(branchEntity.SnapshotID)
 		}
 	}

@@ -236,11 +236,17 @@ func (m *Manager) ListBranches() (map[string]string, error) {
 }
 
 // ListAllBranches lists all branches.
-func (m *Manager) ListAllBranches() ([]models.BranchEntity, error) {
+func (m *Manager) ListAllBranches(poolList []string) ([]models.BranchEntity, error) {
+	poolFilter := ""
+
+	if len(poolList) > 0 {
+		poolFilter += "-r " + strings.Join(poolList, " ")
+	}
+
 	cmd := fmt.Sprintf(
 		// Get all ZFS snapshots (-t) with options (-o) without output headers (-H).
 		// Excluding snapshots without "dle:branch" property ("grep -v").
-		`zfs list -H -t snapshot -o %s,name | grep -v "^-" | cat`, branchProp,
+		`zfs list -H -t snapshot -o %s,name %s | grep -v "^-" | cat`, branchProp, poolFilter,
 	)
 
 	out, err := m.runner.Run(cmd)
