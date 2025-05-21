@@ -199,7 +199,7 @@ func (m *LVManager) ListBranches() (map[string]string, error) {
 }
 
 // ListAllBranches lists all branches.
-func (m *LVManager) ListAllBranches() ([]models.BranchEntity, error) {
+func (m *LVManager) ListAllBranches(_ []string) ([]models.BranchEntity, error) {
 	log.Msg("ListAllBranches is not supported for LVM. Skip the operation")
 
 	return nil, nil

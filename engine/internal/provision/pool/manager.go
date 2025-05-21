@@ -59,7 +59,7 @@ type Branching interface {
 	CreateBranch(branchName, snapshotID string) error
 	DestroyDataset(branchName string) (err error)
 	ListBranches() (map[string]string, error)
-	ListAllBranches() ([]models.BranchEntity, error)
+	ListAllBranches(filterPools []string) ([]models.BranchEntity, error)
 	GetRepo() (*models.Repo, error)
 	GetAllRepo() (*models.Repo, error)
 	SetRelation(parent, snapshotName string) error

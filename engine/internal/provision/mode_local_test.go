@@ -142,7 +142,7 @@ func (m mockFSManager) ListBranches() (map[string]string, error) {
 	return nil, nil
 }
 
-func (m mockFSManager) ListAllBranches() ([]models.BranchEntity, error) {
+func (m mockFSManager) ListAllBranches(_ []string) ([]models.BranchEntity, error) {
 	return nil, nil
 }
 
