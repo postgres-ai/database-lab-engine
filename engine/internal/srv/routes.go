@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -171,6 +172,10 @@ func (s *Server) createSnapshot(w http.ResponseWriter, r *http.Request) {
 		api.SendBadRequestError(w, r, "No snapshots at pool: "+poolName)
 		return
 	}
+
+	sort.SliceStable(snapshotList, func(i, j int) bool {
+		return snapshotList[i].CreatedAt.After(snapshotList[j].CreatedAt)
+	})
 
 	if err := fsManager.InitBranching(); err != nil {
 		api.SendBadRequestError(w, r, "Cannot verify branch metadata: "+err.Error())

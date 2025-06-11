@@ -161,7 +161,7 @@ func (s *LogicalInitial) Run(ctx context.Context) error {
 		var existsError *thinclones.SnapshotExistsError
 		if errors.As(err, &existsError) {
 			log.Msg("Skip snapshotting: ", existsError.Error())
-			return nil
+			return err
 		}
 
 		return errors.Wrap(err, "failed to create a snapshot")

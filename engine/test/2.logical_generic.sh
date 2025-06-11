@@ -4,6 +4,7 @@ set -euxo pipefail
 TAG=${TAG:-${CI_COMMIT_REF_SLUG:-"master"}}
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
 DLE_SERVER_NAME="dblab_server_test"
+export EXTENDED_IMAGE_TAG="-minor-update" # -0.5.3
 
 # Environment variables for replacement rules
 export SOURCE_DBNAME="${SOURCE_DBNAME:-test}"
@@ -98,7 +99,7 @@ yq eval -i '
   .provision.portPool.to = env(DLE_PORT_POOL_TO) |
   .retrieval.spec.logicalDump.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump" |
   .retrieval.spec.logicalRestore.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump" |
-  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION)
+  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION) + env(EXTENDED_IMAGE_TAG)
 ' "${configDir}/server.yml"
 
 SHARED_PRELOAD_LIBRARIES="pg_stat_statements, auto_explain, pgaudit, logerrors, pg_stat_kcache"
@@ -176,7 +177,7 @@ PATCH_CONFIG_DATA=$(jq -n -c \
   --arg username "$SOURCE_USERNAME" \
   --arg password "$SOURCE_PASSWORD" \
   --arg spl "$SHARED_PRELOAD_LIBRARIES" \
-  --arg dockerImage "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:${POSTGRES_VERSION}" \
+  --arg dockerImage "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:${POSTGRES_VERSION}${EXTENDED_IMAGE_TAG}" \
 '{
   "global": {
     "debug": true
@@ -247,7 +248,7 @@ if [[ $(yq eval '.retrieval.spec.logicalDump.options.source.connection.dbname' $
       $(yq eval '.retrieval.spec.logicalDump.options.source.connection.username' ${configDir}/server.yml) != "$SOURCE_USERNAME" ||
       $(yq eval '.retrieval.spec.logicalDump.options.source.connection.password' ${configDir}/server.yml) != "$SOURCE_PASSWORD" ||
       $(yq eval '.retrieval.refresh.timetable' ${configDir}/server.yml) != "5 0 * * 1" ||
-      $(yq eval '.databaseContainer.dockerImage' ${configDir}/server.yml) != "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:${POSTGRES_VERSION}" ||
+      $(yq eval '.databaseContainer.dockerImage' ${configDir}/server.yml) != "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:${POSTGRES_VERSION}${EXTENDED_IMAGE_TAG}" ||
       $(yq eval '.databaseConfigs.configs.shared_buffers' ${configDir}/server.yml) != "256MB" ]] ; then
   echo "Configuration has not been updated properly"
   exit 1
