@@ -551,6 +551,8 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 
 	toRemove := snapshotsToRemove(repo, snapshotID, branchName)
 
+	log.Dbg("Snapshots to remove", toRemove)
+
 	if len(toRemove) > 0 {
 		// Pre-check.
 		preCheckList := make(map[string]int)
@@ -618,23 +620,44 @@ func cleanupSnapshotProperties(repo *models.Repo, fsm pool.FSManager, branchName
 }
 
 func snapshotsToRemove(repo *models.Repo, snapshotID, branchName string) []string {
+	removingList := []string{}
+
+	// Traverse up the snapshot tree
+	removingList = append(removingList, traverseUp(repo, snapshotID, branchName)...)
+
+	// Traverse down the snapshot tree
+	removingList = append(removingList, traverseDown(repo, snapshotID)...)
+
+	return removingList
+}
+
+func traverseUp(repo *models.Repo, snapshotID, branchName string) []string {
 	snapshotPointer := repo.Snapshots[snapshotID]
 
 	removingList := []string{}
 
 	for snapshotPointer.Parent != "-" {
-		if len(snapshotPointer.Root) > 0 {
-			break
-		}
-
 		for _, snapshotRoot := range snapshotPointer.Root {
 			if snapshotRoot == branchName {
-				break
+				return removingList
 			}
 		}
 
 		removingList = append(removingList, snapshotPointer.ID)
 		snapshotPointer = repo.Snapshots[snapshotPointer.Parent]
+	}
+
+	return removingList
+}
+
+func traverseDown(repo *models.Repo, snapshotID string) []string {
+	snapshotPointer := repo.Snapshots[snapshotID]
+
+	removingList := []string{}
+
+	for _, snapshotChild := range snapshotPointer.Child {
+		removingList = append(removingList, snapshotChild)
+		removingList = append(removingList, traverseDown(repo, snapshotChild)...)
 	}
 
 	return removingList
