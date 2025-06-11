@@ -21,6 +21,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/components"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
@@ -350,7 +351,9 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 		r.State.cleanAlerts()
 	}
 
-	if err := r.SnapshotData(ctx, poolName); err != nil && err != errNoJobs {
+	var existsErr *thinclones.SnapshotExistsError
+
+	if err := r.SnapshotData(ctx, poolName); err != nil && (err != errNoJobs || !errors.As(err, &existsErr)) {
 		return err
 	}
 
@@ -455,7 +458,9 @@ func (r *Retrieval) SnapshotData(ctx context.Context, poolName string) error {
 	defer func() {
 		r.State.Status = models.Finished
 
-		if err != nil {
+		var existsErr *thinclones.SnapshotExistsError
+
+		if err != nil && !errors.As(err, &existsErr) {
 			r.State.Status = models.Failed
 			r.State.addAlert(telemetry.Alert{
 				Level:   models.RefreshFailed,

@@ -4,6 +4,7 @@ set -euxo pipefail
 TAG=${TAG:-${CI_COMMIT_REF_SLUG:-"master"}}
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
 DLE_SERVER_NAME="dblab_server_test"
+export EXTENDED_IMAGE_TAG="-minor-update" # -0.5.3
 
 # Environment variables for replacement rules
 export SOURCE_HOST="${SOURCE_HOST:-172.17.0.1}"
@@ -110,7 +111,7 @@ yq eval -i '
   .poolManager.mountDir = env(DLE_TEST_MOUNT_DIR) |
   .provision.portPool.from = env(DLE_PORT_POOL_FROM) |
   .provision.portPool.to = env(DLE_PORT_POOL_TO) |
-  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION) |
+  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION) + env(EXTENDED_IMAGE_TAG) |
   .retrieval.spec.physicalRestore.options.envs.PGUSER = strenv(SOURCE_USERNAME) |
   .retrieval.spec.physicalRestore.options.envs.PGPASSWORD = strenv(SOURCE_PASSWORD) |
   .retrieval.spec.physicalRestore.options.envs.PGHOST = strenv(SOURCE_HOST) |

@@ -4,6 +4,7 @@ set -euxo pipefail
 TAG="${TAG:-"master"}"
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
 DLE_SERVER_NAME="dblab_server_test"
+export EXTENDED_IMAGE_TAG="-minor-update" # -0.5.3
 
 # Environment variables for replacement rules
 export DLE_TEST_MOUNT_DIR="/var/lib/test/dblab_mount"
@@ -48,7 +49,7 @@ yq eval -i '
   .poolManager.mountDir = env(DLE_TEST_MOUNT_DIR) |
   .provision.portPool.from = env(DLE_PORT_POOL_FROM) |
   .provision.portPool.to = env(DLE_PORT_POOL_TO) |
-  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION) |
+  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION) + env(EXTENDED_IMAGE_TAG) |
   .retrieval.spec.logicalDump.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump" |
   .retrieval.spec.logicalDump.options.source.connection.dbname = strenv(SOURCE_DBNAME) |
   .retrieval.spec.logicalDump.options.source.connection.username = strenv(SOURCE_USERNAME) |

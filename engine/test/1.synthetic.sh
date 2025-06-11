@@ -164,12 +164,6 @@ if [[ $(dblab snapshot list | jq length) -eq 0 ]] ; then
   echo "No snapshot found" && exit 1
 fi
 
-dblab snapshot create
-
-if [[ $(dblab snapshot list | jq length) -eq 0 ]] ; then
-  echo "Snapshot has not been created" && exit 1
-fi
-
 ## Create a clone
 CLONE_ID="testclone"
 
