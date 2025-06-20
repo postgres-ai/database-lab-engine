@@ -1366,7 +1366,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /observation/download/{artifact_type}/{clone_id}/{session_id}:
+  /observation/download:
     get:
       tags:
       - Observation
@@ -1380,19 +1380,19 @@ paths:
         schema:
           type: string
       - name: artifact_type
-        in: path
+        in: query
         description: Type of the requested artifact
         required: true
         schema:
           type: string
       - name: clone_id
-        in: path
+        in: query
         description: Clone ID
         required: true
         schema:
           type: string
       - name: session_id
-        in: path
+        in: query
         description: Session ID
         required: true
         schema:
@@ -1693,10 +1693,10 @@ components:
         latest:
           type: boolean
           default: false
-      description: "Define what snapshot needs to be used when resseting the clone.
-      'snapshotID' allows specifying the exact snapshot, while 'latest' allows using
-      the latest snapshot among all available snapshots. The latter method can be
-      helpful when the exact snapshot ID is now known."
+      description: "Define what snapshot needs to be used when resetting the clone.
+       'snapshotID' allows specifying the exact snapshot, while 'latest' allows using 
+       the latest snapshot among all available snapshots. The latter method can be 
+       helpful when the exact snapshot ID is not known."
     UpdateClone:
       type: object
       properties:
