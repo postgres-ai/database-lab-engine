@@ -1,367 +1,159 @@
-# Copy the following to: ~/.dblab/engine/configs/server.yml
-
-# Database Lab API server. This API is used to work with clones
-# (list them, create, delete, see how to connect to a clone).
-# Normally, it is supposed to listen 127.0.0.1:2345 (default),
-# and to be running inside a Docker container,
-# with port mapping, to allow users to connect from outside
-# to 2345 port using private or public IP address of the machine
-# where the container is running. See https://postgres.ai/docs/database-lab/how-to-manage-database-lab
+# Copy this configuration to: ~/.dblab/engine/configs/server.yml
+# Configuration reference guide: https://postgres.ai/docs/reference-guides/database-lab-engine-configuration-reference
 server:
-  # The main token that is used to work with Database Lab API.
-  # Note, that only one token is supported.
-  # However, if the integration with Postgres.ai Platform is configured
-  # (see below, "platform: ..." configuration), then users may use
-  # their personal tokens generated on the Platform. In this case,
-  # it is recommended to keep "verificationToken" secret, known
-  # only to the administrator of the Database Lab instance.
-  #
-  # Database Lab Engine can be running with an empty verification token, which is not recommended.
-  # In this case, the DLE API and the UI application will not require any credentials.
-  verificationToken: "secret_token"
+  verificationToken: "secret_token" # Primary auth token; can be empty (not recommended); for multi-user mode, use DBLab EE
+  port: 2345 # API server port; default: "2345"
+  disableConfigModification: false # When true, configuration changes via API/CLI/UI are disabled; default: "false"
 
-  # HTTP server port. Default: 2345.
-  port: 2345
-
-  # Disable modifying configuration via UI/API. Default: false.
-  disableConfigModification: false
-
-# Embedded UI. Controls the application to provide a user interface to DLE API.
 embeddedUI:
-  enabled: true
-
-  # Docker image of the UI application.
-  dockerImage: "postgresai/ce-ui:latest"
-
-  # Host or IP address, from which the embedded UI container accepts HTTP connections.
-  # By default, use a loop-back to accept only local connections.
-  # The empty string means "all available addresses".
-  host: "127.0.0.1"
-
-  # HTTP port of the UI application. Default: 2346.
-  port: 2346
+  enabled: true # If enabled, a separate UI container will be started
+  dockerImage: "postgresai/ce-ui:latest" # Default: "postgresai/ce-ui:latest"
+  host: "127.0.0.1" # Default: "127.0.0.1" (accepts only local connections)
+  port: 2346 # UI port; default: "2346"
 
 global:
-  # Database engine. Currently, the only supported option: "postgres".
-  engine: postgres
+  engine: postgres # Default: "postgres" (only Postgres is currently supported)
+  debug: true # When true, more detailed logs are written to the server log
+  database: # DB credentials used for management connections
+    username: postgres # DB user, default: "postgres" (user must exist)
+    dbname: postgres # DB name, default: "postgres" (DB must exist)
 
-  # Debugging, when enabled, allows seeing more in the Database Lab logs
-  # (not PostgreSQL logs). Enable in the case of troubleshooting.
-  debug: true
+poolManager: # Manages filesystem pools (ZFS) or volume groups (LVM)
+  mountDir: /var/lib/dblab # Pool mount directory; can contain multiple pools; default: "/var/lib/dblab"
+  dataSubDir: data  # The "golden copy" data directory location, relative to mountDir; must exist; default: "data"
+                    # Example: for "/var/lib/dblab/dblab_pool/data" set mountDir: "/var/lib/dblab" and dataSubDir: "data" (assuming mount point is "/var/lib/dblab/dblab_pool")
+  clonesMountSubDir: clones # Where clones are mounted, relative to mountDir; default: "clones"
+                            # Example: for "/var/lib/dblab/dblab_pool/clones" set mountDir: "/var/lib/dblab" and clonesMountSubDir: "clones" (assuming mount point is "/var/lib/dblab/dblab_pool"), resulting path for a clone running on port 6000: "/var/lib/dblab/dblab_pool/clones/6000"
+  socketSubDir: sockets # Where sockets are located, relative to mountDir; default: "sockets"
+  observerSubDir: observer # Where observability artifacts are located, relative to clone's data directory; default: "observer"
+  preSnapshotSuffix: "_pre" # Suffix for preliminary snapshots; default: "_pre"
+  selectedPool: "" # Force selection of working pool inside mountDir; default: "" (standard selection and rotation mechanism will be applied)
 
-  # Contains default configuration options of the restored database.
-  database:
-    # Default database username that will be used for Postgres management connections.
-    # This user must exist.
-    username: postgres
+databaseContainer: &db_container  # Docker config for all DB containers
+                                  # See https://postgres.ai/docs/database-lab/supported_databases
+                                  # DBLab SE and EE customers get images compatible with RDS, RDS Aurora, GCP CloudSQL, Heroku, Timescale Cloud, Supabase, PostGIS
+  dockerImage: "postgresai/extended-postgres:17-0.5.3" # Postgres image; major version (17) must match source if physical mode
+  containerConfig: # Custom container config; see https://docs.docker.com/engine/reference/run/#runtime-constraints-on-resources
+    "shm-size": 1gb # Shared memory size; increase if "could not resize shared memory segment" errors occur
 
-    # Default database name.
-    dbname: postgres
-
-# Manages filesystem pools (in the case of ZFS) or volume groups.
-poolManager:
-  # The full path which contains the pool mount directories. mountDir can contain multiple pool directories.
-  mountDir: /var/lib/dblab
-
-  # Subdir where PGDATA located relative to the pool mount directory.
-  # This directory must already exist before launching Database Lab instance. It may be empty if
-  # data initialization is configured (see below).
-  # Note, it is a relative path. Default: "data".
-  # For example, for the PostgreSQL data directory "/var/lib/dblab/dblab_pool/data" (`dblab_pool` is a pool mount directory) set:
-  #      mountDir:  /var/lib/dblab
-  #      dataSubDir:  data
-  # In this case, we assume that the mount point is: /var/lib/dblab/dblab_pool
-  dataSubDir: data
-
-  # Directory that will be used to mount clones. Subdirectories in this directory
-  # will be used as mount points for clones. Subdirectory names will
-  # correspond to ports. E.g., subdirectory "dblab_clone_6000" for the clone running on port 6000.
-  clonesMountSubDir: clones
-
-  # Unix domain socket directory used to establish local connections to cloned databases.
-  socketSubDir: sockets
-
-  # Directory that will be used to store observability artifacts. The directory will be created inside PGDATA.
-  observerSubDir: observer
-
-  # Snapshots with this suffix are considered preliminary. They are not supposed to be accessible to end-users.
-  preSnapshotSuffix: "_pre"
-
-  # Force selection of a working pool inside the `mountDir`.
-  # It is an empty string by default which means that the standard selection and rotation mechanism will be applied.
-  selectedPool: ""
-
-# Configure PostgreSQL containers
-databaseContainer: &db_container
-  # Database Lab provisions thin clones using Docker containers and uses auxiliary containers.
-  # We need to specify which Postgres Docker image is to be used for that.
-  # The default is the extended Postgres image built on top of the official Postgres image
-  # (See https://postgres.ai/docs/database-lab/supported_databases).
-  #
-  # For paid customers, Postgres.AI maintains a set of images compatible with
-  # RDS and RDS Aurora, GCP CloudSQL, Heroku, Timescale Cloud, Supabase, PostGIS.
-  #
-  # IMPORTANT: Postgres version of this image should match the source's Postgres version.
-  # For logical mode, it is a recommendation. For physical mode, it is a *requirement*.
-  dockerImage: "postgresai/extended-postgres:16-0.5.0"
-
-  # Custom parameters for containers with PostgreSQL, see
-  # https://docs.docker.com/engine/reference/run/#runtime-constraints-on-resources
-  containerConfig:
-    "shm-size": 1gb
-
-# Adjust PostgreSQL configuration
-databaseConfigs: &db_configs
+databaseConfigs: &db_configs # Postgres config for all DB containers
   configs:
-    # In order to match production plans with Database Lab plans set parameters related to Query Planning as on production.
-    shared_buffers: 1GB
-    # shared_preload_libraries – copy the value from the source
-    # Adding shared preload libraries, make sure that there are "pg_stat_statements, auto_explain, logerrors" in the list.
-    # It is necessary to perform query and db migration analysis.
-    # Note, if you are using PostgreSQL 9.6 and older, remove the logerrors extension from the list since it is not supported.
-    shared_preload_libraries: "pg_stat_statements, pg_stat_kcache, auto_explain, logerrors"
-    # work_mem and all the Query Planning parameters – copy the values from the source.
-    # Detailed guide: https://postgres.ai/docs/how-to-guides/administration/postgresql-configuration#postgresql-configuration-in-clones
-    work_mem: "100MB"
+    shared_buffers: 1GB # Postgres buffer pool size; large values can lead to OOM
+    shared_preload_libraries: "pg_stat_statements, pg_stat_kcache, auto_explain, logerrors" # Shared libraries; copy from source
+    maintenance_work_mem: "500MB" # Maximum memory for maintenance operations (VACUUM, CREATE INDEX, etc.)
+    work_mem: "100MB" # This and Query Planning parameters should be copied from source; see https://postgres.ai/docs/how-to-guides/administration/postgresql-configuration#postgresql-configuration-in-clones
     # ... put Query Planning parameters here
 
-# Details of provisioning – where data is located,
-# thin cloning method, etc.
-provision:
+provision: # Defines how data is provisioned
   <<: *db_container
-  # Pool of ports for Postgres clones. Ports will be allocated sequentially,
-  # starting from the lowest value. The "from" value must be less than or equal to "to".
-  portPool:
-    from: 6000
-    to: 6099
+  portPool: # Range of ports for Postgres clones; ports will be allocated sequentially, starting from the lowest value
+    from: 6000 # First port in the range
+    to: 6099 # Last port in the range
+  useSudo: false # Use sudo for ZFS/LVM and Docker commands if DBLab server running outside a container (not recommended)
+  keepUserPasswords: false # Keep user passwords in clones; default: "false"
+  cloneAccessAddresses: "127.0.0.1" # IP addresses that can be used to access clones; supports multiple IPs and IPv6; default: "127.0.0.1" (loop-back)
 
-  # Use sudo for ZFS/LVM and Docker commands if Database Lab server running
-  # outside a container. Keep it "false" (default) when running in a container.
-  useSudo: false
-
-  # Avoid default password resetting in clones and have the ability for
-  # existing users to log in with old passwords.
-  keepUserPasswords: false
-
-  # IP addresses that can be used to access clones.
-  # By default, using a loop-back to accept only local connections.
-  # The empty string means "all available addresses".
-  # The option supports multiple IPs (using comma-separated format) and IPv6 addresses (for example, [::1])
-  cloneAccessAddresses: "127.0.0.1"
-
-# Data retrieval flow. This section defines both initial retrieval, and rules
-# to keep the data directory in a synchronized state with the source. Both are optional:
-# you may already have the data directory, so neither initial retrieval nor
-# synchronization are needed.
-# 
-# Data retrieval can be also considered as "thick" cloning. Once it's done, users
-# can use "thin" cloning to get independent full-size clones of the database in
-# seconds, for testing and development. Normally, retrieval (thick cloning) is
-# a slow operation (1 TiB/h is a good speed). Optionally, the process of keeping
-# the Database Lab data directory in sync with the source (being continuously
-# updated) can be configured.
-#
-# There are two basic ways to organize data retrieval:
-#  - "logical":  use dump/restore processes, obtaining a logical copy of the initial
-#                database (a sequence  of SQL commands), and then loading it to
-#                the target Database Lab data directory. This is the only option
-#                for managed cloud PostgreSQL services such as Amazon RDS. Physically,
-#                the copy of the database created using this method differs from
-#                the original one (data blocks are stored differently). However,
-#                row counts are the same, as well as internal database statistics,
-#                allowing to do various kinds of development and testing, including
-#                running EXPLAIN command to optimize SQL queries.
-#  - "physical": physically copy the data directory from the source (or from the
-#                archive if a physical backup tool such as WAL-G, pgBackRest, or Barman
-#                is used). This approach allows to have a copy of the original database
-#                which is physically identical, including the existing bloat, data
-#                blocks location. Not supported for managed cloud Postgres services
-#                such as Amazon RDS.
-retrieval:
-  # The jobs section must not contain physical and logical restore jobs simultaneously.
-  jobs:
+retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
+            #   - logical: dump/restore (works with RDS, different physical layout)
+            #   - physical: direct copy (identical layout, not for RDS) e.g. using pg_basebackup, WAL-G, or pgBackRest
+  jobs: # Jobs to run; must not contain physical and logical restore jobs simultaneously
     - physicalRestore
     - physicalSnapshot
-
   spec:
-    # Restores database data from a physical backup.
-    physicalRestore:
+    physicalRestore: # Restores data directory from a physical copy
       options:
         <<: *db_container
-        # Defines the tool to restore data.
-        tool: customTool
-
-        # Sync instance options.
-        sync:
-          # Enable running of a sync instance.
-          enabled: true
-
-          # Custom health check options for a sync instance container.
+        tool: customTool # Defines the tool to restore data
+        sync: # Additional "sync" container is used to keep the data directory in a synchronized state with the source (in fact, "sync" container is an asyncrhonous replica)
+          enabled: true # Enable running of sync container
           healthCheck:
-            # Health check interval for a sync instance container (in seconds).
-            interval: 5
-
-            # Maximum number of health check retries.
-            maxRetries: 200
-
-          # Add PostgreSQL configuration parameters to the sync container.
-          configs:
-            shared_buffers: 2GB
-
-          # Add PostgreSQL recovery configuration parameters to the sync container.
-          recovery:
-          # Uncomment this only if you are on Postgres version 11 or older.
-          #  standby_mode: on
-          #  recovery_target_timeline: 'latest'
-
-        # Set environment variables here. See https://www.postgresql.org/docs/current/libpq-envars.html
-        envs:
+            interval: 5 # Health check frequency (seconds)
+            maxRetries: 200 # Max retries before giving up
+          configs: # Additional Postgres configuration for sync container
+            shared_buffers: 2GB # Bigger buffer pool helps avoid lagging behind the source
+          recovery: # Legacy recovery.conf options; only for Postgres 11 or older
+            # standby_mode: on
+            # recovery_target_timeline: 'latest'
+        envs: # Environment vars; can be used, for example, to defined connection to source DB. See https://www.postgresql.org/docs/current/libpq-envars.html
           PGUSER: "postgres"
           PGPASSWORD: "postgres"
           PGHOST: "source.hostname"
           PGPORT: 5432
-
         customTool:
-          # To use pg_basebackup, specify environment variables in "envs".
-          # Do not edit PostgreSQL data directory (-D).
-          # Note that command chains are not supported here; if you need to use a more
-          # complicated snippet, create a shell script, use --mount (-v) option
-          # when starting a container with Database Lab and use path to it here.
-          # Write your data to dataDir defined in "global.config"
-          command: "pg_basebackup -X stream -D /var/lib/dblab/dblab_pool/data"
-
-          # PostgreSQL "restore_command" configuration option.
-          restore_command: ""
-
+          command: "pg_basebackup -X stream -D /var/lib/dblab/dblab_pool/data" # For pg_basebackup, DB connection is specified in envs. Do not change option -D. Command chains are not supported here; if need more complex logic, use a script and mount it (-v) to dblab_server container. 
+          restore_command: "" # Standard Postgres option defining how WALs are restored (e.g. from backups)
     physicalSnapshot:
       options:
-        # Skip taking a snapshot while the retrieval starts.
-        skipStartSnapshot: false
-
-        # Adjust PostgreSQL configuration of the snapshot.
-        <<: *db_configs
-
-        # Promote PGDATA after data fetching.
+        skipStartSnapshot: false # Skip taking a snapshot when retrieval starts; default: "false"
+        <<: *db_configs # Additional Postgres configuration for containers participating in physicalSnapshot (promotion, snapshot)
         promotion:
           <<: *db_container
-          # Enable PGDATA promotion.
-          enabled: true
-
-          # Custom health check options for a data promotion container.
+          enabled: true # Enable Postgres promotion to read-write mode before finalizing snapshot
           healthCheck:
-            # Health check interval for a data promotion container (in seconds).
-            interval: 5
-
-            # Maximum number of health check retries.
-            maxRetries: 200
-
-          # It is possible to define pre-processing SQL queries. For example, "/tmp/scripts/sql".
-          # Default: empty string (no pre-processing defined).
-          queryPreprocessing:
-            # Path to SQL pre-processing queries.
-            queryPath: ""
-
-            # Worker limit for parallel queries.
-            maxParallelWorkers: 2
-
-            # Inline SQL. Queries run after scripts placed in 'queryPath'.
-            inline: ""
-
-          # Add PostgreSQL configuration parameters to the promotion container.
-          configs:
+            interval: 5 # Health check interval in seconds
+            maxRetries: 200 # Maximum retry attempts before failing
+          queryPreprocessing: # Data transformation using SQL before promoting to read-write mode
+            queryPath: "" # Directory path containing SQL query files; example: "/tmp/scripts/sql"; default: "" (disabled)
+            maxParallelWorkers: 2 # Maximum number of concurrent workers for query preprocessing
+            inline: "" # Direct SQL queries to execute after scripts from 'queryPath'. Supports multiple statements separated by semicolons
+          configs: # Postgres configuration overrides for promotion container
             shared_buffers: 2GB
-
-          # Add PostgreSQL recovery configuration parameters to the promotion container.
-          recovery:
-          # Uncomment this only if you are on Postgres version 11 or older.
-          #  recovery_target: 'immediate'
-          #  recovery_target_action: 'promote'
-          #  recovery_target_timeline: 'latest'
-
-        # It is possible to define a pre-processing script. For example, "/tmp/scripts/custom.sh".
-        # Default: empty string (no pre-processing defined).
-        # This can be used for scrubbing eliminating PII data, to define data masking, etc.
-        preprocessingScript: ""
-
-        # Scheduler contains tasks that run on a schedule.
-        scheduler:
-          # Snapshot scheduler creates a new snapshot on a schedule.
-          snapshot:
-            # Timetable defines in crontab format: https://en.wikipedia.org/wiki/Cron#Overview
-            timetable: "0 */6 * * *"
-          # Retention scheduler cleans up old snapshots on a schedule.
-          retention:
-            # Timetable defines in crontab format: https://en.wikipedia.org/wiki/Cron#Overview
-            timetable: "0 * * * *"
-            # Limit defines how many snapshots should be hold.
-            limit: 4
-
-        # Passes custom environment variables to the promotion Docker container.
-        envs:
+          recovery: # Legacy recovery.conf configuration options; only applicable for Postgres 11 or earlier versions
+            # recovery_target: 'immediate'
+            # recovery_target_action: 'promote'
+            # recovery_target_timeline: 'latest'
+        preprocessingScript: "" # Shell script path to execute before finalizing snapshot; example: "/tmp/scripts/custom.sh"; default: "" (disabled)
+        scheduler: # Snapshot scheduling and retention policy configuration
+          snapshot: # Snapshot creation scheduling
+            timetable: "0 */6 * * *" # Cron expression defining snapshot schedule: https://en.wikipedia.org/wiki/Cron#Overview
+          retention: # Snapshot retention policy
+            timetable: "0 * * * *" # Cron expression defining retention check schedule: https://en.wikipedia.org/wiki/Cron#Overview
+            limit: 4 # Maximum number of snapshots to retain
+        envs: # Environment variables to pass to promotion container
 
 cloning:
-  # Host that will be specified in database connection info for all clones
-  # Use public IP address if database connections are allowed from outside
-  # This value is only used to inform users about how to connect to database clones
-  accessHost: "localhost"
-
-  # Automatically delete clones after the specified minutes of inactivity.
-  # 0 - disable automatic deletion.
-  # Inactivity means:
-  #   - no active sessions (queries being processed right now)
-  #   - no recently logged queries in the query log
-  maxIdleMinutes: 120
+  accessHost: "localhost" # Host that will be specified in database connection info for all clones (only used to inform users)
+  maxIdleMinutes: 120 # Automatically delete clones after the specified minutes of inactivity; 0 - disable automatic deletion
 
 diagnostic:
-  logsRetentionDays: 7
+  logsRetentionDays: 7 # How many days to keep logs
 
-# ### INTEGRATION ###
-
-# Postgres.ai Platform integration (provides GUI) – extends the open source offering.
-# Uncomment the following lines if you need GUI, personal tokens, audit logs, more.
-#
-platform:
-  # Platform API URL. To work with Postgres.ai SaaS, keep it default
-  # ("https://postgres.ai/api/general").
-  url: "https://postgres.ai/api/general"
-  # Telemetry: anonymous statistics sent to Postgres.ai.
-  # Used to analyze DLE usage, it helps the DLE maintainers make decisions on product development.
-  # Please leave it enabled if possible – this will contribute to DLE development.
-  # The full list of data points being collected: https://postgres.ai/docs/database-lab/telemetry
-  enableTelemetry: true
-#
-#  # Project name
-#  projectName: "project_name"
-#
-#  # Organization key
-#  orgKey: "org_key"
-#
-#  # Token for authorization in Platform API. This token can be obtained on
-#  # the Postgres.ai Console: https://postgres.ai/console/YOUR_ORG_NAME/tokens
-#  # This token needs to be kept in secret, known only to the administrator.
-#  accessToken: "platform_access_token"
-#
-#  # Enable authorization with personal tokens of the organization's members.
-#  # If false: all users must use "verificationToken" value for any API request
-#  # If true: "verificationToken" is known only to admin, users use their own tokens,
-#  #          and any token can be revoked not affecting others
-#  enablePersonalTokens: true
-#
-# CI Observer configuration.
-#observer:
-#  # Set up regexp rules for Postgres logs.
-#  # These rules are applied before sending the logs to the Platform, to ensure that personal data is masked properly.
-#  # Check the syntax of regular expressions: https://github.com/google/re2/wiki/Syntax
-#  replacementRules:
+observer: # CI Observer configuration
+#  replacementRules:  # Regexp rules for masking personal data in Postgres logs; applied before sending the logs to the Platform
+#                     # Check the syntax of regular expressions: https://github.com/google/re2/wiki/Syntax
 #    "regexp": "replace"
 #    "select \\d+": "***"
 #    "[a-z0-9._%+\\-]+(@[a-z0-9.\\-]+\\.[a-z]{2,4})": "***$1"
-#
-# Webhooks configuration.
-#webhooks:
+
+webhooks: # Webhooks can be used to trigger actions in external systems upon events such as clone creation
 #  hooks:
 #    - url: ""
 #      secret: "" # (optional) Sent with the request in the `DBLab-Webhook-Token` HTTP header.
 #      trigger:
 #        - clone_create
 #        - clone_reset
+
+platform:
+  url: "https://postgres.ai/api/general" # Default: "https://postgres.ai/api/general"
+  enableTelemetry: true
+
+#  ╔══════════════════════════════════════════════════════════════════════════╗
+#  ║                     POSTGRES AI PLATFORM INTEGRATION                     ║
+#  ╠══════════════════════════════════════════════════════════════════════════╣
+#  ║                                                                          ║
+#  ║  - Production-ready UI, AI assistance and support from human experts     ║
+#  ║  - Enterprise-grade user management & role-based access control          ║
+#  ║  - Advanced security: audit trails, SIEM integration, compliance         ║
+#  ║  - Real-time performance monitoring & intelligent recommendations        ║
+#  ║                                                                          ║
+#  ║  Learn more at https://postgres.ai/                                      ║
+#  ║                                                                          ║
+#  ╚══════════════════════════════════════════════════════════════════════════╝
+#
+# Uncomment the following lines if you need the Platform integration
+#
+#  projectName: "project_name" # Project name
+#  orgKey: "org_key" # Organization key
+#  accessToken: "platform_access_token" # Token for authorization in Platform API; get it at https://postgres.ai/console/YOUR_ORG_NAME/tokens
+#  enablePersonalTokens: true # Enable authorization with personal tokens of the organization's members.
+#
