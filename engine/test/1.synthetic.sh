@@ -73,7 +73,11 @@ mkdir -p "${configDir}"
 mkdir -p "${metaDir}"
 mkdir -p "${logsDir}"
 
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG:-master}"/engine/configs/config.example.logical_generic.yml \
+# Use CI_COMMIT_REF_NAME to get the original branch name, as CI_COMMIT_REF_SLUG replaces "/" with "-".
+# Fallback to TAG (which is CI_COMMIT_REF_SLUG) or "master".
+BRANCH_FOR_URL="${CI_COMMIT_REF_NAME:-${TAG:-master}}"
+ENCODED_BRANCH_FOR_URL=$(echo "${BRANCH_FOR_URL}" | sed 's|/|%2F|g')
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${ENCODED_BRANCH_FOR_URL}"/engine/configs/config.example.logical_generic.yml \
  --output "${configDir}/server.yml"
 
 # TODO: replace the dockerImage tag back to 'postgresai/extended-postgres' after releasing a new version with custom port and unix socket dir.

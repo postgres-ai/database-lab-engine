@@ -10,7 +10,9 @@ include:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 .ui_cache: &ui_cache
-  image: node:21.1.0-alpine
+  image:
+    name: node:21.1.0-alpine
+    pull_policy: if-not-present
   cache: &cache
     key: "$CI_COMMIT_REF_SLUG"
     paths:
@@ -38,7 +40,9 @@ check-code-style:
 
 semgrep-sast:
   stage: test
-  image: returntocorp/semgrep
+  image:
+    name: returntocorp/semgrep
+    pull_policy: if-not-present
   <<: *ui_checks
   <<: *ui_cache
   variables:
@@ -59,7 +63,9 @@ semgrep-sast:
 
 e2e-ce-ui-test:
   <<: *ui_checks
-  image: node:21.1.0
+  image:
+    name: node:21.1.0
+    pull_policy: if-not-present
   stage: integration-test
   variables:
     CYPRESS_CACHE_FOLDER: '$CI_PROJECT_DIR/cache/Cypress'
