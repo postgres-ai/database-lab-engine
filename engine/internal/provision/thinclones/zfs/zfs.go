@@ -652,12 +652,12 @@ func (m *Manager) GetFilesystemState() (models.FileSystem, error) {
 	fileSystem := models.FileSystem{
 		Mode:            PoolMode,
 		Size:            parentPoolEntry.Available + parentPoolEntry.Used,
-		Free:            parentPoolEntry.Available,
-		Used:            parentPoolEntry.Used,
-		UsedBySnapshots: parentPoolEntry.UsedBySnapshots,
-		UsedByClones:    parentPoolEntry.UsedByChildren,
+		Free:            poolEntry.Available,
+		Used:            poolEntry.Used,
+		UsedBySnapshots: poolEntry.UsedBySnapshots,
+		UsedByClones:    poolEntry.UsedByChildren,
 		DataSize:        poolEntry.LogicalReferenced,
-		CompressRatio:   parentPoolEntry.CompressRatio,
+		CompressRatio:   poolEntry.CompressRatio,
 	}
 
 	return fileSystem, nil
