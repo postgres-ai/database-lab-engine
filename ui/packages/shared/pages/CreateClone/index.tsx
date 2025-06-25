@@ -236,6 +236,7 @@ export const CreateClone = observer((props: Props) => {
                 formik.setFieldValue('cloneId', sanitizedCloneIdValue)
               }}
               error={Boolean(formik.errors.cloneId)}
+              helperText={formik.errors.cloneId}
               disabled={isCreatingClone}
             />
 
@@ -283,7 +284,7 @@ export const CreateClone = observer((props: Props) => {
 
             <p className={styles.text}>
               Set custom credentials for the new clone. Save the password in
-              reliable place, it can’t be read later.
+              reliable place, it can't be read later.
             </p>
 
             <TextField

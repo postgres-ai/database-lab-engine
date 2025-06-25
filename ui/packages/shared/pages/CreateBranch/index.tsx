@@ -192,6 +192,7 @@ export const CreateBranchPage = observer(
                 }}
                 value={formik.values.branchName}
                 error={Boolean(formik.errors.branchName)}
+                helperText={formik.errors.branchName}
                 className={classes.marginBottom}
                 onChange={(e) =>
                   formik.setFieldValue('branchName', e.target.value)

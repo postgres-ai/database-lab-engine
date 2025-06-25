@@ -62,7 +62,7 @@ func TestValidationCloneRequestErrors(t *testing.T) {
 				DB: &types.DatabaseRequest{Username: "user", Password: "password"},
 				ID: "test/ID",
 			},
-			error: "clone ID cannot contain slash ('/'). Please choose another ID",
+			error: "clone ID must start with a letter or number and can only contain letters, numbers, underscores, periods, and hyphens",
 		},
 	}
 

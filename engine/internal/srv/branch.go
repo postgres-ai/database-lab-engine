@@ -22,7 +22,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 )
 
-var branchNameRegexp = regexp.MustCompile(`^[\p{L}\d_-]+$`)
+var branchNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9_-]*$`)
 
 // listBranches returns branch list.
 func (s *Server) listBranches(w http.ResponseWriter, r *http.Request) {
@@ -168,8 +168,8 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !isValidBranchName(createRequest.BranchName) {
-		api.SendBadRequestError(w, r, "The branch name must contain only Unicode characters, numbers, underscores, and hyphens. "+
-			"Spaces and slashes are not allowed")
+		api.SendBadRequestError(w, r, "The branch name must start with a letter, number, or underscore, "+
+			"and contain only letters, numbers, underscores, and hyphens. Spaces and slashes are not allowed")
 		return
 	}
 

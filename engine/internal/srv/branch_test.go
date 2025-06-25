@@ -20,7 +20,8 @@ func TestBranchNames(t *testing.T) {
 			{branchName: "_branch"},
 			{branchName: "branch"},
 			{branchName: "001"},
-			{branchName: "tři"},
+			{branchName: "a-branch"},
+			{branchName: "branch-001"},
 		}
 
 		for _, tc := range testCases {
@@ -36,6 +37,8 @@ func TestBranchNames(t *testing.T) {
 			{branchName: ""},
 			{branchName: "branch 001"},
 			{branchName: "branch/001"},
+			{branchName: "-branch"},
+			{branchName: "tři"},
 		}
 
 		for _, tc := range testCases {
