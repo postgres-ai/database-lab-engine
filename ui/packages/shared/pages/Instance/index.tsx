@@ -77,6 +77,7 @@ export const Instance = observer((props: Props) => {
     instanceError,
     instanceRetrieval,
     isLoadingInstance,
+    isLoadingInstanceRetrieval,
     load,
   } = stores.main
 
@@ -93,7 +94,7 @@ export const Instance = observer((props: Props) => {
 
   const isInstanceIntegrated =
     instanceRetrieval ||
-    (!isLoadingInstance && instance && instance?.url && !instanceError)
+    (!isLoadingInstance && !isLoadingInstanceRetrieval && instance && instance?.url && !instanceError)
 
   const isConfigurationActive = instanceRetrieval?.mode !== 'physical'
 
@@ -211,7 +212,7 @@ export const Instance = observer((props: Props) => {
               )}
             </TabPanel>
           </>
-        ) : !isLoadingInstance && !instanceError ? (
+        ) : !isLoadingInstance && !isLoadingInstanceRetrieval && !instanceError ? (
           <TabPanel value={activeTab} index={activeTab}>
             <InactiveInstance
               instance={instance}

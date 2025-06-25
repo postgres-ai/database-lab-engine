@@ -89,6 +89,7 @@ export class MainStore {
   isBranchesLoading = false
   isConfigLoading = false
   isLoadingInstance = false
+  isLoadingInstanceRetrieval = false
 
   private readonly api: Api
 
@@ -106,7 +107,9 @@ export class MainStore {
 
   load = (instanceId: string, isPlatform: boolean = false) => {
     this.instance = null
+    this.instanceRetrieval = null
     this.isReloadingInstance = true
+    this.isLoadingInstanceRetrieval = false
 
     if (!isPlatform) {
       this.getBranches(instanceId)
@@ -142,7 +145,10 @@ export class MainStore {
 
   reload = (instanceId: string) => {
     this.instance = null
+    this.instanceRetrieval = null
     this.isReloadingInstance = true
+    this.isLoadingInstanceRetrieval = false
+    
     this.loadInstance(instanceId, false).then(() => {
       if (this.api.refreshInstance)
         this.api.refreshInstance({ instanceId: instanceId })
@@ -154,6 +160,7 @@ export class MainStore {
         this.snapshots.load(instanceId)
       }
     })
+    
     this.loadInstanceRetrieval(instanceId).then(() => {
       if (this.instanceRetrieval) {
         this.getConfig(instanceId)
@@ -175,11 +182,18 @@ export class MainStore {
   }
 
   private loadInstanceRetrieval = async (instanceId: string) => {
-    if (!this.api.getInstanceRetrieval) return
+    if (!this.api.getInstanceRetrieval) {
+      this.isLoadingInstanceRetrieval = false
+      return
+    }
+
+    this.isLoadingInstanceRetrieval = true
 
     const { response, error } = await this.api.getInstanceRetrieval({
       instanceId: instanceId,
     })
+
+    this.isLoadingInstanceRetrieval = false
 
     if (response) this.instanceRetrieval = response
 
