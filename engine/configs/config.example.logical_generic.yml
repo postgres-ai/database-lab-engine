@@ -91,7 +91,6 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
         
         # immediateRestore: # Direct restore to DBLab Engine instance; single-threaded unlike logicalRestore
         #   enabled: true
-        #   forceInit: false # Restore even if Postgres directory is not empty
         #   <<: *db_configs # Adjust PostgreSQL configuration for logical dump job
         #   customOptions: # Custom options for pg_restore command
         #     - "--no-privileges"
@@ -107,7 +106,6 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
         <<: *db_container
         dumpLocation: "/var/lib/dblab/dblab_pool/dump" # Location of archive files to restore
         parallelJobs: 4 # Parallel jobs for faster restore
-        forceInit: false # Restore even if Postgres directory is not empty
         <<: *db_configs # Adjust PostgreSQL configuration for logical restore job
 
         databases: # Database list to restore; comment out to restore all databases

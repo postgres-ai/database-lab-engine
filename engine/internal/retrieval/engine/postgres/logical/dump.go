@@ -136,7 +136,6 @@ type Connection struct {
 // ImmediateRestore contains options for direct data restore without saving the dump file on disk.
 type ImmediateRestore struct {
 	Enabled       bool              `yaml:"enabled"`
-	ForceInit     bool              `yaml:"forceInit"`
 	Configs       map[string]string `yaml:"configs"`
 	CustomOptions []string          `yaml:"customOptions"`
 }
@@ -280,11 +279,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 	}
 
 	if d.DumpOptions.Restore.Enabled && !isEmpty {
-		if !d.DumpOptions.Restore.ForceInit {
-			return errors.New("the data directory is not empty. Use 'forceInit' or empty the data directory")
-		}
-
-		log.Msg("The data directory is not empty. Existing data may be overwritten.")
+		log.Warn("The data directory is not empty. Existing data will be overwritten.")
 
 		if err := updateConfigs(dataDir, d.DumpOptions.Restore.Configs); err != nil {
 			return fmt.Errorf("failed to update configs: %w", err)
@@ -737,10 +732,6 @@ func (d *DumpJob) buildLogicalRestoreCommand(dbName string) []string {
 	if dbName != defaults.DBName {
 		// To avoid recreating of the default database.
 		restoreCmd = append(restoreCmd, "--create")
-	}
-
-	if d.Restore.ForceInit {
-		restoreCmd = append(restoreCmd, "--clean", "--if-exists")
 	}
 
 	restoreCmd = append(restoreCmd, d.DumpOptions.Restore.CustomOptions...)
