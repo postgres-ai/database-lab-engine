@@ -1,13 +1,13 @@
 export const dockerImageOptions = [
   {
-    name: 'Generic Postgres (postgresai/extended-postgres)',
+    name: 'Generic PostgreSQL (postgresai/extended-postgres)',
     type: 'Generic Postgres',
   },
-  { name: 'Generic Postgres with PostGIS', type: 'postgis' },
-  { name: 'Amazon RDS for Postgres', type: 'rds' },
-  { name: 'Amazon RDS Aurora for Postgres', type: 'aurora' },
-  { name: 'Heroku Postgres', type: 'heroku' },
-  { name: 'Supabase Postgres', type: 'supabase' },
+  { name: 'Generic PostgreSQL with PostGIS', type: 'postgis' },
+  { name: 'Amazon RDS for PostgreSQL', type: 'rds' },
+  { name: 'Amazon RDS Aurora for PostgreSQL', type: 'aurora' },
+  { name: 'Heroku PostgreSQL', type: 'heroku' },
+  { name: 'Supabase PostgreSQL', type: 'supabase' },
   { name: 'Google Cloud SQL for PostgreSQL', type: 'google-cloud-sql' },
   {
     name: 'Timescale Cloud',

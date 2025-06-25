@@ -8,18 +8,18 @@
 <div align="center"><h1 align="center">DBLab Engine</h1></div>
 
 <div align="center">
-  <a href="https://twitter.com/intent/tweet?via=Database_Lab&url=https://github.com/postgres-ai/database-lab-engine/&text=20@PostgreSQL%branching%20–%20DLE%20provides%20blazing-fast%20database%20cloning%20to%20build%20powerful%20development,%20test,%20QA,%20staging%20environments.">
+  <a href="https://twitter.com/intent/tweet?via=Database_Lab&url=https://github.com/postgres-ai/database-lab-engine/&text=PostgreSQL%20branching%20%E2%80%93%20DLE%20provides%20blazing-fast%20database%20cloning%20to%20build%20powerful%20development,%20test,%20QA,%20and%20staging%20environments.">
     <img src="https://img.shields.io/twitter/url/https/github.com/postgres-ai/database-lab-engine.svg?style=for-the-badge" alt="twitter">
   </a>
 </div>
 
 <div align="center">
-  <strong>⚡ Blazing-fast Postgres cloning and branching 🐘</strong><br /><br />
+  <strong>⚡ Blazing-fast PostgreSQL cloning and branching 🐘</strong><br /><br />
   🛠️ Build powerful dev/test environments.<br />
   🔃 Cover 100% of DB migrations with CI tests.<br>
   💡 Quickly verify ChatGPT ideas to get rid of hallucinations.<br /><br />
-  Available for any PostgreSQL, including self-managed and managed<sup>*</sup> like AWS RDS, GCP CloudSQL, Supabase, Timescale.<br /><br />
-  Can be installed and used anywhere: all clouds and on-premises.
+  Available for any PostgreSQL, including self-managed and managed services<sup>*</sup> like AWS RDS, GCP Cloud SQL, Supabase, and Timescale.<br /><br />
+  It can be installed and used anywhere: across all cloud environments and on-premises.
 </div>
 
 <br />
@@ -60,11 +60,11 @@ For example, cloning a 1 TiB PostgreSQL database takes just about 10 seconds. On
 <p><img src="./assets/dle-demo-animated.gif" border="0" /></p>
 
 Try it yourself right now:
-- Visit [Postgres.ai Console](https://console.postgres.ai/), set up your first organization and provision a DBLab Standard Edition (DBLab SE) to any cloud or on-prem
+- Visit [Postgres.ai Console](https://console.postgres.ai/), set up your first organization, and provision a DBLab Standard Edition (DBLab SE) to any cloud or on-premises environment.
     - [Pricing](https://postgres.ai/pricing) (starting at $62/month)
-    - [Doc: How to install DBLab SE](https://postgres.ai/docs/how-to-guides/administration/install-dle-from-postgres-ai)
+    - [Documentation: How to install DBLab SE](https://postgres.ai/docs/how-to-guides/administration/install-dle-from-postgres-ai)
 - Demo: https://demo.dblab.dev (use the token `demo-token` to access)
-- Looking for a free version? Install DBLab Community Edition by [following this tutorial](https://postgres.ai/docs/tutorials/database-lab-tutorial)
+- Looking for a free version? Install the DBLab Community Edition by [following this tutorial](https://postgres.ai/docs/tutorials/database-lab-tutorial).
 
 ## How it works
 Thin cloning is fast because it is based on [Copy-on-Write (CoW)](https://en.wikipedia.org/wiki/Copy-on-write#In_computer_storage). DBLab employs two technologies for enabling thin cloning: [ZFS](https://en.wikipedia.org/wiki/ZFS) (default) and [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)).
@@ -88,7 +88,7 @@ Read more:
 
 ## Features
 - Speed & scale
-    - Blazing-fast cloning of Postgres databases – clone in seconds, irrespective of database size
+    - Blazing-fast cloning of PostgreSQL databases – clone in seconds, irrespective of database size
     - Theoretical max of snapshots/clones: 2<sup>64</sup> ([ZFS](https://en.wikipedia.org/wiki/ZFS), default)
     - Maximum size of PostgreSQL data directory: 256 quadrillion zebibytes, or 2<sup>128</sup> bytes ([ZFS](https://en.wikipedia.org/wiki/ZFS), default)
 - Support & technologies
@@ -96,12 +96,12 @@ Read more:
     - Thin cloning ([CoW](https://en.wikipedia.org/wiki/Copy-on-write)) technologies: [ZFS](https://en.wikipedia.org/wiki/ZFS) and [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux))
     - UI for manual tasks and API & CLI for automation
     - Packaged in Docker containers for all components
-- Postgres containers
+- PostgreSQL containers
     - Popular extensions including contrib modules, pgvector, HypoPG and many others ([docs](https://postgres.ai/docs/database-lab/supported-databases#extensions-included-by-default))
     - Customization capabilities for containers ([docs](https://postgres.ai/docs/database-lab/supported-databases#how-to-add-more-extensions))
-    - Docker container and Postgres config parameters in DBLab config
+    - Docker container and PostgreSQL configuration parameters in the DBLab config
 - Source database requirements
-    - Location flexibility: self-managed Postgres, AWS RDS, GCP CloudSQL, Azure, etc. No source adjustments needed
+    - Location flexibility: self-managed PostgreSQL, AWS RDS, GCP Cloud SQL, Azure, etc.—no source adjustments needed.
     - No ZFS or Docker requirements for source databases
 - Data provisioning & retrieval
     - Physical (pg_basebackup, WAL-G, pgBackRest) and logical (dump/restore) provisioning
@@ -128,8 +128,8 @@ The simplest way to show your support is by giving us a star on GitHub or GitLab
 ![Add a star](./assets/star.gif)
 
 ### Spread the word
-- Shoot out a tweet and mention [@Database_Lab](https://twitter.com/Database_Lab) 
-- Share this repo's link on your favorite social media platform
+- Tweet about DBLab and mention [@Database_Lab](https://twitter.com/Database_Lab).
+- Share a link to this repository on your favorite social media platform.
 
 ### Share your experience
 If DBLab has been a vital tool for you, tell the world about your journey. Use the logo from the `./assets` folder for a visual touch. Whether it's in documents, presentations, applications, or on your website, let everyone know you trust and use DBLab.
@@ -157,10 +157,7 @@ For darker backgrounds:
 ```
 
 ### Propose an idea or report a bug
-Check out our [contributing guide](./CONTRIBUTING.md) for more details.
-
-### Participate in development
-Check out our [contributing guide](./CONTRIBUTING.md) for more details.
+For proposals, bug reports, and participation in development, see our [Contributing Guide](./CONTRIBUTING.md).
 
 
 ### Reference guides
@@ -177,7 +174,7 @@ Check out our [contributing guide](./CONTRIBUTING.md) for more details.
 - [How to integrate DBLab with GitHub Actions](XXXXXXX) – TBD
 - [How to integrate DBLab with GitLab CI/CD](XXXXXXX) – TBD
 
-More you can find in [the "How-to guides" section](https://postgres.ai/docs/how-to-guides) of the docs. 
+You can find more in the ["How-to guides" section](https://postgres.ai/docs/how-to-guides) of the documentation.
 
 ### Miscellaneous
 - [DBLab Docker images](https://hub.docker.com/r/postgresai/dblab-server)
@@ -186,15 +183,15 @@ More you can find in [the "How-to guides" section](https://postgres.ai/docs/how-
 - [DB Migration Checker](https://postgres.ai/docs/db-migration-checker)
 
 ## License
-DBLab source code is licensed under the OSI-approved open source license [Apache 2.0](https://opensource.org/license/apache-2-0/).
+The DBLab source code is licensed under the OSI-approved open source license [Apache 2.0](https://opensource.org/license/apache-2-0/).
 
 Reach out to the Postgres.ai team if you want a trial or commercial license that does not contain the GPL clauses: [Contact page](https://postgres.ai/contact).
 
 ## Community & Support
-- ["Database Lab Engine Community Covenant Code of Conduct"](./CODE_OF_CONDUCT.md)
-- Where to get help: [Contact page](https://postgres.ai/contact)
+- [Database Lab Engine Community Covenant Code of Conduct](./CODE_OF_CONDUCT.md)
+- Where to get help: [Contact page](https://postgres.ai/contact).
 - [Community Slack](https://slack.postgres.ai)
-- If you need to report a security issue, follow instructions in ["Database Lab Engine security guidelines"](./SECURITY.md)
+- If you need to report a security issue, follow the instructions in [Database Lab Engine Security Guidelines](./SECURITY.md).
 
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?color=blue)](./CODE_OF_CONDUCT.md)
 

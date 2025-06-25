@@ -115,7 +115,7 @@ export const ConnectionModal = observer((props: Props) => {
 
         {psqlConnectionStr && (
           <div className={classes.item}>
-            <p className={classes.fieldText}>Connect to Postgres using psql:</p>
+            <p className={classes.fieldText}>Connect to PostgreSQL using psql:</p>
             <div className={classes.fieldWrapper}>
               <TextField
                 label="psql connection string"
@@ -136,10 +136,10 @@ export const ConnectionModal = observer((props: Props) => {
               <Tooltip
                 content={
                   <>
-                    Used to connect to Postgres using psql. Change DBNAME
-                    to&nbsp; name of the database you want to connect. Use
-                    PGPASSWORD&nbsp; environment variable to set database
-                    password or type&nbsp; it when prompted.
+                    Used to connect to PostgreSQL using psql. Change DBNAME
+                    to the name of the database you want to connect to. Use
+                    the PGPASSWORD environment variable to set the database
+                    password or type it when prompted.
                   </>
                 }
               >
@@ -151,7 +151,7 @@ export const ConnectionModal = observer((props: Props) => {
 
         {jdbcConnectionStr && (
           <div className={classes.item}>
-            <p className={classes.fieldText}>Connect to Postgres using JDBC:</p>
+            <p className={classes.fieldText}>Connect to PostgreSQL using JDBC:</p>
             <div className={classes.fieldWrapper}>
               <TextField
                 label="JDBC connection string"
@@ -172,10 +172,10 @@ export const ConnectionModal = observer((props: Props) => {
               <Tooltip
                 content={
                   <>
-                    Used to connect to Postgres using JDBC. Change DBNAME
-                    to&nbsp; name of the database you want to connect, change
-                    DBPASSWORD&nbsp; to the password you’ve used on clone
-                    creation.
+                    Used to connect to PostgreSQL using JDBC. Change DBNAME
+                    to the name of the database you want to connect to, and
+                    change DBPASSWORD to the password you used when creating
+                    the clone.
                   </>
                 }
               >

@@ -3,26 +3,26 @@ import styles from './styles.module.scss'
 export const tooltipText = {
   dockerTag: () => (
     <div>
-      Docker image version - latest ones listed first. If unsure, pick the top
-      one
+      Docker image version — the latest ones are listed first. If you are unsure,
+      pick the first one.
     </div>
   ),
   dockerImage: () => (
     <div>
       Major PostgreSQL version (e.g., "9.6", "15"). For logical provisioning
-      mode, the version used by DBLab doesn't need to match the version used on
-      the source (although, it's recommended). <br />
+      mode, the version used by DBLab does not need to match the version on the
+      source, although matching versions is recommended. <br />
       If you need a version that is not listed here, contact support.
     </div>
   ),
   dockerImageType: () => (
     <div>
-      Docker image used to run all database containers – clones, snapshot
-      preparation containers, sync containers. Although such images are based on
-      traditional Docker images for Postgres, DBLab expects slightly different
-      behavior: e.g., Postgres is not the first process used to start container,
-      so Postgres restarts are possible, they do not trigger container state
-      change. For details, see{' '}
+      Docker image used to run all database containers — clones, snapshot
+      preparation containers, and sync containers. Although such images are based on
+      traditional Docker images for PostgreSQL, DBLab expects slightly different
+      behavior: for example, PostgreSQL is not the first process used to start the
+      container, so PostgreSQL restarts do not trigger a container state change.
+      For details, see{' '}
       <a
         target={'_blank'}
         href={'https://postgres.ai/docs/database-lab/supported-databases'}
@@ -35,20 +35,19 @@ export const tooltipText = {
   ),
   sharedBuffers: () => (
     <div>
-      Defines default buffer pool size of each Postgres instance managed by
-      DBLab. Note, that this amount of RAM is immediately allocated at Postgres
-      startup time. For example, if the machine running DBLab has 32 GiB of RAM,
-      and the value used here is '1GB', then the theoretical limit of the number
-      of clones is 32. Practically, this limit is even lower because some memory
-      is consumed by various other processes. If you need more clones, reduce
-      the value of{' '}
+      Defines the default buffer pool size for each PostgreSQL instance managed by
+      DBLab. Note that this amount of RAM is immediately allocated at PostgreSQL
+      startup time. For example, if the machine running DBLab has 32 GiB of RAM and
+      the value used here is '1GB', then the theoretical limit of clones is 32.
+      Practically, this limit is even lower because some memory is consumed by
+      other processes. If you need more clones, reduce the value of{' '}
       <span className={styles.firaCodeFont}>configs.shared_buffers</span>.
     </div>
   ),
   sharedPreloadLibraries: () => (
     <div>
       Specifies one or more shared libraries (comma-separated list) to be
-      preloaded at Postgres server start (
+      preloaded at PostgreSQL server start (
       <a
         target={'_blank'}
         href={'https://postgresqlco.nf/doc/en/param/shared_preload_libraries/'}
@@ -56,58 +55,58 @@ export const tooltipText = {
       >
         details
       </a>
-      ). If some libraries/extensions are missing, Postgres fails to start, so
-      make sure that <span className={styles.firaCodeFont}>dockerImage</span>{' '}
-      used above contains all the needed extensions.
+      ). If some libraries or extensions are missing, PostgreSQL fails to start,
+      so make sure that <span className={styles.firaCodeFont}>dockerImage</span>{' '}
+      used above contains all required extensions.
     </div>
   ),
   host: () => (
     <div>
-      Hostname/IP of database that will be used as source for data retrieval
-      (full data refresh).
+      Hostname or IP of the database that will be used as the source for data
+      retrieval (full data refresh).
     </div>
   ),
   port: () => (
     <div>
-      Port of database that will be used as source for data retrieval (full data
-      refresh).
+      Port of the database that will be used as the source for data retrieval
+      (full data refresh).
     </div>
   ),
   username: () => (
     <div>
-      Username used to connect to database that will be used as source for data
-      retrieval (full data refresh).
+      Username used to connect to the database that will be used as the source
+      for data retrieval (full data refresh).
     </div>
   ),
   password: () => (
     <div>
-      Password used to connect to database that will be used as source for data
-      retrieval (full data refresh).
+      Password used to connect to the database that will be used as the source
+      for data retrieval (full data refresh).
     </div>
   ),
   dbname: () => (
     <div>
-      Database name used to connect to the source to run diagnostics queries.
-      This database is not necesserarily to be copied (another field,{' '}
+      Database name used to connect to the source to run diagnostic queries.
+      This database is not necessarily copied (another field,{' '}
       <span className={styles.firaCodeFont}>databases</span>, defines which
       database to copy).
     </div>
   ),
   databases: () => (
     <div>
-      Specifies list of databases Postgres server to copy at data retrieval
-      (full data refresh). To specify multiple database names, provide each
-      value in a separte line or use space as a divider. To copy all available
-      databases, leave this value empty.
+      Specifies the list of databases the PostgreSQL server will copy during data
+      retrieval (full data refresh). To specify multiple database names, provide
+      each value on a separate line or use spaces as dividers. To copy all
+      available databases, leave this value empty.
     </div>
   ),
   dumpParallelJobs: () => (
     <div>
       Number of parallel workers used to dump the source databases to disk. If
-      the source is production server under load, it is not recommended to use
-      more than 50% of its number of vCPUs. The higher number, the faster
-      dumping is, but the higher risks of performance issues on the source
-      (e.g., due to CPU or disk IO saturation).
+      the source is a production server under load, it is not recommended to use
+      more than 50% of its available vCPUs. Increasing this number speeds up
+      dumping but increases the risk of performance issues on the source (e.g.,
+      due to CPU or disk I/O saturation).
     </div>
   ),
   pgDumpCustomOptions: () => (
@@ -120,15 +119,14 @@ export const tooltipText = {
   ),
   restoreParallelJobs: () => (
     <div>
-      Number of parallel workers used to restore databases from dump to Postgres
-      managed by DBLab. For initial data retrieval (very first data refresh), it
-      is recommended to use the number of vCPUs available on machine running
-      DBLab. With this approach, we have faster restore time, but we need to
-      keep in mind that we can also have higher usage of CPU and disk IO on this
-      machine (up to temporary saturation of resources). For subsequent
-      refreshes, if DBLab is constantly used, it is recommended to reduce this
-      value by 50% to keep some room for normal use of DBLab (such as work with
-      clones).
+      Number of parallel workers used to restore databases from dump to
+      PostgreSQL managed by DBLab. For initial data retrieval (the first data
+      refresh), it is recommended to match the number of available vCPUs on the
+      machine running DBLab. This yields faster restore times but can increase
+      CPU and disk I/O usage on that machine (up to temporary resource
+      saturation). For subsequent refreshes, if DBLab is in continuous use, it is
+      recommended to reduce this value by 50% to reserve capacity for normal
+      DBLab operations (such as working with clones).
     </div>
   ),
   pgRestoreCustomOptions: () => (
@@ -155,10 +153,10 @@ export const tooltipText = {
   ),
   tuningParams: () => (
     <div>
-      Query tuning parameters. This is essential to ensure that cloned
-      PostgreSQL most likely generates the same plans as on the source
-      (specifically, it is crutial for query performance troubleshooting and
-      optimization, including working with EXPLAIN plans). For details, see the{' '}
+      Query tuning parameters. These are essential to ensure that cloned
+      PostgreSQL instances generate the same plans as the source (specifically,
+      they are crucial for query performance troubleshooting and optimization,
+      including working with EXPLAIN plans). For details, see the{' '}
       <a
         target={'_blank'}
         href={'https://postgres.ai/docs/how-to-guides/administration/postgresql-configuration#postgresql-configuration-in-clones'}

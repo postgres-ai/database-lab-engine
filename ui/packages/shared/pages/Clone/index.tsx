@@ -538,10 +538,10 @@ export const Clone = observer((props: Props) => {
                   <Tooltip
                     content={
                       <>
-                        Used to connect to Postgres using psql. Change DBNAME
-                        to&nbsp; name of the database you want to connect. Use
-                        PGPASSWORD&nbsp; environment variable to set database
-                        password or type&nbsp; it when prompted.
+                        Used to connect to PostgreSQL using psql. Change DBNAME
+                        to the name of the database you want to connect to. Use
+                        the PGPASSWORD environment variable to set the database
+                        password or type it when prompted.
                       </>
                     }
                   >
@@ -584,10 +584,10 @@ export const Clone = observer((props: Props) => {
                   <Tooltip
                     content={
                       <>
-                        Used to connect to Postgres using JDBC. Change DBNAME
-                        to&nbsp; name of the database you want to connect,
-                        change DBPASSWORD&nbsp; to the password you’ve used on
-                        clone creation.
+                        Used to connect to PostgreSQL using JDBC. Change DBNAME
+                        to the name of the database you want to connect to, and
+                        change DBPASSWORD to the password you used when creating
+                        the clone.
                       </>
                     }
                   >
@@ -630,8 +630,8 @@ export const Clone = observer((props: Props) => {
               is also disabled.
               <br />
               Please be careful: abandoned clones with this checkbox enabled may
-              cause out-of-disk-space events. Check disk space on daily basis
-              and delete this clone once the work is done.
+              cause out-of-disk-space events. Check disk space on a daily basis
+              and delete this clone once your work is done.
             </span>
           </p>
           {stores.main.updateCloneError && (
