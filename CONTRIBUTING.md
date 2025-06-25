@@ -23,11 +23,11 @@ These are mostly guidelines, not rules. Use your best judgment, and feel free to
     - [Git commit messages](#git-commit-messages)
     - [Go styleguide](#go-styleguide)
     - [Documentation styleguide](#documentation-styleguide)
+    - [API design and testing](#api-design-and-testing)
+    - [UI development](#ui-development)
     - [Development setup](#development-setup)
     - [Repo overview](#repo-overview)
-<!--
     - [Building from source](#building-from-source)
--->
 
 ---
 
@@ -171,6 +171,94 @@ We're building documentation following the principles described at https://docum
 
 Learn more: https://documentation.divio.com/.
 
+### API design and testing
+The DBLab API follows RESTful principles with these key guidelines:
+- Clear resource-based URL structure
+- Consistent usage of HTTP methods (GET, POST, DELETE, etc.)
+- Standardized error responses
+- Authentication via API tokens
+- JSON for request and response bodies
+- Comprehensive documentation with examples
+
+#### API Documentation
+We use readme.io to host the API docs: https://dblab.readme.io/ and https://api.dblab.dev.
+
+When updating the API specification:
+1. Make changes to the OpenAPI spec file in `engine/api/swagger-spec/`
+2. Upload it to readme.io as a new documentation version
+3. Review and publish the new version
+
+#### Testing with Postman and Newman
+Postman collection is generated based on the OpenAPI spec file, using [Portman](https://github.com/apideck-libraries/portman).
+
+##### Setup and Generation
+1. Install Portman: `npm install -g @apideck/portman`
+2. Generate Postman collection file:
+   ```
+   portman --cliOptionsFile engine/api/postman/portman-cli.json
+   ```
+
+##### Test Structure Best Practices
+- Arrange tests in logical flows (create, read, update, delete)
+- Use environment variables to store and pass data between requests
+- For object creation tests, capture the ID in the response to use in subsequent requests
+- Add validation tests for response status, body structure, and expected values
+- Clean up created resources at the end of test flows
+
+##### CI/CD Integration
+The Postman collection is automatically run in CI/CD pipelines using Newman. For local testing:
+```
+newman run engine/api/postman/dblab_api.postman_collection.json -e engine/api/postman/branching.aws.postgres.ai.postman_environment.json
+```
+
+### UI development
+The Database Lab Engine UI contains two main packages:
+- `@postgres.ai/platform` - Platform version of UI
+- `@postgres.ai/ce` - Community Edition version of UI
+- `@postgres.ai/shared` - Common modules shared between packages
+
+#### Working with UI packages
+At the repository root:
+- `pnpm install` - Install all dependencies
+- `npm run build -ws` - Build all packages
+- `npm run start -w @postgres.ai/platform` - Run Platform UI in dev mode
+- `npm run start -w @postgres.ai/ce` - Run Community Edition UI in dev mode
+
+_Note: Don't use commands for `@postgres.ai/shared` - it's a dependent package that can't be run or built directly_
+
+#### Platform UI Development
+1. Set up environment variables:
+   ```bash
+   cd ui/packages/platform
+   cp .env_example_dev .env
+   ```
+2. Edit `.env` to set:
+   - `REACT_APP_API_URL_PREFIX` to point to dev API server
+   - `REACT_APP_TOKEN_DEBUG` to set your JWT token
+3. Start development server: `pnpm run start`
+
+#### CI pipelines for UI code
+To deploy UI changes, tag the commit with `ui/` prefix and push it:
+```shell
+git tag ui/1.0.12
+git push origin ui/1.0.12
+```
+
+#### Handling Vulnerabilities
+When addressing vulnerabilities in UI packages:
+1. Update the affected package to a newer version if available
+2. For sub-package vulnerabilities, try using [npm-force-resolutions](https://www.npmjs.com/package/npm-force-resolutions)
+3. As a last resort, consider forking the package locally
+
+For code-related issues:
+1. Consider rewriting JavaScript code in TypeScript
+2. Follow recommendations from security analysis tools
+3. Only ignore false positives when absolutely necessary
+
+#### TypeScript Migration
+- `@postgres.ai/shared` and `@postgres.ai/ce` are written in TypeScript
+- `@postgres.ai/platform` is partially written in TypeScript with ongoing migration efforts
+
 ### Repo overview
 The [postgres-ai/database-lab](https://gitlab.com/postgres-ai/database-lab) repo contains 2 components:
 - [Database Lab Engine](https://gitlab.com/postgres-ai/database-lab/-/tree/master/engine)
@@ -229,10 +317,27 @@ Components have a separate version, denoted by either:
 
 
 ### Building from source
-Use `Makefile` to build Database Lab components from source.
+The Database Lab Engine provides multiple build targets in its `Makefile`:
 
-Run `make help` to see all available targets.
+```bash
+cd engine
+make help      # View all available build targets
+make build     # Build all components (Server, CLI, CI Checker)
+make build-dle # Build Database Lab Engine binary and Docker image
+make test      # Run unit tests
+```
 
-<!--
-mention dev images: See our [GitLab Container Registry](https://gitlab.com/postgres-ai/database-lab/container_registry) to find the images built for development branches.
--->
+You can also build specific components:
+
+```bash
+# Build the CLI for all supported platforms
+make build-client
+
+# Build the Server in debug mode
+make build-debug
+
+# Build and run DLE locally
+make run-dle
+```
+
+See our [GitLab Container Registry](https://gitlab.com/postgres-ai/database-lab/container_registry) to find pre-built images for development branches.
