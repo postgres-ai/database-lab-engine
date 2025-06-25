@@ -9,7 +9,7 @@ type Config = {
 
 export const config: Config = {
   dateFnsLocale: enUS,
-  appName: 'Postgres.ai',
+  appName: 'Postgres.AI',
 }
 
 const loadDateFnsLocale = async () => {

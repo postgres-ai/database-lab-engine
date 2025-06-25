@@ -971,7 +971,7 @@ export const Configuration = observer(
                   className={classes.grayText}
                   style={{ marginTop: '0.5rem', display: 'block' }}
                 >
-                  Default Postgres configuration used for all Postgres instances
+                  Default PostgreSQL configuration used for all PostgreSQL instances
                   running in containers managed by DBLab.
                 </span>
                 <InputWithTooltip
