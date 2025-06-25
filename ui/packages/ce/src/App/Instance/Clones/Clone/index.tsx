@@ -9,6 +9,10 @@ import { getClone } from 'api/clones/getClone'
 import { resetClone } from 'api/clones/resetClone'
 import { destroyClone } from 'api/clones/destroyClone'
 import { updateClone } from 'api/clones/updateClone'
+import { createSnapshot } from 'api/snapshots/createSnapshot'
+import { initWS } from 'api/engine/initWS'
+import { destroySnapshot } from 'api/snapshots/destroySnapshot'
+
 import { PageContainer } from 'components/PageContainer'
 import { NavPath } from 'components/NavPath'
 import { ROUTES } from 'config/routes'
@@ -27,7 +31,10 @@ export const Clone = () => {
     getClone,
     resetClone,
     destroyClone,
+    destroySnapshot,
     updateClone,
+    createSnapshot,
+    initWS,
   }
 
   const elements = {
@@ -35,9 +42,9 @@ export const Clone = () => {
       <NavPath
         routes={[
           ROUTES,
-          ROUTES.INSTANCE,
+          ROUTES.INSTANCE.CLONES.CLONES,
           {
-            name: ROUTES.INSTANCE.CLONES.CLONE.name,
+            name: `${ROUTES.INSTANCE.CLONES.CLONE.name}/${cloneId}`,
             path: ROUTES.INSTANCE.CLONES.CLONE.createPath(cloneId),
           },
         ]}
@@ -52,6 +59,9 @@ export const Clone = () => {
         cloneId={cloneId}
         routes={{
           instance: () => ROUTES.INSTANCE.path,
+          snapshot: (snapshotId: string) =>
+            ROUTES.INSTANCE.SNAPSHOTS.SNAPSHOT.createPath(snapshotId),
+          createSnapshot: (cloneId: string) => ROUTES.INSTANCE.SNAPSHOTS.CREATE.createPath(cloneId),
         }}
         api={api}
         elements={elements}

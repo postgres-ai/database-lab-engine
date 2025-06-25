@@ -7,4 +7,5 @@ export type CreateClone = (args: {
   dbUser: string
   dbPassword: string
   isProtected: boolean
+  branch?: string
 }) => Promise<{ response: Clone | null; error: Response | null }>

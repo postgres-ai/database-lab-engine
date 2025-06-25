@@ -10,6 +10,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/branch"
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/clone"
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/config"
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/global"
@@ -30,6 +31,9 @@ func main() {
 		Commands: joinCommands(
 			// Config commands.
 			global.List(),
+
+			// Branching.
+			branch.List(),
 
 			// Database Lab API.
 			clone.CommandList(),
@@ -80,6 +84,11 @@ func main() {
 				Name:    "debug",
 				Usage:   "run in debug mode",
 				EnvVars: []string{"DBLAB_CLI_DEBUG"},
+			},
+			&cli.StringFlag{
+				Name:    "current-branch",
+				Usage:   "current branch",
+				EnvVars: []string{"DBLAB_CLI_CURRENT_BRANCH"},
 			},
 		},
 		EnableBashCompletion: true,
@@ -157,6 +166,16 @@ func loadEnvironmentParams(c *cli.Context) error {
 			if err := c.Set(commands.IdentityFileKey, env.Forwarding.IdentityFile); err != nil {
 				return err
 			}
+		}
+
+		currentBranch := config.DefaultBranch
+
+		if env.Branching.CurrentBranch != "" {
+			currentBranch = env.Branching.CurrentBranch
+		}
+
+		if err := c.Set(commands.CurrentBranch, currentBranch); err != nil {
+			return err
 		}
 	}
 

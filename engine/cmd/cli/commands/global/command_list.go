@@ -58,7 +58,7 @@ func List() []*cli.Command {
 		},
 		{
 			Name:   "port-forward",
-			Usage:  "start port forwarding to the Database Lab instance",
+			Usage:  "start port forwarding to the DBLab instance",
 			Before: commands.CheckForwardingServerURL,
 			Action: forward,
 		},

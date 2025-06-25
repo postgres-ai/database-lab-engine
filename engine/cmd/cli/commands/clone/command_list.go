@@ -19,7 +19,7 @@ const (
 func CommandList() []*cli.Command {
 	return []*cli.Command{{
 		Name:  "clone",
-		Usage: "manages clones",
+		Usage: "create, update, delete, reset, or retrieve clone",
 		Subcommands: []*cli.Command{
 			{
 				Name:   "list",
@@ -63,6 +63,10 @@ func CommandList() []*cli.Command {
 					&cli.StringFlag{
 						Name:  "snapshot-id",
 						Usage: "snapshot ID (optional)",
+					},
+					&cli.StringFlag{
+						Name:  "branch",
+						Usage: "branch name (optional)",
 					},
 					&cli.BoolFlag{
 						Name:    "protected",

@@ -1,15 +1,41 @@
+.container {
+  display: flex;
+  gap: 60px;
+  margin-top: 20px;
+  max-width: 1200px;
+
+  @media (max-width: 1300px) {
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
 .title {
   margin-top: 16px;
 }
 
 .form {
-  max-width: 425px;
-  margin-top: 8px;
+  flex: 1 1 0;
+}
+
+.snippetContainer {
+  flex: 1 1 0;
+  min-width: 0;
+  box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 12px;
+  padding: 0 20px 10px 20px;
+  height: max-content;
+  border-radius: 4px;
+}
+
+.snapshotItem {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
 }
 
 .section {
   & + .section {
-    margin-top: 32px;
+    margin-top: 24px;
   }
 }
 
@@ -20,6 +46,10 @@
 
 .text {
   margin-top: 8px;
+}
+
+.marginBottom {
+  margin-bottom: 10px;
 }
 
 .remark {
@@ -38,8 +68,10 @@
 .summary {
   display: flex;
   align-items: center;
-  background-color: rgba(#808080, 0.15) !important;
+  background-color: rgb(250, 250, 250) !important;
+  box-shadow: none !important;
   padding: 12px;
+  margin: 10px 0 15px 0;
 }
 
 .summaryIcon {
@@ -68,4 +100,15 @@
 
 .elapsedTime {
   margin-left: 24px;
+}
+
+.snapshotOverflow {
+  width: 100%;
+  word-wrap: break-word;
+  white-space: initial;
+}
+
+.pageTitle {
+  margin-top: 8px;
+  line-height: 26px;
 }

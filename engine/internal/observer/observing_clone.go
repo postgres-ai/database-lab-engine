@@ -43,6 +43,8 @@ var maskedFields = map[string]struct{}{
 type ObservingClone struct {
 	pool        *resources.Pool
 	cloneID     string
+	branch      string
+	revision    int
 	port        uint
 	superUserDB *pgx.Conn
 
@@ -217,7 +219,7 @@ func (c *ObservingClone) RunSession() error {
 
 	defer func() {
 		if err := c.db.Close(ctx); err != nil {
-			log.Err("Failed to close a database connection after observation for SessionID: ", c.session.SessionID)
+			log.Err("failed to close database connection after observation for SessionID: ", c.session.SessionID)
 		}
 	}()
 
@@ -254,7 +256,7 @@ func (c *ObservingClone) RunSession() error {
 			log.Dbg("Stop observation for SessionID: ", c.session.SessionID)
 
 			if err := c.storeArtifacts(); err != nil {
-				log.Err("Failed to store artifacts: ", err)
+				log.Err("failed to store artifacts: ", err)
 			}
 
 			c.done <- struct{}{}
@@ -479,7 +481,7 @@ func (c *ObservingClone) currentArtifactsSessionPath() string {
 }
 
 func (c *ObservingClone) artifactsSessionPath(sessionID uint64) string {
-	return path.Join(c.pool.ObserverDir(c.port), c.cloneID, strconv.FormatUint(sessionID, 10))
+	return path.Join(c.pool.ObserverDir(c.branch, c.cloneID, c.revision), c.cloneID, strconv.FormatUint(sessionID, 10))
 }
 
 // CheckPerformanceRequirements checks monitoring data and returns an error if any of performance requires was not satisfied.

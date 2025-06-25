@@ -21,7 +21,8 @@ func TestLogLineFiltering(t *testing.T) {
 		Platform:  pl,
 		filtering: log.GetFilter(),
 	}
-	s.initLogRegExp()
+
+	s.filtering.ReloadLogRegExp([]string{"secretToken"})
 
 	testCases := []struct {
 		input  []byte
@@ -74,6 +75,10 @@ func TestLogLineFiltering(t *testing.T) {
 		{
 			input:  []byte(`AWS_ACCESS_KEY_ID:password`),
 			output: []byte(`AWS_********`),
+		},
+		{
+			input:  []byte(`secret: "secret_token"`),
+			output: []byte(`********`),
 		},
 	}
 

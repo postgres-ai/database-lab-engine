@@ -13,6 +13,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/lvm"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/zfs"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
@@ -25,28 +26,58 @@ type FSManager interface {
 	Snapshotter
 	StateReporter
 	Pooler
+	Branching
 }
 
 // Cloner describes methods of clone management.
 type Cloner interface {
-	CreateClone(name, snapshotID string) error
-	DestroyClone(name string) error
+	CreateClone(branch, name, snapshotID string, revision int) error
+	DestroyClone(branch, name string, revision int) error
 	ListClonesNames() ([]string, error)
 }
 
 // StateReporter describes methods of state reporting.
 type StateReporter interface {
-	GetSessionState(name string) (*resources.SessionState, error)
+	GetSessionState(branch, name string) (*resources.SessionState, error)
 	GetFilesystemState() (models.FileSystem, error)
 }
 
 // Snapshotter describes methods of snapshot management.
 type Snapshotter interface {
 	CreateSnapshot(poolSuffix, dataStateAt string) (snapshotName string, err error)
-	DestroySnapshot(snapshotName string) (err error)
+	DestroySnapshot(snapshotName string, options thinclones.DestroyOptions) (err error)
 	CleanupSnapshots(retentionLimit int) ([]string, error)
 	SnapshotList() []resources.Snapshot
 	RefreshSnapshotList()
+}
+
+// Branching describes methods for data branching.
+type Branching interface {
+	InitBranching() error
+	VerifyBranchMetadata() error
+	CreateDataset(datasetName string) error
+	CreateBranch(branchName, snapshotID string) error
+	DestroyDataset(branchName string) (err error)
+	ListBranches() (map[string]string, error)
+	ListAllBranches(filterPools []string) ([]models.BranchEntity, error)
+	GetRepo() (*models.Repo, error)
+	GetAllRepo() (*models.Repo, error)
+	SetRelation(parent, snapshotName string) error
+	Snapshot(snapshotName string) error
+	Move(baseSnap, currentSnap, target string) error
+	SetMountpoint(path, branch string) error
+	Rename(oldName, branch string) error
+	GetSnapshotProperties(snapshotName string) (thinclones.SnapshotProperties, error)
+	AddBranchProp(branch, snapshotName string) error
+	DeleteBranchProp(branch, snapshotName string) error
+	DeleteChildProp(childSnapshot, snapshotName string) error
+	DeleteRootProp(branch, snapshotName string) error
+	SetRoot(branch, snapshotName string) error
+	SetDSA(dsa, snapshotName string) error
+	SetMessage(message, snapshotName string) error
+	Reset(snapshotID string, options thinclones.ResetOptions) error
+	HasDependentEntity(snapshotName string) ([]string, error)
+	KeepRelation(snapshotName string) error
 }
 
 // Pooler describes methods for Pool providing.

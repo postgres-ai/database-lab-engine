@@ -34,7 +34,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/fs"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
-	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/networks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/pglog"
 )
@@ -151,9 +151,9 @@ func (p *Provisioner) ContainerOptions() models.ContainerOptions {
 }
 
 // StartSession starts a new session.
-func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUser,
+func (p *Provisioner) StartSession(clone *models.Clone, user resources.EphemeralUser,
 	extraConfig map[string]string) (*resources.Session, error) {
-	snapshot, err := p.getSnapshot(snapshotID)
+	snapshot, err := p.getSnapshot(clone.Snapshot.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get snapshots")
 	}
@@ -163,7 +163,7 @@ func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUs
 		return nil, errors.New("failed to get a free port")
 	}
 
-	name := util.GetCloneName(port)
+	name := clone.ID
 
 	fsm, err := p.pm.GetFSManager(snapshot.Pool)
 	if err != nil {
@@ -174,7 +174,7 @@ func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUs
 
 	defer func() {
 		if err != nil {
-			p.revertSession(fsm, name)
+			p.revertSession(fsm, clone.Branch, name, strconv.FormatUint(uint64(port), 10), clone.Revision)
 
 			if portErr := p.FreePort(port); portErr != nil {
 				log.Err(portErr)
@@ -182,11 +182,11 @@ func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUs
 		}
 	}()
 
-	if err = fsm.CreateClone(name, snapshot.ID); err != nil {
+	if err = fsm.CreateClone(clone.Branch, name, snapshot.ID, clone.Revision); err != nil {
 		return nil, errors.Wrap(err, "failed to create clone")
 	}
 
-	appConfig := p.getAppConfig(fsm.Pool(), name, port)
+	appConfig := p.getAppConfig(fsm.Pool(), clone.Branch, name, clone.Revision, port)
 	appConfig.SetExtraConf(extraConfig)
 
 	if err := fs.CleanupLogsDir(appConfig.DataDir()); err != nil {
@@ -217,20 +217,16 @@ func (p *Provisioner) StartSession(snapshotID string, user resources.EphemeralUs
 }
 
 // StopSession stops an existing session.
-func (p *Provisioner) StopSession(session *resources.Session) error {
+func (p *Provisioner) StopSession(session *resources.Session, clone *models.Clone) error {
 	fsm, err := p.pm.GetFSManager(session.Pool)
 	if err != nil {
 		return errors.Wrap(err, "failed to find a filesystem manager of this session")
 	}
 
-	name := util.GetCloneName(session.Port)
+	name := clone.ID
 
-	if err := postgres.Stop(p.runner, fsm.Pool(), name); err != nil {
-		return errors.Wrap(err, "failed to stop a container")
-	}
-
-	if err := fsm.DestroyClone(name); err != nil {
-		return errors.Wrap(err, "failed to destroy a clone")
+	if err := postgres.Stop(p.runner, fsm.Pool(), name, clone.DB.Port); err != nil {
+		return errors.Wrap(err, "failed to stop container")
 	}
 
 	if err := p.FreePort(session.Port); err != nil {
@@ -241,13 +237,13 @@ func (p *Provisioner) StopSession(session *resources.Session) error {
 }
 
 // ResetSession resets an existing session.
-func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string) (*models.Snapshot, error) {
+func (p *Provisioner) ResetSession(session *resources.Session, clone *models.Clone, snapshotID string) (*models.Snapshot, error) {
 	fsm, err := p.pm.GetFSManager(session.Pool)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find filesystem manager of this session")
 	}
 
-	name := util.GetCloneName(session.Port)
+	name := clone.ID
 
 	snapshot, err := p.getSnapshot(snapshotID)
 	if err != nil {
@@ -270,23 +266,25 @@ func (p *Provisioner) ResetSession(session *resources.Session, snapshotID string
 
 	defer func() {
 		if err != nil {
-			p.revertSession(newFSManager, name)
+			p.revertSession(newFSManager, clone.Branch, name, clone.DB.Port, clone.Revision)
 		}
 	}()
 
-	if err = postgres.Stop(p.runner, fsm.Pool(), name); err != nil {
+	if err = postgres.Stop(p.runner, fsm.Pool(), name, clone.DB.Port); err != nil {
 		return nil, errors.Wrap(err, "failed to stop container")
 	}
 
-	if err = fsm.DestroyClone(name); err != nil {
-		return nil, errors.Wrap(err, "failed to destroy clone")
+	if clone.Revision == branching.DefaultRevision || !clone.HasDependent {
+		if err = fsm.DestroyClone(clone.Branch, name, clone.Revision); err != nil {
+			return nil, errors.Wrap(err, "failed to destroy clone")
+		}
 	}
 
-	if err = newFSManager.CreateClone(name, snapshot.ID); err != nil {
+	if err = newFSManager.CreateClone(clone.Branch, name, snapshot.ID, clone.Revision); err != nil {
 		return nil, errors.Wrap(err, "failed to create clone")
 	}
 
-	appConfig := p.getAppConfig(newFSManager.Pool(), name, session.Port)
+	appConfig := p.getAppConfig(newFSManager.Pool(), clone.Branch, name, clone.Revision, session.Port)
 	appConfig.SetExtraConf(session.ExtraConfig)
 
 	if err := fs.CleanupLogsDir(appConfig.DataDir()); err != nil {
@@ -328,13 +326,13 @@ func (p *Provisioner) GetSnapshots() ([]resources.Snapshot, error) {
 }
 
 // GetSessionState describes the state of the session.
-func (p *Provisioner) GetSessionState(s *resources.Session) (*resources.SessionState, error) {
+func (p *Provisioner) GetSessionState(s *resources.Session, branch, cloneID string) (*resources.SessionState, error) {
 	fsm, err := p.pm.GetFSManager(s.Pool)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to find a filesystem manager of this session")
+		return nil, errors.Wrap(err, "failed to find filesystem manager of this session")
 	}
 
-	return fsm.GetSessionState(util.GetCloneName(s.Port))
+	return fsm.GetSessionState(branch, cloneID)
 }
 
 // GetPoolEntryList provides an ordered list of available pools.
@@ -389,15 +387,15 @@ func buildPoolEntry(fsm pool.FSManager) (models.PoolEntry, error) {
 }
 
 // Other methods.
-func (p *Provisioner) revertSession(fsm pool.FSManager, name string) {
-	log.Dbg(`Reverting start of a session...`)
+func (p *Provisioner) revertSession(fsm pool.FSManager, branch, name, port string, revision int) {
+	log.Dbg(`Reverting start of session...`)
 
-	if runnerErr := postgres.Stop(p.runner, fsm.Pool(), name); runnerErr != nil {
-		log.Err("Stop Postgres:", runnerErr)
+	if runnerErr := postgres.Stop(p.runner, fsm.Pool(), name, port); runnerErr != nil {
+		log.Err("stop Postgres:", runnerErr)
 	}
 
-	if runnerErr := fsm.DestroyClone(name); runnerErr != nil {
-		log.Err("Destroy clone:", runnerErr)
+	if runnerErr := fsm.DestroyClone(branch, name, revision); runnerErr != nil {
+		log.Err("destroy clone:", runnerErr)
 	}
 }
 
@@ -590,7 +588,9 @@ func (p *Provisioner) stopPoolSessions(fsm pool.FSManager, exceptClones map[stri
 
 		log.Dbg("Stopping container:", instance)
 
-		if err = postgres.Stop(p.runner, fsPool, instance); err != nil {
+		port := "" // TODO: check this case to prevent removing active sockets.
+
+		if err = postgres.Stop(p.runner, fsPool, instance, port); err != nil {
 			return errors.Wrap(err, "failed to container")
 		}
 	}
@@ -607,7 +607,10 @@ func (p *Provisioner) stopPoolSessions(fsm pool.FSManager, exceptClones map[stri
 			continue
 		}
 
-		if err := fsm.DestroyClone(clone); err != nil {
+		branchName := branching.DefaultBranch // TODO: extract branch from name OR pass as an argument.
+		revision := branching.DefaultRevision // TODO: the same for the revision.
+
+		if err := fsm.DestroyClone(branchName, clone, revision); err != nil {
 			return err
 		}
 	}
@@ -615,11 +618,13 @@ func (p *Provisioner) stopPoolSessions(fsm pool.FSManager, exceptClones map[stri
 	return nil
 }
 
-func (p *Provisioner) getAppConfig(pool *resources.Pool, name string, port uint) *resources.AppConfig {
+func (p *Provisioner) getAppConfig(pool *resources.Pool, branch, name string, rev int, port uint) *resources.AppConfig {
 	provisionHosts := p.getProvisionHosts()
 
 	appConfig := &resources.AppConfig{
 		CloneName:      name,
+		Branch:         branch,
+		Revision:       rev,
 		DockerImage:    p.config.DockerImage,
 		Host:           pool.SocketCloneDir(name),
 		Port:           port,
@@ -655,16 +660,17 @@ func (p *Provisioner) getProvisionHosts() string {
 }
 
 // LastSessionActivity returns the time of the last session activity.
-func (p *Provisioner) LastSessionActivity(session *resources.Session, minimumTime time.Time) (*time.Time, error) {
+func (p *Provisioner) LastSessionActivity(session *resources.Session, branch, cloneID string, revision int,
+	minimumTime time.Time) (*time.Time, error) {
 	fsm, err := p.pm.GetFSManager(session.Pool)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to find a filesystem manager")
+		return nil, errors.Wrap(err, "failed to find filesystem manager")
 	}
 
 	ctx, cancel := context.WithCancel(p.ctx)
 	defer cancel()
 
-	clonePath := fsm.Pool().ClonePath(session.Port)
+	clonePath := fsm.Pool().ClonePath(branch, cloneID, revision)
 	fileSelector := pglog.NewSelector(clonePath)
 
 	if err := fileSelector.DiscoverLogDir(); err != nil {
@@ -734,7 +740,7 @@ func (p *Provisioner) scanCSVLogFile(ctx context.Context, filename string, avail
 
 	defer func() {
 		if err := csvFile.Close(); err != nil {
-			log.Errf("Failed to close a CSV log file: %s", err.Error())
+			log.Errf("failed to close CSV log file: %s", err.Error())
 		}
 	}()
 

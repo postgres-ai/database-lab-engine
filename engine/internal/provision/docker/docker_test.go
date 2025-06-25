@@ -40,11 +40,12 @@ func TestVolumesBuilding(t *testing.T) {
 		{
 			appConfig: &resources.AppConfig{
 				CloneName: "dblab_clone_6000",
+				Branch:    "main",
+				Revision:  0,
 				Pool: &resources.Pool{
 					Name:         "dblab_pool",
 					PoolDirName:  "dblab_pool",
 					MountDir:     "/var/lib/dblab/",
-					CloneSubDir:  "clones",
 					DataSubDir:   "data",
 					SocketSubDir: "sockets",
 				},
@@ -61,7 +62,7 @@ func TestVolumesBuilding(t *testing.T) {
 			},
 			expectedVolumes: []string{
 				"--volume /var/lib/dblab/dblab_pool/sockets/dblab_clone_6000:/var/lib/dblab/dblab_pool/sockets/dblab_clone_6000:rshared",
-				"--volume /var/lib/dblab/dblab_pool/clones/dblab_clone_6000:/var/lib/dblab/dblab_pool/clones/dblab_clone_6000:rshared",
+				"--volume /var/lib/dblab/dblab_pool/branch/main/dblab_clone_6000/r0:/var/lib/dblab/dblab_pool/branch/main/dblab_clone_6000/r0:rshared",
 			},
 		},
 	}
@@ -80,7 +81,9 @@ func TestDefaultVolumes(t *testing.T) {
 	pool.SocketSubDir = "socket"
 
 	appConfig := &resources.AppConfig{
-		Pool: pool,
+		Pool:     pool,
+		Branch:   "main",
+		Revision: 0,
 	}
 
 	unixSocketCloneDir, volumes := createDefaultVolumes(appConfig)
@@ -91,7 +94,7 @@ func TestDefaultVolumes(t *testing.T) {
 	assert.Equal(t, 2, len(volumes))
 
 	assert.ElementsMatch(t, []string{
-		"--volume /tmp/test/default:/tmp/test/default",
+		"--volume /tmp/test/default/branch/main/r0:/tmp/test/default/branch/main/r0",
 		"--volume /tmp/test/default/socket:/tmp/test/default/socket"}, volumes)
 }
 

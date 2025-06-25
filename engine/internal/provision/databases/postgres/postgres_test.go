@@ -67,7 +67,7 @@ func TestRemoveContainers(t *testing.T) {
 					})).
 			Return("", nil)
 
-		err := Stop(runner, p, "test_clone")
+		err := Stop(runner, p, "test_clone", "6200")
 
 		assert.Equal(t, tc.err, errors.Cause(err))
 	}

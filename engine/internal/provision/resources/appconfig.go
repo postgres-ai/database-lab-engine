@@ -6,11 +6,15 @@ package resources
 
 import (
 	"path"
+
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 )
 
 // AppConfig currently stores Postgres configuration (other application in the future too).
 type AppConfig struct {
 	CloneName      string
+	Branch         string
+	Revision       int
 	DockerImage    string
 	Pool           *Pool
 	Host           string
@@ -32,13 +36,13 @@ type DB struct {
 // CloneDir returns the path of the clone directory.
 func (c *AppConfig) CloneDir() string {
 	// TODO(akartasov): Move to pool.
-	return path.Join(c.Pool.ClonesDir(), c.CloneName)
+	return path.Join(c.Pool.ClonesDir(c.Branch), c.CloneName, branching.RevisionSegment(c.Revision))
 }
 
 // DataDir returns the path of clone data.
 func (c *AppConfig) DataDir() string {
 	// TODO(akartasov): Move to pool.
-	return path.Join(c.Pool.ClonesDir(), c.CloneName, c.Pool.DataSubDir)
+	return path.Join(c.Pool.ClonesDir(c.Branch), c.CloneName, branching.RevisionSegment(c.Revision), c.Pool.DataSubDir)
 }
 
 // ExtraConf returns a map with an extra configuration.

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 )
 
 // PoolStatus represents a pool status.
@@ -65,23 +65,48 @@ func (p *Pool) SocketDir() string {
 }
 
 // ObserverDir returns a path to the observer directory of the storage pool.
-func (p *Pool) ObserverDir(port uint) string {
-	return path.Join(p.ClonePath(port), p.ObserverSubDir)
+func (p *Pool) ObserverDir(branch, name string, revision int) string {
+	return path.Join(p.ClonePath(branch, name, revision), p.ObserverSubDir)
 }
 
 // ClonesDir returns a path to the clones directory of the storage pool.
-func (p *Pool) ClonesDir() string {
-	return path.Join(p.MountDir, p.PoolDirName, p.CloneSubDir)
+func (p *Pool) ClonesDir(branch string) string {
+	return path.Join(p.MountDir, p.PoolDirName, branching.BranchDir, branch)
 }
 
-// ClonePath returns a path to the initialized clone directory.
-func (p *Pool) ClonePath(port uint) string {
-	return path.Join(p.MountDir, p.PoolDirName, p.CloneSubDir, util.GetCloneName(port), p.DataSubDir)
+// ClonePath returns a path to the data clone directory.
+func (p *Pool) ClonePath(branchName, name string, revision int) string {
+	return path.Join(p.MountDir, p.PoolDirName, branching.BranchDir, branchName, name, branching.RevisionSegment(revision), p.DataSubDir)
+}
+
+// CloneLocation returns a path to the initialized clone directory.
+func (p *Pool) CloneLocation(branchName, name string, revision int) string {
+	return path.Join(p.MountDir, p.PoolDirName, branching.BranchDir, branchName, name, branching.RevisionSegment(revision))
+}
+
+// CloneRevisionLocation returns a path to the clone revisions.
+func (p *Pool) CloneRevisionLocation(branchName, name string) string {
+	return path.Join(p.MountDir, p.PoolDirName, branching.BranchDir, branchName, name)
 }
 
 // SocketCloneDir returns a path to the socket clone directory.
 func (p *Pool) SocketCloneDir(name string) string {
 	return path.Join(p.SocketDir(), name)
+}
+
+// BranchName returns a full branch name in the data pool.
+func (p *Pool) BranchName(poolName, branchName string) string {
+	return branching.BranchName(poolName, branchName)
+}
+
+// CloneDataset returns a full clone dataset in the data pool.
+func (p *Pool) CloneDataset(branchName, cloneName string) string {
+	return branching.CloneDataset(p.Name, branchName, cloneName)
+}
+
+// CloneName returns a full clone name in the data pool.
+func (p *Pool) CloneName(branchName, cloneName string, revision int) string {
+	return branching.CloneName(p.Name, branchName, cloneName, revision)
 }
 
 // Status gets the pool status.

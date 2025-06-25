@@ -14,7 +14,12 @@ export type Host = {
   instanceId: string
   routes: {
     createClone: () => string
+    createBranch: () => string
+    createSnapshot: () => string
     clone: (cloneId: string) => string
+    branch: (branchId: string) => string
+    branches: () => string
+    snapshot: (snapshotId: string) => string
   }
   api: Api
   title: string
@@ -26,6 +31,8 @@ export type Host = {
     breadcrumbs: React.ReactNode
   }
   wsHost?: string
+  hideBranchingFeatures?: boolean
+  renderCurrentTab?: number
   isPlatform?: boolean
   setProjectAlias?: (alias: string) => void
 }

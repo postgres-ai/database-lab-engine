@@ -8,6 +8,8 @@ export type Host = {
   cloneId: string
   routes: {
     instance: () => string
+    snapshot: (snapshotId: string) => string
+    createSnapshot: (cloneId: string) => string
   }
   api: Api
   elements: {

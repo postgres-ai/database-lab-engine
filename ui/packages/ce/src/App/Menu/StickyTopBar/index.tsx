@@ -100,7 +100,7 @@ export const StickyTopBar = () => {
             message: 'All DBLab SE features are now active.',
             type: 'success',
           })
-        } else {
+        } else if (res.error?.message) {
           setSnackbarState({
             isOpen: true,
             message: capitalizeFirstLetter(res?.error?.message),
@@ -121,7 +121,7 @@ export const StickyTopBar = () => {
           type: 'billingInactive',
           pageUrl: res.response?.recognized_org.billing_page,
           message:
-            'No active payment methods are found for your organization on the Postgres.ai Platform; please, visit the',
+            'No active payment methods were found for your organization on the Postgres.AI Platform. Please visit the',
         })
       } else if (
         !res.response?.billing_active &&
@@ -139,7 +139,7 @@ export const StickyTopBar = () => {
     const handleNoConnection = () => {
       setState({
         type: 'noConnection',
-        message: 'No internet connection',
+        message: 'No internet connection.',
       })
     }
 

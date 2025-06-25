@@ -14,13 +14,15 @@ import { StubSpinner } from '@postgres.ai/shared/components/StubSpinner'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 
-import { Tabs } from './Tabs'
+import { TABS_INDEX, InstanceTabs } from './Tabs'
 import { Logs } from '../Logs'
 import { Clones } from './Clones'
 import { Info } from './Info'
-import { Configuration } from '../Configuration'
-import { ClonesModal } from './ClonesModal'
+import { Snapshots } from './Snapshots'
+import { Branches } from '../Branches'
+import { Configuration } from './Configuration'
 import { SnapshotsModal } from './SnapshotsModal'
+import { ClonesModal } from './Clones/ClonesModal'
 import { InactiveInstance } from './InactiveInstance'
 import { Host, HostProvider, StoresProvider } from './context'
 
@@ -31,7 +33,7 @@ import { useCreatedStores } from './useCreatedStores'
 
 import './styles.scss'
 
-type Props = Host
+type Props = Host & { hideBranchingFeatures?: boolean }
 
 const useStyles = makeStyles(
   (theme) => ({
@@ -63,9 +65,11 @@ const useStyles = makeStyles(
 export const Instance = observer((props: Props) => {
   const classes = useStyles()
 
-  const { instanceId, api } = props
-  const [activeTab, setActiveTab] = React.useState(0)
-  const [hasBeenRedirected, setHasBeenRedirected] = React.useState(false);
+  const { instanceId, api, isPlatform } = props
+  const [activeTab, setActiveTab] = React.useState(
+    props?.renderCurrentTab || TABS_INDEX.OVERVIEW,
+  )
+  const [hasBeenRedirected, setHasBeenRedirected] = React.useState(false)
 
   const stores = useCreatedStores(props)
   const {
@@ -73,8 +77,8 @@ export const Instance = observer((props: Props) => {
     instanceError,
     instanceRetrieval,
     isLoadingInstance,
+    isLoadingInstanceRetrieval,
     load,
-    reload,
   } = stores.main
 
   const switchTab = (_: React.ChangeEvent<{}> | null, tabID: number) => {
@@ -84,32 +88,33 @@ export const Instance = observer((props: Props) => {
     if (tabID === 0) {
       load(props.instanceId)
     }
-    contentElement?.scroll(0, 0)
+
+    contentElement?.scrollTo(0, 0)
   }
 
   const isInstanceIntegrated =
     instanceRetrieval ||
-    (!isLoadingInstance && instance && instance?.url && !instanceError)
+    (!isLoadingInstance && !isLoadingInstanceRetrieval && instance && instance?.url && !instanceError)
 
   const isConfigurationActive = instanceRetrieval?.mode !== 'physical'
 
   useEffect(() => {
-    load(instanceId)
+    load(instanceId, isPlatform)
   }, [instanceId])
 
   useEffect(() => {
-    if (props.setProjectAlias) props.setProjectAlias(instance?.projectAlias || '')
+    if (props.setProjectAlias)
+      props.setProjectAlias(instance?.projectAlias || '')
   }, [instance])
 
   useEffect(() => {
     if (
       instance &&
-      instance?.state?.retrieving?.status === 'pending' &&
+      instance.state?.retrieving?.status === 'pending' &&
       isConfigurationActive &&
-      !props.isPlatform &&
       !hasBeenRedirected
     ) {
-      setActiveTab(2)
+      setActiveTab(TABS_INDEX.CONFIGURATION)
       setHasBeenRedirected(true)
     }
   }, [instance, hasBeenRedirected])
@@ -125,7 +130,7 @@ export const Instance = observer((props: Props) => {
           className={classes.title}
           rightContent={
             <Button
-              onClick={() => reload(props.instanceId)}
+              onClick={() => load(props.instanceId, isPlatform)}
               isDisabled={!instance && !instanceError}
               className={classes.reloadButton}
             >
@@ -134,11 +139,13 @@ export const Instance = observer((props: Props) => {
           }
         >
           {isInstanceIntegrated && (
-            <Tabs
-              isPlatform={props.isPlatform}
-              value={activeTab}
-              handleChange={switchTab}
-              hasLogs={api.initWS != undefined}
+            <InstanceTabs
+              instanceId={props.instanceId}
+              tab={activeTab}
+              onTabChange={(tabID) =>  setActiveTab(tabID)}
+              isPlatform={isPlatform!}
+              hasLogs={api.initWS !== undefined}
+              hideInstanceTabs={props.hideBranchingFeatures}
             />
           )}
         </SectionTitle>
@@ -149,16 +156,13 @@ export const Instance = observer((props: Props) => {
 
         {isInstanceIntegrated ? (
           <>
-            <TabPanel value={activeTab} index={0}>
+            <TabPanel value={activeTab} index={TABS_INDEX.OVERVIEW}>
               {!instanceError && (
                 <div className={classes.content}>
-                  {!instance ||
-                    (!instance?.state?.retrieving?.status && <StubSpinner />)}
-
-                  {instance ? (
+                  {instance && instance.state?.retrieving?.status ? (
                     <>
                       <Clones />
-                      <Info />
+                      <Info hideBranchingFeatures={props.hideBranchingFeatures} />
                     </>
                   ) : (
                     <StubSpinner />
@@ -171,26 +175,44 @@ export const Instance = observer((props: Props) => {
               <SnapshotsModal />
             </TabPanel>
 
-            {!props.isPlatform && (
-              <>
-                <TabPanel value={activeTab} index={1}>
-                  {activeTab === 1 && <Logs api={api} />}
-                </TabPanel>
-
-                <TabPanel value={activeTab} index={2}>
-                  <Configuration
-                    isConfigurationActive={isConfigurationActive}
-                    disableConfigModification={
-                      instance?.state?.engine.disableConfigModification
-                    }
-                    switchActiveTab={switchTab}
-                    reload={() => load(props.instanceId)}
-                  />
-                </TabPanel>
-              </>
-            )}
+            <TabPanel value={activeTab} index={TABS_INDEX.CLONES}>
+              {activeTab === TABS_INDEX.CLONES && (
+                <div className={classes.content}>
+                  {!instanceError &&
+                    (instance ? <Clones onlyRenderList /> : <StubSpinner />)}
+                </div>
+              )}
+            </TabPanel>
+            <TabPanel value={activeTab} index={TABS_INDEX.LOGS}>
+              {activeTab === TABS_INDEX.LOGS && (
+                <Logs api={api} instanceId={props.instanceId} />
+              )}
+            </TabPanel>
+            <TabPanel value={activeTab} index={TABS_INDEX.CONFIGURATION}>
+              {activeTab === TABS_INDEX.CONFIGURATION && (
+                <Configuration
+                  instanceId={instanceId}
+                  switchActiveTab={switchTab}
+                  isConfigurationActive={isConfigurationActive}
+                  reload={() => load(props.instanceId)}
+                  disableConfigModification={
+                    instance?.state?.engine.disableConfigModification
+                  }
+                />
+              )}
+            </TabPanel>
+            <TabPanel value={activeTab} index={TABS_INDEX.SNAPSHOTS}>
+              {activeTab === TABS_INDEX.SNAPSHOTS && (
+                <Snapshots instanceId={instanceId} />
+              )}
+            </TabPanel>
+            <TabPanel value={activeTab} index={TABS_INDEX.BRANCHES}>
+              {activeTab === TABS_INDEX.BRANCHES && (
+                <Branches instanceId={instanceId} />
+              )}
+            </TabPanel>
           </>
-        ) : !isLoadingInstance && !instanceError ? (
+        ) : !isLoadingInstance && !isLoadingInstanceRetrieval && !instanceError ? (
           <TabPanel value={activeTab} index={activeTab}>
             <InactiveInstance
               instance={instance}
@@ -199,7 +221,7 @@ export const Instance = observer((props: Props) => {
           </TabPanel>
         ) : (
           !instanceError && (
-            <TabPanel value={activeTab} index={0}>
+            <TabPanel value={activeTab} index={activeTab}>
               <div className={classes.content}>
                 <StubSpinner />
               </div>

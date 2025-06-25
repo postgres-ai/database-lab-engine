@@ -19,7 +19,8 @@ func TestValidationCloneRequest(t *testing.T) {
 			DB: &types.DatabaseRequest{
 				Username: "username",
 				Password: "secret_password",
-			}})
+			},
+		})
 
 	assert.Nil(t, err)
 }
@@ -31,7 +32,8 @@ func TestWeakPassword(t *testing.T) {
 			DB: &types.DatabaseRequest{
 				Username: "username",
 				Password: "password",
-			}})
+			},
+		})
 
 	assert.ErrorContains(t, err, "insecure password")
 }
@@ -60,7 +62,7 @@ func TestValidationCloneRequestErrors(t *testing.T) {
 				DB: &types.DatabaseRequest{Username: "user", Password: "password"},
 				ID: "test/ID",
 			},
-			error: "Clone ID cannot contain slash ('/'). Please choose another ID",
+			error: "clone ID must start with a letter or number and can only contain letters, numbers, underscores, periods, and hyphens",
 		},
 	}
 

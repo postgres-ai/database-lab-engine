@@ -76,9 +76,14 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
-export const Info = () => {
+type InfoProps = {
+  hideBranchingFeatures?: boolean
+}
+
+export const Info = (props: InfoProps) => {
   const classes = useStyles()
   const width = useWindowDimensions()
+  const [onHover, setOnHover] = useState(false)
   const isMobileScreen = width <= SMALL_BREAKPOINT_PX
 
   const [isCollapsed, setIsCollapsed] = useState(
@@ -100,9 +105,12 @@ export const Info = () => {
     >
       {!isMobileScreen && (
         <Button
+          onMouseEnter={() => setOnHover(true)}
+          onMouseLeave={() => setOnHover(false)}
           className={classes.collapseBtn}
           onClick={handleClick}
           isCollapsed={isCollapsed}
+          type="button"
           icon={
             isCollapsed ? (
               <ArrowLeft className={classes.arrowImage} />
@@ -111,14 +119,14 @@ export const Info = () => {
             )
           }
         >
-          Collapse
+          {onHover && 'Collapse'}
         </Button>
       )}
 
       {!isCollapsed && (
         <div>
           <Status />
-          <Retrieval />
+          <Retrieval hideBranchingFeatures={props.hideBranchingFeatures} />
           <Connection />
           <Disks />
           <Snapshots />

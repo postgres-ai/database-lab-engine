@@ -7,8 +7,6 @@ import { Status } from '@postgres.ai/shared/components/Status'
 import { capitalize } from '@postgres.ai/shared/utils/strings'
 import { formatDateStd } from '@postgres.ai/shared/utils/date'
 import { Button } from '@postgres.ai/shared/components/Button2'
-import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
-import { InfoIcon } from '@postgres.ai/shared/icons/Info'
 
 import { Section } from '../components/Section'
 import { Property } from '../components/Property'
@@ -17,6 +15,7 @@ import { RefreshFailedAlert } from './RefreshFailedAlert'
 
 import { getTypeByStatus, isRetrievalUnknown } from './utils'
 import { RetrievalModal } from './RetrievalModal'
+import { ConfirmFullRefreshModal } from './ConfirmFullRefreshModal'
 
 const useStyles = makeStyles(
   () => ({
@@ -28,26 +27,37 @@ const useStyles = makeStyles(
     },
     detailsButton: {
       marginLeft: '8px',
+      '@media (max-width: 600px)': {
+        marginTop: '4px',
+      },
     },
   }),
   { index: 1 },
 )
 
-export const Retrieval = observer(() => {
+type RetrievalProps = {
+  hideBranchingFeatures?: boolean
+}
+
+export const Retrieval = observer((props: RetrievalProps) => {
   const stores = useStores()
   const classes = useStyles()
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
+  const [isFullRefreshModalOpen, setIsFullRefreshModalOpen] = useState<boolean>(false)
 
   const { instance, instanceRetrieval } = stores.main
   if (!instance) return null
 
-  const retrieving  = instance.state?.retrieving
+  const retrieving = instance.state?.retrieving
   if (!retrieving) return null
 
   if (!instanceRetrieval) return null
+
   const { mode, status, activity } = instanceRetrieval
+
   const isVisible = mode !== 'physical' && !isRetrievalUnknown(mode)
   const isActive = mode === 'logical' && status === 'refreshing'
+  const canCallFullRefresh = retrieving.status === 'finished' || retrieving.status === 'failed'
 
   return (
     <Section title="Retrieval">
@@ -64,13 +74,16 @@ export const Retrieval = observer(() => {
               >
                 Show details
               </Button>
-              {!isActive && (
-                <Tooltip content="No retrieval activity details">
-                  <InfoIcon className={classes.infoIcon} />
-                </Tooltip>
-              )}
             </>
           )}
+          {!props.hideBranchingFeatures && <Button
+            theme="secondary"
+            onClick={() => setIsFullRefreshModalOpen(true)}
+            isDisabled={!canCallFullRefresh}
+            className={classes.detailsButton}
+          >
+            Full refresh
+          </Button>}
         </Status>
       </Property>
       <Property name="Mode">{retrieving.mode}</Property>
@@ -89,6 +102,11 @@ export const Retrieval = observer(() => {
         data={activity}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+      />
+      <ConfirmFullRefreshModal
+        isOpen={isFullRefreshModalOpen}
+        onClose={() => setIsFullRefreshModalOpen(false)}
+        instanceId={instance.id}
       />
     </Section>
   )

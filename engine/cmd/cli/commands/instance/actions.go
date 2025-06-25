@@ -66,3 +66,20 @@ func health(cliCtx *cli.Context) error {
 
 	return err
 }
+
+// refresh runs a request to initiate a full refresh.
+func refresh(cliCtx *cli.Context) error {
+	client, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
+		return err
+	}
+
+	response, err := client.FullRefresh(cliCtx.Context)
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintln(cliCtx.App.Writer, response.Message)
+
+	return err
+}

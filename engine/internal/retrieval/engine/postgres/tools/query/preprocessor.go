@@ -138,7 +138,7 @@ func (q *Processor) runParallel(ctx context.Context, containerID, parallelDir st
 				errCh <- err
 
 				cancel()
-				log.Err("Preprocessing query: ", err)
+				log.Err("preprocessing query: ", err)
 
 				return
 			}

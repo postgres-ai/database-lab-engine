@@ -6,22 +6,29 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
@@ -101,7 +108,364 @@ func (s *Server) getSnapshots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if branchRequest := r.URL.Query().Get("branch"); branchRequest != "" {
+		fsm, err := s.getFSManagerForBranch(branchRequest)
+		if err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+
+		if fsm == nil {
+			api.SendBadRequestError(w, r, "no pool manager found")
+			return
+		}
+
+		snapshots = filterSnapshotsByBranch(fsm.Pool(), branchRequest, snapshots)
+	}
+
 	if err = api.WriteJSON(w, http.StatusOK, snapshots); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
+}
+
+func (s *Server) createSnapshot(w http.ResponseWriter, r *http.Request) {
+	var poolName string
+
+	if r.Body != http.NoBody {
+		var createRequest types.SnapshotCreateRequest
+		if err := api.ReadJSON(r, &createRequest); err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+
+		poolName = createRequest.PoolName
+	}
+
+	if poolName == "" {
+		firstFSM := s.pm.First()
+
+		if firstFSM == nil || firstFSM.Pool() == nil {
+			api.SendBadRequestError(w, r, pool.ErrNoPools.Error())
+			return
+		}
+
+		poolName = firstFSM.Pool().Name
+	}
+
+	if err := s.Retrieval.SnapshotData(context.Background(), poolName); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	fsManager, err := s.pm.GetFSManager(poolName)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	fsManager.RefreshSnapshotList()
+
+	snapshotList := fsManager.SnapshotList()
+
+	if len(snapshotList) == 0 {
+		api.SendBadRequestError(w, r, "No snapshots at pool: "+poolName)
+		return
+	}
+
+	sort.SliceStable(snapshotList, func(i, j int) bool {
+		return snapshotList[i].CreatedAt.After(snapshotList[j].CreatedAt)
+	})
+
+	if err := fsManager.InitBranching(); err != nil {
+		api.SendBadRequestError(w, r, "Cannot verify branch metadata: "+err.Error())
+		return
+	}
+
+	// TODO: set branching metadata.
+
+	latestSnapshot := snapshotList[0]
+
+	s.webhookCh <- webhooks.BasicEvent{
+		EventType: webhooks.SnapshotCreateEvent,
+		EntityID:  latestSnapshot.ID,
+	}
+
+	if err := api.WriteJSON(w, http.StatusOK, latestSnapshot); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
+}
+
+func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
+	snapshotID := mux.Vars(r)["id"]
+	if snapshotID == "" {
+		api.SendBadRequestError(w, r, "snapshot ID must not be empty")
+		return
+	}
+
+	forceParam := r.URL.Query().Get("force")
+	force := false
+
+	if forceParam != "" {
+		var err error
+		force, err = strconv.ParseBool(forceParam)
+
+		if err != nil {
+			api.SendBadRequestError(w, r, "invalid value for `force`, must be boolean")
+			return
+		}
+	}
+
+	poolName, err := s.detectPoolName(snapshotID)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if poolName == "" {
+		api.SendBadRequestError(w, r, fmt.Sprintf("pool for requested snapshot (%s) not found", snapshotID))
+		return
+	}
+
+	fsm, err := s.pm.GetFSManager(poolName)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	// Prevent deletion of automatic snapshots in the pool.
+	if fullDataset, _, found := strings.Cut(snapshotID, "@"); found && fullDataset == poolName {
+		api.SendBadRequestError(w, r, "cannot destroy automatic snapshot in the pool")
+		return
+	}
+
+	// Check if snapshot exists.
+	if _, err := fsm.GetSnapshotProperties(snapshotID); err != nil {
+		if runnerError, ok := err.(runners.RunnerError); ok {
+			api.SendBadRequestError(w, r, runnerError.Stderr)
+		} else {
+			api.SendBadRequestError(w, r, err.Error())
+		}
+
+		return
+	}
+
+	cloneIDs := []string{}
+	protectedClones := []string{}
+
+	dependentCloneDatasets, err := fsm.HasDependentEntity(snapshotID)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	for _, cloneDataset := range dependentCloneDatasets {
+		cloneID, ok := branching.ParseCloneName(cloneDataset, poolName)
+		if !ok {
+			log.Dbg(fmt.Sprintf("cannot parse clone ID from %q", cloneDataset))
+			continue
+		}
+
+		clone, err := s.Cloning.GetClone(cloneID)
+
+		if err != nil {
+			continue
+		}
+
+		cloneIDs = append(cloneIDs, clone.ID)
+
+		if clone.Protected {
+			protectedClones = append(protectedClones, clone.ID)
+		}
+	}
+
+	if len(protectedClones) != 0 {
+		api.SendBadRequestError(w, r, fmt.Sprintf("cannot delete snapshot %s because it has dependent protected clones: %s",
+			snapshotID, strings.Join(protectedClones, ",")))
+		return
+	}
+
+	if len(cloneIDs) != 0 && !force {
+		api.SendBadRequestError(w, r, fmt.Sprintf("cannot delete snapshot %s because it has dependent clones: %s",
+			snapshotID, strings.Join(cloneIDs, ",")))
+		return
+	}
+
+	snapshotProperties, err := fsm.GetSnapshotProperties(snapshotID)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if snapshotProperties.Clones != "" && !force {
+		api.SendBadRequestError(w, r, fmt.Sprintf("cannot delete snapshot %s because it has dependent datasets: %s",
+			snapshotID, snapshotProperties.Clones))
+		return
+	}
+
+	// Remove dependent clones.
+	for _, cloneID := range cloneIDs {
+		if err = s.Cloning.DestroyCloneSync(cloneID); err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+	}
+
+	// Remove snapshot and dependent datasets.
+	if !force {
+		if err := fsm.KeepRelation(snapshotID); err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+	}
+
+	if err = fsm.DestroySnapshot(snapshotID, thinclones.DestroyOptions{Force: force}); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	snapshot, err := s.Cloning.GetSnapshotByID(snapshotID)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if snapshotProperties.Clones == "" && snapshot.NumClones == 0 {
+		// Destroy dataset if there are no related objects
+		if fullDataset, _, found := strings.Cut(snapshotID, "@"); found && fullDataset != poolName {
+			if err = fsm.DestroyDataset(fullDataset); err != nil {
+				api.SendBadRequestError(w, r, err.Error())
+				return
+			}
+
+			// Remove dle:branch and dle:root from parent snapshot
+			if snapshotProperties.Parent != "" {
+				branchName := snapshotProperties.Branch
+				if branchName == "" {
+					branchName, _ = branching.ParseBranchName(fullDataset, poolName)
+				}
+
+				if branchName != "" {
+					if err := fsm.DeleteBranchProp(branchName, snapshotProperties.Parent); err != nil {
+						log.Err(err.Error())
+					}
+
+					if err := fsm.DeleteRootProp(branchName, snapshotProperties.Parent); err != nil {
+						log.Err(err.Error())
+					}
+				}
+			}
+
+			// TODO: review all available revisions. Destroy base dataset only if there no any revision.
+			if baseDataset, found := strings.CutSuffix(fullDataset, "/r0"); found {
+				if err = fsm.DestroyDataset(baseDataset); err != nil {
+					api.SendBadRequestError(w, r, err.Error())
+					return
+				}
+			}
+		}
+	}
+
+	log.Dbg(fmt.Sprintf("Snapshot %s has been deleted", snapshotID))
+
+	if err := api.WriteJSON(w, http.StatusOK, models.Response{
+		Status:  models.ResponseOK,
+		Message: "Deleted snapshot",
+	}); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
+
+	fsm.RefreshSnapshotList()
+
+	if err := s.Cloning.ReloadSnapshots(); err != nil {
+		log.Dbg("Failed to reload snapshots", err.Error())
+	}
+
+	s.webhookCh <- webhooks.BasicEvent{
+		EventType: webhooks.SnapshotDeleteEvent,
+		EntityID:  snapshotID,
+	}
+}
+
+func (s *Server) detectPoolName(snapshotID string) (string, error) {
+	const snapshotParts = 2
+
+	parts := strings.Split(snapshotID, "@")
+	if len(parts) != snapshotParts {
+		return "", fmt.Errorf("invalid snapshot name given: %s. Should contain `dataset@snapname`", snapshotID)
+	}
+
+	poolName := ""
+
+	for _, fsm := range s.pm.GetFSManagerList() {
+		if strings.HasPrefix(parts[0], fsm.Pool().Name) {
+			poolName = fsm.Pool().Name
+			break
+		}
+	}
+
+	return poolName, nil
+}
+
+func (s *Server) createSnapshotClone(w http.ResponseWriter, r *http.Request) {
+	if r.Body == http.NoBody {
+		api.SendBadRequestError(w, r, "request body cannot be empty")
+		return
+	}
+
+	var createRequest types.SnapshotCloneCreateRequest
+	if err := api.ReadJSON(r, &createRequest); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if createRequest.CloneID == "" {
+		api.SendBadRequestError(w, r, "cloneID cannot be empty")
+		return
+	}
+
+	clone, err := s.Cloning.GetClone(createRequest.CloneID)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	fsm, err := s.pm.GetFSManager(clone.Snapshot.Pool)
+	if err != nil {
+		api.SendBadRequestError(w, r, fmt.Sprintf("failed to find filesystem manager: %s", err.Error()))
+		return
+	}
+
+	cloneName := clone.ID
+
+	snapshotID, err := fsm.CreateSnapshot(cloneName, time.Now().Format(util.DataStateAtFormat))
+	if err != nil {
+		api.SendBadRequestError(w, r, fmt.Sprintf("failed to create a snapshot: %s", err.Error()))
+		return
+	}
+
+	if err := s.Cloning.ReloadSnapshots(); err != nil {
+		log.Dbg("Failed to reload snapshots", err.Error())
+	}
+
+	snapshot, err := s.Cloning.GetSnapshotByID(snapshotID)
+	if err != nil {
+		api.SendBadRequestError(w, r, fmt.Sprintf("failed to find a new snapshot: %s", err.Error()))
+		return
+	}
+
+	if err := api.WriteJSON(w, http.StatusOK, snapshot); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
+}
+
+func (s *Server) clones(w http.ResponseWriter, r *http.Request) {
+	cloningState := s.Cloning.GetCloningState()
+
+	if err := api.WriteJSON(w, http.StatusOK, cloningState.Clones); err != nil {
 		api.SendError(w, r, err)
 		return
 	}
@@ -124,6 +488,67 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 	if err := s.validator.ValidateCloneRequest(cloneRequest); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
+	}
+
+	if cloneRequest.Snapshot != nil && cloneRequest.Snapshot.ID != "" {
+		fsm, err := s.getFSManagerForSnapshot(cloneRequest.Snapshot.ID)
+		if err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+
+		if fsm == nil {
+			api.SendBadRequestError(w, r, "no pool manager found")
+			return
+		}
+
+		branch := branching.ParseBranchNameFromSnapshot(cloneRequest.Snapshot.ID, fsm.Pool().Name)
+		if branch == "" {
+			branch = branching.DefaultBranch
+		}
+
+		// Snapshot ID takes precedence over the branch name.
+		cloneRequest.Branch = branch
+	} else {
+		if cloneRequest.Branch == "" {
+			cloneRequest.Branch = branching.DefaultBranch
+		}
+
+		fsm, err := s.getFSManagerForBranch(cloneRequest.Branch)
+		if err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+
+		if fsm == nil {
+			api.SendBadRequestError(w, r, "no pool manager found")
+			return
+		}
+
+		branches, err := fsm.ListBranches()
+		if err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+
+		snapshotID, ok := branches[cloneRequest.Branch]
+		if !ok {
+			api.SendBadRequestError(w, r, "branch not found")
+			return
+		}
+
+		cloneRequest.Snapshot = &types.SnapshotCloneFieldRequest{ID: snapshotID}
+	}
+
+	if cloneRequest.ID != "" {
+		fsm, err := s.getFSManagerForBranch(cloneRequest.Branch)
+		if err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+
+		// Check if there is any clone revision under the dataset.
+		cloneRequest.Revision = findMaxCloneRevision(fsm.Pool().CloneRevisionLocation(cloneRequest.Branch, cloneRequest.ID))
 	}
 
 	newClone, err := s.Cloning.CreateClone(cloneRequest)
@@ -151,6 +576,39 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 	})
 
 	log.Dbg(fmt.Sprintf("Clone ID=%s is being created", newClone.ID))
+}
+
+func findMaxCloneRevision(path string) int {
+	files, err := os.ReadDir(path)
+	if err != nil {
+		log.Err(err)
+		return 0
+	}
+
+	maxIndex := -1
+
+	for _, file := range files {
+		if !file.IsDir() {
+			continue
+		}
+
+		revisionIndex, ok := strings.CutPrefix(file.Name(), "r")
+		if !ok {
+			continue
+		}
+
+		index, err := strconv.Atoi(revisionIndex)
+		if err != nil {
+			log.Err(err)
+			continue
+		}
+
+		if index > maxIndex {
+			maxIndex = index
+		}
+	}
+
+	return maxIndex + 1
 }
 
 func (s *Server) destroyClone(w http.ResponseWriter, r *http.Request) {
@@ -193,6 +651,11 @@ func (s *Server) patchClone(w http.ResponseWriter, r *http.Request) {
 		api.SendError(w, r, errors.Wrap(err, "failed to update clone"))
 		return
 	}
+
+	s.tm.SendEvent(context.Background(), telemetry.CloneUpdatedEvent, telemetry.CloneUpdated{
+		ID:        util.HashID(cloneID),
+		Protected: patchClone.Protected,
+	})
 
 	if err := api.WriteJSON(w, http.StatusOK, updatedClone); err != nil {
 		api.SendError(w, r, err)
@@ -285,7 +748,7 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.Observer.AddObservingClone(clone.ID, uint(port), observingClone)
+	s.Observer.AddObservingClone(clone.ID, clone.Branch, clone.Revision, uint(port), observingClone)
 
 	// Start session on the Platform.
 	platformRequest := platform.StartObservationRequest{
@@ -343,8 +806,7 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clone, err := s.Cloning.GetClone(observationRequest.CloneID)
-	if err != nil {
+	if _, err := s.Cloning.GetClone(observationRequest.CloneID); err != nil {
 		api.SendNotFoundError(w, r)
 		return
 	}
@@ -389,14 +851,14 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 
 	sessionID := strconv.FormatUint(session.SessionID, 10)
 
-	logs, err := s.Observer.GetCloneLog(context.TODO(), clone.DB.Port, observingClone)
+	logs, err := s.Observer.GetCloneLog(context.TODO(), observingClone)
 	if err != nil {
-		log.Err("Failed to get observation logs", err)
+		log.Err("failed to get observation logs", err)
 	}
 
 	if len(logs) > 0 {
 		if err := s.Platform.Client.UploadObservationLogs(context.Background(), logs, sessionID); err != nil {
-			log.Err("Failed to upload observation logs", err)
+			log.Err("failed to upload observation logs", err)
 		}
 	}
 
@@ -410,7 +872,7 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := s.Platform.Client.UploadObservationArtifact(context.Background(), data, sessionID, artifactType); err != nil {
-			log.Err("Failed to upload observation artifact", err)
+			log.Err("failed to upload observation artifact", err)
 		}
 	}
 
@@ -491,5 +953,30 @@ func (s *Server) healthCheck(w http.ResponseWriter, _ *http.Request) {
 		log.Err(err)
 
 		return
+	}
+}
+
+func (s *Server) refresh(w http.ResponseWriter, r *http.Request) {
+	if err := s.Retrieval.CanStartRefresh(); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if err := s.Retrieval.HasAvailablePool(); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	go func() {
+		if err := s.Retrieval.FullRefresh(context.Background()); err != nil {
+			log.Err("failed to initiate full refresh", err)
+		}
+	}()
+
+	if err := api.WriteJSON(w, http.StatusOK, models.Response{
+		Status:  models.ResponseOK,
+		Message: "Full refresh started",
+	}); err != nil {
+		api.SendError(w, r, err)
 	}
 }

@@ -13,7 +13,8 @@ import {
 import { request } from 'helpers/request'
 
 export const getSnapshots: GetSnapshots = async (req) => {
-  const response = await request('/snapshots')
+  const url = `/snapshots${req.branchName ? `?branch=${req.branchName}` : ''}`;
+  const response = await request(url);
 
   return {
     response: response.ok

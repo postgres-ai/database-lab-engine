@@ -72,3 +72,27 @@ func (c *Client) Health(ctx context.Context) (*models.Engine, error) {
 
 	return &engine, nil
 }
+
+// FullRefresh triggers a full refresh of the dataset.
+func (c *Client) FullRefresh(ctx context.Context) (*models.Response, error) {
+	u := c.URL("/full-refresh")
+
+	request, err := http.NewRequest(http.MethodPost, u.String(), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to make a request")
+	}
+
+	response, err := c.Do(ctx, request)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get response")
+	}
+
+	defer func() { _ = response.Body.Close() }()
+
+	var result models.Response
+	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
+		return nil, errors.Wrap(err, "failed to get response")
+	}
+
+	return &result, nil
+}

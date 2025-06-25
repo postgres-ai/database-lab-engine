@@ -10,6 +10,8 @@ type BaseProps = {
   className?: string
   icon?: React.ReactNode
   isCollapsed?: boolean
+  onMouseEnter?: React.MouseEventHandler<HTMLButtonElement>
+  onMouseLeave?: React.MouseEventHandler<HTMLButtonElement>
 }
 
 type ButtonProps = BaseProps & {
@@ -53,7 +55,13 @@ export const Button = (props: Props) => {
 
   if (!props.type || props.type === 'button' || props.type === 'submit')
     return (
-      <button className={className} onClick={props.onClick} disabled={props.disabled}>
+      <button
+        className={className}
+        onClick={props.onClick}
+        disabled={props.disabled}
+        onMouseEnter={props.onMouseEnter}
+        onMouseLeave={props.onMouseLeave}
+      >
         {children}
       </button>
     )

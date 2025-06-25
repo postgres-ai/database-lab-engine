@@ -21,6 +21,11 @@ import {
   formatDistanceToNowStrict,
 } from 'date-fns'
 
+export const formatDateToISO = (dateString: string) => {
+  const parsedDate = parse(dateString, 'yyyyMMddHHmmss', new Date())
+  return format(parsedDate, "yyyy-MM-dd'T'HH:mm:ssXXX")
+}
+
 // parseDate parses date of both format: '2006-01-02 15:04:05 UTC' and `2006-01-02T15:04:05Z` (RFC3339).
 export const parseDate = (dateStr: string) =>
   parse(
@@ -85,3 +90,7 @@ export const formatDateStd = (
   `${formatUTC(date, 'yyyy-MM-dd HH:mm:ss')} UTC ${
     options?.withDistance ? `(${formatDistanceStd(date)})` : ''
   }`
+
+export const isValidDate = (dateObject: Date) => {
+  return new Date(dateObject).toString() !== 'Invalid Date'
+}

@@ -66,11 +66,18 @@ sudo docker rm dblab_pg_initdb
 
 configDir="$HOME/.dblab/engine/configs"
 metaDir="$HOME/.dblab/engine/meta"
+logsDir="$HOME/.dblab/engine/logs"
 
 # Copy the contents of configuration example
 mkdir -p "${configDir}"
+mkdir -p "${metaDir}"
+mkdir -p "${logsDir}"
 
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG:-master}"/engine/configs/config.example.logical_generic.yml \
+# Use CI_COMMIT_REF_NAME to get the original branch name, as CI_COMMIT_REF_SLUG replaces "/" with "-".
+# Fallback to TAG (which is CI_COMMIT_REF_SLUG) or "master".
+BRANCH_FOR_URL="${CI_COMMIT_REF_NAME:-${TAG:-master}}"
+ENCODED_BRANCH_FOR_URL=$(echo "${BRANCH_FOR_URL}" | sed 's|/|%2F|g')
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${ENCODED_BRANCH_FOR_URL}"/engine/configs/config.example.logical_generic.yml \
  --output "${configDir}/server.yml"
 
 # TODO: replace the dockerImage tag back to 'postgresai/extended-postgres' after releasing a new version with custom port and unix socket dir.
@@ -116,6 +123,7 @@ sudo docker run \
   --volume ${DLE_TEST_MOUNT_DIR}:${DLE_TEST_MOUNT_DIR}/:rshared \
   --volume "${configDir}":/home/dblab/configs \
   --volume "${metaDir}":/home/dblab/meta \
+  --volume "${logsDir}":/home/dblab/logs \
   --env DOCKER_API_VERSION=1.39 \
   --detach \
   "${IMAGE2TEST}"
@@ -156,18 +164,23 @@ dblab init \
 dblab instance status
 
 # Check the snapshot list
- if [[ $(dblab snapshot list | jq length) -eq 0 ]] ; then
-   echo "No snapshot found" && exit 1
- fi
+if [[ $(dblab snapshot list | jq length) -eq 0 ]] ; then
+  echo "No snapshot found" && exit 1
+fi
 
 ## Create a clone
+CLONE_ID="testclone"
+
 dblab clone create \
   --username dblab_user_1 \
   --password secret_password \
-  --id testclone
+  --id ${CLONE_ID}
 
 ### Check that database system was properly shut down (clone data dir)
-CLONE_LOG_DIR="${DLE_TEST_MOUNT_DIR}"/"${DLE_TEST_POOL_NAME}"/clones/dblab_clone_"${DLE_PORT_POOL_FROM}"/data/log
+BRANCH_MAIN="main"
+REVISION_0="r0"
+# /var/lib/test/dblab_mount/test_dblab_pool/branch/main/testclone/r0
+CLONE_LOG_DIR="${DLE_TEST_MOUNT_DIR}"/"${DLE_TEST_POOL_NAME}"/branch/"${BRANCH_MAIN}"/"${CLONE_ID}"/"${REVISION_0}"/data/log
 LOG_FILE_CSV=$(sudo ls -t "$CLONE_LOG_DIR" | grep .csv | head -n 1)
 if sudo test -d "$CLONE_LOG_DIR"
 then
@@ -230,6 +243,55 @@ PGPASSWORD=secret_password psql \
 ### Step 5. Destroy clone
 dblab clone destroy testclone
 dblab clone list
+
+### Data branching.
+dblab branch || (echo "Failed when data branching is not initialized" && exit 1)
+dblab branch 001-branch || (echo "Failed to create a data branch" && exit 1)
+dblab branch
+
+dblab clone create \
+  --username john \
+  --password secret_test_123 \
+  --branch 001-branch \
+  --id branchclone001 || (echo "Failed to create a clone on branch" && exit 1)
+
+dblab commit --clone-id branchclone001 --message branchclone001 || (echo "Failed to create a snapshot" && exit 1)
+
+dblab clone create \
+  --username alice \
+  --password secret_password_123 \
+  --branch 001-branch \
+  --id branchclone002 || (echo "Failed to create a clone on branch" && exit 1)
+
+dblab commit --clone-id branchclone002 -m branchclone002 || (echo "Failed to create a snapshot" && exit 1)
+
+dblab log 001-branch || (echo "Failed to show branch history" && exit 1)
+
+dblab clone destroy branchclone001 || (echo "Failed to destroy clone" && exit 1)
+dblab clone destroy branchclone002 || (echo "Failed to destroy clone" && exit 1)
+
+sudo docker wait branchclone001 branchclone002 || echo "Clones have been removed"
+
+dblab clone list
+dblab snapshot list
+
+dblab switch main
+
+dblab clone create \
+  --username alice \
+  --password secret_password_123 \
+  --branch 001-branch \
+  --id branchclone003 || (echo "Failed to create a clone on branch" && exit 1)
+
+dblab commit --clone-id branchclone003 --message branchclone001 || (echo "Failed to create a snapshot" && exit 1)
+
+dblab snapshot delete "$(dblab snapshot list | jq -r .[0].id)" || (echo "Failed to delete a snapshot" && exit 1)
+
+dblab clone destroy branchclone003 || (echo "Failed to destroy clone" && exit 1)
+
+dblab branch --delete 001-branch || (echo "Failed to delete data branch" && exit 1)
+
+dblab branch
 
 ## Stop DLE.
 sudo docker stop ${DLE_SERVER_NAME}

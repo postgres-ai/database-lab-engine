@@ -149,13 +149,19 @@ func (s *LogicalInitial) Run(ctx context.Context) error {
 		}
 	}
 
+	log.Dbg("Cleaning up old snapshots from a dataset")
+
+	if _, err := s.cloneManager.CleanupSnapshots(0); err != nil {
+		return errors.Wrap(err, "failed to destroy old snapshots")
+	}
+
 	dataStateAt := extractDataStateAt(s.dbMarker)
 
 	if _, err := s.cloneManager.CreateSnapshot("", dataStateAt); err != nil {
 		var existsError *thinclones.SnapshotExistsError
 		if errors.As(err, &existsError) {
 			log.Msg("Skip snapshotting: ", existsError.Error())
-			return nil
+			return err
 		}
 
 		return errors.Wrap(err, "failed to create a snapshot")
@@ -240,7 +246,7 @@ func (s *LogicalInitial) runPreprocessingQueries(ctx context.Context, dataDir st
 					Value: fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabPatchLabel)})
 
 			if err := diagnostic.CollectDiagnostics(ctx, s.dockerClient, filterArgs, s.patchContainerName(), dataDir); err != nil {
-				log.Err("Failed to collect container diagnostics", err)
+				log.Err("failed to collect container diagnostics", err)
 			}
 		}
 	}()

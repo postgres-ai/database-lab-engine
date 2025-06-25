@@ -32,6 +32,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/ws"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/validator"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
@@ -59,6 +60,7 @@ type Server struct {
 	startedAt   *models.LocalTime
 	filtering   *log.Filtering
 	reloadFn    func(server *Server) error
+	webhookCh   chan webhooks.EventTyper
 }
 
 // WSService defines a service to manage web-sockets.
@@ -73,7 +75,8 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps *global
 	dockerClient *client.Client, cloning *cloning.Base, provisioner *provision.Provisioner,
 	retrievalSvc *retrieval.Retrieval, platform *platform.Service, billingSvc *billing.Billing, observer *observer.Observer,
 	pm *pool.Manager, tm *telemetry.Agent, tokenKeeper *ws.TokenKeeper,
-	filtering *log.Filtering, uiManager *embeddedui.UIManager, reloadConfigFn func(server *Server) error) *Server {
+	filtering *log.Filtering, uiManager *embeddedui.UIManager, reloadConfigFn func(server *Server) error,
+	webhookCh chan webhooks.EventTyper) *Server {
 	server := &Server{
 		Config:      cfg,
 		Global:      globalCfg,
@@ -95,6 +98,7 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps *global
 		filtering:  filtering,
 		startedAt:  &models.LocalTime{Time: time.Now().Truncate(time.Second)},
 		reloadFn:   reloadConfigFn,
+		webhookCh:  webhookCh,
 	}
 
 	return server
@@ -193,6 +197,11 @@ func (s *Server) InitHandlers() {
 
 	r.HandleFunc("/status", authMW.Authorized(s.getInstanceStatus)).Methods(http.MethodGet)
 	r.HandleFunc("/snapshots", authMW.Authorized(s.getSnapshots)).Methods(http.MethodGet)
+	r.HandleFunc("/snapshot/{id:.*}", authMW.Authorized(s.getSnapshot)).Methods(http.MethodGet)
+	r.HandleFunc("/snapshot", authMW.Authorized(s.createSnapshot)).Methods(http.MethodPost)
+	r.HandleFunc("/snapshot/{id:.*}", authMW.Authorized(s.deleteSnapshot)).Methods(http.MethodDelete)
+	r.HandleFunc("/snapshot/clone", authMW.Authorized(s.createSnapshotClone)).Methods(http.MethodPost)
+	r.HandleFunc("/clones", authMW.Authorized(s.clones)).Methods(http.MethodGet)
 	r.HandleFunc("/clone", authMW.Authorized(s.createClone)).Methods(http.MethodPost)
 	r.HandleFunc("/clone/{id}", authMW.Authorized(s.destroyClone)).Methods(http.MethodDelete)
 	r.HandleFunc("/clone/{id}", authMW.Authorized(s.patchClone)).Methods(http.MethodPatch)
@@ -203,6 +212,13 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/observation/summary/{clone_id}/{session_id}", authMW.Authorized(s.sessionSummaryObservation)).Methods(http.MethodGet)
 	r.HandleFunc("/observation/download", authMW.Authorized(s.downloadArtifact)).Methods(http.MethodGet)
 	r.HandleFunc("/instance/retrieval", authMW.Authorized(s.retrievalState)).Methods(http.MethodGet)
+
+	r.HandleFunc("/branches", authMW.Authorized(s.listBranches)).Methods(http.MethodGet)
+	r.HandleFunc("/branch/snapshot/{id:.*}", authMW.Authorized(s.getCommit)).Methods(http.MethodGet)
+	r.HandleFunc("/branch", authMW.Authorized(s.createBranch)).Methods(http.MethodPost)
+	r.HandleFunc("/branch/snapshot", authMW.Authorized(s.snapshot)).Methods(http.MethodPost)
+	r.HandleFunc("/branch/{branchName}/log", authMW.Authorized(s.log)).Methods(http.MethodGet)
+	r.HandleFunc("/branch/{branchName}", authMW.Authorized(s.deleteBranch)).Methods(http.MethodDelete)
 
 	// Sub-route /admin
 	adminR := r.PathPrefix("/admin").Subrouter()
@@ -218,16 +234,19 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/instance/logs", authMW.WebSocketsMW(s.wsService.tokenKeeper, s.instanceLogs))
 
 	// Health check.
-	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet)
+	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet, http.MethodPost)
+
+	// Full refresh
+	r.HandleFunc("/full-refresh", authMW.Authorized(s.refresh)).Methods(http.MethodPost)
 
 	// Show Swagger UI on index page.
 	if err := attachAPI(r); err != nil {
-		log.Err("Cannot load API description.")
+		log.Err("cannot load API description")
 	}
 
 	// Show Swagger UI on index page.
 	if err := attachSwaggerUI(r); err != nil {
-		log.Err("Cannot start Swagger UI.")
+		log.Err("cannot start Swagger UI")
 	}
 
 	// Show not found error for all other possible routes.
@@ -261,8 +280,4 @@ func (s *Server) Uptime() float64 {
 // reportLaunching reports the launch of the HTTP server.
 func reportLaunching(cfg *srvCfg.Config) {
 	log.Msg(fmt.Sprintf("API server started listening on %s:%d.", cfg.Host, cfg.Port))
-}
-
-func (s *Server) initLogRegExp() {
-	s.filtering.ReloadLogRegExp([]string{s.Config.VerificationToken, s.Platform.AccessToken(), s.Platform.OrgKey()})
 }

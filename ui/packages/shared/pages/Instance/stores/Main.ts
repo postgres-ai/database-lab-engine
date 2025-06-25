@@ -7,6 +7,7 @@
 import { makeAutoObservable } from 'mobx'
 
 import { GetSnapshots } from '@postgres.ai/shared/types/api/endpoints/getSnapshots'
+import { CreateSnapshot } from '@postgres.ai/shared/types/api/endpoints/createSnapshot'
 import { GetInstance } from '@postgres.ai/shared/types/api/endpoints/getInstance'
 import { Config } from '@postgres.ai/shared/types/api/entities/config'
 import { GetConfig } from '@postgres.ai/shared/types/api/endpoints/getConfig'
@@ -25,17 +26,23 @@ import { GetFullConfig } from '@postgres.ai/shared/types/api/endpoints/getFullCo
 import { GetInstanceRetrieval } from '@postgres.ai/shared/types/api/endpoints/getInstanceRetrieval'
 import { InstanceRetrievalType } from '@postgres.ai/shared/types/api/entities/instanceRetrieval'
 import { GetEngine } from '@postgres.ai/shared/types/api/endpoints/getEngine'
+import { GetSnapshotList } from '@postgres.ai/shared/types/api/endpoints/getSnapshotList'
+import { GetBranches } from '@postgres.ai/shared/types/api/endpoints/getBranches'
+import { DeleteBranch } from '@postgres.ai/shared/types/api/endpoints/deleteBranch'
 import { GetSeImages } from '@postgres.ai/shared/types/api/endpoints/getSeImages'
+import { DestroySnapshot } from '@postgres.ai/shared/types/api/endpoints/destroySnapshot'
+import { FullRefresh } from "../../../types/api/endpoints/fullRefresh";
 
 const UNSTABLE_CLONE_STATUS_CODES = ['CREATING', 'RESETTING', 'DELETING']
 
 export type Api = {
   getInstance: GetInstance
-  getSnapshots: GetSnapshots
+  getSnapshots?: GetSnapshots
+  createSnapshot?: CreateSnapshot
   refreshInstance?: RefreshInstance
-  destroyClone: DestroyClone
-  resetClone: ResetClone
-  getWSToken: GetWSToken
+  destroyClone?: DestroyClone
+  resetClone?: ResetClone
+  getWSToken?: GetWSToken
   initWS?: InitWS
   getConfig?: GetConfig
   updateConfig?: UpdateConfig
@@ -44,6 +51,11 @@ export type Api = {
   getSeImages?: GetSeImages
   getEngine?: GetEngine
   getInstanceRetrieval?: GetInstanceRetrieval
+  getBranches?: GetBranches
+  getSnapshotList?: GetSnapshotList
+  deleteBranch?: DeleteBranch
+  destroySnapshot?: DestroySnapshot
+  fullRefresh?: FullRefresh
 }
 
 type Error = {
@@ -56,10 +68,14 @@ export class MainStore {
   instanceRetrieval: InstanceRetrievalType | null = null
   config: Config | null = null
   fullConfig?: string
+  dleEdition?: string
   platformUrl?: string
+  uiVersion?: string
   instanceError: Error | null = null
   configError: string | null = null
   getFullConfigError: string | null = null
+  getBranchesError: Error | null = null
+  snapshotListError: string | null = null
   seImagesError: string | undefined | null = null
 
   unstableClones = new Set<string>()
@@ -70,7 +86,10 @@ export class MainStore {
   isConfigurationLoading = false
   isReloadingInstance = false
   isReloadingInstanceRetrieval = false
+  isBranchesLoading = false
+  isConfigLoading = false
   isLoadingInstance = false
+  isLoadingInstanceRetrieval = false
 
   private readonly api: Api
 
@@ -86,44 +105,73 @@ export class MainStore {
     return this.instance.state?.status.code === 'NO_RESPONSE'
   }
 
-  load = (instanceId: string) => {
+  load = (instanceId: string, isPlatform: boolean = false) => {
     this.instance = null
+    this.instanceRetrieval = null
     this.isReloadingInstance = true
+    this.isLoadingInstanceRetrieval = false
+
+    if (!isPlatform) {
+      this.getBranches(instanceId)
+    }
+
+    const runRetrieval = () => {
+      this.loadInstanceRetrieval(instanceId).then(() => {
+        if (this.instanceRetrieval) {
+          this.getConfig(instanceId)
+          this.getFullConfig(instanceId)
+        }
+      })
+    }
+
     this.loadInstance(instanceId, false).then(() => {
-      if (this.instance?.createdAt && this.instance?.url || !this.instance?.createdAt) {
+      if (
+        (this.instance?.createdAt && this.instance?.url) ||
+        !this.instance?.createdAt
+      ) {
         this.snapshots.load(instanceId)
       }
-    })
-    this.loadInstanceRetrieval(instanceId).then(() => {
-      if (this.instanceRetrieval) {
-        this.getConfig()
-        this.getFullConfig()
+
+      if (isPlatform && this.instance?.url) {
+        this.getBranches(instanceId)
+        runRetrieval()
       }
     })
+
+    if (!isPlatform) {
+      runRetrieval()
+    }
   }
 
   reload = (instanceId: string) => {
     this.instance = null
+    this.instanceRetrieval = null
     this.isReloadingInstance = true
+    this.isLoadingInstanceRetrieval = false
+    
     this.loadInstance(instanceId, false).then(() => {
       if (this.api.refreshInstance)
         this.api.refreshInstance({ instanceId: instanceId })
 
-        if (this.instance?.createdAt && this.instance?.url || !this.instance?.createdAt) {
+      if (
+        (this.instance?.createdAt && this.instance?.url) ||
+        !this.instance?.createdAt
+      ) {
         this.snapshots.load(instanceId)
       }
     })
+    
     this.loadInstanceRetrieval(instanceId).then(() => {
       if (this.instanceRetrieval) {
-        this.getConfig()
-        this.getFullConfig()
+        this.getConfig(instanceId)
+        this.getFullConfig(instanceId)
       }
     })
   }
 
-  reloadSnapshots = async () => {
+  reloadSnapshots = async (branchName?: string) => {
     if (!this.instance) return
-    await this.snapshots.reload(this.instance.id)
+    await this.snapshots.reload(this.instance.id, branchName)
   }
 
   reloadInstanceRetrieval = async () => {
@@ -134,11 +182,18 @@ export class MainStore {
   }
 
   private loadInstanceRetrieval = async (instanceId: string) => {
-    if (!this.api.getInstanceRetrieval) return
+    if (!this.api.getInstanceRetrieval) {
+      this.isLoadingInstanceRetrieval = false
+      return
+    }
+
+    this.isLoadingInstanceRetrieval = true
 
     const { response, error } = await this.api.getInstanceRetrieval({
       instanceId: instanceId,
     })
+
+    this.isLoadingInstanceRetrieval = false
 
     if (response) this.instanceRetrieval = response
 
@@ -191,14 +246,16 @@ export class MainStore {
     return !!response
   }
 
-  getConfig = async () => {
+  getConfig = async (instanceId: string) => {
     if (!this.api.getConfig) return
 
     this.isConfigurationLoading = true
+    this.isConfigLoading = true
 
-    const { response, error } = await this.api.getConfig()
+    const { response, error } = await this.api.getConfig(instanceId)
 
     this.isConfigurationLoading = false
+    this.isConfigLoading = false
 
     if (response) {
       this.config = response
@@ -212,25 +269,33 @@ export class MainStore {
     return response
   }
 
-  updateConfig = async (values: Config) => {
+  updateConfig = async (values: Config, instanceId: string) => {
     if (!this.api.updateConfig) return
 
-    const { response, error } = await this.api.updateConfig({ ...values })
+    const { response, error } = await this.api.updateConfig(
+      { ...values },
+      instanceId,
+    )
 
     if (error) this.configError = await error.json().then((err) => err.message)
 
     return response
   }
 
-  getFullConfig = async () => {
+  getFullConfig = async (instanceId: string) => {
     if (!this.api.getFullConfig) return
 
-    const { response, error } = await this.api.getFullConfig()
+    const { response, error } = await this.api.getFullConfig(instanceId)
+
     if (response) {
       this.fullConfig = response
 
       const splitYML = this.fullConfig.split('---')
       this.platformUrl = splitYML[0]?.split('url: ')[1]?.split('\n')[0]
+      this.uiVersion = splitYML[0]
+        ?.split('dockerImage: "postgresai/ce-ui:')[2]
+        ?.split('\n')[0]
+        ?.replace(/['"]+/g, '')
     }
 
     if (error)
@@ -260,12 +325,16 @@ export class MainStore {
     return response
   }
 
-  getEngine = async () => {
+  getEngine = async (instanceId: string) => {
     if (!this.api.getEngine) return
 
     this.configError = null
 
-    const { response, error } = await this.api.getEngine()
+    const { response, error } = await this.api.getEngine(instanceId)
+
+    if (response) {
+      this.dleEdition = response.edition
+    }
 
     if (error) await getTextFromUnknownApiError(error)
     return response
@@ -283,7 +352,7 @@ export class MainStore {
   }
 
   resetClone = async (cloneId: string, snapshotId: string) => {
-    if (!this.instance) return
+    if (!this.instance || !this.api.resetClone) return
 
     this.unstableClones.add(cloneId)
 
@@ -300,7 +369,7 @@ export class MainStore {
   }
 
   destroyClone = async (cloneId: string) => {
-    if (!this.instance) return
+    if (!this.instance || !this.api.destroyClone) return
 
     this.unstableClones.add(cloneId)
 
@@ -331,5 +400,85 @@ export class MainStore {
     await this.loadInstance(this.instance.id)
     await this.loadInstanceRetrieval(this.instance.id)
     this.isReloadingClones = false
+  }
+
+  getBranches = async (instanceId: string) => {
+    if (!this.api.getBranches) return
+    this.isBranchesLoading = true
+
+    const { response, error } = await this.api.getBranches(instanceId)
+
+    this.isBranchesLoading = false
+
+    if (error) this.getBranchesError = await error.json().then((err) => err)
+
+    return response
+  }
+
+  deleteBranch = async (branchName: string, instanceId: string) => {
+    if (!branchName || !this.api.deleteBranch) return
+
+    const { response, error } = await this.api.deleteBranch(
+      branchName,
+      instanceId,
+    )
+
+    return { response, error }
+  }
+
+  getSnapshotList = async (branchName: string, instanceId: string) => {
+    if (!this.api.getSnapshotList) return
+
+    const { response, error } = await this.api.getSnapshotList(
+      branchName,
+      instanceId,
+    )
+
+    this.isBranchesLoading = false
+
+    if (error) {
+      this.snapshotListError = await error.json().then((err) => err.message)
+    }
+
+    return response
+  }
+
+  destroySnapshot = async (
+    snapshotId: string,
+    forceDelete: boolean,
+    instanceId: string,
+  ) => {
+    if (!this.api.destroySnapshot || !snapshotId) return
+
+    const { response, error } = await this.api.destroySnapshot(
+      snapshotId,
+      forceDelete,
+      instanceId,
+    )
+
+    return {
+      response,
+      error: error ? await error.json().then((err) => err) : null,
+    }
+  }
+
+  fullRefresh = async (instanceId: string): Promise<{ response: string | null, error: Error | null } | undefined> => {
+    if (!this.api.fullRefresh) return
+
+    const { response, error } = await this.api.fullRefresh({
+      instanceId,
+    })
+
+    if (error) {
+      const parsedError = await error.json().then((err) => ({
+        message: err.message || 'An unknown error occurred',
+      }));
+
+      return { response: null, error: parsedError }
+    } else if (this.instance?.state?.retrieving) {
+      this.instance.state.retrieving.status = 'refreshing';
+    }
+
+    return { response: response ? String(response) : null, error: null }
   }
 }
