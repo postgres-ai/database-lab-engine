@@ -102,7 +102,6 @@ type RestoreOptions struct {
 	DockerImage        string                    `yaml:"dockerImage"`
 	ContainerConfig    map[string]interface{}    `yaml:"containerConfig"`
 	Databases          map[string]DumpDefinition `yaml:"databases"`
-	ForceInit          bool                      `yaml:"forceInit"`
 	IgnoreErrors       bool                      `yaml:"ignoreErrors"`
 	ParallelJobs       int                       `yaml:"parallelJobs"`
 	Configs            map[string]string         `yaml:"configs"`
