@@ -58,6 +58,7 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
             #   - physical: direct copy (identical layout, not for RDS) e.g. using pg_basebackup, WAL-G, or pgBackRest
   refresh:
     timetable: "0 0 * * 1" # Full data refresh schedule in crontab format; see https://en.wikipedia.org/wiki/Cron#Overview
+    skipStartRefresh: false # Skip data refresh while the retrieval starts
   jobs: # Jobs to run; must not contain physical and logical restore jobs simultaneously
     - logicalDump
     - logicalRestore
