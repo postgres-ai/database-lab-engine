@@ -13,7 +13,7 @@ func CommandList() []*cli.Command {
 	return []*cli.Command{
 		{
 			Name:  "instance",
-			Usage: "displays instance info",
+			Usage: "display instance info",
 			Subcommands: []*cli.Command{
 				{
 					Name:   "status",
@@ -24,6 +24,11 @@ func CommandList() []*cli.Command {
 					Name:   "version",
 					Usage:  "display instance's version",
 					Action: health,
+				},
+				{
+					Name:   "full-refresh",
+					Usage:  "initiate full refresh",
+					Action: refresh,
 				},
 			},
 		},

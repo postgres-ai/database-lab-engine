@@ -18,11 +18,15 @@ import { InfoIcon } from '@postgres.ai/shared/icons/Info'
 
 import { useStores, useHost } from '@postgres.ai/shared/pages/Instance/context'
 
-import { ClonesList } from '../components/ClonesList'
-
+import { ClonesList } from './ClonesList'
 import { Header } from './Header'
 
 const SHORT_LIST_SIZE = 3
+
+interface ClonesProps {
+  onlyRenderList?: boolean
+  hideBranchingFeatures?: boolean
+}
 
 const useStyles = makeStyles(
   (theme) => ({
@@ -37,9 +41,6 @@ const useStyles = makeStyles(
         marginRight: 0,
       },
     },
-    tableTitle: {
-      marginTop: '5px',
-    },
     listSizeButton: {
       marginTop: '12px',
     },
@@ -53,7 +54,8 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
-export const Clones = observer(() => {
+export const Clones = observer((props: ClonesProps) => {
+  const onlyRenderList = props?.onlyRenderList
   const classes = useStyles()
   const history = useHistory()
   const isMobile = useMediaQuery<Theme>((theme) => theme.breakpoints.down('sm'))
@@ -65,7 +67,7 @@ export const Clones = observer(() => {
   const { instance } = stores.main
   if (!instance || !instance.state) return null
 
-  const isShortList = isMobile && isShortListForMobile
+  const isShortList = isMobile && isShortListForMobile && !onlyRenderList
   const toggleListSize = () => setIsShortListForMobile(!isShortListForMobile)
 
   const goToCloneAddPage = () => history.push(host.routes.createClone())
@@ -79,19 +81,20 @@ export const Clones = observer(() => {
 
   return (
     <div className={classes.root}>
-      <SectionTitle level={2} tag="h2" text="Cloning summary" />
-
-      <Header
-        expectedCloningTimeS={round(
-          instance.state.cloning.expectedCloningTime,
-          2,
-        )}
-        logicalSize={instance.state.dataSize}
-        clonesCount={instance.state.cloning.clones.length}
-      />
-
+      {!onlyRenderList && (
+        <>
+          <SectionTitle level={2} tag="h2" text="Cloning summary" />
+          <Header
+            expectedCloningTimeS={round(
+              instance.state.cloning.expectedCloningTime,
+              2,
+            )}
+            logicalSize={instance.state.dataSize}
+            clonesCount={instance.state.cloning.clones.length}
+          />
+        </>
+      )}
       <SectionTitle
-        className={classes.tableTitle}
         level={2}
         tag="h3"
         text={`Clones (${instance.state.cloning.clones.length})`}
@@ -108,7 +111,9 @@ export const Clones = observer(() => {
 
             {!hasSnapshots && (
               <Tooltip content="No snapshots">
-                <InfoIcon className={classes.infoIcon} />
+                <div style={{ display: 'flex' }}>
+                  <InfoIcon className={classes.infoIcon} />
+                </div>
               </Tooltip>
             )}
           </>
@@ -122,10 +127,11 @@ export const Clones = observer(() => {
             : instance.state.cloning.clones
         }
         isDisabled={stores.main.isDisabledInstance}
-        emptyStubText="This instance has no active clones"
+        emptyStubText="This instance has no active clones."
+        hideBranchingFeatures={props.hideBranchingFeatures}
       />
 
-      {showListSizeButton && (
+      {showListSizeButton && !onlyRenderList && (
         <Button className={classes.listSizeButton} onClick={toggleListSize}>
           {isShortList ? 'Show more' : 'Show less'}
         </Button>

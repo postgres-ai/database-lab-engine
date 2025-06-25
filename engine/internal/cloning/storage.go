@@ -55,18 +55,18 @@ func (c *Base) restartCloneContainers(ctx context.Context) {
 			continue
 		}
 
-		cloneName := util.GetCloneName(wrapper.Session.Port)
+		cloneName := wrapper.Clone.ID
 		if c.provision.IsCloneRunning(ctx, cloneName) {
 			continue
 		}
 
 		if err := c.provision.ReconnectClone(ctx, cloneName); err != nil {
-			log.Err(fmt.Sprintf("Clone container %s cannot be reconnected to the internal network: %s", cloneName, err))
+			log.Err(fmt.Sprintf("clone container %s cannot be reconnected to internal network: %s", cloneName, err))
 			continue
 		}
 
 		if err := c.provision.StartCloneContainer(ctx, cloneName); err != nil {
-			log.Err(fmt.Sprintf("Clone container %s cannot start: %s", cloneName, err))
+			log.Err(fmt.Sprintf("clone container %s cannot start: %s", cloneName, err))
 			continue
 		}
 
@@ -102,11 +102,11 @@ func (c *Base) filterRunningClones(ctx context.Context) {
 			snapshotCache[snapshot.ID] = struct{}{}
 		}
 
-		if !c.provision.IsCloneRunning(ctx, util.GetCloneName(wrapper.Session.Port)) {
+		if !c.provision.IsCloneRunning(ctx, wrapper.Clone.ID) {
 			delete(c.clones, cloneID)
 		}
 
-		c.incrementCloneNumber(wrapper.Clone.Snapshot.ID)
+		c.IncrementCloneNumber(wrapper.Clone.Snapshot.ID)
 	}
 }
 
@@ -114,11 +114,11 @@ func (c *Base) filterRunningClones(ctx context.Context) {
 func (c *Base) SaveClonesState() {
 	sessionsPath, err := util.GetMetaPath(sessionsFilename)
 	if err != nil {
-		log.Err("failed to get path of a sessions file", err)
+		log.Err("failed to get path of sessions file", err)
 	}
 
 	if err := c.saveClonesState(sessionsPath); err != nil {
-		log.Err("Failed to save the state of running clones", err)
+		log.Err("failed to save state of running clones", err)
 	}
 }
 

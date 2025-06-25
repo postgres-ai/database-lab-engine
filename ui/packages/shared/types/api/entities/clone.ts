@@ -14,6 +14,7 @@ import {
 export type CloneDto = {
   createdAt: string
   id: string
+  branch: string
   status: {
     code: 'OK' | 'CREATING' | 'DELETING' | 'RESETTING' | 'FATAL'
     message: string

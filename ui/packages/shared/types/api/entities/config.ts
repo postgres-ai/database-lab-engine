@@ -4,7 +4,7 @@ import {
   getImageMajorVersion,
   getImageType,
   isSeDockerImage,
-} from '@postgres.ai/shared/pages/Configuration/utils'
+} from '@postgres.ai/shared/pages/Instance/Configuration/utils'
 import { formatTuningParams } from '../endpoints/testDbSource'
 
 export interface DatabaseType {

@@ -1,21 +1,19 @@
 import moment from 'moment'
+import { Api } from '../Instance/stores/Main'
+import { stringContainsPattern, stringWithoutBrackets } from './utils'
 
-import {
-  LOGS_ENDPOINT,
-  LOGS_LINE_LIMIT,
-  LOGS_TIME_LIMIT,
-} from '@postgres.ai/shared/pages/Logs/constants'
-import { Api } from '@postgres.ai/shared/pages/Instance/stores/Main'
-import {
-  stringWithoutBrackets,
-  stringContainsPattern,
-} from '@postgres.ai/shared/pages/Logs/utils'
+const logsEndpoint = '/instance/logs'
 
-export const establishConnection = async (api: Api) => {
+const LOGS_TIME_LIMIT = 20
+const LOGS_LINE_LIMIT = 1000
+
+export const establishConnection = async (api: Api, instanceId: string) => {
+  if (!api.getWSToken) return
+
   const logElement = document.getElementById('logs-container')
 
   if (logElement === null) {
-    console.log('Not found container element');
+    console.log('Not found container element')
     return
   }
 
@@ -51,10 +49,9 @@ export const establishConnection = async (api: Api) => {
     }
 
     if (logType === 'message') {
-      const logEntryTime = logElement.children[1]?.innerHTML
-        .split(' ')
-        .slice(0, 2)
-        .join(' ')
+      const logEntryTime = moment.utc(
+        logElement.children[0].innerHTML.split(' ').slice(0, 2).join(' '),
+      )
 
       const timeDifference =
         moment(logEntryTime).isValid() &&
@@ -64,19 +61,26 @@ export const establishConnection = async (api: Api) => {
         logElement.childElementCount > LOGS_LINE_LIMIT &&
         Number(timeDifference) > LOGS_TIME_LIMIT
       ) {
-        logElement.removeChild(logElement.children[1])
+        logElement.removeChild(logElement.children[0])
       }
+    }
+
+    if (
+      logEntry.split(' ')[2] === '[ERROR]' ||
+      logEntry.split(' ')[3] === '[ERROR]'
+    ) {
+      tag.classList.add('error-log')
     }
   }
 
   const { response, error } = await api.getWSToken({
-    instanceId: '',
+    instanceId: instanceId,
   })
 
   if (error || response == null) {
-    console.log('Not authorized:', error);
+    console.log('Not authorized:', error)
     appendLogElement('Not authorized')
-    return;
+    return
   }
 
   if (api.initWS == null) {
@@ -85,20 +89,20 @@ export const establishConnection = async (api: Api) => {
     return
   }
 
-  const socket = api.initWS(LOGS_ENDPOINT, response.token)
+  const socket = api.initWS(logsEndpoint, response.token)
 
   socket.onopen = () => {
-    console.log('Successfully Connected');
+    console.log('Successfully Connected')
   }
 
   socket.onclose = (event) => {
-    console.log('Socket Closed Connection: ', event);
+    console.log('Socket Closed Connection: ', event)
     socket.send('Client Closed')
     appendLogElement('DBLab Connection Closed')
   }
 
   socket.onerror = (error) => {
-    console.log('Socket Error: ', error);
+    console.log('Socket Error: ', error)
 
     appendLogElement('Connection Error')
   }
@@ -107,4 +111,16 @@ export const establishConnection = async (api: Api) => {
     const logEntry = decodeURIComponent(atob(event.data))
     appendLogElement(logEntry, 'message')
   }
+}
+
+export const restartConnection = (api: Api, instanceId: string) => {
+  const logElement = document.getElementById('logs-container')
+
+  if (logElement && logElement.childElementCount > 1) {
+    while (logElement.firstChild) {
+      logElement.removeChild(logElement.firstChild)
+    }
+  }
+
+  establishConnection(api, instanceId)
 }

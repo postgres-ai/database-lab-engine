@@ -5,9 +5,13 @@ import React, { useEffect, useReducer } from 'react'
 
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { Api } from '@postgres.ai/shared/pages/Instance/stores/Main'
-import { establishConnection } from '@postgres.ai/shared/pages/Logs/wsLogs'
+import {
+  establishConnection,
+  restartConnection,
+} from '@postgres.ai/shared/pages/Logs/wsLogs'
 import { useWsScroll } from '@postgres.ai/shared/pages/Logs/hooks/useWsScroll'
-import { LAPTOP_WIDTH_PX } from '@postgres.ai/shared/pages/Logs/constants'
+
+import { LAPTOP_WIDTH_PX } from './constants'
 import { PlusIcon } from './Icons/PlusIcon'
 
 const useStyles = makeStyles(
@@ -23,11 +27,11 @@ const useStyles = makeStyles(
       display: 'flex',
       flexDirection: 'row',
       gap: 10,
+      flexWrap: 'wrap',
 
       '&  > span': {
         display: 'flex',
         flexDirection: 'row',
-        gap: '5px',
         alignItems: 'center',
         border: '1px solid #898E9A',
         padding: '3px 8px',
@@ -41,9 +45,13 @@ const useStyles = makeStyles(
         background: 'none',
         outline: 'none',
         border: 0,
-        width: '18px',
-        height: '18px',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
         cursor: 'pointer',
+        paddingBottom: 0,
+        paddingRight: 0,
       },
     },
     //  we need important since id has higher priority than class
@@ -77,6 +85,12 @@ const useStyles = makeStyles(
         transform: 'rotate(45deg) scale(0.75)',
       },
     },
+    buttonClassName: {
+      '& svg': {
+        width: '14px',
+        height: '14px',
+      },
+    },
     activeError: {
       border: '1px solid #F44336 !important',
       color: '#F44336 !important',
@@ -100,7 +114,7 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
-export const Logs = ({ api }: { api: Api }) => {
+export const Logs = ({ api, instanceId }: { api: Api; instanceId: string }) => {
   const classes = useStyles()
   const [isLoading, setIsLoading] = React.useState(true)
   const targetNode = document.getElementById('logs-container')
@@ -117,27 +131,26 @@ export const Logs = ({ api }: { api: Api }) => {
     return true
   }
 
-  const initialState = {
-    '[DEBUG]': !isEmpty(logsFilterState) ? logsFilterState?.['[DEBUG]'] : true,
-    '[INFO]': !isEmpty(logsFilterState) ? logsFilterState?.['[INFO]'] : true,
-    '[ERROR]': !isEmpty(logsFilterState) ? logsFilterState?.['[ERROR]'] : true,
-    '[base.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['[base.go]']
-      : true,
-    '[runners.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['[runners.go]']
-      : true,
-    '[snapshots.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['[snapshots.go]']
-      : true,
-    '[util.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['[util.go]']
-      : true,
-    '[logging.go]': !isEmpty(logsFilterState)
-      ? logsFilterState?.['[logging.go]']
-      : false,
-    '[ws.go]': !isEmpty(logsFilterState) ? logsFilterState?.['[ws.go]'] : false,
-    '[other]': !isEmpty(logsFilterState) ? logsFilterState?.['[other]'] : true,
+  const initialState = (obj: Record<string, boolean>) => {
+    const filters = {
+      '[DEBUG]': true,
+      '[INFO]': true,
+      '[ERROR]': true,
+      '[base.go]': true,
+      '[runners.go]': true,
+      '[snapshots.go]': true,
+      '[util.go]': true,
+      '[logging.go]': false,
+      '[ws.go]': false,
+      '[other]': true,
+    }
+
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        filters[key as keyof typeof filters] = obj[key]
+      }
+    }
+    return filters
   }
 
   const reducer = (
@@ -170,13 +183,16 @@ export const Logs = ({ api }: { api: Api }) => {
     }
   }
 
-  const [state, dispatch] = useReducer(reducer, initialState)
+  const [state, dispatch] = useReducer(reducer, initialState(logsFilterState))
 
   const FormCheckbox = ({ type }: { type: string }) => {
     const filterType = (state as Record<string, boolean>)[`[${type}]`]
     return (
       <span
-        onClick={() => dispatch({ type })}
+        onClick={() => {
+          dispatch({ type })
+          restartConnection(api, instanceId)
+        }}
         className={
           filterType && type !== 'ERROR'
             ? classes.activeButton
@@ -186,7 +202,11 @@ export const Logs = ({ api }: { api: Api }) => {
         }
       >
         <span>{type.toLowerCase()}</span>
-        <button aria-label="close" type="button">
+        <button
+          aria-label="close"
+          type="button"
+          className={classes.buttonClassName}
+        >
           <PlusIcon />
         </button>
       </span>
@@ -195,7 +215,7 @@ export const Logs = ({ api }: { api: Api }) => {
 
   useEffect(() => {
     if (api.initWS != undefined) {
-      establishConnection(api)
+      establishConnection(api, instanceId)
     }
   }, [api])
 

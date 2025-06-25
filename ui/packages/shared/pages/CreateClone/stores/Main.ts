@@ -5,6 +5,8 @@ import { Clone } from '@postgres.ai/shared/types/api/entities/clone'
 import { GetInstance } from '@postgres.ai/shared/types/api/endpoints/getInstance'
 import { CreateClone } from '@postgres.ai/shared/types/api/endpoints/createClone'
 import { GetClone } from '@postgres.ai/shared/types/api/endpoints/getClone'
+import { GetBranches } from '@postgres.ai/shared/types/api/endpoints/getBranches'
+import { GetSnapshots } from '@postgres.ai/shared/types/api/endpoints/getSnapshots'
 import {
   SnapshotsStore,
   SnapshotsApi,
@@ -13,6 +15,7 @@ import { getTextFromUnknownApiError } from '@postgres.ai/shared/utils/api'
 import { checkIsCloneStable } from '@postgres.ai/shared/utils/clone'
 
 import { FormValues } from '../useForm'
+import { InitWS } from '@postgres.ai/shared/types/api/endpoints/initWS'
 
 const UNSTABLE_CLONE_UPDATE_TIMEOUT = 1000
 
@@ -20,11 +23,16 @@ export type MainStoreApi = SnapshotsApi & {
   getInstance: GetInstance
   createClone: CreateClone
   getClone: GetClone
+  getBranches?: GetBranches
+  getSnapshots?: GetSnapshots
+  initWS?: InitWS
 }
 
 export class MainStore {
   instance: Instance | null = null
   instanceError: string | null = null
+  getBranchesError: Error | null = null
+  getSnapshotsError: Error | null = null
 
   clone: Clone | null = null
   cloneError: string | null = null
@@ -33,13 +41,15 @@ export class MainStore {
 
   private readonly api: MainStoreApi
 
-  readonly snapshots: SnapshotsStore
+  readonly snapshots?: SnapshotsStore
 
   constructor(api: MainStoreApi) {
     makeAutoObservable(this)
 
     this.api = api
-    this.snapshots = new SnapshotsStore(api)
+    if (!api.getSnapshots) {
+      this.snapshots = new SnapshotsStore(api)
+    }
   }
 
   get isCloneStable() {
@@ -50,7 +60,7 @@ export class MainStore {
   load = async (instanceId: string) => {
     const [instance, isLoadedSnapshots] = await Promise.all([
       this.api.getInstance({ instanceId }),
-      this.snapshots.load(instanceId),
+      this.snapshots?.load(instanceId) ?? true,
     ])
 
     if (instance.response) this.instance = instance.response
@@ -81,6 +91,27 @@ export class MainStore {
       this.cloneError = await error.json().then((err) => err?.message || err)
 
     return Boolean(response)
+  }
+
+  getBranches = async (instanceId: string) => {
+    if (!this.api.getBranches) return
+    const { response, error } = await this.api.getBranches(instanceId)
+
+    if (error) this.getBranchesError = await error.json().then((err) => err)
+
+    return response
+  }
+
+  getSnapshots = async (instanceId: string, branchName?: string) => {
+    if (!this.api.getSnapshots) return
+    const { response, error } = await this.api.getSnapshots({
+      instanceId,
+      branchName,
+    })
+
+    if (error) this.getSnapshotsError = await error.json().then((err) => err)
+
+    return response
   }
 
   private updateCloneUntilStable = async (args: {

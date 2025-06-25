@@ -91,7 +91,6 @@ linters:
     - depguard
     - gosec
     - gocyclo # currently unmaintained
-  #presets:
   fast: false
 
 issues:

@@ -1,14 +1,11 @@
 import cn from 'classnames'
 import { Link } from 'react-router-dom'
 
-import { linksConfig } from '@postgres.ai/shared/config/links'
-import { Button } from '@postgres.ai/shared/components/MenuButton'
-
 import { ROUTES } from 'config/routes'
 
 import styles from './styles.module.scss'
 import { DLEEdition } from 'helpers/edition'
-import { LogoIcon, StarsIcon } from './icons'
+import { LogoIcon } from './icons'
 
 type Props = {
   isCollapsed: boolean
@@ -31,17 +28,6 @@ export const Header = (props: Props) => {
           </h1>
         )}
       </Link>
-
-      {!props.isCollapsed && (
-        <Button
-          type="gateway-link"
-          href={linksConfig.cloudSignIn}
-          className={styles.upgradeBtn}
-        >
-          <StarsIcon className={styles.upgradeBtnIcon} />
-          Go Enterprise
-        </Button>
-      )}
     </header>
   )
 }

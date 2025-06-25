@@ -7,6 +7,7 @@ package cloning
 import (
 	"context"
 	"database/sql"
+	stderrors "errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -23,7 +24,9 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
@@ -32,8 +35,6 @@ import (
 
 const (
 	idleCheckDuration = 5 * time.Minute
-
-	defaultDatabaseName = "postgres"
 )
 
 // Config contains a cloning configuration.
@@ -45,22 +46,27 @@ type Config struct {
 // Base provides cloning service.
 type Base struct {
 	config      *Config
+	global      *global.Config
 	cloneMutex  sync.RWMutex
 	clones      map[string]*CloneWrapper
 	snapshotBox SnapshotBox
 	provision   *provision.Provisioner
 	tm          *telemetry.Agent
 	observingCh chan string
+	webhookCh   chan webhooks.EventTyper
 }
 
 // NewBase instances a new Base service.
-func NewBase(cfg *Config, provision *provision.Provisioner, tm *telemetry.Agent, observingCh chan string) *Base {
+func NewBase(cfg *Config, global *global.Config, provision *provision.Provisioner, tm *telemetry.Agent,
+	observingCh chan string, whCh chan webhooks.EventTyper) *Base {
 	return &Base{
 		config:      cfg,
+		global:      global,
 		clones:      make(map[string]*CloneWrapper),
 		provision:   provision,
 		tm:          tm,
 		observingCh: observingCh,
+		webhookCh:   whCh,
 		snapshotBox: SnapshotBox{
 			items: make(map[string]*models.Snapshot),
 		},
@@ -68,8 +74,9 @@ func NewBase(cfg *Config, provision *provision.Provisioner, tm *telemetry.Agent,
 }
 
 // Reload reloads base cloning configuration.
-func (c *Base) Reload(cfg Config) {
+func (c *Base) Reload(cfg Config, global global.Config) {
 	*c.config = cfg
+	*c.global = global
 }
 
 // Run initializes and runs cloning component.
@@ -79,11 +86,11 @@ func (c *Base) Run(ctx context.Context) error {
 	}
 
 	if _, err := c.GetSnapshots(); err != nil {
-		log.Err("No available snapshots: ", err)
+		log.Err("no available snapshots:", err)
 	}
 
 	if err := c.RestoreClonesState(); err != nil {
-		log.Err("Failed to load stored sessions:", err)
+		log.Err("failed to load stored sessions:", err)
 	}
 
 	c.restartCloneContainers(ctx)
@@ -109,7 +116,7 @@ func (c *Base) cleanupInvalidClones() error {
 	c.cloneMutex.Lock()
 
 	for _, clone := range c.clones {
-		keepClones[util.GetCloneName(clone.Session.Port)] = struct{}{}
+		keepClones[clone.Clone.ID] = struct{}{}
 	}
 
 	c.cloneMutex.Unlock()
@@ -121,6 +128,16 @@ func (c *Base) cleanupInvalidClones() error {
 	}
 
 	return nil
+}
+
+// GetLatestSnapshot returns the latest snapshot.
+func (c *Base) GetLatestSnapshot() (*models.Snapshot, error) {
+	snapshot, err := c.getLatestSnapshot()
+	if err != nil {
+		return nil, fmt.Errorf("failed to find the latest snapshot: %w", err)
+	}
+
+	return snapshot, err
 }
 
 // CreateClone creates a new clone.
@@ -154,9 +171,14 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 		}
 	}
 
+	if cloneRequest.Branch == "" {
+		cloneRequest.Branch = snapshot.Branch
+	}
+
 	clone := &models.Clone{
 		ID:        cloneRequest.ID,
 		Snapshot:  snapshot,
+		Branch:    cloneRequest.Branch,
 		Protected: cloneRequest.Protected,
 		CreatedAt: models.NewLocalTime(createdAt),
 		Status: models.Status{
@@ -167,6 +189,7 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 			Username: cloneRequest.DB.Username,
 			DBName:   cloneRequest.DB.DBName,
 		},
+		Revision: cloneRequest.Revision,
 	}
 
 	w := NewCloneWrapper(clone, createdAt)
@@ -181,19 +204,19 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 		AvailableDB: cloneRequest.DB.DBName,
 	}
 
-	c.incrementCloneNumber(clone.Snapshot.ID)
+	c.IncrementCloneNumber(clone.Snapshot.ID)
 
 	go func() {
-		session, err := c.provision.StartSession(clone.Snapshot.ID, ephemeralUser, cloneRequest.ExtraConf)
+		session, err := c.provision.StartSession(clone, ephemeralUser, cloneRequest.ExtraConf)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
-			log.Errf("Failed to start session: %v.", err)
+			log.Errf("failed to start session: %v", err)
 
 			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
 				Message: errors.Cause(err).Error(),
 			}); updateErr != nil {
-				log.Errf("Failed to update clone status: %v", updateErr)
+				log.Errf("failed to update clone status: %v", updateErr)
 			}
 
 			return
@@ -201,6 +224,18 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 
 		c.fillCloneSession(cloneID, session)
 		c.SaveClonesState()
+
+		c.webhookCh <- webhooks.CloneEvent{
+			BasicEvent: webhooks.BasicEvent{
+				EventType: webhooks.CloneCreatedEvent,
+				EntityID:  cloneID,
+			},
+			Host:          c.config.AccessHost,
+			Port:          session.Port,
+			Username:      clone.DB.Username,
+			DBName:        clone.DB.DBName,
+			ContainerName: cloneID,
+		}
 	}()
 
 	return clone, nil
@@ -212,7 +247,7 @@ func (c *Base) fillCloneSession(cloneID string, session *resources.Session) {
 
 	w, ok := c.clones[cloneID]
 	if !ok {
-		log.Errf("Clone %q not found", cloneID)
+		log.Errf("clone %q not found", cloneID)
 		return
 	}
 
@@ -225,15 +260,14 @@ func (c *Base) fillCloneSession(cloneID string, session *resources.Session) {
 		Message: models.CloneMessageOK,
 	}
 
-	dbName := clone.DB.DBName
-	if dbName == "" {
-		dbName = defaultDatabaseName
+	if dbName := clone.DB.DBName; dbName == "" {
+		clone.DB.DBName = c.global.Database.Name()
 	}
 
 	clone.DB.Port = strconv.FormatUint(uint64(session.Port), 10)
 	clone.DB.Host = c.config.AccessHost
 	clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s user=%s dbname=%s",
-		clone.DB.Host, clone.DB.Port, clone.DB.Username, dbName)
+		clone.DB.Host, clone.DB.Port, clone.DB.Username, clone.DB.DBName)
 
 	clone.Metadata = models.CloneMetadata{
 		CloningTime:    w.TimeStartedAt.Sub(w.TimeCreatedAt).Seconds(),
@@ -271,8 +305,28 @@ func (c *Base) DestroyClone(cloneID string) error {
 		return models.New(models.ErrCodeNotFound, "clone not found")
 	}
 
+	if err := c.destroyPreChecks(cloneID, w); err != nil {
+		if stderrors.Is(err, errNoSession) {
+			return nil
+		}
+
+		return err
+	}
+
+	go c.destroyClone(cloneID, w)
+
+	return nil
+}
+
+var errNoSession = errors.New("no clone session")
+
+func (c *Base) destroyPreChecks(cloneID string, w *CloneWrapper) error {
 	if w.Clone.Protected && w.Clone.Status.Code != models.StatusFatal {
 		return models.New(models.ErrCodeBadRequest, "clone is protected")
+	}
+
+	if c.hasDependentSnapshots(w) {
+		log.Warn("clone has dependent snapshots", cloneID)
 	}
 
 	if err := c.UpdateCloneStatus(cloneID, models.Status{
@@ -289,34 +343,65 @@ func (c *Base) DestroyClone(cloneID string) error {
 			c.decrementCloneNumber(w.Clone.Snapshot.ID)
 		}
 
-		return nil
+		return errNoSession
 	}
 
-	go func() {
-		if err := c.provision.StopSession(w.Session); err != nil {
-			log.Errf("Failed to delete a clone: %v.", err)
+	return nil
+}
 
-			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
-				Code:    models.StatusFatal,
-				Message: errors.Cause(err).Error(),
-			}); updateErr != nil {
-				log.Errf("Failed to update clone status: %v", updateErr)
-			}
+func (c *Base) DestroyCloneSync(cloneID string) error {
+	w, ok := c.findWrapper(cloneID)
+	if !ok {
+		return models.New(models.ErrCodeNotFound, "clone not found")
+	}
 
-			return
+	if err := c.destroyPreChecks(cloneID, w); err != nil {
+		if stderrors.Is(err, errNoSession) {
+			return nil
 		}
 
-		c.deleteClone(cloneID)
+		return err
+	}
 
-		if w.Clone.Snapshot != nil {
-			c.decrementCloneNumber(w.Clone.Snapshot.ID)
-		}
-		c.observingCh <- cloneID
-
-		c.SaveClonesState()
-	}()
+	c.destroyClone(cloneID, w)
 
 	return nil
+}
+
+func (c *Base) destroyClone(cloneID string, w *CloneWrapper) {
+	if err := c.provision.StopSession(w.Session, w.Clone); err != nil {
+		log.Errf("failed to delete clone: %v", err)
+
+		if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
+			Code:    models.StatusFatal,
+			Message: errors.Cause(err).Error(),
+		}); updateErr != nil {
+			log.Errf("failed to update clone status: %v", updateErr)
+		}
+
+		return
+	}
+
+	c.deleteClone(cloneID)
+
+	if w.Clone.Snapshot != nil {
+		c.decrementCloneNumber(w.Clone.Snapshot.ID)
+	}
+	c.observingCh <- cloneID
+
+	c.SaveClonesState()
+
+	c.webhookCh <- webhooks.CloneEvent{
+		BasicEvent: webhooks.BasicEvent{
+			EventType: webhooks.CloneDeleteEvent,
+			EntityID:  cloneID,
+		},
+		Host:          c.config.AccessHost,
+		Port:          w.Session.Port,
+		Username:      w.Clone.DB.Username,
+		DBName:        w.Clone.DB.DBName,
+		ContainerName: cloneID,
+	}
 }
 
 // GetClone returns clone by ID.
@@ -337,10 +422,10 @@ func (c *Base) refreshCloneMetadata(w *CloneWrapper) {
 		return
 	}
 
-	sessionState, err := c.provision.GetSessionState(w.Session)
+	sessionState, err := c.provision.GetSessionState(w.Session, w.Clone.Branch, w.Clone.ID)
 	if err != nil {
 		// Session not ready yet.
-		log.Err(fmt.Errorf("failed to get a session state: %w", err))
+		log.Err(fmt.Errorf("failed to get session state: %w", err))
 
 		return
 	}
@@ -384,6 +469,21 @@ func (c *Base) UpdateCloneStatus(cloneID string, status models.Status) error {
 	return nil
 }
 
+// UpdateCloneSnapshot updates clone snapshot.
+func (c *Base) UpdateCloneSnapshot(cloneID string, snapshot *models.Snapshot) error {
+	c.cloneMutex.Lock()
+	defer c.cloneMutex.Unlock()
+
+	w, ok := c.clones[cloneID]
+	if !ok {
+		return errors.Errorf("clone %q not found", cloneID)
+	}
+
+	w.Clone.Snapshot = snapshot
+
+	return nil
+}
+
 // ResetClone resets clone to chosen snapshot.
 func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) error {
 	w, ok := c.findWrapper(cloneID)
@@ -418,6 +518,18 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 		return errors.Wrap(err, "failed to update clone status")
 	}
 
+	if c.hasDependentSnapshots(w) {
+		log.Warn("clone has dependent snapshots", cloneID)
+		c.cloneMutex.Lock()
+		w.Clone.Revision++
+		w.Clone.HasDependent = true
+		c.cloneMutex.Unlock()
+	} else {
+		c.cloneMutex.Lock()
+		w.Clone.HasDependent = false
+		c.cloneMutex.Unlock()
+	}
+
 	go func() {
 		var originalSnapshotID string
 
@@ -425,9 +537,9 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 			originalSnapshotID = w.Clone.Snapshot.ID
 		}
 
-		snapshot, err := c.provision.ResetSession(w.Session, snapshotID)
+		snapshot, err := c.provision.ResetSession(w.Session, w.Clone, snapshotID)
 		if err != nil {
-			log.Errf("Failed to reset clone: %v", err)
+			log.Errf("failed to reset clone: %v", err)
 
 			if updateErr := c.UpdateCloneStatus(cloneID, models.Status{
 				Code:    models.StatusFatal,
@@ -443,7 +555,7 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 		w.Clone.Snapshot = snapshot
 		c.cloneMutex.Unlock()
 		c.decrementCloneNumber(originalSnapshotID)
-		c.incrementCloneNumber(snapshot.ID)
+		c.IncrementCloneNumber(snapshot.ID)
 
 		if err := c.UpdateCloneStatus(cloneID, models.Status{
 			Code:    models.StatusOK,
@@ -453,6 +565,18 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 		}
 
 		c.SaveClonesState()
+
+		c.webhookCh <- webhooks.CloneEvent{
+			BasicEvent: webhooks.BasicEvent{
+				EventType: webhooks.CloneResetEvent,
+				EntityID:  cloneID,
+			},
+			Host:          c.config.AccessHost,
+			Port:          w.Session.Port,
+			Username:      w.Clone.DB.Username,
+			DBName:        w.Clone.DB.DBName,
+			ContainerName: cloneID,
+		}
 
 		c.tm.SendEvent(context.Background(), telemetry.CloneResetEvent, telemetry.CloneCreated{
 			ID:          util.HashID(w.Clone.ID),
@@ -486,6 +610,16 @@ func (c *Base) GetSnapshots() ([]models.Snapshot, error) {
 	return c.getSnapshotList(), nil
 }
 
+// GetSnapshotByID returns snapshot by ID.
+func (c *Base) GetSnapshotByID(snapshotID string) (*models.Snapshot, error) {
+	return c.getSnapshotByID(snapshotID)
+}
+
+// ReloadSnapshots reloads snapshot list.
+func (c *Base) ReloadSnapshots() error {
+	return c.fetchSnapshots()
+}
+
 // GetClones returns the list of clones descend ordered by creation time.
 func (c *Base) GetClones() []*models.Clone {
 	clones := make([]*models.Clone, 0, c.lenClones())
@@ -495,7 +629,7 @@ func (c *Base) GetClones() []*models.Clone {
 		if cloneWrapper.Clone.Snapshot != nil {
 			snapshot, err := c.getSnapshotByID(cloneWrapper.Clone.Snapshot.ID)
 			if err != nil {
-				log.Err("Snapshot not found: ", cloneWrapper.Clone.Snapshot.ID)
+				log.Err("snapshot not found: ", cloneWrapper.Clone.Snapshot.ID)
 			}
 
 			if snapshot != nil {
@@ -595,7 +729,7 @@ func (c *Base) destroyIdleClones(ctx context.Context) {
 		default:
 			isIdleClone, err := c.isIdleClone(cloneWrapper)
 			if err != nil {
-				log.Errf("Failed to check the idleness of clone %s: %v.", cloneWrapper.Clone.ID, err)
+				log.Errf("failed to check idleness of clone %s: %v", cloneWrapper.Clone.ID, err)
 				continue
 			}
 
@@ -603,7 +737,7 @@ func (c *Base) destroyIdleClones(ctx context.Context) {
 				log.Msg(fmt.Sprintf("Idle clone %q is going to be removed.", cloneWrapper.Clone.ID))
 
 				if err = c.DestroyClone(cloneWrapper.Clone.ID); err != nil {
-					log.Errf("Failed to destroy clone: %v.", err)
+					log.Errf("failed to destroy clone: %v", err)
 					continue
 				}
 			}
@@ -618,7 +752,8 @@ func (c *Base) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 	idleDuration := time.Duration(c.config.MaxIdleMinutes) * time.Minute
 	minimumTime := currentTime.Add(-idleDuration)
 
-	if wrapper.Clone.Protected || wrapper.Clone.Status.Code == models.StatusExporting || wrapper.TimeStartedAt.After(minimumTime) {
+	if wrapper.Clone.Protected || wrapper.Clone.Status.Code == models.StatusExporting || wrapper.TimeStartedAt.After(minimumTime) ||
+		c.hasDependentSnapshots(wrapper) {
 		return false, nil
 	}
 
@@ -632,10 +767,11 @@ func (c *Base) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 		return false, errors.New("failed to get clone session")
 	}
 
-	if _, err := c.provision.LastSessionActivity(session, minimumTime); err != nil {
+	if _, err := c.provision.LastSessionActivity(session, wrapper.Clone.Branch, wrapper.Clone.ID, wrapper.Clone.Revision,
+		minimumTime); err != nil {
 		if err == pglog.ErrNotFound {
-			log.Dbg(fmt.Sprintf("Not found recent activity for the session: %q. Clone name: %q",
-				session.ID, util.GetCloneName(session.Port)))
+			log.Dbg(fmt.Sprintf("Not found recent activity for session: %q. Clone name: %q",
+				session.ID, wrapper.Clone.ID))
 
 			return hasNotQueryActivity(session)
 		}
@@ -660,7 +796,7 @@ func hasNotQueryActivity(session *resources.Session) (bool, error) {
 
 	defer func() {
 		if err := db.Close(); err != nil {
-			log.Err("Cannot close database connection.")
+			log.Err("cannot close database connection")
 		}
 	}()
 

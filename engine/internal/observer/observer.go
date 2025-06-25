@@ -12,7 +12,6 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"strconv"
 	"sync"
 	"time"
 
@@ -80,13 +79,8 @@ func NewObserver(dockerClient *client.Client, cfg *Config, pm *pool.Manager) *Ob
 
 // GetCloneLog gets clone logs.
 // TODO (akartasov): Split log to chunks.
-func (o *Observer) GetCloneLog(ctx context.Context, port string, obsClone *ObservingClone) ([]byte, error) {
-	clonePort, err := strconv.Atoi(port)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse clone port")
-	}
-
-	fileSelector := pglog.NewSelector(obsClone.pool.ClonePath(uint(clonePort)))
+func (o *Observer) GetCloneLog(ctx context.Context, obsClone *ObservingClone) ([]byte, error) {
+	fileSelector := pglog.NewSelector(obsClone.pool.ClonePath(obsClone.branch, obsClone.cloneID, obsClone.revision))
 	fileSelector.SetMinimumTime(obsClone.session.StartedAt)
 
 	if err := fileSelector.DiscoverLogDir(); err != nil {
@@ -127,7 +121,7 @@ func (o *Observer) processCSVLogFile(ctx context.Context, buf io.Writer, filenam
 
 	defer func() {
 		if err := logFile.Close(); err != nil {
-			log.Errf("Failed to close a CSV log file: %s", err.Error())
+			log.Errf("failed to close CSV log file: %s", err.Error())
 		}
 	}()
 
@@ -193,11 +187,13 @@ func (o *Observer) maskLogs(entry []string, maskedFieldIndexes []int) {
 }
 
 // AddObservingClone adds a new observing session to storage.
-func (o *Observer) AddObservingClone(cloneID string, port uint, session *ObservingClone) {
+func (o *Observer) AddObservingClone(cloneID, branch string, revision int, port uint, session *ObservingClone) {
 	o.sessionMu.Lock()
 	defer o.sessionMu.Unlock()
 	session.pool = o.pm.First().Pool()
 	session.cloneID = cloneID
+	session.branch = branch
+	session.revision = revision
 	session.port = port
 
 	o.storage[cloneID] = session

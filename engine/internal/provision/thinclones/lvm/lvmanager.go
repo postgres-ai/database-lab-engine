@@ -12,6 +12,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
@@ -53,13 +54,13 @@ func (m *LVManager) UpdateConfig(pool *resources.Pool) {
 }
 
 // CreateClone creates a new volume.
-func (m *LVManager) CreateClone(name, _ string) error {
-	return CreateVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir())
+func (m *LVManager) CreateClone(branch, name, _ string, _ int) error {
+	return CreateVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir(branch))
 }
 
 // DestroyClone destroys volumes.
-func (m *LVManager) DestroyClone(name string) error {
-	return RemoveVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir())
+func (m *LVManager) DestroyClone(branch, name string, _ int) error {
+	return RemoveVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir(branch))
 }
 
 // ListClonesNames returns a list of clone names.
@@ -98,7 +99,7 @@ func (m *LVManager) CreateSnapshot(_, _ string) (string, error) {
 }
 
 // DestroySnapshot is not supported in LVM mode.
-func (m *LVManager) DestroySnapshot(_ string) error {
+func (m *LVManager) DestroySnapshot(_ string, _ thinclones.DestroyOptions) error {
 	log.Msg("Destroying a snapshot is not supported in LVM mode. Skip the operation.")
 
 	return nil
@@ -130,7 +131,7 @@ func (m *LVManager) RefreshSnapshotList() {
 }
 
 // GetSessionState is not implemented.
-func (m *LVManager) GetSessionState(_ string) (*resources.SessionState, error) {
+func (m *LVManager) GetSessionState(_, _ string) (*resources.SessionState, error) {
 	// TODO(anatoly): Implement.
 	return &resources.SessionState{}, nil
 }
@@ -139,4 +140,179 @@ func (m *LVManager) GetSessionState(_ string) (*resources.SessionState, error) {
 func (m *LVManager) GetFilesystemState() (models.FileSystem, error) {
 	// TODO(anatoly): Implement.
 	return models.FileSystem{Mode: PoolMode}, nil
+}
+
+// InitBranching inits data branching.
+func (m *LVManager) InitBranching() error {
+	log.Msg("InitBranching is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// VerifyBranchMetadata checks snapshot metadata.
+func (m *LVManager) VerifyBranchMetadata() error {
+	log.Msg("VerifyBranchMetadata is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// CreateDataset creates a new dataset.
+func (m *LVManager) CreateDataset(_ string) error {
+	log.Msg("CreateDataset is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// CreateBranch clones data as a new branch.
+func (m *LVManager) CreateBranch(_, _ string) error {
+	log.Msg("CreateBranch is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// DestroyDataset destroys dataset.
+func (m *LVManager) DestroyDataset(_ string) error {
+	log.Msg("DestroyDataset is not supported for LVM; skipping operation")
+
+	return nil
+}
+
+// Snapshot takes a snapshot of the current data state.
+func (m *LVManager) Snapshot(_ string) error {
+	log.Msg("Snapshot is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// Reset rollbacks data to ZFS snapshot.
+func (m *LVManager) Reset(_ string, _ thinclones.ResetOptions) error {
+	log.Msg("Reset is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// ListBranches lists data pool branches.
+func (m *LVManager) ListBranches() (map[string]string, error) {
+	log.Msg("ListBranches is not supported for LVM. Skip the operation")
+
+	return nil, nil
+}
+
+// ListAllBranches lists all branches.
+func (m *LVManager) ListAllBranches(_ []string) ([]models.BranchEntity, error) {
+	log.Msg("ListAllBranches is not supported for LVM. Skip the operation")
+
+	return nil, nil
+}
+
+// GetSnapshotProperties get custom snapshot properties.
+func (m *LVManager) GetSnapshotProperties(_ string) (thinclones.SnapshotProperties, error) {
+	log.Msg("GetSnapshotProperties is not supported for LVM. Skip the operation")
+
+	return thinclones.SnapshotProperties{}, nil
+}
+
+// AddBranchProp adds branch to snapshot property.
+func (m *LVManager) AddBranchProp(_, _ string) error {
+	log.Msg("AddBranchProp is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// DeleteBranchProp deletes branch from snapshot property.
+func (m *LVManager) DeleteBranchProp(_, _ string) error {
+	log.Msg("DeleteBranchProp is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// DeleteChildProp deletes child from snapshot property.
+func (m *LVManager) DeleteChildProp(_, _ string) error {
+	log.Msg("DeleteChildProp is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// DeleteRootProp deletes root from snapshot property.
+func (m *LVManager) DeleteRootProp(_, _ string) error {
+	log.Msg("DeleteRootProp is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// SetRelation sets relation between snapshots.
+func (m *LVManager) SetRelation(_, _ string) error {
+	log.Msg("SetRelation is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// SetRoot marks snapshot as a root of branch.
+func (m *LVManager) SetRoot(_, _ string) error {
+	log.Msg("SetRoot is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// GetRepo provides data repository details.
+func (m *LVManager) GetRepo() (*models.Repo, error) {
+	log.Msg("GetRepo is not supported for LVM. Skip the operation")
+
+	return nil, nil
+}
+
+// GetAllRepo provides data repository details.
+func (m *LVManager) GetAllRepo() (*models.Repo, error) {
+	log.Msg("GetAllRepo is not supported for LVM. Skip the operation")
+
+	return nil, nil
+}
+
+// SetDSA sets value of DataStateAt to snapshot.
+func (m *LVManager) SetDSA(_, _ string) error {
+	log.Msg("SetDSA is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// SetMessage sets commit message to snapshot.
+func (m *LVManager) SetMessage(_, _ string) error {
+	log.Msg("SetMessage is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// SetMountpoint sets clone mount point.
+func (m *LVManager) SetMountpoint(_, _ string) error {
+	log.Msg("SetMountpoint is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// Rename renames clone.
+func (m *LVManager) Rename(_, _ string) error {
+	log.Msg("Rename is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// Move moves snapshot diff.
+func (m *LVManager) Move(_, _, _ string) error {
+	log.Msg("Move is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// HasDependentEntity checks if snapshot has dependent entities.
+func (m *LVManager) HasDependentEntity(_ string) ([]string, error) {
+	log.Msg("HasDependentEntity is not supported for LVM. Skip the operation")
+
+	return nil, nil
+}
+
+// KeepRelation keeps relation between adjacent snapshots.
+func (m *LVManager) KeepRelation(_ string) error {
+	log.Msg("KeepRelation is not supported for LVM. Skip the operation")
+
+	return nil
 }

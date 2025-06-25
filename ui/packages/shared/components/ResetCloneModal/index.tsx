@@ -18,6 +18,7 @@ import { ImportantText } from '@postgres.ai/shared/components/ImportantText'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { SimpleModalControls } from '@postgres.ai/shared/components/SimpleModalControls'
 import { compareSnapshotsDesc } from '@postgres.ai/shared/utils/snapshot'
+import { isValidDate } from '@postgres.ai/shared/utils/date'
 
 type Props = {
   isOpen: boolean
@@ -111,9 +112,10 @@ export const ResetCloneModal = (props: Props) => {
               children: (
                 <>
                   {snapshot.dataStateAt} (
-                  {formatDistanceToNowStrict(snapshot.dataStateAtDate, {
-                    addSuffix: true,
-                  })}
+                  {isValidDate(snapshot.dataStateAtDate) && 
+                    formatDistanceToNowStrict(snapshot.dataStateAtDate, {
+                      addSuffix: true,
+                    })}
                   )
                   {isLatest && (
                     <span className={classes.snapshotTag}>Latest</span>

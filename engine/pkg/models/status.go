@@ -10,6 +10,12 @@ type Status struct {
 	Message string     `json:"message"`
 }
 
+// Response defines the response structure.
+type Response struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
 // StatusCode defines the status code of clones and instance.
 type StatusCode string
 
@@ -37,4 +43,6 @@ const (
 	SyncStatusDown         StatusCode = "Down"
 	SyncStatusNotAvailable StatusCode = "Not available"
 	SyncStatusError        StatusCode = "Error"
+
+	ResponseOK = "OK"
 )

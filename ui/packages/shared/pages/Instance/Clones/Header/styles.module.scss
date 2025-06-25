@@ -4,8 +4,11 @@
   display: flex;
   justify-content: space-between;
   padding: 20px;
+  margin-bottom: 20px;
+  background-color: #f9f9f9;
 
   @include sm {
     padding: 20px 0;
+    margin-bottom: 10px;
   }
 }

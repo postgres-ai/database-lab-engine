@@ -21,8 +21,8 @@ func (r runnerMock) Run(string, ...bool) (string, error) {
 
 func TestListClones(t *testing.T) {
 	const (
-		poolName    = "datastore"
-		clonePrefix = "dblab_clone_"
+		poolName          = "datastore"
+		preSnapshotSuffix = "_pre"
 	)
 
 	testCases := []struct {
@@ -36,48 +36,48 @@ func TestListClones(t *testing.T) {
 		},
 		{
 			caseName: "single clone",
-			cmdOutput: `datastore/clone_pre_20200831030000
-datastore/dblab_clone_6000
+			cmdOutput: `datastore/branch/main/clone_pre_20200831030000
+datastore/branch/main/cls19p20l4rc73bc2v9g/r0
 `,
 			cloneNames: []string{
-				"dblab_clone_6000",
+				"cls19p20l4rc73bc2v9g",
 			},
 		},
 		{
 			caseName: "multiple clones",
-			cmdOutput: `datastore/clone_pre_20200831030000
-datastore/dblab_clone_6000
-datastore/dblab_clone_6001
+			cmdOutput: `datastore/branch/main/clone_pre_20200831030000
+datastore/branch/main/cls19p20l4rc73bc2v9g/r0
+datastore/branch/main/cls184a0l4rc73bc2v90/r0
 `,
 			cloneNames: []string{
-				"dblab_clone_6000",
-				"dblab_clone_6001",
+				"cls19p20l4rc73bc2v9g",
+				"cls184a0l4rc73bc2v90",
 			},
 		},
 		{
 			caseName: "clone duplicate",
-			cmdOutput: `datastore/clone_pre_20200831030000
-datastore/dblab_clone_6000
-datastore/dblab_clone_6000
+			cmdOutput: `datastore/branch/main/clone_pre_20200831030000
+datastore/branch/main/cls19p20l4rc73bc2v9g/r0
+datastore/branch/main/cls19p20l4rc73bc2v9g/r1
 `,
 			cloneNames: []string{
-				"dblab_clone_6000",
+				"cls19p20l4rc73bc2v9g",
 			},
 		},
 		{
 			caseName: "different pool",
-			cmdOutput: `datastore/clone_pre_20200831030000
-dblab_pool/dblab_clone_6001
-datastore/dblab_clone_6000
+			cmdOutput: `datastore/branch/main/clone_pre_20200831030000
+dblab_pool/branch/main/cls19p20l4rc73bc2v9g/r0
+datastore/branch/main/cls184a0l4rc73bc2v90/r0
 `,
 			cloneNames: []string{
-				"dblab_clone_6000",
+				"cls184a0l4rc73bc2v90",
 			},
 		},
 		{
 			caseName: "no matched clone",
-			cmdOutput: `datastore/clone_pre_20200831030000
-dblab_pool/dblab_clone_6001
+			cmdOutput: `datastore/branch/main/clone_pre_20200831030000
+dblab_pool/branch/main/cls19p20l4rc73bc2v9g/r0
 `,
 			cloneNames: []string{},
 		},
@@ -90,7 +90,7 @@ dblab_pool/dblab_clone_6001
 			},
 			config: Config{
 				Pool:              resources.NewPool(poolName),
-				PreSnapshotSuffix: clonePrefix,
+				PreSnapshotSuffix: preSnapshotSuffix,
 			},
 		}
 
@@ -115,25 +115,35 @@ func TestFailedListClones(t *testing.T) {
 }
 
 func TestBusySnapshotList(t *testing.T) {
-	m := Manager{config: Config{Pool: &resources.Pool{Name: "dblab_pool"}}}
+	const preSnapshotSuffix = "_pre"
+	m := Manager{config: Config{Pool: &resources.Pool{Name: "test_dblab_pool"}, PreSnapshotSuffix: preSnapshotSuffix}}
 
-	out := `dblab_pool	-
-dblab_pool/clone_pre_20210127105215	dblab_pool@snapshot_20210127105215_pre
-dblab_pool/clone_pre_20210127113000	dblab_pool@snapshot_20210127113000_pre
-dblab_pool/clone_pre_20210127120000	dblab_pool@snapshot_20210127120000_pre
-dblab_pool/clone_pre_20210127123000	dblab_pool@snapshot_20210127123000_pre
-dblab_pool/clone_pre_20210127130000	dblab_pool@snapshot_20210127130000_pre
-dblab_pool/clone_pre_20210127133000	dblab_pool@snapshot_20210127133000_pre
-dblab_pool/clone_pre_20210127140000	dblab_pool@snapshot_20210127140000_pre
-dblab_pool/dblab_clone_6000	dblab_pool/clone_pre_20210127133000@snapshot_20210127133008
-dblab_pool/dblab_clone_6001	dblab_pool/clone_pre_20210127123000@snapshot_20210127133008
+	out := `test_dblab_pool	-
+test_dblab_pool/branch	-
+test_dblab_pool/branch/main	-
+test_dblab_pool/branch/main/clone_pre_20250403061908	-
+test_dblab_pool/branch/main/clone_pre_20250403061908/r0	test_dblab_pool@snapshot_20250403061908_pre
+test_dblab_pool/branch/main/clone_pre_20250403085500	-
+test_dblab_pool/branch/main/clone_pre_20250403085500/r0	test_dblab_pool@snapshot_20250403085500_pre
+test_dblab_pool/branch/main/clone_pre_20250403090000	-
+test_dblab_pool/branch/main/clone_pre_20250403090000/r0	test_dblab_pool@snapshot_20250403090000_pre
+test_dblab_pool/branch/main/clone_pre_20250403090500	-
+test_dblab_pool/branch/main/clone_pre_20250403090500/r0	test_dblab_pool@snapshot_20250403090500_pre
+test_dblab_pool/branch/main/cvn2j50n9i6s73as3k9g	-
+test_dblab_pool/branch/main/cvn2j50n9i6s73as3k9g/r0	test_dblab_pool/branch/main/clone_pre_20250403061908/r0@snapshot_20250403061908
+test_dblab_pool/branch/main/cvn2kdon9i6s73as3ka0	-
+test_dblab_pool/branch/main/cvn2kdon9i6s73as3ka0/r0	test_dblab_pool/branch/new001@20250403062641
+test_dblab_pool/branch/new001	test_dblab_pool/branch/main/cvn2j50n9i6s73as3k9g/r0@20250403062503
+test_dblab_pool/branch/new001/cvn4n38n9i6s73as3kag	-
+test_dblab_pool/branch/new001/cvn4n38n9i6s73as3kag/r0	test_dblab_pool/branch/new001@20250403062641
 `
-	expected := []string{"dblab_pool@snapshot_20210127133000_pre", "dblab_pool@snapshot_20210127123000_pre"}
+	expected := []string{
+		"test_dblab_pool@snapshot_20250403061908_pre",
+	}
 
 	list := m.getBusySnapshotList(out)
-	require.Equal(t, 2, len(list))
-	assert.Contains(t, list, expected[0])
-	assert.Contains(t, list, expected[1])
+	require.Len(t, list, len(expected))
+	assert.ElementsMatch(t, list, expected)
 }
 
 func TestExcludingBusySnapshots(t *testing.T) {

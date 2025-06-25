@@ -9,6 +9,7 @@ import React from 'react'
 
 type Props = {
   className?: string
+  onClick?: () => void
 }
 
 export const ArrowDropDownIcon = (props: Props) => {
@@ -18,6 +19,7 @@ export const ArrowDropDownIcon = (props: Props) => {
       viewBox="0 0 8 6"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      onClick={props.onClick}
     >
       <path
         // eslint-disable-next-line max-len

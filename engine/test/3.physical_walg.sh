@@ -174,13 +174,17 @@ dblab instance status
 
 
 ## Create a clone
+CLONE_ID="testclone"
+
 dblab clone create \
   --username dblab_user_1 \
   --password secret_password \
-  --id testclone
+  --id ${CLONE_ID}
 
 ### Check that database system was properly shut down (clone data dir)
-CLONE_LOG_DIR="${DLE_TEST_MOUNT_DIR}"/"${DLE_TEST_POOL_NAME}"/clones/dblab_clone_"${DLE_PORT_POOL_FROM}"/data/log
+BRANCH_MAIN="main"
+REVISION_0="r0"
+CLONE_LOG_DIR="${DLE_TEST_MOUNT_DIR}"/"${DLE_TEST_POOL_NAME}"/branch/"${BRANCH_MAIN}"/"${CLONE_ID}"/"${REVISION_0}"/data/log
 LOG_FILE_CSV=$(sudo ls -t "$CLONE_LOG_DIR" | grep .csv | head -n 1)
 if sudo test -d "$CLONE_LOG_DIR"
 then

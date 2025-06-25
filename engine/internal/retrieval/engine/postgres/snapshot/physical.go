@@ -32,6 +32,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/databases/postgres/pgconfig"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
@@ -47,6 +48,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 )
 
 const (
@@ -302,6 +304,8 @@ func (p *PhysicalInitial) Run(ctx context.Context) (err error) {
 }
 
 func (p *PhysicalInitial) run(ctx context.Context) (err error) {
+	log.Msg("Run job: ", p.Name())
+
 	select {
 	case <-ctx.Done():
 		if p.scheduler != nil {
@@ -346,25 +350,25 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 
 	defer func() {
 		if err != nil {
-			if errDestroy := p.cloneManager.DestroySnapshot(snapshotName); errDestroy != nil {
-				log.Err(fmt.Sprintf("Failed to destroy the %q snapshot: %v", snapshotName, errDestroy))
+			if errDestroy := p.cloneManager.DestroySnapshot(snapshotName, thinclones.DestroyOptions{}); errDestroy != nil {
+				log.Err(fmt.Sprintf("failed to destroy %q snapshot: %v", snapshotName, errDestroy))
 			}
 		}
 	}()
 
-	if err := p.cloneManager.CreateClone(cloneName, snapshotName); err != nil {
+	if err := p.cloneManager.CreateClone(branching.DefaultBranch, cloneName, snapshotName, branching.DefaultRevision); err != nil {
 		return errors.Wrapf(err, "failed to create \"pre\" clone %s", cloneName)
 	}
 
-	cloneDataDir := path.Join(p.fsPool.ClonesDir(), cloneName, p.fsPool.DataSubDir)
+	cloneDataDir := path.Join(p.fsPool.CloneLocation(branching.DefaultBranch, cloneName, branching.DefaultRevision), p.fsPool.DataSubDir)
 	if err := fs.CleanupLogsDir(cloneDataDir); err != nil {
 		log.Warn("Failed to clean up logs directory:", err.Error())
 	}
 
 	defer func() {
 		if err != nil {
-			if errDestroy := p.cloneManager.DestroyClone(cloneName); errDestroy != nil {
-				log.Err(fmt.Sprintf("Failed to destroy clone %q: %v", cloneName, errDestroy))
+			if errDestroy := p.cloneManager.DestroyClone(branching.DefaultBranch, cloneName, branching.DefaultRevision); errDestroy != nil {
+				log.Err(fmt.Sprintf("failed to destroy clone %q: %v", cloneName, errDestroy))
 			}
 		}
 	}()
@@ -389,8 +393,9 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	}
 
 	// Create a snapshot.
-	if _, err := p.cloneManager.CreateSnapshot(cloneName, p.dbMark.DataStateAt); err != nil {
-		return errors.Wrap(err, "failed to create a snapshot")
+	fullClonePath := path.Join(branching.BranchDir, branching.DefaultBranch, cloneName, branching.RevisionSegment(branching.DefaultRevision))
+	if _, err := p.cloneManager.CreateSnapshot(fullClonePath, p.dbMark.DataStateAt); err != nil {
+		return errors.Wrap(err, "failed to create snapshot")
 	}
 
 	p.updateDataStateAt()
@@ -621,7 +626,7 @@ func (p *PhysicalInitial) promoteInstance(ctx context.Context, clonePath string,
 					Value: fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabPromoteLabel)})
 
 			if err := diagnostic.CollectDiagnostics(ctx, p.dockerClient, filterArgs, p.promoteContainerName(), clonePath); err != nil {
-				log.Err("Failed to collect container diagnostics", err)
+				log.Err("failed to collect container diagnostics", err)
 			}
 		}
 	}()
@@ -1102,7 +1107,7 @@ func (p *PhysicalInitial) markDatabaseData() error {
 func (p *PhysicalInitial) updateDataStateAt() {
 	dsaTime, err := time.Parse(util.DataStateAtFormat, p.dbMark.DataStateAt)
 	if err != nil {
-		log.Err("Invalid value for DataStateAt: ", p.dbMark.DataStateAt)
+		log.Err("invalid value for DataStateAt: ", p.dbMark.DataStateAt)
 		return
 	}
 

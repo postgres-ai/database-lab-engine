@@ -1,5 +1,7 @@
 default:
-  image: golang:1.23
+  image:
+    name: golang:1.23
+    pull_policy: if-not-present
 
 stages:
   - test
@@ -56,7 +58,9 @@ lint:
 ### Build binary.
 build-binary-alpine:
   <<: *only_engine
-  image: golang:1.23-alpine
+  image:
+    name: golang:1.23-alpine
+    pull_policy: if-not-present
   stage: build-binary
   artifacts:
     paths:
@@ -85,7 +89,7 @@ build-binary-client-master:
 
     # Install google-cloud-sdk.
     - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-    - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor | tee /usr/share/keyrings/cloud.google.gpg > /dev/null
+    - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
     - apt-get update && apt-get install -y google-cloud-sdk
 
     # Authenticate.
@@ -105,7 +109,7 @@ build-binary-client:
 
     # Install google-cloud-sdk.
     - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-    - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor | tee /usr/share/keyrings/cloud.google.gpg > /dev/null
+    - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
     - apt-get update && apt-get install -y google-cloud-sdk
 
     # Authenticate.
@@ -126,7 +130,7 @@ build-binary-client-rc:
 
     # Install google-cloud-sdk.
     - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-    - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor | tee /usr/share/keyrings/cloud.google.gpg > /dev/null
+    - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
     - apt-get update && apt-get install -y google-cloud-sdk
 
     # Authenticate.
@@ -135,14 +139,23 @@ build-binary-client-rc:
     # Upload artifacts.
     - gsutil -m cp -r bin/cli/* gs://database-lab-cli/${CLEAN_TAG}/
 
+.docker_vars: &docker_vars
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+
 .job_template: &build_image_definition
-  image: docker:20
+  image:
+    name: docker:24
+    pull_policy: if-not-present
   stage: build
   artifacts:
     paths:
       - engine/bin
   services:
-    - name: docker:dind
+    - name: docker:24-dind
+      alias: docker
+      command: [ "--tls=false" ]
+      pull_policy: if-not-present    
   script:
     - cd engine
     - apk update && apk upgrade && apk add --no-cache bash # TODO(anatoly): Remove dependency.
@@ -152,6 +165,7 @@ build-image-feature-server:
   <<: *build_image_definition
   <<: *only_feature
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
@@ -163,6 +177,7 @@ build-image-feature-server-zfs08:
   <<: *build_image_definition
   <<: *only_feature
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
@@ -174,6 +189,7 @@ build-image-feature-ci-checker:
   <<: *build_image_definition
   <<: *only_feature
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
@@ -185,6 +201,7 @@ build-image-feature-client:
   <<: *build_image_definition
   <<: *only_feature
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
@@ -196,6 +213,7 @@ build-image-master-server:
   <<: *build_image_definition
   <<: *only_master
   variables:
+    <<: *docker_vars
     DOCKER_FILE: "Dockerfile.dblab-server"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-server"
     TAGS: "${DOCKER_NAME}:master,${DOCKER_NAME}:master-${CI_COMMIT_SHORT_SHA}"
@@ -204,6 +222,7 @@ build-image-master-server-zfs08:
   <<: *build_image_definition
   <<: *only_master
   variables:
+    <<: *docker_vars
     DOCKER_FILE: "Dockerfile.dblab-server-zfs08"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-server"
     TAGS: "${DOCKER_NAME}:master-zfs0.8,${DOCKER_NAME}:master-${CI_COMMIT_SHORT_SHA}-zfs0.8"
@@ -212,6 +231,7 @@ build-image-master-ci-checker:
   <<: *build_image_definition
   <<: *only_master
   variables:
+    <<: *docker_vars
     DOCKER_FILE: "Dockerfile.ci-checker"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-ci-checker"
     TAGS: "${DOCKER_NAME}:master,${DOCKER_NAME}:master-${CI_COMMIT_SHORT_SHA}"
@@ -220,6 +240,7 @@ build-image-master-client:
   <<: *build_image_definition
   <<: *only_master
   variables:
+    <<: *docker_vars
     DOCKER_FILE: "Dockerfile.dblab-cli"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-cli"
     TAGS: "${DOCKER_NAME}:master,${DOCKER_NAME}:master-${CI_COMMIT_SHORT_SHA}"
@@ -228,6 +249,7 @@ build-image-latest-server:
   <<: *build_image_definition
   <<: *only_tag_release
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
     REGISTRY: "${DH_CI_REGISTRY}"
@@ -237,11 +259,11 @@ build-image-latest-server:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export LATEST_TAG=$(echo ${CLEAN_TAG%.*}-latest)
     - export TAGS="${DOCKER_NAME}:${LATEST_TAG},${DOCKER_NAME}:${CLEAN_TAG}"
-
 build-image-latest-server-zfs08:
   <<: *build_image_definition
   <<: *only_tag_release
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
     REGISTRY: "${DH_CI_REGISTRY}"
@@ -256,6 +278,7 @@ build-image-latest-server-dev:
   <<: *build_image_definition
   <<: *only_tag_release
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
@@ -269,6 +292,7 @@ build-image-latest-ci-checker:
   <<: *build_image_definition
   <<: *only_tag_release
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
     REGISTRY: "${DH_CI_REGISTRY}"
@@ -283,6 +307,7 @@ build-image-latest-ci-checker-dev:
   <<: *build_image_definition
   <<: *only_tag_release
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
@@ -296,6 +321,7 @@ build-image-latest-client:
   <<: *build_image_definition
   <<: *only_tag_release
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
     REGISTRY: "${DH_CI_REGISTRY}"
@@ -313,6 +339,7 @@ build-image-rc-server:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
     REGISTRY: "${DH_CI_REGISTRY}"
@@ -326,12 +353,12 @@ build-image-rc-server-zfs08:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}-zfs0.8"
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-server-zfs08"
     DOCKER_NAME: "postgresai/dblab-server"
-
 build-image-rc-server-dev:
   <<: *build_image_definition
   <<: *only_tag_rc
@@ -339,12 +366,12 @@ build-image-rc-server-dev:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-server"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-server"
-
 build-image-rc-server-dev-zfs08:
   <<: *build_image_definition
   <<: *only_tag_rc
@@ -352,12 +379,12 @@ build-image-rc-server-dev-zfs08:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}-zfs0.8"
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-server-zfs08"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-server"
-
 build-image-rc-ci-checker:
   <<: *build_image_definition
   <<: *only_tag_rc
@@ -365,12 +392,12 @@ build-image-rc-ci-checker:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.ci-checker"
     DOCKER_NAME: "postgresai/dblab-ci-checker"
-
 build-image-rc-ci-checker-dev:
   <<: *build_image_definition
   <<: *only_tag_rc
@@ -378,12 +405,12 @@ build-image-rc-ci-checker-dev:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
     REGISTRY: "${CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.ci-checker"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-ci-checker"
-
 build-image-rc-client:
   <<: *build_image_definition
   <<: *only_tag_rc
@@ -391,16 +418,17 @@ build-image-rc-client:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
   variables:
+    <<: *docker_vars
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
     REGISTRY: "${DH_CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.dblab-cli"
     DOCKER_NAME: "postgresai/dblab"
-
 build-image-swagger-release:
   <<: *build_image_definition
   <<: *only_tag_release
   variables:
+    <<: *docker_vars
     DOCKER_FILE: "Dockerfile.swagger-ui"
     DOCKER_IMAGE_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-swagger-ui"
   before_script:
@@ -420,6 +448,8 @@ build-image-swagger-release:
   artifacts:
     paths:
       - engine/bin
+  before_script:
+    - bash engine/test/_cleanup.sh
   script:
     - bash engine/test/1.synthetic.sh
     - bash engine/test/2.logical_generic.sh
@@ -476,8 +506,10 @@ bash-test-17:
 
 integration-test:
   services:
-    - name: docker:dind
+    - name: docker:24-dind
+      alias: docker
       command: [ "--tls=false" ]
+      pull_policy: if-not-present
   <<: *only_feature
   stage: integration-test
   variables:
@@ -496,7 +528,9 @@ integration-test:
 ## Deploy
 .deploy-definition: &deploy_definition
   stage: deploy
-  image: dtzar/helm-kubectl:2.14.1
+  image:
+    name: dtzar/helm-kubectl:2.14.1
+    pull_policy: if-not-present
   script:
     - bash ./engine/scripts/do.sh subs_envs ./engine/deploy/swagger-ui.yaml /tmp/swagger-ui.yaml
     - kubectl apply --filename /tmp/swagger-ui.yaml -n $NAMESPACE

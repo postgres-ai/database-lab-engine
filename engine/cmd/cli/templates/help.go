@@ -65,7 +65,7 @@ OPTIONS:
 `
 
 // SupportProjectTemplate contains the text for support the Database Lab project.
-const SupportProjectTemplate = `Please support the project giving a GitLab star: https://gitlab.com/postgres-ai/database-lab/
-To discuss Database Lab, join our Slack:  https://database-lab-team-slack-invite.herokuapp.com/
+const SupportProjectTemplate = `Please support the project giving a GitHub star: https://github.com/postgres-ai/database-lab-engine
+To discuss DBLab, join our Slack:  https://slack.postgres.ai/
 
 `

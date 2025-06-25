@@ -32,7 +32,7 @@ func main() {
 
 	cfg, err := runci.LoadConfiguration()
 	if err != nil {
-		log.Errf("Failed to load config: %v", err)
+		log.Errf("failed to load config: %v", err)
 		return
 	}
 
@@ -40,7 +40,7 @@ func main() {
 	log.Dbg("Config loaded: ", cfg)
 
 	if cfg.App.VerificationToken == "" {
-		log.Err("DB Migration Checker is insecure since the Verification Token is empty")
+		log.Err("migration checker is insecure since verification token is empty")
 		return
 	}
 

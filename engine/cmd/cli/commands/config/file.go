@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"path/filepath"
 
 	"gopkg.in/yaml.v2"
 )
@@ -16,6 +17,12 @@ const (
 	dblabDir       = ".dblab"
 	configPath     = "cli"
 	configFilename = "cli.yml"
+	envs           = "envs"
+)
+
+const (
+	branches  = "branches"
+	snapshots = "snapshots"
 )
 
 // GetDirname returns the CLI config path located in the current user's home directory.
@@ -40,19 +47,35 @@ func GetFilename() (string, error) {
 	return BuildFileName(dirname), nil
 }
 
+// BuildBranchPath builds a path to the branch dir.
+func BuildBranchPath(dirname string) string {
+	return filepath.Join(dirname, envs, branches)
+}
+
+// BuildSnapshotPath builds a path to the snapshot dir.
+func BuildSnapshotPath(dirname string) string {
+	return filepath.Join(dirname, envs, snapshots)
+}
+
 // BuildFileName builds a config filename.
 func BuildFileName(dirname string) string {
 	return path.Join(dirname, configFilename)
 }
 
+// BuildEnvsDirName builds envs directory name.
+func BuildEnvsDirName(dirname string) string {
+	return path.Join(dirname, envs)
+}
+
 // Load loads a CLI config by a provided filename.
 func Load(filename string) (*CLIConfig, error) {
+	cfg := &CLIConfig{}
+
 	configData, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, err
+		return cfg, err
 	}
 
-	cfg := &CLIConfig{}
 	if err := yaml.Unmarshal(configData, cfg); err != nil {
 		return nil, err
 	}

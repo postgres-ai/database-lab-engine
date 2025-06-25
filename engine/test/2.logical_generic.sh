@@ -4,6 +4,7 @@ set -euxo pipefail
 TAG=${TAG:-${CI_COMMIT_REF_SLUG:-"master"}}
 IMAGE2TEST="registry.gitlab.com/postgres-ai/database-lab/dblab-server:${TAG}"
 DLE_SERVER_NAME="dblab_server_test"
+export EXTENDED_IMAGE_TAG="-minor-update" # -0.5.3
 
 # Environment variables for replacement rules
 export SOURCE_DBNAME="${SOURCE_DBNAME:-test}"
@@ -77,12 +78,18 @@ source "${DIR}/_zfs.file.sh"
 
 configDir="$HOME/.dblab/engine/configs"
 metaDir="$HOME/.dblab/engine/meta"
+logsDir="$HOME/.dblab/engine/logs"
 
 # Copy the contents of configuration example 
 mkdir -p "${configDir}"
 mkdir -p "${metaDir}"
+mkdir -p "${logsDir}"
 
-curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${TAG:-master}"/engine/configs/config.example.logical_generic.yml \
+# Use CI_COMMIT_REF_NAME to get the original branch name, as CI_COMMIT_REF_SLUG replaces "/" with "-".
+# Fallback to TAG (which is CI_COMMIT_REF_SLUG) or "master".
+BRANCH_FOR_URL="${CI_COMMIT_REF_NAME:-${TAG:-master}}"
+ENCODED_BRANCH_FOR_URL=$(echo "${BRANCH_FOR_URL}" | sed 's|/|%2F|g')
+curl https://gitlab.com/postgres-ai/database-lab/-/raw/"${ENCODED_BRANCH_FOR_URL}"/engine/configs/config.example.logical_generic.yml \
  --output "${configDir}/server.yml"
 
 # Edit the following options
@@ -96,7 +103,7 @@ yq eval -i '
   .provision.portPool.to = env(DLE_PORT_POOL_TO) |
   .retrieval.spec.logicalDump.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump" |
   .retrieval.spec.logicalRestore.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump" |
-  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION)
+  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION) + env(EXTENDED_IMAGE_TAG)
 ' "${configDir}/server.yml"
 
 SHARED_PRELOAD_LIBRARIES="pg_stat_statements, auto_explain, pgaudit, logerrors, pg_stat_kcache"
@@ -130,6 +137,7 @@ sudo docker run \
   --volume ${DLE_TEST_MOUNT_DIR}:${DLE_TEST_MOUNT_DIR}/:rshared \
   --volume "${configDir}":/home/dblab/configs \
   --volume "${metaDir}":/home/dblab/meta \
+  --volume "${logsDir}":/home/dblab/logs \
   --env DOCKER_API_VERSION=1.39 \
   --detach \
   "${IMAGE2TEST}"
@@ -173,7 +181,7 @@ PATCH_CONFIG_DATA=$(jq -n -c \
   --arg username "$SOURCE_USERNAME" \
   --arg password "$SOURCE_PASSWORD" \
   --arg spl "$SHARED_PRELOAD_LIBRARIES" \
-  --arg dockerImage "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:${POSTGRES_VERSION}" \
+  --arg dockerImage "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:${POSTGRES_VERSION}${EXTENDED_IMAGE_TAG}" \
 '{
   "global": {
     "debug": true
@@ -244,7 +252,7 @@ if [[ $(yq eval '.retrieval.spec.logicalDump.options.source.connection.dbname' $
       $(yq eval '.retrieval.spec.logicalDump.options.source.connection.username' ${configDir}/server.yml) != "$SOURCE_USERNAME" ||
       $(yq eval '.retrieval.spec.logicalDump.options.source.connection.password' ${configDir}/server.yml) != "$SOURCE_PASSWORD" ||
       $(yq eval '.retrieval.refresh.timetable' ${configDir}/server.yml) != "5 0 * * 1" ||
-      $(yq eval '.databaseContainer.dockerImage' ${configDir}/server.yml) != "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:${POSTGRES_VERSION}" ||
+      $(yq eval '.databaseContainer.dockerImage' ${configDir}/server.yml) != "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:${POSTGRES_VERSION}${EXTENDED_IMAGE_TAG}" ||
       $(yq eval '.databaseConfigs.configs.shared_buffers' ${configDir}/server.yml) != "256MB" ]] ; then
   echo "Configuration has not been updated properly"
   exit 1
@@ -284,13 +292,18 @@ dblab instance status
 
 
 ## Create a clone
+CLONE_ID="testclone"
+
 dblab clone create \
   --username dblab_user_1 \
   --password secret_password \
-  --id testclone
+  --id ${CLONE_ID}
 
 ### Check that database system was properly shut down (clone data dir)
-CLONE_LOG_DIR="${DLE_TEST_MOUNT_DIR}"/"${DLE_TEST_POOL_NAME}"/clones/dblab_clone_"${DLE_PORT_POOL_FROM}"/data/log
+BRANCH_MAIN="main"
+REVISION_0="r0"
+# /var/lib/test/dblab_mount/test_dblab_pool/branch/main/testclone/r0
+CLONE_LOG_DIR="${DLE_TEST_MOUNT_DIR}"/"${DLE_TEST_POOL_NAME}"/branch/"${BRANCH_MAIN}"/"${CLONE_ID}"/"${REVISION_0}"/data/log
 LOG_FILE_CSV=$(sudo ls -t "$CLONE_LOG_DIR" | grep .csv | head -n 1)
 if sudo test -d "$CLONE_LOG_DIR"
 then

@@ -105,6 +105,7 @@ func create(cliCtx *cli.Context) error {
 			Restricted: cliCtx.Bool("restricted"),
 			DBName:     cliCtx.String("db-name"),
 		},
+		Branch: cliCtx.String("branch"),
 	}
 
 	if cliCtx.IsSet("snapshot-id") {
@@ -125,6 +126,11 @@ func create(cliCtx *cli.Context) error {
 		return err
 	}
 
+	if clone.Branch != "" {
+		_, err = fmt.Fprintln(cliCtx.App.Writer, buildCloneOutput(clone))
+		return err
+	}
+
 	viewClone, err := convertCloneView(clone)
 	if err != nil {
 		return err
@@ -138,6 +144,37 @@ func create(cliCtx *cli.Context) error {
 	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
 
 	return err
+}
+
+func buildCloneOutput(clone *models.Clone) string {
+	const (
+		outputAlign      = 2
+		id               = "ID"
+		branch           = "Branch"
+		snapshot         = "Snapshot"
+		connectionString = "Connection string"
+		maxNameLen       = len(connectionString)
+	)
+
+	s := strings.Builder{}
+
+	s.WriteString(id + ":" + strings.Repeat(" ", maxNameLen-len(id)+outputAlign))
+	s.WriteString(clone.ID)
+	s.WriteString("\n")
+
+	s.WriteString(branch + ":" + strings.Repeat(" ", maxNameLen-len(branch)+outputAlign))
+	s.WriteString(clone.Branch)
+	s.WriteString("\n")
+
+	s.WriteString(snapshot + ":" + strings.Repeat(" ", maxNameLen-len(snapshot)+outputAlign))
+	s.WriteString(clone.Snapshot.ID)
+	s.WriteString("\n")
+
+	s.WriteString(connectionString + ":" + strings.Repeat(" ", maxNameLen-len(connectionString)+outputAlign))
+	s.WriteString(clone.DB.ConnStr)
+	s.WriteString("\n")
+
+	return s.String()
 }
 
 // update runs a request to update an existing clone.

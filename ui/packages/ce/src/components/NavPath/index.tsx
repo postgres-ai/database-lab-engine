@@ -19,6 +19,7 @@ export const NavPath = (props: Props) => {
     <nav className={cn(styles.root, props.className)}>
       {props.routes.map((route, i) => {
         const isLast = (i + 1) === props.routes.length
+        const nameWithIndent = route.name.replace('/', ' / ')
 
         return (
           <React.Fragment key={i}>
@@ -28,7 +29,7 @@ export const NavPath = (props: Props) => {
               className={styles.link}
               activeClassName={styles.active}
             >
-              {route.name}
+              {nameWithIndent}
             </NavLink>
             { !isLast && <span className={styles.divider}>/</span> }
           </React.Fragment>

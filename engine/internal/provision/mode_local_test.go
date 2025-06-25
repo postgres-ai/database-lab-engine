@@ -14,6 +14,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
@@ -66,11 +67,11 @@ type mockFSManager struct {
 	cloneList []string
 }
 
-func (m mockFSManager) CreateClone(_, _ string) error {
+func (m mockFSManager) CreateClone(_, _, _ string, _ int) error {
 	return nil
 }
 
-func (m mockFSManager) DestroyClone(_ string) error {
+func (m mockFSManager) DestroyClone(_, _ string, _ int) error {
 	return nil
 }
 
@@ -82,7 +83,7 @@ func (m mockFSManager) CreateSnapshot(_, _ string) (snapshotName string, err err
 	return "", nil
 }
 
-func (m mockFSManager) DestroySnapshot(_ string) (err error) {
+func (m mockFSManager) DestroySnapshot(_ string, _ thinclones.DestroyOptions) (err error) {
 	return nil
 }
 
@@ -97,7 +98,7 @@ func (m mockFSManager) SnapshotList() []resources.Snapshot {
 func (m mockFSManager) RefreshSnapshotList() {
 }
 
-func (m mockFSManager) GetSessionState(_ string) (*resources.SessionState, error) {
+func (m mockFSManager) GetSessionState(_, _ string) (*resources.SessionState, error) {
 	return nil, nil
 }
 
@@ -107,6 +108,110 @@ func (m mockFSManager) GetFilesystemState() (models.FileSystem, error) {
 
 func (m mockFSManager) Pool() *resources.Pool {
 	return m.pool
+}
+
+func (m mockFSManager) InitBranching() error {
+	return nil
+}
+
+func (m mockFSManager) VerifyBranchMetadata() error {
+	return nil
+}
+
+func (m mockFSManager) CreateDataset(_ string) error {
+	return nil
+}
+
+func (m mockFSManager) CreateBranch(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) DestroyDataset(_ string) error {
+	return nil
+}
+
+func (m mockFSManager) Snapshot(_ string) error {
+	return nil
+}
+
+func (m mockFSManager) Reset(_ string, _ thinclones.ResetOptions) error {
+	return nil
+}
+
+func (m mockFSManager) ListBranches() (map[string]string, error) {
+	return nil, nil
+}
+
+func (m mockFSManager) ListAllBranches(_ []string) ([]models.BranchEntity, error) {
+	return nil, nil
+}
+
+func (m mockFSManager) GetSnapshotProperties(_ string) (thinclones.SnapshotProperties, error) {
+	return thinclones.SnapshotProperties{}, nil
+}
+
+func (m mockFSManager) AddBranchProp(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) DeleteBranchProp(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) SetRelation(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) SetRoot(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) GetRepo() (*models.Repo, error) {
+	return nil, nil
+}
+
+func (m mockFSManager) GetAllRepo() (*models.Repo, error) {
+	return nil, nil
+}
+
+func (m mockFSManager) SetDSA(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) SetMessage(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) SetMountpoint(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) Move(_, _, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) Rename(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) DeleteBranch(_ string) error {
+	return nil
+}
+
+func (m mockFSManager) DeleteChildProp(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) DeleteRootProp(_, _ string) error {
+	return nil
+}
+
+func (m mockFSManager) HasDependentEntity(_ string) ([]string, error) {
+	return nil, nil
+}
+
+func (m mockFSManager) KeepRelation(_ string) error {
+	return nil
 }
 
 func TestBuildPoolEntry(t *testing.T) {

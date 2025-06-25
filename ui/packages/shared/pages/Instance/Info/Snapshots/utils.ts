@@ -8,11 +8,24 @@
 import { Snapshot } from '@postgres.ai/shared/types/api/entities/snapshot'
 
 export const getEdgeSnapshots = (snapshots: Snapshot[]) => {
-  const list = [...snapshots]
-  const [first] = list
-  const [last] = list.reverse()
+  if (!snapshots.length) {
+    return {
+      firstSnapshot: null,
+      lastSnapshot: null
+    }
+  }
+  
+  const sortedList = [...snapshots].sort((a, b) => {
+    const aTime = a.dataStateAtDate?.getTime() ?? 0
+    const bTime = b.dataStateAtDate?.getTime() ?? 0
+    return bTime - aTime
+  })
+
+  const [first] = sortedList
+  const [last] = sortedList.slice(-1)
+
   return {
-    firstSnapshot: (first as Snapshot | undefined) ?? null,
-    lastSnapshot: (last as Snapshot | undefined) ?? null
+    firstSnapshot: first ?? null, // newest
+    lastSnapshot: last ?? null    // oldest
   }
 }

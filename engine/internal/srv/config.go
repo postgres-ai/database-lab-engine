@@ -17,6 +17,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/logical"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/db"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
@@ -77,6 +78,8 @@ func (s *Server) setProjectedAdminConfig(w http.ResponseWriter, r *http.Request)
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
+
+	s.tm.SendEvent(context.Background(), telemetry.ConfigUpdatedEvent, telemetry.ConfigUpdated{})
 
 	retrievalStatus := s.Retrieval.State.Status
 
@@ -288,7 +291,7 @@ func (s *Server) applyProjectedAdminConfig(ctx context.Context, obj interface{})
 
 		err = config.RotateConfig(cfgData)
 		if err != nil {
-			log.Errf("Failed to backup config: %v", err)
+			log.Errf("failed to backup config: %v", err)
 			return nil, err
 		}
 

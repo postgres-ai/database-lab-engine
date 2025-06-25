@@ -9,14 +9,22 @@ import { makeAutoObservable } from 'mobx'
 
 import { Snapshot } from '@postgres.ai/shared/types/api/entities/snapshot'
 import { GetSnapshots } from '@postgres.ai/shared/types/api/endpoints/getSnapshots'
+import { CreateSnapshot } from '@postgres.ai/shared/types/api/endpoints/createSnapshot'
 
 export type SnapshotsApi = {
-  getSnapshots: GetSnapshots
+  getSnapshots?: GetSnapshots
+  createSnapshot?: CreateSnapshot
 }
 export class SnapshotsStore {
   data: Snapshot[] | null = null
   error: string | null = null
   isLoading = false
+  snapshotDataLoading = false
+  snapshotData: boolean | null = null
+  snapshotDataError: {
+    title?: string
+    message?: string
+  } | null = null
 
   private readonly api: SnapshotsApi
 
@@ -32,12 +40,47 @@ export class SnapshotsStore {
     return this.loadData(instanceId)
   }
 
-  reload = (instanceId: string) => this.loadData(instanceId)
+  reload = (instanceId: string, branchName?: string) =>
+    this.loadData(instanceId, branchName)
 
-  private loadData = async (instanceId: string) => {
+  createSnapshot = async (
+    cloneId: string,
+    message: string,
+    instanceId: string,
+  ) => {
+    if (!this.api.createSnapshot || !cloneId) return
+    this.snapshotDataLoading = true
+    this.snapshotDataError = null
+
+    const { response, error } = await this.api.createSnapshot(
+      cloneId,
+      message,
+      instanceId,
+    )
+
+    this.snapshotDataLoading = false
+
+    if (response) {
+      this.snapshotData = !!response
+      this.reload('')
+    }
+
+    if (error) {
+      this.snapshotDataError = await error.json().then((err) => err)
+    }
+
+    return response
+  }
+
+  private loadData = async (instanceId: string, branchName?: string) => {
+    if (!this.api.getSnapshots) return
+
     this.isLoading = true
 
-    const { response, error } = await this.api.getSnapshots({ instanceId })
+    const { response, error } = await this.api.getSnapshots({
+      instanceId,
+      branchName,
+    })
 
     this.isLoading = false
 

@@ -6,16 +6,18 @@
 package validator
 
 import (
+	"errors"
 	"fmt"
-	"strings"
+	"regexp"
 
-	"github.com/pkg/errors"
 	passwordvalidator "github.com/wagslane/go-password-validator"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 )
 
 const minEntropyBits = 60
+
+var cloneIDRegexp = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]*$`)
 
 // Service provides a validation service.
 type Service struct {
@@ -35,8 +37,8 @@ func (v Service) ValidateCloneRequest(cloneRequest *types.CloneCreateRequest) er
 		return errors.New("missing DB password")
 	}
 
-	if cloneRequest.ID != "" && strings.Contains(cloneRequest.ID, "/") {
-		return errors.New("Clone ID cannot contain slash ('/'). Please choose another ID")
+	if cloneRequest.ID != "" && !cloneIDRegexp.MatchString(cloneRequest.ID) {
+		return errors.New("clone ID must start with a letter or number and can only contain letters, numbers, underscores, periods, and hyphens")
 	}
 
 	if err := passwordvalidator.Validate(cloneRequest.DB.Password, minEntropyBits); err != nil {

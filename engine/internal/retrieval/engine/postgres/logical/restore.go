@@ -210,10 +210,6 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 		return fmt.Errorf("failed to explore the data directory %q: %w", dataDir, err)
 	}
 
-	if !isEmpty {
-		log.Warn(fmt.Sprintf("The data directory %q is not empty. Existing data will be overwritten.", dataDir))
-	}
-
 	if err := tools.PullImage(ctx, r.dockerClient, r.RestoreOptions.DockerImage); err != nil {
 		return errors.Wrap(err, "failed to scan image pulling response")
 	}
@@ -242,6 +238,16 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 			tools.PrintContainerLogs(ctx, r.dockerClient, r.restoreContainerName())
 		}
 	}()
+
+	if !isEmpty {
+		log.Warn(fmt.Sprintf("The data directory %q is not empty. Existing data will be overwritten.", dataDir))
+
+		log.Msg("Clean up data directory:", dataDir)
+
+		if err := tools.CleanupDir(dataDir); err != nil {
+			return fmt.Errorf("failed to clean up data directory before restore: %w", err)
+		}
+	}
 
 	log.Msg(fmt.Sprintf("Running container: %s. ID: %v", r.restoreContainerName(), containerID))
 
@@ -521,7 +527,7 @@ func (r *RestoreJob) getDirectoryDumpDefinition(ctx context.Context, contID, dum
 
 	dbName, err := r.extractDBNameFromDump(ctx, contID, dumpDir)
 	if err != nil {
-		log.Err("Invalid dump: ", err)
+		log.Err("invalid dump: ", err)
 		return DumpDefinition{}, errors.Wrap(err, "invalid database name")
 	}
 
@@ -590,7 +596,7 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 	})
 
 	if err != nil && !r.RestoreOptions.IgnoreErrors {
-		log.Err("Restore command failed: ", output)
+		log.Err("restore command failed: ", output)
 
 		return fmt.Errorf("failed to exec restore command: %w. Output: %s", err, output)
 	}
@@ -600,7 +606,7 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 	}
 
 	if err := r.defineDSA(ctx, dbDefinition, contID, dbName); err != nil {
-		log.Err("Failed to define DataStateAt: ", err)
+		log.Err("failed to define DataStateAt: ", err)
 	}
 
 	if err := r.markDatabase(); err != nil {
@@ -771,7 +777,7 @@ func (r *RestoreJob) markDatabase() error {
 func (r *RestoreJob) updateDataStateAt() {
 	dsaTime, err := time.Parse(util.DataStateAtFormat, r.dbMark.DataStateAt)
 	if err != nil {
-		log.Err("Invalid value for DataStateAt: ", r.dbMark.DataStateAt)
+		log.Err("invalid value for DataStateAt: ", r.dbMark.DataStateAt)
 		return
 	}
 

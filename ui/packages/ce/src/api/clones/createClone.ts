@@ -15,6 +15,7 @@ export const createClone: CreateClone = async (req) => {
         id: req.snapshotId,
       },
       protected: req.isProtected,
+      ...(req.branch && { branch: req.branch }),
       db: {
         username: req.dbUser,
         password: req.dbPassword,

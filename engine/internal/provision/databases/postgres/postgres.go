@@ -99,7 +99,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 
 				_, err = pgctlPromote(r, c)
 				if err != nil {
-					if runnerError := Stop(r, c.Pool, c.CloneName); runnerError != nil {
+					if runnerError := Stop(r, c.Pool, c.CloneName, strconv.FormatUint(uint64(c.Port), 10)); runnerError != nil {
 						log.Err(runnerError)
 					}
 
@@ -107,7 +107,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 				}
 			}
 		} else {
-			log.Err("Currently cannot connect to Postgres: ", out, err)
+			log.Err("currently cannot connect to Postgres: ", out, err)
 		}
 
 		cnt++
@@ -115,7 +115,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 		if cnt > waitPostgresTimeout {
 			collectDiagnostics(c)
 
-			if runnerErr := Stop(r, c.Pool, c.CloneName); runnerErr != nil {
+			if runnerErr := Stop(r, c.Pool, c.CloneName, strconv.FormatUint(uint64(c.Port), 10)); runnerErr != nil {
 				log.Err(runnerErr)
 			}
 
@@ -138,7 +138,7 @@ func collectDiagnostics(c *resources.AppConfig) {
 }
 
 // Stop stops Postgres instance.
-func Stop(r runners.Runner, p *resources.Pool, name string) error {
+func Stop(r runners.Runner, p *resources.Pool, name, port string) error {
 	log.Dbg("Stopping Postgres container...")
 
 	if _, err := docker.RemoveContainer(r, name); err != nil {
@@ -151,8 +151,8 @@ func Stop(r runners.Runner, p *resources.Pool, name string) error {
 		log.Msg("docker container was not found, ignore", err)
 	}
 
-	if _, err := r.Run("rm -rf " + p.SocketCloneDir(name) + "/*"); err != nil {
-		return errors.Wrap(err, "failed to clean unix socket directory")
+	if _, err := r.Run("rm -rf " + p.SocketCloneDir(name) + "/.*" + port); err != nil {
+		return errors.Wrap(err, "failed to clean Unix socket directory")
 	}
 
 	return nil
@@ -186,6 +186,33 @@ func getPgConnStr(host, dbname, username string, port uint) string {
 	return sb.String()
 }
 
+// runExistsSQL executes simple SQL commands which returns one bool value.
+func runExistsSQL(command, connStr string) (bool, error) {
+	db, err := sql.Open("postgres", connStr)
+
+	if err != nil {
+		return false, fmt.Errorf("cannot connect to database: %w", err)
+	}
+
+	var result bool
+
+	row := db.QueryRow(command)
+	err = row.Scan(&result)
+
+	defer func() {
+		err := db.Close()
+		if err != nil {
+			log.Err("cannot close database connection")
+		}
+	}()
+
+	if err != nil && err == sql.ErrNoRows {
+		return false, nil
+	}
+
+	return result, err
+}
+
 // runSimpleSQL executes simple SQL commands which returns one string value.
 func runSimpleSQL(command, connStr string) (string, error) {
 	db, err := sql.Open("postgres", connStr)
@@ -201,7 +228,7 @@ func runSimpleSQL(command, connStr string) (string, error) {
 	defer func() {
 		err := db.Close()
 		if err != nil {
-			log.Err("Cannot close database connection.")
+			log.Err("cannot close database connection")
 		}
 	}()
 

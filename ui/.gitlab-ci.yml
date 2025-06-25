@@ -10,7 +10,9 @@ include:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 .ui_cache: &ui_cache
-  image: node:21.1.0-alpine
+  image:
+    name: node:21.1.0-alpine
+    pull_policy: if-not-present
   cache: &cache
     key: "$CI_COMMIT_REF_SLUG"
     paths:
@@ -38,7 +40,9 @@ check-code-style:
 
 semgrep-sast:
   stage: test
-  image: returntocorp/semgrep
+  image:
+    name: returntocorp/semgrep
+    pull_policy: if-not-present
   <<: *ui_checks
   <<: *ui_cache
   variables:
@@ -59,7 +63,9 @@ semgrep-sast:
 
 e2e-ce-ui-test:
   <<: *ui_checks
-  image: node:21.1.0
+  image:
+    name: node:21.1.0
+    pull_policy: if-not-present
   stage: integration-test
   variables:
     CYPRESS_CACHE_FOLDER: '$CI_PROJECT_DIR/cache/Cypress'
@@ -68,10 +74,14 @@ e2e-ce-ui-test:
     - apt install -y curl libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb
     - npm install -g wait-on
     - npm install -g pnpm
+    - pnpm config set verify-store-integrity false
     # TODO: Set up caching.
-#    - pnpm config set store-dir /builds/postgres-ai/database-lab/.pnpm-store/
+    #- pnpm config set store-dir /builds/postgres-ai/database-lab/.pnpm-store/
   script:
-    - pnpm --dir ui/ i --no-frozen-lockfile
+    - pnpm --dir ui/ --filter @postgres.ai/ce install
+    - pnpm --dir ui/ --filter @postgres.ai/ce build
     - pnpm --dir ui/ --filter @postgres.ai/ce exec cypress install
-    - pnpm --dir ui/ --filter @postgres.ai/ce start & wait-on http://localhost:3001
+    - npx serve -s ui/packages/ce/build -l 3001 > server.log 2>&1 &
+    - sleep 20
+    - timeout 120s wait-on http://localhost:3001 || (echo "❌ UI didn't start in time"; cat server.log; exit 1)
     - pnpm --dir ui/ --filter @postgres.ai/ce cy:run

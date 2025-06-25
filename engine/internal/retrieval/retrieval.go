@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -22,6 +21,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/components"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
@@ -51,6 +51,8 @@ const (
 	pendingFilename = "pending.retrieval"
 )
 
+var errNoJobs = errors.New("no jobs to snapshot pool data")
+
 type jobGroup string
 
 // Retrieval describes a data retrieval.
@@ -74,6 +76,12 @@ type Scheduler struct {
 	Cron *cron.Cron
 	Spec cron.Schedule
 }
+
+var (
+	ErrRefreshInProgress = errors.New("The data refresh/snapshot is currently in progress. Skip a new data refresh iteration")
+	ErrRefreshPending    = errors.New("Data retrieving suspended because Retrieval state is pending")
+	ErrNoAvailablePool   = errors.New("Pool to perform full refresh not found. Skip refreshing")
+)
 
 // New creates a new data retrieval.
 func New(cfg *dblabCfg.Config, engineProps *global.EngineProps, docker *client.Client, pm *pool.Manager, tm *telemetry.Agent,
@@ -174,7 +182,7 @@ func (r *Retrieval) reloadStatefulJobs() {
 		// todo should we remove if jobs are not there ?
 		// todo should we check for completion before ?
 		if err := job.Reload(cfg.Options); err != nil {
-			log.Err("Failed to reload configuration of the retrieval job", job.Name(), err)
+			log.Err("failed to reload configuration of retrieval job", job.Name(), err)
 		}
 	}
 }
@@ -350,13 +358,19 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 		r.State.cleanAlerts()
 	}
 
-	if err := r.SnapshotData(ctx, poolName); err != nil {
+	var existsErr *thinclones.SnapshotExistsError
+
+	if err := r.SnapshotData(ctx, poolName); err != nil && (err != errNoJobs || !errors.As(err, &existsErr)) {
 		return err
 	}
 
 	if r.State.Status == models.Finished {
 		r.poolManager.MakeActive(poolElement)
 		r.State.cleanAlerts()
+	}
+
+	if err := fsm.InitBranching(); err != nil {
+		return fmt.Errorf("failed to init branching: %w", err)
 	}
 
 	return nil
@@ -406,12 +420,6 @@ func (r *Retrieval) RefreshData(ctx context.Context, poolName string) error {
 		r.State.CurrentJob = nil
 	}()
 
-	if r.State.Mode == models.Logical {
-		if err := preparePoolToRefresh(fsm, r.runner); err != nil {
-			return fmt.Errorf("failed to prepare pool for initial refresh: %w", err)
-		}
-	}
-
 	for _, j := range jobs {
 		r.State.CurrentJob = j
 
@@ -446,8 +454,8 @@ func (r *Retrieval) SnapshotData(ctx context.Context, poolName string) error {
 	}
 
 	if len(jobs) == 0 {
-		log.Dbg("no jobs to snapshot pool data:", fsm.Pool())
-		return nil
+		log.Dbg(errNoJobs, fsm.Pool())
+		return errNoJobs
 	}
 
 	log.Dbg("Taking a snapshot on the pool: ", fsm.Pool())
@@ -457,7 +465,9 @@ func (r *Retrieval) SnapshotData(ctx context.Context, poolName string) error {
 	defer func() {
 		r.State.Status = models.Finished
 
-		if err != nil {
+		var existsErr *thinclones.SnapshotExistsError
+
+		if err != nil && !errors.As(err, &existsErr) {
 			r.State.Status = models.Failed
 			r.State.addAlert(telemetry.Alert{
 				Level:   models.RefreshFailed,
@@ -580,20 +590,20 @@ func (r *Retrieval) refreshFunc(ctx context.Context) func() {
 
 // FullRefresh performs full refresh for an unused storage pool and makes it active.
 func (r *Retrieval) FullRefresh(ctx context.Context) error {
-	if r.State.Status == models.Refreshing || r.State.Status == models.Snapshotting {
-		alert := telemetry.Alert{
-			Level:   models.RefreshSkipped,
-			Message: "The data refresh/snapshot is currently in progress. Skip a new data refresh iteration",
+	if err := r.CanStartRefresh(); err != nil {
+		switch {
+		case errors.Is(err, ErrRefreshInProgress):
+			alert := telemetry.Alert{
+				Level:   models.RefreshSkipped,
+				Message: err.Error(),
+			}
+			r.State.addAlert(alert)
+			r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
+			log.Msg(alert.Message)
+
+		case errors.Is(err, ErrRefreshPending):
+			log.Msg(err.Error())
 		}
-		r.State.addAlert(alert)
-		r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
-		log.Msg(alert.Message)
-
-		return nil
-	}
-
-	if r.State.Status == models.Pending {
-		log.Msg("Data retrieving suspended because Retrieval state is pending")
 
 		return nil
 	}
@@ -605,31 +615,32 @@ func (r *Retrieval) FullRefresh(ctx context.Context) error {
 
 	runCtx, cancel := context.WithCancel(ctx)
 	r.ctxCancel = cancel
-	elementToUpdate := r.poolManager.GetPoolToUpdate()
 
-	if elementToUpdate == nil || elementToUpdate.Value == nil {
+	if err := r.HasAvailablePool(); err != nil {
 		alert := telemetry.Alert{
 			Level:   models.RefreshSkipped,
-			Message: "Pool to perform full refresh not found. Skip refreshing",
+			Message: err.Error(),
 		}
 		r.State.addAlert(alert)
 		r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
-		log.Msg(alert.Message + ". Hint: Check that there is at least one pool that does not have clones running. " +
+		log.Msg(err.Error() + ". Hint: Check that there is at least one pool that does not have clones running. " +
 			"Refresh can be performed only to a pool without clones.")
 
 		return nil
 	}
+
+	elementToUpdate := r.poolManager.GetPoolToUpdate()
 
 	poolToUpdate, err := r.poolManager.GetFSManager(elementToUpdate.Value.(string))
 	if err != nil {
 		return errors.Wrap(err, "failed to get FSManager")
 	}
 
-	log.Msg("Pool to a full refresh: ", poolToUpdate.Pool())
+	log.Msg("Pool selected to perform full refresh: ", poolToUpdate.Pool())
 
 	// Stop service containers: sync-instance, etc.
 	if cleanUpErr := cont.CleanUpControlContainers(runCtx, r.docker, r.engineProps.InstanceID); cleanUpErr != nil {
-		log.Err("Failed to clean up service containers:", cleanUpErr)
+		log.Err("failed to clean up service containers:", cleanUpErr)
 
 		return cleanUpErr
 	}
@@ -654,44 +665,6 @@ func (r *Retrieval) stopScheduler() {
 		r.Scheduler.Cron.Stop()
 		r.Scheduler.Spec = nil
 	}
-}
-
-func preparePoolToRefresh(poolToUpdate pool.FSManager, runner runners.Runner) error {
-	cloneList, err := poolToUpdate.ListClonesNames()
-	if err != nil {
-		return errors.Wrap(err, "failed to check running clones")
-	}
-
-	if len(cloneList) > 0 {
-		return errors.Errorf("there are active clones in the requested pool: %s\nDestroy them to perform a full refresh",
-			strings.Join(cloneList, " "))
-	}
-
-	if _, err := runner.Run(fmt.Sprintf("rm -rf %s %s",
-		filepath.Join(poolToUpdate.Pool().DataDir(), "*"),
-		filepath.Join(poolToUpdate.Pool().DataDir(), dbmarker.ConfigDir))); err != nil {
-		return errors.Wrap(err, "failed to clean unix socket directory")
-	}
-
-	poolToUpdate.RefreshSnapshotList()
-
-	snapshots := poolToUpdate.SnapshotList()
-	if len(snapshots) == 0 {
-		log.Msg(fmt.Sprintf("no snapshots for pool %s", poolToUpdate.Pool().Name))
-		return nil
-	}
-
-	log.Msg("Preparing pool for full data refresh; existing snapshots are to be destroyed")
-
-	for _, snapshotEntry := range snapshots {
-		log.Msg("Destroying snapshot:", snapshotEntry.ID)
-
-		if err := poolToUpdate.DestroySnapshot(snapshotEntry.ID); err != nil {
-			return errors.Wrap(err, "failed to destroy the existing snapshot")
-		}
-	}
-
-	return nil
 }
 
 // ReportState collects the current restore state.
@@ -826,4 +799,25 @@ func (r *Retrieval) reportContainerSyncStatus(ctx context.Context, containerID s
 	value.StartedAt = resp.State.StartedAt
 
 	return value, nil
+}
+
+func (r *Retrieval) CanStartRefresh() error {
+	if r.State.Status == models.Refreshing || r.State.Status == models.Snapshotting {
+		return ErrRefreshInProgress
+	}
+
+	if r.State.Status == models.Pending {
+		return ErrRefreshPending
+	}
+
+	return nil
+}
+
+func (r *Retrieval) HasAvailablePool() error {
+	element := r.poolManager.GetPoolToUpdate()
+	if element == nil || element.Value == nil {
+		return ErrNoAvailablePool
+	}
+
+	return nil
 }

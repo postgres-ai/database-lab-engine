@@ -4,7 +4,7 @@ import { formatDistanceToNowStrict } from 'date-fns'
 import { colors } from '@postgres.ai/shared/styles/colors'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
 import { Status as PerformanceStatus } from '@postgres.ai/shared/components/Status'
-import { formatUTC } from '@postgres.ai/shared/utils/date'
+import { formatUTC, isValidDate } from '@postgres.ai/shared/utils/date'
 
 import { Property } from '../../components/Property'
 import { ActionsMenu } from './ActionsMenu'
@@ -113,9 +113,11 @@ export const Disk = (props: Props) => {
         <div className={classes.content}>
           <Property name="Refreshing started at">
             {formatUTC(props.refreshingStartDate, 'yyyy-MM-dd HH:mm:ss')} UTC (
-            {formatDistanceToNowStrict(props.refreshingStartDate, {
-              addSuffix: true,
-            })}
+            {isValidDate(props.refreshingStartDate)
+              ? formatDistanceToNowStrict(props.refreshingStartDate, {
+                  addSuffix: true,
+                })
+              : '-'}
             )
           </Property>
         </div>
