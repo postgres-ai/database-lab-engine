@@ -5,7 +5,10 @@ import { FormValues } from '../useForm'
 
 const seContainerRegistry = 'se-images'
 const genericImagePrefix = 'postgresai/extended-postgres'
-// since some tags are rc, we need to specify the exact tags to use
+// Predefined list of Docker images for UI display
+// This list is shown to users for convenient selection
+// IMPORTANT: if user specified an image in config that's not in this list,
+// it will be automatically added via createEnhancedDockerImages()
 const dockerImagesConfig = {
   '9.6': ['0.5.3', '0.5.2', '0.5.1'],
   '10': ['0.5.3', '0.5.2', '0.5.1'],
@@ -110,11 +113,22 @@ export const getImageType = (imageUrl: string) => {
 }
 
 export const getImageMajorVersion = (pgImage: string | undefined) => {
-  const pgImageVersion = pgImage?.split(':')[1]
-  const pgServerVersion = pgImageVersion?.split('-')[0]
-  return pgServerVersion?.includes('.')
-    ? pgServerVersion?.split('.')[0]
-    : pgServerVersion
+  if (!pgImage) return undefined
+  
+  try {
+    const pgImageVersion = pgImage.split(':')[1]
+    if (!pgImageVersion) return undefined
+    
+    const pgServerVersion = pgImageVersion.split('-')[0]
+    if (!pgServerVersion) return undefined
+    
+    return pgServerVersion.includes('.')
+      ? pgServerVersion.split('.')[0]
+      : pgServerVersion
+  } catch (error) {
+    // Return undefined for malformed image strings
+    return undefined
+  }
 }
 
 export const formatDatabases = (databases: DatabaseType | null) => {
@@ -151,3 +165,71 @@ export const postUniqueCustomOptions = (options: string) => {
 
 export const customOrGenericImage = (dockerImage: string | undefined) =>
   dockerImage === 'Generic Postgres' || dockerImage === 'custom'
+
+export const createFallbackDockerImage = (
+  dockerPath: string,
+  dockerTag: string,
+): DockerImage => {
+  const majorVersion = getImageMajorVersion(dockerPath) || '17' // Default to 17 if version can't be extracted
+  
+  return {
+    package_group: 'postgresai',
+    pg_major_version: majorVersion,
+    tag: dockerTag || `${majorVersion}-custom`,
+    location: dockerPath,
+  }
+}
+
+// Creates enhanced list of Docker images, including image from configuration
+export const createEnhancedDockerImages = (
+  configDockerPath?: string,
+  configDockerTag?: string,
+): DockerImage[] => {
+  let enhancedImages = [...genericDockerImages]
+
+  // If there's an image in config, check if we need to add it
+  if (configDockerPath && configDockerTag) {
+    const existingImage = genericDockerImages.find(
+      (image) => image.location === configDockerPath || image.tag === configDockerTag
+    )
+
+    // If image not found in predefined list, add it
+    if (!existingImage) {
+      // Check if this is a Generic Postgres image
+      if (configDockerPath.includes(genericImagePrefix)) {
+        // For Generic Postgres images create proper structure
+        const majorVersion = getImageMajorVersion(configDockerPath)
+        if (majorVersion) {
+          const configImage: DockerImage = {
+            package_group: 'postgresai',
+            pg_major_version: majorVersion,
+            tag: configDockerTag,
+            location: configDockerPath,
+          }
+          enhancedImages.push(configImage)
+        } else {
+          // Fallback if version extraction failed
+          const configImage = createFallbackDockerImage(configDockerPath, configDockerTag)
+          enhancedImages.push(configImage)
+        }
+      } else {
+        // For custom images use fallback
+        const configImage = createFallbackDockerImage(configDockerPath, configDockerTag)
+        enhancedImages.push(configImage)
+      }
+    }
+  }
+
+  return enhancedImages
+}
+
+// Checks if image is loaded from configuration (not from predefined list)
+export const isConfigLoadedImage = (
+  dockerPath: string,
+  dockerTag: string,
+): boolean => {
+  const existingImage = genericDockerImages.find(
+    (image) => image.location === dockerPath || image.tag === dockerTag
+  )
+  return !existingImage
+}
