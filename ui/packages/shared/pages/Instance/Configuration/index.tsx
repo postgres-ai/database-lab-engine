@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { observer } from 'mobx-react-lite'
 import Editor from '@monaco-editor/react'
 import {
@@ -35,6 +35,9 @@ import {
   uniqueChipValue,
   customOrGenericImage,
   genericDockerImages,
+  getImageMajorVersion,
+  createFallbackDockerImage,
+  createEnhancedDockerImages,
 } from './utils'
 import {
   SelectWithTooltip,
@@ -193,6 +196,32 @@ export const Configuration = observer(
     }
     const [{ formik, connectionData, isConnectionDataValid }] =
       useForm(onSubmit)
+
+    // Memoized enhanced Docker images to avoid recreation on every render
+    // This combines predefined images with any custom image from configuration
+    const enhancedDockerImages = useMemo(() => {
+      return createEnhancedDockerImages(
+        configData?.dockerImageType === 'Generic Postgres' ? configData?.dockerPath : undefined,
+        configData?.dockerImageType === 'Generic Postgres' ? configData?.dockerTag : undefined
+      )
+    }, [configData?.dockerPath, configData?.dockerTag, configData?.dockerImageType])
+
+    // Memoized computed values from enhanced images
+    const dockerImageVersions = useMemo(() => {
+      return enhancedDockerImages
+        .map((image) => image.pg_major_version)
+        .filter((value, index, self) => self.indexOf(value) === index)
+        .sort((a, b) => Number(a) - Number(b))
+    }, [enhancedDockerImages])
+
+    // Memoized tags and locations for performance
+    const dockerTags = useMemo(() => {
+      return enhancedDockerImages.map((image) => image.tag)
+    }, [enhancedDockerImages])
+
+    const dockerLocations = useMemo(() => {
+      return enhancedDockerImages.map((image) => image.location)
+    }, [enhancedDockerImages])
 
     const scrollToField = () => {
       const errorElement = document.querySelector('.Mui-error')
@@ -457,30 +486,23 @@ export const Configuration = observer(
       e: React.ChangeEvent<HTMLInputElement>,
     ) => {
       if (e.target.value === 'Generic Postgres') {
-        const genericImageVersions = genericDockerImages
-          .map((image) => image.pg_major_version)
-          .filter((value, index, self) => self.indexOf(value) === index)
-          .sort((a, b) => Number(a) - Number(b))
-        const currentDockerImage = genericImageVersions.slice(-1)[0]
+        // Use memoized enhanced list for better performance
+        const currentDockerImage = dockerImageVersions.slice(-1)[0]
 
         setDockerState({
           ...dockerState,
-          tags: genericDockerImages
-            .map((image) => image.tag)
-            .filter((tag) => tag.startsWith(currentDockerImage)),
-          locations: genericDockerImages
-            .map((image) => image.location)
-            .filter((location) => location?.includes(currentDockerImage)),
-          images: genericImageVersions,
-          data: genericDockerImages,
+          tags: dockerTags.filter((tag) => tag.startsWith(currentDockerImage)),
+          locations: dockerLocations.filter((location) => location?.includes(currentDockerImage)),
+          images: dockerImageVersions,
+          data: enhancedDockerImages,
         })
 
         formik.setValues({
           ...formik.values,
           dockerImage: currentDockerImage,
           dockerImageType: e.target.value,
-          dockerTag: genericDockerImages.map((image) => image.tag)[0],
-          dockerPath: genericDockerImages.map((image) => image.location)[0],
+          dockerTag: dockerTags[0],
+          dockerPath: dockerLocations[0],
           sharedPreloadLibraries:
             'pg_stat_statements,pg_stat_kcache,pg_cron,pgaudit,anon',
         })
@@ -520,16 +542,28 @@ export const Configuration = observer(
           tags: updatedDockerTags,
         })
 
-        const currentLocation = dockerState.data.find(
-          (image) => image.tag === updatedDockerTags[0],
-        )?.location as string
+        // Add safety check for empty array
+        const firstTag = updatedDockerTags[0]
+        if (firstTag) {
+          const currentLocation = dockerState.data.find(
+            (image) => image.tag === firstTag,
+          )?.location
 
-        formik.setValues({
-          ...formik.values,
-          dockerTag: updatedDockerTags[0],
-          dockerImage: e.target.value,
-          dockerPath: currentLocation,
-        })
+          formik.setValues({
+            ...formik.values,
+            dockerTag: firstTag,
+            dockerImage: e.target.value,
+            dockerPath: currentLocation || '',
+          })
+        } else {
+          // Fallback when no matching tags found
+          formik.setValues({
+            ...formik.values,
+            dockerImage: e.target.value,
+            dockerTag: '',
+            dockerPath: '',
+          })
+        }
       } else {
         formik.setValues({
           ...formik.values,
@@ -553,41 +587,46 @@ export const Configuration = observer(
 
           if (customOrGenericImage(configData?.dockerImageType)) {
             if (configData?.dockerImageType === 'Generic Postgres') {
-              const genericImageVersions = genericDockerImages
-                .map((image) => image.pg_major_version)
-                .filter((value, index, self) => self.indexOf(value) === index)
-                .sort((a, b) => Number(a) - Number(b))
-              const currentDockerImage =
-                genericDockerImages.filter(
-                  (image) => image.location === configData?.dockerPath,
-                )[0] ||
-                genericDockerImages.filter((image) =>
-                  configData?.dockerPath?.includes(image.pg_major_version),
-                )[0]
+              // Use memoized enhanced list for better performance
+              const currentDockerImage = enhancedDockerImages.find(
+                (image) => image.location === configData?.dockerPath || image.tag === configData?.dockerTag
+              )
 
-              setDockerState({
-                ...dockerState,
-                tags: genericDockerImages
-                  .map((image) => image.tag)
-                  .filter((tag) =>
+              if (currentDockerImage) {
+                setDockerState({
+                  ...dockerState,
+                  tags: dockerTags.filter((tag) =>
                     tag.startsWith(currentDockerImage.pg_major_version),
                   ),
-                images: genericImageVersions,
-                data: genericDockerImages,
-              })
+                  images: dockerImageVersions,
+                  data: enhancedDockerImages,
+                })
 
-              formik.setFieldValue('dockerTag', currentDockerImage?.tag)
-              formik.setFieldValue(
-                'dockerImage',
-                currentDockerImage.pg_major_version,
-              )
+                formik.setFieldValue('dockerTag', currentDockerImage.tag)
+                formik.setFieldValue('dockerImage', currentDockerImage.pg_major_version)
+                formik.setFieldValue('dockerPath', currentDockerImage.location)
+              } else {
+                // Fallback: shouldn't happen with enhancedDockerImages, but keep for safety
+                const fallbackVersion = dockerImageVersions.slice(-1)[0]
+                
+                setDockerState({
+                  ...dockerState,
+                  tags: dockerTags.filter((tag) => tag.startsWith(fallbackVersion)),
+                  images: dockerImageVersions,
+                  data: enhancedDockerImages,
+                })
+
+                formik.setFieldValue('dockerTag', configData?.dockerTag || '')
+                formik.setFieldValue('dockerImage', fallbackVersion)
+                formik.setFieldValue('dockerPath', configData?.dockerPath || '')
+              }
             } else {
               formik.setFieldValue('dockerImage', configData?.dockerPath)
             }
           }
         }
       }
-    }, [config])
+    }, [config, configData?.dockerPath, configData?.dockerTag, configData?.dockerImageType])
 
     useEffect(() => {
       getEngine(instanceId).then((res) => {

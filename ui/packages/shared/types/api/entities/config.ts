@@ -63,12 +63,15 @@ export const formatConfig = (config: configTypes) => {
     debug: config.global?.debug,
     dockerImage: isSeDockerImage(dockerImage)
       ? getImageMajorVersion(dockerImage)
+      : dockerImage && getImageType(dockerImage) === 'Generic Postgres'
+      ? getImageMajorVersion(dockerImage) || dockerImage
       : dockerImage,
     ...(dockerImage && {
       dockerImageType: getImageType(dockerImage),
     }),
-    ...(isSeDockerImage(dockerImage) && {
-      dockerTag: dockerImage?.split(':')[1],
+    // Extract dockerTag for both SE images and Generic Postgres images
+    ...(dockerImage && dockerImage.includes(':') && {
+      dockerTag: dockerImage.split(':')[1],
     }),
     dockerPath: dockerImage,
     tuningParams: formatTuningParams(config.databaseConfigs?.configs),
