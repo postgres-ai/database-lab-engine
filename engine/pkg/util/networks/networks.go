@@ -55,9 +55,8 @@ func Setup(ctx context.Context, dockerCLI *client.Client, instanceID, containerN
 			"app":      DLEApp,
 			"type":     InternalType,
 		},
-		Attachable:     true,
-		Internal:       true,
-		CheckDuplicate: true,
+		Attachable: true,
+		Internal:   true,
 	})
 	if err != nil {
 		return "", err
