@@ -571,6 +571,48 @@ func (p *Provisioner) StopAllSessions(exceptClones map[string]struct{}) error {
 	return nil
 }
 
+func reviewDown(repo *models.Repo, cloneDataset string) string {
+	for snapshotID := range repo.Snapshots {
+		if strings.HasPrefix(snapshotID, cloneDataset) {
+			return snapshotID
+		}
+	}
+
+	return ""
+}
+
+// CleanupCloneDataset removes a clone dataset.
+func (p *Provisioner) CleanupCloneDataset(clone *models.Clone, pool string) error {
+	if clone.Snapshot == nil {
+		return fmt.Errorf("clone has no snapshot, so the pool cannot be determined. Skip cleanup")
+	}
+
+	fsm, err := p.pm.GetFSManager(clone.Snapshot.Pool)
+	if err != nil {
+		return fmt.Errorf("cannot work with pool %s: %w", pool, err)
+	}
+
+	repo, err := fsm.GetRepo()
+	if err != nil {
+		return fmt.Errorf("failed to get snapshots: %w", err)
+	}
+
+	snapshotDep := reviewDown(repo, branching.CloneName(pool, clone.Branch, clone.ID, clone.Revision))
+	if snapshotDep != "" {
+		log.Dbg(fmt.Sprintf("Dataset has commit: %s. Skip destroying", snapshotDep))
+
+		return nil
+	}
+
+	if clone.Revision == branching.DefaultRevision && !clone.HasDependent {
+		if err := fsm.DestroyDataset(branching.CloneDataset(pool, clone.Branch, clone.ID)); err != nil {
+			return fmt.Errorf("failed to destroy clone dataset: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func (p *Provisioner) stopPoolSessions(fsm pool.FSManager, exceptClones map[string]struct{}) error {
 	fsPool := fsm.Pool()
 
