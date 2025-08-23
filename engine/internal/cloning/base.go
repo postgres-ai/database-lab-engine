@@ -387,7 +387,12 @@ func (c *Base) destroyClone(cloneID string, w *CloneWrapper) {
 	if w.Clone.Snapshot != nil {
 		c.decrementCloneNumber(w.Clone.Snapshot.ID)
 	}
+
 	c.observingCh <- cloneID
+
+	if err := c.provision.CleanupCloneDataset(w.Clone, w.Clone.Snapshot.Pool); err != nil {
+		log.Errf("failed to cleanup clone dataset: %v", err)
+	}
 
 	c.SaveClonesState()
 
