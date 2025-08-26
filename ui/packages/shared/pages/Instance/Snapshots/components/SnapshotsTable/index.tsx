@@ -9,7 +9,6 @@ import React from 'react'
 import cn from 'classnames'
 import { observer } from 'mobx-react-lite'
 import { makeStyles } from '@material-ui/core'
-import { formatDistanceToNowStrict } from 'date-fns'
 import copy from 'copy-to-clipboard'
 import { useHistory } from 'react-router-dom'
 
@@ -19,7 +18,7 @@ import { DestroySnapshotModal } from '@postgres.ai/shared/pages/Snapshots/Snapsh
 import { useStores } from '@postgres.ai/shared/pages/Instance/context'
 import { ArrowDropDownIcon } from '@postgres.ai/shared/icons/ArrowDropDown'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
-import { isSameDayUTC, isValidDate } from '@postgres.ai/shared/utils/date'
+import { isSameDayUTC, formatDateWithDistance } from '@postgres.ai/shared/utils/date'
 import {
   Table,
   TableHead,
@@ -190,22 +189,10 @@ export const SnapshotsTable: React.FC<SnapshotsTableProps> = observer(
                     ]}
                   />
                   <TableBodyCell>
-                    {snapshot.dataStateAt} (
-                    {isValidDate(snapshot.dataStateAtDate)
-                      ? formatDistanceToNowStrict(snapshot.dataStateAtDate, {
-                          addSuffix: true,
-                        })
-                      : '-'}
-                    )
+                    {formatDateWithDistance(snapshot.dataStateAt, snapshot.dataStateAtDate)}
                   </TableBodyCell>
                   <TableBodyCell>
-                    {snapshot.createdAt} (
-                    {isValidDate(snapshot.createdAtDate)
-                      ? formatDistanceToNowStrict(snapshot.createdAtDate, {
-                          addSuffix: true,
-                        })
-                      : '-'}
-                    )
+                    {formatDateWithDistance(snapshot.createdAt, snapshot.createdAtDate)}
                   </TableBodyCell>
                   <TableBodyCell>{snapshot.pool ?? '-'}</TableBodyCell>
                   <TableBodyCell>{snapshot.numClones ?? '-'}</TableBodyCell>

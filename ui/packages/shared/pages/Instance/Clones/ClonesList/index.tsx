@@ -7,7 +7,6 @@
 
 import { useState } from 'react'
 import cn from 'classnames'
-import { formatDistanceToNowStrict } from 'date-fns'
 import { useHistory } from 'react-router-dom'
 
 import {
@@ -32,7 +31,7 @@ import {
   getCloneStatusText,
 } from '@postgres.ai/shared/utils/clone'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
-import { isValidDate } from '@postgres.ai/shared/utils/date'
+import { formatDateWithDistance } from '@postgres.ai/shared/utils/date'
 
 import { MenuCell } from './MenuCell'
 import { ConnectionModal } from './ConnectionModal'
@@ -217,13 +216,7 @@ export const ClonesList = (props: Props) => {
                     )}
                   </TableBodyCell>
                   <TableBodyCell>
-                    {clone.createdAt} (
-                    {isValidDate(clone.createdAtDate)
-                      ? formatDistanceToNowStrict(clone.createdAtDate, {
-                          addSuffix: true,
-                        })
-                      : '-'}
-                    )
+                    {formatDateWithDistance(clone.createdAt, clone.createdAtDate)}
                   </TableBodyCell>
                   <TableBodyCell>{clone.db.port}</TableBodyCell>
                   <TableBodyCell>{clone.db.username}</TableBodyCell>
@@ -232,22 +225,7 @@ export const ClonesList = (props: Props) => {
                   </TableBodyCell>
                   <TableBodyCell>{clone.snapshot?.pool ?? '-'}</TableBodyCell>
                   <TableBodyCell>
-                    {clone.snapshot ? (
-                      <>
-                        {clone.snapshot.dataStateAt} (
-                        {isValidDate(clone.snapshot.dataStateAtDate)
-                          ? formatDistanceToNowStrict(
-                              clone.snapshot.dataStateAtDate,
-                              {
-                                addSuffix: true,
-                              },
-                            )
-                          : '-'}
-                        )
-                      </>
-                    ) : (
-                      '-'
-                    )}
+                    {clone.snapshot ? formatDateWithDistance(clone.snapshot.dataStateAt, clone.snapshot.dataStateAtDate) : '-'}
                   </TableBodyCell>
                 </TableRow>
               )

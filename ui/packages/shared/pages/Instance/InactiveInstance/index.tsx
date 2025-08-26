@@ -1,6 +1,6 @@
 import { Tooltip } from '@material-ui/core'
 import { makeStyles } from '@material-ui/core'
-import { formatDistanceToNowStrict } from 'date-fns'
+import { formatDistanceSafe } from '@postgres.ai/shared/utils/date'
 
 import { Link } from '@postgres.ai/shared/components/Link2'
 import { Instance } from '@postgres.ai/shared/types/api/entities/instance'
@@ -95,10 +95,7 @@ export const InactiveInstance = ({
             classes={{ tooltip: classes.toolTip }}
           >
             <span>
-              {instance?.createdAt &&
-                formatDistanceToNowStrict(new Date(instance?.createdAt), {
-                  addSuffix: true,
-                })}
+              {instance?.createdAt ? formatDistanceSafe(new Date(instance?.createdAt)) : '-'}
             </span>
           </Tooltip>
         </span>
@@ -114,12 +111,7 @@ export const InactiveInstance = ({
               classes={{ tooltip: classes.toolTip }}
             >
               <span>
-                {formatDistanceToNowStrict(
-                  new Date(instance?.telemetryLastReportedAt),
-                  {
-                    addSuffix: true,
-                  },
-                )}
+                {instance?.telemetryLastReportedAt ? formatDistanceSafe(new Date(instance?.telemetryLastReportedAt)) : '-'}
               </span>
             </Tooltip>
           </span>

@@ -10,9 +10,7 @@ import { useEffect, useState } from 'react'
 import copy from 'copy-to-clipboard'
 import { makeStyles } from '@material-ui/core'
 import { useHistory } from 'react-router-dom'
-import { formatDistanceToNowStrict } from 'date-fns'
-
-import { isValidDate } from '@postgres.ai/shared/utils/date'
+import { formatDateWithDistance } from '@postgres.ai/shared/utils/date'
 import { ArrowDropDownIcon } from '@postgres.ai/shared/icons/ArrowDropDown'
 import { Branch } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
@@ -168,13 +166,7 @@ export const BranchesTable = ({
                 <TableBodyCell>{branch.name}</TableBodyCell>
                 <TableBodyCell>{branch.parent}</TableBodyCell>
                 <TableBodyCell>
-                  {branch.dataStateAt} (
-                  {isValidDate(new Date(branch.dataStateAt))
-                    ? formatDistanceToNowStrict(new Date(branch.dataStateAt), {
-                        addSuffix: true,
-                      })
-                    : '-'}
-                  )
+                  {formatDateWithDistance(branch.dataStateAt, new Date(branch.dataStateAt))}
                 </TableBodyCell>
                 <TableBodyCell>{branch.snapshotID}</TableBodyCell>
                 <TableBodyCell>{branch.numSnapshots}</TableBodyCell>

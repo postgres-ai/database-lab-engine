@@ -7,7 +7,6 @@
 
 import { observer } from 'mobx-react-lite'
 import { makeStyles } from '@material-ui/core'
-import { formatDistanceToNowStrict } from 'date-fns'
 import copy from 'copy-to-clipboard'
 
 import { useStores } from '@postgres.ai/shared/pages/Instance/context'
@@ -24,7 +23,7 @@ import {
   TableBodyCellMenu,
 } from '@postgres.ai/shared/components/Table'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
-import { isSameDayUTC } from '@postgres.ai/shared/utils/date'
+import { isSameDayUTC, formatDateWithDistance } from '@postgres.ai/shared/utils/date'
 
 import { Tags } from '@postgres.ai/shared/pages/Instance/components/Tags'
 import { ModalReloadButton } from '@postgres.ai/shared/pages/Instance/components/ModalReloadButton'
@@ -137,18 +136,10 @@ export const SnapshotsModal = observer(() => {
                       ]}
                     />
                     <TableBodyCell>
-                      {snapshot.dataStateAt} (
-                      {formatDistanceToNowStrict(snapshot.dataStateAtDate, {
-                        addSuffix: true,
-                      })}
-                      )
+                      {formatDateWithDistance(snapshot.dataStateAt, snapshot.dataStateAtDate)}
                     </TableBodyCell>
                     <TableBodyCell>
-                      {snapshot.createdAt} (
-                      {formatDistanceToNowStrict(snapshot.createdAtDate, {
-                        addSuffix: true,
-                      })}
-                      )
+                      {formatDateWithDistance(snapshot.createdAt, snapshot.createdAtDate)}
                     </TableBodyCell>
                     <TableBodyCell>{snapshot.pool ?? '-'}</TableBodyCell>
                     <TableBodyCell>

@@ -22,8 +22,24 @@ import {
 } from 'date-fns'
 
 export const formatDateToISO = (dateString: string) => {
-  const parsedDate = parse(dateString, 'yyyyMMddHHmmss', new Date())
-  return format(parsedDate, "yyyy-MM-dd'T'HH:mm:ssXXX")
+  // Handle empty or invalid date strings
+  if (!dateString || dateString.trim() === '') {
+    return ''
+  }
+  
+  try {
+    const parsedDate = parse(dateString, 'yyyyMMddHHmmss', new Date())
+    
+    // Additional validation of parsed date
+    if (!isValidDate(parsedDate) || isNaN(parsedDate.getTime())) {
+      return ''
+    }
+    
+    return format(parsedDate, "yyyy-MM-dd'T'HH:mm:ssXXX")
+  } catch (error) {
+    // Return empty string for invalid date formats
+    return ''
+  }
 }
 
 // parseDate parses date of both format: '2006-01-02 15:04:05 UTC' and `2006-01-02T15:04:05Z` (RFC3339).
@@ -93,4 +109,28 @@ export const formatDateStd = (
 
 export const isValidDate = (dateObject: Date) => {
   return new Date(dateObject).toString() !== 'Invalid Date'
+}
+
+// Safe date formatting with distance
+export const formatDateWithDistance = (dateString: string, dateObject: Date) => {
+  if (!dateString || !isValidDate(dateObject)) return '-'
+  
+  try {
+    return `${dateString} (${formatDistanceToNowStrict(dateObject, { addSuffix: true })})`
+  } catch (error) {
+    console.warn('Error formatting date distance:', error, 'date:', dateObject)
+    return '-'
+  }
+}
+
+// Safe distance formatting only
+export const formatDistanceSafe = (dateObject: Date) => {
+  if (!isValidDate(dateObject)) return '-'
+  
+  try {
+    return formatDistanceToNowStrict(dateObject, { addSuffix: true })
+  } catch (error) {
+    console.warn('Error formatting distance:', error, 'date:', dateObject)
+    return '-'
+  }
 }
