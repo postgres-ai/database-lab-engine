@@ -7,8 +7,6 @@
 
 import { useEffect, useState } from 'react'
 import { makeStyles } from '@material-ui/core'
-import { formatDistanceToNowStrict } from 'date-fns'
-
 import { Clone } from '@postgres.ai/shared/types/api/entities/clone'
 import { Snapshot } from '@postgres.ai/shared/types/api/entities/snapshot'
 import { Text } from '@postgres.ai/shared/components/Text'
@@ -18,7 +16,7 @@ import { ImportantText } from '@postgres.ai/shared/components/ImportantText'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { SimpleModalControls } from '@postgres.ai/shared/components/SimpleModalControls'
 import { compareSnapshotsDesc } from '@postgres.ai/shared/utils/snapshot'
-import { isValidDate } from '@postgres.ai/shared/utils/date'
+import { formatDateWithDistance } from '@postgres.ai/shared/utils/date'
 
 type Props = {
   isOpen: boolean
@@ -111,12 +109,7 @@ export const ResetCloneModal = (props: Props) => {
               value: snapshot.id,
               children: (
                 <>
-                  {snapshot.dataStateAt} (
-                  {isValidDate(snapshot.dataStateAtDate) && 
-                    formatDistanceToNowStrict(snapshot.dataStateAtDate, {
-                      addSuffix: true,
-                    })}
-                  )
+                  {formatDateWithDistance(snapshot.dataStateAt, snapshot.dataStateAtDate)}
                   {isLatest && (
                     <span className={classes.snapshotTag}>Latest</span>
                   )}

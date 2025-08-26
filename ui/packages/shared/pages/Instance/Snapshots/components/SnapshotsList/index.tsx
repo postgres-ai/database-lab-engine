@@ -14,7 +14,8 @@ import {
   generateSnapshotPageId,
   groupSnapshotsByCreatedAtDate,
 } from '@postgres.ai/shared/pages/Instance/Snapshots/utils'
-import { format, formatDistanceToNowStrict } from 'date-fns'
+import { format } from 'date-fns'
+import { formatDistanceSafe } from '@postgres.ai/shared/utils/date'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
 import { useHistory } from 'react-router'
 import { DestroySnapshot } from '@postgres.ai/shared/types/api/endpoints/destroySnapshot'
@@ -129,7 +130,7 @@ const SnapshotListItem = ({
   setSnapshotModal: (modal: { isOpen: boolean; snapshotId: string }) => void
 }) => {
   const classes = useStyles()
-  const timeAgo = formatDistanceToNowStrict(snapshot.createdAtDate)
+  const timeAgo = formatDistanceSafe(snapshot.createdAtDate)
 
   const history = useHistory()
   const host = useHost()
