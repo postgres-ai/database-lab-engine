@@ -126,32 +126,33 @@ func (m *Manager) VerifyBranchMetadata() error {
 		return nil
 	}
 
-	latest := snapshots[0]
+	branchHeads := make(map[string]string)
 
-	brName, err := m.getProperty(branchProp, latest.ID)
-	if err != nil {
-		log.Dbg("cannot find branch for snapshot", latest.ID, err.Error())
-	}
+	for i := numberSnapshots; i > 0; i-- {
+		sn := snapshots[i-1]
+		log.Dbg(sn)
 
-	for i := numberSnapshots; i > 1; i-- {
-		if err := m.SetRelation(snapshots[i-1].ID, snapshots[i-2].ID); err != nil {
+		if err := m.DeleteBranchProp(sn.Branch, sn.ID); err != nil {
+			return fmt.Errorf("failed to clean branch property: %w", err)
+		}
+
+		head, ok := branchHeads[sn.Branch]
+		if !ok {
+			branchHeads[sn.Branch] = sn.ID
+			continue
+		}
+
+		if err := m.SetRelation(head, sn.ID); err != nil {
 			return fmt.Errorf("failed to set snapshot relations: %w", err)
 		}
 
-		if brName == "" {
-			brName, err = m.getProperty(branchProp, snapshots[i-1].ID)
-			if err != nil {
-				log.Dbg("cannot find branch for snapshot", snapshots[i-1].ID, err.Error())
-			}
+		branchHeads[sn.Branch] = sn.ID
+	}
+
+	for brName, latestID := range branchHeads {
+		if err := m.AddBranchProp(brName, latestID); err != nil {
+			return fmt.Errorf("failed to add branch property: %w", err)
 		}
-	}
-
-	if brName == "" {
-		brName = branching.DefaultBranch
-	}
-
-	if err := m.AddBranchProp(brName, latest.ID); err != nil {
-		return fmt.Errorf("failed to add branch property: %w", err)
 	}
 
 	log.Msg("data branching has been verified")

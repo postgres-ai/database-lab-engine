@@ -373,11 +373,17 @@ func (m *Manager) CreateSnapshot(poolSuffix, dataStateAt string) (string, error)
 		return "", fmt.Errorf("failed to parse dataStateAt: %w", err)
 	}
 
+	branch := branching.ParseBranchNameFromSnapshot(snapshotName, poolName)
+	if branch == "" {
+		branch = branching.DefaultBranch
+	}
+
 	newSnapshot := resources.Snapshot{
 		ID:          snapshotName,
 		CreatedAt:   time.Now(),
 		DataStateAt: dataStateTime,
 		Pool:        m.config.Pool.Name,
+		Branch:      branch,
 	}
 
 	if !strings.HasSuffix(snapshotName, m.config.PreSnapshotSuffix) {

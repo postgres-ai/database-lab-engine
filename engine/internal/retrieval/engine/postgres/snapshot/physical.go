@@ -402,6 +402,10 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 
 	p.tm.SendEvent(ctx, telemetry.SnapshotCreatedEvent, telemetry.SnapshotCreated{})
 
+	if err := p.cloneManager.VerifyBranchMetadata(); err != nil {
+		log.Warn("cannot verify branch metadata", err.Error())
+	}
+
 	if err := p.cleanupOldLogs(); err != nil {
 		log.Warn("cannot clean up old logs", err.Error())
 	}

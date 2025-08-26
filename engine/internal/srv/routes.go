@@ -55,7 +55,7 @@ func (s *Server) retrievalState(w http.ResponseWriter, r *http.Request) {
 		retrieving.NextRefresh = models.NewLocalTime(spec.Next(time.Now()))
 	}
 
-	retrieving.Activity = s.jobActivity(r.Context())
+	retrieving.Activity = s.jobActivity(context.Background())
 
 	if err := api.WriteJSON(w, http.StatusOK, retrieving); err != nil {
 		api.SendError(w, r, err)
@@ -182,7 +182,9 @@ func (s *Server) createSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: set branching metadata.
+	if err := fsManager.VerifyBranchMetadata(); err != nil {
+		log.Warn("cannot verify branch metadata", err.Error())
+	}
 
 	latestSnapshot := snapshotList[0]
 
