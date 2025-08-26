@@ -69,7 +69,7 @@ publish-shared-release:
     - export VERSION=${CI_COMMIT_TAG#"v"}
 
     # Build and pack
-    - npm version "$VERSION" --no-git-tag-version
+    - npm version "$VERSION" --no-git-tag-version --allow-same-version
     - pnpm run pack
 
     # Publish
