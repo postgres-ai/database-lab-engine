@@ -19,6 +19,7 @@ const dockerImagesConfig = {
   '15': ['0.5.3', '0.5.2', '0.5.1'],
   '16': ['0.5.3', '0.5.2', '0.5.1'],
   '17': ['0.5.3', '0.5.2', '0.5.1'],
+  '18': ['0.6.1'],
 }
 
 export type FormValuesKey = keyof FormValues
@@ -170,7 +171,7 @@ export const createFallbackDockerImage = (
   dockerPath: string,
   dockerTag: string,
 ): DockerImage => {
-  const majorVersion = getImageMajorVersion(dockerPath) || '17' // Default to 17 if version can't be extracted
+  const majorVersion = getImageMajorVersion(dockerPath) || '18' // Default to 18 if version can't be extracted
   
   return {
     package_group: 'postgresai',

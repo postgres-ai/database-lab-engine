@@ -19,6 +19,10 @@ export DLE_SERVER_PORT=${DLE_SERVER_PORT:-12345}
 export DLE_PORT_POOL_FROM=${DLE_PORT_POOL_FROM:-9000}
 export DLE_PORT_POOL_TO=${DLE_PORT_POOL_TO:-9099}
 
+if [ "${POSTGRES_VERSION}" = "18" ]; then
+  EXTENDED_IMAGE_TAG=""
+fi
+
 DIR=${0%/*}
 
 if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
@@ -103,7 +107,7 @@ yq eval -i '
   .provision.portPool.to = env(DLE_PORT_POOL_TO) |
   .retrieval.spec.logicalDump.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump" |
   .retrieval.spec.logicalRestore.options.dumpLocation = env(DLE_TEST_MOUNT_DIR) + "/" + env(DLE_TEST_POOL_NAME) + "/dump" |
-  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION) + env(EXTENDED_IMAGE_TAG)
+  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION) + strenv(EXTENDED_IMAGE_TAG)
 ' "${configDir}/server.yml"
 
 SHARED_PRELOAD_LIBRARIES="pg_stat_statements, auto_explain, pgaudit, logerrors, pg_stat_kcache"

@@ -92,7 +92,7 @@ Read more:
     - Theoretical max of snapshots/clones: 2<sup>64</sup> ([ZFS](https://en.wikipedia.org/wiki/ZFS), default)
     - Maximum size of PostgreSQL data directory: 256 quadrillion zebibytes, or 2<sup>128</sup> bytes ([ZFS](https://en.wikipedia.org/wiki/ZFS), default)
 - Support & technologies
-    - Supported PostgreSQL versions: 9.6–17
+    - Supported PostgreSQL versions: 9.6–18
     - Thin cloning ([CoW](https://en.wikipedia.org/wiki/Copy-on-write)) technologies: [ZFS](https://en.wikipedia.org/wiki/ZFS) and [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux))
     - UI for manual tasks and API & CLI for automation
     - Packaged in Docker containers for all components
