@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -235,13 +236,27 @@ func (m *Manager) DestroyClone(branchName, cloneName string, revision int) error
 		return nil
 	}
 
+	cloneDataset := m.config.Pool.CloneDataset(branchName, cloneName)
+	cloneOrigins := m.GetDatasetOrigins(cloneDataset)
+
+	if m.hasDependentSnapshots(cloneOrigins, cloneMountName) {
+		log.Msg(fmt.Sprintf("clone %q has dependent snapshot; skipping", cloneMountName))
+		return nil
+	}
+
+	// TODO: check pre-clone for physical mode.
+	if len(cloneOrigins) <= branching.MinDatasetNumber {
+		// There are no other revisions, so we can destroy the entire clone dataset.
+		cloneMountName = cloneDataset
+	}
+
 	// Delete the clone and all snapshots and clones depending on it.
 	// TODO(anatoly): right now, we are using this function only for
 	// deleting thin clones created by users. If we are going to use
 	// this function to delete clones used during the preparation
 	// of baseline snapshots, we need to omit `-R`, to avoid
 	// unexpected deletion of users' clones.
-	cmd := fmt.Sprintf("zfs destroy %s", cloneMountName)
+	cmd := fmt.Sprintf("zfs destroy -r %s", cloneMountName)
 
 	if _, err = m.runner.Run(cmd); err != nil {
 		if strings.Contains(cloneName, "clone_pre") {
@@ -252,6 +267,59 @@ func (m *Manager) DestroyClone(branchName, cloneName string, revision int) error
 	}
 
 	return nil
+}
+
+func (m *Manager) GetDatasetOrigins(cloneDataset string) []string {
+	listZfsClonesCmd := "zfs list -H -o origin -r " + cloneDataset
+
+	out, err := m.runner.Run(listZfsClonesCmd, false)
+	if err != nil {
+		log.Warn(fmt.Sprintf("failed to check clone dataset %s: %v", cloneDataset, err))
+		return nil
+	}
+
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+
+	return lines
+}
+
+func (m *Manager) GetActiveDatasets(cloneDataset string) ([]string, error) {
+	listZfsClonesCmd := fmt.Sprintf("zfs list -t snapshot -H -o name -r %s | grep %s", m.config.Pool.Name, cloneDataset)
+
+	out, err := m.runner.Run(listZfsClonesCmd, false)
+	if err != nil {
+		log.Dbg(fmt.Sprintf("no active datasets %s: %v", cloneDataset, err))
+	}
+
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+
+	datasetRegistry := make([]string, 0, len(lines))
+
+	for _, line := range lines {
+		name := strings.TrimSpace(line)
+		if name == "" || name == empty {
+			continue
+		}
+
+		datasetRegistry = append(datasetRegistry, name)
+	}
+
+	return datasetRegistry, nil
+}
+
+func (m *Manager) hasDependentSnapshots(origins []string, cloneMountName string) bool {
+	for _, name := range origins {
+		if name == empty {
+			continue
+		}
+
+		if strings.HasPrefix(name, cloneMountName) {
+			log.Dbg(fmt.Sprintf("%s has dependent snapshot %s", cloneMountName, name))
+			return true
+		}
+	}
+
+	return false
 }
 
 // cloneExists checks whether a ZFS clone exists.
@@ -532,11 +600,126 @@ func (m *Manager) CleanupSnapshots(retentionLimit int) ([]string, error) {
 		return nil, errors.Wrap(err, "failed to clean up snapshots")
 	}
 
+	if err := m.cleanupEmptyDatasets(clonesOutput); err != nil {
+		return nil, fmt.Errorf("failed to clean up empty datasets: %w", err)
+	}
+
 	lines := strings.Split(out, "\n")
 
 	m.RefreshSnapshotList()
 
+	firstSnapshotID := ""
+
+	m.mu.Lock()
+	if l := len(m.snapshots); l > 0 {
+		firstSnapshotID = m.snapshots[l-1].ID
+	}
+	m.mu.Unlock()
+
+	m.reviewParentProperty(firstSnapshotID)
+
 	return lines, nil
+}
+
+func (m *Manager) reviewParentProperty(snapshotID string) {
+	if snapshotID == "" {
+		return
+	}
+
+	parent, err := m.getProperty(parentProp, snapshotID)
+	if err != nil {
+		log.Err("failed to review parent property:", err)
+
+		return
+	}
+
+	if parent == "" {
+		return
+	}
+
+	_, err = m.GetSnapshotProperties(parent)
+	if err != nil {
+		// Parent snapshot not found, clean up the property.
+		if err = m.setParent("", snapshotID); err != nil {
+			log.Err(err)
+		}
+	}
+}
+
+func (m *Manager) cleanupEmptyDatasets(clonesOutput string) error {
+	datasetsToRemove := m.getEmptyDatasets(clonesOutput)
+
+	for _, dataset := range datasetsToRemove {
+		log.Dbg("Remove empty dataset: ", dataset)
+
+		if err := m.DestroyDataset(dataset); err != nil {
+			return fmt.Errorf("failed to destroy dataset %s: %w", dataset, err)
+		}
+	}
+
+	return nil
+}
+
+func (m *Manager) getEmptyDatasets(clonesOutput string) []string {
+	const outputParts = 2
+
+	lines := strings.Split(strings.TrimSpace(clonesOutput), "\n")
+
+	allDatasets := make(map[string]struct{})
+	emptyDatasets := []string{}
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) != outputParts {
+			continue
+		}
+
+		dataset := parts[0]
+		origin := parts[1]
+
+		// Skip branch datasets (only process clones)
+		// <pool_name>/branch/<branch_name>/<clone_name>/r<number>
+		pathParts := strings.Split(dataset, "/")
+		if len(pathParts) <= 3 || pathParts[1] != branching.BranchDir {
+			continue
+		}
+
+		allDatasets[dataset] = struct{}{}
+
+		if origin == empty {
+			emptyDatasets = append(emptyDatasets, dataset)
+		}
+	}
+
+	// Find empty datasets without children
+	datasetsToRemove := []string{}
+
+	for _, dataset := range emptyDatasets {
+		hasChild := false
+		prefix := dataset + "/"
+
+		for other := range allDatasets {
+			if strings.HasPrefix(other, prefix) {
+				hasChild = true
+				break
+			}
+		}
+
+		if !hasChild {
+			datasetsToRemove = append(datasetsToRemove, dataset)
+		}
+	}
+
+	// Sort by depth (the deepest first) to avoid conflicts
+	sort.Slice(datasetsToRemove, func(i, j int) bool {
+		return strings.Count(datasetsToRemove[i], "/") > strings.Count(datasetsToRemove[j], "/")
+	})
+
+	return datasetsToRemove
 }
 
 func (m *Manager) getBusySnapshotList(clonesOutput string) []string {
@@ -600,7 +783,7 @@ func (m *Manager) GetSessionState(branch, name string) (*resources.SessionState,
 
 	var sEntry *ListEntry
 
-	entryName := path.Join(m.config.Pool.Name, "branch", branch, name)
+	entryName := branching.CloneDataset(m.config.Pool.Name, branch, name)
 
 	for _, entry := range entries {
 		if entry.Name == entryName {
@@ -619,6 +802,34 @@ func (m *Manager) GetSessionState(branch, name string) (*resources.SessionState,
 	}
 
 	return state, nil
+}
+
+// GetBatchSessionState returns session states for multiple clones in a single ZFS query.
+func (m *Manager) GetBatchSessionState(requests []resources.SessionStateRequest) (map[string]resources.SessionState, error) {
+	entries, err := m.listFilesystems(m.config.Pool.Name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list filesystems: %w", err)
+	}
+
+	entryMap := make(map[string]*ListEntry, len(entries))
+	for _, entry := range entries {
+		entryMap[entry.Name] = entry
+	}
+
+	sessionStates := make(map[string]resources.SessionState, len(requests))
+
+	for _, req := range requests {
+		entryName := branching.CloneDataset(m.config.Pool.Name, req.Branch, req.CloneID)
+
+		if entry, ok := entryMap[entryName]; ok {
+			sessionStates[req.CloneID] = resources.SessionState{
+				CloneDiffSize:     entry.Used,
+				LogicalReferenced: entry.LogicalReferenced,
+			}
+		}
+	}
+
+	return sessionStates, nil
 }
 
 // GetFilesystemState returns a disk state.

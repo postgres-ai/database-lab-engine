@@ -322,6 +322,28 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// When recursively deleting, set the branch label to the parent
+	if force && snapshotProperties.Parent != "" {
+		parentProps, err := fsm.GetSnapshotProperties(snapshotProperties.Parent)
+		if err != nil {
+			log.Err(err.Error())
+		}
+
+		branchName := snapshotProperties.Branch
+		fullDataset, _, found := strings.Cut(snapshotID, "@")
+
+		if branchName == "" && found {
+			branchName, _ = branching.ParseBranchName(fullDataset, poolName)
+		}
+
+		if branchName != "" && !isRoot(parentProps.Root, branchName) {
+			err := fsm.AddBranchProp(branchName, snapshotProperties.Parent)
+			if err != nil {
+				log.Err(err.Error())
+			}
+		}
+	}
+
 	if err = fsm.DestroySnapshot(snapshotID, thinclones.DestroyOptions{Force: force}); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
@@ -333,22 +355,37 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if snapshotProperties.Clones == "" && snapshot.NumClones == 0 {
+	if snapshotProperties.Clones == "" && snapshot.NumClones == 0 && snapshotProperties.Child == "" {
 		// Destroy dataset if there are no related objects
 		if fullDataset, _, found := strings.Cut(snapshotID, "@"); found && fullDataset != poolName {
-			if err = fsm.DestroyDataset(fullDataset); err != nil {
+			activeDatasets, err := fsm.GetActiveDatasets(fullDataset)
+			if err != nil {
 				api.SendBadRequestError(w, r, err.Error())
 				return
 			}
 
+			// No active datasets or clones
+			if len(activeDatasets) == 0 && !s.hasActiveClone(fullDataset, poolName) {
+				if err = fsm.DestroyDataset(fullDataset); err != nil {
+					api.SendBadRequestError(w, r, err.Error())
+					return
+				}
+			}
+
 			// Remove dle:branch and dle:root from parent snapshot
 			if snapshotProperties.Parent != "" {
+				parentProps, err := fsm.GetSnapshotProperties(snapshotProperties.Parent)
+				if err != nil {
+					log.Err(err.Error())
+				}
+
 				branchName := snapshotProperties.Branch
 				if branchName == "" {
 					branchName, _ = branching.ParseBranchName(fullDataset, poolName)
 				}
 
-				if branchName != "" {
+				// Clean up user branch labels and prevent main branch deletion
+				if branchName != "" && branchName != branching.DefaultBranch && isRoot(parentProps.Root, branchName) {
 					if err := fsm.DeleteBranchProp(branchName, snapshotProperties.Parent); err != nil {
 						log.Err(err.Error())
 					}
@@ -359,11 +396,18 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			// TODO: review all available revisions. Destroy base dataset only if there no any revision.
-			if baseDataset, found := strings.CutSuffix(fullDataset, "/r0"); found {
-				if err = fsm.DestroyDataset(baseDataset); err != nil {
-					api.SendBadRequestError(w, r, err.Error())
-					return
+			// Check if the dataset ends with revision (for example, /r0)
+			if branching.RevisionPattern.MatchString(fullDataset) {
+				// Remove the revision suffix
+				baseDataset := branching.RevisionPattern.ReplaceAllString(fullDataset, "")
+				origins := fsm.GetDatasetOrigins(baseDataset)
+
+				// If this is the last revision, remove the base dataset
+				if len(origins) < branching.MinDatasetNumber {
+					if err = fsm.DestroyDataset(baseDataset); err != nil {
+						api.SendBadRequestError(w, r, err.Error())
+						return
+					}
 				}
 			}
 		}
@@ -389,6 +433,30 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		EventType: webhooks.SnapshotDeleteEvent,
 		EntityID:  snapshotID,
 	}
+}
+
+func (s *Server) hasActiveClone(fullDataset, poolName string) bool {
+	cloneID, ok := branching.ParseCloneName(fullDataset, poolName)
+	if !ok {
+		return false
+	}
+
+	_, errClone := s.Cloning.GetClone(cloneID)
+	if errClone != nil && errClone.Error() == "clone not found" {
+		return false
+	}
+
+	return true
+}
+
+func isRoot(root, branch string) bool {
+	if root == "" || branch == "" {
+		return false
+	}
+
+	rootBranches := strings.Split(root, ",")
+
+	return containsString(rootBranches, branch)
 }
 
 func (s *Server) detectPoolName(snapshotID string) (string, error) {
