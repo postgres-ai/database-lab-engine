@@ -367,7 +367,8 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 
 	defer func() {
 		if err != nil {
-			if errDestroy := p.cloneManager.DestroyClone(branching.DefaultBranch, cloneName, branching.DefaultRevision); errDestroy != nil {
+			cloneDataset := branching.CloneDataset(p.fsPool.Name, branching.DefaultBranch, cloneName)
+			if errDestroy := p.cloneManager.DestroyDataset(cloneDataset); errDestroy != nil {
 				log.Err(fmt.Sprintf("failed to destroy clone %q: %v", cloneName, errDestroy))
 			}
 		}

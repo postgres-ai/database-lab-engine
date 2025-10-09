@@ -2,6 +2,7 @@ package zfs
 
 import (
 	"errors"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -233,4 +234,121 @@ func TestSnapshotList(t *testing.T) {
 		require.Equal(t, 2, len(fsManager.SnapshotList()))
 		require.Equal(t, []resources.Snapshot{{ID: "test3"}, {ID: "test1"}}, fsManager.SnapshotList())
 	})
+}
+
+func TestCleanupEmptyDatasets(t *testing.T) {
+	tests := []struct {
+		name              string
+		input             string
+		expectedDestroyed []string
+	}{
+		{
+			name: "datasets with children should not be removed",
+			input: `test_pool	-
+test_pool/branch	-
+test_pool/branch/main	-
+test_pool/branch/main/clone001	-
+test_pool/branch/main/clone001/r0	test_pool@snapshot001`,
+			expectedDestroyed: []string{},
+		},
+		{
+			name: "empty branch datasets without children should not be removed",
+			input: `test_pool	-
+test_pool/branch	-
+test_pool/branch/main	-
+test_pool/branch/branch1	-
+test_pool/branch/branch2	-`,
+			expectedDestroyed: []string{},
+		},
+		{
+			name: "mixed case - some with children, some without",
+			input: `test_pool	-
+test_pool/branch	-
+test_pool/branch/main	-
+test_pool/branch/main/clone001	-
+test_pool/branch/main/clone001/r0	test_pool@snapshot001
+test_pool/branch/main/clone002	-
+test_pool/branch/main/clone002/r0	test_pool@snapshot002
+test_pool/branch/branch	-
+test_pool/temporary	-`,
+			expectedDestroyed: []string{},
+		},
+
+		{
+			name:              "empty input",
+			input:             ``,
+			expectedDestroyed: []string{},
+		},
+		{
+			name:              "only whitespace",
+			input:             `   `,
+			expectedDestroyed: []string{},
+		},
+		{
+			name: "malformed lines should be skipped",
+			input: `test_pool	-
+test_pool/branch
+invalid line without tabs
+test_pool/orphaned	-
+	-
+test_pool/valid	test_pool@snap1`,
+			expectedDestroyed: []string{},
+		},
+		{
+			name: "original example",
+			input: `test_dblab_pool	-
+test_dblab_pool/branch	-
+test_dblab_pool/branch/main	-
+test_dblab_pool/branch/main/clone_pre_20250923095219	-
+test_dblab_pool/branch/main/clone_pre_20250923095219/r0	test_dblab_pool@snapshot_20250923095219_pre
+test_dblab_pool/branch/main/clone_pre_20250923095500	-
+test_dblab_pool/branch/main/clone_pre_20250923095500/r0	test_dblab_pool@snapshot_20250923095500_pre
+test_dblab_pool/branch/main/clone_pre_20250923100000	-
+test_dblab_pool/branch/main/clone_pre_20250923100000/r0	test_dblab_pool@snapshot_20250923100000_pre`,
+			expectedDestroyed: []string{},
+		},
+		{
+			name: "should skip branch datasets and only process clones",
+			input: `test_pool	-
+test_pool/branch	-
+test_pool/branch/main	-
+test_pool/branch/main/clone001	-
+test_pool/branch/main/clone002	-
+test_pool/branch/feature	-
+test_pool/branch/feature/orphaned_clone	-
+test_pool/other	-
+test_pool/other/dataset	-`,
+			expectedDestroyed: []string{
+				"test_pool/branch/main/clone001",
+				"test_pool/branch/main/clone002",
+				"test_pool/branch/feature/orphaned_clone",
+				// Note: test_pool/other/dataset is NOT removed (not under /branch/)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fsManager := NewFSManager(runnerMock{}, Config{Pool: &resources.Pool{Name: "testPool"}})
+
+			destroyedDatasets := fsManager.getEmptyDatasets(tt.input)
+
+			sort.Strings(destroyedDatasets)
+			sort.Strings(tt.expectedDestroyed)
+
+			if len(destroyedDatasets) != len(tt.expectedDestroyed) {
+				t.Errorf("destroyed count mismatch: got %d, want %d\nDestroyed: %v\nExpected: %v",
+					len(destroyedDatasets), len(tt.expectedDestroyed),
+					destroyedDatasets, tt.expectedDestroyed)
+				return
+			}
+
+			for i := range destroyedDatasets {
+				if destroyedDatasets[i] != tt.expectedDestroyed[i] {
+					t.Errorf("destroyed dataset mismatch at index %d: got %s, want %s",
+						i, destroyedDatasets[i], tt.expectedDestroyed[i])
+				}
+			}
+		})
+	}
 }

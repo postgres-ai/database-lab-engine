@@ -185,6 +185,16 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	snapshotID := createRequest.SnapshotID
+
+	if snapshotID != "" {
+		fsm, err = s.getFSManagerForSnapshot(snapshotID)
+		if err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+	}
+
 	if fsm == nil {
 		api.SendBadRequestError(w, r, "no pool manager found")
 		return
@@ -200,8 +210,6 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 		api.SendBadRequestError(w, r, fmt.Sprintf("branch '%s' already exists", createRequest.BranchName))
 		return
 	}
-
-	snapshotID := createRequest.SnapshotID
 
 	if snapshotID == "" {
 		if createRequest.BaseBranch == "" {
@@ -434,17 +442,6 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snapshot, err := s.Cloning.GetSnapshotByID(snapshotName)
-	if err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	if err := s.Cloning.UpdateCloneSnapshot(clone.ID, snapshot); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
 	s.tm.SendEvent(context.Background(), telemetry.SnapshotCreatedEvent, telemetry.SnapshotCreated{})
 
 	if err := api.WriteJSON(w, http.StatusOK, types.SnapshotResponse{SnapshotID: snapshotName}); err != nil {
@@ -632,11 +629,17 @@ func snapshotsToRemove(repo *models.Repo, snapshotID, branchName string) []strin
 }
 
 func traverseUp(repo *models.Repo, snapshotID, branchName string) []string {
+	removingList := []string{}
+	visited := make(map[string]struct{})
 	snapshotPointer := repo.Snapshots[snapshotID]
 
-	removingList := []string{}
+	for snapshotPointer.Parent != "-" && snapshotPointer.Parent != "" {
+		if _, found := visited[snapshotPointer.ID]; found {
+			break
+		}
 
-	for snapshotPointer.Parent != "-" {
+		visited[snapshotPointer.ID] = struct{}{}
+
 		for _, snapshotRoot := range snapshotPointer.Root {
 			if snapshotRoot == branchName {
 				return removingList
@@ -644,7 +647,13 @@ func traverseUp(repo *models.Repo, snapshotID, branchName string) []string {
 		}
 
 		removingList = append(removingList, snapshotPointer.ID)
-		snapshotPointer = repo.Snapshots[snapshotPointer.Parent]
+
+		nextSnapshot, exists := repo.Snapshots[snapshotPointer.Parent]
+		if !exists {
+			break
+		}
+
+		snapshotPointer = nextSnapshot
 	}
 
 	return removingList

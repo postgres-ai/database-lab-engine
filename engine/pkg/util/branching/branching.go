@@ -8,6 +8,7 @@ package branching
 import (
 	"fmt"
 	"path"
+	"regexp"
 	"strings"
 )
 
@@ -20,7 +21,15 @@ const (
 
 	// BranchDir defines branch directory in the pool.
 	BranchDir = "branch"
+
+	// MinDatasetNumber is 2 because:
+	//   - test_dblab_pool/branch/001-branch/clone001 - root
+	//   - test_dblab_pool/branch/001-branch/clone001/r0 - revision
+	MinDatasetNumber = 2
 )
+
+// RevisionPattern creates a regex pattern to match dataset revision.
+var RevisionPattern = regexp.MustCompile(`/r\d+$`)
 
 // BranchName returns a full branch name in the data pool.
 func BranchName(poolName, branchName string) string {

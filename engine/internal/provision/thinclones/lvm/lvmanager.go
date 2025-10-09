@@ -136,6 +136,11 @@ func (m *LVManager) GetSessionState(_, _ string) (*resources.SessionState, error
 	return &resources.SessionState{}, nil
 }
 
+// GetBatchSessionState is not implemented.
+func (m *LVManager) GetBatchSessionState(_ []resources.SessionStateRequest) (map[string]resources.SessionState, error) {
+	return make(map[string]resources.SessionState), nil
+}
+
 // GetFilesystemState is not implemented.
 func (m *LVManager) GetFilesystemState() (models.FileSystem, error) {
 	// TODO(anatoly): Implement.
@@ -315,4 +320,18 @@ func (m *LVManager) KeepRelation(_ string) error {
 	log.Msg("KeepRelation is not supported for LVM. Skip the operation")
 
 	return nil
+}
+
+// GetDatasetOrigins provides a list of dataset origins.
+func (m *LVManager) GetDatasetOrigins(_ string) []string {
+	log.Msg("GetDatasetOrigins is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// GetActiveDatasets provides a list of active datasets.
+func (m *LVManager) GetActiveDatasets(_ string) ([]string, error) {
+	log.Msg("GetDatasetOrigins is not supported for LVM. Skip the operation")
+
+	return nil, nil
 }

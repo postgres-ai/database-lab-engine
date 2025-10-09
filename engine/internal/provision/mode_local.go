@@ -274,10 +274,8 @@ func (p *Provisioner) ResetSession(session *resources.Session, clone *models.Clo
 		return nil, errors.Wrap(err, "failed to stop container")
 	}
 
-	if clone.Revision == branching.DefaultRevision || !clone.HasDependent {
-		if err = fsm.DestroyClone(clone.Branch, name, clone.Revision); err != nil {
-			return nil, errors.Wrap(err, "failed to destroy clone")
-		}
+	if err = fsm.DestroyClone(clone.Branch, name, clone.Revision); err != nil {
+		return nil, errors.Wrap(err, "failed to destroy clone")
 	}
 
 	if err = newFSManager.CreateClone(clone.Branch, name, snapshot.ID, clone.Revision); err != nil {
@@ -300,9 +298,14 @@ func (p *Provisioner) ResetSession(session *resources.Session, clone *models.Clo
 	}
 
 	snapshotModel := &models.Snapshot{
-		ID:          snapshot.ID,
-		CreatedAt:   models.NewLocalTime(snapshot.CreatedAt),
-		DataStateAt: models.NewLocalTime(snapshot.DataStateAt),
+		ID:           snapshot.ID,
+		CreatedAt:    models.NewLocalTime(snapshot.CreatedAt),
+		DataStateAt:  models.NewLocalTime(snapshot.DataStateAt),
+		PhysicalSize: snapshot.Used,
+		LogicalSize:  snapshot.LogicalReferenced,
+		Pool:         snapshot.Pool,
+		Branch:       snapshot.Branch,
+		Message:      snapshot.Message,
 	}
 
 	return snapshotModel, nil
@@ -333,6 +336,31 @@ func (p *Provisioner) GetSessionState(s *resources.Session, branch, cloneID stri
 	}
 
 	return fsm.GetSessionState(branch, cloneID)
+}
+
+// GetBatchSessionState retrieves session states for multiple clones efficiently.
+func (p *Provisioner) GetBatchSessionState(batch map[string][]resources.SessionStateRequest) (map[string]resources.SessionState, error) {
+	batchResults := make(map[string]resources.SessionState)
+
+	for poolName, reqs := range batch {
+		fsm, err := p.pm.GetFSManager(poolName)
+		if err != nil {
+			log.Err(fmt.Sprintf("failed to find filesystem manager for pool %s: %v", poolName, err))
+			continue
+		}
+
+		results, err := fsm.GetBatchSessionState(reqs)
+		if err != nil {
+			log.Err(fmt.Sprintf("failed to get batch session state for pool %s: %v", poolName, err))
+			continue
+		}
+
+		for cloneID, state := range results {
+			batchResults[cloneID] = state
+		}
+	}
+
+	return batchResults, nil
 }
 
 // GetPoolEntryList provides an ordered list of available pools.
@@ -604,10 +632,8 @@ func (p *Provisioner) CleanupCloneDataset(clone *models.Clone, pool string) erro
 		return nil
 	}
 
-	if clone.Revision == branching.DefaultRevision && !clone.HasDependent {
-		if err := fsm.DestroyDataset(branching.CloneDataset(pool, clone.Branch, clone.ID)); err != nil {
-			return fmt.Errorf("failed to destroy clone dataset: %w", err)
-		}
+	if err = fsm.DestroyClone(clone.Branch, clone.ID, clone.Revision); err != nil {
+		return fmt.Errorf("failed to destroy clone: %w", err)
 	}
 
 	return nil

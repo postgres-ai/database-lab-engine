@@ -48,3 +48,9 @@ type SessionState struct {
 	CloneDiffSize     uint64
 	LogicalReferenced uint64
 }
+
+// SessionStateRequest defines a request for batch session state retrieval.
+type SessionStateRequest struct {
+	CloneID string
+	Branch  string
+}

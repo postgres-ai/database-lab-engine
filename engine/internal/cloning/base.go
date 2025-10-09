@@ -435,8 +435,10 @@ func (c *Base) refreshCloneMetadata(w *CloneWrapper) {
 		return
 	}
 
+	c.cloneMutex.Lock()
 	w.Clone.Metadata.CloneDiffSize = sessionState.CloneDiffSize
 	w.Clone.Metadata.LogicalSize = sessionState.LogicalReferenced
+	c.cloneMutex.Unlock()
 }
 
 // UpdateClone updates clone.
@@ -527,11 +529,6 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 		log.Warn("clone has dependent snapshots", cloneID)
 		c.cloneMutex.Lock()
 		w.Clone.Revision++
-		w.Clone.HasDependent = true
-		c.cloneMutex.Unlock()
-	} else {
-		c.cloneMutex.Lock()
-		w.Clone.HasDependent = false
 		c.cloneMutex.Unlock()
 	}
 
@@ -630,6 +627,8 @@ func (c *Base) GetClones() []*models.Clone {
 	clones := make([]*models.Clone, 0, c.lenClones())
 
 	c.cloneMutex.RLock()
+	requestsByPool := make(map[string][]resources.SessionStateRequest)
+
 	for _, cloneWrapper := range c.clones {
 		if cloneWrapper.Clone.Snapshot != nil {
 			snapshot, err := c.getSnapshotByID(cloneWrapper.Clone.Snapshot.ID)
@@ -642,11 +641,29 @@ func (c *Base) GetClones() []*models.Clone {
 			}
 		}
 
-		c.refreshCloneMetadata(cloneWrapper)
+		if cloneWrapper.Session != nil && cloneWrapper.Clone != nil {
+			pool := cloneWrapper.Session.Pool
+			requestsByPool[pool] = append(requestsByPool[pool], resources.SessionStateRequest{
+				CloneID: cloneWrapper.Clone.ID,
+				Branch:  cloneWrapper.Clone.Branch,
+			})
+		}
 
 		clones = append(clones, cloneWrapper.Clone)
 	}
 	c.cloneMutex.RUnlock()
+
+	sessionStates, err := c.provision.GetBatchSessionState(requestsByPool)
+	if err != nil {
+		log.Err("failed to get batch session states: ", err)
+	}
+
+	for _, clone := range clones {
+		if state, ok := sessionStates[clone.ID]; ok {
+			clone.Metadata.CloneDiffSize = state.CloneDiffSize
+			clone.Metadata.LogicalSize = state.LogicalReferenced
+		}
+	}
 
 	sort.Slice(clones, func(i, j int) bool {
 		return clones[i].CreatedAt.After(clones[j].CreatedAt.Time)

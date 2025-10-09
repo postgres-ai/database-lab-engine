@@ -102,6 +102,10 @@ func (m mockFSManager) GetSessionState(_, _ string) (*resources.SessionState, er
 	return nil, nil
 }
 
+func (m mockFSManager) GetBatchSessionState(_ []resources.SessionStateRequest) (map[string]resources.SessionState, error) {
+	return make(map[string]resources.SessionState), nil
+}
+
 func (m mockFSManager) GetFilesystemState() (models.FileSystem, error) {
 	return models.FileSystem{Mode: "zfs"}, nil
 }
@@ -212,6 +216,14 @@ func (m mockFSManager) HasDependentEntity(_ string) ([]string, error) {
 
 func (m mockFSManager) KeepRelation(_ string) error {
 	return nil
+}
+
+func (m mockFSManager) GetDatasetOrigins(_ string) []string {
+	return nil
+}
+
+func (m mockFSManager) GetActiveDatasets(_ string) ([]string, error) {
+	return nil, nil
 }
 
 func TestBuildPoolEntry(t *testing.T) {

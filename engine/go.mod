@@ -1,6 +1,6 @@
 module gitlab.com/postgres-ai/database-lab/v3
 
-go 1.23.12
+go 1.24.7
 
 require (
 	github.com/AlekSi/pointer v1.2.0
