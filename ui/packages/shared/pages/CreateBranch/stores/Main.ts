@@ -81,12 +81,13 @@ export class MainStore {
     return response
   }
 
-  getSnapshots = async (instanceId: string, branchName?: string) => {
+  getSnapshots = async (instanceId: string, branchName?: string, dataset?: string) => {
     if (!this.api.getSnapshots) return
 
     const { response, error } = await this.api.getSnapshots({
       instanceId,
       branchName,
+      dataset,
     })
 
     if (error) {

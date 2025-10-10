@@ -117,3 +117,15 @@ func ParseBranchNameFromSnapshot(snapshot, poolName string) string {
 
 	return branch
 }
+
+// ParseBaseDatasetFromSnapshot parses base dataset from the snapshot ID.
+func ParseBaseDatasetFromSnapshot(snapshot string) string {
+	fullDataset, _, found := strings.Cut(snapshot, "@")
+	if !found {
+		return ""
+	}
+
+	dataset, _, _ := strings.Cut(fullDataset, "/"+BranchDir+"/")
+
+	return dataset
+}

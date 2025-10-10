@@ -13,7 +13,14 @@ import {
 import { request } from 'helpers/request'
 
 export const getSnapshots: GetSnapshots = async (req) => {
-  const url = `/snapshots${req.branchName ? `?branch=${req.branchName}` : ''}`;
+  const params = new URLSearchParams()
+  if (req.branchName) {
+    params.append('branch', req.branchName)
+  }
+  if (req.dataset) {
+    params.append('dataset', req.dataset)
+  }
+  const url = `/snapshots${params.toString() ? `?${params.toString()}` : ''}`;
   const response = await request(url);
 
   return {

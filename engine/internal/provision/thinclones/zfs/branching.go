@@ -267,13 +267,15 @@ func (m *Manager) ListAllBranches(poolList []string) ([]models.BranchEntity, err
 			continue
 		}
 
+		dataset := branching.ParseBaseDatasetFromSnapshot(fields[1])
+
 		if !strings.Contains(fields[0], branchSep) {
-			branches = append(branches, models.BranchEntity{Name: fields[0], SnapshotID: fields[1]})
+			branches = append(branches, models.BranchEntity{Name: fields[0], Dataset: dataset, SnapshotID: fields[1]})
 			continue
 		}
 
 		for _, branchName := range strings.Split(fields[0], branchSep) {
-			branches = append(branches, models.BranchEntity{Name: branchName, SnapshotID: fields[1]})
+			branches = append(branches, models.BranchEntity{Name: branchName, Dataset: dataset, SnapshotID: fields[1]})
 		}
 	}
 

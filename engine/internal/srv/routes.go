@@ -108,8 +108,11 @@ func (s *Server) getSnapshots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if branchRequest := r.URL.Query().Get("branch"); branchRequest != "" {
-		fsm, err := s.getFSManagerForBranch(branchRequest)
+	branchRequest := r.URL.Query().Get("branch")
+	datasetRequest := r.URL.Query().Get("dataset")
+
+	if branchRequest != "" {
+		fsm, err := s.getFSManagerForBranchAndDataset(branchRequest, datasetRequest)
 		if err != nil {
 			api.SendBadRequestError(w, r, err.Error())
 			return
@@ -121,6 +124,10 @@ func (s *Server) getSnapshots(w http.ResponseWriter, r *http.Request) {
 		}
 
 		snapshots = filterSnapshotsByBranch(fsm.Pool(), branchRequest, snapshots)
+	}
+
+	if branchRequest == "" && datasetRequest != "" {
+		snapshots = filterSnapshotsByDataset(datasetRequest, snapshots)
 	}
 
 	if err = api.WriteJSON(w, http.StatusOK, snapshots); err != nil {
