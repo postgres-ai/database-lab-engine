@@ -47,9 +47,6 @@ func (s *Server) listBranches(w http.ResponseWriter, r *http.Request) {
 
 	branchDetails := make([]models.BranchView, 0, len(branches))
 
-	// branchRegistry is used to display the "main" branch with only the most recent snapshot.
-	branchRegistry := make(map[string]int, 0)
-
 	for _, branchEntity := range branches {
 		snapshotDetails, ok := repo.Snapshots[branchEntity.SnapshotID]
 		if !ok {
@@ -60,6 +57,7 @@ func (s *Server) listBranches(w http.ResponseWriter, r *http.Request) {
 
 		branchView := models.BranchView{
 			Name:         branchEntity.Name,
+			BaseDataset:  branchEntity.Dataset,
 			Parent:       parentSnapshot,
 			DataStateAt:  snapshotDetails.DataStateAt,
 			SnapshotID:   snapshotDetails.ID,
@@ -67,15 +65,6 @@ func (s *Server) listBranches(w http.ResponseWriter, r *http.Request) {
 			NumSnapshots: numSnapshots,
 		}
 
-		if position, ok := branchRegistry[branchEntity.Name]; ok {
-			if branchView.DataStateAt > branchDetails[position].DataStateAt {
-				branchDetails[position] = branchView
-			}
-
-			continue
-		}
-
-		branchRegistry[branchView.Name] = len(branchDetails)
 		branchDetails = append(branchDetails, branchView)
 	}
 
@@ -136,15 +125,36 @@ func containsString(slice []string, s string) bool {
 }
 
 func (s *Server) getFSManagerForBranch(branchName string) (pool.FSManager, error) {
+	return s.getFSManagerForBranchAndDataset(branchName, "")
+}
+
+func (s *Server) getFSManagerForBranchAndDataset(branchName, dataset string) (pool.FSManager, error) {
 	allBranches, err := s.getAllAvailableBranches(s.pm.First())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get branch list: %w", err)
 	}
 
 	for _, branchEntity := range allBranches {
-		if branchEntity.Name == branchName { // TODO: filter by pool name as well because branch name is ambiguous.
+		if branchEntity.Name != branchName {
+			continue
+		}
+
+		if dataset == "" {
 			return s.getFSManagerForSnapshot(branchEntity.SnapshotID)
 		}
+
+		fsm, err := s.getFSManagerForSnapshot(branchEntity.SnapshotID)
+		if err != nil {
+			continue
+		}
+
+		if fsm.Pool().Name == dataset {
+			return fsm, nil
+		}
+	}
+
+	if dataset != "" {
+		return nil, fmt.Errorf("failed to find dataset %s of the branch: %s", dataset, branchName)
 	}
 
 	return nil, fmt.Errorf("failed to found dataset of the branch: %s", branchName)
@@ -465,6 +475,18 @@ func filterSnapshotsByBranch(pool *resources.Pool, branch string, snapshots []mo
 		}
 
 		if strings.HasPrefix(dataset, branchName) || (branch == branching.DefaultBranch && pool.Name == dataset) {
+			filtered = append(filtered, sn)
+		}
+	}
+
+	return filtered
+}
+
+func filterSnapshotsByDataset(dataset string, snapshots []models.Snapshot) []models.Snapshot {
+	filtered := make([]models.Snapshot, 0)
+
+	for _, sn := range snapshots {
+		if sn.Pool == dataset {
 			filtered = append(filtered, sn)
 		}
 	}

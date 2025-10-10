@@ -107,6 +107,7 @@ export const CreateBranchPage = observer(
     const classes = useStyles()
     const history = useHistory()
     const [branchSnapshots, setBranchSnapshots] = useState<Snapshot[]>([])
+    const [selectedBranchKey, setSelectedBranchKey] = useState<string>('main|')
 
     const {
       load,
@@ -131,8 +132,8 @@ export const CreateBranchPage = observer(
       })
     }
 
-    const fetchSnapshots = async (branchName: string) => {
-      await getSnapshots(instanceId, branchName).then((response) => {
+    const fetchSnapshots = async (branchName: string, dataset?: string) => {
+      await getSnapshots(instanceId, branchName, dataset).then((response) => {
         if (response) {
           setBranchSnapshots(response)
           formik.setFieldValue('snapshotID', response[0]?.id)
@@ -143,17 +144,28 @@ export const CreateBranchPage = observer(
     const handleParentBranchChange = async (
       e: React.ChangeEvent<HTMLInputElement>,
     ) => {
-      const branchName = e.target.value
+      const compositeKey = e.target.value
+      const [branchName, dataset] = compositeKey.split('|')
+
+      setSelectedBranchKey(compositeKey)
       formik.setFieldValue('baseBranch', branchName)
-      await fetchSnapshots(branchName)
+      await fetchSnapshots(branchName, dataset)
     }
 
     const [{ formik }] = useForm(handleSubmit)
 
-    useEffect(() => {
-      load(instanceId)
-      fetchSnapshots(formik.values.baseBranch)
-    }, [formik.values.baseBranch])
+      useEffect(() => {
+          load(instanceId);
+      }, [instanceId]);
+
+      useEffect(() => {
+          if (!branchesList?.length) return;
+          const selected = branchesList.find(b => b.name === formik.values.baseBranch);
+          if (!selected) return;
+          const compositeKey = `${selected.name}|${selected.baseDataset || ''}`;
+          setSelectedBranchKey(compositeKey);
+          fetchSnapshots(selected.name, selected.baseDataset);
+      }, [branchesList]);
 
     if (isBranchesLoading) {
       return <StubSpinner />
@@ -207,16 +219,20 @@ export const CreateBranchPage = observer(
               <Select
                 fullWidth
                 label="Parent branch"
-                value={formik.values.baseBranch}
+                value={selectedBranchKey}
                 disabled={!branchesList || formik.isSubmitting}
                 onChange={handleParentBranchChange}
                 error={Boolean(formik.errors.baseBranch)}
                 items={
                   branchesList
                     ? branchesList.map((branch) => {
+                        const displayName = branch.baseDataset
+                          ? `${branch.name} (${branch.baseDataset})`
+                          : branch.name
+                        const compositeValue = `${branch.name}|${branch.baseDataset || ''}`
                         return {
-                          value: branch.name,
-                          children: branch.name,
+                          value: compositeValue,
+                          children: displayName,
                         }
                       })
                     : []

@@ -2,9 +2,11 @@ import { formatDateToISO } from '@postgres.ai/shared/utils/date'
 
 export interface Branch {
   name: string
+  baseDataset: string
   parent: string
   dataStateAt: string
   snapshotID: string
+  dataset: string
   numSnapshots: number
 }
 
