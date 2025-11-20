@@ -28,7 +28,7 @@ func isAlreadyMounted(mounts []mount.Mount, dir string) bool {
 	dir = strings.Trim(dir, "/")
 
 	for _, mountPoint := range mounts {
-		if strings.Trim(mountPoint.Source, "/") == dir {
+		if strings.Trim(mountPoint.Source, "/") == dir || strings.Trim(mountPoint.Target, "/") == dir {
 			return true
 		}
 	}

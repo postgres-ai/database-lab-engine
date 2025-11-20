@@ -37,11 +37,13 @@ func TestIfDirectoryEmpty(t *testing.T) {
 
 func TestGetMountsFromMountPoints(t *testing.T) {
 	testCases := []struct {
+		name           string
 		dataDir        string
 		mountPoints    []types.MountPoint
 		expectedPoints []mount.Mount
 	}{
 		{
+			name:    "simple mount without transformation",
 			dataDir: "/var/lib/dblab/clones/dblab_clone_6000/data",
 			mountPoints: []types.MountPoint{{
 				Source:      "/var/lib/pgsql/data",
@@ -56,8 +58,8 @@ func TestGetMountsFromMountPoints(t *testing.T) {
 				},
 			}},
 		},
-
 		{
+			name:    "mount with path transformation",
 			dataDir: "/var/lib/dblab/clones/dblab_clone_6000/data",
 			mountPoints: []types.MountPoint{{
 				Source:      "/var/lib/postgresql",
@@ -72,10 +74,44 @@ func TestGetMountsFromMountPoints(t *testing.T) {
 				},
 			}},
 		},
+		{
+			name:    "deduplicate identical mounts",
+			dataDir: "/var/lib/dblab/data",
+			mountPoints: []types.MountPoint{
+				{Source: "/host/dump", Destination: "/var/lib/dblab/dump"},
+				{Source: "/host/dump", Destination: "/var/lib/dblab/dump"},
+			},
+			expectedPoints: []mount.Mount{{
+				Source:   "/host/dump",
+				Target:   "/var/lib/dblab/dump",
+				ReadOnly: true,
+				BindOptions: &mount.BindOptions{
+					Propagation: "",
+				},
+			}},
+		},
+		{
+			name:    "deduplicate mounts with trailing slashes",
+			dataDir: "/var/lib/dblab/data",
+			mountPoints: []types.MountPoint{
+				{Source: "/host/dump/", Destination: "/var/lib/dblab/dump"},
+				{Source: "/host/dump", Destination: "/var/lib/dblab/dump/"},
+			},
+			expectedPoints: []mount.Mount{{
+				Source:   "/host/dump/",
+				Target:   "/var/lib/dblab/dump",
+				ReadOnly: true,
+				BindOptions: &mount.BindOptions{
+					Propagation: "",
+				},
+			}},
+		},
 	}
 
 	for _, tc := range testCases {
-		mounts := GetMountsFromMountPoints(tc.dataDir, tc.mountPoints)
-		assert.Equal(t, tc.expectedPoints, mounts)
+		t.Run(tc.name, func(t *testing.T) {
+			mounts := GetMountsFromMountPoints(tc.dataDir, tc.mountPoints)
+			assert.Equal(t, tc.expectedPoints, mounts)
+		})
 	}
 }

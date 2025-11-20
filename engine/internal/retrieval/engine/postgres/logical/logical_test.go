@@ -38,6 +38,16 @@ func TestIsAlreadyMounted(t *testing.T) {
 			dumpLocation:   "/var/lib/dblab/new_pool/dump",
 			expectedResult: false,
 		},
+		{
+			source:         []mount.Mount{{Source: "/host/path/dump", Target: "/var/lib/dblab/pool/dump"}},
+			dumpLocation:   "/var/lib/dblab/pool/dump",
+			expectedResult: true,
+		},
+		{
+			source:         []mount.Mount{{Source: "/host/path/dump", Target: "/var/lib/dblab/pool/dump/"}},
+			dumpLocation:   "/var/lib/dblab/pool/dump",
+			expectedResult: true,
+		},
 	}
 
 	for _, tc := range testCases {
