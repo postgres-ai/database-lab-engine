@@ -183,6 +183,7 @@ func AddVolumesToHostConfig(ctx context.Context, docker *client.Client, hostConf
 // GetMountsFromMountPoints creates a list of mounts.
 func GetMountsFromMountPoints(dataDir string, mountPoints []types.MountPoint) []mount.Mount {
 	mounts := make([]mount.Mount, 0, len(mountPoints))
+	seen := make(map[string]struct{})
 
 	for _, mountPoint := range mountPoints {
 		// Rewrite mounting to data directory.
@@ -191,6 +192,18 @@ func GetMountsFromMountPoints(dataDir string, mountPoints []types.MountPoint) []
 			mountPoint.Source = path.Join(mountPoint.Source, suffix)
 			mountPoint.Destination = dataDir
 		}
+
+		// Deduplicate mounts by normalizing paths and checking both source and target.
+		normalizedSource := strings.Trim(mountPoint.Source, "/")
+		normalizedTarget := strings.Trim(mountPoint.Destination, "/")
+		mountKey := normalizedSource + "|" + normalizedTarget
+
+		if _, ok := seen[mountKey]; ok {
+			log.Dbg("skipping duplicate mount", mountPoint.Source, "to", mountPoint.Destination)
+			continue
+		}
+
+		seen[mountKey] = struct{}{}
 
 		mounts = append(mounts, mount.Mount{
 			Type:     mountPoint.Type,
