@@ -247,7 +247,7 @@ func (m *Manager) ListAllBranches(poolList []string) ([]models.BranchEntity, err
 	cmd := fmt.Sprintf(
 		// Get all ZFS snapshots (-t) with options (-o) without output headers (-H).
 		// Excluding snapshots without "dle:branch" property ("grep -v").
-		`zfs list -H -t snapshot -o %s,name %s | grep -v "^-" | cat`, branchProp, poolFilter,
+		`zfs list -H -t snapshot -S %s -o %s,name %s | grep -v "^-" | cat`, dataStateAtLabel, branchProp, poolFilter,
 	)
 
 	out, err := m.runner.Run(cmd)
