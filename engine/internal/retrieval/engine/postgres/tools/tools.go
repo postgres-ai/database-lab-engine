@@ -637,6 +637,10 @@ func processAttachResponse(ctx context.Context, reader io.Reader) ([]byte, error
 		break
 
 	case <-ctx.Done():
+		if closer, ok := reader.(io.Closer); ok {
+			_ = closer.Close()
+		}
+
 		return nil, ctx.Err()
 	}
 

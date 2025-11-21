@@ -43,6 +43,8 @@ func dbSourceActivity(ctx context.Context, dbCfg Connection) ([]activity.PGEvent
 		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}
 
+	defer func() { _ = querier.Close(context.Background()) }()
+
 	rows, err := querier.Query(ctx, statQuery)
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform query to get DB activity: %w", err)
@@ -77,7 +79,10 @@ func pgContainerActivity(ctx context.Context, docker *client.Client, containerID
 		return []activity.PGEvent{}, nil
 	}
 
-	activityCmd := []string{"psql", "-U", db.User(), "-d", db.Name(), "--record-separator='" + customRecordSeparator + "'", "-XAtc", statQuery}
+	activityCmd := []string{"psql", "-U", db.User(), "-d", db.Name(),
+		"--set=connect_timeout=5",
+		"-c", "SET statement_timeout = '10s';",
+		"--record-separator='" + customRecordSeparator + "'", "-XAtc", statQuery}
 
 	log.Msg("Running activity command: ", activityCmd)
 
