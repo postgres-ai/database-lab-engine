@@ -3,7 +3,7 @@ set -euxo pipefail
 
 DLE_TEST_MOUNT_DIR="/var/lib/test/dblab_mount"
 DLE_TEST_POOL_NAME="test_dblab_pool"
-TMP_DATA_DIR="/tmp/dle_test/logical_generic"
+TMP_DATA_DIR="/tmp/dle_test"
 ZFS_FILE="$(pwd)/zfs_file"
 
 # Stop and remove test Docker containers
