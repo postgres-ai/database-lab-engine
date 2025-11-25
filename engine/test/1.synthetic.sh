@@ -263,7 +263,7 @@ dblab clone create \
   --branch 001-branch \
   --id branchclone002 || (echo "Failed to create a clone on branch" && exit 1)
 
-dblab commit --clone-id branchclone002 -m branchclone002 || (echo "Failed to create a snapshot" && exit 1)
+dblab snapshot create --clone-id branchclone002 --message branchclone002 || (echo "Failed to create a snapshot" && exit 1)
 
 dblab log 001-branch || (echo "Failed to show branch history" && exit 1)
 
