@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -515,9 +516,9 @@ func (s *Server) createSnapshotClone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cloneName := clone.ID
+	fullClonePath := path.Join(branching.BranchDir, clone.Branch, clone.ID, branching.RevisionSegment(branching.DefaultRevision))
 
-	snapshotID, err := fsm.CreateSnapshot(cloneName, time.Now().Format(util.DataStateAtFormat))
+	snapshotID, err := fsm.CreateSnapshot(fullClonePath, time.Now().Format(util.DataStateAtFormat))
 	if err != nil {
 		api.SendBadRequestError(w, r, fmt.Sprintf("failed to create a snapshot: %s", err.Error()))
 		return
