@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"sort"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
@@ -44,6 +45,7 @@ func (c *Client) ListBranches(ctx context.Context) ([]string, error) {
 		listBranches = append(listBranches, branchView.Name)
 	}
 
+	listBranches = slices.Compact(listBranches)
 	sort.Strings(listBranches)
 
 	return listBranches, nil
