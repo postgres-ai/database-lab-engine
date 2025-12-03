@@ -18,7 +18,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 
@@ -62,7 +62,7 @@ func main() {
 
 	config.ApplyGlobals(cfg)
 
-	docker, err := client.NewClientWithOpts(client.FromEnv)
+	docker, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		log.Fatal("Failed to create a Docker client:", err)
 	}
@@ -273,7 +273,7 @@ func main() {
 func getNetworkGateway(docker *client.Client, internalNetworkID string) string {
 	gateway := ""
 
-	networkResource, err := docker.NetworkInspect(context.Background(), internalNetworkID, types.NetworkInspectOptions{})
+	networkResource, err := docker.NetworkInspect(context.Background(), internalNetworkID, network.InspectOptions{})
 	if err != nil {
 		log.Err(err.Error())
 		return gateway

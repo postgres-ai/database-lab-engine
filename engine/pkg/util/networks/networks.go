@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 
@@ -33,7 +32,7 @@ func Setup(ctx context.Context, dockerCLI *client.Client, instanceID, containerN
 
 	log.Dbg("Discovering internal network:", networkName)
 
-	networkResource, err := dockerCLI.NetworkInspect(ctx, networkName, types.NetworkInspectOptions{})
+	networkResource, err := dockerCLI.NetworkInspect(ctx, networkName, network.InspectOptions{})
 	if err == nil {
 		if !hasContainerConnected(networkResource, containerName) {
 			if err := dockerCLI.NetworkConnect(ctx, networkResource.ID, containerName, &network.EndpointSettings{}); err != nil {
@@ -49,7 +48,7 @@ func Setup(ctx context.Context, dockerCLI *client.Client, instanceID, containerN
 	log.Dbg("Internal network not found:", err.Error())
 	log.Dbg("Creating a new internal network:", networkName)
 
-	internalNetwork, err := dockerCLI.NetworkCreate(ctx, networkName, types.NetworkCreate{
+	internalNetwork, err := dockerCLI.NetworkCreate(ctx, networkName, network.CreateOptions{
 		Labels: map[string]string{
 			"instance": instanceID,
 			"app":      DLEApp,
@@ -82,7 +81,7 @@ func Stop(dockerCLI *client.Client, internalNetworkID, containerName string) {
 
 	log.Dbg("DLE container has been disconnected from the internal network:", containerName)
 
-	networkInspect, err := dockerCLI.NetworkInspect(context.Background(), internalNetworkID, types.NetworkInspectOptions{})
+	networkInspect, err := dockerCLI.NetworkInspect(context.Background(), internalNetworkID, network.InspectOptions{})
 	if err != nil {
 		log.Errf(err.Error())
 		return
@@ -106,7 +105,7 @@ func Connect(ctx context.Context, dockerCLI *client.Client, instanceID, containe
 
 	log.Dbg("Discovering internal network:", networkName)
 
-	networkResource, err := dockerCLI.NetworkInspect(ctx, networkName, types.NetworkInspectOptions{})
+	networkResource, err := dockerCLI.NetworkInspect(ctx, networkName, network.InspectOptions{})
 	if err != nil {
 		return fmt.Errorf("internal network not found: %w", err)
 	}
@@ -130,7 +129,7 @@ func Reconnect(ctx context.Context, dockerCLI *client.Client, instanceID, contai
 
 	log.Dbg("Discovering internal network:", networkName)
 
-	networkResource, err := dockerCLI.NetworkInspect(ctx, networkName, types.NetworkInspectOptions{})
+	networkResource, err := dockerCLI.NetworkInspect(ctx, networkName, network.InspectOptions{})
 	if err != nil {
 		return fmt.Errorf("internal network not found: %w", err)
 	}
@@ -152,7 +151,7 @@ func Reconnect(ctx context.Context, dockerCLI *client.Client, instanceID, contai
 	return nil
 }
 
-func hasContainerConnected(networkResource types.NetworkResource, containerID string) bool {
+func hasContainerConnected(networkResource network.Inspect, containerID string) bool {
 	for _, container := range networkResource.Containers {
 		if container.Name == containerID {
 			return true

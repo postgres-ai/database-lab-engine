@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
@@ -292,7 +291,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 	log.Msg("Running analyze command: ", analyzeCmd)
 
-	if err := tools.ExecCommand(ctx, r.dockerClient, containerID, types.ExecConfig{
+	if err := tools.ExecCommand(ctx, r.dockerClient, containerID, container.ExecOptions{
 		Cmd: analyzeCmd,
 		Env: []string{"PGAPPNAME=" + dleRetrieval},
 	}); err != nil {
@@ -408,7 +407,7 @@ func (r *RestoreJob) extractDBNameFromDump(ctx context.Context, contID, dumpPath
 	extractDBNameCmd := fmt.Sprintf("pg_restore --list %s | grep %s | tr -d '[;]'", dumpPath, prefixDBName)
 	log.Msg("Extract database name: ", extractDBNameCmd)
 
-	outputLine, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
+	outputLine, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, container.ExecOptions{
 		Cmd: []string{"bash", "-c", extractDBNameCmd},
 	})
 	if err != nil {
@@ -573,7 +572,7 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 
 		log.Msg("Running preparatory command to create list file for "+dbName, preCmd)
 
-		output, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
+		output, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, container.ExecOptions{
 			Tty: true,
 			Cmd: preCmd,
 			Env: []string{"PGAPPNAME=" + dleRetrieval},
@@ -589,7 +588,7 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 	restoreCommand := r.buildLogicalRestoreCommand(dbName, dbDefinition, tmpListFile)
 	log.Msg("Running restore command for "+dbName, restoreCommand)
 
-	output, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{
+	output, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, container.ExecOptions{
 		Tty: true,
 		Cmd: restoreCommand,
 		Env: []string{"PGAPPNAME=" + dleRetrieval},
@@ -647,7 +646,7 @@ func (r *RestoreJob) prepareDB(ctx context.Context, contID, dbName string) error
 	cmd := []string{"psql", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName, "--file", dstPath}
 	log.Msg("Run command", cmd)
 
-	if out, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, types.ExecConfig{Tty: true, Cmd: cmd}); err != nil {
+	if out, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, container.ExecOptions{Tty: true, Cmd: cmd}); err != nil {
 		log.Dbg("Command output: ", out)
 		return errors.Wrap(err, "failed to exec restore command")
 	}
@@ -675,7 +674,7 @@ func (r *RestoreJob) prepareArchive(ctx context.Context, contID string, tempFile
 
 	defer func() { _ = preparedArchive.Close() }()
 
-	if err := r.dockerClient.CopyToContainer(ctx, contID, dstDir, preparedArchive, types.CopyToContainerOptions{
+	if err := r.dockerClient.CopyToContainer(ctx, contID, dstDir, preparedArchive, container.CopyToContainerOptions{
 		AllowOverwriteDirWithFile: true,
 		CopyUIDGID:                true,
 	}); err != nil {
@@ -735,7 +734,7 @@ func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID, dumpLocati
 
 	log.Dbg("Running a restore metadata command: ", restoreMetaCmd)
 
-	execCommand, err := r.dockerClient.ContainerExecCreate(ctx, contID, types.ExecConfig{
+	execCommand, err := r.dockerClient.ContainerExecCreate(ctx, contID, container.ExecOptions{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          restoreMetaCmd,
@@ -744,7 +743,7 @@ func (r *RestoreJob) retrieveDataStateAt(ctx context.Context, contID, dumpLocati
 		return "", errors.Wrap(err, "failed to create a restore metadata command")
 	}
 
-	execAttach, err := r.dockerClient.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{})
+	execAttach, err := r.dockerClient.ContainerExecAttach(ctx, execCommand.ID, container.ExecStartOptions{})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to exec a restore metadata command")
 	}

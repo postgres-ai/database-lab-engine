@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 )
@@ -23,7 +24,7 @@ func ReadControlData(ctx context.Context, d *client.Client, contID, dataDir stri
 		return types.HijackedResponse{}, errors.Wrap(err, "failed to create an exec command")
 	}
 
-	attachResponse, err := d.ContainerExecAttach(ctx, controlDataCmd.ID, types.ExecStartCheck{})
+	attachResponse, err := d.ContainerExecAttach(ctx, controlDataCmd.ID, container.ExecStartOptions{})
 	if err != nil {
 		return types.HijackedResponse{}, errors.Wrap(err, "failed to attach to the exec command")
 	}
@@ -31,10 +32,10 @@ func ReadControlData(ctx context.Context, d *client.Client, contID, dataDir stri
 	return attachResponse, nil
 }
 
-func pgControlDataConfig(pgDataDir string, pgVersion float64) types.ExecConfig {
+func pgControlDataConfig(pgDataDir string, pgVersion float64) container.ExecOptions {
 	command := fmt.Sprintf("/usr/lib/postgresql/%g/bin/pg_controldata", pgVersion)
 
-	return types.ExecConfig{
+	return container.ExecOptions{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          []string{command, "-D", pgDataDir},

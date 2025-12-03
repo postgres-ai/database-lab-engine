@@ -13,7 +13,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
@@ -233,7 +232,7 @@ func (s *Server) runCommands(ctx context.Context, clone *models.Clone, runID str
 
 		log.Msg("Running command: ", cmd)
 
-		output, err := tools.ExecCommandWithOutput(ctx, s.docker, contRunner.ID, types.ExecConfig{
+		output, err := tools.ExecCommandWithOutput(ctx, s.docker, contRunner.ID, container.ExecOptions{
 			Cmd: cmd,
 		})
 		if err != nil {

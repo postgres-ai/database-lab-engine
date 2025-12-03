@@ -17,6 +17,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/host"
@@ -276,7 +277,7 @@ func ImageExists(ctx context.Context, docker *client.Client, dockerImage string)
 	filterArgs := filters.NewArgs()
 	filterArgs.Add(referenceKey, dockerImage)
 
-	list, err := docker.ImageList(ctx, types.ImageListOptions{
+	list, err := docker.ImageList(ctx, imagetypes.ListOptions{
 		All:     false,
 		Filters: filterArgs,
 	})
@@ -290,7 +291,7 @@ func ImageExists(ctx context.Context, docker *client.Client, dockerImage string)
 
 // PullImage pulls Docker image from DockerHub registry.
 func PullImage(ctx context.Context, docker *client.Client, dockerImage string) error {
-	pullResponse, err := docker.ImagePull(ctx, dockerImage, types.ImagePullOptions{})
+	pullResponse, err := docker.ImagePull(ctx, dockerImage, imagetypes.PullOptions{})
 
 	if err != nil {
 		return fmt.Errorf("failed to pull image: %w", err)

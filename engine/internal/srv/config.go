@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	imagetypes "github.com/docker/docker/api/types/image"
 	yamlv2 "gopkg.in/yaml.v2"
 	"gopkg.in/yaml.v3"
 
@@ -350,7 +350,7 @@ func (s *Server) validateConfig(
 	}
 
 	if proj.DockerImage != nil {
-		stream, err := s.docker.ImagePull(ctx, *proj.DockerImage, types.ImagePullOptions{})
+		stream, err := s.docker.ImagePull(ctx, *proj.DockerImage, imagetypes.PullOptions{})
 		if err != nil {
 			return err
 		}

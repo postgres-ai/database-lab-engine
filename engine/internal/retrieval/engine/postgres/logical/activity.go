@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/jackc/pgx/v4"
 
@@ -86,7 +87,7 @@ func pgContainerActivity(ctx context.Context, docker *client.Client, containerID
 
 	log.Msg("Running activity command: ", activityCmd)
 
-	execCfg := types.ExecConfig{
+	execCfg := container.ExecOptions{
 		Tty: true,
 		Cmd: activityCmd,
 	}

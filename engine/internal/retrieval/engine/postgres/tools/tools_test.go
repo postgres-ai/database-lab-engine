@@ -46,10 +46,12 @@ func TestGetMountsFromMountPoints(t *testing.T) {
 			name:    "simple mount without transformation",
 			dataDir: "/var/lib/dblab/clones/dblab_clone_6000/data",
 			mountPoints: []types.MountPoint{{
+				Type:        mount.TypeBind,
 				Source:      "/var/lib/pgsql/data",
 				Destination: "/var/lib/postgresql/data",
 			}},
 			expectedPoints: []mount.Mount{{
+				Type:     mount.TypeBind,
 				Source:   "/var/lib/pgsql/data",
 				Target:   "/var/lib/postgresql/data",
 				ReadOnly: true,
@@ -62,10 +64,12 @@ func TestGetMountsFromMountPoints(t *testing.T) {
 			name:    "mount with path transformation",
 			dataDir: "/var/lib/dblab/clones/dblab_clone_6000/data",
 			mountPoints: []types.MountPoint{{
+				Type:        mount.TypeBind,
 				Source:      "/var/lib/postgresql",
 				Destination: "/var/lib/dblab",
 			}},
 			expectedPoints: []mount.Mount{{
+				Type:     mount.TypeBind,
 				Source:   "/var/lib/postgresql/clones/dblab_clone_6000/data",
 				Target:   "/var/lib/dblab/clones/dblab_clone_6000/data",
 				ReadOnly: true,
@@ -78,10 +82,11 @@ func TestGetMountsFromMountPoints(t *testing.T) {
 			name:    "deduplicate identical mounts",
 			dataDir: "/var/lib/dblab/data",
 			mountPoints: []types.MountPoint{
-				{Source: "/host/dump", Destination: "/var/lib/dblab/dump"},
-				{Source: "/host/dump", Destination: "/var/lib/dblab/dump"},
+				{Type: mount.TypeBind, Source: "/host/dump", Destination: "/var/lib/dblab/dump"},
+				{Type: mount.TypeBind, Source: "/host/dump", Destination: "/var/lib/dblab/dump"},
 			},
 			expectedPoints: []mount.Mount{{
+				Type:     mount.TypeBind,
 				Source:   "/host/dump",
 				Target:   "/var/lib/dblab/dump",
 				ReadOnly: true,
@@ -94,16 +99,34 @@ func TestGetMountsFromMountPoints(t *testing.T) {
 			name:    "deduplicate mounts with trailing slashes",
 			dataDir: "/var/lib/dblab/data",
 			mountPoints: []types.MountPoint{
-				{Source: "/host/dump/", Destination: "/var/lib/dblab/dump"},
-				{Source: "/host/dump", Destination: "/var/lib/dblab/dump/"},
+				{Type: mount.TypeBind, Source: "/host/dump/", Destination: "/var/lib/dblab/dump"},
+				{Type: mount.TypeBind, Source: "/host/dump", Destination: "/var/lib/dblab/dump/"},
 			},
 			expectedPoints: []mount.Mount{{
+				Type:     mount.TypeBind,
 				Source:   "/host/dump/",
 				Target:   "/var/lib/dblab/dump",
 				ReadOnly: true,
 				BindOptions: &mount.BindOptions{
 					Propagation: "",
 				},
+			}},
+		},
+		{
+			name:    "volume mount uses name instead of path",
+			dataDir: "/var/lib/dblab/data",
+			mountPoints: []types.MountPoint{{
+				Type:        mount.TypeVolume,
+				Name:        "3749a7e336f27d8c1ce2a81c7b945954f7522ecc3a4be4a3855bf64473f63a89",
+				Source:      "/var/lib/docker/volumes/3749a7e336f27d8c1ce2a81c7b945954f7522ecc3a4be4a3855bf64473f63a89/_data",
+				Destination: "/var/lib/docker",
+				RW:          false,
+			}},
+			expectedPoints: []mount.Mount{{
+				Type:     mount.TypeVolume,
+				Source:   "3749a7e336f27d8c1ce2a81c7b945954f7522ecc3a4be4a3855bf64473f63a89",
+				Target:   "/var/lib/docker",
+				ReadOnly: true,
 			}},
 		},
 	}

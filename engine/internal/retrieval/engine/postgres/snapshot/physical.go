@@ -19,7 +19,6 @@ import (
 
 	"github.com/araddon/dateparse"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -733,7 +732,7 @@ func (p *PhysicalInitial) getDSAFromWAL(ctx context.Context, pgVersion float64, 
 
 	walDirectory := walDir(cloneDir, pgVersion)
 
-	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
+	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, container.ExecOptions{
 		Cmd: []string{"ls", "-t", walDirectory},
 	})
 	if err != nil {
@@ -782,7 +781,7 @@ func (p *PhysicalInitial) parseWAL(
 ) string {
 	cmd := walCommand(pgVersion, walFilePath)
 
-	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
+	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, container.ExecOptions{
 		Cmd: []string{"sh", "-c", cmd},
 	})
 	if err != nil {
@@ -961,7 +960,7 @@ func (p *PhysicalInitial) checkRecovery(ctx context.Context, containerID string)
 
 	log.Msg("Check recovery command", checkRecoveryCmd)
 
-	output, err := tools.ExecCommandWithResponse(ctx, p.dockerClient, containerID, types.ExecConfig{
+	output, err := tools.ExecCommandWithResponse(ctx, p.dockerClient, containerID, container.ExecOptions{
 		Cmd:          checkRecoveryCmd,
 		AttachStderr: false,
 		AttachStdout: true,
@@ -1045,7 +1044,7 @@ func (p *PhysicalInitial) getLastXActReplayTimestamp(ctx context.Context, contai
 
 	log.Msg("Running dataStateAt command", extractionCommand)
 
-	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
+	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, container.ExecOptions{
 		Cmd:  extractionCommand,
 		User: defaults.Username,
 	})
@@ -1084,7 +1083,7 @@ func (p *PhysicalInitial) runPromoteCommand(ctx context.Context, containerID, cl
 
 	log.Msg("Running promote command", promoteCommand)
 
-	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, types.ExecConfig{
+	output, err := tools.ExecCommandWithOutput(ctx, p.dockerClient, containerID, container.ExecOptions{
 		User: defaults.Username,
 		Cmd:  promoteCommand,
 		Env: []string{

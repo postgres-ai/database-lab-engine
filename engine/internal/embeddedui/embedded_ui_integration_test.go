@@ -11,7 +11,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +25,7 @@ import (
 
 func TestStartExistingContainer(t *testing.T) {
 	t.Parallel()
-	docker, err := client.NewClientWithOpts(client.FromEnv)
+	docker, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	require.NoError(t, err)
 
 	engProps := global.EngineProps{
@@ -66,7 +66,7 @@ func TestStartExistingContainer(t *testing.T) {
 
 	list, err := docker.ContainerList(
 		ctx,
-		types.ContainerListOptions{
+		container.ListOptions{
 			All:     true,
 			Filters: filterArgs,
 		},

@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"golang.org/x/mod/semver"
 
@@ -114,7 +114,7 @@ func getLastBackupName(ctx context.Context, dockerClient *client.Client, contain
 
 // parseLastBackupFromList parses the name of the latest backup from "wal-g backup-list" output.
 func parseLastBackupFromList(ctx context.Context, dockerClient *client.Client, containerID string) (string, error) {
-	output, err := tools.ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
+	output, err := tools.ExecCommandWithOutput(ctx, dockerClient, containerID, container.ExecOptions{
 		Cmd: []string{"bash", "-c", "wal-g backup-list | grep base | sort -nk1 | tail -1 | awk '{print $1}'"},
 	})
 	if err != nil {
@@ -128,7 +128,7 @@ func parseLastBackupFromList(ctx context.Context, dockerClient *client.Client, c
 
 // parseLastBackupFromDetails parses the name of the latest backup from "wal-g backup-list --detail" output.
 func parseLastBackupFromDetails(ctx context.Context, dockerClient *client.Client, containerID string) (string, error) {
-	output, err := tools.ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
+	output, err := tools.ExecCommandWithOutput(ctx, dockerClient, containerID, container.ExecOptions{
 		Cmd: []string{"bash", "-c", "wal-g backup-list --detail | tail -1 | awk '{print $1}'"},
 	})
 	if err != nil {
@@ -142,7 +142,7 @@ func parseLastBackupFromDetails(ctx context.Context, dockerClient *client.Client
 
 // getWalgVersion fetches the WAL-G version installed in the provided container.
 func getWalgVersion(ctx context.Context, dockerClient *client.Client, containerID string) (string, error) {
-	output, err := tools.ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
+	output, err := tools.ExecCommandWithOutput(ctx, dockerClient, containerID, container.ExecOptions{
 		Cmd: []string{"bash", "-c", "wal-g --version"},
 	})
 	if err != nil {

@@ -5,7 +5,7 @@
 // Package templates contains custom template output.
 package templates
 
-//nolint
+// nolint
 const CustomAppHelpTemplate = `NAME:
    Database Lab CLI {{if .Version}}{{if not .HideVersion}}{{.Version}}{{end}}{{end}}
 
@@ -35,7 +35,7 @@ CONTACT US: https://postgres.ai, team@postgres.ai
 
 `
 
-//nolint
+// nolint
 const CustomCommandHelpTemplate = `USAGE:
    {{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}}{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}{{if .Category}}
 
@@ -50,7 +50,7 @@ OPTIONS:
    {{end}}{{end}}
 `
 
-//nolint
+// nolint
 const CustomSubcommandHelpTemplate = `USAGE:
    {{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}} command{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}
 
