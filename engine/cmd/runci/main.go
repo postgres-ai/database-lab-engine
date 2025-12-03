@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
@@ -22,7 +21,7 @@ import (
 )
 
 func main() {
-	dockerCLI, err := client.NewClientWithOpts(client.FromEnv)
+	dockerCLI, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		log.Fatal("Failed to create a Docker client:", err)
 	}
@@ -129,7 +128,7 @@ func discoverNetwork(ctx context.Context, cfg *runci.Config, dockerCLI *client.C
 
 	for networkLabel, endpointSettings := range inspection.NetworkSettings.Networks {
 		if strings.HasPrefix(networkLabel, networks.NetworkPrefix) {
-			networkResource, err := dockerCLI.NetworkInspect(ctx, endpointSettings.NetworkID, types.NetworkInspectOptions{})
+			networkResource, err := dockerCLI.NetworkInspect(ctx, endpointSettings.NetworkID, network.InspectOptions{})
 			if err != nil {
 				log.Err(err)
 				continue

@@ -12,7 +12,7 @@ RUN go install github.com/go-delve/delve/cmd/dlv@latest
 # RUN GO111MODULE=on CGO_ENABLED=0 go build -gcflags="all=-N -l" -o /dblab-server-debug ./cmd/database-lab/main.go
 
 # Final stage
-FROM docker:20.10.12
+FROM docker:27.1.1
 
 # Install dependencies
 RUN apk update \

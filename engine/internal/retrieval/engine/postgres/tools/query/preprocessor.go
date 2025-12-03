@@ -12,7 +12,7 @@ import (
 	"path"
 	"sync"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
@@ -167,7 +167,7 @@ func (q *Processor) runSQLFile(ctx context.Context, containerID, filename string
 
 	log.Msg("Run psql command", psqlCommand)
 
-	output, err := tools.ExecCommandWithOutput(ctx, q.docker, containerID, types.ExecConfig{Cmd: psqlCommand})
+	output, err := tools.ExecCommandWithOutput(ctx, q.docker, containerID, container.ExecOptions{Cmd: psqlCommand})
 
 	return output, err
 }
@@ -198,7 +198,7 @@ func (q *Processor) runInlineSQL(ctx context.Context, containerID, inlineSQL str
 
 	log.Msg("Run psql command", psqlCommand)
 
-	output, err := tools.ExecCommandWithOutput(ctx, q.docker, containerID, types.ExecConfig{Cmd: psqlCommand})
+	output, err := tools.ExecCommandWithOutput(ctx, q.docker, containerID, container.ExecOptions{Cmd: psqlCommand})
 
 	return output, err
 }

@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
@@ -390,7 +389,7 @@ func (d *DumpJob) Run(ctx context.Context) (err error) {
 
 		log.Msg("Running analyze command: ", analyzeCmd)
 
-		if err := tools.ExecCommand(ctx, d.dockerClient, containerID, types.ExecConfig{
+		if err := tools.ExecCommand(ctx, d.dockerClient, containerID, container.ExecOptions{
 			Cmd: analyzeCmd,
 			Env: []string{"PGAPPNAME=" + dleRetrieval},
 		}); err != nil {
@@ -473,7 +472,7 @@ func (d *DumpJob) cleanupDumpLocation(ctx context.Context, dumpContID string, db
 
 	log.Msg("Running cleanup command: ", cleanupCmd)
 
-	if out, err := tools.ExecCommandWithOutput(ctx, d.dockerClient, dumpContID, types.ExecConfig{
+	if out, err := tools.ExecCommandWithOutput(ctx, d.dockerClient, dumpContID, container.ExecOptions{
 		Tty: true,
 		Cmd: cleanupCmd,
 	}); err != nil {
@@ -502,7 +501,7 @@ func (d *DumpJob) dumpDatabase(ctx context.Context, dumpContID, dbName string, d
 
 	log.Msg("Running dump command: ", dumpCommand)
 
-	if output, err := d.performDumpCommand(ctx, dumpContID, types.ExecConfig{
+	if output, err := d.performDumpCommand(ctx, dumpContID, container.ExecOptions{
 		Tty: true,
 		Cmd: dumpCommand,
 		Env: d.getExecEnvironmentVariables(),
@@ -528,7 +527,7 @@ func setupPGData(ctx context.Context, dockerClient *client.Client, dataDir, dump
 		return nil
 	}
 
-	if err := tools.ExecCommand(ctx, dockerClient, dumpContID, types.ExecConfig{
+	if err := tools.ExecCommand(ctx, dockerClient, dumpContID, container.ExecOptions{
 		Cmd: []string{"chown", "-R", "postgres", dataDir},
 	}); err != nil {
 		return errors.Wrap(err, "failed to set permissions")
@@ -581,7 +580,7 @@ func (d *DumpJob) setupConnectionOptions(ctx context.Context) error {
 	return nil
 }
 
-func (d *DumpJob) performDumpCommand(ctx context.Context, contID string, commandCfg types.ExecConfig) (string, error) {
+func (d *DumpJob) performDumpCommand(ctx context.Context, contID string, commandCfg container.ExecOptions) (string, error) {
 	if d.DumpOptions.Restore.Enabled {
 		d.dbMark.DataStateAt = time.Now().Format(tools.DataStateAtFormat)
 	}

@@ -36,7 +36,7 @@ func TestContainerOutputCollection(t *testing.T) {
 
 	dir := t.TempDir()
 
-	docker, err := client.NewClientWithOpts(client.FromEnv)
+	docker, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	require.NoError(t, err)
 
 	engProps := global.EngineProps{

@@ -129,7 +129,7 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 }
 
 func collectDiagnostics(c *resources.AppConfig) {
-	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		log.Fatal("Failed to create a Docker client:", err)
 	}

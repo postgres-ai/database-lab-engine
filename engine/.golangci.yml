@@ -63,6 +63,8 @@ linters-settings:
       - performance
     disabled-tags:
       - experimental
+  staticcheck:
+    checks: [ "all", "-SA1019" ] # TODO: fix deprecation warnings for old Docker API types in a separate MR
 
 linters:
   enable:

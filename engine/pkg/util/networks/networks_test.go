@@ -7,7 +7,7 @@ package networks
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,8 +21,8 @@ func TestInternalNetworks(t *testing.T) {
 
 func TestIfContainerConnected(t *testing.T) {
 	t.Run("test if container connected", func(t *testing.T) {
-		resource := types.NetworkResource{
-			Containers: map[string]types.EndpointResource{
+		resource := network.Inspect{
+			Containers: map[string]network.EndpointResource{
 				"testID": {Name: "test_server"},
 			},
 		}

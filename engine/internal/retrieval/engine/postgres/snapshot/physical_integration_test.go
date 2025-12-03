@@ -86,7 +86,7 @@ const (
 )
 
 func TestParsingWAL96(t *testing.T) {
-	dockerCLI, err := client.NewClientWithOpts(client.FromEnv)
+	dockerCLI, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		t.Fatal("Failed to create a Docker client:", err)
 	}
@@ -95,7 +95,7 @@ func TestParsingWAL96(t *testing.T) {
 }
 
 func TestParsingWAL(t *testing.T) {
-	dockerCLI, err := client.NewClientWithOpts(client.FromEnv)
+	dockerCLI, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		t.Fatal("Failed to create a Docker client:", err)
 	}
@@ -145,7 +145,7 @@ func testWALParsing(t *testing.T, dockerCLI *client.Client, pgVersion float64, i
 	defer func() { _ = postgresContainer.Terminate(ctx) }()
 
 	// Prepare test data.
-	code, err := postgresContainer.Exec(ctx, []string{"psql", "-U", user, "-d", dbname, "-XAtc", initialSQL})
+	code, _, err := postgresContainer.Exec(ctx, []string{"psql", "-U", user, "-d", dbname, "-XAtc", initialSQL})
 	require.Nil(t, err)
 	assert.Equal(t, 0, code)
 

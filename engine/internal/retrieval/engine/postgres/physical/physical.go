@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
@@ -240,7 +239,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	log.Msg("Running restore command: ", r.restorer.GetRestoreCommand())
 	log.Msg(fmt.Sprintf("View logs using the command: %s %s", tools.ViewLogsCmd, r.restoreContainerName()))
 
-	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{
+	if err := tools.ExecCommand(ctx, r.dockerClient, contID, container.ExecOptions{
 		Cmd: []string{"bash", "-c", r.restorer.GetRestoreCommand() + " >& /proc/1/fd/1"},
 	}); err != nil {
 		return errors.Wrap(err, "failed to restore data")
@@ -284,7 +283,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 	}
 
 	// Set permissions.
-	if err := tools.ExecCommand(ctx, r.dockerClient, contID, types.ExecConfig{
+	if err := tools.ExecCommand(ctx, r.dockerClient, contID, container.ExecOptions{
 		Cmd: []string{"chown", "-R", "postgres", dataDir},
 	}); err != nil {
 		return errors.Wrap(err, "failed to set permissions")

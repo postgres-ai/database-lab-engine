@@ -12,7 +12,6 @@ import (
 	"os/signal"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/jackc/pgx/v4"
@@ -94,7 +93,7 @@ func (i *ImageContent) Databases() map[string]struct{} {
 
 // Collect collects extension and locale lists from the provided Docker image.
 func (i *ImageContent) Collect(dockerImage string) error {
-	docker, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.39"))
+	docker, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		log.Fatal("Failed to create a Docker client:", err)
 	}
@@ -245,7 +244,7 @@ func resetHBA(ctx context.Context, dockerClient *client.Client, containerID stri
 
 	log.Dbg("Reset pg_hba", command)
 
-	out, err := tools.ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
+	out, err := tools.ExecCommandWithOutput(ctx, dockerClient, containerID, container.ExecOptions{
 		Tty: true,
 		Cmd: command,
 	})
@@ -263,7 +262,7 @@ func setListenAddresses(ctx context.Context, dockerClient *client.Client, contai
 
 	log.Dbg("Set listen addresses", command)
 
-	out, err := tools.ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
+	out, err := tools.ExecCommandWithOutput(ctx, dockerClient, containerID, container.ExecOptions{
 		Tty: true,
 		Cmd: command,
 	})
@@ -281,7 +280,7 @@ func getLocales(ctx context.Context, dockerClient *client.Client, containerID st
 
 	log.Dbg("Get locale list", command)
 
-	out, err := tools.ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
+	out, err := tools.ExecCommandWithOutput(ctx, dockerClient, containerID, container.ExecOptions{
 		Tty: true,
 		Cmd: command,
 	})

@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
@@ -32,7 +32,7 @@ func TestStartExisingDumpContainer(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	docker, err := client.NewClientWithOpts(client.FromEnv)
+	docker, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	require.NoError(t, err)
 
 	// create dump job
@@ -63,13 +63,13 @@ func TestStartExisingDumpContainer(t *testing.T) {
 	assert.NoError(t, err)
 
 	// create dump container and stop it
-	container, err := docker.ContainerCreate(ctx, job.buildContainerConfig(""), nil, &network.NetworkingConfig{},
+	containerResp, err := docker.ContainerCreate(ctx, job.buildContainerConfig(""), nil, &network.NetworkingConfig{},
 		nil, job.dumpContainerName(),
 	)
 	assert.NoError(t, err)
 
 	// clean container in case of any error
-	defer tools.RemoveContainer(ctx, docker, container.ID, 10)
+	defer tools.RemoveContainer(ctx, docker, containerResp.ID, 10)
 
 	job.Run(ctx)
 
@@ -79,7 +79,7 @@ func TestStartExisingDumpContainer(t *testing.T) {
 
 	list, err := docker.ContainerList(
 		ctx,
-		types.ContainerListOptions{
+		container.ListOptions{
 			All:     false,
 			Filters: filterArgs,
 		},

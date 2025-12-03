@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
@@ -205,15 +206,27 @@ func GetMountsFromMountPoints(dataDir string, mountPoints []types.MountPoint) []
 
 		seen[mountKey] = struct{}{}
 
-		mounts = append(mounts, mount.Mount{
+		// for volume mounts, use the volume name instead of the full path
+		source := mountPoint.Source
+		if mountPoint.Type == mount.TypeVolume {
+			source = mountPoint.Name
+		}
+
+		m := mount.Mount{
 			Type:     mountPoint.Type,
-			Source:   mountPoint.Source,
+			Source:   source,
 			Target:   mountPoint.Destination,
 			ReadOnly: !mountPoint.RW,
-			BindOptions: &mount.BindOptions{
+		}
+
+		// bindobtions should only be set for bind mounts, not volume mounts
+		if mountPoint.Type == mount.TypeBind {
+			m.BindOptions = &mount.BindOptions{
 				Propagation: mountPoint.Propagation,
-			},
-		})
+			}
+		}
+
+		mounts = append(mounts, m)
 	}
 
 	return mounts
@@ -225,7 +238,7 @@ func InitDB(ctx context.Context, dockerClient *client.Client, containerID string
 
 	log.Dbg("Init db", initCommand)
 
-	out, err := ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
+	out, err := ExecCommandWithOutput(ctx, dockerClient, containerID, container.ExecOptions{
 		Tty: true,
 		Cmd: initCommand,
 	})
@@ -245,7 +258,7 @@ func MakeDir(ctx context.Context, dockerClient *client.Client, dumpContID, dataD
 
 	log.Msg("Running mkdir command: ", mkdirCmd)
 
-	if out, err := ExecCommandWithOutput(ctx, dockerClient, dumpContID, types.ExecConfig{
+	if out, err := ExecCommandWithOutput(ctx, dockerClient, dumpContID, container.ExecOptions{
 		Cmd:  mkdirCmd,
 		User: defaults.Username,
 	}); err != nil {
@@ -262,7 +275,7 @@ func LsContainerDirectory(ctx context.Context, dockerClient *client.Client, cont
 
 	log.Dbg("Check directory: ", lsCommand)
 
-	out, err := ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
+	out, err := ExecCommandWithOutput(ctx, dockerClient, containerID, container.ExecOptions{
 		Tty: true,
 		Cmd: lsCommand,
 	})
@@ -284,7 +297,7 @@ func StartPostgres(ctx context.Context, dockerClient *client.Client, containerID
 
 	log.Msg("Starting PostgreSQL instance", startCommand)
 
-	out, err := ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
+	out, err := ExecCommandWithOutput(ctx, dockerClient, containerID, container.ExecOptions{
 		Tty: true,
 		Cmd: startCommand,
 	})
@@ -321,7 +334,7 @@ func RunCheckpoint(
 		ctx,
 		dockerClient,
 		containerID,
-		types.ExecConfig{Cmd: commandCheckpoint},
+		container.ExecOptions{Cmd: commandCheckpoint},
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed to make checkpoint")
@@ -344,7 +357,7 @@ func StopPostgres(ctx context.Context, dockerClient *client.Client, containerID,
 
 	log.Msg("Stopping PostgreSQL instance", stopCommand)
 
-	if output, err := ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{
+	if output, err := ExecCommandWithOutput(ctx, dockerClient, containerID, container.ExecOptions{
 		User: defaults.Username,
 		Cmd:  stopCommand,
 	}); err != nil {
@@ -464,7 +477,7 @@ func printPostgresLogsHint(ctx context.Context, dockerClient *client.Client, con
 func PrintLastPostgresLogs(ctx context.Context, dockerClient *client.Client, containerID, clonePath string) {
 	command := []string{"bash", "-c", "tail -n 20 $(ls -t " + clonePath + "/log/*.csv | tail -n 1)"}
 
-	output, err := ExecCommandWithOutput(ctx, dockerClient, containerID, types.ExecConfig{Cmd: command})
+	output, err := ExecCommandWithOutput(ctx, dockerClient, containerID, container.ExecOptions{Cmd: command})
 	if err != nil {
 		log.Err(errors.Wrap(err, "failed to read Postgres logs"))
 	}
@@ -519,7 +532,7 @@ func PullImage(ctx context.Context, dockerClient *client.Client, image string) e
 		return nil
 	}
 
-	pullOutput, err := dockerClient.ImagePull(ctx, image, types.ImagePullOptions{})
+	pullOutput, err := dockerClient.ImagePull(ctx, image, imagetypes.PullOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to pull image %q", image)
 	}
@@ -534,7 +547,7 @@ func PullImage(ctx context.Context, dockerClient *client.Client, image string) e
 }
 
 // ExecCommand runs command in Docker container.
-func ExecCommand(ctx context.Context, dockerClient *client.Client, containerID string, execCfg types.ExecConfig) error {
+func ExecCommand(ctx context.Context, dockerClient *client.Client, containerID string, execCfg container.ExecOptions) error {
 	execCfg.AttachStdout = true
 	execCfg.AttachStderr = true
 
@@ -543,7 +556,7 @@ func ExecCommand(ctx context.Context, dockerClient *client.Client, containerID s
 		return errors.Wrap(err, "failed to create command")
 	}
 
-	if err := dockerClient.ContainerExecStart(ctx, execCommand.ID, types.ExecStartCheck{}); err != nil {
+	if err := dockerClient.ContainerExecStart(ctx, execCommand.ID, container.ExecStartOptions{}); err != nil {
 		return errors.Wrap(err, "failed to start a command")
 	}
 
@@ -573,7 +586,9 @@ func inspectCommandExitCode(ctx context.Context, dockerClient *client.Client, co
 }
 
 // ExecCommandWithOutput runs command in Docker container, enables all stdout and stderr and returns the command output.
-func ExecCommandWithOutput(ctx context.Context, dockerClient *client.Client, containerID string, execCfg types.ExecConfig) (string, error) {
+func ExecCommandWithOutput(
+	ctx context.Context, dockerClient *client.Client, containerID string, execCfg container.ExecOptions,
+) (string, error) {
 	execCfg.AttachStdout = true
 	execCfg.AttachStderr = true
 
@@ -581,18 +596,22 @@ func ExecCommandWithOutput(ctx context.Context, dockerClient *client.Client, con
 }
 
 // ExecCommandWithResponse runs command in Docker container and returns the command output.
-func ExecCommandWithResponse(ctx context.Context, docker *client.Client, containerID string, execCfg types.ExecConfig) (string, error) {
+func ExecCommandWithResponse(
+	ctx context.Context, docker *client.Client, containerID string, execCfg container.ExecOptions,
+) (string, error) {
 	return execCommandWithResponse(ctx, docker, containerID, execCfg)
 }
 
-func execCommandWithResponse(ctx context.Context, docker *client.Client, containerID string, execCfg types.ExecConfig) (string, error) {
+func execCommandWithResponse(
+	ctx context.Context, docker *client.Client, containerID string, execCfg container.ExecOptions,
+) (string, error) {
 	execCommand, err := docker.ContainerExecCreate(ctx, containerID, execCfg)
 
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create an exec command")
 	}
 
-	attachResponse, err := docker.ContainerExecAttach(ctx, execCommand.ID, types.ExecStartCheck{})
+	attachResponse, err := docker.ContainerExecAttach(ctx, execCommand.ID, container.ExecStartOptions{})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to attach to exec command")
 	}

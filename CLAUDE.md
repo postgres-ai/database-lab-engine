@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build/Test/Lint Commands
 - Build all components: `cd engine && make build`
-- Lint code: `cd engine && make lint`
+- Lint code: `cd engine && make run-lint`
 - Run unit tests: `cd engine && make test`
 - Run integration tests: `cd engine && make test-ci-integration`
 - Run a specific test: `cd engine && GO111MODULE=on go test -v ./path/to/package -run TestName`
