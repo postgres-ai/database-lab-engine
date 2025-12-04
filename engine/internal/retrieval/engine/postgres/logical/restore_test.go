@@ -5,7 +5,9 @@
 package logical
 
 import (
+	"archive/tar"
 	"context"
+	"io"
 	"os"
 	"path"
 	"testing"
@@ -446,5 +448,38 @@ func TestDBNameFormatter(t *testing.T) {
 		formattedDB := formatDBName(tc.filename)
 		assert.Equal(t, tc.dbname, formattedDB)
 	}
+}
 
+func TestCreateTarArchive(t *testing.T) {
+	// create a temporary file with test content
+	tempFile, err := os.CreateTemp("", "test-archive-*.sql")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+
+	testContent := []byte("SELECT 1; -- test database dump content\n")
+	_, err = tempFile.Write(testContent)
+	require.NoError(t, err)
+
+	// call the actual function being tested
+	dstPath := "/tmp/testdb.sql"
+	archiveReader, err := createTarArchive(tempFile, dstPath)
+	require.NoError(t, err)
+	require.NotNil(t, archiveReader)
+
+	// verify the tar archive is valid and contains expected file
+	tarReader := tar.NewReader(archiveReader)
+	tarHeader, err := tarReader.Next()
+	require.NoError(t, err)
+
+	assert.Equal(t, "testdb.sql", tarHeader.Name)
+	assert.Equal(t, int64(len(testContent)), tarHeader.Size)
+
+	// read and verify content
+	content, err := io.ReadAll(tarReader)
+	require.NoError(t, err)
+	assert.Equal(t, testContent, content)
+
+	// verify no more files in the tar
+	_, err = tarReader.Next()
+	assert.Equal(t, io.EOF, err)
 }

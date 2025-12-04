@@ -6,10 +6,12 @@
 package logical
 
 import (
+	"archive/tar"
 	"bufio"
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -22,7 +24,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
@@ -655,26 +656,13 @@ func (r *RestoreJob) prepareDB(ctx context.Context, contID, dbName string) error
 }
 
 func (r *RestoreJob) prepareArchive(ctx context.Context, contID string, tempFile *os.File, dstPath string) error {
-	srcInfo, err := archive.CopyInfoSourcePath(tempFile.Name(), false)
+	archiveReader, err := createTarArchive(tempFile, dstPath)
 	if err != nil {
 		return err
 	}
 
-	srcArchive, err := archive.TarResource(srcInfo)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = srcArchive.Close() }()
-
-	dstDir, preparedArchive, err := archive.PrepareArchiveCopy(srcArchive, srcInfo, archive.CopyInfo{Path: dstPath})
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = preparedArchive.Close() }()
-
-	if err := r.dockerClient.CopyToContainer(ctx, contID, dstDir, preparedArchive, container.CopyToContainerOptions{
+	dstDir := filepath.Dir(dstPath)
+	if err := r.dockerClient.CopyToContainer(ctx, contID, dstDir, archiveReader, container.CopyToContainerOptions{
 		AllowOverwriteDirWithFile: true,
 		CopyUIDGID:                true,
 	}); err != nil {
@@ -684,6 +672,42 @@ func (r *RestoreJob) prepareArchive(ctx context.Context, contID string, tempFile
 	}
 
 	return nil
+}
+
+// createTarArchive creates a tar archive from a file for the given destination path.
+func createTarArchive(tempFile *os.File, dstPath string) (io.Reader, error) {
+	var buf bytes.Buffer
+	tarWriter := tar.NewWriter(&buf)
+
+	fileInfo, err := tempFile.Stat()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to stat file")
+	}
+
+	header := &tar.Header{
+		Name:    filepath.Base(dstPath),
+		Mode:    int64(fileInfo.Mode()),
+		Size:    fileInfo.Size(),
+		ModTime: fileInfo.ModTime(),
+	}
+
+	if err := tarWriter.WriteHeader(header); err != nil {
+		return nil, errors.Wrap(err, "failed to write tar header")
+	}
+
+	if _, err := tempFile.Seek(0, 0); err != nil {
+		return nil, errors.Wrap(err, "failed to seek file")
+	}
+
+	if _, err := io.Copy(tarWriter, tempFile); err != nil {
+		return nil, errors.Wrap(err, "failed to copy file to tar")
+	}
+
+	if err := tarWriter.Close(); err != nil {
+		return nil, errors.Wrap(err, "failed to close tar writer")
+	}
+
+	return &buf, nil
 }
 
 // formatDBName extracts a database name from a file name and adjusts it.
