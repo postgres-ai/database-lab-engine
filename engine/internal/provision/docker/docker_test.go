@@ -7,7 +7,7 @@ package docker
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/assert"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
@@ -34,7 +34,7 @@ func TestSystemVolumes(t *testing.T) {
 func TestVolumesBuilding(t *testing.T) {
 	testCases := []struct {
 		appConfig       *resources.AppConfig
-		mountPoints     []types.MountPoint
+		mountPoints     []container.MountPoint
 		expectedVolumes []string
 	}{
 		{
@@ -50,7 +50,7 @@ func TestVolumesBuilding(t *testing.T) {
 					SocketSubDir: "sockets",
 				},
 			},
-			mountPoints: []types.MountPoint{
+			mountPoints: []container.MountPoint{
 				{Type: "bind", Source: "/lib/modules", Destination: "/lib/modules"},
 				{Type: "bind", Source: "/proc", Destination: "/host_proc"},
 				{Type: "bind", Source: "/tmp", Destination: "/tmp"},

@@ -182,7 +182,7 @@ func AddVolumesToHostConfig(ctx context.Context, docker *client.Client, hostConf
 }
 
 // GetMountsFromMountPoints creates a list of mounts.
-func GetMountsFromMountPoints(dataDir string, mountPoints []types.MountPoint) []mount.Mount {
+func GetMountsFromMountPoints(dataDir string, mountPoints []container.MountPoint) []mount.Mount {
 	mounts := make([]mount.Mount, 0, len(mountPoints))
 	seen := make(map[string]struct{})
 
@@ -520,7 +520,7 @@ func RemoveContainer(ctx context.Context, dockerClient *client.Client, container
 
 // PullImage pulls a Docker image.
 func PullImage(ctx context.Context, dockerClient *client.Client, image string) error {
-	inspectionResult, _, err := dockerClient.ImageInspectWithRaw(ctx, image)
+	inspectionResult, err := dockerClient.ImageInspect(ctx, image)
 	if err != nil {
 		if _, ok := err.(errdefs.ErrNotFound); !ok {
 			return errors.Wrapf(err, "failed to inspect image %q", image)

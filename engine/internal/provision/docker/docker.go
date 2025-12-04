@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
@@ -131,7 +131,7 @@ func createDefaultVolumes(c *resources.AppConfig) (string, []string) {
 func getMountVolumes(r runners.Runner, c *resources.AppConfig, containerID string) ([]string, error) {
 	inspectCmd := "docker inspect -f '{{ json .Mounts }}' " + containerID
 
-	var mountPoints []types.MountPoint
+	var mountPoints []container.MountPoint
 
 	out, err := r.Run(inspectCmd, true)
 	if err != nil {
@@ -145,7 +145,7 @@ func getMountVolumes(r runners.Runner, c *resources.AppConfig, containerID strin
 	return buildVolumesFromMountPoints(c, mountPoints), nil
 }
 
-func buildVolumesFromMountPoints(c *resources.AppConfig, mountPoints []types.MountPoint) []string {
+func buildVolumesFromMountPoints(c *resources.AppConfig, mountPoints []container.MountPoint) []string {
 	unixSocketCloneDir := c.Pool.SocketCloneDir(c.CloneName)
 	mounts := tools.GetMountsFromMountPoints(c.CloneDir(), mountPoints)
 	volumes := make([]string, 0, len(mounts))

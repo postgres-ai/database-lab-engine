@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -152,7 +151,7 @@ func cleanUpContainers(ctx context.Context, dockerCli *client.Client, instanceID
 	return nil
 }
 
-func getContainerList(ctx context.Context, d *client.Client, instanceID string, pairs []filters.KeyValuePair) ([]types.Container, error) {
+func getContainerList(ctx context.Context, d *client.Client, instanceID string, pairs []filters.KeyValuePair) ([]container.Summary, error) {
 	filterPairs := append([]filters.KeyValuePair{
 		{
 			Key:   labelFilter,
@@ -183,7 +182,7 @@ func shouldStopInternalProcess(controlLabel string) bool {
 	return controlLabel == DBLabSyncLabel
 }
 
-func getContainerName(controlCont types.Container) string {
+func getContainerName(controlCont container.Summary) string {
 	return strings.Join(controlCont.Names, ", ")
 }
 

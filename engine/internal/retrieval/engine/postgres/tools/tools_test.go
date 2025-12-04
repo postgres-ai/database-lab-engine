@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,13 +39,13 @@ func TestGetMountsFromMountPoints(t *testing.T) {
 	testCases := []struct {
 		name           string
 		dataDir        string
-		mountPoints    []types.MountPoint
+		mountPoints    []container.MountPoint
 		expectedPoints []mount.Mount
 	}{
 		{
 			name:    "simple mount without transformation",
 			dataDir: "/var/lib/dblab/clones/dblab_clone_6000/data",
-			mountPoints: []types.MountPoint{{
+			mountPoints: []container.MountPoint{{
 				Type:        mount.TypeBind,
 				Source:      "/var/lib/pgsql/data",
 				Destination: "/var/lib/postgresql/data",
@@ -63,7 +63,7 @@ func TestGetMountsFromMountPoints(t *testing.T) {
 		{
 			name:    "mount with path transformation",
 			dataDir: "/var/lib/dblab/clones/dblab_clone_6000/data",
-			mountPoints: []types.MountPoint{{
+			mountPoints: []container.MountPoint{{
 				Type:        mount.TypeBind,
 				Source:      "/var/lib/postgresql",
 				Destination: "/var/lib/dblab",
@@ -81,7 +81,7 @@ func TestGetMountsFromMountPoints(t *testing.T) {
 		{
 			name:    "deduplicate identical mounts",
 			dataDir: "/var/lib/dblab/data",
-			mountPoints: []types.MountPoint{
+			mountPoints: []container.MountPoint{
 				{Type: mount.TypeBind, Source: "/host/dump", Destination: "/var/lib/dblab/dump"},
 				{Type: mount.TypeBind, Source: "/host/dump", Destination: "/var/lib/dblab/dump"},
 			},
@@ -98,7 +98,7 @@ func TestGetMountsFromMountPoints(t *testing.T) {
 		{
 			name:    "deduplicate mounts with trailing slashes",
 			dataDir: "/var/lib/dblab/data",
-			mountPoints: []types.MountPoint{
+			mountPoints: []container.MountPoint{
 				{Type: mount.TypeBind, Source: "/host/dump/", Destination: "/var/lib/dblab/dump"},
 				{Type: mount.TypeBind, Source: "/host/dump", Destination: "/var/lib/dblab/dump/"},
 			},
@@ -115,7 +115,7 @@ func TestGetMountsFromMountPoints(t *testing.T) {
 		{
 			name:    "volume mount uses name instead of path",
 			dataDir: "/var/lib/dblab/data",
-			mountPoints: []types.MountPoint{{
+			mountPoints: []container.MountPoint{{
 				Type:        mount.TypeVolume,
 				Name:        "3749a7e336f27d8c1ce2a81c7b945954f7522ecc3a4be4a3855bf64473f63a89",
 				Source:      "/var/lib/docker/volumes/3749a7e336f27d8c1ce2a81c7b945954f7522ecc3a4be4a3855bf64473f63a89/_data",

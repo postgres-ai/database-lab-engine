@@ -15,11 +15,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
-
 	"github.com/pkg/errors"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/diagnostic"
@@ -319,7 +319,7 @@ func (r *RestoreJob) syncInstanceName() string {
 
 func (r *RestoreJob) runSyncInstance(ctx context.Context) (err error) {
 	syncContainer, err := r.dockerClient.ContainerInspect(ctx, r.syncInstanceName())
-	if err != nil && !client.IsErrNotFound(err) {
+	if err != nil && !errdefs.IsNotFound(err) {
 		return errors.Wrap(err, "failed to inspect sync container")
 	}
 
