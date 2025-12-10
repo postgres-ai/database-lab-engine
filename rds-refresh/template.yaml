@@ -1,0 +1,241 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  DBLab RDS/Aurora Refresh Lambda
+
+  Automates DBLab full refresh using temporary RDS/Aurora clones created from snapshots.
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: dblab-rds-refresh
+    Description: Automates DBLab full refresh using temporary RDS/Aurora clones
+    Author: Postgres.ai
+    SpdxLicenseId: Apache-2.0
+    Labels: ['dblab', 'rds', 'aurora', 'postgresql', 'database']
+    HomePageUrl: https://postgres.ai
+    SourceCodeUrl: https://github.com/postgres-ai/rds-refresh
+
+Parameters:
+  # Source Configuration
+  RDSSourceType:
+    Type: String
+    Default: rds
+    AllowedValues:
+      - rds
+      - aurora-cluster
+    Description: Type of source database (rds for RDS instance, aurora-cluster for Aurora)
+
+  RDSSourceIdentifier:
+    Type: String
+    Description: RDS DB instance identifier or Aurora cluster identifier
+
+  RDSSnapshotIdentifier:
+    Type: String
+    Default: ''
+    Description: Specific snapshot ID to use (leave empty for latest automated snapshot)
+
+  # Clone Configuration
+  RDSCloneInstanceClass:
+    Type: String
+    Default: db.t3.medium
+    Description: Instance class for the temporary clone
+
+  RDSCloneSubnetGroup:
+    Type: String
+    Default: ''
+    Description: DB subnet group name for the clone
+
+  RDSCloneSecurityGroups:
+    Type: String
+    Default: ''
+    Description: JSON array of VPC security group IDs (e.g., '["sg-123", "sg-456"]')
+
+  RDSClonePubliclyAccessible:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Whether the clone should be publicly accessible
+
+  RDSCloneEnableIAMAuth:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable IAM database authentication on the clone
+
+  RDSCloneParameterGroup:
+    Type: String
+    Default: ''
+    Description: DB parameter group name for the clone
+
+  RDSCloneStorageType:
+    Type: String
+    Default: ''
+    Description: Storage type for the clone (gp2, gp3, io1, etc.)
+
+  # DBLab Configuration
+  DBLabAPIEndpoint:
+    Type: String
+    Description: DBLab Engine API endpoint (e.g., https://dblab.example.com:2345)
+
+  DBLabToken:
+    Type: String
+    NoEcho: true
+    Description: DBLab verification token
+
+  DBLabInsecure:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Skip TLS certificate verification for DBLab API
+
+  # Schedule Configuration
+  ScheduleExpression:
+    Type: String
+    Default: 'rate(7 days)'
+    Description: Schedule expression for automatic refresh (e.g., 'rate(7 days)' or 'cron(0 2 ? * SUN *)')
+
+  EnableSchedule:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable scheduled automatic refresh
+
+  # Lambda Configuration
+  LambdaTimeout:
+    Type: Number
+    Default: 900
+    MinValue: 60
+    MaxValue: 900
+    Description: Lambda function timeout in seconds (max 15 minutes)
+
+  LambdaMemorySize:
+    Type: Number
+    Default: 256
+    MinValue: 128
+    MaxValue: 1024
+    Description: Lambda function memory size in MB
+
+Conditions:
+  ScheduleEnabled: !Equals [!Ref EnableSchedule, 'true']
+  HasSubnetGroup: !Not [!Equals [!Ref RDSCloneSubnetGroup, '']]
+  HasSecurityGroups: !Not [!Equals [!Ref RDSCloneSecurityGroups, '']]
+  HasParameterGroup: !Not [!Equals [!Ref RDSCloneParameterGroup, '']]
+  HasStorageType: !Not [!Equals [!Ref RDSCloneStorageType, '']]
+  HasSnapshotId: !Not [!Equals [!Ref RDSSnapshotIdentifier, '']]
+
+Globals:
+  Function:
+    Timeout: !Ref LambdaTimeout
+    MemorySize: !Ref LambdaMemorySize
+    Runtime: provided.al2023
+    Architectures:
+      - arm64
+
+Resources:
+  RDSRefreshFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: .
+      Handler: bootstrap
+      Description: Automates DBLab full refresh using temporary RDS/Aurora clones
+      Environment:
+        Variables:
+          RDS_SOURCE_TYPE: !Ref RDSSourceType
+          RDS_SOURCE_IDENTIFIER: !Ref RDSSourceIdentifier
+          RDS_SNAPSHOT_IDENTIFIER: !If [HasSnapshotId, !Ref RDSSnapshotIdentifier, '']
+          RDS_CLONE_INSTANCE_CLASS: !Ref RDSCloneInstanceClass
+          RDS_CLONE_SUBNET_GROUP: !If [HasSubnetGroup, !Ref RDSCloneSubnetGroup, '']
+          RDS_CLONE_SECURITY_GROUPS: !If [HasSecurityGroups, !Ref RDSCloneSecurityGroups, '']
+          RDS_CLONE_PUBLIC: !Ref RDSClonePubliclyAccessible
+          RDS_CLONE_ENABLE_IAM_AUTH: !Ref RDSCloneEnableIAMAuth
+          RDS_CLONE_PARAMETER_GROUP: !If [HasParameterGroup, !Ref RDSCloneParameterGroup, '']
+          RDS_CLONE_STORAGE_TYPE: !If [HasStorageType, !Ref RDSCloneStorageType, '']
+          DBLAB_API_ENDPOINT: !Ref DBLabAPIEndpoint
+          DBLAB_TOKEN: !Ref DBLabToken
+          DBLAB_INSECURE: !Ref DBLabInsecure
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: RDSReadSnapshots
+              Effect: Allow
+              Action:
+                - rds:DescribeDBSnapshots
+                - rds:DescribeDBClusterSnapshots
+                - rds:DescribeDBInstances
+                - rds:DescribeDBClusters
+              Resource: '*'
+            - Sid: RDSCreateClone
+              Effect: Allow
+              Action:
+                - rds:RestoreDBInstanceFromDBSnapshot
+                - rds:RestoreDBClusterFromSnapshot
+                - rds:CreateDBInstance
+                - rds:AddTagsToResource
+                - rds:ModifyDBInstance
+                - rds:ModifyDBCluster
+              Resource:
+                - !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:dblab-refresh-*'
+                - !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:dblab-refresh-*'
+                - !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:snapshot:*'
+                - !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster-snapshot:*'
+                - !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:subgrp:*'
+                - !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:pg:*'
+                - !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:og:*'
+            - Sid: RDSDeleteClone
+              Effect: Allow
+              Action:
+                - rds:DeleteDBInstance
+                - rds:DeleteDBCluster
+              Resource:
+                - !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:dblab-refresh-*'
+                - !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:dblab-refresh-*'
+      Events:
+        ScheduledRefresh:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref ScheduleExpression
+            Description: Scheduled DBLab refresh trigger
+            Enabled: !If [ScheduleEnabled, true, false]
+
+  RDSRefreshLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${RDSRefreshFunction}'
+      RetentionInDays: 30
+
+Outputs:
+  RDSRefreshFunctionArn:
+    Description: ARN of the RDS Refresh Lambda function
+    Value: !GetAtt RDSRefreshFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-FunctionArn'
+
+  RDSRefreshFunctionName:
+    Description: Name of the RDS Refresh Lambda function
+    Value: !Ref RDSRefreshFunction
+
+  InvocationCommand:
+    Description: AWS CLI command to manually invoke the function
+    Value: !Sub |
+      aws lambda invoke --function-name ${RDSRefreshFunction} \
+        --cli-binary-format raw-in-base64-out \
+        --payload '{"dryRun": false}' \
+        response.json && cat response.json
+
+  DryRunCommand:
+    Description: AWS CLI command to run a dry-run test
+    Value: !Sub |
+      aws lambda invoke --function-name ${RDSRefreshFunction} \
+        --cli-binary-format raw-in-base64-out \
+        --payload '{"dryRun": true}' \
+        response.json && cat response.json
