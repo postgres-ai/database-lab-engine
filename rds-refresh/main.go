@@ -1,5 +1,5 @@
 /*
-2024 © Postgres.ai
+2025 © PostgresAI
 
 rds-refresh - Automate DBLab full refresh using RDS/Aurora snapshots
 

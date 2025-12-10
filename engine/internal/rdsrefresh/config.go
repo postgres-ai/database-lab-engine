@@ -1,5 +1,5 @@
 /*
-2024 © Postgres.ai
+2025 © PostgresAI
 */
 
 // Package rdsrefresh provides functionality to automate DBLab full refresh

@@ -1,5 +1,5 @@
 /*
-2024 © Postgres.ai
+2025 © PostgresAI
 */
 
 package main

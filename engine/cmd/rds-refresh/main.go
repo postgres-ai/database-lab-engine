@@ -1,5 +1,5 @@
 /*
-2024 © Postgres.ai
+2025 © PostgresAI
 */
 
 // Package main provides the entry point for the rds-refresh CLI tool.
