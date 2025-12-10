@@ -12,6 +12,14 @@ source:
   # RDS DB instance identifier or Aurora cluster identifier
   identifier: production-db
 
+  # Database name to connect to (used when configuring DBLab)
+  dbName: myapp
+
+  # Database credentials (used when configuring DBLab to connect to clone)
+  # Use environment variable expansion for security
+  username: postgres
+  password: ${DB_PASSWORD}
+
   # Optional: Specific snapshot identifier to use
   # If empty, the latest automated snapshot will be used
   # snapshotIdentifier: rds:production-db-2024-01-15-02-00

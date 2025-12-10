@@ -7,8 +7,9 @@ A standalone tool that automates DBLab Engine full refresh using temporary RDS o
 This tool provides a hassle-free way to keep your DBLab Engine data synchronized with your production RDS/Aurora database:
 
 1. **Creates a temporary clone** from the latest RDS/Aurora snapshot
-2. **Triggers DBLab full refresh** to sync data from the clone
-3. **Deletes the temporary clone** after refresh completes
+2. **Updates DBLab configuration** with the new clone's endpoint
+3. **Triggers DBLab full refresh** to sync data from the clone
+4. **Deletes the temporary clone** after refresh completes
 
 This approach avoids impacting your production database during the data sync process.
 
@@ -17,9 +18,9 @@ This approach avoids impacting your production database during the data sync pro
 ### Build
 
 ```bash
-# Clone this repository
-git clone https://github.com/postgres-ai/rds-refresh.git
-cd rds-refresh
+# Clone the repository
+git clone https://github.com/postgres-ai/database-lab-engine.git
+cd database-lab-engine/rds-refresh
 
 # Build
 make build
@@ -41,7 +42,7 @@ vim config.yaml
 ### Run
 
 ```bash
-# Dry run (validates configuration)
+# Dry run (validates configuration without creating resources)
 ./rds-refresh -config config.yaml -dry-run
 
 # Full refresh
@@ -50,85 +51,88 @@ vim config.yaml
 
 ## Deployment Options
 
-### Option 1: AWS Lambda (Recommended)
+The refresh process can take 1-4 hours depending on database size, so this tool is designed for long-running execution environments.
 
-Deploy as a serverless function with automatic scheduling via EventBridge.
-
-#### Prerequisites
-
-- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
-- AWS credentials configured
-- Go 1.21+
-
-#### Deploy
+### Option 1: Docker (Recommended)
 
 ```bash
-# Build and deploy
-sam build
-sam deploy --guided
-```
-
-During guided deployment, you'll be prompted for:
-
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `RDSSourceType` | `rds` or `aurora-cluster` | `rds` |
-| `RDSSourceIdentifier` | Source DB identifier | `production-db` |
-| `RDSCloneInstanceClass` | Clone instance size | `db.t3.medium` |
-| `DBLabAPIEndpoint` | DBLab API URL | `https://dblab.example.com:2345` |
-| `DBLabToken` | DBLab verification token | `your-secret-token` |
-| `ScheduleExpression` | Refresh schedule | `rate(7 days)` |
-
-#### Manual Invocation
-
-```bash
-# Dry run
-aws lambda invoke --function-name dblab-rds-refresh \
-  --cli-binary-format raw-in-base64-out \
-  --payload '{"dryRun": true}' \
-  response.json && cat response.json
-
-# Full refresh
-aws lambda invoke --function-name dblab-rds-refresh \
-  --cli-binary-format raw-in-base64-out \
-  --payload '{"dryRun": false}' \
-  response.json && cat response.json
-```
-
-### Option 2: CLI with Cron
-
-```bash
-# Build
-make build
-
-# Install
-sudo mv rds-refresh /usr/local/bin/
-
-# Create config
-sudo mkdir -p /etc/dblab
-sudo cp config.example.yaml /etc/dblab/rds-refresh.yaml
-sudo vim /etc/dblab/rds-refresh.yaml
-
-# Add to crontab (every Sunday at 2 AM)
-echo "0 2 * * 0 /usr/local/bin/rds-refresh -config /etc/dblab/rds-refresh.yaml >> /var/log/rds-refresh.log 2>&1" | crontab -
-```
-
-### Option 3: Docker
-
-```bash
-# Build
-docker build -t rds-refresh .
+# Build image
+make docker-build
 
 # Run
 docker run \
   -v /path/to/config.yaml:/config.yaml \
   -e AWS_ACCESS_KEY_ID \
   -e AWS_SECRET_ACCESS_KEY \
+  -e DB_PASSWORD \
   -e DBLAB_TOKEN \
-  rds-refresh -config /config.yaml
+  postgresai/rds-refresh -config /config.yaml
 ```
 
-### Option 4: Kubernetes CronJob
+### Option 2: ECS Task
+
+Create an ECS Task Definition for scheduled execution:
+
+```json
+{
+  "family": "dblab-rds-refresh",
+  "networkMode": "awsvpc",
+  "containerDefinitions": [
+    {
+      "name": "rds-refresh",
+      "image": "postgresai/rds-refresh:latest",
+      "command": ["-config", "/config/config.yaml"],
+      "mountPoints": [
+        {
+          "sourceVolume": "config",
+          "containerPath": "/config"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789:secret:db-password"
+        },
+        {
+          "name": "DBLAB_TOKEN",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789:secret:dblab-token"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/dblab-rds-refresh",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ],
+  "taskRoleArn": "arn:aws:iam::123456789:role/dblab-rds-refresh-task",
+  "executionRoleArn": "arn:aws:iam::123456789:role/ecsTaskExecutionRole",
+  "volumes": [
+    {
+      "name": "config",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-12345678"
+      }
+    }
+  ]
+}
+```
+
+Schedule with EventBridge:
+```bash
+aws events put-rule \
+  --name dblab-rds-refresh-weekly \
+  --schedule-expression "rate(7 days)"
+
+aws events put-targets \
+  --rule dblab-rds-refresh-weekly \
+  --targets "Id"="1","Arn"="arn:aws:ecs:us-east-1:123456789:cluster/my-cluster","RoleArn"="arn:aws:iam::123456789:role/ecsEventsRole","EcsParameters"="{\"taskDefinitionArn\": \"arn:aws:ecs:us-east-1:123456789:task-definition/dblab-rds-refresh:1\",\"taskCount\": 1}"
+```
+
+### Option 3: Kubernetes CronJob
 
 ```yaml
 apiVersion: batch/v1
@@ -137,19 +141,26 @@ metadata:
   name: dblab-rds-refresh
 spec:
   schedule: "0 2 * * 0"  # Every Sunday at 2 AM
+  concurrencyPolicy: Forbid
   jobTemplate:
     spec:
+      backoffLimit: 1
       template:
         spec:
-          serviceAccountName: dblab-rds-refresh  # with IRSA
+          serviceAccountName: dblab-rds-refresh  # with IRSA for AWS access
           containers:
           - name: rds-refresh
-            image: your-registry/rds-refresh:latest
+            image: postgresai/rds-refresh:latest
             args: ["-config", "/config/config.yaml"]
             volumeMounts:
             - name: config
               mountPath: /config
             env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dblab-secrets
+                  key: db-password
             - name: DBLAB_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -159,32 +170,66 @@ spec:
           - name: config
             configMap:
               name: rds-refresh-config
-          restartPolicy: OnFailure
+          restartPolicy: Never
+```
+
+### Option 4: CLI with Cron
+
+```bash
+# Build and install
+make build
+sudo mv rds-refresh /usr/local/bin/
+
+# Create config directory
+sudo mkdir -p /etc/dblab
+sudo cp config.example.yaml /etc/dblab/rds-refresh.yaml
+sudo chmod 600 /etc/dblab/rds-refresh.yaml
+sudo vim /etc/dblab/rds-refresh.yaml
+
+# Add to crontab (every Sunday at 2 AM)
+echo "0 2 * * 0 /usr/local/bin/rds-refresh -config /etc/dblab/rds-refresh.yaml >> /var/log/rds-refresh.log 2>&1" | crontab -
 ```
 
 ## Configuration
 
 See [config.example.yaml](config.example.yaml) for a fully documented example.
 
+### Key Configuration Fields
+
+```yaml
+source:
+  type: rds                    # "rds" or "aurora-cluster"
+  identifier: production-db    # RDS instance or Aurora cluster ID
+  dbName: myapp               # Database name for DBLab to connect to
+  username: postgres          # Database username
+  password: ${DB_PASSWORD}    # Use env var expansion for secrets
+
+clone:
+  instanceClass: db.t3.medium # Can be smaller than production
+  subnetGroup: my-subnet      # Must be accessible from DBLab
+  securityGroups:
+    - sg-12345678             # Must allow DBLab inbound access
+
+dblab:
+  apiEndpoint: https://dblab.example.com:2345
+  token: ${DBLAB_TOKEN}
+  pollInterval: 30s           # Status check frequency
+  timeout: 4h                 # Max wait for refresh completion
+
+aws:
+  region: us-east-1
+```
+
 ### Environment Variables
 
-When running as Lambda, configuration is loaded from environment variables:
+The configuration file supports environment variable expansion using `${VAR_NAME}` syntax. This is useful for secrets:
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `RDS_SOURCE_IDENTIFIER` | Yes | Source RDS instance or Aurora cluster ID |
-| `RDS_CLONE_INSTANCE_CLASS` | Yes | Instance class for clone (e.g., `db.t3.medium`) |
-| `DBLAB_API_ENDPOINT` | Yes | DBLab Engine API endpoint |
-| `DBLAB_TOKEN` | Yes | DBLab verification token |
-| `AWS_REGION` | Yes | AWS region |
-| `RDS_SOURCE_TYPE` | No | `rds` or `aurora-cluster` (default: `rds`) |
-| `RDS_SNAPSHOT_IDENTIFIER` | No | Specific snapshot ID (default: latest) |
-| `RDS_CLONE_SUBNET_GROUP` | No | DB subnet group name |
-| `RDS_CLONE_SECURITY_GROUPS` | No | JSON array of security group IDs |
-| `RDS_CLONE_PUBLIC` | No | `true` to make clone publicly accessible |
-| `RDS_CLONE_ENABLE_IAM_AUTH` | No | `true` to enable IAM authentication |
-| `RDS_CLONE_STORAGE_TYPE` | No | Storage type (gp2, gp3, io1, etc.) |
-| `DBLAB_INSECURE` | No | `true` to skip TLS verification |
+```yaml
+source:
+  password: ${DB_PASSWORD}
+dblab:
+  token: ${DBLAB_TOKEN}
+```
 
 ## AWS IAM Permissions
 
@@ -244,16 +289,20 @@ The tool requires the following IAM permissions:
 
 Replace `ACCOUNT_ID` with your AWS account ID.
 
-## DBLab Engine Configuration
+## DBLab Engine Requirements
 
-Configure DBLab Engine to connect to the temporary clone. The clone will be named `dblab-refresh-YYYYMMDD-HHMMSS`.
+The tool dynamically updates the DBLab Engine's source configuration before triggering refresh. Your DBLab Engine must:
 
-Example DBLab retrieval configuration:
+1. **Support config updates via API** - The `/admin/config` endpoint must be available
+2. **Run in logical mode** - Using pg_dump/pg_restore for data retrieval
+3. **Be accessible** - The API endpoint must be reachable from where this tool runs
+
+Example DBLab configuration:
 
 ```yaml
 retrieval:
   refresh:
-    timetable: ""  # Disable built-in scheduler (managed externally)
+    timetable: ""  # Disable built-in scheduler (managed by this tool)
     skipStartRefresh: true
 
   jobs:
@@ -265,14 +314,28 @@ retrieval:
     logicalDump:
       options:
         source:
-          type: rdsIam
+          type: local  # Will be updated dynamically
           connection:
             dbname: mydb
-            username: dblab_user
-          rdsIam:
-            awsRegion: us-east-1
-            dbInstanceIdentifier: dblab-refresh-current  # Will be the temp clone
+            username: postgres
+            # host and port will be updated by rds-refresh
 ```
+
+## Workflow
+
+The tool executes the following steps:
+
+1. **Health check** - Verifies DBLab Engine is healthy and not already refreshing
+2. **Source validation** - Gets source RDS/Aurora database info
+3. **Snapshot discovery** - Finds the latest automated snapshot
+4. **Clone creation** - Creates a temporary RDS instance/cluster from the snapshot
+5. **Wait for clone** - Polls until clone is available (10-30 minutes typical)
+6. **Config update** - Updates DBLab's source configuration with the clone endpoint
+7. **Trigger refresh** - Initiates DBLab full refresh
+8. **Wait for completion** - Polls until refresh completes (1-4 hours typical)
+9. **Cleanup** - Deletes the temporary clone
+
+If any step fails, the clone is automatically deleted (cleanup runs in defer).
 
 ## Troubleshooting
 
@@ -280,36 +343,49 @@ retrieval:
 
 **Clone creation fails with "DBSubnetGroup not found"**
 - Ensure the subnet group exists and is in the correct VPC
+- Verify the subnet group name in your configuration
 
 **Clone not accessible from DBLab**
-- Verify security groups allow inbound connections from DBLab
+- Verify security groups allow inbound connections from DBLab on port 5432
 - Check if `publiclyAccessible` setting matches your network topology
+- Ensure the clone and DBLab are in the same VPC or have network connectivity
+
+**DBLab config update fails**
+- Verify the DBLab API endpoint is correct
+- Check that the verification token is valid
+- Ensure DBLab supports the `/admin/config` endpoint
 
 **DBLab refresh timeout**
-- Increase `dblab.timeout` in configuration
-- Check DBLab Engine logs for issues
+- Increase `dblab.timeout` in configuration (default is 4 hours)
+- Check DBLab Engine logs for issues during refresh
+- Consider the database size - larger databases take longer
 
 **AWS credentials not found**
-- Ensure AWS credentials are configured (env vars, IAM role, or credentials file)
+- For ECS/Kubernetes: Use IAM Roles for Service Accounts (IRSA) or ECS Task Roles
+- For CLI: Configure AWS credentials via environment variables or credentials file
+- Verify IAM permissions are correctly attached
 
 ### Debug Mode
 
 ```bash
-# Enable verbose AWS SDK logging
-export AWS_SDK_LOAD_CONFIG=1
+# Enable verbose output
 ./rds-refresh -config config.yaml 2>&1 | tee refresh.log
+
+# Check AWS credential chain
+aws sts get-caller-identity
 ```
 
 ## Cost Considerations
 
-- **Clone runtime**: You pay for the clone instance while it exists
-- **Storage**: Clones don't duplicate storage (snapshot-based)
-- **Lambda**: Minimal cost (typically < $0.10/month for weekly refreshes)
+- **Clone runtime**: You pay for the clone instance while it exists (typically 2-5 hours)
+- **Storage**: Clones don't duplicate storage initially (snapshot-based, copy-on-write)
+- **Data transfer**: Minimal if DBLab is in the same region
 
 **Cost optimization tips**:
-- Use a smaller instance class than production
+- Use a smaller instance class than production (e.g., `db.t3.medium`)
 - Use `gp3` storage type for better price/performance
 - Schedule refreshes during off-peak hours
+- The tool automatically deletes clones after completion
 
 ## License
 

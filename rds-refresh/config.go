@@ -28,6 +28,12 @@ type SourceConfig struct {
 	Identifier string `yaml:"identifier"`
 	// SnapshotIdentifier is the specific snapshot to use. If empty, the latest automated snapshot is used.
 	SnapshotIdentifier string `yaml:"snapshotIdentifier"`
+	// DBName is the database name to connect to (used when updating DBLab config).
+	DBName string `yaml:"dbName"`
+	// Username is the database username (used when updating DBLab config).
+	Username string `yaml:"username"`
+	// Password is the database password (used when updating DBLab config).
+	Password string `yaml:"password"`
 }
 
 // CloneConfig defines settings for the temporary clone.
@@ -146,6 +152,18 @@ func (c *Config) Validate() error {
 
 	if c.Source.Identifier == "" {
 		return fmt.Errorf("source.identifier is required")
+	}
+
+	if c.Source.DBName == "" {
+		return fmt.Errorf("source.dbName is required")
+	}
+
+	if c.Source.Username == "" {
+		return fmt.Errorf("source.username is required")
+	}
+
+	if c.Source.Password == "" {
+		return fmt.Errorf("source.password is required")
 	}
 
 	if c.Clone.InstanceClass == "" {

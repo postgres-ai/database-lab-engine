@@ -1,27 +1,22 @@
-.PHONY: build build-linux build-lambda clean test fmt vet
+.PHONY: build build-linux clean test fmt vet docker-build docker-push
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS = -ldflags "-s -w -X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)"
+DOCKER_IMAGE ?= postgresai/rds-refresh
 
 # Build for current platform
 build:
 	go build $(LDFLAGS) -o rds-refresh .
 
-# Build for Linux (for Docker/Lambda)
+# Build for Linux (for Docker containers)
 build-linux:
 	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o rds-refresh-linux-amd64 .
 	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o rds-refresh-linux-arm64 .
 
-# Build Lambda bootstrap binary
-build-lambda:
-	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build $(LDFLAGS) -o bootstrap .
-	zip rds-refresh-lambda.zip bootstrap
-	rm bootstrap
-
 # Clean build artifacts
 clean:
-	rm -f rds-refresh rds-refresh-linux-* bootstrap rds-refresh-lambda.zip
+	rm -f rds-refresh rds-refresh-linux-*
 
 # Run tests
 test:
@@ -47,3 +42,12 @@ run:
 # Run dry-run locally
 dry-run:
 	go run . -config config.yaml -dry-run
+
+# Build Docker image
+docker-build:
+	docker build -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
+
+# Push Docker image
+docker-push:
+	docker push $(DOCKER_IMAGE):$(VERSION)
+	docker push $(DOCKER_IMAGE):latest

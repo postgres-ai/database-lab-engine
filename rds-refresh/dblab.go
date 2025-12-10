@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -46,10 +47,10 @@ type Status struct {
 
 // Retrieving represents state of retrieval subsystem.
 type Retrieving struct {
-	Mode        string          `json:"mode"`
-	Status      RetrievalStatus `json:"status"`
-	LastRefresh string          `json:"lastRefresh"`
-	NextRefresh string          `json:"nextRefresh"`
+	Mode        string           `json:"mode"`
+	Status      RetrievalStatus  `json:"status"`
+	LastRefresh string           `json:"lastRefresh"`
+	NextRefresh string           `json:"nextRefresh"`
 	Alerts      map[string]Alert `json:"alerts"`
 }
 
@@ -71,6 +72,25 @@ type APIError struct {
 	Message string `json:"message"`
 }
 
+// ConfigUpdateRequest represents a request to update DBLab config.
+type ConfigUpdateRequest struct {
+	Retrieval *RetrievalConfigUpdate `json:"retrieval,omitempty"`
+}
+
+// RetrievalConfigUpdate represents retrieval config fields to update.
+type RetrievalConfigUpdate struct {
+	DBSource *DBSourceConfig `json:"dbSource,omitempty"`
+}
+
+// DBSourceConfig represents the source database connection config.
+type DBSourceConfig struct {
+	Host     string `json:"host,omitempty"`
+	Port     int    `json:"port,omitempty"`
+	DBName   string `json:"dbname,omitempty"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+}
+
 // DBLabClient provides methods to interact with the DBLab Engine API.
 type DBLabClient struct {
 	baseURL    string
@@ -79,7 +99,11 @@ type DBLabClient struct {
 }
 
 // NewDBLabClient creates a new DBLab API client.
-func NewDBLabClient(cfg *DBLabConfig) *DBLabClient {
+func NewDBLabClient(cfg *DBLabConfig, logger Logger) *DBLabClient {
+	if cfg.Insecure && logger != nil {
+		logger.Error("WARNING: TLS certificate verification is disabled. This is insecure for production use.")
+	}
+
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: cfg.Insecure},
 	}
@@ -198,6 +222,43 @@ func (c *DBLabClient) Health(ctx context.Context) error {
 		return err
 	}
 	defer resp.Body.Close()
+
+	return nil
+}
+
+// UpdateSourceConfig updates the source database connection in DBLab config.
+func (c *DBLabClient) UpdateSourceConfig(ctx context.Context, host string, port int, dbname, username, password string) error {
+	updateReq := ConfigUpdateRequest{
+		Retrieval: &RetrievalConfigUpdate{
+			DBSource: &DBSourceConfig{
+				Host:     host,
+				Port:     port,
+				DBName:   dbname,
+				Username: username,
+				Password: password,
+			},
+		},
+	}
+
+	bodyBytes, err := json.Marshal(updateReq)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config update: %w", err)
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodPatch, "/admin/config", bytes.NewReader(bodyBytes))
+	if err != nil {
+		return fmt.Errorf("failed to update DBLab config: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result APIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return fmt.Errorf("failed to decode config update response: %w", err)
+	}
+
+	if result.Status != "OK" {
+		return fmt.Errorf("config update failed: %s", result.Message)
+	}
 
 	return nil
 }

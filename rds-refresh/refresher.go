@@ -66,7 +66,7 @@ func NewRefresher(ctx context.Context, cfg *Config, logger Logger) (*Refresher, 
 		return nil, fmt.Errorf("failed to create RDS client: %w", err)
 	}
 
-	dblabClient := NewDBLabClient(&cfg.DBLab)
+	dblabClient := NewDBLabClient(&cfg.DBLab, logger)
 
 	return &Refresher{
 		cfg:    cfg,
@@ -78,12 +78,14 @@ func NewRefresher(ctx context.Context, cfg *Config, logger Logger) (*Refresher, 
 
 // Run executes the full refresh workflow:
 // 1. Verifies DBLab is healthy and not already refreshing
-// 2. Finds the latest snapshot
-// 3. Creates a temporary clone from the snapshot
-// 4. Waits for the clone to be available
-// 5. Triggers DBLab full refresh
-// 6. Waits for refresh to complete
-// 7. Deletes the temporary clone
+// 2. Gets source database info
+// 3. Finds the latest snapshot
+// 4. Creates a temporary clone from the snapshot
+// 5. Waits for the clone to be available
+// 6. Updates DBLab config with the clone endpoint
+// 7. Triggers DBLab full refresh
+// 8. Waits for refresh to complete
+// 9. Deletes the temporary clone
 func (r *Refresher) Run(ctx context.Context) *RefreshResult {
 	result := &RefreshResult{
 		StartTime: time.Now(),
@@ -170,7 +172,24 @@ func (r *Refresher) Run(ctx context.Context) *RefreshResult {
 	result.CloneEndpoint = clone.Endpoint
 	r.logger.Info("Clone available at: %s:%d", clone.Endpoint, clone.Port)
 
-	// Step 6: Trigger DBLab full refresh
+	// Step 6: Update DBLab config with clone endpoint
+	r.logger.Info("Updating DBLab source config with clone endpoint...")
+
+	if err := r.dblab.UpdateSourceConfig(
+		ctx,
+		clone.Endpoint,
+		int(clone.Port),
+		r.cfg.Source.DBName,
+		r.cfg.Source.Username,
+		r.cfg.Source.Password,
+	); err != nil {
+		result.Error = fmt.Errorf("failed to update DBLab config: %w", err)
+		return result
+	}
+
+	r.logger.Info("DBLab config updated successfully")
+
+	// Step 7: Trigger DBLab full refresh
 	r.logger.Info("Triggering DBLab full refresh...")
 
 	if err := r.dblab.TriggerFullRefresh(ctx); err != nil {
