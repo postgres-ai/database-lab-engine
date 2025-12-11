@@ -578,7 +578,7 @@ func (m *Manager) checkDependentClones(snapshotName string) (string, error) {
 }
 
 // CleanupSnapshots destroys old snapshots considering retention limit and related clones.
-func (m *Manager) CleanupSnapshots(retentionLimit int) ([]string, error) {
+func (m *Manager) CleanupSnapshots(retentionLimit int, mode models.RetrievalMode) ([]string, error) {
 	clonesCmd := fmt.Sprintf("zfs list -S clones -o name,origin -H -r %s", m.config.Pool.Name)
 
 	clonesOutput, err := m.runner.Run(clonesCmd)
@@ -588,10 +588,16 @@ func (m *Manager) CleanupSnapshots(retentionLimit int) ([]string, error) {
 
 	busySnapshots := m.getBusySnapshotList(clonesOutput)
 
+	modeFilter := ""
+
+	if mode == models.Physical {
+		modeFilter = "| grep _pre$"
+	}
+
 	cleanupCmd := fmt.Sprintf(
-		"zfs list -t snapshot -H -o name -s %s -s creation -r %s | grep -v clone | grep _pre$ | head -n -%d %s"+
+		"zfs list -t snapshot -H -o name -s %s -s creation -r %s | grep -v clone %s | head -n -%d %s"+
 			"| xargs -n1 --no-run-if-empty zfs destroy -R ",
-		dataStateAtLabel, m.config.Pool.Name, retentionLimit, excludeBusySnapshots(busySnapshots))
+		dataStateAtLabel, m.config.Pool.Name, modeFilter, retentionLimit, excludeBusySnapshots(busySnapshots))
 
 	out, err := m.runner.Run(cleanupCmd)
 	if err != nil {
@@ -892,7 +898,9 @@ func (m *Manager) SnapshotList() []resources.Snapshot {
 // RefreshSnapshotList updates the list of snapshots.
 func (m *Manager) RefreshSnapshotList() {
 	snapshots, err := m.getSnapshots()
-	if err != nil {
+
+	var emptyPoolError *EmptyPoolError
+	if err != nil && !errors.As(err, &emptyPoolError) {
 		log.Err("failed to refresh snapshot list: ", err)
 		return
 	}

@@ -34,6 +34,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
@@ -151,7 +152,7 @@ func (s *LogicalInitial) Run(ctx context.Context) error {
 
 	log.Dbg("Cleaning up old snapshots from a dataset")
 
-	if _, err := s.cloneManager.CleanupSnapshots(0); err != nil {
+	if _, err := s.cloneManager.CleanupSnapshots(0, models.Logical); err != nil {
 		return errors.Wrap(err, "failed to destroy old snapshots")
 	}
 

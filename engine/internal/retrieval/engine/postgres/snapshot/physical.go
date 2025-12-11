@@ -46,6 +46,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 )
@@ -1126,7 +1127,7 @@ func (p *PhysicalInitial) cleanupSnapshots(retentionLimit int) error {
 	default:
 	}
 
-	_, err := p.cloneManager.CleanupSnapshots(retentionLimit)
+	_, err := p.cloneManager.CleanupSnapshots(retentionLimit, models.Physical)
 	if err != nil {
 		return errors.Wrap(err, "failed to clean up snapshots")
 	}

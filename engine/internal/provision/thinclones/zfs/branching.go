@@ -77,7 +77,7 @@ func (m *Manager) InitBranching() error {
 			continue
 		}
 
-		if err := m.SetRelation(leader.ID, follower.ID); err != nil {
+		if err := m.SetRelation(follower.ID, leader.ID); err != nil {
 			return fmt.Errorf("failed to set snapshot relations: %w", err)
 		}
 
