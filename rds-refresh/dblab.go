@@ -73,22 +73,13 @@ type APIError struct {
 }
 
 // ConfigUpdateRequest represents a request to update DBLab config.
+// Uses flat structure matching DBLab's ConfigProjection fields.
 type ConfigUpdateRequest struct {
-	Retrieval *RetrievalConfigUpdate `json:"retrieval,omitempty"`
-}
-
-// RetrievalConfigUpdate represents retrieval config fields to update.
-type RetrievalConfigUpdate struct {
-	DBSource *DBSourceConfig `json:"dbSource,omitempty"`
-}
-
-// DBSourceConfig represents the source database connection config.
-type DBSourceConfig struct {
-	Host     string `json:"host,omitempty"`
-	Port     int    `json:"port,omitempty"`
-	DBName   string `json:"dbname,omitempty"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
+	Host     *string `json:"host,omitempty"`
+	Port     *int64  `json:"port,omitempty"`
+	DBName   *string `json:"dbname,omitempty"`
+	Username *string `json:"username,omitempty"`
+	Password *string `json:"password,omitempty"`
 }
 
 // DBLabClient provides methods to interact with the DBLab Engine API.
@@ -227,17 +218,15 @@ func (c *DBLabClient) Health(ctx context.Context) error {
 }
 
 // UpdateSourceConfig updates the source database connection in DBLab config.
+// DBLab automatically reloads the configuration after the update.
 func (c *DBLabClient) UpdateSourceConfig(ctx context.Context, host string, port int, dbname, username, password string) error {
+	port64 := int64(port)
 	updateReq := ConfigUpdateRequest{
-		Retrieval: &RetrievalConfigUpdate{
-			DBSource: &DBSourceConfig{
-				Host:     host,
-				Port:     port,
-				DBName:   dbname,
-				Username: username,
-				Password: password,
-			},
-		},
+		Host:     &host,
+		Port:     &port64,
+		DBName:   &dbname,
+		Username: &username,
+		Password: &password,
 	}
 
 	bodyBytes, err := json.Marshal(updateReq)
@@ -245,20 +234,11 @@ func (c *DBLabClient) UpdateSourceConfig(ctx context.Context, host string, port 
 		return fmt.Errorf("failed to marshal config update: %w", err)
 	}
 
-	resp, err := c.doRequest(ctx, http.MethodPatch, "/admin/config", bytes.NewReader(bodyBytes))
+	resp, err := c.doRequest(ctx, http.MethodPut, "/admin/config", bytes.NewReader(bodyBytes))
 	if err != nil {
 		return fmt.Errorf("failed to update DBLab config: %w", err)
 	}
 	defer resp.Body.Close()
-
-	var result APIResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return fmt.Errorf("failed to decode config update response: %w", err)
-	}
-
-	if result.Status != "OK" {
-		return fmt.Errorf("config update failed: %s", result.Message)
-	}
 
 	return nil
 }
