@@ -106,7 +106,7 @@ func (m *LVManager) DestroySnapshot(_ string, _ thinclones.DestroyOptions) error
 }
 
 // CleanupSnapshots is not supported in LVM mode.
-func (m *LVManager) CleanupSnapshots(_ int) ([]string, error) {
+func (m *LVManager) CleanupSnapshots(_ int, _ models.RetrievalMode) ([]string, error) {
 	log.Msg("Cleanup snapshots is not supported in LVM mode. Skip the operation.")
 
 	return nil, nil

@@ -47,7 +47,7 @@ type StateReporter interface {
 type Snapshotter interface {
 	CreateSnapshot(poolSuffix, dataStateAt string) (snapshotName string, err error)
 	DestroySnapshot(snapshotName string, options thinclones.DestroyOptions) (err error)
-	CleanupSnapshots(retentionLimit int) ([]string, error)
+	CleanupSnapshots(retentionLimit int, mode models.RetrievalMode) ([]string, error)
 	SnapshotList() []resources.Snapshot
 	RefreshSnapshotList()
 }

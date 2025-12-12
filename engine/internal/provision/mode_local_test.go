@@ -87,7 +87,7 @@ func (m mockFSManager) DestroySnapshot(_ string, _ thinclones.DestroyOptions) (e
 	return nil
 }
 
-func (m mockFSManager) CleanupSnapshots(_ int) ([]string, error) {
+func (m mockFSManager) CleanupSnapshots(_ int, _ models.RetrievalMode) ([]string, error) {
 	return nil, nil
 }
 
