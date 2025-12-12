@@ -146,6 +146,9 @@ func (c *DBLabClient) TriggerFullRefresh(ctx context.Context) error {
 }
 
 // WaitForRefreshComplete polls the DBLab status until refresh is complete or timeout.
+// It first waits for the refresh to start (status changes from finished/inactive),
+// then waits for it to complete. This prevents race conditions where stale status
+// from a previous refresh could cause premature return.
 func (c *DBLabClient) WaitForRefreshComplete(ctx context.Context, pollInterval, timeout time.Duration) error {
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
@@ -153,11 +156,16 @@ func (c *DBLabClient) WaitForRefreshComplete(ctx context.Context, pollInterval, 
 	timeoutTimer := time.NewTimer(timeout)
 	defer timeoutTimer.Stop()
 
+	refreshStarted := false
+
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-timeoutTimer.C:
+			if !refreshStarted {
+				return fmt.Errorf("timeout waiting for refresh to start after %v", timeout)
+			}
 			return fmt.Errorf("timeout waiting for refresh to complete after %v", timeout)
 		case <-ticker.C:
 			status, err := c.GetStatus(ctx)
@@ -168,21 +176,34 @@ func (c *DBLabClient) WaitForRefreshComplete(ctx context.Context, pollInterval, 
 			retrievalStatus := status.Retrieving.Status
 
 			switch retrievalStatus {
+			case StatusRefreshing, StatusSnapshotting, StatusRenewed, StatusPending:
+				// refresh is in progress - mark as started
+				refreshStarted = true
+				continue
 			case StatusFinished:
+				if !refreshStarted {
+					// still showing old status, refresh hasn't started yet
+					continue
+				}
+				// refresh started and now finished
 				return nil
 			case StatusFailed:
+				if !refreshStarted {
+					// old failure status, refresh hasn't started yet
+					continue
+				}
 				if len(status.Retrieving.Alerts) > 0 {
 					for _, alert := range status.Retrieving.Alerts {
 						return fmt.Errorf("refresh failed: %s", alert.Message)
 					}
 				}
-
 				return fmt.Errorf("refresh failed (no details available)")
-			case StatusRefreshing, StatusSnapshotting, StatusRenewed:
-				// still in progress
-				continue
-			case StatusInactive, StatusPending:
-				// not started yet or pending
+			case StatusInactive:
+				if refreshStarted {
+					// was running but now inactive - unusual, treat as failure
+					return fmt.Errorf("refresh stopped unexpectedly (status: inactive)")
+				}
+				// not started yet
 				continue
 			default:
 				continue
