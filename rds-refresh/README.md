@@ -283,6 +283,8 @@ The temporary clone needs to be accessible from DBLab Engine:
 
 Your DBLab must be running in **logical mode**. The tool updates DBLab's source config via API before triggering refresh.
 
+**Important**: The tool communicates with DBLab purely via HTTP API. It can run from anywhere (different machine, container, cloud) - no SSH or filesystem access to the DBLab server is required. DBLab automatically reloads configuration when updated via API.
+
 Minimal DBLab config:
 
 ```yaml
@@ -317,7 +319,7 @@ retrieval:
 2. **Find Snapshot** - Get latest automated snapshot (or specified one)
 3. **Create Clone** - Restore snapshot to new RDS instance (`dblab-refresh-YYYYMMDD-HHMMSS`)
 4. **Wait for Clone** - Poll until instance is available (10-30 min)
-5. **Update DBLab** - PATCH `/admin/config` with clone's endpoint
+5. **Update DBLab** - PUT `/admin/config` with clone's endpoint (auto-reloads, no restart needed)
 6. **Trigger Refresh** - POST `/admin/full-refresh`
 7. **Wait for Refresh** - Poll status until complete (1-4 hours)
 8. **Delete Clone** - Remove temporary instance (always runs, even on failure)
