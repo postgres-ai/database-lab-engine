@@ -150,13 +150,56 @@ func (c *DBLabClient) TriggerFullRefresh(ctx context.Context) error {
 // then waits for it to complete. This prevents race conditions where stale status
 // from a previous refresh could cause premature return.
 func (c *DBLabClient) WaitForRefreshComplete(ctx context.Context, pollInterval, timeout time.Duration) error {
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
-
 	timeoutTimer := time.NewTimer(timeout)
 	defer timeoutTimer.Stop()
 
 	refreshStarted := false
+
+	// checkStatus handles status evaluation and returns (done, error)
+	checkStatus := func() (bool, error) {
+		status, err := c.GetStatus(ctx)
+		if err != nil {
+			return false, fmt.Errorf("failed to get status: %w", err)
+		}
+
+		switch status.Retrieving.Status {
+		case StatusRefreshing, StatusSnapshotting, StatusRenewed, StatusPending:
+			refreshStarted = true
+			return false, nil
+		case StatusFinished:
+			if !refreshStarted {
+				return false, nil
+			}
+			return true, nil
+		case StatusFailed:
+			if !refreshStarted {
+				return false, nil
+			}
+			if len(status.Retrieving.Alerts) > 0 {
+				for _, alert := range status.Retrieving.Alerts {
+					return false, fmt.Errorf("refresh failed: %s", alert.Message)
+				}
+			}
+			return false, fmt.Errorf("refresh failed (no details available)")
+		case StatusInactive:
+			if refreshStarted {
+				return false, fmt.Errorf("refresh stopped unexpectedly (status: inactive)")
+			}
+			return false, nil
+		default:
+			return false, nil
+		}
+	}
+
+	// immediate first check
+	if done, err := checkStatus(); err != nil {
+		return err
+	} else if done {
+		return nil
+	}
+
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
 
 	for {
 		select {
@@ -168,51 +211,17 @@ func (c *DBLabClient) WaitForRefreshComplete(ctx context.Context, pollInterval, 
 			}
 			return fmt.Errorf("timeout waiting for refresh to complete after %v", timeout)
 		case <-ticker.C:
-			status, err := c.GetStatus(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to get status: %w", err)
-			}
-
-			retrievalStatus := status.Retrieving.Status
-
-			switch retrievalStatus {
-			case StatusRefreshing, StatusSnapshotting, StatusRenewed, StatusPending:
-				// refresh is in progress - mark as started
-				refreshStarted = true
-				continue
-			case StatusFinished:
-				if !refreshStarted {
-					// still showing old status, refresh hasn't started yet
-					continue
-				}
-				// refresh started and now finished
+			if done, err := checkStatus(); err != nil {
+				return err
+			} else if done {
 				return nil
-			case StatusFailed:
-				if !refreshStarted {
-					// old failure status, refresh hasn't started yet
-					continue
-				}
-				if len(status.Retrieving.Alerts) > 0 {
-					for _, alert := range status.Retrieving.Alerts {
-						return fmt.Errorf("refresh failed: %s", alert.Message)
-					}
-				}
-				return fmt.Errorf("refresh failed (no details available)")
-			case StatusInactive:
-				if refreshStarted {
-					// was running but now inactive - unusual, treat as failure
-					return fmt.Errorf("refresh stopped unexpectedly (status: inactive)")
-				}
-				// not started yet
-				continue
-			default:
-				continue
 			}
 		}
 	}
 }
 
 // IsRefreshInProgress checks if a refresh is currently in progress.
+// Considers all active states: refreshing, snapshotting, pending, renewed.
 func (c *DBLabClient) IsRefreshInProgress(ctx context.Context) (bool, error) {
 	status, err := c.GetStatus(ctx)
 	if err != nil {
@@ -220,7 +229,7 @@ func (c *DBLabClient) IsRefreshInProgress(ctx context.Context) (bool, error) {
 	}
 
 	switch status.Retrieving.Status {
-	case StatusRefreshing, StatusSnapshotting:
+	case StatusRefreshing, StatusSnapshotting, StatusPending, StatusRenewed:
 		return true, nil
 	default:
 		return false, nil
