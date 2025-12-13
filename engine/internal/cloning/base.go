@@ -45,28 +45,30 @@ type Config struct {
 
 // Base provides cloning service.
 type Base struct {
-	config      *Config
-	global      *global.Config
-	cloneMutex  sync.RWMutex
-	clones      map[string]*CloneWrapper
-	snapshotBox SnapshotBox
-	provision   *provision.Provisioner
-	tm          *telemetry.Agent
-	observingCh chan string
-	webhookCh   chan webhooks.EventTyper
+	config        *Config
+	global        *global.Config
+	cloneMutex    sync.RWMutex
+	clones        map[string]*CloneWrapper
+	snapshotBox   SnapshotBox
+	entityStorage *EntityStorage
+	provision     *provision.Provisioner
+	tm            *telemetry.Agent
+	observingCh   chan string
+	webhookCh     chan webhooks.EventTyper
 }
 
 // NewBase instances a new Base service.
 func NewBase(cfg *Config, global *global.Config, provision *provision.Provisioner, tm *telemetry.Agent,
 	observingCh chan string, whCh chan webhooks.EventTyper) *Base {
 	return &Base{
-		config:      cfg,
-		global:      global,
-		clones:      make(map[string]*CloneWrapper),
-		provision:   provision,
-		tm:          tm,
-		observingCh: observingCh,
-		webhookCh:   whCh,
+		config:        cfg,
+		global:        global,
+		clones:        make(map[string]*CloneWrapper),
+		entityStorage: NewEntityStorage(),
+		provision:     provision,
+		tm:            tm,
+		observingCh:   observingCh,
+		webhookCh:     whCh,
 		snapshotBox: SnapshotBox{
 			items: make(map[string]*models.Snapshot),
 		},
@@ -91,6 +93,14 @@ func (c *Base) Run(ctx context.Context) error {
 
 	if err := c.RestoreClonesState(); err != nil {
 		log.Err("failed to load stored sessions:", err)
+	}
+
+	if err := c.entityStorage.RestoreBranchesState(); err != nil {
+		log.Err("failed to load stored branch metadata:", err)
+	}
+
+	if err := c.entityStorage.RestoreSnapshotsState(); err != nil {
+		log.Err("failed to load stored snapshot metadata:", err)
 	}
 
 	c.restartCloneContainers(ctx)
@@ -175,12 +185,20 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 		cloneRequest.Branch = snapshot.Branch
 	}
 
+	var deleteAt *models.LocalTime
+
+	if cloneRequest.DeleteAt != "" {
+		deleteAt, _ = models.ParseLocalTime(cloneRequest.DeleteAt)
+	}
+
 	clone := &models.Clone{
-		ID:        cloneRequest.ID,
-		Snapshot:  snapshot,
-		Branch:    cloneRequest.Branch,
-		Protected: cloneRequest.Protected,
-		CreatedAt: models.NewLocalTime(createdAt),
+		ID:             cloneRequest.ID,
+		Snapshot:       snapshot,
+		Branch:         cloneRequest.Branch,
+		Protected:      cloneRequest.Protected,
+		DeleteAt:       deleteAt,
+		AutoDeleteMode: models.AutoDeleteMode(cloneRequest.AutoDeleteMode),
+		CreatedAt:      models.NewLocalTime(createdAt),
 		Status: models.Status{
 			Code:    models.StatusCreating,
 			Message: models.CloneMessageCreating,
@@ -450,15 +468,69 @@ func (c *Base) UpdateClone(id string, patch types.CloneUpdateRequest) (*models.C
 
 	var clone *models.Clone
 
-	// Set fields.
 	c.cloneMutex.Lock()
-	w.Clone.Protected = patch.Protected
+
+	if patch.Protected != nil {
+		w.Clone.Protected = *patch.Protected
+	}
+
+	if patch.DeleteAt != nil {
+		deleteAt, err := models.ParseLocalTime(*patch.DeleteAt)
+		if err == nil {
+			w.Clone.DeleteAt = deleteAt
+		}
+	}
+
+	if patch.AutoDeleteMode != nil {
+		w.Clone.AutoDeleteMode = models.AutoDeleteMode(*patch.AutoDeleteMode)
+	}
+
 	clone = w.Clone
 	c.cloneMutex.Unlock()
 
 	c.SaveClonesState()
 
 	return clone, nil
+}
+
+// GetEntityStorage returns the entity storage instance.
+func (c *Base) GetEntityStorage() *EntityStorage {
+	return c.entityStorage
+}
+
+// IsBranchProtected checks if a branch is protected.
+func (c *Base) IsBranchProtected(name string) bool {
+	return c.entityStorage.IsBranchProtected(name)
+}
+
+// IsSnapshotProtected checks if a snapshot is protected.
+func (c *Base) IsSnapshotProtected(id string) bool {
+	return c.entityStorage.IsSnapshotProtected(id)
+}
+
+// GetBranchMeta returns metadata for a branch.
+func (c *Base) GetBranchMeta(name string) *BranchMeta {
+	return c.entityStorage.GetBranchMeta(name)
+}
+
+// GetSnapshotMeta returns metadata for a snapshot.
+func (c *Base) GetSnapshotMeta(id string) *SnapshotMeta {
+	return c.entityStorage.GetSnapshotMeta(id)
+}
+
+// UpdateBranchMeta updates branch metadata.
+func (c *Base) UpdateBranchMeta(name string, protected *bool, deleteAt *models.LocalTime, autoDeleteMode *models.AutoDeleteMode) *BranchMeta {
+	return c.entityStorage.UpdateBranchMeta(name, protected, deleteAt, autoDeleteMode)
+}
+
+// UpdateSnapshotMeta updates snapshot metadata.
+func (c *Base) UpdateSnapshotMeta(id string, protected *bool, deleteAt *models.LocalTime, autoDeleteMode *models.AutoDeleteMode) *SnapshotMeta {
+	return c.entityStorage.UpdateSnapshotMeta(id, protected, deleteAt, autoDeleteMode)
+}
+
+// DeleteBranchMeta removes branch metadata.
+func (c *Base) DeleteBranchMeta(name string) {
+	c.entityStorage.DeleteBranchMeta(name)
 }
 
 // UpdateCloneStatus updates the clone status.
@@ -723,16 +795,16 @@ func (c *Base) getExpectedCloningTime() float64 {
 }
 
 func (c *Base) runIdleCheck(ctx context.Context) {
-	if c.config.MaxIdleMinutes == 0 {
-		return
-	}
-
 	idleTimer := time.NewTimer(idleCheckDuration)
 
 	for {
 		select {
 		case <-idleTimer.C:
-			c.destroyIdleClones(ctx)
+			if c.config.MaxIdleMinutes > 0 {
+				c.destroyIdleClones(ctx)
+			}
+
+			c.destroyScheduledClones(ctx)
 			idleTimer.Reset(idleCheckDuration)
 			c.SaveClonesState()
 
@@ -765,6 +837,61 @@ func (c *Base) destroyIdleClones(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func (c *Base) destroyScheduledClones(ctx context.Context) {
+	now := time.Now()
+
+	for _, cloneWrapper := range c.clones {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			clone := cloneWrapper.Clone
+			if clone.DeleteAt == nil || clone.AutoDeleteMode == models.AutoDeleteOff {
+				continue
+			}
+
+			if time.Time(*clone.DeleteAt).After(now) {
+				continue
+			}
+
+			if clone.Protected {
+				log.Dbg(fmt.Sprintf("Skipping scheduled deletion of protected clone %q", clone.ID))
+				continue
+			}
+
+			hasDeps := c.hasDependentSnapshots(cloneWrapper)
+
+			switch clone.AutoDeleteMode {
+			case models.AutoDeleteSoft:
+				if hasDeps {
+					log.Dbg(fmt.Sprintf("Skipping scheduled deletion of clone %q: has dependent snapshots (soft mode)", clone.ID))
+					continue
+				}
+			case models.AutoDeleteForce:
+				if hasDeps {
+					log.Msg(fmt.Sprintf("Force deleting clone %q with dependent snapshots", clone.ID))
+				}
+			}
+
+			log.Msg(fmt.Sprintf("Scheduled clone %q is going to be removed (deleteAt: %s)", clone.ID, clone.DeleteAt.Time.Format(time.RFC3339)))
+
+			if err := c.DestroyClone(clone.ID); err != nil {
+				log.Errf("failed to destroy scheduled clone %q: %v", clone.ID, err)
+			}
+		}
+	}
+}
+
+// GetExpiredBranches returns branch metadata for expired branches.
+func (c *Base) GetExpiredBranches() []*BranchMeta {
+	return c.entityStorage.GetExpiredBranches()
+}
+
+// GetExpiredSnapshots returns snapshot metadata for expired snapshots.
+func (c *Base) GetExpiredSnapshots() []*SnapshotMeta {
+	return c.entityStorage.GetExpiredSnapshots()
 }
 
 // isIdleClone checks if clone is idle.

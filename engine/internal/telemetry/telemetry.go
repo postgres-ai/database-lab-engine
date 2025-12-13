@@ -41,6 +41,12 @@ const (
 	// BranchDestroyedEvent describes a branch destruction event.
 	BranchDestroyedEvent = "branch_destroyed"
 
+	// BranchUpdatedEvent describes a branch update event.
+	BranchUpdatedEvent = "branch_updated"
+
+	// SnapshotUpdatedEvent describes a snapshot update event.
+	SnapshotUpdatedEvent = "snapshot_updated"
+
 	ConfigUpdatedEvent = "config_updated"
 
 	// AlertEvent describes alert events.
