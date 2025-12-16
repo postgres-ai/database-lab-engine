@@ -101,74 +101,41 @@ func run(configPath string, dryRun bool) error {
 }
 
 func printUsage() {
-	fmt.Fprintf(os.Stderr, `rds-refresh - Automate DBLab full refresh using RDS/Aurora snapshots
+	fmt.Fprintf(os.Stderr, `rds-refresh - Refresh DBLab from RDS/Aurora snapshots
 
-This tool creates a temporary RDS/Aurora clone from a snapshot, updates
-DBLab Engine config with the clone endpoint, triggers a full refresh,
-and then cleans up the temporary clone.
+Avoids pg_dump on production (which holds xmin → bloat). Instead, creates a
+temporary clone from snapshot, refreshes DBLab from clone, then deletes clone.
 
-USAGE:
-    rds-refresh -config <path> [options]
+USAGE
+    rds-refresh -config <path> [-dry-run]
 
-OPTIONS:
-    -config <path>    Path to YAML configuration file (required)
-    -dry-run          Validate configuration without creating resources
-    -version          Show version information
-    -help             Show this help message
+OPTIONS
+    -config <path>   Config file (required)
+    -dry-run         Validate only, no changes
+    -version         Show version
+    -help            Show help
 
-DEPLOYMENT:
-    This tool is designed to run as a container (Docker, ECS Task, Kubernetes Job)
-    or directly from the command line. The refresh process can take 1-4 hours
-    depending on database size, so long-running execution environments are required.
-
-    Docker:
-        docker run -v /path/to/config.yaml:/config.yaml \
-            postgres-ai/rds-refresh -config /config.yaml
-
-    ECS Task / Kubernetes Job:
-        Schedule as a periodic task (e.g., daily) using your orchestration platform.
-
-    Cron:
-        0 2 * * * /usr/local/bin/rds-refresh -config /etc/rds-refresh/config.yaml
-
-EXAMPLE CONFIGURATION:
-
+EXAMPLE CONFIG
     source:
-      type: rds                    # or "aurora-cluster"
-      identifier: production-db
-      dbName: myapp
+      type: rds                  # or aurora-cluster
+      identifier: my-prod-db
+      dbName: postgres
       username: postgres
-      password: ${DB_PASSWORD}     # supports environment variable expansion
-
+      password: ${DB_PASSWORD}
     clone:
       instanceClass: db.t3.medium
-      subnetGroup: default-vpc-subnet
-      securityGroups:
-        - sg-12345678
-      publiclyAccessible: false
-
+      securityGroups: [sg-xxx]
     dblab:
-      apiEndpoint: https://dblab.example.com:2345
+      apiEndpoint: https://dblab:2345
       token: ${DBLAB_TOKEN}
-      pollInterval: 30s
-      timeout: 4h
-
     aws:
       region: us-east-1
 
-WORKFLOW:
-    1. Verifies DBLab is healthy and not already refreshing
-    2. Gets source database info from RDS/Aurora
-    3. Finds the latest automated snapshot
-    4. Creates a temporary RDS clone from the snapshot
-    5. Waits for the clone to be available (10-30 minutes)
-    6. Updates DBLab config with the clone endpoint
-    7. Triggers DBLab full refresh
-    8. Waits for refresh to complete (1-4 hours)
-    9. Deletes the temporary clone
+DOCKER
+    docker run --rm -v $PWD/config.yaml:/config.yaml \
+      -e DB_PASSWORD -e DBLAB_TOKEN -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
+      postgresai/rds-refresh -config /config.yaml
 
-For more information, see:
-    https://postgres.ai/docs/database-lab-engine
-
+More info: https://postgres.ai/docs/database-lab-engine
 `)
 }
