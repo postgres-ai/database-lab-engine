@@ -852,7 +852,7 @@ func (c *Base) destroyScheduledClones(ctx context.Context) {
 				continue
 			}
 
-			if time.Time(*clone.DeleteAt).After(now) {
+			if clone.DeleteAt.Time.After(now) {
 				continue
 			}
 

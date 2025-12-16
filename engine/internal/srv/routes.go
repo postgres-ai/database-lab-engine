@@ -822,7 +822,7 @@ func (s *Server) patchClone(w http.ResponseWriter, r *http.Request) {
 
 	s.tm.SendEvent(context.Background(), telemetry.CloneUpdatedEvent, telemetry.CloneUpdated{
 		ID:        util.HashID(cloneID),
-		Protected: patchClone.Protected,
+		Protected: updatedClone.Protected,
 	})
 
 	if err := api.WriteJSON(w, http.StatusOK, updatedClone); err != nil {

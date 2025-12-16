@@ -287,7 +287,7 @@ func (es *EntityStorage) GetExpiredBranches() []*BranchMeta {
 
 	for _, meta := range es.branches {
 		if meta.DeleteAt != nil && meta.AutoDeleteMode != models.AutoDeleteOff {
-			if time.Time(*meta.DeleteAt).Before(now) {
+			if meta.DeleteAt.Time.Before(now) {
 				expired = append(expired, meta)
 			}
 		}
@@ -306,7 +306,7 @@ func (es *EntityStorage) GetExpiredSnapshots() []*SnapshotMeta {
 
 	for _, meta := range es.snapshots {
 		if meta.DeleteAt != nil && meta.AutoDeleteMode != models.AutoDeleteOff {
-			if time.Time(*meta.DeleteAt).Before(now) {
+			if meta.DeleteAt.Time.Before(now) {
 				expired = append(expired, meta)
 			}
 		}

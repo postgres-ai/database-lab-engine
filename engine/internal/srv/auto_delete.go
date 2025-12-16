@@ -12,6 +12,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
@@ -224,7 +225,7 @@ func (s *Server) processExpiredSnapshots(ctx context.Context) {
 
 		log.Msg(fmt.Sprintf("Scheduled snapshot %q is going to be removed (deleteAt: %s)", meta.ID, meta.DeleteAt.Time.Format(time.RFC3339)))
 
-		if err := fsm.DestroySnapshot(meta.ID); err != nil {
+		if err := fsm.DestroySnapshot(meta.ID, thinclones.DestroyOptions{}); err != nil {
 			log.Errf("failed to destroy scheduled snapshot %q: %v", meta.ID, err)
 			continue
 		}
@@ -295,7 +296,7 @@ func (s *Server) forceDeleteSnapshot(ctx context.Context, fsm pool.FSManager, sn
 		}
 	}
 
-	if err := fsm.DestroySnapshot(snapshotID); err != nil {
+	if err := fsm.DestroySnapshot(snapshotID, thinclones.DestroyOptions{}); err != nil {
 		return fmt.Errorf("failed to destroy snapshot: %w", err)
 	}
 
