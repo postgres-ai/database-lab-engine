@@ -81,6 +81,7 @@ func (s *Server) processExpiredBranches(ctx context.Context) {
 				continue
 			case models.AutoDeleteForce:
 				log.Msg(fmt.Sprintf("Force deleting branch %q: %s", meta.Name, reason))
+
 				if err := s.forceDeleteBranch(ctx, fsm, meta.Name); err != nil {
 					log.Errf("failed to force delete branch %q: %v", meta.Name, err)
 					continue
@@ -158,6 +159,7 @@ func (s *Server) forceDeleteBranch(ctx context.Context, fsm pool.FSManager, bran
 
 func (s *Server) getClonesForSnapshot(snapshotID string) []string {
 	state := s.Cloning.GetCloningState()
+
 	var cloneIDs []string
 
 	for _, clone := range state.Clones {
@@ -212,6 +214,7 @@ func (s *Server) processExpiredSnapshots(ctx context.Context) {
 				continue
 			case models.AutoDeleteForce:
 				log.Msg(fmt.Sprintf("Force deleting snapshot %q: %s", meta.ID, reason))
+
 				if err := s.forceDeleteSnapshot(ctx, fsm, meta.ID, cloneIDs); err != nil {
 					log.Errf("failed to force delete snapshot %q: %v", meta.ID, err)
 					continue
@@ -251,8 +254,8 @@ func (s *Server) canDeleteSnapshot(fsm pool.FSManager, meta *cloning.SnapshotMet
 		return false, fmt.Sprintf("failed to check dependencies: %v", err), nil
 	}
 
-	var cloneIDs []string
-	var protectedClones []string
+	cloneIDs := make([]string, 0, len(dependentCloneDatasets))
+	protectedClones := make([]string, 0)
 
 	for _, cloneDataset := range dependentCloneDatasets {
 		cloneID, ok := branching.ParseCloneName(cloneDataset, poolName)

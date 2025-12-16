@@ -163,7 +163,9 @@ func (es *EntityStorage) SetBranchMeta(meta *BranchMeta) {
 }
 
 // UpdateBranchMeta updates existing branch metadata or creates new one.
-func (es *EntityStorage) UpdateBranchMeta(name string, protected *bool, deleteAt *models.LocalTime, autoDeleteMode *models.AutoDeleteMode) *BranchMeta {
+func (es *EntityStorage) UpdateBranchMeta(
+	name string, protected *bool, deleteAt *models.LocalTime, autoDeleteMode *models.AutoDeleteMode,
+) *BranchMeta {
 	es.branchMutex.Lock()
 	defer es.branchMutex.Unlock()
 
@@ -229,7 +231,9 @@ func (es *EntityStorage) SetSnapshotMeta(meta *SnapshotMeta) {
 }
 
 // UpdateSnapshotMeta updates existing snapshot metadata or creates new one.
-func (es *EntityStorage) UpdateSnapshotMeta(id string, protected *bool, deleteAt *models.LocalTime, autoDeleteMode *models.AutoDeleteMode) *SnapshotMeta {
+func (es *EntityStorage) UpdateSnapshotMeta(
+	id string, protected *bool, deleteAt *models.LocalTime, autoDeleteMode *models.AutoDeleteMode,
+) *SnapshotMeta {
 	es.snapshotMutex.Lock()
 	defer es.snapshotMutex.Unlock()
 

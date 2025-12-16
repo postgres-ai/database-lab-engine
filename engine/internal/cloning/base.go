@@ -519,12 +519,16 @@ func (c *Base) GetSnapshotMeta(id string) *SnapshotMeta {
 }
 
 // UpdateBranchMeta updates branch metadata.
-func (c *Base) UpdateBranchMeta(name string, protected *bool, deleteAt *models.LocalTime, autoDeleteMode *models.AutoDeleteMode) *BranchMeta {
+func (c *Base) UpdateBranchMeta(
+	name string, protected *bool, deleteAt *models.LocalTime, autoDeleteMode *models.AutoDeleteMode,
+) *BranchMeta {
 	return c.entityStorage.UpdateBranchMeta(name, protected, deleteAt, autoDeleteMode)
 }
 
 // UpdateSnapshotMeta updates snapshot metadata.
-func (c *Base) UpdateSnapshotMeta(id string, protected *bool, deleteAt *models.LocalTime, autoDeleteMode *models.AutoDeleteMode) *SnapshotMeta {
+func (c *Base) UpdateSnapshotMeta(
+	id string, protected *bool, deleteAt *models.LocalTime, autoDeleteMode *models.AutoDeleteMode,
+) *SnapshotMeta {
 	return c.entityStorage.UpdateSnapshotMeta(id, protected, deleteAt, autoDeleteMode)
 }
 
