@@ -101,10 +101,10 @@ func run(configPath string, dryRun bool) error {
 }
 
 func printUsage() {
-	fmt.Fprintf(os.Stderr, `rds-refresh - Refresh DBLab from RDS/Aurora snapshots
+	fmt.Fprintf(os.Stderr, `rds-refresh - Perform full refresh from RDS/Aurora snapshots (logical mode)
 
 Avoids pg_dump on production (which holds xmin → bloat). Instead, creates a
-temporary clone from snapshot, refreshes DBLab from clone, then deletes clone.
+temporary RDS clone from RDS snapshot, refreshes DBLab from it, then deletes it.
 
 USAGE
     rds-refresh -config <path> [-dry-run]

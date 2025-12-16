@@ -1,6 +1,6 @@
 # RDS/Aurora Refresh for DBLab
 
-Refresh DBLab from RDS/Aurora snapshots without touching production.
+Perform full refresh from RDS/Aurora snapshots (logical mode).
 
 ## Why?
 
@@ -9,11 +9,11 @@ DBLab logical mode runs `pg_dump` against your database. On large databases, thi
 - **Creates load on production**
 - **Requires direct network access** to production
 
-This tool dumps from a **temporary snapshot clone** instead. Production is never touched.
+This tool dumps from a **temporary RDS clone** instead. Production is never touched.
 
 ```
-Production RDS ──snapshot──► Snapshot ──restore──► Temp Clone ──pg_dump──► DBLab
-                (automated)                         (deleted)
+Production ──RDS snapshot──► RDS Snapshot ──restore──► RDS Clone ──pg_dump──► DBLab
+              (automated)                              (temporary)
 ```
 
 ## Quick Start
@@ -62,7 +62,7 @@ docker run --rm \
 | `source.dbName` | ✓ | Database name |
 | `source.username` | ✓ | Database user |
 | `source.password` | ✓ | Password (use `${ENV_VAR}`) |
-| `clone.instanceClass` | ✓ | Clone instance type |
+| `clone.instanceClass` | ✓ | RDS clone instance type |
 | `clone.securityGroups` | | SGs allowing DBLab access |
 | `clone.subnetGroup` | | DB subnet group |
 | `dblab.apiEndpoint` | ✓ | DBLab API URL |
@@ -160,7 +160,7 @@ aws events put-targets --rule dblab-refresh --targets '[{
 
 ## Network
 
-Clone must be reachable from DBLab on port 5432. Same VPC or peered.
+RDS clone must be reachable from DBLab on port 5432. Same VPC or peered.
 
 ## DBLab Setup
 
@@ -184,24 +184,24 @@ retrieval:
 
 1. Check DBLab health
 2. Find latest RDS snapshot
-3. Create temp clone (`dblab-refresh-YYYYMMDD-HHMMSS`)
-4. Wait for clone (~15 min)
+3. Create RDS clone from RDS snapshot (`dblab-refresh-YYYYMMDD-HHMMSS`)
+4. Wait for RDS clone (~15 min)
 5. Update DBLab config via API
 6. Trigger refresh, wait for completion
-7. Delete clone (always, even on error)
+7. Delete RDS clone (always, even on error)
 
 ## Troubleshooting
 
 | Error | Fix |
 |-------|-----|
 | No snapshots | Enable automated backups on RDS |
-| Clone not accessible | Check security group allows 5432 from DBLab |
+| RDS clone not accessible | Check security group allows 5432 from DBLab |
 | Config update failed | Verify DBLab endpoint and token |
 | Timeout | Increase `dblab.timeout`, check DBLab logs |
 
 ## Cost
 
-Clone cost only while running (~2-5 hours):
+RDS clone cost only while running (~2-5 hours):
 - db.t3.medium: ~$0.35
 - db.r5.large: ~$1.20
 

@@ -35,7 +35,7 @@ func (l *DefaultLogger) Debug(msg string, args ...interface{}) {
 	fmt.Printf("[DEBUG] "+msg+"\n", args...)
 }
 
-// Refresher orchestrates the RDS/Aurora clone and DBLab refresh workflow.
+// Refresher orchestrates the RDS/Aurora refresh workflow.
 type Refresher struct {
 	cfg    *Config
 	rds    *RDSClient
@@ -79,13 +79,13 @@ func NewRefresher(ctx context.Context, cfg *Config, logger Logger) (*Refresher, 
 // Run executes the full refresh workflow:
 // 1. Verifies DBLab is healthy and not already refreshing
 // 2. Gets source database info
-// 3. Finds the latest snapshot
-// 4. Creates a temporary clone from the snapshot
-// 5. Waits for the clone to be available
-// 6. Updates DBLab config with the clone endpoint
+// 3. Finds the latest RDS snapshot
+// 4. Creates a temporary RDS clone from the RDS snapshot
+// 5. Waits for the RDS clone to be available
+// 6. Updates DBLab config with the RDS clone endpoint
 // 7. Triggers DBLab full refresh
 // 8. Waits for refresh to complete
-// 9. Deletes the temporary clone
+// 9. Deletes the temporary RDS clone
 func (r *Refresher) Run(ctx context.Context) *RefreshResult {
 	result := &RefreshResult{
 		StartTime: time.Now(),
@@ -126,54 +126,54 @@ func (r *Refresher) Run(ctx context.Context) *RefreshResult {
 
 	r.logger.Info("Source: %s", sourceInfo)
 
-	// Step 3: Find latest snapshot
-	r.logger.Info("Finding latest snapshot...")
+	// Step 3: Find latest RDS snapshot
+	r.logger.Info("Finding latest RDS snapshot...")
 
 	snapshotID, err := r.rds.FindLatestSnapshot(ctx)
 	if err != nil {
-		result.Error = fmt.Errorf("failed to find snapshot: %w", err)
+		result.Error = fmt.Errorf("failed to find RDS snapshot: %w", err)
 		return result
 	}
 
 	result.SnapshotID = snapshotID
-	r.logger.Info("Using snapshot: %s", snapshotID)
+	r.logger.Info("Using RDS snapshot: %s", snapshotID)
 
-	// Step 4: Create temporary clone
-	r.logger.Info("Creating temporary RDS clone from snapshot...")
+	// Step 4: Create temporary RDS clone
+	r.logger.Info("Creating RDS clone from RDS snapshot...")
 
 	clone, err := r.rds.CreateClone(ctx, snapshotID)
 	if err != nil {
-		result.Error = fmt.Errorf("failed to create clone: %w", err)
+		result.Error = fmt.Errorf("failed to create RDS clone: %w", err)
 		return result
 	}
 
 	result.CloneID = clone.Identifier
-	r.logger.Info("Created clone: %s", clone.Identifier)
+	r.logger.Info("Created RDS clone: %s", clone.Identifier)
 
 	// Ensure cleanup on any exit
 	defer func() {
-		r.logger.Info("Cleaning up temporary clone %s...", clone.Identifier)
+		r.logger.Info("Deleting temporary RDS clone %s...", clone.Identifier)
 
 		if deleteErr := r.rds.DeleteClone(context.Background(), clone); deleteErr != nil {
-			r.logger.Error("Failed to delete clone %s: %v (manual cleanup may be required)", clone.Identifier, deleteErr)
+			r.logger.Error("Failed to delete RDS clone %s: %v (manual cleanup required)", clone.Identifier, deleteErr)
 		} else {
-			r.logger.Info("Successfully deleted temporary clone %s", clone.Identifier)
+			r.logger.Info("Deleted RDS clone %s", clone.Identifier)
 		}
 	}()
 
-	// Step 5: Wait for clone to be available
-	r.logger.Info("Waiting for clone to become available (this may take 10-30 minutes)...")
+	// Step 5: Wait for RDS clone to be available
+	r.logger.Info("Waiting for RDS clone (10-30 min)...")
 
 	if err := r.rds.WaitForCloneAvailable(ctx, clone); err != nil {
-		result.Error = fmt.Errorf("clone did not become available: %w", err)
+		result.Error = fmt.Errorf("RDS clone did not become available: %w", err)
 		return result
 	}
 
 	result.CloneEndpoint = clone.Endpoint
-	r.logger.Info("Clone available at: %s:%d", clone.Endpoint, clone.Port)
+	r.logger.Info("RDS clone ready: %s:%d", clone.Endpoint, clone.Port)
 
-	// Step 6: Update DBLab config with clone endpoint
-	r.logger.Info("Updating DBLab source config with clone endpoint...")
+	// Step 6: Update DBLab config with RDS clone endpoint
+	r.logger.Info("Updating DBLab config...")
 
 	if err := r.dblab.UpdateSourceConfig(
 		ctx,
@@ -245,16 +245,16 @@ func (r *Refresher) DryRun(ctx context.Context) error {
 
 	r.logger.Info("Source: %s", sourceInfo)
 
-	// Check snapshot
-	r.logger.Info("Finding latest snapshot...")
+	// Check RDS snapshot
+	r.logger.Info("Finding latest RDS snapshot...")
 
 	snapshotID, err := r.rds.FindLatestSnapshot(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to find snapshot: %w", err)
+		return fmt.Errorf("failed to find RDS snapshot: %w", err)
 	}
 
-	r.logger.Info("Would use snapshot: %s", snapshotID)
-	r.logger.Info("Would create clone with instance class: %s", r.cfg.Clone.InstanceClass)
+	r.logger.Info("Would use RDS snapshot: %s", snapshotID)
+	r.logger.Info("Would create RDS clone with instance class: %s", r.cfg.Clone.InstanceClass)
 
 	r.logger.Info("=== DRY RUN COMPLETE - All checks passed ===")
 
