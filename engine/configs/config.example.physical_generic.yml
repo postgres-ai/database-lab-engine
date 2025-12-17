@@ -64,7 +64,7 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
       options:
         <<: *db_container
         tool: customTool # Defines the tool to restore data
-        sync: # Additional "sync" container is used to keep the data directory in a synchronized state with the source (in fact, "sync" container is an asyncrhonous replica)
+        sync: # Additional "sync" container is used to keep the data directory in a synchronized state with the source (in fact, "sync" container is an asynchronous replica)
           enabled: true # Enable running of sync container
           healthCheck:
             interval: 5 # Health check frequency (seconds)
@@ -74,7 +74,7 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
           recovery: # Legacy recovery.conf options; only for Postgres 11 or older
             # standby_mode: on
             # recovery_target_timeline: 'latest'
-        envs: # Environment vars; can be used, for example, to defined connection to source DB. See https://www.postgresql.org/docs/current/libpq-envars.html
+        envs: # Environment vars; can be used, for example, to define connection to source DB. See https://www.postgresql.org/docs/current/libpq-envars.html
           PGUSER: "postgres"
           PGPASSWORD: "postgres"
           PGHOST: "source.hostname"

@@ -12,7 +12,7 @@ To report a security issue, please email us at security@postgres.ai with all the
 - You want to report any other security risk that could potentially harm Database Lab Engine users.
 
 ### When should I NOT report a vulnerability?
-- You're helping tune Database Lab Engine for security, perform some planned experiments coordinated with the maintainers.
+- You're helping tune Database Lab Engine for security or performing planned experiments coordinated with the maintainers.
 - Your issue is not security related.
 
 ## Security Vulnerability Response

@@ -1730,7 +1730,7 @@
 								}
 							]
 						},
-						"description": "Updates the specified clone by setting the values of the parameters passed. Currently, only one paramater is supported: 'protected'."
+						"description": "Updates the specified clone by setting the values of the parameters passed. Currently, only one parameter is supported: 'protected'."
 					},
 					"response": [
 						{

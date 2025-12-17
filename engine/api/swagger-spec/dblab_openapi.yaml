@@ -616,7 +616,7 @@ paths:
       - Clones
       summary: Update a clone
       description: "Updates the specified clone by setting the values of the parameters passed.
-        Currently, only one paramater is supported: 'protected'."
+        Currently, only one parameter is supported: 'protected'."
       operationId: updateClone
       parameters:
       - name: Verification-Token
@@ -847,7 +847,7 @@ paths:
                   description: The name of the new branch.
                 baseBranch:
                   type: string
-                  description: "The name of parent branch user to create a new branch.
+                  description: "The name of parent branch used to create a new branch.
                     Must not be specified if 'snapshotID' is specified."
                 snapshotID:
                   type: string

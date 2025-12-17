@@ -210,7 +210,7 @@ paths:
         - Clones
       summary: Update a clone
       description: "Updates the specified clone by setting the values of the parameters passed.
-        Currently, only one paramater is supported: 'protected'."
+        Currently, only one parameter is supported: 'protected'."
       operationId: patchClone
       parameters:
         - in: header
@@ -1348,6 +1348,6 @@ components:
           type: string
         billing_page:
           type: string
-        priveleged_until:
+        privileged_until:
           type: string
           format: date-time

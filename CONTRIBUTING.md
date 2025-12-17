@@ -55,7 +55,7 @@ This project and everyone participating in it are governed by the [Database Lab 
 - If the issue is related to UI, include screenshots and animated GIFs. Please, do NOT use screenshots for console output, configs, and logs – for those, always prefer the textual form.
 - Check if you have sensitive information in the logs and configs and remove any.
 - You can submit a bug report in either [GitLab Issues](https://gitlab.com/postgres-ai/database-lab) or [GitHub Issues](https://github.com/postgres-ai/database-lab-engine) sections – both places are monitored.
-- If you believe that there is an urgency related to the reported bug, feel free to reach out to the project maintainers. Additionally, using one of [the channels described above](#tldr-i-just-have-a-question-where-to-ask-it).
+- If you believe that there is an urgency related to the reported bug, feel free to reach out to the project maintainers. Additionally, you can use one of [the channels described above](#tldr-i-just-have-a-question-where-to-ask-it).
 - If you need to report a security issue, follow instructions in ["Database Lab Engine security guidelines"](./SECURITY.md).
 
 ### Proposing enhancements
@@ -81,7 +81,7 @@ We appreciate first-time contributors, and we are happy to assist you in getting
 You find some issues that are considered as good for first-time contributors looking at [the issues with the `good-first-issue` label](https://gitlab.com/postgres-ai/database-lab/-/issues?label_name%5B%5D=good+first+issue). Assign yourself to an issue and start discussing a possible solution. It is always a good idea to discuss and collaborate before you propose an MR/PR.
 
 ### Translation
-We are translating `README.md`, `CONTRIBUTING.md` (this document), and other documents in the repository to various languages to make Database Lab Engine more accessible around the globe. Help in this area is always appreciated. You can start from translating the [project's README](/README.md) to your native language and save it in `./translations/README.{language}.md`. You can find examples in the [./translations](./translations) directory
+We are translating `README.md`, `CONTRIBUTING.md` (this document), and other documents in the repository to various languages to make Database Lab Engine more accessible around the globe. Help in this area is always appreciated. You can start from translating the [project's README](/README.md) to your native language and save it in `./translations/README.{language}.md`. You can find examples in the [./translations](./translations) directory.
 
 ### Roadmap
 There is [the Roadmap section](https://postgres.ai/docs/roadmap) in the docs. It contains some major items defining big goals for the development team and the DLE community. However, these items cannot be considered a strict plan, so there are no guarantees that everything from the list will be necessarily implemented.
