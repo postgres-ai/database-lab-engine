@@ -73,7 +73,7 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
           type: remote # Source types: "local", "remote", "rdsIam"
           connection: # Database connection parameters; use PGPASSWORD env var for password
             dbname: postgres
-            host: 34.56.78.90
+            host:
             port: 5432
             username: postgres
             password: postgres # Use PGPASSWORD env var instead (higher priority)
