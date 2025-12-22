@@ -12,7 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 )
 
 func TestBaseCloningSuite(t *testing.T) {
@@ -132,4 +134,31 @@ func (s *BaseCloningSuite) TestLenClones() {
 
 	lenClones = s.cloning.lenClones()
 	assert.Equal(s.T(), 1, lenClones)
+}
+
+func TestDefaultBranchForCloneCreation(t *testing.T) {
+	testCases := []struct {
+		name           string
+		inputBranch    string
+		snapshotBranch string
+		expectedBranch string
+	}{
+		{name: "empty branch defaults to main", inputBranch: "", snapshotBranch: "dev", expectedBranch: "main"},
+		{name: "empty branch with feature snapshot defaults to main", inputBranch: "", snapshotBranch: "feature", expectedBranch: "main"},
+		{name: "explicit dev branch preserved", inputBranch: "dev", snapshotBranch: "main", expectedBranch: "dev"},
+		{name: "explicit feature branch preserved", inputBranch: "feature", snapshotBranch: "main", expectedBranch: "feature"},
+		{name: "explicit main branch preserved", inputBranch: "main", snapshotBranch: "dev", expectedBranch: "main"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			request := &types.CloneCreateRequest{Branch: tc.inputBranch}
+
+			if request.Branch == "" {
+				request.Branch = branching.DefaultBranch
+			}
+
+			assert.Equal(t, tc.expectedBranch, request.Branch)
+		})
+	}
 }

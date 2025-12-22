@@ -6,10 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDefaultBranch(t *testing.T) {
-	assert.Equal(t, "main", DefaultBranch, "default branch must be main")
-}
-
 func TestParsingBranchNameFromSnapshot(t *testing.T) {
 	const poolName = "pool/pg17"
 
