@@ -103,7 +103,8 @@ export const CreateClone = observer((props: Props) => {
 
       const branches = (await stores.main.getBranches(props.instanceId)) ?? []
 
-      let initiallySelectedBranch = branches[0]?.name;
+      const mainBranch = branches.find((branch) => branch.name === 'main')
+      let initiallySelectedBranch = mainBranch?.name ?? branches[0]?.name;
 
       if (initialBranch && branches.find((branch) => branch.name === initialBranch)) {
         initiallySelectedBranch = initialBranch;

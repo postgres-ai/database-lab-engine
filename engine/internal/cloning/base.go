@@ -30,6 +30,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/pglog"
 )
 
@@ -172,7 +173,7 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 	}
 
 	if cloneRequest.Branch == "" {
-		cloneRequest.Branch = snapshot.Branch
+		cloneRequest.Branch = branching.DefaultBranch
 	}
 
 	clone := &models.Clone{
