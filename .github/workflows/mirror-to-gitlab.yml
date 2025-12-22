@@ -1,0 +1,37 @@
+name: Mirror to GitLab
+
+on:
+  push:
+    branches:
+      - '**'
+      - '!main'
+      - '!master'
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mirror to GitLab
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITLAB_URL: ${{ vars.GITLAB_URL || 'https://gitlab.com' }}
+          GITLAB_REPO: ${{ vars.GITLAB_REPO || 'postgres-ai/database-lab' }}
+        run: |
+          # Configure git
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "GitHub Actions"
+
+          # Add GitLab remote with token auth
+          git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@${GITLAB_URL#https://}/${GITLAB_REPO}.git"
+
+          # Push the current branch
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          echo "Pushing branch: ${BRANCH_NAME}"
+          git push gitlab "HEAD:refs/heads/${BRANCH_NAME}" --force
+
+          echo "Successfully mirrored to GitLab"
