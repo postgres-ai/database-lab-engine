@@ -2,7 +2,10 @@ package models
 
 // Branch defines a branch entity.
 type Branch struct {
-	Name string `json:"name"`
+	Name           string         `json:"name"`
+	Protected      bool           `json:"protected"`
+	DeleteAt       *LocalTime     `json:"deleteAt,omitempty"`
+	AutoDeleteMode AutoDeleteMode `json:"autoDeleteMode"`
 }
 
 // Repo describes data repository with details about snapshots and branches.
@@ -34,13 +37,16 @@ type SnapshotDetails struct {
 
 // BranchView describes branch view.
 type BranchView struct {
-	Name         string `json:"name"`
-	BaseDataset  string `json:"baseDataset"`
-	Parent       string `json:"parent"`
-	DataStateAt  string `json:"dataStateAt"`
-	SnapshotID   string `json:"snapshotID"`
-	Dataset      string `json:"dataset"`
-	NumSnapshots int    `json:"numSnapshots"`
+	Name           string         `json:"name"`
+	Protected      bool           `json:"protected"`
+	DeleteAt       *LocalTime     `json:"deleteAt,omitempty"`
+	AutoDeleteMode AutoDeleteMode `json:"autoDeleteMode"`
+	BaseDataset    string         `json:"baseDataset"`
+	Parent         string         `json:"parent"`
+	DataStateAt    string         `json:"dataStateAt"`
+	SnapshotID     string         `json:"snapshotID"`
+	Dataset        string         `json:"dataset"`
+	NumSnapshots   int            `json:"numSnapshots"`
 }
 
 // BranchEntity defines a branch-snapshot pair.

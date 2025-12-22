@@ -199,6 +199,8 @@ func main() {
 		}
 	}()
 
+	go server.RunAutoDeleteCheck(ctx)
+
 	if cfg.EmbeddedUI.Enabled {
 		go func() {
 			if err := embeddedUI.Run(ctx); err != nil {
