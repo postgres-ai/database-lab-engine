@@ -138,16 +138,17 @@ func (s *BaseCloningSuite) TestLenClones() {
 
 func TestDefaultBranchForCloneCreation(t *testing.T) {
 	testCases := []struct {
-		name           string
-		inputBranch    string
-		snapshotBranch string
-		expectedBranch string
+		name              string
+		inputBranch       string
+		snapshotSpecified bool
+		snapshotBranch    string
+		expectedBranch    string
 	}{
-		{name: "empty branch defaults to main", inputBranch: "", snapshotBranch: "dev", expectedBranch: "main"},
-		{name: "empty branch with feature snapshot defaults to main", inputBranch: "", snapshotBranch: "feature", expectedBranch: "main"},
-		{name: "explicit dev branch preserved", inputBranch: "dev", snapshotBranch: "main", expectedBranch: "dev"},
-		{name: "explicit feature branch preserved", inputBranch: "feature", snapshotBranch: "main", expectedBranch: "feature"},
-		{name: "explicit main branch preserved", inputBranch: "main", snapshotBranch: "dev", expectedBranch: "main"},
+		{name: "no branch no snapshot defaults to main", inputBranch: "", snapshotSpecified: false, snapshotBranch: "", expectedBranch: "main"},
+		{name: "no branch with dev snapshot uses snapshot branch", inputBranch: "", snapshotSpecified: true, snapshotBranch: "dev", expectedBranch: "dev"},
+		{name: "no branch with feature snapshot uses snapshot branch", inputBranch: "", snapshotSpecified: true, snapshotBranch: "feature", expectedBranch: "feature"},
+		{name: "explicit dev branch preserved", inputBranch: "dev", snapshotSpecified: false, snapshotBranch: "", expectedBranch: "dev"},
+		{name: "explicit main branch preserved", inputBranch: "main", snapshotSpecified: true, snapshotBranch: "dev", expectedBranch: "main"},
 	}
 
 	for _, tc := range testCases {
@@ -155,7 +156,11 @@ func TestDefaultBranchForCloneCreation(t *testing.T) {
 			request := &types.CloneCreateRequest{Branch: tc.inputBranch}
 
 			if request.Branch == "" {
-				request.Branch = branching.DefaultBranch
+				if tc.snapshotSpecified {
+					request.Branch = tc.snapshotBranch
+				} else {
+					request.Branch = branching.DefaultBranch
+				}
 			}
 
 			assert.Equal(t, tc.expectedBranch, request.Branch)

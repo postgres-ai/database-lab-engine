@@ -173,7 +173,11 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 	}
 
 	if cloneRequest.Branch == "" {
-		cloneRequest.Branch = branching.DefaultBranch
+		if cloneRequest.Snapshot != nil {
+			cloneRequest.Branch = snapshot.Branch
+		} else {
+			cloneRequest.Branch = branching.DefaultBranch
+		}
 	}
 
 	clone := &models.Clone{
