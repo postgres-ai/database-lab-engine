@@ -9,19 +9,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/urfave/cli/v2"
 
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands"
-)
-
-// headers of a config list.
-const (
-	envHeader      = "ENV "
-	urlHeader      = "URL"
-	fwServerHeader = "Forwarding server URL"
-	fwPortHeader   = "Forwarding local port"
+	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/format"
 )
 
 // createEnvironment creates a new CLI environment.
@@ -126,73 +118,47 @@ func list() func(*cli.Context) error {
 			return commands.ToActionError(err)
 		}
 
+		if len(cfg.Environments) == 0 {
+			_, err = fmt.Fprintln(cliCtx.App.Writer, "No environments configured.")
+			return commands.ToActionError(err)
+		}
+
 		environmentNames := make([]string, 0, len(cfg.Environments))
-		maxNameLen := 0
-		maxURLLen := len(urlHeader)
-		maxFwServerLen := len(fwServerHeader)
 
 		for environmentName := range cfg.Environments {
 			environmentNames = append(environmentNames, environmentName)
-
-			nameLength := len(environmentName)
-			if maxNameLen < nameLength {
-				maxNameLen = nameLength
-			}
-
-			urlLength := len(cfg.Environments[environmentName].URL)
-			if maxURLLen < urlLength {
-				maxURLLen = urlLength
-			}
-
-			urlFwLength := len(cfg.Environments[environmentName].Forwarding.ServerURL)
-			if maxFwServerLen < urlFwLength {
-				maxFwServerLen = urlFwLength
-			}
 		}
 
 		sort.Strings(environmentNames)
 
-		listOutput := buildListOutput(cfg, environmentNames, maxNameLen, maxURLLen, maxFwServerLen)
+		fmtCfg := format.FromContext(cliCtx)
 
-		_, err = fmt.Fprintf(cliCtx.App.Writer, "Available CLI environments:\n%s", listOutput)
+		_, _ = fmt.Fprintln(cliCtx.App.Writer, "Available CLI environments:")
 
-		return commands.ToActionError(err)
-	}
-}
+		t := format.NewTable(cliCtx.App.Writer, fmtCfg.NoColor)
+		t.SetHeaders("", "ENV", "URL", "FORWARDING SERVER", "LOCAL PORT")
 
-func buildListOutput(cfg *CLIConfig, environmentNames []string, maxNameLen, maxURLLen, maxFwLen int) string {
-	// TODO(akartasov): Draw as a table.
-	const outputAlign = 2
+		for _, envName := range environmentNames {
+			env := cfg.Environments[envName]
+			marker := ""
 
-	s := strings.Builder{}
+			if envName == cfg.CurrentEnvironment {
+				marker = "*"
+			}
 
-	s.WriteString(envHeader)
-	s.WriteString(strings.Repeat(" ", maxNameLen+outputAlign))
-	s.WriteString(urlHeader)
-	s.WriteString(strings.Repeat(" ", maxURLLen-len(urlHeader)+outputAlign))
-	s.WriteString(fwServerHeader)
-	s.WriteString(strings.Repeat(" ", maxFwLen-len(fwServerHeader)+outputAlign))
-	s.WriteString(fwPortHeader)
-	s.WriteString("\n")
-
-	for _, environmentName := range environmentNames {
-		if environmentName == cfg.CurrentEnvironment {
-			s.WriteString("[*] ")
-		} else {
-			s.WriteString("[ ] ")
+			t.Append([]string{
+				marker,
+				envName,
+				env.URL,
+				env.Forwarding.ServerURL,
+				env.Forwarding.LocalPort,
+			})
 		}
 
-		s.WriteString(environmentName)
-		s.WriteString(strings.Repeat(" ", maxNameLen-len(environmentName)+outputAlign))
-		s.WriteString(cfg.Environments[environmentName].URL)
-		s.WriteString(strings.Repeat(" ", maxURLLen-len(cfg.Environments[environmentName].URL)+outputAlign))
-		s.WriteString(cfg.Environments[environmentName].Forwarding.ServerURL)
-		s.WriteString(strings.Repeat(" ", maxFwLen-len(cfg.Environments[environmentName].Forwarding.ServerURL)+outputAlign))
-		s.WriteString(cfg.Environments[environmentName].Forwarding.LocalPort)
-		s.WriteString("\n")
-	}
+		t.Render()
 
-	return s.String()
+		return nil
+	}
 }
 
 // switchEnvironment switches to another CLI environment.

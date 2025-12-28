@@ -13,6 +13,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/branch"
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/clone"
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/config"
+	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/format"
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/global"
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/instance"
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/snapshot"
@@ -44,6 +45,8 @@ func main() {
 			config.CommandList(),
 		),
 		Flags: []cli.Flag{
+			format.OutputFlag,
+			format.NoColorFlag,
 			&cli.StringFlag{
 				Name:    "url",
 				Usage:   "URL (with port, if needed) of Database Lab instance's API",

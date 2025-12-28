@@ -9,10 +9,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"strconv"
 
 	"github.com/urfave/cli/v2"
 
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/format"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
@@ -38,14 +41,71 @@ func list(cliCtx *cli.Context) error {
 		return err
 	}
 
-	commandResponse, err := json.MarshalIndent(snapshotListView, "", "    ")
+	cfg := format.FromContext(cliCtx)
+
+	if cfg.IsJSON() {
+		return outputJSON(cliCtx.App.Writer, snapshotListView)
+	}
+
+	return printSnapshotList(cfg, snapshotListView)
+}
+
+func outputJSON(w io.Writer, v any) error {
+	data, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
+	_, err = fmt.Fprintln(w, string(data))
 
 	return err
+}
+
+func printSnapshotList(cfg format.Config, snapshots []*models.SnapshotView) error {
+	if len(snapshots) == 0 {
+		_, err := fmt.Fprintln(cfg.Writer, "No snapshots found.")
+		return err
+	}
+
+	t := format.NewTable(cfg.Writer, cfg.NoColor)
+
+	if cfg.IsWide() {
+		t.SetHeaders("ID", "BRANCH", "POOL", "PHYSICAL", "LOGICAL", "CLONES", "DATA STATE", "MESSAGE")
+	} else {
+		t.SetHeaders("ID", "BRANCH", "PHYSICAL", "CLONES", "DATA STATE")
+	}
+
+	for _, snap := range snapshots {
+		dataState := ""
+		if snap.DataStateAt != nil {
+			dataState = format.FormatTime(snap.DataStateAt.Time)
+		}
+
+		if cfg.IsWide() {
+			t.Append([]string{
+				snap.ID,
+				snap.Branch,
+				snap.Pool,
+				format.FormatBytes(uint64(snap.PhysicalSize)),
+				format.FormatBytes(uint64(snap.LogicalSize)),
+				strconv.Itoa(snap.NumClones),
+				dataState,
+				format.Truncate(snap.Message, 30),
+			})
+		} else {
+			t.Append([]string{
+				format.Truncate(snap.ID, 20),
+				snap.Branch,
+				format.FormatBytes(uint64(snap.PhysicalSize)),
+				strconv.Itoa(snap.NumClones),
+				dataState,
+			})
+		}
+	}
+
+	t.Render()
+
+	return nil
 }
 
 // create runs a request to create a new snapshot.

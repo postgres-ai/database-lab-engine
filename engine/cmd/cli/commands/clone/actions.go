@@ -19,6 +19,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/format"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
@@ -49,12 +50,78 @@ func list(cliCtx *cli.Context) error {
 		return err
 	}
 
-	commandResponse, err := json.MarshalIndent(viewCloneList.Cloning.Clones, "", "    ")
+	cfg := format.FromContext(cliCtx)
+
+	if cfg.IsJSON() {
+		return outputJSON(cliCtx.App.Writer, viewCloneList.Cloning.Clones)
+	}
+
+	return printCloneList(cfg, viewCloneList.Cloning.Clones)
+}
+
+func printCloneList(cfg format.Config, clones []*models.CloneView) error {
+	if len(clones) == 0 {
+		_, err := fmt.Fprintln(cfg.Writer, "No clones found.")
+		return err
+	}
+
+	t := format.NewTable(cfg.Writer, cfg.NoColor)
+
+	if cfg.IsWide() {
+		t.SetHeaders("ID", "STATUS", "BRANCH", "SNAPSHOT", "SIZE", "DB", "PORT", "CREATED")
+	} else {
+		t.SetHeaders("ID", "STATUS", "BRANCH", "SNAPSHOT", "SIZE", "CREATED")
+	}
+
+	for _, clone := range clones {
+		snapshotID := ""
+		if clone.Snapshot != nil {
+			snapshotID = format.Truncate(clone.Snapshot.ID, 16)
+		}
+
+		created := ""
+		if clone.CreatedAt != nil {
+			created = format.FormatTime(clone.CreatedAt.Time)
+		}
+
+		status := format.FormatStatus(string(clone.Status.Code), cfg.NoColor)
+		size := format.FormatBytes(uint64(clone.Metadata.CloneDiffSize))
+
+		if cfg.IsWide() {
+			t.Append([]string{
+				clone.ID,
+				status,
+				clone.Branch,
+				snapshotID,
+				size,
+				clone.DB.DBName,
+				clone.DB.Port,
+				created,
+			})
+		} else {
+			t.Append([]string{
+				clone.ID,
+				status,
+				clone.Branch,
+				snapshotID,
+				size,
+				created,
+			})
+		}
+	}
+
+	t.Render()
+
+	return nil
+}
+
+func outputJSON(w io.Writer, v any) error {
+	data, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
+	_, err = fmt.Fprintln(w, string(data))
 
 	return err
 }
@@ -79,14 +146,65 @@ func status(cliCtx *cli.Context) error {
 		return err
 	}
 
-	commandResponse, err := json.MarshalIndent(cloneView, "", "    ")
-	if err != nil {
-		return err
+	cfg := format.FromContext(cliCtx)
+
+	if cfg.IsJSON() {
+		return outputJSON(cliCtx.App.Writer, cloneView)
 	}
 
-	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
+	return printCloneStatus(cfg, cloneView)
+}
 
-	return err
+func printCloneStatus(cfg format.Config, clone *models.CloneView) error {
+	w := cfg.Writer
+
+	status := format.FormatStatus(string(clone.Status.Code), cfg.NoColor)
+
+	fmt.Fprintf(w, "ID:          %s\n", clone.ID)
+	fmt.Fprintf(w, "Status:      %s\n", status)
+
+	if clone.Status.Message != "" {
+		fmt.Fprintf(w, "Message:     %s\n", clone.Status.Message)
+	}
+
+	fmt.Fprintf(w, "Branch:      %s\n", clone.Branch)
+
+	if clone.Snapshot != nil {
+		fmt.Fprintf(w, "Snapshot:    %s\n", clone.Snapshot.ID)
+	}
+
+	fmt.Fprintf(w, "Protected:   %s\n", format.FormatBool(clone.Protected, cfg.NoColor))
+
+	if clone.CreatedAt != nil {
+		fmt.Fprintf(w, "Created:     %s (%s)\n", format.FormatTimeAbs(clone.CreatedAt.Time), format.FormatTime(clone.CreatedAt.Time))
+	}
+
+	if clone.DeleteAt != nil {
+		fmt.Fprintf(w, "Delete at:   %s\n", format.FormatTimeAbs(clone.DeleteAt.Time))
+	}
+
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Database:")
+	fmt.Fprintf(w, "  Host:      %s\n", clone.DB.Host)
+	fmt.Fprintf(w, "  Port:      %s\n", clone.DB.Port)
+	fmt.Fprintf(w, "  Username:  %s\n", clone.DB.Username)
+	fmt.Fprintf(w, "  Database:  %s\n", clone.DB.DBName)
+
+	if clone.DB.ConnStr != "" {
+		fmt.Fprintf(w, "  ConnStr:   %s\n", clone.DB.ConnStr)
+	}
+
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Metadata:")
+	fmt.Fprintf(w, "  Diff size:     %s\n", format.FormatBytes(uint64(clone.Metadata.CloneDiffSize)))
+	fmt.Fprintf(w, "  Logical size:  %s\n", format.FormatBytes(uint64(clone.Metadata.LogicalSize)))
+	fmt.Fprintf(w, "  Cloning time:  %.2fs\n", clone.Metadata.CloningTime)
+
+	if clone.Metadata.MaxIdleMinutes > 0 {
+		fmt.Fprintf(w, "  Max idle:      %d min\n", clone.Metadata.MaxIdleMinutes)
+	}
+
+	return nil
 }
 
 // create runs a request to create a new clone.

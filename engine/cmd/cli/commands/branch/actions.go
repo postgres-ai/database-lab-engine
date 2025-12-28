@@ -13,10 +13,12 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
 
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands"
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/config"
+	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands/format"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
@@ -116,18 +118,22 @@ func list(cliCtx *cli.Context) error {
 
 func formatBranchList(cliCtx *cli.Context, branches []string) string {
 	baseBranch := getBaseBranch(cliCtx)
+	cfg := format.FromContext(cliCtx)
 
 	s := strings.Builder{}
+	green := color.New(color.FgGreen, color.Bold).SprintFunc()
 
 	for _, branch := range branches {
-		var prefixStar = "  "
+		prefix := "  "
 
 		if baseBranch == branch {
-			prefixStar = "* "
-			branch = "\033[1;32m" + branch + "\033[0m"
+			prefix = "* "
+			if !cfg.NoColor {
+				branch = green(branch)
+			}
 		}
 
-		s.WriteString(prefixStar + branch + "\n")
+		s.WriteString(prefix + branch + "\n")
 	}
 
 	return s.String()
