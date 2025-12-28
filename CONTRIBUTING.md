@@ -313,6 +313,28 @@ Components have a separate version, denoted by either:
     ```
 - Install `golangci-lint`: https://github.com/golangci/golangci-lint#install
 
+#### ZFS-FUSE for Claude Code (browser environment)
+When developing in Claude Code's browser-based environment (gVisor sandbox), kernel ZFS modules are unavailable. Use ZFS-FUSE instead:
+
+```bash
+# Download packages from Debian (network to Ubuntu repos may be restricted)
+mkdir -p /tmp/zfs-install && cd /tmp/zfs-install
+curl -sLO "https://deb.debian.org/debian/pool/main/z/zfs-fuse/zfs-fuse_0.7.0-33_amd64.deb"
+curl -sLO "https://deb.debian.org/debian/pool/main/f/fuse3/fuse3_3.17.2-3_amd64.deb"
+curl -sLO "https://deb.debian.org/debian/pool/main/f/fuse3/libfuse3-4_3.17.2-3_amd64.deb"
+curl -sLO "https://deb.debian.org/debian/pool/main/liba/libaio/libaio1t64_0.3.113-8+b1_amd64.deb"
+
+# Install packages
+sudo dpkg -i libaio1t64_*.deb libfuse3-4_*.deb fuse3_*.deb zfs-fuse_*.deb
+
+# Start daemon and create a file-backed pool
+sudo zfs-fuse -n &
+truncate -s 500M /tmp/zfs-disk.img
+sudo zpool create -f testpool /tmp/zfs-disk.img
+```
+
+Note: Pool/snapshot/clone operations work, but FUSE mounting may fail due to gVisor limitations. This is sufficient for testing ZFS metadata operations.
+
 <!-- TODO: Linux specific requirements? MacOS specific? -->
 
 
