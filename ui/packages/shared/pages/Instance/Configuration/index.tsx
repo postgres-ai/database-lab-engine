@@ -178,17 +178,29 @@ export const Configuration = observer(
         },
         instanceId,
       ).then((response) => {
-        if (response?.ok) {
+        if (response) {
+          const hasWarnings = response.warnings && response.warnings.length > 0
+          const warningMessages = hasWarnings
+            ? response.warnings.map((w) => w.message).join('. ')
+            : ''
+
           setSubmitState({
-            status: 'success',
+            status: hasWarnings ? 'warning' : 'success',
             response: (
-              <p>
-                Changes applied.{' '}
-                <span className={styles.underline} onClick={switchTab}>
-                  Switch to Overview
-                </span>{' '}
-                to see details and to work with clones
-              </p>
+              <div>
+                <p>
+                  Changes applied.{' '}
+                  <span className={styles.underline} onClick={switchTab}>
+                    Switch to Overview
+                  </span>{' '}
+                  to see details and to work with clones.
+                </p>
+                {hasWarnings && (
+                  <p style={{ marginTop: '8px', color: '#ff9800' }}>
+                    <strong>Warning:</strong> {warningMessages}
+                  </p>
+                )}
+              </div>
             ),
           })
         }

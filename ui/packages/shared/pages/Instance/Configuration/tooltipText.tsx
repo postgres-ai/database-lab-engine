@@ -167,4 +167,110 @@ export const tooltipText = {
       .
     </div>
   ),
+  // Server settings
+  serverHost: () => (
+    <div>
+      The hostname or IP address on which the DBLab API server listens.
+    </div>
+  ),
+  serverPort: () => (
+    <div>
+      The port on which the DBLab API server listens.{' '}
+      <strong>Changing this setting requires a restart.</strong>
+    </div>
+  ),
+  // Provision settings
+  portPoolFrom: () => (
+    <div>
+      The starting port number for the clone port pool. Clones will be assigned
+      ports from this range.{' '}
+      <strong>Changing this setting requires a restart.</strong>
+    </div>
+  ),
+  portPoolTo: () => (
+    <div>
+      The ending port number for the clone port pool. Clones will be assigned
+      ports from this range.{' '}
+      <strong>Changing this setting requires a restart.</strong>
+    </div>
+  ),
+  keepUserPasswords: () => (
+    <div>
+      When enabled, user passwords from the source database are preserved in
+      clones. When disabled, all user passwords are reset during clone creation.
+    </div>
+  ),
+  cloneAccessAddresses: () => (
+    <div>
+      Comma-separated list of IP addresses allowed to connect to clones. Use
+      "0.0.0.0" to allow connections from any address.
+    </div>
+  ),
+  // Cloning settings
+  maxIdleMinutes: () => (
+    <div>
+      Maximum idle time (in minutes) before a clone is automatically deleted.
+      Set to 0 to disable automatic cleanup.
+    </div>
+  ),
+  accessHost: () => (
+    <div>
+      The hostname or IP address that clients should use to connect to clones.
+      This is typically the external IP or hostname of the DBLab machine.
+    </div>
+  ),
+  // Global settings
+  globalDbUsername: () => (
+    <div>
+      Default PostgreSQL username used for database operations within DBLab.
+    </div>
+  ),
+  globalDbName: () => (
+    <div>
+      Default PostgreSQL database name used for connections within DBLab.
+    </div>
+  ),
+  // Diagnostic settings
+  logsRetentionDays: () => (
+    <div>
+      Number of days to retain diagnostic logs. Older logs are automatically
+      deleted. Set to 0 to disable automatic log cleanup.
+    </div>
+  ),
+  // Embedded UI settings
+  embeddedUIEnabled: () => (
+    <div>
+      Enable or disable the embedded web UI.{' '}
+      <strong>Changing this setting requires a restart.</strong>
+    </div>
+  ),
+  embeddedUIPort: () => (
+    <div>
+      The port on which the embedded UI listens.{' '}
+      <strong>Changing this setting requires a restart.</strong>
+    </div>
+  ),
+  // Platform settings
+  platformUrl: () => (
+    <div>
+      URL of the Postgres.ai Platform for integration features.
+    </div>
+  ),
+  platformProjectName: () => (
+    <div>
+      Project name for Postgres.ai Platform integration.
+    </div>
+  ),
+  platformEnableTelemetry: () => (
+    <div>
+      Enable anonymous telemetry to help improve DBLab.
+    </div>
+  ),
+  // Retrieval settings
+  skipStartRefresh: () => (
+    <div>
+      When enabled, skip the initial data refresh when DBLab starts. Useful
+      when you want to start DBLab without immediately connecting to the source.
+    </div>
+  ),
 }

@@ -9,7 +9,7 @@ import { makeAutoObservable } from 'mobx'
 import { GetSnapshots } from '@postgres.ai/shared/types/api/endpoints/getSnapshots'
 import { CreateSnapshot } from '@postgres.ai/shared/types/api/endpoints/createSnapshot'
 import { GetInstance } from '@postgres.ai/shared/types/api/endpoints/getInstance'
-import { Config } from '@postgres.ai/shared/types/api/entities/config'
+import { Config, ConfigUpdateResponse, ConfigWarning } from '@postgres.ai/shared/types/api/entities/config'
 import { GetConfig } from '@postgres.ai/shared/types/api/endpoints/getConfig'
 import { UpdateConfig } from '@postgres.ai/shared/types/api/endpoints/updateConfig'
 import { TestDbSource } from '@postgres.ai/shared/types/api/endpoints/testDbSource'
@@ -73,6 +73,7 @@ export class MainStore {
   uiVersion?: string
   instanceError: Error | null = null
   configError: string | null = null
+  configWarnings: ConfigWarning[] = []
   getFullConfigError: string | null = null
   getBranchesError: Error | null = null
   snapshotListError: string | null = null
@@ -277,7 +278,14 @@ export class MainStore {
       instanceId,
     )
 
-    if (error) this.configError = await error.json().then((err) => err.message)
+    if (error) {
+      this.configError = await error.json().then((err) => err.message)
+      this.configWarnings = []
+    }
+
+    if (response) {
+      this.configWarnings = response.warnings || []
+    }
 
     return response
   }

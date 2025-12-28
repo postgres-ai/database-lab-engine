@@ -1,9 +1,11 @@
-import { Config } from '@postgres.ai/shared/types/api/entities/config'
+import { Config, ConfigUpdateResponse } from '@postgres.ai/shared/types/api/entities/config'
+
+export type UpdateConfigInput = Config
 
 export type UpdateConfig = (
-  values: Config,
+  values: UpdateConfigInput,
   instanceId: string,
 ) => Promise<{
-  response: Response | null
+  response: ConfigUpdateResponse | null
   error: Response | null
 }>
