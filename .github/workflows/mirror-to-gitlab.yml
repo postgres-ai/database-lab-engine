@@ -32,6 +32,6 @@ jobs:
           # Push the current branch
           BRANCH_NAME="${GITHUB_REF#refs/heads/}"
           echo "Pushing branch: ${BRANCH_NAME}"
-          git push gitlab "HEAD:refs/heads/${BRANCH_NAME}" --force
+          git push gitlab "HEAD:refs/heads/${BRANCH_NAME}"
 
           echo "Successfully mirrored to GitLab"
