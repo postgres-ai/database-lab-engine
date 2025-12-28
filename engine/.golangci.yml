@@ -1,10 +1,13 @@
+version: "2"
+
 run:
   timeout: 2m
   issues-exit-code: 1
   tests: true
 output:
   formats:
-   - format: colored-line-number
+    colored-line-number:
+      path: stdout
   print-issued-lines: true
   print-linter-name: true
 
@@ -73,8 +76,6 @@ linters:
     - gochecknoinits
     - goconst
     - gocritic
-    - goimports
-    - gosimple
     - govet
     - ineffassign
     - lll
@@ -83,7 +84,6 @@ linters:
     - prealloc
     - revive
     - staticcheck
-    - stylecheck
     - unconvert
     - unused
     - unparam
@@ -94,6 +94,14 @@ linters:
     - gosec
     - gocyclo # currently unmaintained
   fast: false
+
+formatters:
+  enable:
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - gitlab.com/postgres-ai/database-lab
 
 issues:
   exclude-rules:
