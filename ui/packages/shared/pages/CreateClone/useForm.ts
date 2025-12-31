@@ -3,6 +3,7 @@ import * as Yup from 'yup'
 
 export type FormValues = {
   branch: string
+  dataset: string
   cloneId: string
   snapshotId: string
   dbUser: string
@@ -33,6 +34,7 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
   const formik = useFormik<FormValues>({
     initialValues: {
       branch: '',
+      dataset: '',
       cloneId: '',
       snapshotId: '',
       dbUser: '',

@@ -23,6 +23,7 @@ import {
 } from '@postgres.ai/shared/helpers/getEntropy'
 
 import { Snapshot } from '@postgres.ai/shared/types/api/entities/snapshot'
+import { Branch } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 import { useCreatedStores, MainStoreApi } from './useCreatedStores'
 import { useForm, FormValues } from './useForm'
 import { getCliCloneStatus, getCliCreateCloneCommand } from './utils'
@@ -48,9 +49,10 @@ export const CreateClone = observer((props: Props) => {
   const history = useHistory()
   const stores = useCreatedStores(props.api)
   const timer = useTimer()
-  const [branchesList, setBranchesList] = useState<string[]>([])
+  const [branchesList, setBranchesList] = useState<Branch[]>([])
   const [snapshots, setSnapshots] = useState([] as Snapshot[])
   const [isLoadingSnapshots, setIsLoadingSnapshots] = useState(false)
+  const [selectedBranchKey, setSelectedBranchKey] = useState<string>('')
 
   // Form.
   const onSubmit = async (values: FormValues) => {
@@ -74,8 +76,8 @@ export const CreateClone = observer((props: Props) => {
     }
   }
 
-  const fetchBranchSnapshotsData = async (branchName: string, initialSnapshotId?: string) => {
-    const snapshotsRes = (await stores.main.getSnapshots(props.instanceId, branchName)) ?? []
+  const fetchBranchSnapshotsData = async (branchName: string, dataset?: string, initialSnapshotId?: string) => {
+    const snapshotsRes = (await stores.main.getSnapshots(props.instanceId, branchName, dataset)) ?? []
     setSnapshots(snapshotsRes)
 
     const selectedSnapshot = snapshotsRes.find(s => s.id === initialSnapshotId) || snapshotsRes[0]
@@ -86,11 +88,15 @@ export const CreateClone = observer((props: Props) => {
   const handleSelectBranch = async (
     e: React.ChangeEvent<{ value: string }>,
   ) => {
-    const selectedBranch = e.target.value
-    formik.setFieldValue('branch', selectedBranch)
+    const compositeKey = e.target.value
+    const [branchName, dataset] = compositeKey.split('|')
+
+    setSelectedBranchKey(compositeKey)
+    formik.setFieldValue('branch', branchName)
+    formik.setFieldValue('dataset', dataset)
 
     if (props.api.getSnapshots) {
-      await fetchBranchSnapshotsData(selectedBranch)
+      await fetchBranchSnapshotsData(branchName, dataset)
     }
   }
 
@@ -103,18 +109,27 @@ export const CreateClone = observer((props: Props) => {
 
       const branches = (await stores.main.getBranches(props.instanceId)) ?? []
 
-      let initiallySelectedBranch = branches[0]?.name;
+      let initiallySelectedBranch = branches[0];
 
-      if (initialBranch && branches.find((branch) => branch.name === initialBranch)) {
-        initiallySelectedBranch = initialBranch;
+      if (initialBranch) {
+        const foundBranch = branches.find((branch) => branch.name === initialBranch)
+        if (foundBranch) {
+          initiallySelectedBranch = foundBranch
+        }
       }
 
-      setBranchesList(branches.map((branch) => branch.name))
-      formik.setFieldValue('branch', initiallySelectedBranch)
+      setBranchesList(branches)
+      formik.setFieldValue('branch', initiallySelectedBranch?.name ?? '')
+      formik.setFieldValue('dataset', initiallySelectedBranch?.dataset ?? '')
 
-      if (props.api.getSnapshots) {
-        await fetchBranchSnapshotsData(initiallySelectedBranch, initialSnapshotId)
-      } else {
+      if (initiallySelectedBranch) {
+        const compositeKey = `${initiallySelectedBranch.name}|${initiallySelectedBranch.dataset}`
+        setSelectedBranchKey(compositeKey)
+      }
+
+      if (props.api.getSnapshots && initiallySelectedBranch) {
+        await fetchBranchSnapshotsData(initiallySelectedBranch.name, initiallySelectedBranch.dataset, initialSnapshotId)
+      } else if (!props.api.getSnapshots) {
         const allSnapshots = stores.main?.snapshots?.data ?? []
         const sortedSnapshots = allSnapshots.slice().sort(compareSnapshotsDesc)
         setSnapshots(sortedSnapshots)
@@ -212,15 +227,15 @@ export const CreateClone = observer((props: Props) => {
               <Select
                 fullWidth
                 label="Branch"
-                value={formik.values.branch}
+                value={selectedBranchKey}
                 disabled={!branchesList || isCreatingClone}
                 onChange={handleSelectBranch}
                 error={Boolean(formik.errors.branch)}
                 items={
-                  branchesList?.map((snapshot) => {
+                  branchesList?.map((branch) => {
                     return {
-                      value: snapshot,
-                      children: snapshot,
+                      value: `${branch.name}|${branch.dataset}`,
+                      children: `${branch.name} (${branch.dataset})`,
                     }
                   }) ?? []
                 }
