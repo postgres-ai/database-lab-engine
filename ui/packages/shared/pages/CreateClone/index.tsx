@@ -3,8 +3,9 @@ import React, { useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
 import { useTimer } from 'use-timer'
-import { Paper, FormControlLabel, Checkbox } from '@material-ui/core'
-import { Info as InfoIcon } from '@material-ui/icons'
+import { Paper, FormControlLabel, Checkbox, IconButton, InputAdornment } from '@material-ui/core'
+import { Info as InfoIcon, Visibility, VisibilityOff, FileCopy, Autorenew } from '@material-ui/icons'
+import copy from 'copy-to-clipboard'
 
 import { StubSpinner } from '@postgres.ai/shared/components/StubSpinnerFlex'
 import { TextField } from '@postgres.ai/shared/components/TextField'
@@ -12,6 +13,7 @@ import { Select } from '@postgres.ai/shared/components/Select'
 import { Button } from '@postgres.ai/shared/components/Button'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
+import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { round } from '@postgres.ai/shared/utils/numbers'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
@@ -20,6 +22,7 @@ import {
   MIN_ENTROPY,
   getEntropy,
   validatePassword,
+  generatePassword,
 } from '@postgres.ai/shared/helpers/getEntropy'
 
 import { Snapshot } from '@postgres.ai/shared/types/api/entities/snapshot'
@@ -53,6 +56,7 @@ export const CreateClone = observer((props: Props) => {
   const [snapshots, setSnapshots] = useState([] as Snapshot[])
   const [isLoadingSnapshots, setIsLoadingSnapshots] = useState(false)
   const [selectedBranchKey, setSelectedBranchKey] = useState<string>('')
+  const [showPassword, setShowPassword] = useState(false)
 
   // Form.
   const onSubmit = async (values: FormValues) => {
@@ -314,7 +318,7 @@ export const CreateClone = observer((props: Props) => {
             <TextField
               fullWidth
               label="Database password *"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               value={formik.values.dbPassword}
               onChange={(e) => {
                 formik.setFieldValue('dbPassword', e.target.value)
@@ -325,6 +329,46 @@ export const CreateClone = observer((props: Props) => {
               }}
               error={Boolean(formik.errors.dbPassword)}
               disabled={isCreatingClone}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Tooltip content="Toggle visibility">
+                      <IconButton
+                        size="small"
+                        onClick={() => setShowPassword(!showPassword)}
+                        disabled={isCreatingClone}
+                      >
+                        {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip content="Copy password">
+                      <IconButton
+                        size="small"
+                        onClick={() => copy(formik.values.dbPassword)}
+                        disabled={isCreatingClone || !formik.values.dbPassword}
+                      >
+                        <FileCopy fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip content="Generate password">
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          const newPassword = generatePassword(16)
+                          formik.setFieldValue('dbPassword', newPassword)
+                          setShowPassword(true)
+                          if (formik.errors.dbPassword) {
+                            formik.setFieldError('dbPassword', '')
+                          }
+                        }}
+                        disabled={isCreatingClone}
+                      >
+                        <Autorenew fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </InputAdornment>
+                ),
+              }}
             />
             <p
               className={cn(

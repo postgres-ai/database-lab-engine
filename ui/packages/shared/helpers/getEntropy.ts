@@ -170,6 +170,35 @@ function logPow(expBase: number, pow: number, logBase: number): number {
   return total
 }
 
+export function generatePassword(length: number = 16): string {
+  const lowercase = 'abcdefghijklmnopqrstuvwxyz'
+  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  const digits = '0123456789'
+  const special = '!@$&*_-.'
+  const allChars = lowercase + uppercase + digits + special
+
+  let password = ''
+  // ensure at least one character from each category
+  password += lowercase[Math.floor(Math.random() * lowercase.length)]
+  password += uppercase[Math.floor(Math.random() * uppercase.length)]
+  password += digits[Math.floor(Math.random() * digits.length)]
+  password += special[Math.floor(Math.random() * special.length)]
+
+  // fill the rest with random characters
+  for (let i = password.length; i < length; i++) {
+    password += allChars[Math.floor(Math.random() * allChars.length)]
+  }
+
+  // shuffle the password to randomize positions
+  const shuffled = password.split('')
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+
+  return shuffled.join('')
+}
+
 export function validatePassword(password: string, minEntropy: number): string {
   const entropy: number = getEntropy(password)
   if (entropy >= minEntropy) {
