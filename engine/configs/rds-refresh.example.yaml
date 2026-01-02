@@ -1,0 +1,95 @@
+# Example configuration for rds-refresh component
+#
+# This component automates DBLab full refresh using temporary RDS/Aurora clones.
+# Copy this file and customize for your environment.
+#
+# For Lambda deployment, see deploy/rds-refresh/template.yaml
+# For CLI usage: rds-refresh -config rds-refresh.yaml
+
+# Source database configuration
+source:
+  # Type of source database:
+  # - "rds" for RDS DB instance
+  # - "aurora-cluster" for Aurora cluster
+  type: rds
+
+  # RDS DB instance identifier or Aurora cluster identifier
+  identifier: production-db
+
+  # Optional: Specific snapshot identifier to use
+  # If empty, the latest automated snapshot will be used
+  # snapshotIdentifier: rds:production-db-2024-01-15-02-00
+
+# Temporary clone configuration
+clone:
+  # Instance class for the clone (can be smaller than production)
+  instanceClass: db.t3.medium
+
+  # DB subnet group (must be in a VPC accessible from DBLab Engine)
+  subnetGroup: default-vpc-subnet
+
+  # VPC security groups for the clone
+  # Must allow inbound connections from DBLab Engine on PostgreSQL port
+  securityGroups:
+    - sg-12345678
+    - sg-87654321
+
+  # Whether the clone should be publicly accessible
+  # Set to false if DBLab is in the same VPC
+  publiclyAccessible: false
+
+  # Enable IAM database authentication (recommended)
+  enableIAMAuth: true
+
+  # Optional: DB parameter group name
+  # parameterGroup: custom-postgres-params
+
+  # Optional: DB option group name (RDS only)
+  # optionGroup: custom-options
+
+  # Optional: Cluster parameter group (Aurora only)
+  # clusterParameterGroup: aurora-postgres-params
+
+  # Optional: Engine version override
+  # engineVersion: "15.4"
+
+  # Optional: Custom port (default: 5432)
+  # port: 5432
+
+  # Optional: Storage type (gp2, gp3, io1, io2)
+  # storageType: gp3
+
+  # Deletion protection (should be false for temporary clones)
+  deletionProtection: false
+
+  # Additional tags for the clone
+  tags:
+    Environment: dblab-refresh
+    Team: platform
+    CostCenter: engineering
+
+# DBLab Engine configuration
+dblab:
+  # DBLab Engine API endpoint
+  apiEndpoint: https://dblab.example.com:2345
+
+  # Verification token for DBLab API
+  # Use environment variable expansion for security
+  token: ${DBLAB_TOKEN}
+
+  # Skip TLS certificate verification (not recommended for production)
+  insecure: false
+
+  # How often to poll DBLab status during refresh
+  pollInterval: 30s
+
+  # Maximum time to wait for refresh to complete
+  timeout: 4h
+
+# AWS configuration
+aws:
+  # AWS region where RDS/Aurora resources are located
+  region: us-east-1
+
+  # Optional: Custom AWS endpoint (for testing with LocalStack)
+  # endpoint: http://localhost:4566
