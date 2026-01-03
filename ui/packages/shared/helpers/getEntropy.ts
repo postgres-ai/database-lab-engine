@@ -178,7 +178,8 @@ function getSecureRandomInt(max: number): number {
 
 export function generatePassword(length: number = 16): string {
   const minLength = 4
-  const actualLength = Math.max(length, minLength)
+  const maxLength = 128
+  const actualLength = Math.max(Math.min(length, maxLength), minLength)
 
   const lowercase = 'abcdefghijklmnopqrstuvwxyz'
   const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
