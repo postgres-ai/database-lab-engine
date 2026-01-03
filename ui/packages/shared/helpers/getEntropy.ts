@@ -170,7 +170,16 @@ function logPow(expBase: number, pow: number, logBase: number): number {
   return total
 }
 
+function getSecureRandomInt(max: number): number {
+  const array = new Uint32Array(1)
+  crypto.getRandomValues(array)
+  return array[0] % max
+}
+
 export function generatePassword(length: number = 16): string {
+  const minLength = 4
+  const actualLength = Math.max(length, minLength)
+
   const lowercase = 'abcdefghijklmnopqrstuvwxyz'
   const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
   const digits = '0123456789'
@@ -179,20 +188,20 @@ export function generatePassword(length: number = 16): string {
 
   let password = ''
   // ensure at least one character from each category
-  password += lowercase[Math.floor(Math.random() * lowercase.length)]
-  password += uppercase[Math.floor(Math.random() * uppercase.length)]
-  password += digits[Math.floor(Math.random() * digits.length)]
-  password += special[Math.floor(Math.random() * special.length)]
+  password += lowercase[getSecureRandomInt(lowercase.length)]
+  password += uppercase[getSecureRandomInt(uppercase.length)]
+  password += digits[getSecureRandomInt(digits.length)]
+  password += special[getSecureRandomInt(special.length)]
 
   // fill the rest with random characters
-  for (let i = password.length; i < length; i++) {
-    password += allChars[Math.floor(Math.random() * allChars.length)]
+  for (let i = password.length; i < actualLength; i++) {
+    password += allChars[getSecureRandomInt(allChars.length)]
   }
 
-  // shuffle the password to randomize positions
+  // shuffle the password to randomize positions (Fisher-Yates)
   const shuffled = password.split('')
   for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
+    const j = getSecureRandomInt(i + 1)
     ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
   }
 
