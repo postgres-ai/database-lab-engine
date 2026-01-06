@@ -170,6 +170,52 @@ function logPow(expBase: number, pow: number, logBase: number): number {
   return total
 }
 
+function getSecureRandomInt(max: number): number {
+  const array = new Uint32Array(1)
+  crypto.getRandomValues(array)
+  return array[0] % max
+}
+
+/**
+ * generates a cryptographically secure random password with guaranteed character diversity
+ *
+ * @param length - desired password length, constrained to 4-128 characters (default: 16)
+ * @returns a random password containing at least one character from each category:
+ *          lowercase letters, uppercase letters, digits, and special characters (!@$&*_-.)
+ */
+export function generatePassword(length: number = 16): string {
+  const minLength = 4
+  const maxLength = 128
+  const actualLength = Math.max(Math.min(length, maxLength), minLength)
+
+  const lowercase = 'abcdefghijklmnopqrstuvwxyz'
+  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  const digits = '0123456789'
+  const special = '!@$&*_-.'
+  const allChars = lowercase + uppercase + digits + special
+
+  let password = ''
+  // ensure at least one character from each category
+  password += lowercase[getSecureRandomInt(lowercase.length)]
+  password += uppercase[getSecureRandomInt(uppercase.length)]
+  password += digits[getSecureRandomInt(digits.length)]
+  password += special[getSecureRandomInt(special.length)]
+
+  // fill the rest with random characters
+  for (let i = password.length; i < actualLength; i++) {
+    password += allChars[getSecureRandomInt(allChars.length)]
+  }
+
+  // shuffle the password to randomize positions (Fisher-Yates)
+  const shuffled = password.split('')
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = getSecureRandomInt(i + 1);
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+
+  return shuffled.join('')
+}
+
 export function validatePassword(password: string, minEntropy: number): string {
   const entropy: number = getEntropy(password)
   if (entropy >= minEntropy) {

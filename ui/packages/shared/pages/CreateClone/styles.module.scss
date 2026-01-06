@@ -112,3 +112,17 @@
   margin-top: 8px;
   line-height: 26px;
 }
+
+.passwordActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 16px;
+}
+
+.passwordHint {
+  font-size: 12px;
+  color: #f57c00;
+  font-weight: 500;
+}
