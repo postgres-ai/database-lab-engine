@@ -32,7 +32,7 @@ poolManager: # Manages filesystem pools (ZFS) or volume groups (LVM)
 databaseContainer: &db_container  # Docker config for all DB containers
                                   # See https://postgres.ai/docs/database-lab/supported_databases
                                   # DBLab SE and EE customers get images compatible with RDS, RDS Aurora, GCP CloudSQL, Heroku, Timescale Cloud, Supabase, PostGIS
-  dockerImage: "postgresai/extended-postgres:17-0.5.3" # Postgres image; major version (17) must match source if physical mode
+  dockerImage: "postgresai/extended-postgres:18-0.6.2" # Postgres image; major version (18) must match source if physical mode
   containerConfig: # Custom container config; see https://docs.docker.com/engine/reference/run/#runtime-constraints-on-resources
     "shm-size": 1gb # Shared memory size; increase if "could not resize shared memory segment" errors occur
 
