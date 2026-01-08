@@ -214,6 +214,11 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if s.Cloning.IsSnapshotProtected(snapshotID) {
+		api.SendBadRequestError(w, r, "snapshot is protected")
+		return
+	}
+
 	forceParam := r.URL.Query().Get("force")
 	force := false
 
@@ -465,6 +470,91 @@ func isRoot(root, branch string) bool {
 	rootBranches := strings.Split(root, ",")
 
 	return containsString(rootBranches, branch)
+}
+
+func (s *Server) updateSnapshot(w http.ResponseWriter, r *http.Request) {
+	snapshotID := mux.Vars(r)["id"]
+	if snapshotID == "" {
+		api.SendBadRequestError(w, r, "snapshot ID must not be empty")
+		return
+	}
+
+	poolName, err := s.detectPoolName(snapshotID)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if poolName == "" {
+		api.SendBadRequestError(w, r, fmt.Sprintf("pool for requested snapshot (%s) not found", snapshotID))
+		return
+	}
+
+	fsm, err := s.pm.GetFSManager(poolName)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if _, err := fsm.GetSnapshotProperties(snapshotID); err != nil {
+		if runnerError, ok := err.(runners.RunnerError); ok {
+			api.SendBadRequestError(w, r, runnerError.Stderr)
+		} else {
+			api.SendBadRequestError(w, r, err.Error())
+		}
+
+		return
+	}
+
+	var updateRequest types.SnapshotUpdateRequest
+	if err := api.ReadJSON(r, &updateRequest); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	var deleteAt *models.LocalTime
+
+	if updateRequest.DeleteAt != nil {
+		deleteAt, err = models.ParseLocalTime(*updateRequest.DeleteAt)
+		if err != nil {
+			api.SendBadRequestError(w, r, fmt.Sprintf("invalid deleteAt format: %v", err))
+			return
+		}
+	}
+
+	var autoDeleteMode *models.AutoDeleteMode
+
+	if updateRequest.AutoDeleteMode != nil {
+		mode := models.AutoDeleteMode(*updateRequest.AutoDeleteMode)
+		if !mode.IsValid() {
+			api.SendBadRequestError(w, r, "invalid autoDeleteMode, must be 0, 1, or 2")
+			return
+		}
+
+		autoDeleteMode = &mode
+	}
+
+	meta := s.Cloning.UpdateSnapshotMeta(snapshotID, updateRequest.Protected, deleteAt, autoDeleteMode)
+
+	snapshot, err := s.Cloning.GetSnapshotByID(snapshotID)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	snapshot.Protected = meta.Protected
+	snapshot.DeleteAt = meta.DeleteAt
+	snapshot.AutoDeleteMode = meta.AutoDeleteMode
+
+	s.tm.SendEvent(r.Context(), telemetry.SnapshotUpdatedEvent, telemetry.SnapshotUpdated{
+		ID:        snapshotID,
+		Protected: meta.Protected,
+	})
+
+	if err := api.WriteJSON(w, http.StatusOK, snapshot); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
 }
 
 func (s *Server) detectPoolName(snapshotID string) (string, error) {
@@ -732,7 +822,7 @@ func (s *Server) patchClone(w http.ResponseWriter, r *http.Request) {
 
 	s.tm.SendEvent(context.Background(), telemetry.CloneUpdatedEvent, telemetry.CloneUpdated{
 		ID:        util.HashID(cloneID),
-		Protected: patchClone.Protected,
+		Protected: updatedClone.Protected,
 	})
 
 	if err := api.WriteJSON(w, http.StatusOK, updatedClone); err != nil {

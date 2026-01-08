@@ -366,7 +366,9 @@ func TestClientUpdateClone(t *testing.T) {
 		err = json.Unmarshal(requestBody, &updateRequest)
 		require.NoError(t, err)
 
-		cloneModel.Protected = updateRequest.Protected
+		if updateRequest.Protected != nil {
+			cloneModel.Protected = *updateRequest.Protected
+		}
 
 		// Prepare response.
 		responseBody, err := json.Marshal(cloneModel)
@@ -388,8 +390,9 @@ func TestClientUpdateClone(t *testing.T) {
 	c.client = mockClient
 
 	// Send a request.
+	protectedFalse := false
 	newClone, err := c.UpdateClone(context.Background(), cloneModel.ID, types.CloneUpdateRequest{
-		Protected: false,
+		Protected: &protectedFalse,
 	})
 	require.NoError(t, err)
 

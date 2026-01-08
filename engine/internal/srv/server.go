@@ -199,6 +199,7 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/snapshots", authMW.Authorized(s.getSnapshots)).Methods(http.MethodGet)
 	r.HandleFunc("/snapshot/{id:.*}", authMW.Authorized(s.getSnapshot)).Methods(http.MethodGet)
 	r.HandleFunc("/snapshot", authMW.Authorized(s.createSnapshot)).Methods(http.MethodPost)
+	r.HandleFunc("/snapshot/{id:.*}", authMW.Authorized(s.updateSnapshot)).Methods(http.MethodPatch)
 	r.HandleFunc("/snapshot/{id:.*}", authMW.Authorized(s.deleteSnapshot)).Methods(http.MethodDelete)
 	r.HandleFunc("/snapshot/clone", authMW.Authorized(s.createSnapshotClone)).Methods(http.MethodPost)
 	r.HandleFunc("/clones", authMW.Authorized(s.clones)).Methods(http.MethodGet)
@@ -218,6 +219,7 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/branch", authMW.Authorized(s.createBranch)).Methods(http.MethodPost)
 	r.HandleFunc("/branch/snapshot", authMW.Authorized(s.snapshot)).Methods(http.MethodPost)
 	r.HandleFunc("/branch/{branchName}/log", authMW.Authorized(s.log)).Methods(http.MethodGet)
+	r.HandleFunc("/branch/{branchName}", authMW.Authorized(s.updateBranch)).Methods(http.MethodPatch)
 	r.HandleFunc("/branch/{branchName}", authMW.Authorized(s.deleteBranch)).Methods(http.MethodDelete)
 
 	// Sub-route /admin

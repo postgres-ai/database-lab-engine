@@ -65,6 +65,12 @@ func (s *Server) listBranches(w http.ResponseWriter, r *http.Request) {
 			NumSnapshots: numSnapshots,
 		}
 
+		if meta := s.Cloning.GetBranchMeta(branchEntity.Name); meta != nil {
+			branchView.Protected = meta.Protected
+			branchView.DeleteAt = meta.DeleteAt
+			branchView.AutoDeleteMode = meta.AutoDeleteMode
+		}
+
 		branchDetails = append(branchDetails, branchView)
 	}
 
@@ -279,7 +285,27 @@ func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 
 	fsm.RefreshSnapshotList()
 
-	branch := models.Branch{Name: createRequest.BranchName}
+	var deleteAt *models.LocalTime
+
+	if createRequest.DeleteAt != "" {
+		deleteAt, err = models.ParseLocalTime(createRequest.DeleteAt)
+		if err != nil {
+			log.Warn(fmt.Sprintf("failed to parse deleteAt for branch %s: %v", createRequest.BranchName, err))
+		}
+	}
+
+	autoDeleteMode := models.AutoDeleteMode(createRequest.AutoDeleteMode)
+
+	if createRequest.Protected || deleteAt != nil || autoDeleteMode != models.AutoDeleteOff {
+		s.Cloning.UpdateBranchMeta(createRequest.BranchName, &createRequest.Protected, deleteAt, &autoDeleteMode)
+	}
+
+	branch := models.Branch{
+		Name:           createRequest.BranchName,
+		Protected:      createRequest.Protected,
+		DeleteAt:       deleteAt,
+		AutoDeleteMode: autoDeleteMode,
+	}
 
 	s.webhookCh <- webhooks.BasicEvent{
 		EventType: webhooks.BranchCreateEvent,
@@ -540,6 +566,11 @@ func (s *Server) log(w http.ResponseWriter, r *http.Request) {
 func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 	branchName := mux.Vars(r)["branchName"]
 
+	if s.Cloning.IsBranchProtected(branchName) {
+		api.SendBadRequestError(w, r, "branch is protected")
+		return
+	}
+
 	fsm, err := s.getFSManagerForBranch(branchName)
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
@@ -600,6 +631,8 @@ func (s *Server) deleteBranch(w http.ResponseWriter, r *http.Request) {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
+
+	s.Cloning.DeleteBranchMeta(branchName)
 
 	if err := api.WriteJSON(w, http.StatusOK, models.Response{
 		Status:  models.ResponseOK,
@@ -727,4 +760,77 @@ func (s *Server) destroyBranchDataset(fsm pool.FSManager, branchName string) err
 	log.Dbg(fmt.Sprintf("Branch %s has been deleted", branchName))
 
 	return nil
+}
+
+func (s *Server) updateBranch(w http.ResponseWriter, r *http.Request) {
+	branchName := mux.Vars(r)["branchName"]
+
+	fsm, err := s.getFSManagerForBranch(branchName)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if fsm == nil {
+		api.SendBadRequestError(w, r, "no pool manager found")
+		return
+	}
+
+	repo, err := fsm.GetRepo()
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if _, ok := repo.Branches[branchName]; !ok {
+		api.SendNotFoundError(w, r)
+		return
+	}
+
+	var updateRequest types.BranchUpdateRequest
+	if err := api.ReadJSON(r, &updateRequest); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	var deleteAt *models.LocalTime
+
+	if updateRequest.DeleteAt != nil {
+		deleteAt, err = models.ParseLocalTime(*updateRequest.DeleteAt)
+		if err != nil {
+			api.SendBadRequestError(w, r, fmt.Sprintf("invalid deleteAt format: %v", err))
+			return
+		}
+	}
+
+	var autoDeleteMode *models.AutoDeleteMode
+
+	if updateRequest.AutoDeleteMode != nil {
+		mode := models.AutoDeleteMode(*updateRequest.AutoDeleteMode)
+		if !mode.IsValid() {
+			api.SendBadRequestError(w, r, "invalid autoDeleteMode, must be 0, 1, or 2")
+			return
+		}
+
+		autoDeleteMode = &mode
+	}
+
+	meta := s.Cloning.UpdateBranchMeta(branchName, updateRequest.Protected, deleteAt, autoDeleteMode)
+
+	branch := models.Branch{
+		Name:           branchName,
+		Protected:      meta.Protected,
+		DeleteAt:       meta.DeleteAt,
+		AutoDeleteMode: meta.AutoDeleteMode,
+	}
+
+	s.tm.SendEvent(context.Background(), telemetry.BranchUpdatedEvent, telemetry.BranchUpdated{
+		Name:      branchName,
+		Protected: meta.Protected,
+	})
+
+	if err := api.WriteJSON(w, http.StatusOK, branch); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
 }
