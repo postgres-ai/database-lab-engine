@@ -471,7 +471,9 @@ export const Configuration = observer(
             dockerPath: initialRender
               ? formik.values.dockerPath
               : data.map((image) => image.location)[0],
-            sharedPreloadLibraries: currentPreloadLibraries || '',
+            sharedPreloadLibraries: initialRender
+              ? formik.values.sharedPreloadLibraries
+              : currentPreloadLibraries || '',
           })
         } else {
           setDockerState({
