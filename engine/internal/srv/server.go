@@ -17,10 +17,13 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/billing"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/embeddedui"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/metrics"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
@@ -236,6 +239,13 @@ func (s *Server) InitHandlers() {
 	// Health check.
 	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet, http.MethodPost)
 
+	// Prometheus metrics endpoint.
+	metricsCollector := metrics.NewCollector(s)
+	metricsRegistry := prometheus.NewRegistry()
+	metricsRegistry.MustRegister(metricsCollector)
+
+	r.Handle("/metrics", promhttp.HandlerFor(metricsRegistry, promhttp.HandlerOpts{})).Methods(http.MethodGet)
+
 	// Full refresh
 	r.HandleFunc("/full-refresh", authMW.Authorized(s.refresh)).Methods(http.MethodPost)
 
@@ -275,6 +285,11 @@ func (s *Server) Uptime() float64 {
 	}
 
 	return 0
+}
+
+// InstanceStatus returns the current instance status for external consumers.
+func (s *Server) InstanceStatus() *models.InstanceStatus {
+	return s.instanceStatus()
 }
 
 // reportLaunching reports the launch of the HTTP server.
