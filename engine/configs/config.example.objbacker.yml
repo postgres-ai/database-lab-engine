@@ -1,0 +1,168 @@
+# Copy this configuration to: ~/.dblab/engine/configs/server.yml
+# Configuration reference guide: https://postgres.ai/docs/reference-guides/database-lab-engine-configuration-reference
+#
+# EXPERIMENTAL: This configuration demonstrates objbacker integration for tiered storage.
+# Objbacker is a native ZFS VDEV that talks directly to S3/GCS/Azure blob storage,
+# enabling cost-effective storage for database snapshots.
+# See: https://www.zettalane.com/blog/openzfs-summit-2025-mayanas-objbacker.html
+#
+# REQUIREMENTS:
+# - objbacker kernel module loaded (/dev/zfs_objbacker must exist)
+# - objbacker daemon installed (zfs_objbacker_daemon)
+# - Fast local NVMe for cache (recommended: 10GB+ for metadata caching)
+# - Cloud storage credentials configured
+
+server:
+  verificationToken: "secret_token"
+  port: 2345
+  disableConfigModification: false
+
+embeddedUI:
+  enabled: true
+  dockerImage: "postgresai/ce-ui:latest"
+  host: "127.0.0.1"
+  port: 2346
+
+global:
+  engine: postgres
+  debug: true
+  database:
+    username: postgres
+    dbname: postgres
+
+poolManager:
+  mountDir: /var/lib/dblab
+  dataSubDir: data
+  clonesMountSubDir: clones
+  socketSubDir: sockets
+  observerSubDir: observer
+  preSnapshotSuffix: "_pre"
+  selectedPool: ""
+
+# EXPERIMENTAL: objbacker configuration for tiered/archival storage
+objbacker:
+  enabled: true # Enable objbacker integration
+
+  # Object storage backend: s3, gcs, or azure
+  storageType: s3
+
+  # Object storage configuration
+  endpoint: "" # Leave empty for AWS S3, or set for MinIO/other S3-compatible
+  bucket: "my-dblab-snapshots"
+  prefix: "dblab/production" # Optional prefix within the bucket
+  region: "us-east-1" # Required for S3
+
+  # Authentication (choose one method)
+  credentials:
+    accessKeyId: "" # Set via environment variable: DBLAB_OBJBACKER_ACCESS_KEY_ID
+    secretAccessKey: "" # Set via environment variable: DBLAB_OBJBACKER_SECRET_ACCESS_KEY
+    credentialsFile: "" # Alternative: path to credentials file (for GCS service account)
+    useIamRole: true # Use IAM role on cloud VMs (recommended for AWS/GCP)
+
+  # Performance tuning
+  performance:
+    blockSize: 1048576 # 1MB - larger blocks for streaming efficiency
+    localCacheSize: 10737418240 # 10GB - cache for metadata and hot data
+    localCachePath: "/var/cache/objbacker" # Should be on fast NVMe storage
+    readAheadSize: 4194304 # 4MB prefetch for sequential reads
+    maxConcurrentOps: 32 # Concurrent object storage operations
+    connectionTimeout: 30s
+    requestTimeout: 5m
+
+  # Tiering configuration for automatic hot/cold data management
+  tiering:
+    enabled: true # Enable automatic tiering
+    hotDataThreshold: 24h # Data accessed within 24h stays hot
+    metadataLocal: true # Keep ZFS metadata on local storage
+    promoteOnRead: true # Promote cold data to hot tier when accessed
+
+  # Device paths (usually don't need to change)
+  devicePath: "/dev/zfs_objbacker"
+  daemonSocketPath: "/var/run/zfs_objbacker.sock"
+
+# Automatic snapshot archival policy
+snapshotArchival:
+  enabled: true
+
+  # Archive snapshots older than this to object storage
+  archiveAfter: 168h # 7 days
+
+  # Always keep at least this many recent snapshots locally
+  keepLocalCount: 3
+
+  # Delete archived snapshots after this time (0 = keep forever)
+  deleteArchivedAfter: 2160h # 90 days
+
+  # Branches to exclude from archival (e.g., production branch stays local)
+  excludeBranches: []
+
+  # How often to run the archival check
+  scheduleInterval: 6h
+
+databaseContainer: &db_container
+  dockerImage: "postgresai/extended-postgres:18-0.6.2"
+  containerConfig:
+    "shm-size": 1gb
+
+databaseConfigs: &db_configs
+  configs:
+    shared_buffers: 1GB
+    shared_preload_libraries: "pg_stat_statements, pg_stat_kcache, auto_explain, logerrors"
+    maintenance_work_mem: "500MB"
+    work_mem: "100MB"
+
+provision:
+  <<: *db_container
+  portPool:
+    from: 6000
+    to: 6099
+  useSudo: false
+  keepUserPasswords: false
+  cloneAccessAddresses: "127.0.0.1"
+
+retrieval:
+  jobs:
+    - physicalRestore
+    - physicalSnapshot
+  spec:
+    physicalRestore:
+      options:
+        <<: *db_container
+        tool: walg
+        sync:
+          enabled: true
+          healthCheck:
+            interval: 5
+            maxRetries: 200
+          configs:
+            shared_buffers: 2GB
+
+        envs:
+          WALG_GS_PREFIX: "gs://{BUCKET}/{SCOPE}"
+          GOOGLE_APPLICATION_CREDENTIALS: "/tmp/sa.json"
+
+        walg:
+          backupName: LATEST
+
+    physicalSnapshot:
+      options:
+        skipStartSnapshot: false
+        <<: *db_configs
+        promotion:
+          <<: *db_container
+          enabled: true
+          healthCheck:
+            interval: 5
+            maxRetries: 200
+          queryPreprocessing:
+            queryPath: ""
+            maxParallelWorkers: 2
+            inline: ""
+          configs:
+            shared_buffers: 2GB
+        scheduler:
+          snapshot:
+            timetable: "0 */6 * * *" # Take snapshots every 6 hours
+          retention:
+            timetable: "0 * * * *"
+            limit: 10 # Keep more snapshots locally since archival handles old ones
