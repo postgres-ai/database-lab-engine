@@ -392,7 +392,11 @@ export const CreateClone = observer((props: Props) => {
             <h2 className={styles.title}>Clone protection</h2>
 
             <FormControlLabel
-              label="Enable deletion protection"
+              label={
+                stores.main.instance.state?.cloning.protectionLeaseDurationMinutes
+                  ? `Enable deletion protection for ${Math.round(stores.main.instance.state.cloning.protectionLeaseDurationMinutes / 60 / 24)} days`
+                  : 'Enable deletion protection'
+              }
               control={
                 <Checkbox
                   checked={formik.values.isProtected}
@@ -406,12 +410,27 @@ export const CreateClone = observer((props: Props) => {
             />
 
             <p className={styles.remark}>
-              When enabled, no one can delete this clone and automated deletion
-              is also disabled.
+              {stores.main.instance.state?.cloning.protectionLeaseDurationMinutes ? (
+                <>
+                  When enabled, the clone is protected from deletion for{' '}
+                  {Math.round(stores.main.instance.state.cloning.protectionLeaseDurationMinutes / 60 / 24)} days.
+                  You can renew the protection lease before it expires.
+                  {stores.main.instance.state?.cloning.protectionRenewalDurationMinutes && (
+                    <> Each renewal extends protection for{' '}
+                    {Math.round(stores.main.instance.state.cloning.protectionRenewalDurationMinutes / 60 / 24)} days.</>
+                  )}
+                </>
+              ) : (
+                <>
+                  When enabled, no one can delete this clone and automated deletion
+                  is also disabled.
+                  <br />
+                  Please be careful: abandoned clones with this checkbox enabled may
+                  cause out-of-disk-space events.
+                </>
+              )}
               <br />
-              Please be careful: abandoned clones with this checkbox enabled may
-              cause out-of-disk-space events. Check disk space on a daily basis
-              and delete this clone once the work is done.
+              Check disk space regularly and delete this clone once the work is done.
             </p>
           </div>
 

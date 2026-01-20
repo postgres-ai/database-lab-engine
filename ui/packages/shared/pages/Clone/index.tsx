@@ -622,16 +622,56 @@ export const Clone = observer((props: Props) => {
                   disabled={isDisabledControls}
                 />
               }
-              label="Enable deletion protection"
+              label={
+                clone.metadata.protectionLeaseDurationMinutes
+                  ? `Enable deletion protection for ${Math.round(clone.metadata.protectionLeaseDurationMinutes / 60 / 24)} days`
+                  : 'Enable deletion protection'
+              }
             />
+            {clone.protected && clone.protectedTillDate && (
+              <>
+                <br />
+                <span className={classes.remark}>
+                  <strong>Protected until:</strong> {clone.protectedTillDate.toLocaleString()}
+                </span>
+                <br />
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  size="small"
+                  onClick={() => stores.main.renewLease()}
+                  disabled={isDisabledControls}
+                  style={{ marginTop: '8px', marginBottom: '8px' }}
+                >
+                  Renew lease
+                  {isUpdatingClone && <Spinner size="sm" className={classes.spinner} />}
+                </Button>
+                <br />
+              </>
+            )}
             <br />
             <span className={classes.remark}>
-              When enabled, no one can delete this clone and automated deletion
-              is also disabled.
+              {clone.metadata.protectionLeaseDurationMinutes ? (
+                <>
+                  When enabled, the clone is protected from deletion for{' '}
+                  {Math.round(clone.metadata.protectionLeaseDurationMinutes / 60 / 24)} days.
+                  You can renew the protection lease before it expires.
+                  {clone.metadata.protectionRenewalDurationMinutes && (
+                    <> Each renewal extends protection for{' '}
+                    {Math.round(clone.metadata.protectionRenewalDurationMinutes / 60 / 24)} days.</>
+                  )}
+                </>
+              ) : (
+                <>
+                  When enabled, no one can delete this clone and automated deletion
+                  is also disabled.
+                  <br />
+                  Please be careful: abandoned clones with this checkbox enabled may
+                  cause out-of-disk-space events.
+                </>
+              )}
               <br />
-              Please be careful: abandoned clones with this checkbox enabled may
-              cause out-of-disk-space events. Check disk space on a daily basis
-              and delete this clone once your work is done.
+              Check disk space regularly and delete this clone once your work is done.
             </span>
           </p>
           {stores.main.updateCloneError && (

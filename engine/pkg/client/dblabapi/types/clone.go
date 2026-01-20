@@ -18,7 +18,8 @@ type CloneCreateRequest struct {
 
 // CloneUpdateRequest represents params of an update request.
 type CloneUpdateRequest struct {
-	Protected bool `json:"protected"`
+	Protected  bool `json:"protected"`
+	RenewLease bool `json:"renewLease,omitempty"`
 }
 
 // DatabaseRequest represents database params of a clone request.

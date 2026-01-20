@@ -20,9 +20,12 @@ export type CloneDto = {
     message: string
   }
   protected: boolean
+  protectedTill?: string
   metadata: {
     cloneDiffSize: number
     cloningTime: number
+    protectionLeaseDurationMinutes?: number
+    protectionRenewalDurationMinutes?: number
   }
   db: {
     username: string
@@ -37,6 +40,7 @@ export const formatCloneDto = (dto: CloneDto) => ({
   ...dto,
   createdAt: dto.createdAt,
   createdAtDate: parseDate(dto.createdAt),
+  protectedTillDate: dto.protectedTill ? parseDate(dto.protectedTill) : null,
   snapshot: dto.snapshot ? formatSnapshotDto(dto.snapshot) : null,
 })
 

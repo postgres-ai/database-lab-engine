@@ -1631,6 +1631,10 @@ components:
         protected:
           type: boolean
           default: false
+        protectedTill:
+          type: string
+          format: date-time
+          description: Time when the protection lease expires
         deleteAt:
           type: string
           format: date-time
@@ -1658,6 +1662,14 @@ components:
         maxIdleMinutes:
           type: integer
           format: int64
+        protectionLeaseDurationMinutes:
+          type: integer
+          format: int64
+          description: Protection lease duration in minutes
+        protectionRenewalDurationMinutes:
+          type: integer
+          format: int64
+          description: Protection renewal duration in minutes
     CreateClone:
       type: object
       properties:
@@ -1703,6 +1715,10 @@ components:
         protected:
           type: boolean
           default: false
+        renewLease:
+          type: boolean
+          default: false
+          description: When true, renews the protection lease for the clone
     StartObservationRequest:
       type: object
       properties:

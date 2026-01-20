@@ -199,7 +199,34 @@ export class MainStore {
       },
     })
 
-    if (!response) this.clone.protected = prevIsProtected
+    if (response) {
+      await this.loadClone(this.instance.id, this.clone.id)
+    } else {
+      this.clone.protected = prevIsProtected
+    }
+
+    if (error) this.updateCloneError = await getTextFromUnknownApiError(error)
+
+    this.isUpdatingClone = false
+  }
+
+  renewLease = async () => {
+    if (!this.instance || !this.clone) return
+
+    this.isUpdatingClone = true
+
+    const { response, error } = await this.api.updateClone({
+      instanceId: this.instance.id,
+      cloneId: this.clone.id,
+      clone: {
+        isProtected: true,
+        renewLease: true,
+      },
+    })
+
+    if (response) {
+      await this.loadClone(this.instance.id, this.clone.id)
+    }
 
     if (error) this.updateCloneError = await getTextFromUnknownApiError(error)
 

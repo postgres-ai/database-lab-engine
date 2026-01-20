@@ -3,6 +3,7 @@ export type UpdateClone = (args: {
   cloneId: string
   clone: {
     isProtected: boolean
+    renewLease?: boolean
   }
 }) => Promise<{
   response: true | null
