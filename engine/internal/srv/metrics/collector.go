@@ -21,6 +21,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
 // containerCPUState stores previous CPU stats for delta calculation.
@@ -82,14 +83,13 @@ func (c *Collector) Collect(ctx context.Context) {
 func (c *Collector) collectInstanceMetrics() {
 	c.metrics.InstanceInfo.WithLabelValues(
 		c.engProps.InstanceID,
-		c.engProps.Version,
+		version.GetVersion(),
 		c.engProps.GetEdition(),
 	).Set(1)
 
 	c.metrics.InstanceUptime.Set(time.Since(c.startedAt).Seconds())
 
-	statusCode := models.StatusOK
-	c.metrics.InstanceStatus.WithLabelValues(statusCode).Set(1)
+	c.metrics.InstanceStatus.WithLabelValues(string(models.StatusOK)).Set(1)
 
 	c.metrics.RetrievalStatus.WithLabelValues(
 		string(c.retrieval.State.Mode),
@@ -181,7 +181,7 @@ func (c *Collector) collectCloneMetrics(ctx context.Context) {
 			clone.Branch,
 			snapshotID,
 			poolName,
-			clone.Status.Code,
+			string(clone.Status.Code),
 			protectedStr,
 		).Set(1)
 
