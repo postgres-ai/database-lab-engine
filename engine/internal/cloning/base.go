@@ -34,7 +34,8 @@ import (
 )
 
 const (
-	idleCheckDuration = 5 * time.Minute
+	idleCheckDuration            = 5 * time.Minute
+	defaultWarningMinutes   uint = 24 * 60 // 24 hours
 )
 
 // Config contains a cloning configuration.
@@ -920,7 +921,7 @@ func (c *Base) runProtectionLeaseCheck(ctx context.Context) {
 func (c *Base) checkProtectionLeases(ctx context.Context) {
 	warningMinutes := c.config.ProtectionExpiryWarningMinutes
 	if warningMinutes == 0 {
-		warningMinutes = 24 * 60
+		warningMinutes = defaultWarningMinutes
 	}
 
 	warningDuration := time.Duration(warningMinutes) * time.Minute
