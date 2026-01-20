@@ -73,6 +73,10 @@ func CommandList() []*cli.Command {
 						Usage:   "mark instance as protected from deletion",
 						Aliases: []string{"p"},
 					},
+					&cli.UintFlag{
+						Name:  "protection-duration",
+						Usage: "protection duration in minutes (0 = forever, requires --protected)",
+					},
 					&cli.BoolFlag{
 						Name:    "async",
 						Usage:   "run the command asynchronously",
@@ -95,6 +99,10 @@ func CommandList() []*cli.Command {
 						Name:    "protected",
 						Usage:   "mark instance as protected from deletion",
 						Aliases: []string{"p"},
+					},
+					&cli.UintFlag{
+						Name:  "protection-duration",
+						Usage: "protection duration in minutes (0 = forever)",
 					},
 				},
 			},

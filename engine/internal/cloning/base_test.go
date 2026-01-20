@@ -133,3 +133,87 @@ func (s *BaseCloningSuite) TestLenClones() {
 	lenClones = s.cloning.lenClones()
 	assert.Equal(s.T(), 1, lenClones)
 }
+
+func TestCalculateProtectionTime(t *testing.T) {
+	tests := []struct {
+		name            string
+		config          Config
+		durationMinutes *uint
+		expectNil       bool
+		minExpiry       time.Duration
+		maxExpiry       time.Duration
+	}{
+		{name: "nil duration uses default", config: Config{ProtectionLeaseDurationMinutes: 60}, durationMinutes: nil, expectNil: false, minExpiry: 59 * time.Minute, maxExpiry: 61 * time.Minute},
+		{name: "explicit duration overrides default", config: Config{ProtectionLeaseDurationMinutes: 60}, durationMinutes: ptrUint(120), expectNil: false, minExpiry: 119 * time.Minute, maxExpiry: 121 * time.Minute},
+		{name: "zero duration with no max returns nil (forever)", config: Config{ProtectionLeaseDurationMinutes: 60, ProtectionMaxDurationMinutes: 0}, durationMinutes: ptrUint(0), expectNil: true},
+		{name: "zero duration with max uses max", config: Config{ProtectionLeaseDurationMinutes: 60, ProtectionMaxDurationMinutes: 120}, durationMinutes: ptrUint(0), expectNil: false, minExpiry: 119 * time.Minute, maxExpiry: 121 * time.Minute},
+		{name: "duration exceeding max is capped", config: Config{ProtectionLeaseDurationMinutes: 60, ProtectionMaxDurationMinutes: 120}, durationMinutes: ptrUint(300), expectNil: false, minExpiry: 119 * time.Minute, maxExpiry: 121 * time.Minute},
+		{name: "duration within max is used", config: Config{ProtectionLeaseDurationMinutes: 60, ProtectionMaxDurationMinutes: 300}, durationMinutes: ptrUint(120), expectNil: false, minExpiry: 119 * time.Minute, maxExpiry: 121 * time.Minute},
+		{name: "default zero duration with no max returns nil", config: Config{ProtectionLeaseDurationMinutes: 0, ProtectionMaxDurationMinutes: 0}, durationMinutes: nil, expectNil: true},
+		{name: "default zero duration with max uses max", config: Config{ProtectionLeaseDurationMinutes: 0, ProtectionMaxDurationMinutes: 60}, durationMinutes: nil, expectNil: false, minExpiry: 59 * time.Minute, maxExpiry: 61 * time.Minute},
+		{name: "1 minute duration", config: Config{}, durationMinutes: ptrUint(1), expectNil: false, minExpiry: 50 * time.Second, maxExpiry: 70 * time.Second},
+		{name: "7 days duration", config: Config{}, durationMinutes: ptrUint(10080), expectNil: false, minExpiry: 10079 * time.Minute, maxExpiry: 10081 * time.Minute},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			base := &Base{config: &tt.config}
+			result := base.calculateProtectionTime(tt.durationMinutes)
+
+			if tt.expectNil {
+				assert.Nil(t, result)
+			} else {
+				require.NotNil(t, result)
+				expiresIn := time.Until(result.Time)
+				assert.GreaterOrEqual(t, expiresIn, tt.minExpiry)
+				assert.LessOrEqual(t, expiresIn, tt.maxExpiry)
+			}
+		})
+	}
+}
+
+func TestCalculateProtectionTime_EdgeCases(t *testing.T) {
+	t.Run("max equals requested duration", func(t *testing.T) {
+		base := &Base{config: &Config{ProtectionMaxDurationMinutes: 60}}
+		result := base.calculateProtectionTime(ptrUint(60))
+
+		require.NotNil(t, result)
+		expiresIn := time.Until(result.Time)
+		assert.GreaterOrEqual(t, expiresIn, 59*time.Minute)
+		assert.LessOrEqual(t, expiresIn, 61*time.Minute)
+	})
+
+	t.Run("max is 1 minute and request is 1 minute", func(t *testing.T) {
+		base := &Base{config: &Config{ProtectionMaxDurationMinutes: 1}}
+		result := base.calculateProtectionTime(ptrUint(1))
+
+		require.NotNil(t, result)
+		expiresIn := time.Until(result.Time)
+		assert.Greater(t, expiresIn, time.Duration(0))
+		assert.LessOrEqual(t, expiresIn, 2*time.Minute)
+	})
+
+	t.Run("very large duration is capped by max", func(t *testing.T) {
+		base := &Base{config: &Config{ProtectionMaxDurationMinutes: 60}}
+		result := base.calculateProtectionTime(ptrUint(999999))
+
+		require.NotNil(t, result)
+		expiresIn := time.Until(result.Time)
+		assert.GreaterOrEqual(t, expiresIn, 59*time.Minute)
+		assert.LessOrEqual(t, expiresIn, 61*time.Minute)
+	})
+
+	t.Run("nil config protection lease with explicit duration", func(t *testing.T) {
+		base := &Base{config: &Config{}}
+		result := base.calculateProtectionTime(ptrUint(30))
+
+		require.NotNil(t, result)
+		expiresIn := time.Until(result.Time)
+		assert.GreaterOrEqual(t, expiresIn, 29*time.Minute)
+		assert.LessOrEqual(t, expiresIn, 31*time.Minute)
+	})
+}
+
+func ptrUint(v uint) *uint {
+	return &v
+}

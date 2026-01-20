@@ -108,6 +108,11 @@ func create(cliCtx *cli.Context) error {
 		Branch: cliCtx.String("branch"),
 	}
 
+	if cliCtx.IsSet("protection-duration") {
+		duration := cliCtx.Uint("protection-duration")
+		cloneRequest.ProtectionDurationMinutes = &duration
+	}
+
 	if cliCtx.IsSet("snapshot-id") {
 		cloneRequest.Snapshot = &types.SnapshotCloneFieldRequest{ID: cliCtx.String("snapshot-id")}
 	}
@@ -186,6 +191,11 @@ func update(cliCtx *cli.Context) error {
 
 	updateRequest := types.CloneUpdateRequest{
 		Protected: cliCtx.Bool("protected"),
+	}
+
+	if cliCtx.IsSet("protection-duration") {
+		duration := cliCtx.Uint("protection-duration")
+		updateRequest.ProtectionDurationMinutes = &duration
 	}
 
 	cloneID := cliCtx.Args().First()

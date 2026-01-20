@@ -291,14 +291,30 @@ export const Clone = observer((props: Props) => {
   // Clone reload.
   const reloadClone = () => stores.main.reload()
 
-  // Data protection.
+  // Data protection - build options based on admin config.
+  const maxDurationMinutes = instance.state?.cloning?.protectionMaxDurationMinutes ?? 0
+  const allowForever = maxDurationMinutes === 0
+
+  const allDurationOptions = [
+    { value: '60', minutes: 60, children: '1 hour' },
+    { value: '720', minutes: 720, children: '12 hours' },
+    { value: '1440', minutes: 1440, children: '1 day' },
+    { value: '2880', minutes: 2880, children: '2 days' },
+    { value: '4320', minutes: 4320, children: '3 days' },
+    { value: '5760', minutes: 5760, children: '4 days' },
+    { value: '7200', minutes: 7200, children: '5 days' },
+    { value: '8640', minutes: 8640, children: '6 days' },
+    { value: '10080', minutes: 10080, children: '7 days' },
+    { value: '20160', minutes: 20160, children: '14 days' },
+    { value: '43200', minutes: 43200, children: '30 days' },
+  ]
+
   const protectionOptions = [
     { value: 'none', children: 'No protection' },
-    { value: '60', children: '1 hour' },
-    { value: '1440', children: '1 day' },
-    { value: '2880', children: '2 days' },
-    { value: '10080', children: '7 days' },
-    { value: '0', children: 'Forever' },
+    ...allDurationOptions
+      .filter((opt) => maxDurationMinutes === 0 || opt.minutes <= maxDurationMinutes)
+      .map(({ value, children }) => ({ value, children })),
+    ...(allowForever ? [{ value: '0', children: 'Forever' }] : []),
   ]
 
   const handleProtectionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
