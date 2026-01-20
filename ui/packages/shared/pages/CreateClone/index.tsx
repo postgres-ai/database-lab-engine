@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
 import { useTimer } from 'use-timer'
-import { Paper, FormControlLabel, Checkbox, IconButton, InputAdornment } from '@material-ui/core'
+import { Paper, IconButton, InputAdornment } from '@material-ui/core'
 import { Info as InfoIcon, Visibility, VisibilityOff } from '@material-ui/icons'
 import copy from 'copy-to-clipboard'
 
@@ -391,44 +391,26 @@ export const CreateClone = observer((props: Props) => {
           <div className={styles.section}>
             <h2 className={styles.title}>Clone protection</h2>
 
-            <FormControlLabel
-              label={
-                stores.main.instance.state?.cloning.protectionLeaseDurationMinutes
-                  ? `Enable deletion protection for ${Math.round(stores.main.instance.state.cloning.protectionLeaseDurationMinutes / 60 / 24)} days`
-                  : 'Enable deletion protection'
+            <Select
+              label="Deletion protection"
+              items={[
+                { value: 'none', children: 'No protection' },
+                { value: '60', children: '1 hour' },
+                { value: '1440', children: '1 day' },
+                { value: '2880', children: '2 days' },
+                { value: '10080', children: '7 days' },
+                { value: '0', children: 'Forever' },
+              ]}
+              value={formik.values.protectionDurationMinutes}
+              onChange={(e) =>
+                formik.setFieldValue('protectionDurationMinutes', e.target.value)
               }
-              control={
-                <Checkbox
-                  checked={formik.values.isProtected}
-                  onChange={(e) =>
-                    formik.setFieldValue('isProtected', e.target.checked)
-                  }
-                  name="protected"
-                  disabled={isCreatingClone}
-                />
-              }
+              disabled={isCreatingClone}
             />
 
             <p className={styles.remark}>
-              {stores.main.instance.state?.cloning.protectionLeaseDurationMinutes ? (
-                <>
-                  When enabled, the clone is protected from deletion for{' '}
-                  {Math.round(stores.main.instance.state.cloning.protectionLeaseDurationMinutes / 60 / 24)} days.
-                  You can renew the protection lease before it expires.
-                  {stores.main.instance.state?.cloning.protectionRenewalDurationMinutes && (
-                    <> Each renewal extends protection for{' '}
-                    {Math.round(stores.main.instance.state.cloning.protectionRenewalDurationMinutes / 60 / 24)} days.</>
-                  )}
-                </>
-              ) : (
-                <>
-                  When enabled, no one can delete this clone and automated deletion
-                  is also disabled.
-                  <br />
-                  Please be careful: abandoned clones with this checkbox enabled may
-                  cause out-of-disk-space events.
-                </>
-              )}
+              Select how long this clone should be protected from deletion.
+              Protected clones cannot be deleted manually or automatically.
               <br />
               Check disk space regularly and delete this clone once the work is done.
             </p>

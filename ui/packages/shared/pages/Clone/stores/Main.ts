@@ -183,12 +183,14 @@ export class MainStore {
     return Boolean(response)
   }
 
-  updateClone = async (isProtected: boolean) => {
+  updateCloneProtection = async (durationMinutes: number | null) => {
     if (!this.instance || !this.clone) return
 
     this.isUpdatingClone = true
 
     const prevIsProtected = this.clone.protected
+    const isProtected = durationMinutes !== null
+
     this.clone.protected = isProtected
 
     const { response, error } = await this.api.updateClone({
@@ -196,6 +198,7 @@ export class MainStore {
       cloneId: this.clone.id,
       clone: {
         isProtected,
+        protectionDurationMinutes: durationMinutes ?? undefined,
       },
     })
 
@@ -203,29 +206,6 @@ export class MainStore {
       await this.loadClone(this.instance.id, this.clone.id)
     } else {
       this.clone.protected = prevIsProtected
-    }
-
-    if (error) this.updateCloneError = await getTextFromUnknownApiError(error)
-
-    this.isUpdatingClone = false
-  }
-
-  renewLease = async () => {
-    if (!this.instance || !this.clone) return
-
-    this.isUpdatingClone = true
-
-    const { response, error } = await this.api.updateClone({
-      instanceId: this.instance.id,
-      cloneId: this.clone.id,
-      clone: {
-        isProtected: true,
-        renewLease: true,
-      },
-    })
-
-    if (response) {
-      await this.loadClone(this.instance.id, this.clone.id)
     }
 
     if (error) this.updateCloneError = await getTextFromUnknownApiError(error)

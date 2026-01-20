@@ -7,6 +7,9 @@ import {
 import { request } from 'helpers/request'
 
 export const createClone: CreateClone = async (req) => {
+  const isProtected = req.protectionDurationMinutes !== 'none'
+  const protectionDurationMinutes = isProtected ? parseInt(req.protectionDurationMinutes, 10) : undefined
+
   const response = await request('/clone', {
     method: 'POST',
     body: JSON.stringify({
@@ -14,7 +17,8 @@ export const createClone: CreateClone = async (req) => {
       snapshot: {
         id: req.snapshotId,
       },
-      protected: req.isProtected,
+      protected: isProtected,
+      ...(protectionDurationMinutes !== undefined && { protectionDurationMinutes }),
       ...(req.branch && { branch: req.branch }),
       db: {
         username: req.dbUser,

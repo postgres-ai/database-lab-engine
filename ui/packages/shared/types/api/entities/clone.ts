@@ -25,7 +25,7 @@ export type CloneDto = {
     cloneDiffSize: number
     cloningTime: number
     protectionLeaseDurationMinutes?: number
-    protectionRenewalDurationMinutes?: number
+    protectionMaxDurationMinutes?: number
   }
   db: {
     username: string

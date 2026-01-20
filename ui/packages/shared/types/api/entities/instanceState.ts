@@ -13,7 +13,7 @@ export type InstanceStateDto = {
     expectedCloningTime: number
     numClones?: number
     protectionLeaseDurationMinutes?: number
-    protectionRenewalDurationMinutes?: number
+    protectionMaxDurationMinutes?: number
   }
   status: {
     code: 'OK' | 'WARNING' | 'NO_RESPONSE'
@@ -93,7 +93,7 @@ export const formatInstanceStateDto = (dto: InstanceStateDto) => {
       clones: clones,
       expectedCloningTime: expectedCloningTime,
       protectionLeaseDurationMinutes: dto.cloning?.protectionLeaseDurationMinutes,
-      protectionRenewalDurationMinutes: dto.cloning?.protectionRenewalDurationMinutes,
+      protectionMaxDurationMinutes: dto.cloning?.protectionMaxDurationMinutes,
     },
     pools,
     dataSize:

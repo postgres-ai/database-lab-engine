@@ -12,11 +12,11 @@ import copyToClipboard from 'copy-to-clipboard'
 import {
   makeStyles,
   Button,
-  FormControlLabel,
-  Checkbox,
   TextField,
   IconButton,
 } from '@material-ui/core'
+
+import { Select } from '@postgres.ai/shared/components/Select'
 
 import {
   getSshPortForwardingCommand,
@@ -292,7 +292,29 @@ export const Clone = observer((props: Props) => {
   const reloadClone = () => stores.main.reload()
 
   // Data protection.
-  const toggleDataProtection = () => stores.main.updateClone(!clone.protected)
+  const protectionOptions = [
+    { value: 'none', children: 'No protection' },
+    { value: '60', children: '1 hour' },
+    { value: '1440', children: '1 day' },
+    { value: '2880', children: '2 days' },
+    { value: '10080', children: '7 days' },
+    { value: '0', children: 'Forever' },
+  ]
+
+  const handleProtectionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    if (value === 'none') {
+      stores.main.updateCloneProtection(null)
+    } else {
+      stores.main.updateCloneProtection(parseInt(value, 10))
+    }
+  }
+
+  const getCurrentProtectionValue = () => {
+    if (!clone.protected) return 'none'
+    if (!clone.protectedTillDate) return '0'
+    return 'current'
+  }
 
   // Commands.
   const sshPortForwardingUrl = getSshPortForwardingCommand(instance, clone)
@@ -611,69 +633,29 @@ export const Clone = observer((props: Props) => {
           <p>
             <strong>Protection</strong>
           </p>
-          <p>
-            <FormControlLabel
-              className={classes.checkboxLabel}
-              control={
-                <Checkbox
-                  checked={clone.protected}
-                  onChange={toggleDataProtection}
-                  name="protected"
-                  disabled={isDisabledControls}
-                />
+          <div style={{ marginTop: '8px', marginBottom: '16px' }}>
+            <Select
+              label="Deletion protection"
+              items={
+                clone.protected && clone.protectedTillDate
+                  ? [
+                      { value: 'current', children: `Protected until ${clone.protectedTillDate.toLocaleString()}` },
+                      ...protectionOptions,
+                    ]
+                  : protectionOptions
               }
-              label={
-                clone.metadata.protectionLeaseDurationMinutes
-                  ? `Enable deletion protection for ${Math.round(clone.metadata.protectionLeaseDurationMinutes / 60 / 24)} days`
-                  : 'Enable deletion protection'
-              }
+              value={getCurrentProtectionValue()}
+              onChange={handleProtectionChange}
+              disabled={isDisabledControls}
             />
-            {clone.protected && clone.protectedTillDate && (
-              <>
-                <br />
-                <span className={classes.remark}>
-                  <strong>Protected until:</strong> {clone.protectedTillDate.toLocaleString()}
-                </span>
-                <br />
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  size="small"
-                  onClick={() => stores.main.renewLease()}
-                  disabled={isDisabledControls}
-                  style={{ marginTop: '8px', marginBottom: '8px' }}
-                >
-                  Renew lease
-                  {isUpdatingClone && <Spinner size="sm" className={classes.spinner} />}
-                </Button>
-                <br />
-              </>
-            )}
+            {isUpdatingClone && <Spinner size="sm" className={classes.spinner} />}
+          </div>
+          <span className={classes.remark}>
+            Select how long this clone should be protected from deletion.
+            Protected clones cannot be deleted manually or automatically.
             <br />
-            <span className={classes.remark}>
-              {clone.metadata.protectionLeaseDurationMinutes ? (
-                <>
-                  When enabled, the clone is protected from deletion for{' '}
-                  {Math.round(clone.metadata.protectionLeaseDurationMinutes / 60 / 24)} days.
-                  You can renew the protection lease before it expires.
-                  {clone.metadata.protectionRenewalDurationMinutes && (
-                    <> Each renewal extends protection for{' '}
-                    {Math.round(clone.metadata.protectionRenewalDurationMinutes / 60 / 24)} days.</>
-                  )}
-                </>
-              ) : (
-                <>
-                  When enabled, no one can delete this clone and automated deletion
-                  is also disabled.
-                  <br />
-                  Please be careful: abandoned clones with this checkbox enabled may
-                  cause out-of-disk-space events.
-                </>
-              )}
-              <br />
-              Check disk space regularly and delete this clone once your work is done.
-            </span>
-          </p>
+            Check disk space regularly and delete this clone once your work is done.
+          </span>
           {stores.main.updateCloneError && (
             <ErrorStub
               title="Updating error"

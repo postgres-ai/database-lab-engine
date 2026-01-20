@@ -14,6 +14,9 @@ export const updateClone: UpdateClone = async (req) => {
     method: 'PATCH',
     body: JSON.stringify({
       protected: req.clone.isProtected,
+      ...(req.clone.protectionDurationMinutes !== undefined && {
+        protectionDurationMinutes: req.clone.protectionDurationMinutes,
+      }),
     }),
   })
 

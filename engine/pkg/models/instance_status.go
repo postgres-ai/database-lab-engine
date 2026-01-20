@@ -37,11 +37,11 @@ type ContainerOptions struct {
 
 // Cloning represents info about the cloning process.
 type Cloning struct {
-	ExpectedCloningTime              float64  `json:"expectedCloningTime"`
-	NumClones                        uint64   `json:"numClones"`
-	Clones                           []*Clone `json:"clones"`
-	ProtectionLeaseDurationMinutes   uint     `json:"protectionLeaseDurationMinutes,omitempty"`
-	ProtectionRenewalDurationMinutes uint     `json:"protectionRenewalDurationMinutes,omitempty"`
+	ExpectedCloningTime            float64  `json:"expectedCloningTime"`
+	NumClones                      uint64   `json:"numClones"`
+	Clones                         []*Clone `json:"clones"`
+	ProtectionLeaseDurationMinutes uint     `json:"protectionLeaseDurationMinutes,omitempty"`
+	ProtectionMaxDurationMinutes   uint     `json:"protectionMaxDurationMinutes,omitempty"`
 }
 
 // Engine represents info about Database Lab Engine instance.

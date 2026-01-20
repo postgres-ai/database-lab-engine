@@ -8,7 +8,7 @@ export type FormValues = {
   snapshotId: string
   dbUser: string
   dbPassword: string
-  isProtected: boolean
+  protectionDurationMinutes: string
 }
 
 const Schema = Yup.object().shape({
@@ -27,7 +27,7 @@ const Schema = Yup.object().shape({
   snapshotId: Yup.string().required('Date state time is required'),
   dbUser: Yup.string().required('Database username is required'),
   dbPassword: Yup.string().required('Database password is required'),
-  isProtected: Yup.boolean(),
+  protectionDurationMinutes: Yup.string(),
 })
 
 export const useForm = (onSubmit: (values: FormValues) => void) => {
@@ -39,7 +39,7 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
       snapshotId: '',
       dbUser: '',
       dbPassword: '',
-      isProtected: false,
+      protectionDurationMinutes: 'none',
     },
     validationSchema: Schema,
     onSubmit,

@@ -39,11 +39,11 @@ const (
 
 // Config contains a cloning configuration.
 type Config struct {
-	MaxIdleMinutes                   uint   `yaml:"maxIdleMinutes"`
-	AccessHost                       string `yaml:"accessHost"`
-	ProtectionLeaseDurationMinutes   uint   `yaml:"protectionLeaseDurationMinutes"`
-	ProtectionRenewalDurationMinutes uint   `yaml:"protectionRenewalDurationMinutes"`
-	ProtectionExpiryWarningMinutes   uint   `yaml:"protectionExpiryWarningMinutes"`
+	MaxIdleMinutes                 uint   `yaml:"maxIdleMinutes"`
+	AccessHost                     string `yaml:"accessHost"`
+	ProtectionLeaseDurationMinutes uint   `yaml:"protectionLeaseDurationMinutes"`
+	ProtectionMaxDurationMinutes   uint   `yaml:"protectionMaxDurationMinutes"`
+	ProtectionExpiryWarningMinutes uint   `yaml:"protectionExpiryWarningMinutes"`
 }
 
 // Base provides cloning service.
@@ -181,7 +181,7 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 
 	var protectedTill *models.LocalTime
 	if cloneRequest.Protected {
-		protectedTill = c.calculateInitialProtectionTime()
+		protectedTill = c.calculateProtectionTime(cloneRequest.ProtectionDurationMinutes)
 	}
 
 	clone := &models.Clone{
@@ -280,10 +280,10 @@ func (c *Base) fillCloneSession(cloneID string, session *resources.Session) {
 		clone.DB.Host, clone.DB.Port, clone.DB.Username, clone.DB.DBName)
 
 	clone.Metadata = models.CloneMetadata{
-		CloningTime:                      w.TimeStartedAt.Sub(w.TimeCreatedAt).Seconds(),
-		MaxIdleMinutes:                   c.config.MaxIdleMinutes,
-		ProtectionLeaseDurationMinutes:   c.config.ProtectionLeaseDurationMinutes,
-		ProtectionRenewalDurationMinutes: c.config.ProtectionRenewalDurationMinutes,
+		CloningTime:                    w.TimeStartedAt.Sub(w.TimeCreatedAt).Seconds(),
+		MaxIdleMinutes:                 c.config.MaxIdleMinutes,
+		ProtectionLeaseDurationMinutes: c.config.ProtectionLeaseDurationMinutes,
+		ProtectionMaxDurationMinutes:   c.config.ProtectionMaxDurationMinutes,
 	}
 }
 
@@ -464,16 +464,12 @@ func (c *Base) UpdateClone(id string, patch types.CloneUpdateRequest) (*models.C
 
 	c.cloneMutex.Lock()
 
-	if patch.RenewLease && w.Clone.Protected {
-		w.Clone.ProtectedTill = c.calculateRenewalTime()
-	} else if patch.Protected != w.Clone.Protected {
-		w.Clone.Protected = patch.Protected
-
-		if patch.Protected {
-			w.Clone.ProtectedTill = c.calculateInitialProtectionTime()
-		} else {
-			w.Clone.ProtectedTill = nil
-		}
+	if patch.Protected {
+		w.Clone.Protected = true
+		w.Clone.ProtectedTill = c.calculateProtectionTime(patch.ProtectionDurationMinutes)
+	} else {
+		w.Clone.Protected = false
+		w.Clone.ProtectedTill = nil
 	}
 
 	clone = w.Clone
@@ -484,29 +480,34 @@ func (c *Base) UpdateClone(id string, patch types.CloneUpdateRequest) (*models.C
 	return clone, nil
 }
 
-// calculateInitialProtectionTime calculates the protection expiry time for a new protection lease.
-func (c *Base) calculateInitialProtectionTime() *models.LocalTime {
-	if c.config.ProtectionLeaseDurationMinutes == 0 {
-		return nil
+// calculateProtectionTime calculates the protection expiry time based on the requested duration.
+// If durationMinutes is nil, uses the default from config.
+// If durationMinutes is 0, returns nil (infinite protection) unless max duration is configured.
+// If max duration is configured, the duration is capped at the max.
+func (c *Base) calculateProtectionTime(durationMinutes *uint) *models.LocalTime {
+	var minutes uint
+
+	if durationMinutes != nil {
+		minutes = *durationMinutes
+	} else {
+		minutes = c.config.ProtectionLeaseDurationMinutes
 	}
 
-	expiry := time.Now().Add(time.Duration(c.config.ProtectionLeaseDurationMinutes) * time.Minute)
+	maxMinutes := c.config.ProtectionMaxDurationMinutes
 
-	return models.NewLocalTime(expiry)
-}
-
-// calculateRenewalTime calculates the protection expiry time for a lease renewal.
-func (c *Base) calculateRenewalTime() *models.LocalTime {
-	renewalMinutes := c.config.ProtectionRenewalDurationMinutes
-	if renewalMinutes == 0 {
-		renewalMinutes = c.config.ProtectionLeaseDurationMinutes
+	if minutes == 0 {
+		if maxMinutes > 0 {
+			minutes = maxMinutes
+		} else {
+			return nil
+		}
 	}
 
-	if renewalMinutes == 0 {
-		return nil
+	if maxMinutes > 0 && minutes > maxMinutes {
+		minutes = maxMinutes
 	}
 
-	expiry := time.Now().Add(time.Duration(renewalMinutes) * time.Minute)
+	expiry := time.Now().Add(time.Duration(minutes) * time.Minute)
 
 	return models.NewLocalTime(expiry)
 }
@@ -644,11 +645,11 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 func (c *Base) GetCloningState() models.Cloning {
 	clones := c.GetClones()
 	cloning := models.Cloning{
-		ExpectedCloningTime:              c.getExpectedCloningTime(),
-		Clones:                           clones,
-		NumClones:                        uint64(len(clones)),
-		ProtectionLeaseDurationMinutes:   c.config.ProtectionLeaseDurationMinutes,
-		ProtectionRenewalDurationMinutes: c.config.ProtectionRenewalDurationMinutes,
+		ExpectedCloningTime:            c.getExpectedCloningTime(),
+		Clones:                         clones,
+		NumClones:                      uint64(len(clones)),
+		ProtectionLeaseDurationMinutes: c.config.ProtectionLeaseDurationMinutes,
+		ProtectionMaxDurationMinutes:   c.config.ProtectionMaxDurationMinutes,
 	}
 
 	return cloning

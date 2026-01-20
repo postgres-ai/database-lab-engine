@@ -51,12 +51,12 @@ func (c *Clone) ProtectionExpiresIn() time.Duration {
 
 // CloneMetadata contains fields describing a clone model.
 type CloneMetadata struct {
-	CloneDiffSize                    uint64  `json:"cloneDiffSize"`
-	LogicalSize                      uint64  `json:"logicalSize"`
-	CloningTime                      float64 `json:"cloningTime"`
-	MaxIdleMinutes                   uint    `json:"maxIdleMinutes"`
-	ProtectionLeaseDurationMinutes   uint    `json:"protectionLeaseDurationMinutes,omitempty"`
-	ProtectionRenewalDurationMinutes uint    `json:"protectionRenewalDurationMinutes,omitempty"`
+	CloneDiffSize                  uint64  `json:"cloneDiffSize"`
+	LogicalSize                    uint64  `json:"logicalSize"`
+	CloningTime                    float64 `json:"cloningTime"`
+	MaxIdleMinutes                 uint    `json:"maxIdleMinutes"`
+	ProtectionLeaseDurationMinutes uint    `json:"protectionLeaseDurationMinutes,omitempty"`
+	ProtectionMaxDurationMinutes   uint    `json:"protectionMaxDurationMinutes,omitempty"`
 }
 
 // CloneView represents a view of clone model.

@@ -1516,6 +1516,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Clone'
+        protectionLeaseDurationMinutes:
+          type: integer
+          format: int64
+          description: Default protection lease duration in minutes
+        protectionMaxDurationMinutes:
+          type: integer
+          format: int64
+          description: Maximum allowed protection duration in minutes
     Retrieving:
       type: object
       properties:
@@ -1666,10 +1674,10 @@ components:
           type: integer
           format: int64
           description: Protection lease duration in minutes
-        protectionRenewalDurationMinutes:
+        protectionMaxDurationMinutes:
           type: integer
           format: int64
-          description: Protection renewal duration in minutes
+          description: Maximum allowed protection duration in minutes
     CreateClone:
       type: object
       properties:
@@ -1685,6 +1693,10 @@ components:
         protected:
           type: boolean
           default:
+        protectionDurationMinutes:
+          type: integer
+          format: int64
+          description: Protection duration in minutes. 0 means forever, omit for default duration.
         db:
           type: object
           properties:
@@ -1715,10 +1727,10 @@ components:
         protected:
           type: boolean
           default: false
-        renewLease:
-          type: boolean
-          default: false
-          description: When true, renews the protection lease for the clone
+        protectionDurationMinutes:
+          type: integer
+          format: int64
+          description: Protection duration in minutes. 0 means forever, omit for default duration.
     StartObservationRequest:
       type: object
       properties:
