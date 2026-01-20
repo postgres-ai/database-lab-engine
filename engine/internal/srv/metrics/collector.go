@@ -32,16 +32,15 @@ type containerCPUState struct {
 
 // Collector collects metrics from DBLab components.
 type Collector struct {
-	mu             sync.Mutex
-	metrics        *Metrics
-	cloning        *cloning.Base
-	retrieval      *retrieval.Retrieval
-	pm             *pool.Manager
-	engProps       *global.EngineProps
-	dockerClient   *client.Client
-	startedAt      time.Time
-	prevCPUStats   map[string]containerCPUState
-	prevCPUStatsMu sync.RWMutex
+	mu           sync.Mutex
+	metrics      *Metrics
+	cloning      *cloning.Base
+	retrieval    *retrieval.Retrieval
+	pm           *pool.Manager
+	engProps     *global.EngineProps
+	dockerClient *client.Client
+	startedAt    time.Time
+	prevCPUStats map[string]containerCPUState
 }
 
 // NewCollector creates a new metrics collector.
@@ -221,10 +220,14 @@ func (c *Collector) getContainerStats(ctx context.Context, clones []*models.Clon
 		return result
 	}
 
+	activeCloneIDs := make(map[string]struct{})
+
 	for _, clone := range clones {
 		if clone == nil || clone.Status.Code != models.StatusOK {
 			continue
 		}
+
+		activeCloneIDs[clone.ID] = struct{}{}
 
 		stats, err := c.dockerClient.ContainerStatsOneShot(ctx, clone.ID)
 		if err != nil {
@@ -232,11 +235,12 @@ func (c *Collector) getContainerStats(ctx context.Context, clones []*models.Clon
 			continue
 		}
 
-		defer stats.Body.Close()
-
 		var statsJSON container.StatsResponse
-		if err := json.NewDecoder(stats.Body).Decode(&statsJSON); err != nil {
-			log.Dbg(fmt.Sprintf("failed to decode container stats for clone %s: %v", clone.ID, err))
+		decodeErr := json.NewDecoder(stats.Body).Decode(&statsJSON)
+		stats.Body.Close()
+
+		if decodeErr != nil {
+			log.Dbg(fmt.Sprintf("failed to decode container stats for clone %s: %v", clone.ID, decodeErr))
 			continue
 		}
 
@@ -251,6 +255,8 @@ func (c *Collector) getContainerStats(ctx context.Context, clones []*models.Clon
 		}
 	}
 
+	c.cleanupStaleCPUStats(activeCloneIDs)
+
 	return result
 }
 
@@ -261,17 +267,13 @@ func (c *Collector) calculateCPUPercent(cloneID string, stats *container.StatsRe
 	currentSystemUsage := stats.CPUStats.SystemUsage
 	now := time.Now()
 
-	c.prevCPUStatsMu.RLock()
 	prevStats, hasPrev := c.prevCPUStats[cloneID]
-	c.prevCPUStatsMu.RUnlock()
 
-	c.prevCPUStatsMu.Lock()
 	c.prevCPUStats[cloneID] = containerCPUState{
 		totalUsage:  currentTotalUsage,
 		systemUsage: currentSystemUsage,
 		timestamp:   now,
 	}
-	c.prevCPUStatsMu.Unlock()
 
 	if !hasPrev {
 		return 0
@@ -282,10 +284,14 @@ func (c *Collector) calculateCPUPercent(cloneID string, stats *container.StatsRe
 		return 0
 	}
 
+	if currentTotalUsage < prevStats.totalUsage || currentSystemUsage < prevStats.systemUsage {
+		return 0
+	}
+
 	cpuDelta := float64(currentTotalUsage - prevStats.totalUsage)
 	systemDelta := float64(currentSystemUsage - prevStats.systemUsage)
 
-	if systemDelta <= 0 || cpuDelta < 0 {
+	if systemDelta <= 0 {
 		return 0
 	}
 
@@ -299,6 +305,14 @@ func (c *Collector) calculateCPUPercent(cloneID string, stats *container.StatsRe
 	}
 
 	return (cpuDelta / systemDelta) * cpuCount * 100.0
+}
+
+func (c *Collector) cleanupStaleCPUStats(activeCloneIDs map[string]struct{}) {
+	for cloneID := range c.prevCPUStats {
+		if _, ok := activeCloneIDs[cloneID]; !ok {
+			delete(c.prevCPUStats, cloneID)
+		}
+	}
 }
 
 func (c *Collector) collectSnapshotMetrics() {

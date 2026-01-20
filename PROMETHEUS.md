@@ -75,7 +75,6 @@ The endpoint is publicly accessible (no authentication required) and returns met
 |-------------|------|--------|-------------|
 | `dblab_datasets_total` | Gauge | `pool` | Total number of datasets (slots) in the pool |
 | `dblab_datasets_available` | Gauge | `pool` | Number of available (non-busy) dataset slots for reuse |
-| `dblab_dataset_info` | Gauge | `pool`, `dataset_name` | Information about a dataset (1=busy, 0=available) |
 
 ## Prometheus Configuration
 

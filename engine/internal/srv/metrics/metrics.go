@@ -60,7 +60,6 @@ type Metrics struct {
 	// dataset metrics (for logical mode - non-busy slots)
 	DatasetsTotal     *prometheus.GaugeVec
 	DatasetsAvailable *prometheus.GaugeVec
-	DatasetInfo       *prometheus.GaugeVec
 }
 
 // NewMetrics creates a new Metrics instance with all Prometheus metrics.
@@ -342,14 +341,6 @@ func NewMetrics() *Metrics {
 			},
 			[]string{"pool"},
 		),
-		DatasetInfo: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace: namespace,
-				Name:      "dataset_info",
-				Help:      "Information about a dataset (1=busy, 0=available)",
-			},
-			[]string{"pool", "dataset_name"},
-		),
 	}
 }
 
@@ -390,7 +381,6 @@ func (m *Metrics) Register(reg prometheus.Registerer) error {
 		m.BranchInfo,
 		m.DatasetsTotal,
 		m.DatasetsAvailable,
-		m.DatasetInfo,
 	}
 
 	for _, c := range collectors {
@@ -431,5 +421,4 @@ func (m *Metrics) Reset() {
 	m.BranchInfo.Reset()
 	m.DatasetsTotal.Reset()
 	m.DatasetsAvailable.Reset()
-	m.DatasetInfo.Reset()
 }
