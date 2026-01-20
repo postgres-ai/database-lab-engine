@@ -17,6 +17,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/billing"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
@@ -28,6 +30,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	srvCfg "gitlab.com/postgres-ai/database-lab/v3/internal/srv/config"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/metrics"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/mw"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/ws"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
@@ -42,25 +45,27 @@ import (
 
 // Server defines an HTTP server of the Database Lab.
 type Server struct {
-	validator   validator.Service
-	Cloning     *cloning.Base
-	provisioner *provision.Provisioner
-	Config      *srvCfg.Config
-	Global      *global.Config
-	engProps    *global.EngineProps
-	Retrieval   *retrieval.Retrieval
-	Platform    *platform.Service
-	Observer    *observer.Observer
-	billingSvc  *billing.Billing
-	wsService   WSService
-	httpSrv     *http.Server
-	docker      *client.Client
-	pm          *pool.Manager
-	tm          *telemetry.Agent
-	startedAt   *models.LocalTime
-	filtering   *log.Filtering
-	reloadFn    func(server *Server) error
-	webhookCh   chan webhooks.EventTyper
+	validator        validator.Service
+	Cloning          *cloning.Base
+	provisioner      *provision.Provisioner
+	Config           *srvCfg.Config
+	Global           *global.Config
+	engProps         *global.EngineProps
+	Retrieval        *retrieval.Retrieval
+	Platform         *platform.Service
+	Observer         *observer.Observer
+	billingSvc       *billing.Billing
+	wsService        WSService
+	httpSrv          *http.Server
+	docker           *client.Client
+	pm               *pool.Manager
+	tm               *telemetry.Agent
+	startedAt        *models.LocalTime
+	filtering        *log.Filtering
+	reloadFn         func(server *Server) error
+	webhookCh        chan webhooks.EventTyper
+	metricsRegistry  *prometheus.Registry
+	metricsCollector *metrics.Collector
 }
 
 // WSService defines a service to manage web-sockets.
@@ -77,6 +82,15 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps *global
 	pm *pool.Manager, tm *telemetry.Agent, tokenKeeper *ws.TokenKeeper,
 	filtering *log.Filtering, uiManager *embeddedui.UIManager, reloadConfigFn func(server *Server) error,
 	webhookCh chan webhooks.EventTyper) *Server {
+	startedAt := time.Now().Truncate(time.Second)
+
+	metricsRegistry := prometheus.NewRegistry()
+	m := metrics.NewMetrics()
+
+	if err := m.Register(metricsRegistry); err != nil {
+		log.Err("failed to register prometheus metrics:", err)
+	}
+
 	server := &Server{
 		Config:      cfg,
 		Global:      globalCfg,
@@ -91,15 +105,18 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps *global
 			tokenKeeper: tokenKeeper,
 			uiManager:   uiManager,
 		},
-		docker:     dockerClient,
-		pm:         pm,
-		tm:         tm,
-		billingSvc: billingSvc,
-		filtering:  filtering,
-		startedAt:  &models.LocalTime{Time: time.Now().Truncate(time.Second)},
-		reloadFn:   reloadConfigFn,
-		webhookCh:  webhookCh,
+		docker:          dockerClient,
+		pm:              pm,
+		tm:              tm,
+		billingSvc:      billingSvc,
+		filtering:       filtering,
+		startedAt:       &models.LocalTime{Time: startedAt},
+		reloadFn:        reloadConfigFn,
+		webhookCh:       webhookCh,
+		metricsRegistry: metricsRegistry,
 	}
+
+	server.metricsCollector = metrics.NewCollector(m, cloning, retrievalSvc, pm, engineProps, dockerClient, startedAt)
 
 	return server
 }
@@ -236,6 +253,9 @@ func (s *Server) InitHandlers() {
 	// Health check.
 	r.HandleFunc("/healthz", s.healthCheck).Methods(http.MethodGet, http.MethodPost)
 
+	// Prometheus metrics endpoint.
+	r.Handle("/metrics", s.metricsHandler()).Methods(http.MethodGet)
+
 	// Full refresh
 	r.HandleFunc("/full-refresh", authMW.Authorized(s.refresh)).Methods(http.MethodPost)
 
@@ -280,4 +300,12 @@ func (s *Server) Uptime() float64 {
 // reportLaunching reports the launch of the HTTP server.
 func reportLaunching(cfg *srvCfg.Config) {
 	log.Msg(fmt.Sprintf("API server started listening on %s:%d.", cfg.Host, cfg.Port))
+}
+
+// metricsHandler returns an HTTP handler that collects and exposes Prometheus metrics.
+func (s *Server) metricsHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.metricsCollector.Collect(r.Context())
+		promhttp.HandlerFor(s.metricsRegistry, promhttp.HandlerOpts{}).ServeHTTP(w, r)
+	})
 }
