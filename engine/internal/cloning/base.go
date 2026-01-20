@@ -34,8 +34,8 @@ import (
 )
 
 const (
-	idleCheckDuration            = 5 * time.Minute
-	defaultWarningMinutes   uint = 24 * 60 // 24 hours
+	idleCheckDuration     = 5 * time.Minute
+	defaultWarningMinutes = 24 * 60 // 24 hours
 )
 
 // Config contains a cloning configuration.

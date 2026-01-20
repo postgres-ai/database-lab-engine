@@ -70,7 +70,7 @@ func CommandList() []*cli.Command {
 					},
 					&cli.StringFlag{
 						Name:    "protected",
-						Usage:   "enable deletion protection; optionally specify duration in minutes (e.g., --protected=1440 for 1 day, 0 for forever)",
+						Usage:   "deletion protection: duration in minutes, 0=forever",
 						Aliases: []string{"p"},
 					},
 					&cli.BoolFlag{
@@ -93,7 +93,7 @@ func CommandList() []*cli.Command {
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "protected",
-						Usage:   "enable deletion protection; optionally specify duration in minutes (e.g., --protected=1440 for 1 day, 0 for forever, false to disable)",
+						Usage:   "deletion protection: duration in minutes, 0=forever, false=disable",
 						Aliases: []string{"p"},
 					},
 				},
