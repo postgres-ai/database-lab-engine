@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -22,15 +23,25 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
+// containerCPUState stores previous CPU stats for delta calculation.
+type containerCPUState struct {
+	totalUsage  uint64
+	systemUsage uint64
+	timestamp   time.Time
+}
+
 // Collector collects metrics from DBLab components.
 type Collector struct {
-	metrics      *Metrics
-	cloning      *cloning.Base
-	retrieval    *retrieval.Retrieval
-	pm           *pool.Manager
-	engProps     *global.EngineProps
-	dockerClient *client.Client
-	startedAt    time.Time
+	mu             sync.Mutex
+	metrics        *Metrics
+	cloning        *cloning.Base
+	retrieval      *retrieval.Retrieval
+	pm             *pool.Manager
+	engProps       *global.EngineProps
+	dockerClient   *client.Client
+	startedAt      time.Time
+	prevCPUStats   map[string]containerCPUState
+	prevCPUStatsMu sync.RWMutex
 }
 
 // NewCollector creates a new metrics collector.
@@ -51,11 +62,15 @@ func NewCollector(
 		engProps:     engProps,
 		dockerClient: dockerClient,
 		startedAt:    startedAt,
+		prevCPUStats: make(map[string]containerCPUState),
 	}
 }
 
 // Collect gathers all metrics.
 func (c *Collector) Collect(ctx context.Context) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.metrics.Reset()
 
 	c.collectInstanceMetrics()
@@ -87,13 +102,14 @@ func (c *Collector) collectPoolMetrics() {
 	fsmList := c.pm.GetFSManagerList()
 
 	for _, fsm := range fsmList {
-		if fsm.Pool() == nil {
+		p := fsm.Pool()
+		if p == nil {
 			continue
 		}
 
-		poolName := fsm.Pool().Name
-		poolMode := fsm.Pool().Mode
-		poolStatus := string(fsm.Pool().Status())
+		poolName := p.Name
+		poolMode := p.Mode
+		poolStatus := string(p.Status())
 
 		c.metrics.PoolStatus.WithLabelValues(poolName, poolMode, poolStatus).Set(1)
 
@@ -122,19 +138,20 @@ func (c *Collector) collectDatasetMetrics(fsm pool.FSManager, poolName string) {
 		return
 	}
 
-	branches, err := fsm.ListBranches()
-	if err != nil {
-		log.Err("failed to list branches for pool", poolName, err)
-		return
-	}
-
 	snapshotList := fsm.SnapshotList()
 
-	totalDatasets := len(cloneNames) + len(branches) + len(snapshotList)
+	// total datasets = snapshots (each snapshot is a dataset slot)
+	// available = snapshots without active clones (can be reused after full refresh)
+	totalDatasets := len(snapshotList)
 	busyDatasets := len(cloneNames)
+	availableDatasets := totalDatasets - busyDatasets
+
+	if availableDatasets < 0 {
+		availableDatasets = 0
+	}
 
 	c.metrics.DatasetsTotal.WithLabelValues(poolName).Set(float64(totalDatasets))
-	c.metrics.DatasetsAvailable.WithLabelValues(poolName).Set(float64(totalDatasets - busyDatasets))
+	c.metrics.DatasetsAvailable.WithLabelValues(poolName).Set(float64(availableDatasets))
 }
 
 func (c *Collector) collectCloneMetrics(ctx context.Context) {
@@ -215,16 +232,15 @@ func (c *Collector) getContainerStats(ctx context.Context, clones []*models.Clon
 			continue
 		}
 
+		defer stats.Body.Close()
+
 		var statsJSON container.StatsResponse
 		if err := json.NewDecoder(stats.Body).Decode(&statsJSON); err != nil {
 			log.Dbg(fmt.Sprintf("failed to decode container stats for clone %s: %v", clone.ID, err))
-			stats.Body.Close()
 			continue
 		}
 
-		stats.Body.Close()
-
-		cpuPercent := calculateCPUPercent(&statsJSON)
+		cpuPercent := c.calculateCPUPercent(clone.ID, &statsJSON)
 		memoryUsage := statsJSON.MemoryStats.Usage
 		memoryLimit := statsJSON.MemoryStats.Limit
 
@@ -238,22 +254,51 @@ func (c *Collector) getContainerStats(ctx context.Context, clones []*models.Clon
 	return result
 }
 
-func calculateCPUPercent(stats *container.StatsResponse) float64 {
-	cpuDelta := float64(stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage)
-	systemDelta := float64(stats.CPUStats.SystemUsage - stats.PreCPUStats.SystemUsage)
+// calculateCPUPercent calculates CPU percentage using stored previous stats.
+// ContainerStatsOneShot returns empty PreCPUStats, so we maintain our own history.
+func (c *Collector) calculateCPUPercent(cloneID string, stats *container.StatsResponse) float64 {
+	currentTotalUsage := stats.CPUStats.CPUUsage.TotalUsage
+	currentSystemUsage := stats.CPUStats.SystemUsage
+	now := time.Now()
 
-	if systemDelta > 0 && cpuDelta > 0 {
-		cpuCount := float64(stats.CPUStats.OnlineCPUs)
-		if cpuCount == 0 {
-			cpuCount = float64(len(stats.CPUStats.CPUUsage.PercpuUsage))
-		}
+	c.prevCPUStatsMu.RLock()
+	prevStats, hasPrev := c.prevCPUStats[cloneID]
+	c.prevCPUStatsMu.RUnlock()
 
-		if cpuCount > 0 {
-			return (cpuDelta / systemDelta) * cpuCount * 100.0
-		}
+	c.prevCPUStatsMu.Lock()
+	c.prevCPUStats[cloneID] = containerCPUState{
+		totalUsage:  currentTotalUsage,
+		systemUsage: currentSystemUsage,
+		timestamp:   now,
+	}
+	c.prevCPUStatsMu.Unlock()
+
+	if !hasPrev {
+		return 0
 	}
 
-	return 0
+	timeDelta := now.Sub(prevStats.timestamp)
+	if timeDelta < time.Second {
+		return 0
+	}
+
+	cpuDelta := float64(currentTotalUsage - prevStats.totalUsage)
+	systemDelta := float64(currentSystemUsage - prevStats.systemUsage)
+
+	if systemDelta <= 0 || cpuDelta < 0 {
+		return 0
+	}
+
+	cpuCount := float64(stats.CPUStats.OnlineCPUs)
+	if cpuCount == 0 {
+		cpuCount = float64(len(stats.CPUStats.CPUUsage.PercpuUsage))
+	}
+
+	if cpuCount <= 0 {
+		cpuCount = 1
+	}
+
+	return (cpuDelta / systemDelta) * cpuCount * 100.0
 }
 
 func (c *Collector) collectSnapshotMetrics() {
@@ -309,11 +354,12 @@ func (c *Collector) collectBranchMetrics() {
 	totalBranches := 0
 
 	for _, fsm := range fsmList {
-		if fsm.Pool() == nil {
+		p := fsm.Pool()
+		if p == nil {
 			continue
 		}
 
-		poolName := fsm.Pool().Name
+		poolName := p.Name
 		branches, err := fsm.ListBranches()
 
 		if err != nil {
