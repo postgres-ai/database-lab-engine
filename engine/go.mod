@@ -28,7 +28,7 @@ require (
 	github.com/sergi/go-diff v1.3.1
 	github.com/sethvargo/go-password v0.2.0
 	github.com/shirou/gopsutil v3.21.11+incompatible
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.11.0
 	github.com/testcontainers/testcontainers-go v0.40.0
 	github.com/urfave/cli/v2 v2.25.7
 	github.com/wagslane/go-password-validator v0.3.0
