@@ -166,3 +166,58 @@ dblab_clone_cpu_usage_percent{clone_id="my-clone"}
     summary: "DBLab has many clones"
     description: "DBLab has {{ $value }} clones running"
 ```
+
+## OpenTelemetry Integration
+
+DBLab metrics can be exported to OpenTelemetry-compatible backends using the OpenTelemetry Collector. This allows you to send metrics to Grafana Cloud, Datadog, New Relic, and other observability platforms.
+
+### Quick Start
+
+1. Install the OpenTelemetry Collector:
+   ```bash
+   # Using Docker
+   docker pull otel/opentelemetry-collector-contrib:latest
+   ```
+
+2. Copy the example configuration:
+   ```bash
+   cp engine/configs/otel-collector.example.yml otel-collector.yml
+   ```
+
+3. Edit `otel-collector.yml` to configure your backend:
+   ```yaml
+   exporters:
+     otlp:
+       endpoint: "your-otlp-endpoint:4317"
+       headers:
+         Authorization: "Bearer <your-token>"
+   ```
+
+4. Run the collector:
+   ```bash
+   docker run -v $(pwd)/otel-collector.yml:/etc/otelcol/config.yaml \
+     -p 4317:4317 -p 8889:8889 \
+     otel/opentelemetry-collector-contrib:latest
+   ```
+
+### Architecture
+
+```
+┌─────────────┐     scrape      ┌──────────────────┐      OTLP       ┌─────────────┐
+│   DBLab     │ ──────────────► │  OTel Collector  │ ──────────────► │  Backend    │
+│  /metrics   │    :2345        │                  │    :4317        │ (Grafana,   │
+└─────────────┘                 └──────────────────┘                 │  Datadog)   │
+                                                                     └─────────────┘
+```
+
+### Supported Backends
+
+The OTel Collector can export to:
+- **Grafana Cloud** - Use OTLP exporter with Grafana Cloud endpoint
+- **Datadog** - Use the datadog exporter
+- **New Relic** - Use OTLP exporter with New Relic endpoint
+- **Prometheus Remote Write** - Use prometheusremotewrite exporter
+- **AWS CloudWatch** - Use awsemf exporter
+- **Any OTLP-compatible backend**
+
+See `engine/configs/otel-collector.example.yml` for a complete configuration example.
