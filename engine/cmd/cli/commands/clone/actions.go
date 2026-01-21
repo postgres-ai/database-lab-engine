@@ -184,8 +184,9 @@ func update(cliCtx *cli.Context) error {
 		return err
 	}
 
+	protected := cliCtx.Bool("protected")
 	updateRequest := types.CloneUpdateRequest{
-		Protected: cliCtx.Bool("protected"),
+		Protected: &protected,
 	}
 
 	cloneID := cliCtx.Args().First()

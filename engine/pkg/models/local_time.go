@@ -52,3 +52,20 @@ func (t *LocalTime) MarshalJSON() ([]byte, error) {
 
 	return []byte(fmt.Sprintf("%q", t.Local().Format(time.RFC3339))), nil
 }
+
+// ParseLocalTime parses a string into LocalTime.
+func ParseLocalTime(s string) (*LocalTime, error) {
+	if s == "" {
+		return nil, nil
+	}
+
+	parsedTime, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		parsedTime, err = time.Parse(legacyFormat, s)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse time: %w", err)
+		}
+	}
+
+	return &LocalTime{Time: parsedTime}, nil
+}

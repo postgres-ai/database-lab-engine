@@ -6,16 +6,17 @@ package models
 
 // Clone defines a clone model.
 type Clone struct {
-	ID        string        `json:"id"`
-	Snapshot  *Snapshot     `json:"snapshot"`
-	Branch    string        `json:"branch"`
-	Revision  int           `json:"revision"`
-	Protected bool          `json:"protected"`
-	DeleteAt  *LocalTime    `json:"deleteAt"`
-	CreatedAt *LocalTime    `json:"createdAt"`
-	Status    Status        `json:"status"`
-	DB        Database      `json:"db"`
-	Metadata  CloneMetadata `json:"metadata"`
+	ID             string         `json:"id"`
+	Snapshot       *Snapshot      `json:"snapshot"`
+	Branch         string         `json:"branch"`
+	Revision       int            `json:"revision"`
+	Protected      bool           `json:"protected"`
+	DeleteAt       *LocalTime     `json:"deleteAt,omitempty"`
+	AutoDeleteMode AutoDeleteMode `json:"autoDeleteMode"`
+	CreatedAt      *LocalTime     `json:"createdAt"`
+	Status         Status         `json:"status"`
+	DB             Database       `json:"db"`
+	Metadata       CloneMetadata  `json:"metadata"`
 }
 
 // CloneMetadata contains fields describing a clone model.

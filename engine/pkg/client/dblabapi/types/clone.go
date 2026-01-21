@@ -7,18 +7,22 @@ package types
 
 // CloneCreateRequest represents clone params of a create request.
 type CloneCreateRequest struct {
-	ID        string                     `json:"id"`
-	Protected bool                       `json:"protected"`
-	DB        *DatabaseRequest           `json:"db"`
-	Snapshot  *SnapshotCloneFieldRequest `json:"snapshot"`
-	ExtraConf map[string]string          `json:"extra_conf"`
-	Branch    string                     `json:"branch"`
-	Revision  int                        `json:"-"`
+	ID             string                     `json:"id"`
+	Protected      bool                       `json:"protected"`
+	DeleteAt       string                     `json:"deleteAt,omitempty"`
+	AutoDeleteMode int                        `json:"autoDeleteMode,omitempty"`
+	DB             *DatabaseRequest           `json:"db"`
+	Snapshot       *SnapshotCloneFieldRequest `json:"snapshot"`
+	ExtraConf      map[string]string          `json:"extra_conf"`
+	Branch         string                     `json:"branch"`
+	Revision       int                        `json:"-"`
 }
 
 // CloneUpdateRequest represents params of an update request.
 type CloneUpdateRequest struct {
-	Protected bool `json:"protected"`
+	Protected      *bool   `json:"protected,omitempty"`
+	DeleteAt       *string `json:"deleteAt,omitempty"`
+	AutoDeleteMode *int    `json:"autoDeleteMode,omitempty"`
 }
 
 // DatabaseRequest represents database params of a clone request.
@@ -59,9 +63,19 @@ type SnapshotCloneCreateRequest struct {
 
 // BranchCreateRequest describes params for creating branch request.
 type BranchCreateRequest struct {
-	BranchName string `json:"branchName"`
-	BaseBranch string `json:"baseBranch"`
-	SnapshotID string `json:"snapshotID"`
+	BranchName     string `json:"branchName"`
+	BaseBranch     string `json:"baseBranch"`
+	SnapshotID     string `json:"snapshotID"`
+	Protected      bool   `json:"protected,omitempty"`
+	DeleteAt       string `json:"deleteAt,omitempty"`
+	AutoDeleteMode int    `json:"autoDeleteMode,omitempty"`
+}
+
+// BranchUpdateRequest describes params for updating branch request.
+type BranchUpdateRequest struct {
+	Protected      *bool   `json:"protected,omitempty"`
+	DeleteAt       *string `json:"deleteAt,omitempty"`
+	AutoDeleteMode *int    `json:"autoDeleteMode,omitempty"`
 }
 
 // SnapshotResponse describes commit response.
@@ -82,4 +96,11 @@ type LogRequest struct {
 // BranchDeleteRequest describes params for deleting branch request.
 type BranchDeleteRequest struct {
 	BranchName string `json:"branchName"`
+}
+
+// SnapshotUpdateRequest describes params for updating snapshot request.
+type SnapshotUpdateRequest struct {
+	Protected      *bool   `json:"protected,omitempty"`
+	DeleteAt       *string `json:"deleteAt,omitempty"`
+	AutoDeleteMode *int    `json:"autoDeleteMode,omitempty"`
 }

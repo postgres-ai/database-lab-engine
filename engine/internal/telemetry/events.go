@@ -70,6 +70,18 @@ type BranchDestroyed struct {
 	Name string `json:"name"`
 }
 
+// BranchUpdated describes a branch update event.
+type BranchUpdated struct {
+	Name      string `json:"name"`
+	Protected bool   `json:"protected"`
+}
+
+// SnapshotUpdated describes a snapshot update event.
+type SnapshotUpdated struct {
+	ID        string `json:"id"`
+	Protected bool   `json:"protected"`
+}
+
 // ConfigUpdated describes the config updates.
 type ConfigUpdated struct{}
 
