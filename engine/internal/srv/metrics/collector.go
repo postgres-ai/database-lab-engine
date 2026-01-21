@@ -28,6 +28,8 @@ import (
 const (
 	// cpuPercentMultiplier converts CPU usage ratio to percentage.
 	cpuPercentMultiplier = 100.0
+	// dockerStatsTimeout is the timeout for fetching container stats.
+	dockerStatsTimeout = 5 * time.Second
 )
 
 // containerCPUState stores previous CPU stats for delta calculation.
@@ -249,7 +251,9 @@ func (c *Collector) getContainerStats(ctx context.Context, clones []*models.Clon
 
 		activeCloneIDs[clone.ID] = struct{}{}
 
-		stats, err := c.dockerClient.ContainerStatsOneShot(ctx, clone.ID)
+		statsCtx, cancel := context.WithTimeout(ctx, dockerStatsTimeout)
+		stats, err := c.dockerClient.ContainerStatsOneShot(statsCtx, clone.ID)
+		cancel()
 		if err != nil {
 			log.Dbg(fmt.Sprintf("failed to get container stats for clone %s: %v", clone.ID, err))
 			continue
@@ -328,10 +332,17 @@ func (c *Collector) calculateCPUPercent(cloneID string, stats *container.StatsRe
 }
 
 func (c *Collector) cleanupStaleCPUStats(activeCloneIDs map[string]struct{}) {
+	// collect keys to delete first to avoid modifying map during iteration
+	keysToDelete := make([]string, 0)
+
 	for cloneID := range c.prevCPUStats {
 		if _, ok := activeCloneIDs[cloneID]; !ok {
-			delete(c.prevCPUStats, cloneID)
+			keysToDelete = append(keysToDelete, cloneID)
 		}
+	}
+
+	for _, cloneID := range keysToDelete {
+		delete(c.prevCPUStats, cloneID)
 	}
 }
 
