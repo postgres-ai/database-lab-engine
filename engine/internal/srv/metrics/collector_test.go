@@ -6,6 +6,7 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -230,7 +231,7 @@ func TestCollectAndServe_Concurrency(t *testing.T) {
 			c.CollectAndServe(context.Background(), handler, rec, req)
 
 			if rec.Code != http.StatusOK {
-				errors <- assert.AnError
+				errors <- fmt.Errorf("unexpected status code: %d", rec.Code)
 			}
 		}()
 	}
