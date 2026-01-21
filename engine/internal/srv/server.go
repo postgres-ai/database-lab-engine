@@ -304,8 +304,9 @@ func reportLaunching(cfg *srvCfg.Config) {
 
 // metricsHandler returns an HTTP handler that collects and exposes Prometheus metrics.
 func (s *Server) metricsHandler() http.Handler {
+	handler := promhttp.HandlerFor(s.metricsRegistry, promhttp.HandlerOpts{})
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s.metricsCollector.Collect(r.Context())
-		promhttp.HandlerFor(s.metricsRegistry, promhttp.HandlerOpts{}).ServeHTTP(w, r)
+		s.metricsCollector.CollectAndServe(r.Context(), handler, w, r)
 	})
 }

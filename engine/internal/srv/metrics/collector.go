@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -76,6 +77,20 @@ func (c *Collector) Collect(ctx context.Context) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	c.collectAll(ctx)
+}
+
+// CollectAndServe collects metrics and serves them while holding the lock.
+// This prevents race conditions between concurrent Prometheus scrapes.
+func (c *Collector) CollectAndServe(ctx context.Context, handler http.Handler, w http.ResponseWriter, r *http.Request) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.collectAll(ctx)
+	handler.ServeHTTP(w, r)
+}
+
+func (c *Collector) collectAll(ctx context.Context) {
 	c.metrics.Reset()
 
 	c.collectInstanceMetrics()
