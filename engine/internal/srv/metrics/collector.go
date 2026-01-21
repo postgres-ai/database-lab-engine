@@ -391,6 +391,7 @@ func (c *Collector) collectBranchMetrics() {
 
 		for branchName, snapshotID := range branches {
 			c.metrics.BranchInfo.WithLabelValues(branchName, poolName, snapshotID).Set(1)
+
 			totalBranches++
 		}
 	}
