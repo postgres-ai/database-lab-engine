@@ -24,6 +24,11 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
+const (
+	// cpuPercentMultiplier converts CPU usage ratio to percentage.
+	cpuPercentMultiplier = 100.0
+)
+
 // containerCPUState stores previous CPU stats for delta calculation.
 type containerCPUState struct {
 	totalUsage  uint64
@@ -237,7 +242,7 @@ func (c *Collector) getContainerStats(ctx context.Context, clones []*models.Clon
 
 		var statsJSON container.StatsResponse
 		decodeErr := json.NewDecoder(stats.Body).Decode(&statsJSON)
-		stats.Body.Close()
+		_ = stats.Body.Close()
 
 		if decodeErr != nil {
 			log.Dbg(fmt.Sprintf("failed to decode container stats for clone %s: %v", clone.ID, decodeErr))
@@ -304,7 +309,7 @@ func (c *Collector) calculateCPUPercent(cloneID string, stats *container.StatsRe
 		cpuCount = 1
 	}
 
-	return (cpuDelta / systemDelta) * cpuCount * 100.0
+	return (cpuDelta / systemDelta) * cpuCount * cpuPercentMultiplier
 }
 
 func (c *Collector) cleanupStaleCPUStats(activeCloneIDs map[string]struct{}) {
@@ -324,8 +329,11 @@ func (c *Collector) collectSnapshotMetrics() {
 
 	c.metrics.SnapshotsTotal.Set(float64(len(snapshots)))
 
-	var maxAge float64
-	var maxDataLag float64
+	var (
+		maxAge     float64
+		maxDataLag float64
+	)
+
 	now := time.Now()
 
 	for _, snapshot := range snapshots {
