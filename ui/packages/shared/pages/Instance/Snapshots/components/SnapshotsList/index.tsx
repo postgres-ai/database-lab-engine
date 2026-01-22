@@ -141,7 +141,7 @@ const SnapshotListItem = ({
         <div className={classes.infoBlock}>
           <div className={classes.header}>{snapshot.message || '-'}</div>
           <div className={classes.infoContent} title={snapshot.dataStateAt}>
-            {timeAgo} ago
+            {timeAgo}
           </div>
         </div>
         <div className={classes.infoBlock}>
