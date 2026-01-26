@@ -119,6 +119,7 @@ Read more:
     - Resource quotas: CPU, RAM
 - Monitoring & security
     - `/healthz` API endpoint (no auth), extended `/status` endpoint ([API docs](https://api.dblab.dev))
+    - Prometheus metrics endpoint (`/metrics`) for monitoring
     - Netdata module for insights
 
 ## How to contribute
