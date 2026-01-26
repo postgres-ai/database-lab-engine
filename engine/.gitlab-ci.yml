@@ -94,6 +94,9 @@ build-binary-client-dev:
 build-binary-client-master:
   <<: *only_master
   stage: build-binary
+  artifacts:
+    paths:
+      - engine/bin
   script:
     - cd engine
     - make build-client
