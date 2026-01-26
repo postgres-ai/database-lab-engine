@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { useHistory } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
 import { useTimer } from 'use-timer'
-import { Paper, FormControlLabel, Checkbox, IconButton, InputAdornment } from '@material-ui/core'
+import { Paper, IconButton, InputAdornment } from '@material-ui/core'
 import { Info as InfoIcon, Visibility, VisibilityOff } from '@material-ui/icons'
 import copy from 'copy-to-clipboard'
 
@@ -391,27 +391,45 @@ export const CreateClone = observer((props: Props) => {
           <div className={styles.section}>
             <h2 className={styles.title}>Clone protection</h2>
 
-            <FormControlLabel
-              label="Enable deletion protection"
-              control={
-                <Checkbox
-                  checked={formik.values.isProtected}
-                  onChange={(e) =>
-                    formik.setFieldValue('isProtected', e.target.checked)
-                  }
-                  name="protected"
-                  disabled={isCreatingClone}
-                />
+            <Select
+              label="Deletion protection"
+              items={(() => {
+                const maxDurationMinutes = stores.main.instance?.state?.cloning?.protectionMaxDurationMinutes ?? 0
+                const allowForever = maxDurationMinutes === 0
+                const allDurationOptions = [
+                  { value: '60', minutes: 60, children: '1 hour' },
+                  { value: '720', minutes: 720, children: '12 hours' },
+                  { value: '1440', minutes: 1440, children: '1 day' },
+                  { value: '2880', minutes: 2880, children: '2 days' },
+                  { value: '4320', minutes: 4320, children: '3 days' },
+                  { value: '5760', minutes: 5760, children: '4 days' },
+                  { value: '7200', minutes: 7200, children: '5 days' },
+                  { value: '8640', minutes: 8640, children: '6 days' },
+                  { value: '10080', minutes: 10080, children: '7 days' },
+                  { value: '20160', minutes: 20160, children: '14 days' },
+                  { value: '43200', minutes: 43200, children: '30 days' },
+                ]
+                return [
+                  { value: 'none', children: 'No protection' },
+                  ...allDurationOptions
+                    .filter((opt) => maxDurationMinutes === 0 || opt.minutes <= maxDurationMinutes)
+                    .map(({ value, children }) => ({ value, children })),
+                  ...(allowForever ? [{ value: '0', children: 'Forever' }] : []),
+                ]
+              })()}
+              value={formik.values.protectionDurationMinutes}
+              onChange={(e) =>
+                formik.setFieldValue('protectionDurationMinutes', e.target.value)
               }
+              disabled={isCreatingClone}
+              style={{ minWidth: 100 }}
             />
 
             <p className={styles.remark}>
-              When enabled, no one can delete this clone and automated deletion
-              is also disabled.
+              Select how long this clone should be protected from deletion.
+              Protected clones cannot be deleted manually or automatically.
               <br />
-              Please be careful: abandoned clones with this checkbox enabled may
-              cause out-of-disk-space events. Check disk space on a daily basis
-              and delete this clone once the work is done.
+              Check disk space regularly and delete this clone once the work is done.
             </p>
           </div>
 

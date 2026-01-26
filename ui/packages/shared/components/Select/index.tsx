@@ -24,6 +24,7 @@ type Props = {
   fullWidth?: TextFieldProps['fullWidth']
   disabled?: TextFieldProps['disabled']
   error?: boolean
+  style?: TextFieldProps['style']
 }
 
 export const Select = (props: Props) => {

@@ -3,6 +3,7 @@ export type UpdateClone = (args: {
   cloneId: string
   clone: {
     isProtected: boolean
+    protectionDurationMinutes?: number
   }
 }) => Promise<{
   response: true | null

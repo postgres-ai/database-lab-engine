@@ -37,6 +37,7 @@ export type TextFieldProps = {
   onFocus?: TextFieldPropsBase['onFocus']
   name?: TextFieldPropsBase['name']
   helperText?: TextFieldPropsBase['helperText']
+  style?: React.CSSProperties
 }
 
 const useStyles = makeStyles(
@@ -112,6 +113,7 @@ export const TextField = (props: TextFieldProps) => {
       onFocus={props.onFocus}
       name={props.name}
       helperText={props.helperText}
+      style={props.style}
     />
   )
 }

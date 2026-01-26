@@ -34,13 +34,18 @@ import (
 )
 
 const (
-	idleCheckDuration = 5 * time.Minute
+	idleCheckDuration     = 5 * time.Minute
+	leaseCheckDuration    = 5 * time.Minute
+	defaultWarningMinutes = 24 * 60 // 24 hours
 )
 
 // Config contains a cloning configuration.
 type Config struct {
-	MaxIdleMinutes uint   `yaml:"maxIdleMinutes"`
-	AccessHost     string `yaml:"accessHost"`
+	MaxIdleMinutes                 uint   `yaml:"maxIdleMinutes"`
+	AccessHost                     string `yaml:"accessHost"`
+	ProtectionLeaseDurationMinutes uint   `yaml:"protectionLeaseDurationMinutes"`
+	ProtectionMaxDurationMinutes   uint   `yaml:"protectionMaxDurationMinutes"`
+	ProtectionExpiryWarningMinutes uint   `yaml:"protectionExpiryWarningMinutes"`
 }
 
 // Base provides cloning service.
@@ -106,6 +111,7 @@ func (c *Base) Run(ctx context.Context) error {
 	}
 
 	go c.runIdleCheck(ctx)
+	go c.runProtectionLeaseCheck(ctx)
 
 	return nil
 }
@@ -175,12 +181,18 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 		cloneRequest.Branch = snapshot.Branch
 	}
 
+	var protectedTill *models.LocalTime
+	if cloneRequest.Protected {
+		protectedTill = c.calculateProtectionTime(cloneRequest.ProtectionDurationMinutes)
+	}
+
 	clone := &models.Clone{
-		ID:        cloneRequest.ID,
-		Snapshot:  snapshot,
-		Branch:    cloneRequest.Branch,
-		Protected: cloneRequest.Protected,
-		CreatedAt: models.NewLocalTime(createdAt),
+		ID:            cloneRequest.ID,
+		Snapshot:      snapshot,
+		Branch:        cloneRequest.Branch,
+		Protected:     cloneRequest.Protected,
+		ProtectedTill: protectedTill,
+		CreatedAt:     models.NewLocalTime(createdAt),
 		Status: models.Status{
 			Code:    models.StatusCreating,
 			Message: models.CloneMessageCreating,
@@ -270,8 +282,10 @@ func (c *Base) fillCloneSession(cloneID string, session *resources.Session) {
 		clone.DB.Host, clone.DB.Port, clone.DB.Username, clone.DB.DBName)
 
 	clone.Metadata = models.CloneMetadata{
-		CloningTime:    w.TimeStartedAt.Sub(w.TimeCreatedAt).Seconds(),
-		MaxIdleMinutes: c.config.MaxIdleMinutes,
+		CloningTime:                    w.TimeStartedAt.Sub(w.TimeCreatedAt).Seconds(),
+		MaxIdleMinutes:                 c.config.MaxIdleMinutes,
+		ProtectionLeaseDurationMinutes: c.config.ProtectionLeaseDurationMinutes,
+		ProtectionMaxDurationMinutes:   c.config.ProtectionMaxDurationMinutes,
 	}
 }
 
@@ -321,7 +335,7 @@ func (c *Base) DestroyClone(cloneID string) error {
 var errNoSession = errors.New("no clone session")
 
 func (c *Base) destroyPreChecks(cloneID string, w *CloneWrapper) error {
-	if w.Clone.Protected && w.Clone.Status.Code != models.StatusFatal {
+	if w.Clone.IsProtected() && w.Clone.Status.Code != models.StatusFatal {
 		return models.New(models.ErrCodeBadRequest, "clone is protected")
 	}
 
@@ -450,15 +464,56 @@ func (c *Base) UpdateClone(id string, patch types.CloneUpdateRequest) (*models.C
 
 	var clone *models.Clone
 
-	// Set fields.
 	c.cloneMutex.Lock()
-	w.Clone.Protected = patch.Protected
+
+	if patch.Protected {
+		w.Clone.Protected = true
+		w.Clone.ProtectedTill = c.calculateProtectionTime(patch.ProtectionDurationMinutes)
+		w.Clone.ProtectionWarningSent = false
+	} else {
+		w.Clone.Protected = false
+		w.Clone.ProtectedTill = nil
+		w.Clone.ProtectionWarningSent = false
+	}
+
 	clone = w.Clone
 	c.cloneMutex.Unlock()
 
 	c.SaveClonesState()
 
 	return clone, nil
+}
+
+// calculateProtectionTime calculates the protection expiry time based on the requested duration.
+// If durationMinutes is nil, uses the default from config.
+// If durationMinutes is 0, returns nil (infinite protection) unless max duration is configured.
+// If max duration is configured, the duration is capped at the max.
+func (c *Base) calculateProtectionTime(durationMinutes *uint) *models.LocalTime {
+	var minutes uint
+
+	if durationMinutes != nil {
+		minutes = *durationMinutes
+	} else {
+		minutes = c.config.ProtectionLeaseDurationMinutes
+	}
+
+	maxMinutes := c.config.ProtectionMaxDurationMinutes
+
+	if minutes == 0 {
+		if maxMinutes > 0 {
+			minutes = maxMinutes
+		} else {
+			return nil
+		}
+	}
+
+	if maxMinutes > 0 && minutes > maxMinutes {
+		minutes = maxMinutes
+	}
+
+	expiry := time.Now().Add(time.Duration(minutes) * time.Minute)
+
+	return models.NewLocalTime(expiry)
 }
 
 // UpdateCloneStatus updates the clone status.
@@ -594,9 +649,11 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 func (c *Base) GetCloningState() models.Cloning {
 	clones := c.GetClones()
 	cloning := models.Cloning{
-		ExpectedCloningTime: c.getExpectedCloningTime(),
-		Clones:              clones,
-		NumClones:           uint64(len(clones)),
+		ExpectedCloningTime:            c.getExpectedCloningTime(),
+		Clones:                         clones,
+		NumClones:                      uint64(len(clones)),
+		ProtectionLeaseDurationMinutes: c.config.ProtectionLeaseDurationMinutes,
+		ProtectionMaxDurationMinutes:   c.config.ProtectionMaxDurationMinutes,
 	}
 
 	return cloning
@@ -774,7 +831,7 @@ func (c *Base) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 	idleDuration := time.Duration(c.config.MaxIdleMinutes) * time.Minute
 	minimumTime := currentTime.Add(-idleDuration)
 
-	if wrapper.Clone.Protected || wrapper.Clone.Status.Code == models.StatusExporting || wrapper.TimeStartedAt.After(minimumTime) ||
+	if wrapper.Clone.IsProtected() || wrapper.Clone.Status.Code == models.StatusExporting || wrapper.TimeStartedAt.After(minimumTime) ||
 		c.hasDependentSnapshots(wrapper) {
 		return false, nil
 	}
@@ -840,4 +897,142 @@ func checkActiveQueryNotExists(db *sql.DB) (bool, error) {
 	err := db.QueryRow(query).Scan(&isRunningQueryNotExists)
 
 	return isRunningQueryNotExists, err
+}
+
+func (c *Base) runProtectionLeaseCheck(ctx context.Context) {
+	if c.config.ProtectionLeaseDurationMinutes == 0 && c.config.ProtectionMaxDurationMinutes == 0 {
+		return
+	}
+
+	leaseTimer := time.NewTimer(leaseCheckDuration)
+
+	for {
+		select {
+		case <-leaseTimer.C:
+			c.checkProtectionLeases(ctx)
+			leaseTimer.Reset(leaseCheckDuration)
+
+		case <-ctx.Done():
+			leaseTimer.Stop()
+			return
+		}
+	}
+}
+
+func (c *Base) checkProtectionLeases(ctx context.Context) {
+	warningMinutes := c.config.ProtectionExpiryWarningMinutes
+	if warningMinutes == 0 {
+		warningMinutes = defaultWarningMinutes
+	}
+
+	warningDuration := time.Duration(warningMinutes) * time.Minute
+
+	c.cloneMutex.RLock()
+	clones := make([]*CloneWrapper, 0, len(c.clones))
+
+	for _, w := range c.clones {
+		clones = append(clones, w)
+	}
+
+	c.cloneMutex.RUnlock()
+
+	for _, wrapper := range clones {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			c.processProtectionLease(wrapper, warningDuration)
+		}
+	}
+}
+
+func (c *Base) processProtectionLease(wrapper *CloneWrapper, warningDuration time.Duration) {
+	clone := wrapper.Clone
+
+	if !clone.Protected || clone.ProtectedTill == nil {
+		return
+	}
+
+	expiresIn := clone.ProtectionExpiresIn()
+
+	if expiresIn == 0 {
+		c.handleExpiredProtection(wrapper)
+		return
+	}
+
+	if expiresIn <= warningDuration {
+		c.sendProtectionExpiryWarning(wrapper, expiresIn)
+	}
+}
+
+func (c *Base) handleExpiredProtection(wrapper *CloneWrapper) {
+	clone := wrapper.Clone
+
+	log.Msg(fmt.Sprintf("Protection lease expired for clone %q", clone.ID))
+
+	c.cloneMutex.Lock()
+	clone.Protected = false
+	clone.ProtectedTill = nil
+	c.cloneMutex.Unlock()
+
+	c.SaveClonesState()
+
+	if wrapper.Session == nil {
+		return
+	}
+
+	c.webhookCh <- webhooks.CloneProtectionEvent{
+		BasicEvent: webhooks.BasicEvent{
+			EventType: webhooks.CloneProtectionExpiredEvent,
+			EntityID:  clone.ID,
+		},
+		Host:          c.config.AccessHost,
+		Port:          wrapper.Session.Port,
+		Username:      clone.DB.Username,
+		DBName:        clone.DB.DBName,
+		ContainerName: clone.ID,
+	}
+}
+
+func (c *Base) sendProtectionExpiryWarning(wrapper *CloneWrapper, expiresIn time.Duration) {
+	clone := wrapper.Clone
+
+	if wrapper.Session == nil {
+		return
+	}
+
+	c.cloneMutex.Lock()
+	if clone.ProtectionWarningSent {
+		c.cloneMutex.Unlock()
+		return
+	}
+
+	clone.ProtectionWarningSent = true
+	c.cloneMutex.Unlock()
+
+	c.SaveClonesState()
+
+	expiresInHours := int(expiresIn.Hours())
+	if expiresInHours < 1 {
+		expiresInHours = 1
+	}
+
+	protectedTillStr := ""
+	if clone.ProtectedTill != nil {
+		protectedTillStr = clone.ProtectedTill.Format(time.RFC3339)
+	}
+
+	c.webhookCh <- webhooks.CloneProtectionEvent{
+		BasicEvent: webhooks.BasicEvent{
+			EventType: webhooks.CloneProtectionExpiringEvent,
+			EntityID:  clone.ID,
+		},
+		Host:           c.config.AccessHost,
+		Port:           wrapper.Session.Port,
+		Username:       clone.DB.Username,
+		DBName:         clone.DB.DBName,
+		ContainerName:  clone.ID,
+		ProtectedTill:  protectedTillStr,
+		ExpiresInHours: expiresInHours,
+	}
 }

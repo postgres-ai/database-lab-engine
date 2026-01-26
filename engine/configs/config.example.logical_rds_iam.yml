@@ -146,6 +146,9 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
 cloning:
   accessHost: "localhost" # Host that will be specified in database connection info for all clones (only used to inform users)
   maxIdleMinutes: 120 # Automatically delete clones after the specified minutes of inactivity; 0 - disable automatic deletion
+  protectionLeaseDurationMinutes: 1440 # Default protection duration in minutes (default: 1 day); 0 - infinite protection
+  protectionMaxDurationMinutes: 10080 # Maximum allowed protection duration in minutes (default: 7 days); 0 - no limit
+  protectionExpiryWarningMinutes: 1440 # Send warning webhook N minutes before expiry (default: 24 hours)
 
 diagnostic:
   logsRetentionDays: 7 # How many days to keep logs
