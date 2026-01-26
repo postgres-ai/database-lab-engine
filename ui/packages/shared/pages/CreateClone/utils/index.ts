@@ -7,7 +7,7 @@ const shellEscape = (str: string): string => {
 }
 
 export const getCliCreateCloneCommand = (values: FormValues, showPassword?: boolean) => {
-  const { dbUser, dbPassword, branch, isProtected, cloneId } = values
+  const { dbUser, dbPassword, branch, protectionDurationMinutes, cloneId } = values
 
   const usernameDisplay = dbUser ? shellEscape(dbUser) : `<USERNAME>`
 
@@ -17,6 +17,8 @@ export const getCliCreateCloneCommand = (values: FormValues, showPassword?: bool
 
   const cloneIdDisplay = cloneId ? shellEscape(cloneId) : `<CLONE_ID>`
 
+  const protectedFlag = protectionDurationMinutes !== 'none' ? `--protected ${protectionDurationMinutes}` : ''
+
   return `dblab clone create \
 
   --username ${usernameDisplay} \
@@ -25,7 +27,7 @@ export const getCliCreateCloneCommand = (values: FormValues, showPassword?: bool
 
   ${branch ? `--branch ${shellEscape(branch)}` : ``} \
 
-  ${isProtected ? `--protected` : ''} \
+  ${protectedFlag} \
 
   --id ${cloneIdDisplay} \ `
 }

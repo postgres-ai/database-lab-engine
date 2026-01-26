@@ -68,9 +68,9 @@ func CommandList() []*cli.Command {
 						Name:  "branch",
 						Usage: "branch name (optional)",
 					},
-					&cli.BoolFlag{
+					&cli.StringFlag{
 						Name:    "protected",
-						Usage:   "mark instance as protected from deletion",
+						Usage:   "enable deletion protection: 'true' for default duration, minutes for custom, 0=forever",
 						Aliases: []string{"p"},
 					},
 					&cli.BoolFlag{
@@ -91,9 +91,9 @@ func CommandList() []*cli.Command {
 				Before:    checkCloneIDBefore,
 				Action:    update,
 				Flags: []cli.Flag{
-					&cli.BoolFlag{
+					&cli.StringFlag{
 						Name:    "protected",
-						Usage:   "mark instance as protected from deletion",
+						Usage:   "deletion protection: 'true' for default, minutes for custom, 0=forever, 'false' to disable",
 						Aliases: []string{"p"},
 					},
 				},

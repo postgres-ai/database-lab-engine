@@ -6,6 +6,6 @@ export type CreateClone = (args: {
   snapshotId: string
   dbUser: string
   dbPassword: string
-  isProtected: boolean
+  protectionDurationMinutes: string
   branch?: string
 }) => Promise<{ response: Clone | null; error: Response | null }>

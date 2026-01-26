@@ -947,6 +947,16 @@ components:
           type: "array"
           items:
             $ref: "#/components/schemas/Clone"
+        protectionLeaseDurationMinutes:
+          type: "integer"
+          format: "int64"
+          minimum: 0
+          description: "Default protection lease duration in minutes"
+        protectionMaxDurationMinutes:
+          type: "integer"
+          format: "int64"
+          minimum: 0
+          description: "Maximum allowed protection duration in minutes"
 
     Retrieving:
       type: "object"
@@ -1065,6 +1075,10 @@ components:
         protected:
           type: "boolean"
           default: false
+        protectedTill:
+          type: "string"
+          format: "date-time"
+          description: "Time when the protection lease expires"
         deleteAt:
           type: "string"
           format: "date-time"
@@ -1093,6 +1107,16 @@ components:
         maxIdleMinutes:
           type: "integer"
           format: "int64"
+        protectionLeaseDurationMinutes:
+          type: "integer"
+          format: "int64"
+          minimum: 0
+          description: "Protection lease duration in minutes"
+        protectionMaxDurationMinutes:
+          type: "integer"
+          format: "int64"
+          minimum: 0
+          description: "Maximum allowed protection duration in minutes"
 
     CreateClone:
       type: "object"
@@ -1107,6 +1131,11 @@ components:
         protected:
           type: "boolean"
           default: false
+        protectionDurationMinutes:
+          type: "integer"
+          format: "int64"
+          minimum: 0
+          description: "Protection duration in minutes. 0 means forever, omit for default duration."
         db:
           type: "object"
           properties:
@@ -1136,6 +1165,11 @@ components:
         protected:
           type: "boolean"
           default: false
+        protectionDurationMinutes:
+          type: "integer"
+          format: "int64"
+          minimum: 0
+          description: "Protection duration in minutes. 0 means forever, omit for default duration."
 
     StartObservationRequest:
       type: "object"

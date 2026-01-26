@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -24,6 +25,33 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
+
+// parseProtectedFlag parses the --protected flag value.
+// Returns (isProtected, durationMinutes, error).
+// durationMinutes is nil if default duration should be used.
+func parseProtectedFlag(cliCtx *cli.Context) (bool, *uint, error) {
+	if !cliCtx.IsSet("protected") {
+		return false, nil, nil
+	}
+
+	value := cliCtx.String("protected")
+
+	switch strings.ToLower(value) {
+	case "", "true":
+		return true, nil, nil
+	case "false":
+		return false, nil, nil
+	default:
+		duration, err := strconv.ParseUint(value, 10, 32)
+		if err != nil {
+			return false, nil, errors.Errorf("invalid --protected value: %q (use 'true', 'false', or minutes)", value)
+		}
+
+		d := uint(duration)
+
+		return true, &d, nil
+	}
+}
 
 // list runs a request to list clones of an instance.
 func list(cliCtx *cli.Context) error {
@@ -96,9 +124,15 @@ func create(cliCtx *cli.Context) error {
 		return err
 	}
 
+	isProtected, protectionDuration, err := parseProtectedFlag(cliCtx)
+	if err != nil {
+		return err
+	}
+
 	cloneRequest := types.CloneCreateRequest{
-		ID:        cliCtx.String("id"),
-		Protected: cliCtx.Bool("protected"),
+		ID:                        cliCtx.String("id"),
+		Protected:                 isProtected,
+		ProtectionDurationMinutes: protectionDuration,
 		DB: &types.DatabaseRequest{
 			Username:   cliCtx.String("username"),
 			Password:   cliCtx.String("password"),
@@ -184,8 +218,14 @@ func update(cliCtx *cli.Context) error {
 		return err
 	}
 
+	isProtected, protectionDuration, err := parseProtectedFlag(cliCtx)
+	if err != nil {
+		return err
+	}
+
 	updateRequest := types.CloneUpdateRequest{
-		Protected: cliCtx.Bool("protected"),
+		Protected:                 isProtected,
+		ProtectionDurationMinutes: protectionDuration,
 	}
 
 	cloneID := cliCtx.Args().First()

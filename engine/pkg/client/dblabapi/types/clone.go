@@ -7,18 +7,20 @@ package types
 
 // CloneCreateRequest represents clone params of a create request.
 type CloneCreateRequest struct {
-	ID        string                     `json:"id"`
-	Protected bool                       `json:"protected"`
-	DB        *DatabaseRequest           `json:"db"`
-	Snapshot  *SnapshotCloneFieldRequest `json:"snapshot"`
-	ExtraConf map[string]string          `json:"extra_conf"`
-	Branch    string                     `json:"branch"`
-	Revision  int                        `json:"-"`
+	ID                        string                     `json:"id"`
+	Protected                 bool                       `json:"protected"`
+	ProtectionDurationMinutes *uint                      `json:"protectionDurationMinutes,omitempty"`
+	DB                        *DatabaseRequest           `json:"db"`
+	Snapshot                  *SnapshotCloneFieldRequest `json:"snapshot"`
+	ExtraConf                 map[string]string          `json:"extra_conf"`
+	Branch                    string                     `json:"branch"`
+	Revision                  int                        `json:"-"`
 }
 
 // CloneUpdateRequest represents params of an update request.
 type CloneUpdateRequest struct {
-	Protected bool `json:"protected"`
+	Protected                 bool  `json:"protected"`
+	ProtectionDurationMinutes *uint `json:"protectionDurationMinutes,omitempty"`
 }
 
 // DatabaseRequest represents database params of a clone request.

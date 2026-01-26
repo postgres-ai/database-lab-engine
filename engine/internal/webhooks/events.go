@@ -7,6 +7,10 @@ const (
 	CloneResetEvent = "clone_reset"
 	// CloneDeleteEvent defines the clone delete event type.
 	CloneDeleteEvent = "clone_delete"
+	// CloneProtectionExpiringEvent defines the clone protection expiring event type.
+	CloneProtectionExpiringEvent = "clone_protection_expiring"
+	// CloneProtectionExpiredEvent defines the clone protection expired event type.
+	CloneProtectionExpiredEvent = "clone_protection_expired"
 
 	// SnapshotCreateEvent defines the snapshot create event type.
 	SnapshotCreateEvent = "snapshot_create"
@@ -45,4 +49,16 @@ type CloneEvent struct {
 	Username      string `json:"username,omitempty"`
 	DBName        string `json:"dbname,omitempty"`
 	ContainerName string `json:"container_name,omitempty"`
+}
+
+// CloneProtectionEvent defines clone protection-related webhook events payload.
+type CloneProtectionEvent struct {
+	BasicEvent
+	Host           string `json:"host,omitempty"`
+	Port           uint   `json:"port,omitempty"`
+	Username       string `json:"username,omitempty"`
+	DBName         string `json:"dbname,omitempty"`
+	ContainerName  string `json:"container_name,omitempty"`
+	ProtectedTill  string `json:"protected_till,omitempty"`
+	ExpiresInHours int    `json:"expires_in_hours,omitempty"`
 }

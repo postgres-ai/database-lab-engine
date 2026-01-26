@@ -12,11 +12,11 @@ import copyToClipboard from 'copy-to-clipboard'
 import {
   makeStyles,
   Button,
-  FormControlLabel,
-  Checkbox,
   TextField,
   IconButton,
 } from '@material-ui/core'
+
+import { Select } from '@postgres.ai/shared/components/Select'
 
 import {
   getSshPortForwardingCommand,
@@ -291,8 +291,46 @@ export const Clone = observer((props: Props) => {
   // Clone reload.
   const reloadClone = () => stores.main.reload()
 
-  // Data protection.
-  const toggleDataProtection = () => stores.main.updateClone(!clone.protected)
+  // Data protection - build options based on admin config.
+  const maxDurationMinutes = instance.state?.cloning?.protectionMaxDurationMinutes ?? 0
+  const allowForever = maxDurationMinutes === 0
+
+  const allDurationOptions = [
+    { value: '60', minutes: 60, children: '1 hour' },
+    { value: '720', minutes: 720, children: '12 hours' },
+    { value: '1440', minutes: 1440, children: '1 day' },
+    { value: '2880', minutes: 2880, children: '2 days' },
+    { value: '4320', minutes: 4320, children: '3 days' },
+    { value: '5760', minutes: 5760, children: '4 days' },
+    { value: '7200', minutes: 7200, children: '5 days' },
+    { value: '8640', minutes: 8640, children: '6 days' },
+    { value: '10080', minutes: 10080, children: '7 days' },
+    { value: '20160', minutes: 20160, children: '14 days' },
+    { value: '43200', minutes: 43200, children: '30 days' },
+  ]
+
+  const protectionOptions = [
+    { value: 'none', children: 'No protection' },
+    ...allDurationOptions
+      .filter((opt) => maxDurationMinutes === 0 || opt.minutes <= maxDurationMinutes)
+      .map(({ value, children }) => ({ value, children })),
+    ...(allowForever ? [{ value: '0', children: 'Forever' }] : []),
+  ]
+
+  const handleProtectionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    if (value === 'none') {
+      stores.main.updateCloneProtection(null)
+    } else {
+      stores.main.updateCloneProtection(parseInt(value, 10))
+    }
+  }
+
+  const getCurrentProtectionValue = () => {
+    if (!clone.protected) return 'none'
+    if (!clone.protectedTillDate) return '0'
+    return 'current'
+  }
 
   // Commands.
   const sshPortForwardingUrl = getSshPortForwardingCommand(instance, clone)
@@ -611,29 +649,30 @@ export const Clone = observer((props: Props) => {
           <p>
             <strong>Protection</strong>
           </p>
-          <p>
-            <FormControlLabel
-              className={classes.checkboxLabel}
-              control={
-                <Checkbox
-                  checked={clone.protected}
-                  onChange={toggleDataProtection}
-                  name="protected"
-                  disabled={isDisabledControls}
-                />
+          <div style={{ marginTop: '8px', marginBottom: '16px' }}>
+            <Select
+              label="Deletion protection"
+              items={
+                clone.protected && clone.protectedTillDate
+                  ? [
+                      { value: 'current', children: `Protected until ${clone.protectedTillDate.toLocaleString()}` },
+                      ...protectionOptions,
+                    ]
+                  : protectionOptions
               }
-              label="Enable deletion protection"
+              value={getCurrentProtectionValue()}
+              onChange={handleProtectionChange}
+              disabled={isDisabledControls}
+              style={{ minWidth: 100 }}
             />
+            {isUpdatingClone && <Spinner size="sm" className={classes.spinner} />}
+          </div>
+          <span className={classes.remark}>
+            Select how long this clone should be protected from deletion.
+            Protected clones cannot be deleted manually or automatically.
             <br />
-            <span className={classes.remark}>
-              When enabled, no one can delete this clone and automated deletion
-              is also disabled.
-              <br />
-              Please be careful: abandoned clones with this checkbox enabled may
-              cause out-of-disk-space events. Check disk space on a daily basis
-              and delete this clone once your work is done.
-            </span>
-          </p>
+            Check disk space regularly and delete this clone once your work is done.
+          </span>
           {stores.main.updateCloneError && (
             <ErrorStub
               title="Updating error"
