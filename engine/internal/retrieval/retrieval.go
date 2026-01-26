@@ -119,6 +119,16 @@ func (r *Retrieval) ImageContent() *db.ImageContent {
 	return r.imageState
 }
 
+// GetRetrievalMode returns the current retrieval mode.
+func (r *Retrieval) GetRetrievalMode() models.RetrievalMode {
+	return r.State.Mode
+}
+
+// GetRetrievalStatus returns the current retrieval status.
+func (r *Retrieval) GetRetrievalStatus() models.RetrievalStatus {
+	return r.State.Status
+}
+
 func checkPendingMarker(r *Retrieval) error {
 	pendingPath, err := util.GetMetaPath(pendingFilename)
 	if err != nil {

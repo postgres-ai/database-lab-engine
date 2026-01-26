@@ -1,0 +1,115 @@
+# OpenTelemetry Collector Configuration for Database Lab Engine
+#
+# This configuration scrapes Prometheus metrics from DBLab's /metrics endpoint
+# and exports them via OTLP protocol to observability backends.
+#
+# Usage:
+#   1. Install the OpenTelemetry Collector: https://opentelemetry.io/docs/collector/installation/
+#   2. Copy this file and adjust the configuration for your environment
+#   3. Run: otelcol --config otel-collector.yml
+#
+# For Docker:
+#   docker run -v $(pwd)/otel-collector.yml:/etc/otelcol/config.yaml \
+#     otel/opentelemetry-collector-contrib:latest
+
+receivers:
+  # Scrape Prometheus metrics from DBLab Engine
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'dblab'
+          scrape_interval: 15s
+          scrape_timeout: 10s
+          static_configs:
+            - targets: ['localhost:2345']
+          # Optional: Add labels to identify this instance
+          relabel_configs:
+            - source_labels: []
+              target_label: environment
+              replacement: 'production'
+
+  # Optional: Collect host metrics
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      memory:
+      disk:
+      filesystem:
+      network:
+
+processors:
+  # Batch metrics for efficient export
+  batch:
+    timeout: 10s
+    send_batch_size: 1000
+
+  # Add resource attributes
+  resource:
+    attributes:
+      - key: service.name
+        value: dblab-engine
+        action: upsert
+      - key: service.version
+        value: "3.0"
+        action: upsert
+
+  # Optional: Filter or transform metrics
+  filter:
+    metrics:
+      include:
+        match_type: regexp
+        metric_names:
+          - dblab_.*
+
+exporters:
+  # Export to OTLP-compatible backends (Grafana Cloud, Datadog, etc.)
+  otlp:
+    endpoint: "your-otlp-endpoint:4317"
+    tls:
+      insecure: false
+    headers:
+      # Add authentication headers as needed
+      # Authorization: "Bearer <token>"
+
+  # Alternative: Export to Prometheus remote write
+  prometheusremotewrite:
+    endpoint: "https://prometheus.example.com/api/v1/write"
+    # tls:
+    #   ca_file: /path/to/ca.crt
+    # headers:
+    #   Authorization: "Bearer <token>"
+
+  # Debug: Log metrics to console (useful for testing)
+  debug:
+    verbosity: detailed
+
+  # Alternative: Keep Prometheus format for local scraping
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: dblab
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, zpages]
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: [batch, resource]
+      # Choose your exporter(s):
+      # - Use 'otlp' for OTLP-compatible backends
+      # - Use 'prometheusremotewrite' for Prometheus remote write
+      # - Use 'debug' for testing
+      exporters: [debug]
+
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      address: 0.0.0.0:8888
