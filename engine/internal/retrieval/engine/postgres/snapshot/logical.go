@@ -63,6 +63,7 @@ type LogicalInitial struct {
 type LogicalOptions struct {
 	DataPatching        DataPatching      `yaml:"dataPatching"`
 	PreprocessingScript string            `yaml:"preprocessingScript"`
+	DatabaseRename      map[string]string `yaml:"databaseRename"`
 	Configs             map[string]string `yaml:"configs"`
 	Schedule            Scheduler         `yaml:"schedule"`
 }
@@ -124,6 +125,12 @@ func (s *LogicalInitial) Run(ctx context.Context) error {
 	if s.options.PreprocessingScript != "" {
 		if err := runPreprocessingScript(s.options.PreprocessingScript); err != nil {
 			return err
+		}
+	}
+
+	if len(s.options.DatabaseRename) > 0 {
+		if err := runDatabaseRename(ctx, s.dockerClient, s.engineProps, s.globalCfg, s.fsPool.DataDir(), s.options.DatabaseRename); err != nil {
+			return errors.Wrap(err, "failed to rename databases")
 		}
 	}
 

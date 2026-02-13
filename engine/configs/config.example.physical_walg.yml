@@ -104,6 +104,9 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
             # recovery_target_timeline: 'latest'
 
         preprocessingScript: "" # Shell script path to execute before finalizing snapshot; example: "/tmp/scripts/custom.sh"; default: "" (disabled)
+        databaseRename: # Rename databases before finalizing snapshot; runs after preprocessingScript; default: empty (disabled)
+        #  example_production: example_dblab # Rename "example_production" to "example_dblab"
+        #  analytics_prod: analytics_dblab
         scheduler: # Snapshot scheduling and retention policy configuration
           snapshot: # Snapshot creation scheduling
             timetable: "0 */6 * * *" # Cron expression defining snapshot schedule: https://en.wikipedia.org/wiki/Cron#Overview

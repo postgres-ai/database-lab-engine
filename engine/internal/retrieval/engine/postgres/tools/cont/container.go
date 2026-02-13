@@ -58,6 +58,8 @@ const (
 	DBLabEmbeddedUILabel = "dblab_embedded_ui"
 	// DBLabFoundationLabel defines a label value to mark foundation containers.
 	DBLabFoundationLabel = "dblab_foundation"
+	// DBLabRenameLabel defines a label value for database rename containers.
+	DBLabRenameLabel = "dblab_rename"
 
 	// DBLabRunner defines a label to mark runner containers.
 	DBLabRunner = "dblab_runner"
