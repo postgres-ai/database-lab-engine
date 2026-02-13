@@ -135,7 +135,9 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
       options:
         <<: *db_configs # Adjust PostgreSQL configuration
         preprocessingScript: "" # Pre-processing script for data scrubbing/masking; e.g., "/tmp/scripts/custom.sh"
-        
+        databaseRename: # Rename databases before finalizing snapshot; runs after preprocessingScript; default: empty (disabled)
+        #  mydb_prod: mydb_dblab # Rename "mydb_prod" to "mydb_dblab"
+
         dataPatching: # Pre-processing SQL queries for data patching
           <<: *db_container
           queryPreprocessing:

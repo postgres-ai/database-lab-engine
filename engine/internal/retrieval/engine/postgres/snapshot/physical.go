@@ -114,6 +114,7 @@ type PhysicalOptions struct {
 	SkipStartSnapshot   bool              `yaml:"skipStartSnapshot"`
 	Promotion           Promotion         `yaml:"promotion"`
 	PreprocessingScript string            `yaml:"preprocessingScript"`
+	DatabaseRename      map[string]string `yaml:"databaseRename"`
 	Configs             map[string]string `yaml:"configs"`
 	Sysctls             map[string]string `yaml:"sysctls"`
 	Envs                map[string]string `yaml:"envs"`
@@ -385,6 +386,12 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 	if p.options.PreprocessingScript != "" {
 		if err := runPreprocessingScript(p.options.PreprocessingScript); err != nil {
 			return err
+		}
+	}
+
+	if len(p.options.DatabaseRename) > 0 {
+		if err := runDatabaseRename(ctx, p.dockerClient, p.engineProps, p.globalCfg, cloneDataDir, p.options.DatabaseRename); err != nil {
+			return errors.Wrap(err, "failed to rename databases")
 		}
 	}
 
