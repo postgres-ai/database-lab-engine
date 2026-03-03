@@ -1,3 +1,5 @@
+import { CSSProperties } from 'react'
+
 import { makeStyles } from '@material-ui/core'
 
 import { colors } from '@postgres.ai/shared/styles/colors'
@@ -9,6 +11,7 @@ type Props = {
   value: number
   total: number
   thresholdPercent: number
+  style?: CSSProperties
 }
 
 const useStyles = makeStyles(
@@ -53,10 +56,10 @@ export const ProgressBar = (props: Props) => {
   const classes = useStyles()
 
   return (
-    <div className={classes.root}>
+    <div className={classes.root} style={props.style}>
       <div
         className={classes.indicator}
-        style={{ width: `${(props.value / props.total) * 100}%` }}
+        style={{ width: `${props.total === 0 ? 0 : (props.value / props.total) * 100}%` }}
       />
       <Tooltip
         content={`+${props.thresholdPercent}% disk usage may result in performance degradation`}
