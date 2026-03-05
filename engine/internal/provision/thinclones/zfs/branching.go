@@ -127,37 +127,222 @@ func (m *Manager) VerifyBranchMetadata() error {
 	}
 
 	branchHeads := make(map[string]string)
+	branchRoots := make(map[string]string)
+	parents := make(map[string]string, numberSnapshots)
+	children := make(map[string][]string, numberSnapshots)
 
+	// Iterate oldest → newest to compute the chain in memory.
+	// A snapshot can only have one parent in the ZFS chain. Fork-point snapshots
+	// carry multiple branch tags but share the same predecessor, so the last
+	// branch iteration produces the correct (and identical) parent value.
 	for i := numberSnapshots; i > 0; i-- {
 		sn := snapshots[i-1]
 		log.Dbg(sn)
 
-		if err := m.DeleteBranchProp(sn.Branch, sn.ID); err != nil {
-			return fmt.Errorf("failed to clean branch property: %w", err)
-		}
+		for _, br := range splitBranches(sn.Branch) {
+			head, ok := branchHeads[br]
+			if !ok {
+				branchHeads[br] = sn.ID
+				branchRoots[br] = sn.ID
 
-		head, ok := branchHeads[sn.Branch]
-		if !ok {
-			branchHeads[sn.Branch] = sn.ID
-			continue
-		}
+				continue
+			}
 
-		if err := m.SetRelation(head, sn.ID); err != nil {
-			return fmt.Errorf("failed to set snapshot relations: %w", err)
+			parents[sn.ID] = head
+			children[head] = appendUnique(children[head], sn.ID)
+			branchHeads[br] = sn.ID
 		}
-
-		branchHeads[sn.Branch] = sn.ID
 	}
 
+	// Restore cross-branch parent/child links using dle:root properties.
+	rootProps, err := m.readRootProperties()
+	if err != nil {
+		log.Warn(fmt.Sprintf("failed to read root properties, skipping cross-branch link restoration: %v", err))
+	}
+
+	for forkSnap, branches := range rootProps {
+		for _, br := range branches {
+			oldest, ok := branchRoots[br]
+			if !ok {
+				continue
+			}
+
+			if parents[oldest] != "" {
+				continue
+			}
+
+			parents[oldest] = forkSnap
+			children[forkSnap] = append(children[forkSnap], oldest)
+		}
+	}
+
+	// Read existing parent/child properties in bulk to avoid rewriting unchanged values.
+	existing, err := m.readParentChildProperties()
+	if err != nil {
+		log.Warn(fmt.Sprintf("failed to read existing properties, will write all: %v", err))
+
+		existing = make(map[string]parentChild)
+	}
+
+	// Write only changed parent/child properties.
+	for _, sn := range snapshots {
+		parentVal := parents[sn.ID]
+		if parentVal == "" {
+			parentVal = empty
+		}
+
+		childVal := empty
+		if c, ok := children[sn.ID]; ok {
+			childVal = strings.Join(c, branchSep)
+		}
+
+		cur := existing[sn.ID]
+
+		if cur.parent != parentVal {
+			if err := m.setProperty(parentProp, parentVal, sn.ID); err != nil {
+				return fmt.Errorf("failed to set parent property for %s: %w", sn.ID, err)
+			}
+		}
+
+		if cur.child != childVal {
+			if err := m.setProperty(childProp, childVal, sn.ID); err != nil {
+				return fmt.Errorf("failed to set child property for %s: %w", sn.ID, err)
+			}
+		}
+	}
+
+	// Assign branch tags to head snapshots before removing stale ones,
+	// so the tag is never absent from all snapshots at once.
 	for brName, latestID := range branchHeads {
 		if err := m.AddBranchProp(brName, latestID); err != nil {
 			return fmt.Errorf("failed to add branch property: %w", err)
 		}
 	}
 
+	// Remove stale branch tags. A snapshot may be head of one branch but carry
+	// a stale tag for another, so check each tag individually.
+	for _, sn := range snapshots {
+		for _, br := range splitBranches(sn.Branch) {
+			if branchHeads[br] == sn.ID {
+				continue
+			}
+
+			if err := m.DeleteBranchProp(br, sn.ID); err != nil {
+				log.Warn(fmt.Sprintf("failed to clean branch property for %s: %v", sn.ID, err))
+			}
+		}
+	}
+
 	log.Msg("data branching has been verified")
 
 	return nil
+}
+
+type parentChild struct {
+	parent string
+	child  string
+}
+
+// readParentChildProperties reads dle:parent and dle:child for all snapshots in one zfs call.
+func (m *Manager) readParentChildProperties() (map[string]parentChild, error) {
+	cmd := fmt.Sprintf("zfs list -H -t snapshot -o name,%s,%s -r %s", parentProp, childProp, m.config.Pool.Name)
+
+	out, err := m.runner.Run(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read parent/child properties: %w", err)
+	}
+
+	result := make(map[string]parentChild)
+
+	const expectedColumns = 3
+
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		fields := strings.SplitN(line, "\t", expectedColumns)
+		if len(fields) != expectedColumns {
+			continue
+		}
+
+		result[fields[0]] = parentChild{
+			parent: fields[1],
+			child:  fields[2],
+		}
+	}
+
+	return result, nil
+}
+
+// readRootProperties reads dle:root for all snapshots in the pool.
+func (m *Manager) readRootProperties() (map[string][]string, error) {
+	cmd := fmt.Sprintf("zfs list -H -t snapshot -o name,%s -r %s", rootProp, m.config.Pool.Name)
+
+	out, err := m.runner.Run(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read root properties: %w", err)
+	}
+
+	roots := make(map[string][]string)
+
+	const expectedColumns = 2
+
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		fields := strings.SplitN(line, "\t", expectedColumns)
+		if len(fields) != expectedColumns {
+			continue
+		}
+
+		rootVal := fields[1]
+		if rootVal == "" || rootVal == empty {
+			continue
+		}
+
+		for _, br := range strings.Split(rootVal, branchSep) {
+			br = strings.TrimSpace(br)
+			if br != "" && br != empty {
+				roots[fields[0]] = append(roots[fields[0]], br)
+			}
+		}
+	}
+
+	return roots, nil
+}
+
+func appendUnique(slice []string, val string) []string {
+	for _, s := range slice {
+		if s == val {
+			return slice
+		}
+	}
+
+	return append(slice, val)
+}
+
+// splitBranches parses a comma-separated branch property value into individual branch names.
+// Snapshots with no branch tag (empty or "-") default to the main branch to maintain
+// consistency with InitBranching, which assigns untagged snapshots to the default branch.
+func splitBranches(branch string) []string {
+	if branch == "" || branch == empty {
+		return []string{branching.DefaultBranch}
+	}
+
+	if !strings.Contains(branch, branchSep) {
+		return []string{branch}
+	}
+
+	branches := make([]string, 0)
+
+	for _, b := range strings.Split(branch, branchSep) {
+		b = strings.TrimSpace(b)
+
+		if b != "" && b != empty {
+			branches = append(branches, b)
+		}
+	}
+
+	if len(branches) == 0 {
+		return []string{branching.DefaultBranch}
+	}
+
+	return branches
 }
 
 // CreateBranch clones data as a new branch.

@@ -383,6 +383,10 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 		return fmt.Errorf("failed to init branching: %w", err)
 	}
 
+	if err := fsm.VerifyBranchMetadata(); err != nil {
+		log.Warn(fmt.Sprintf("failed to verify branch metadata: %v", err))
+	}
+
 	return nil
 }
 

@@ -105,6 +105,7 @@ type PhysicalInitial struct {
 	scheduler      *cron.Cron
 	schedulerCtx   context.Context
 	promotionMutex sync.Mutex
+	schedulerMutex sync.Mutex
 	queryProcessor *query.Processor
 	tm             *telemetry.Agent
 }
@@ -422,10 +423,6 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 
 	p.tm.SendEvent(ctx, telemetry.SnapshotCreatedEvent, telemetry.SnapshotCreated{})
 
-	if err := p.cloneManager.VerifyBranchMetadata(); err != nil {
-		log.Warn("cannot verify branch metadata", err.Error())
-	}
-
 	if err := p.cleanupOldLogs(); err != nil {
 		log.Warn("cannot clean up old logs", err.Error())
 	}
@@ -546,14 +543,32 @@ func (p *PhysicalInitial) waitToStopScheduler() {
 
 func (p *PhysicalInitial) runAutoSnapshot(ctx context.Context) func() {
 	return func() {
+		p.schedulerMutex.Lock()
+		defer p.schedulerMutex.Unlock()
+
 		if err := p.run(ctx); err != nil {
 			log.Err(errors.Wrap(err, "failed to take a snapshot automatically"))
+		}
+
+		// re-init branching as a fallback in case metadata was lost from a previous run.
+		if err := p.cloneManager.InitBranching(); err != nil {
+			log.Err(fmt.Errorf("failed to init branching after scheduled snapshot: %w", err))
+		}
+
+		if err := p.cloneManager.VerifyBranchMetadata(); err != nil {
+			log.Err(fmt.Errorf("failed to verify branch metadata after scheduled snapshot: %w", err))
 		}
 	}
 }
 
 func (p *PhysicalInitial) runAutoCleanup(retentionLimit int) func() {
 	return func() {
+		if !p.schedulerMutex.TryLock() {
+			log.Msg("skipping scheduled cleanup: snapshot operation in progress")
+			return
+		}
+		defer p.schedulerMutex.Unlock()
+
 		if err := p.cleanupSnapshots(retentionLimit); err != nil {
 			log.Err(errors.Wrap(err, "failed to clean up snapshots automatically"))
 		}

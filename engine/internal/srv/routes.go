@@ -186,12 +186,12 @@ func (s *Server) createSnapshot(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err := fsManager.InitBranching(); err != nil {
-		api.SendBadRequestError(w, r, "Cannot verify branch metadata: "+err.Error())
+		api.SendBadRequestError(w, r, "Cannot init branch metadata: "+err.Error())
 		return
 	}
 
 	if err := fsManager.VerifyBranchMetadata(); err != nil {
-		log.Warn("cannot verify branch metadata", err.Error())
+		log.Warn(fmt.Sprintf("failed to verify branch metadata: %v", err))
 	}
 
 	latestSnapshot := snapshotList[0]
