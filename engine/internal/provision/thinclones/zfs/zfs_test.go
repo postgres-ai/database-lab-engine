@@ -1,6 +1,7 @@
 package zfs
 
 import (
+	"encoding/base64"
 	"errors"
 	"sort"
 	"testing"
@@ -9,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
 type runnerMock struct {
@@ -351,4 +354,206 @@ test_pool/other/dataset	-`,
 			}
 		})
 	}
+}
+
+func TestListAllBranches(t *testing.T) {
+	testCases := []struct {
+		name     string
+		output   string
+		expected []models.BranchEntity
+	}{
+		{
+			name:     "empty output",
+			output:   "",
+			expected: []models.BranchEntity{},
+		},
+		{
+			name:     "tab-delimited output with space-containing branch name",
+			output:   "my branch\tpool/branch/main@snap1",
+			expected: []models.BranchEntity{{Name: "my branch", Dataset: "pool", SnapshotID: "pool/branch/main@snap1"}},
+		},
+		{
+			name:     "multiple branches from comma-separated field",
+			output:   "br1,br2\tpool@snap1",
+			expected: []models.BranchEntity{{Name: "br1", Dataset: "pool", SnapshotID: "pool@snap1"}, {Name: "br2", Dataset: "pool", SnapshotID: "pool@snap1"}},
+		},
+		{
+			name:     "line with wrong column count is skipped",
+			output:   "single_field_no_tab\nbranch1\tpool@snap2",
+			expected: []models.BranchEntity{{Name: "branch1", Dataset: "pool", SnapshotID: "pool@snap2"}},
+		},
+		{
+			name:   "multiple lines with tabs",
+			output: "main\tpool@snap1\nfeature\tpool@snap2",
+			expected: []models.BranchEntity{
+				{Name: "main", Dataset: "pool", SnapshotID: "pool@snap1"},
+				{Name: "feature", Dataset: "pool", SnapshotID: "pool@snap2"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := Manager{runner: runnerMock{cmdOutput: tc.output}, config: Config{Pool: resources.NewPool("pool")}}
+
+			branches, err := m.ListAllBranches(nil)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, branches)
+		})
+	}
+}
+
+func TestListBranches(t *testing.T) {
+	testCases := []struct {
+		name     string
+		output   string
+		expected map[string]string
+	}{
+		{
+			name:     "empty output",
+			output:   "",
+			expected: map[string]string{},
+		},
+		{
+			name:     "normal two-column tab-delimited output",
+			output:   "main\tpool@snap1\nfeature\tpool@snap2",
+			expected: map[string]string{"main": "pool@snap1", "feature": "pool@snap2"},
+		},
+		{
+			name:     "snapshot name containing spaces is preserved",
+			output:   "main\tpool@snap with spaces",
+			expected: map[string]string{"main": "pool@snap with spaces"},
+		},
+		{
+			name:     "single-field line without tab is skipped",
+			output:   "no_tab_here\nmain\tpool@snap1",
+			expected: map[string]string{"main": "pool@snap1"},
+		},
+		{
+			name:     "comma-separated branches map to same snapshot",
+			output:   "br1,br2\tpool@snap1",
+			expected: map[string]string{"br1": "pool@snap1", "br2": "pool@snap1"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := Manager{runner: runnerMock{cmdOutput: tc.output}, config: Config{Pool: resources.NewPool("pool")}}
+
+			branches, err := m.listBranches()
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, branches)
+		})
+	}
+}
+
+func TestGetRepo(t *testing.T) {
+	msg := base64.StdEncoding.EncodeToString([]byte("initial commit"))
+
+	testCases := []struct {
+		name          string
+		output        string
+		wantSnapshots int
+		wantBranches  map[string]string
+	}{
+		{
+			name:          "empty output",
+			output:        "",
+			wantSnapshots: 0,
+			wantBranches:  map[string]string{},
+		},
+		{
+			name:          "all 8 fields populated",
+			output:        "pool@snap1\tparent1\tchild1\tmain\troot1\t20250101\t" + msg + "\t-",
+			wantSnapshots: 1,
+			wantBranches:  map[string]string{"main": "pool@snap1"},
+		},
+		{
+			name:          "line with fewer than 8 fields is skipped",
+			output:        "pool@snap1\tparent1\tchild1\tmain\troot1\t20250101\t" + msg,
+			wantSnapshots: 0,
+			wantBranches:  map[string]string{},
+		},
+		{
+			name:          "base64 commit message decodes correctly",
+			output:        "pool@snap1\t-\t-\tmain\t-\t20250101\t" + msg + "\t-",
+			wantSnapshots: 1,
+			wantBranches:  map[string]string{"main": "pool@snap1"},
+		},
+		{
+			name: "multiple snapshots with branches",
+			output: "pool@snap1\t-\tpool@snap2\tmain\troot1\t20250101\t" + msg + "\t-\n" +
+				"pool@snap2\tpool@snap1\t-\tfeature\troot1\t20250102\t" + msg + "\t-",
+			wantSnapshots: 2,
+			wantBranches:  map[string]string{"main": "pool@snap1", "feature": "pool@snap2"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := Manager{runner: runnerMock{cmdOutput: tc.output}, config: Config{Pool: resources.NewPool("pool")}}
+
+			repo, err := m.getRepo(cmdCfg{pool: "pool"})
+			require.NoError(t, err)
+			assert.Len(t, repo.Snapshots, tc.wantSnapshots)
+			assert.Equal(t, tc.wantBranches, repo.Branches)
+
+			if tc.wantSnapshots > 0 {
+				for _, snap := range repo.Snapshots {
+					if snap.Message != "" && snap.Message != "-" {
+						assert.Equal(t, "initial commit", snap.Message)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestGetSnapshotProperties(t *testing.T) {
+	msg := base64.StdEncoding.EncodeToString([]byte("test message"))
+
+	testCases := []struct {
+		name     string
+		output   string
+		expected thinclones.SnapshotProperties
+	}{
+		{
+			name:   "well-formed 8-field output",
+			output: "pool@snap1\tparent1\tchild1\tmain\troot1\t20250101\t" + msg + "\tclone1",
+			expected: thinclones.SnapshotProperties{
+				Name: "pool@snap1", Parent: "parent1", Child: "child1", Branch: "main",
+				Root: "root1", DataStateAt: "20250101", Message: "test message", Clones: "clone1",
+			},
+		},
+		{
+			name:   "field containing spaces is preserved",
+			output: "pool@snap1\tparent with spaces\tchild1\tmain\troot1\t20250101\t" + msg + "\tclone1",
+			expected: thinclones.SnapshotProperties{
+				Name: "pool@snap1", Parent: "parent with spaces", Child: "child1", Branch: "main",
+				Root: "root1", DataStateAt: "20250101", Message: "test message", Clones: "clone1",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := Manager{runner: runnerMock{cmdOutput: tc.output}, config: Config{Pool: resources.NewPool("pool")}}
+
+			props, err := m.GetSnapshotProperties("pool@snap1")
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, props)
+		})
+	}
+}
+
+func TestGetSnapshotPropertiesMalformed(t *testing.T) {
+	msg := base64.StdEncoding.EncodeToString([]byte("test message"))
+
+	m := Manager{
+		runner: runnerMock{cmdOutput: "pool@snap1\tparent1\tchild1\tmain\troot1\t20250101\t" + msg},
+		config: Config{Pool: resources.NewPool("pool")},
+	}
+
+	_, err := m.GetSnapshotProperties("pool@snap1")
+	assert.Error(t, err)
 }

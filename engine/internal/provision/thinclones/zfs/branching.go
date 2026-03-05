@@ -261,7 +261,7 @@ func (m *Manager) ListAllBranches(poolList []string) ([]models.BranchEntity, err
 	const expectedColumns = 2
 
 	for _, line := range lines {
-		fields := strings.Fields(line)
+		fields := strings.SplitN(line, "\t", expectedColumns)
 
 		if len(fields) != expectedColumns {
 			continue
@@ -300,7 +300,7 @@ func (m *Manager) listBranches() (map[string]string, error) {
 	const expectedColumns = 2
 
 	for _, line := range lines {
-		fields := strings.Fields(line)
+		fields := strings.SplitN(line, "\t", expectedColumns)
 
 		if len(fields) != expectedColumns {
 			continue
@@ -354,7 +354,7 @@ func (m *Manager) getRepo(cmdCfg cmdCfg) (*models.Repo, error) {
 	repo := models.NewRepo()
 
 	for _, line := range lines {
-		fields := strings.Fields(line)
+		fields := strings.SplitN(line, "\t", len(repoFields))
 
 		if len(fields) != len(repoFields) {
 			log.Dbg(fmt.Sprintf("Skip invalid line: %#v\n", line))
@@ -439,7 +439,7 @@ func (m *Manager) GetSnapshotProperties(snapshotName string) (thinclones.Snapsho
 		return thinclones.SnapshotProperties{}, err
 	}
 
-	fields := strings.Fields(strings.TrimSpace(out))
+	fields := strings.SplitN(strings.TrimSpace(out), "\t", len(repoFields))
 
 	if len(fields) != len(repoFields) {
 		log.Dbg("Retrieved fields values:", fields)
