@@ -588,6 +588,13 @@ func (m *Manager) CleanupSnapshots(retentionLimit int, mode models.RetrievalMode
 
 	busySnapshots := m.getBusySnapshotList(clonesOutput)
 
+	branchHeads, err := m.getBranchHeadSnapshots()
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine protected snapshots: %w", err)
+	}
+
+	busySnapshots = append(busySnapshots, branchHeads...)
+
 	modeFilter := ""
 
 	if mode == models.Physical {
@@ -768,6 +775,40 @@ func (m *Manager) getBusySnapshotList(clonesOutput string) []string {
 	}
 
 	return busySnapshots
+}
+
+// getBranchHeadSnapshots returns branch head snapshots and their upstream origin snapshots.
+// This prevents cleanup from destroying snapshots that serve as branch heads or
+// pre-snapshots whose clone chains contain branch heads.
+func (m *Manager) getBranchHeadSnapshots() ([]string, error) {
+	branches, err := m.listBranches()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list branches for cleanup protection: %w", err)
+	}
+
+	protected := make([]string, 0, len(branches))
+
+	for _, snapshotID := range branches {
+		protected = append(protected, snapshotID)
+
+		dataset, _, found := strings.Cut(snapshotID, "@")
+		if !found {
+			continue
+		}
+
+		origin, err := m.runner.Run("zfs get -H -o value origin " + dataset)
+		if err != nil {
+			log.Dbg("failed to get origin for dataset", dataset, ":", err)
+			continue
+		}
+
+		origin = strings.TrimSpace(origin)
+		if origin != "" && origin != "-" {
+			protected = append(protected, origin)
+		}
+	}
+
+	return protected, nil
 }
 
 // excludeBusySnapshots excludes snapshots that match a pattern by name.
