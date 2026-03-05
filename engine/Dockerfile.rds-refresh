@@ -1,0 +1,15 @@
+FROM alpine:3.23
+
+RUN apk add --no-cache ca-certificates tzdata
+
+# create non-root user
+RUN adduser -D -u 1000 appuser
+
+WORKDIR /app
+
+COPY ./bin/rds-refresh /usr/local/bin/rds-refresh
+
+USER appuser
+
+ENTRYPOINT ["/usr/local/bin/rds-refresh"]
+CMD ["--help"]

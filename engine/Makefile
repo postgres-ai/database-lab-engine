@@ -3,6 +3,7 @@
 SERVER_BINARY = dblab-server
 RUN_CI_BINARY = run-ci
 CLI_BINARY = dblab
+RDS_REFRESH_BINARY = rds-refresh
 GOARCH = amd64
 
 PWD= $(shell pwd)
@@ -41,10 +42,11 @@ run-lint: ## Run linters
 
 lint: install-lint run-lint ## Install and run linters
 
-build: ## Build binary files of all Database Lab components (Engine, CI Checker, CLI)
+build: ## Build binary files of all Database Lab components (Engine, CI Checker, CLI, RDS Refresh)
 	${GOBUILD} -o bin/${SERVER_BINARY} ./cmd/database-lab/main.go
 	${GOBUILD} -o bin/${RUN_CI_BINARY} ./cmd/runci/main.go
 	${GOBUILD} -o bin/${CLI_BINARY} ./cmd/cli/main.go
+	${GOBUILD} -o bin/${RDS_REFRESH_BINARY} ./cmd/rds-refresh/main.go
 
 build-debug: ## Build the Database Lab Server binary for debugging
 	${GOBUILD} -ldflags "-X gitlab.com/postgres-ai/database-lab/v3/version.version=${VERSION} \
@@ -53,6 +55,9 @@ build-debug: ## Build the Database Lab Server binary for debugging
 
 build-ci-checker: ## Build the Database Lab CI Checker binary
 	${GOBUILD} -o bin/${RUN_CI_BINARY} ./cmd/runci/main.go
+
+build-rds-refresh: ## Build the RDS Refresh binary
+	${GOBUILD} -o bin/${RDS_REFRESH_BINARY} ./cmd/rds-refresh/main.go
 
 build-client: ## Build Database Lab CLI binaries for all supported operating systems and platforms
 	$(foreach GOOS, $(CLIENT_PLATFORMS),\
@@ -95,4 +100,4 @@ run-dle: build-dle
 	-p "2345:2345" \
 	dblab_server:local
 
-.PHONY: help all build test run-lint install-lint lint fmt clean build-image build-dle build-ci-checker build-client build-ci-checker run-dle
+.PHONY: help all build test run-lint install-lint lint fmt clean build-image build-dle build-ci-checker build-client build-rds-refresh run-dle

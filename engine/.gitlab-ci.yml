@@ -204,6 +204,17 @@ build-image-feature-ci-checker:
     DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/dblab-ci-checker"
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
 
+build-image-feature-rds-refresh:
+  <<: *build_image_definition
+  <<: *only_feature
+  variables:
+    REGISTRY_USER: "${CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.rds-refresh"
+    DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/dblab-rds-refresh"
+    TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
+
 build-image-feature-client:
   <<: *build_image_definition
   <<: *only_feature
@@ -237,6 +248,14 @@ build-image-master-ci-checker:
   variables:
     DOCKER_FILE: "Dockerfile.ci-checker"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-ci-checker"
+    TAGS: "${DOCKER_NAME}:master,${DOCKER_NAME}:master-${CI_COMMIT_SHORT_SHA}"
+
+build-image-master-rds-refresh:
+  <<: *build_image_definition
+  <<: *only_master
+  variables:
+    DOCKER_FILE: "Dockerfile.rds-refresh"
+    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-rds-refresh"
     TAGS: "${DOCKER_NAME}:master,${DOCKER_NAME}:master-${CI_COMMIT_SHORT_SHA}"
 
 build-image-master-client:
@@ -310,6 +329,33 @@ build-image-latest-ci-checker-dev:
     REGISTRY: "${CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.ci-checker"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-ci-checker"
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
+    - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
+
+build-image-latest-rds-refresh:
+  <<: *build_image_definition
+  <<: *only_tag_release
+  variables:
+    REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${DH_CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.rds-refresh"
+    DOCKER_NAME: "postgresai/dblab-rds-refresh"
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
+    - export LATEST_TAG=$(echo ${CLEAN_TAG%.*}-latest)
+    - export TAGS="${DOCKER_NAME}:${LATEST_TAG},${DOCKER_NAME}:${CLEAN_TAG}"
+
+build-image-latest-rds-refresh-dev:
+  <<: *build_image_definition
+  <<: *only_tag_release
+  variables:
+    REGISTRY_USER: "${CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.rds-refresh"
+    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-rds-refresh"
   before_script:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
@@ -401,6 +447,33 @@ build-image-rc-ci-checker-dev:
     REGISTRY: "${CI_REGISTRY}"
     DOCKER_FILE: "Dockerfile.ci-checker"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-ci-checker"
+
+build-image-rc-rds-refresh:
+  <<: *build_image_definition
+  <<: *only_tag_rc
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
+    - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
+  variables:
+    REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${DH_CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.rds-refresh"
+    DOCKER_NAME: "postgresai/dblab-rds-refresh"
+
+build-image-rc-rds-refresh-dev:
+  <<: *build_image_definition
+  <<: *only_tag_rc
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
+    - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
+  variables:
+    REGISTRY_USER: "${CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.rds-refresh"
+    DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-rds-refresh"
+
 build-image-rc-client:
   <<: *build_image_definition
   <<: *only_tag_rc
