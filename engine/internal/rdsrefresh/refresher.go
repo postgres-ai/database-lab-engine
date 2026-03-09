@@ -180,14 +180,14 @@ func (r *Refresher) Run(ctx context.Context) *RefreshResult {
 	// step 6: update DBLab config with RDS clone endpoint
 	log.Msg("updating DBLab config...")
 
-	if err := r.dblab.UpdateSourceConfig(
-		ctx,
-		clone.Endpoint,
-		int(clone.Port),
-		r.cfg.Source.DBName,
-		r.cfg.Source.Username,
-		r.cfg.Source.Password,
-	); err != nil {
+	if err := r.dblab.UpdateSourceConfig(ctx, SourceConfigUpdate{
+		Host:             clone.Endpoint,
+		Port:             int(clone.Port),
+		DBName:           r.cfg.Source.DBName,
+		Username:         r.cfg.Source.Username,
+		Password:         r.cfg.Source.Password,
+		RDSIAMDBInstance: clone.Identifier,
+	}); err != nil {
 		result.Error = fmt.Errorf("failed to update DBLab config: %w", err)
 		return result
 	}

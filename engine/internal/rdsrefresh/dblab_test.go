@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/projection"
 )
 
 func TestDBLabClientHealth(t *testing.T) {
@@ -130,7 +131,13 @@ func TestDBLabClientUpdateSourceConfig(t *testing.T) {
 			assert.Equal(t, http.MethodPost, r.Method)
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
-			err := json.NewDecoder(r.Body).Decode(&receivedConfig)
+			var nested map[string]interface{}
+			err := json.NewDecoder(r.Body).Decode(&nested)
+			require.NoError(t, err)
+
+			err = projection.LoadJSON(&receivedConfig, nested, projection.LoadOptions{
+				Groups: []string{"default", "sensitive"},
+			})
 			require.NoError(t, err)
 
 			w.WriteHeader(http.StatusOK)
@@ -140,7 +147,10 @@ func TestDBLabClientUpdateSourceConfig(t *testing.T) {
 		client, err := NewDBLabClient(&DBLabConfig{APIEndpoint: server.URL, Token: "test-token"})
 		require.NoError(t, err)
 
-		err = client.UpdateSourceConfig(context.Background(), "clone-host.rds.amazonaws.com", 5432, "postgres", "dbuser", "dbpass")
+		err = client.UpdateSourceConfig(context.Background(), SourceConfigUpdate{
+			Host: "clone-host.rds.amazonaws.com", Port: 5432, DBName: "postgres",
+			Username: "dbuser", Password: "dbpass", RDSIAMDBInstance: "my-rds-clone",
+		})
 		require.NoError(t, err)
 
 		assert.Equal(t, "clone-host.rds.amazonaws.com", *receivedConfig.Host)
@@ -148,6 +158,37 @@ func TestDBLabClientUpdateSourceConfig(t *testing.T) {
 		assert.Equal(t, "postgres", *receivedConfig.DBName)
 		assert.Equal(t, "dbuser", *receivedConfig.Username)
 		assert.Equal(t, "dbpass", *receivedConfig.Password)
+		assert.Equal(t, "my-rds-clone", *receivedConfig.RDSIAMDBInstance)
+	})
+
+	t.Run("successful without rds iam instance", func(t *testing.T) {
+		var receivedConfig models.ConfigProjection
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var nested map[string]interface{}
+			err := json.NewDecoder(r.Body).Decode(&nested)
+			require.NoError(t, err)
+
+			err = projection.LoadJSON(&receivedConfig, nested, projection.LoadOptions{
+				Groups: []string{"default", "sensitive"},
+			})
+			require.NoError(t, err)
+
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
+
+		client, err := NewDBLabClient(&DBLabConfig{APIEndpoint: server.URL, Token: "test-token"})
+		require.NoError(t, err)
+
+		err = client.UpdateSourceConfig(context.Background(), SourceConfigUpdate{
+			Host: "host.rds.amazonaws.com", Port: 5432, DBName: "postgres",
+			Username: "dbuser", Password: "dbpass",
+		})
+		require.NoError(t, err)
+
+		assert.Equal(t, "host.rds.amazonaws.com", *receivedConfig.Host)
+		assert.Nil(t, receivedConfig.RDSIAMDBInstance)
 	})
 
 	t.Run("error on non-2xx status", func(t *testing.T) {
@@ -160,7 +201,9 @@ func TestDBLabClientUpdateSourceConfig(t *testing.T) {
 		client, err := NewDBLabClient(&DBLabConfig{APIEndpoint: server.URL, Token: "test-token"})
 		require.NoError(t, err)
 
-		err = client.UpdateSourceConfig(context.Background(), "host", 5432, "db", "user", "pass")
+		err = client.UpdateSourceConfig(context.Background(), SourceConfigUpdate{
+			Host: "host", Port: 5432, DBName: "db", Username: "user", Password: "pass",
+		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid configuration")
 	})
@@ -175,7 +218,9 @@ func TestDBLabClientUpdateSourceConfig(t *testing.T) {
 		client, err := NewDBLabClient(&DBLabConfig{APIEndpoint: server.URL, Token: "test-token"})
 		require.NoError(t, err)
 
-		err = client.UpdateSourceConfig(context.Background(), "host", 5432, "db", "user", "pass")
+		err = client.UpdateSourceConfig(context.Background(), SourceConfigUpdate{
+			Host: "host", Port: 5432, DBName: "db", Username: "user", Password: "pass",
+		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "internal server error")
 	})

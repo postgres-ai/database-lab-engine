@@ -16,6 +16,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/projection"
 )
 
 const (
@@ -170,19 +171,44 @@ func (c *DBLabClient) WaitForRefreshComplete(ctx context.Context, pollInterval, 
 	}
 }
 
+// SourceConfigUpdate contains source database connection parameters for config update.
+type SourceConfigUpdate struct {
+	Host     string
+	Port     int
+	DBName   string
+	Username string
+	Password string
+	// RDSIAMDBInstance is the RDS DB instance identifier for IAM auth. When empty, this field is omitted from the config update.
+	RDSIAMDBInstance string
+}
+
 // UpdateSourceConfig updates the source database connection in DBLab config.
 // DBLab automatically reloads the configuration after the update.
-func (c *DBLabClient) UpdateSourceConfig(ctx context.Context, host string, port int, dbname, username, password string) error {
-	port64 := int64(port)
-	updateReq := models.ConfigProjection{
-		Host:     &host,
+func (c *DBLabClient) UpdateSourceConfig(ctx context.Context, update SourceConfigUpdate) error {
+	port64 := int64(update.Port)
+	proj := models.ConfigProjection{
+		Host:     &update.Host,
 		Port:     &port64,
-		DBName:   &dbname,
-		Username: &username,
-		Password: &password,
+		DBName:   &update.DBName,
+		Username: &update.Username,
+		Password: &update.Password,
 	}
 
-	bodyBytes, err := json.Marshal(updateReq)
+	if update.RDSIAMDBInstance != "" {
+		proj.RDSIAMDBInstance = &update.RDSIAMDBInstance
+	}
+
+	nested := map[string]interface{}{}
+
+	// defensive error check: StoreJSON only fails if target is not an addressable struct,
+	// which cannot happen here since proj is always a valid ConfigProjection value.
+	if err := projection.StoreJSON(&proj, nested, projection.StoreOptions{
+		Groups: []string{"default", "sensitive"},
+	}); err != nil {
+		return fmt.Errorf("failed to build config projection: %w", err)
+	}
+
+	bodyBytes, err := json.Marshal(nested)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config update: %w", err)
 	}
