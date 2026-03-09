@@ -44,7 +44,6 @@ semgrep-sast:
     name: returntocorp/semgrep
     pull_policy: if-not-present
   <<: *ui_checks
-  <<: *ui_cache
   variables:
     # See more at semgrep.dev/explore.
     SEMGREP_RULES: >-
