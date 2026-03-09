@@ -28,4 +28,5 @@ type ConfigProjection struct {
 	RestoreCustomOptions []interface{}          `proj:"retrieval.spec.logicalRestore.options.customOptions"`
 	IgnoreDumpErrors     *bool                  `proj:"retrieval.spec.logicalDump.options.ignoreErrors"`
 	IgnoreRestoreErrors  *bool                  `proj:"retrieval.spec.logicalRestore.options.ignoreErrors"`
+	RDSIAMDBInstance     *string                `proj:"retrieval.spec.logicalDump.options.source.rdsIam.dbInstanceIdentifier"`
 }
