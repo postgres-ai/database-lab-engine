@@ -1,5 +1,5 @@
 # Biuld phase.
-FROM node:16.14-alpine as build
+FROM node:25.8-alpine as build
 
 WORKDIR /app
 
