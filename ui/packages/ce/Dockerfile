@@ -21,7 +21,7 @@ RUN apk add --no-cache --update git && \
     pnpm --filter @postgres.ai/ce build
 
 # Run phase.
-FROM nginx:1.20.1-alpine as run
+FROM nginx:1.29.5-alpine as run
 
 COPY --from=build /app/packages/ce/build /srv/ce
 COPY ./ui/packages/ce/nginx.conf /etc/nginx/conf.d/ce.conf.template
