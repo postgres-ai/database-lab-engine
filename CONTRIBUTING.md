@@ -273,6 +273,19 @@ Components have a separate version, denoted by either:
 - a certain type of the git tag (for example, `v0.0.0` for Database Lab Engine, and `ui0.0.0` for Database Lab UI) or
 - a combination of the branch name and git commit SHA.
 
+### Pre-commit hooks
+
+This repo uses [pre-commit](https://pre-commit.com/) with [gitleaks](https://github.com/gitleaks/gitleaks) to catch secrets before they are committed.
+
+```bash
+# Install pre-commit
+pip install pre-commit
+# or: brew install pre-commit
+
+# Install the hooks (one-time, after cloning)
+pre-commit install
+```
+
 ### Development setup
 - Install Docker. Example for Linux:
     ```bash
