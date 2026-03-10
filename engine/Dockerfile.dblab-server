@@ -1,6 +1,6 @@
 # See Guides to learn how to start a container: https://postgres.ai/docs/how-to-guides/administration/engine-manage
 
-FROM docker:27.5.1
+FROM docker:29.3.0
 
 # Install dependencies
 RUN apk update \
