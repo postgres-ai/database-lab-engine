@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -20,6 +21,9 @@ import (
 
 const (
 	dleRetrieval = "dle_retrieval"
+
+	// connectTimeout defines the timeout for connecting to the database.
+	connectTimeout = 10 * time.Second
 
 	// queryFieldsNum defines the expected number of fields in the query result.
 	queryFieldsNum = 5
@@ -39,7 +43,14 @@ const (
 func dbSourceActivity(ctx context.Context, dbCfg Connection) ([]activity.PGEvent, error) {
 	connStr := db.ConnectionString(dbCfg.Host, strconv.Itoa(dbCfg.Port), dbCfg.Username, dbCfg.DBName, dbCfg.Password)
 
-	querier, err := pgx.Connect(ctx, connStr)
+	pgxCfg, err := pgx.ParseConfig(connStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse connection config: %w", err)
+	}
+
+	pgxCfg.ConnectTimeout = connectTimeout
+
+	querier, err := pgx.ConnectConfig(ctx, pgxCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}
