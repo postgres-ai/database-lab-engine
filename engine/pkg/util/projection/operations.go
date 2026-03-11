@@ -42,6 +42,7 @@ func Load(target interface{}, accessor Accessor, options LoadOptions) error {
 }
 
 // Store writes the values of the fields of the target struct to the accessor.
+// Nil slice and map fields are skipped and do not overwrite existing accessor values.
 func Store(target interface{}, accessor Accessor, options StoreOptions) error {
 	return forEachField(target, func(tag *fieldTag, field reflect.Value) error {
 		if !tag.matchesStore(options) {
@@ -57,6 +58,12 @@ func Store(target interface{}, accessor Accessor, options StoreOptions) error {
 
 			accessorValue = field.Elem().Interface()
 		} else {
+			if field.Kind() == reflect.Slice || field.Kind() == reflect.Map {
+				if field.IsNil() {
+					return nil
+				}
+			}
+
 			accessorValue = field.Interface()
 		}
 
