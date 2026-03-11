@@ -35,6 +35,9 @@ import (
 
 const (
 	logsSinceInterval = "5m"
+
+	// activityTimeout defines the timeout for retrieving activity data.
+	activityTimeout = 15 * time.Second
 )
 
 func (s *Server) getInstanceStatus(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +59,10 @@ func (s *Server) retrievalState(w http.ResponseWriter, r *http.Request) {
 		retrieving.NextRefresh = models.NewLocalTime(spec.Next(time.Now()))
 	}
 
-	retrieving.Activity = s.jobActivity(context.Background())
+	activityCtx, cancel := context.WithTimeout(context.Background(), activityTimeout)
+	defer cancel()
+
+	retrieving.Activity = s.jobActivity(activityCtx)
 
 	if err := api.WriteJSON(w, http.StatusOK, retrieving); err != nil {
 		api.SendError(w, r, err)
