@@ -28,7 +28,7 @@
     "crypto-browserify": "^3.12.0",
     "cypress": "^14.5.4",
     "date-fns": "^2.22.1",
-    "eslint-plugin-cypress": "^2.13.3",
+    "eslint-plugin-cypress": "^6.1.0",
     "formik": "^2.2.9",
     "get-user-locale": "^1.4.0",
     "mobx": "^6.3.5",
