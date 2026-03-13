@@ -9,7 +9,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@babel/core": "^7.13.0",
+    "@babel/core": "^7.29.0",
     "@craco/craco": "^7.0.0-alpha.7",
     "@emotion/react": "^11.10.5",
     "@emotion/styled": "^11.10.5",
