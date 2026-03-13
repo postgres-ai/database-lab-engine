@@ -13,6 +13,8 @@ include:
   - template: Security/SAST.gitlab-ci.yml
   - local: 'engine/.gitlab-ci.yml'
   - local: 'ui/.gitlab-ci.yml'
+  - project: 'postgres-ai/infra'
+    file: '/ci/templates/approval-check.yml'
 
 empty-job:
   stage: test
