@@ -16,9 +16,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Build all components: `cd engine && make build`
 - Lint code: `cd engine && make run-lint`
 - Run unit tests: `cd engine && make test`
+- Run unit tests with race detection: `cd engine && make test-race`
 - Run integration tests: `cd engine && make test-ci-integration`
+- Run benchmark tests: `cd engine && make test-bench`
+- Run all quality checks: `cd engine && make quality`
+- Run coverage report: `cd engine && make coverage-report`
+- Run vulnerability scan: `cd engine && make vulnerability-scan`
 - Run a specific test: `cd engine && GO111MODULE=on go test -v ./path/to/package -run TestName`
 - Run UI: `cd ui && pnpm start:ce` (Community Edition) or `pnpm start:platform`
+
+## Quality Engineering
+
+See `quality/QUALITY_ENGINEERING_GUIDE.md` for the full quality framework.
+
+Key references:
+- PR review checklist: `quality/checklists/pr-review-checklist.md`
+- Release readiness checklist: `quality/checklists/release-readiness-checklist.md`
+- AI PR review prompt: `quality/prompts/pr-review-system-prompt.md`
+- AI test generation prompt: `quality/prompts/test-generation-prompt.md`
+- CI quality gates: `quality/ci/quality-gates.yml`
+- Quality metrics template: `quality/metrics/quality-metrics-template.md`
+- Pre-push quality script: `quality/scripts/run-quality-checks.sh`
 
 ## Code Style Guidelines
 - Go code follows "Effective Go" and "Go Code Review Comments" guidelines

@@ -75,8 +75,25 @@ build-dle: build build-image ## Build Database Lab Engine binary and Docker imag
 test: ## Run unit tests
 	${GOTEST} ./...
 
+test-race: ## Run unit tests with race detector (explicit target for CI quality gate)
+	${GOTEST} -count=1 -timeout=10m ./...
+
 test-ci-integration: ## Run integration tests
 	GO111MODULE=on go test -race  -tags=integration ./...
+
+test-bench: ## Run benchmark tests
+	GO111MODULE=on go test -bench=. -benchmem -count=3 -timeout=30m ./... 2>&1 | tee bench-results.txt
+
+coverage-report: ## Run tests with coverage and report result
+	@GO111MODULE=on go test -coverprofile=coverage.out -covermode=atomic ./... 2>&1 | tail -1
+	@TOTAL=$$(go tool cover -func=coverage.out | grep total | awk '{print $$3}' | sed 's/%//'); \
+	echo "Total coverage: $${TOTAL}%"
+
+vulnerability-scan: ## Scan dependencies for known vulnerabilities
+	go install golang.org/x/vuln/cmd/govulncheck@latest
+	govulncheck ./...
+
+quality: fmt run-lint test coverage-report ## Run all quality checks (format, lint, test, coverage)
 
 fmt: ## Format code
 	go fmt $$(go list ./... | grep -v /vendor/)
@@ -100,4 +117,4 @@ run-dle: build-dle
 	-p "2345:2345" \
 	dblab_server:local
 
-.PHONY: help all build test run-lint install-lint lint fmt clean build-image build-dle build-ci-checker build-client build-rds-refresh run-dle
+.PHONY: help all build test test-race test-bench test-ci-integration run-lint install-lint lint fmt clean build-image build-dle build-ci-checker build-client build-rds-refresh run-dle coverage-report vulnerability-scan quality

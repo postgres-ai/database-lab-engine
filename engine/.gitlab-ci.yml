@@ -15,6 +15,7 @@ default:
 
 stages:
   - test
+  - quality
   - build-binary
   - build
   - integration-test
@@ -65,6 +66,34 @@ lint:
   script:
     - cd engine
     - make lint
+
+### Quality gates.
+coverage-check:
+  <<: *only_engine
+  stage: quality
+  script:
+    - cd engine
+    - make coverage-report
+  coverage: '/Total coverage: \d+.\d+%/'
+  artifacts:
+    paths:
+      - engine/coverage.out
+    expire_in: 30 days
+
+race-check:
+  <<: *only_engine
+  stage: quality
+  script:
+    - cd engine
+    - make test-race
+
+vulnerability-scan:
+  <<: *only_engine
+  stage: quality
+  script:
+    - cd engine
+    - make vulnerability-scan
+  allow_failure: true
 
 ### Build binary.
 build-binary-alpine:
