@@ -1,0 +1,163 @@
+# Quality Gates CI Configuration
+#
+# This file defines additional CI quality gates to augment the existing
+# pipeline in engine/.gitlab-ci.yml. Include it from the main CI config
+# or merge these jobs into the existing pipeline.
+#
+# Usage in .gitlab-ci.yml:
+#   include:
+#     - local: 'quality/ci/quality-gates.yml'
+
+# ─── Stage definitions ───────────────────────────────────────────────
+# Add these stages to the existing pipeline stages list:
+#   - quality
+#   - performance
+
+# ─── Quality gate: test coverage threshold ───────────────────────────
+coverage-check:
+  stage: test
+  image:
+    name: golang:1.24
+    pull_policy: if-not-present
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - engine/**/*
+  script:
+    - cd engine
+    - |
+      go test -coverprofile=coverage.out -covermode=atomic ./... 2>&1 | tee test-output.txt
+      TOTAL=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+      echo "Total coverage: ${TOTAL}%"
+      # Fail if coverage drops below threshold
+      if [ "$(echo "$TOTAL < 60" | bc)" -eq 1 ]; then
+        echo "ERROR: test coverage ${TOTAL}% is below minimum threshold of 60%"
+        exit 1
+      fi
+  coverage: '/Total coverage: \d+.\d+%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: engine/coverage.xml
+    paths:
+      - engine/coverage.out
+    expire_in: 30 days
+
+# ─── Quality gate: race condition detection ──────────────────────────
+race-check:
+  stage: test
+  image:
+    name: golang:1.24
+    pull_policy: if-not-present
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - engine/**/*
+  script:
+    - cd engine
+    - go test -race -count=1 -timeout=10m ./...
+
+# ─── Quality gate: vulnerability scanning ────────────────────────────
+dependency-scan:
+  stage: test
+  image:
+    name: golang:1.24
+    pull_policy: if-not-present
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - engine/go.mod
+        - engine/go.sum
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - engine/go.mod
+        - engine/go.sum
+  script:
+    - cd engine
+    - go install golang.org/x/vuln/cmd/govulncheck@latest
+    - govulncheck ./...
+  allow_failure: false
+
+# ─── Quality gate: code complexity ───────────────────────────────────
+complexity-check:
+  stage: test
+  image:
+    name: golang:1.24
+    pull_policy: if-not-present
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - engine/**/*.go
+  script:
+    - cd engine
+    - go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+    - |
+      # Check for functions exceeding cyclomatic complexity of 30
+      COMPLEX=$(gocyclo -over 30 . 2>/dev/null || true)
+      if [ -n "$COMPLEX" ]; then
+        echo "ERROR: functions exceeding cyclomatic complexity threshold of 30:"
+        echo "$COMPLEX"
+        exit 1
+      fi
+      echo "All functions within complexity threshold"
+
+# ─── Performance: benchmark regression detection ─────────────────────
+benchmark-check:
+  stage: test
+  image:
+    name: golang:1.24
+    pull_policy: if-not-present
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - engine/**/*
+  script:
+    - cd engine
+    - |
+      # Run benchmarks and save results
+      go test -bench=. -benchmem -count=5 -timeout=30m ./... > bench-results.txt 2>&1 || true
+      echo "Benchmark results saved"
+  artifacts:
+    paths:
+      - engine/bench-results.txt
+    expire_in: 90 days
+
+# ─── Quality gate: UI checks ────────────────────────────────────────
+ui-quality:
+  stage: test
+  image:
+    name: node:20
+    pull_policy: if-not-present
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - ui/**/*
+  script:
+    - cd ui
+    - npm install -g pnpm
+    - pnpm install --frozen-lockfile
+    - cd packages/ce
+    - pnpm lint:code
+    - pnpm lint:styles
+    - pnpm lint:spelling
+    - pnpm build
+
+# ─── Nightly: full PostgreSQL version matrix + extensions ────────────
+nightly-extension-matrix:
+  stage: integration-test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+  variables:
+    POSTGRES_VERSIONS: "14 15 16 17 18"
+  script:
+    - |
+      for PG_VERSION in $POSTGRES_VERSIONS; do
+        echo "Testing PostgreSQL ${PG_VERSION} with extensions..."
+        export POSTGRES_VERSION=$PG_VERSION
+        bash engine/test/1.synthetic.sh
+        bash engine/test/2.logical_generic.sh
+      done
+  tags:
+    - dle-test
+  allow_failure: true
