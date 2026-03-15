@@ -217,3 +217,203 @@ func TestCalculateProtectionTime_EdgeCases(t *testing.T) {
 func ptrUint(v uint) *uint {
 	return &v
 }
+
+func TestConnectionString(t *testing.T) {
+	tests := []struct {
+		name     string
+		host     string
+		port     string
+		username string
+		dbname   string
+		want     string
+	}{
+		{name: "standard connection", host: "localhost", port: "5432", username: "postgres", dbname: "testdb", want: "host=localhost port=5432 user=postgres database='testdb'"},
+		{name: "socket connection", host: "/var/run/postgresql", port: "6000", username: "user", dbname: "mydb", want: "host=/var/run/postgresql port=6000 user=user database='mydb'"},
+		{name: "database name with spaces", host: "localhost", port: "5432", username: "admin", dbname: "my database", want: "host=localhost port=5432 user=admin database='my database'"},
+		{name: "empty database name", host: "localhost", port: "5432", username: "postgres", dbname: "", want: "host=localhost port=5432 user=postgres database=''"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := connectionString(tt.host, tt.port, tt.username, tt.dbname)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestGetClone(t *testing.T) {
+	base := &Base{
+		config: &Config{},
+		clones: make(map[string]*CloneWrapper),
+		snapshotBox: SnapshotBox{items: make(map[string]*models.Snapshot)},
+	}
+
+	t.Run("existing clone returns clone", func(t *testing.T) {
+		base.setWrapper("clone-1", &CloneWrapper{Clone: &models.Clone{ID: "clone-1", Status: models.Status{Code: models.StatusOK}}})
+		clone, err := base.GetClone("clone-1")
+		require.NoError(t, err)
+		require.NotNil(t, clone)
+		assert.Equal(t, "clone-1", clone.ID)
+	})
+
+	t.Run("non-existing clone returns error", func(t *testing.T) {
+		clone, err := base.GetClone("nonexistent")
+		require.Error(t, err)
+		assert.Nil(t, clone)
+		assert.Contains(t, err.Error(), "clone not found")
+	})
+}
+
+func TestUpdateCloneStatus_ErrorPaths(t *testing.T) {
+	base := &Base{
+		config: &Config{},
+		clones: make(map[string]*CloneWrapper),
+		snapshotBox: SnapshotBox{items: make(map[string]*models.Snapshot)},
+	}
+
+	t.Run("update nonexistent clone returns error", func(t *testing.T) {
+		err := base.UpdateCloneStatus("nonexistent", models.Status{Code: models.StatusOK})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("update existing clone succeeds", func(t *testing.T) {
+		base.setWrapper("clone-1", &CloneWrapper{Clone: &models.Clone{ID: "clone-1"}})
+		err := base.UpdateCloneStatus("clone-1", models.Status{Code: models.StatusOK, Message: "running"})
+		require.NoError(t, err)
+
+		w, ok := base.findWrapper("clone-1")
+		require.True(t, ok)
+		assert.Equal(t, models.StatusOK, w.Clone.Status.Code)
+	})
+}
+
+func TestUpdateCloneSnapshot_ErrorPaths(t *testing.T) {
+	base := &Base{
+		config: &Config{},
+		clones: make(map[string]*CloneWrapper),
+		snapshotBox: SnapshotBox{items: make(map[string]*models.Snapshot)},
+	}
+
+	t.Run("update nonexistent clone returns error", func(t *testing.T) {
+		err := base.UpdateCloneSnapshot("nonexistent", &models.Snapshot{ID: "snap-1"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("update existing clone sets snapshot", func(t *testing.T) {
+		base.setWrapper("clone-1", &CloneWrapper{Clone: &models.Clone{ID: "clone-1"}})
+		snap := &models.Snapshot{ID: "snap-1"}
+		err := base.UpdateCloneSnapshot("clone-1", snap)
+		require.NoError(t, err)
+
+		w, ok := base.findWrapper("clone-1")
+		require.True(t, ok)
+		assert.Equal(t, "snap-1", w.Clone.Snapshot.ID)
+	})
+}
+
+func TestGetCloningState(t *testing.T) {
+	base := &Base{
+		config: &Config{ProtectionLeaseDurationMinutes: 60, ProtectionMaxDurationMinutes: 120},
+		clones: make(map[string]*CloneWrapper),
+		snapshotBox: SnapshotBox{items: make(map[string]*models.Snapshot)},
+	}
+
+	t.Run("empty state returns zero clones", func(t *testing.T) {
+		state := base.GetCloningState()
+		assert.Equal(t, uint64(0), state.NumClones)
+		assert.Empty(t, state.Clones)
+		assert.Equal(t, uint(60), state.ProtectionLeaseDurationMinutes)
+		assert.Equal(t, uint(120), state.ProtectionMaxDurationMinutes)
+	})
+
+	t.Run("state reflects clone count", func(t *testing.T) {
+		base.setWrapper("c1", &CloneWrapper{Clone: &models.Clone{ID: "c1", CreatedAt: &models.LocalTime{Time: time.Now()}}})
+		base.setWrapper("c2", &CloneWrapper{Clone: &models.Clone{ID: "c2", CreatedAt: &models.LocalTime{Time: time.Now()}}})
+		state := base.GetCloningState()
+		assert.Equal(t, uint64(2), state.NumClones)
+		assert.Len(t, state.Clones, 2)
+	})
+}
+
+func TestDestroyPreChecks(t *testing.T) {
+	t.Run("protected clone returns error", func(t *testing.T) {
+		base := &Base{
+			config: &Config{},
+			clones: make(map[string]*CloneWrapper),
+			snapshotBox: SnapshotBox{items: make(map[string]*models.Snapshot)},
+		}
+
+		w := &CloneWrapper{Clone: &models.Clone{ID: "protected", Protected: true, Status: models.Status{Code: models.StatusOK}}}
+		base.setWrapper("protected", w)
+
+		err := base.destroyPreChecks("protected", w)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "protected")
+	})
+
+	t.Run("fatal protected clone bypasses protection check", func(t *testing.T) {
+		base := &Base{
+			config: &Config{},
+			clones: make(map[string]*CloneWrapper),
+			snapshotBox: SnapshotBox{items: make(map[string]*models.Snapshot)},
+		}
+
+		w := &CloneWrapper{Clone: &models.Clone{
+			ID:        "fatal",
+			Protected: true,
+			Status:    models.Status{Code: models.StatusFatal},
+			Snapshot:  &models.Snapshot{ID: "snap-1"},
+		}}
+		base.setWrapper("fatal", w)
+
+		err := base.destroyPreChecks("fatal", w)
+		// returns errNoSession because Session is nil, but crucially does NOT
+		// return "clone is protected" -- the fatal status bypasses protection.
+		assert.ErrorIs(t, err, errNoSession)
+	})
+}
+
+func TestIsProtected(t *testing.T) {
+	tests := []struct {
+		name      string
+		clone     models.Clone
+		protected bool
+	}{
+		{name: "not protected", clone: models.Clone{Protected: false}, protected: false},
+		{name: "protected with no expiry (forever)", clone: models.Clone{Protected: true}, protected: true},
+		{name: "protected with future expiry", clone: models.Clone{Protected: true, ProtectedTill: &models.LocalTime{Time: time.Now().Add(time.Hour)}}, protected: true},
+		{name: "protected but expired", clone: models.Clone{Protected: true, ProtectedTill: &models.LocalTime{Time: time.Now().Add(-time.Hour)}}, protected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.protected, tt.clone.IsProtected())
+		})
+	}
+}
+
+func TestProtectionExpiresIn(t *testing.T) {
+	t.Run("not protected returns zero", func(t *testing.T) {
+		c := models.Clone{Protected: false}
+		assert.Equal(t, time.Duration(0), c.ProtectionExpiresIn())
+	})
+
+	t.Run("protected without expiry returns zero", func(t *testing.T) {
+		c := models.Clone{Protected: true}
+		assert.Equal(t, time.Duration(0), c.ProtectionExpiresIn())
+	})
+
+	t.Run("protected with future expiry returns positive duration", func(t *testing.T) {
+		c := models.Clone{Protected: true, ProtectedTill: &models.LocalTime{Time: time.Now().Add(30 * time.Minute)}}
+		d := c.ProtectionExpiresIn()
+		assert.Greater(t, d, 29*time.Minute)
+		assert.LessOrEqual(t, d, 31*time.Minute)
+	})
+
+	t.Run("protected with past expiry returns zero", func(t *testing.T) {
+		c := models.Clone{Protected: true, ProtectedTill: &models.LocalTime{Time: time.Now().Add(-time.Hour)}}
+		assert.Equal(t, time.Duration(0), c.ProtectionExpiresIn())
+	})
+}

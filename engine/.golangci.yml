@@ -1,113 +1,116 @@
+version: "2"
 run:
-  timeout: 2m
   issues-exit-code: 1
   tests: true
 output:
   formats:
-   - format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
-
-linters-settings:
-  errcheck:
-    check-type-assertions: false
-    check-blank: false
-    exclude-functions:
-      - (*os.File).Close
-  errorlint:
-    errorf: true
-    asserts: true
-    comparison: true
-  gofmt:
-    simplify: true
-  gofumpt:
-    extra-rules: false
-  gosimple:
-    checks: [ "all" ]
-  goimports:
-    local-prefixes: gitlab.com/postgres-ai/database-lab
-  dupl:
-    threshold: 120
-  goconst:
-    min-len: 3
-    min-occurrences: 5
-  lll:
-    line-length: 140
-    tab-width: 1
-  mnd:
-    ignored-functions:
-      - strconv.Format*
-      - os.*
-      - strconv.Parse*
-      - strings.SplitN
-      - bytes.SplitN
-  revive:
-    confidence: 0.8
-  unused:
-    exported-fields-are-used: false
-  unparam:
-    check-exported: false
-  nakedret:
-    max-func-lines: 20
-  prealloc:
-    simple: true
-    range-loops: true
-    for-loops: true
-  gocritic:
-    disabled-checks:
-      - regexpMust
-      - rangeValCopy
-      - appendAssign
-      - hugeParam
-    enabled-tags:
-      - performance
-    disabled-tags:
-      - experimental
-  staticcheck:
-    checks: [ "all" ]
-
+    text:
+      path: stdout
+      print-linter-name: true
+      print-issued-lines: true
 linters:
   enable:
     - dupl
-    - errcheck
     - gochecknoinits
     - goconst
     - gocritic
-    - goimports
-    - gosimple
-    - govet
-    - ineffassign
     - lll
     - misspell
     - mnd
     - prealloc
     - revive
     - staticcheck
-    - stylecheck
     - unconvert
-    - unused
     - unparam
     - wsl
-  enable-all: false
   disable:
     - depguard
+    - gocyclo
     - gosec
-    - gocyclo # currently unmaintained
-  fast: false
-
+  settings:
+    dupl:
+      threshold: 120
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+      exclude-functions:
+        - (*os.File).Close
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    goconst:
+      min-len: 3
+      min-occurrences: 5
+    gocritic:
+      disabled-checks:
+        - regexpMust
+        - rangeValCopy
+        - appendAssign
+        - hugeParam
+      enabled-tags:
+        - performance
+      disabled-tags:
+        - experimental
+    lll:
+      line-length: 140
+      tab-width: 1
+    mnd:
+      ignored-functions:
+        - strconv.Format*
+        - os.*
+        - strconv.Parse*
+        - strings.SplitN
+        - bytes.SplitN
+    nakedret:
+      max-func-lines: 20
+    prealloc:
+      simple: true
+      range-loops: true
+      for-loops: true
+    revive:
+      confidence: 0.8
+    staticcheck:
+      checks:
+        - all
+    unparam:
+      check-exported: false
+    unused:
+      exported-fields-are-used: false
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - dupl
+          - errcheck
+          - gocyclo
+          - lll
+          - mnd
+          - wsl
+        path: _test\.go
+    paths:
+      - vendor
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - dupl
-        - gocyclo
-        - lll
-        - errcheck
-        - wsl
-        - mnd
-  exclude-dirs:
-    - vendor
-
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
+formatters:
+  enable:
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    gofumpt:
+      extra-rules: false
+    goimports:
+      local-prefixes:
+        - gitlab.com/postgres-ai/database-lab
+  exclusions:
+    generated: lax
+    paths:
+      - vendor
+      - third_party$
+      - builtin$
+      - examples$
