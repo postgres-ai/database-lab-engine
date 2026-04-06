@@ -182,8 +182,8 @@ importers:
         specifier: ^9.27.0
         version: 9.39.4
       eslint-plugin-cypress:
-        specifier: ^6.1.0
-        version: 6.2.1(eslint@9.39.4)
+        specifier: ^6.2.2
+        version: 6.2.2(eslint@9.39.4)
       eslint-plugin-react:
         specifier: ^7.37.5
         version: 7.37.5(eslint@9.39.4)
@@ -3605,8 +3605,8 @@ packages:
     resolution: {integrity: sha512-TtpcNJ3XAzx3Gq8sWRzJaVajRs0uVxA2YAkdb1jm2YkPz4G6egUFAyA3n5vtEIZefPk5Wa4UXbKuS5fKkJWdgA==}
     engines: {node: '>=10'}
 
-  /eslint-plugin-cypress@6.2.1(eslint@9.39.4):
-    resolution: {integrity: sha512-pbjvNE2GKG3hlerT3SIQcRnsMfzFnpAyg0V17D+Gm/a18cxBOVLUxWWANAs7LzykdTPn+SKgzczhF0+IODFs7w==}
+  /eslint-plugin-cypress@6.2.2(eslint@9.39.4):
+    resolution: {integrity: sha512-lOhmMWb5/+zv28EaDOT7C3lgGgWL8DMZglTUNUaaGfleK89joDBRXX8LV01ygx3dK1RbvG54b8t025/5QEUKgg==}
     peerDependencies:
       eslint: '>=9'
     dependencies:
