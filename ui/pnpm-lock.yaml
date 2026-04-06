@@ -124,8 +124,8 @@ importers:
         specifier: ^2.22.1
         version: 2.25.0
       formik:
-        specifier: ^2.2.9
-        version: 2.2.9(react@17.0.2)
+        specifier: ^2.4.9
+        version: 2.4.9(@types/react@17.0.39)(react@17.0.2)
       get-user-locale:
         specifier: ^1.4.0
         version: 1.4.0
@@ -290,8 +290,8 @@ importers:
         specifier: ^2.22.1
         version: 2.25.0
       formik:
-        specifier: ^2.2.9
-        version: 2.2.9(react@17.0.2)
+        specifier: ^2.4.9
+        version: 2.4.9(@types/react@17.0.39)(react@17.0.2)
       get-user-locale:
         specifier: ^1.4.0
         version: 1.4.0
@@ -2092,6 +2092,15 @@ packages:
 
   /@types/history@4.7.9:
     resolution: {integrity: sha512-MUc6zSmU3tEVnkQ78q0peeEjKWPUADMlC/t++2bI8WnAG2tvYRPIgHG8lWkXwqc8MsUF6Z2MOf+Mh5sazOmhiQ==}
+    dev: false
+
+  /@types/hoist-non-react-statics@3.3.7(@types/react@17.0.39):
+    resolution: {integrity: sha512-PQTyIulDkIDro8P+IHbKCsw7U2xxBYflVzW/FgWdCAePD9xGSidgA76/GeJ6lBKoblyhf9pBY763gbrN+1dI8g==}
+    peerDependencies:
+      '@types/react': '*'
+    dependencies:
+      '@types/react': 17.0.39
+      hoist-non-react-statics: 3.3.2
     dev: false
 
   /@types/json-schema@7.0.15:
@@ -4000,11 +4009,12 @@ packages:
     engines: {node: '>=0.4.x'}
     dev: false
 
-  /formik@2.2.9(react@17.0.2):
-    resolution: {integrity: sha512-LQLcISMmf1r5at4/gyJigGn0gOwFbeEAlji+N9InZF6LIMXnFNkO42sCI8Jt84YZggpD4cPWObAZaxpEFtSzNA==}
+  /formik@2.4.9(@types/react@17.0.39)(react@17.0.2):
+    resolution: {integrity: sha512-5nI94BMnlFDdQRBY4Sz39WkhxajZJ57Fzs8wVbtsQlm5ScKIR1QLYqv/ultBnobObtlUyxpxoLodpixrsf36Og==}
     peerDependencies:
       react: '>=16.8.0'
     dependencies:
+      '@types/hoist-non-react-statics': 3.3.7(@types/react@17.0.39)
       deepmerge: 2.2.1
       hoist-non-react-statics: 3.3.2
       lodash: 4.18.1
@@ -4012,7 +4022,9 @@ packages:
       react: 17.0.2
       react-fast-compare: 2.0.4
       tiny-warning: 1.0.3
-      tslib: 1.14.1
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@types/react'
     dev: false
 
   /fs-extra@10.1.0:
@@ -6654,10 +6666,6 @@ packages:
     dependencies:
       typescript: 4.8.3
     dev: true
-
-  /tslib@1.14.1:
-    resolution: {integrity: sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==}
-    dev: false
 
   /tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
