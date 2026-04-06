@@ -77,7 +77,7 @@
     "typescript-eslint": "^8.32.1",
     "monaco-editor": "^0.55.0",
     "postcss": "^8.3.3",
-    "prettier": "^2.4.1",
+    "prettier": "^2.8.8",
     "sass": "^1.86.0",
     "stylelint": "^14.0.1",
     "stylelint-config-standard-scss": "^2.0.1",
