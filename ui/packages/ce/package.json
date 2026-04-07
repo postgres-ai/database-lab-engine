@@ -83,7 +83,7 @@
     "stylelint-config-standard-scss": "^2.0.1",
     "stylelint-prettier": "^2.0.0",
     "vitest": "^3.2.1",
-    "vite": "^6.3.2",
+    "vite": "^6.4.2",
     "vite-plugin-checker": "^0.9.1",
     "vite-tsconfig-paths": "^5.1.4"
   }
