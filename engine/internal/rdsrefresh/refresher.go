@@ -100,7 +100,7 @@ func (r *Refresher) Run(ctx context.Context) *RefreshResult {
 	// step 2: resolve parallelism levels
 	log.Msg("resolving parallelism levels...")
 
-	parallelism, err := ResolveParallelism(ctx, r.cfg)
+	parallelism, err := ResolveParallelism(r.cfg)
 	if err != nil {
 		log.Warn("failed to auto-detect parallelism, using defaults:", err)
 
@@ -278,7 +278,7 @@ func (r *Refresher) DryRun(ctx context.Context) error {
 	log.Msg("would create RDS clone with instance class:", r.cfg.RDSClone.InstanceClass)
 
 	// check parallelism
-	parallelism, err := ResolveParallelism(ctx, r.cfg)
+	parallelism, err := ResolveParallelism(r.cfg)
 	if err != nil {
 		log.Warn("could not auto-detect parallelism:", err)
 	} else {

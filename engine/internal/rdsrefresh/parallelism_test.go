@@ -5,47 +5,34 @@
 package rdsrefresh
 
 import (
-	"context"
 	"runtime"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type mockEC2API struct {
-	describeInstanceTypesFunc func(ctx context.Context, params *ec2.DescribeInstanceTypesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypesOutput, error)
-}
-
-func (m *mockEC2API) DescribeInstanceTypes(ctx context.Context, params *ec2.DescribeInstanceTypesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypesOutput, error) {
-	if m.describeInstanceTypesFunc != nil {
-		return m.describeInstanceTypesFunc(ctx, params, optFns...)
-	}
-
-	return &ec2.DescribeInstanceTypesOutput{}, nil
-}
-
-func TestRdsClassToEC2Type(t *testing.T) {
+func TestExtractInstanceSize(t *testing.T) {
 	testCases := []struct {
-		rdsClass     string
-		expectedType string
-		expectErr    bool
+		instanceClass string
+		expectedSize  string
+		expectErr     bool
 	}{
-		{rdsClass: "db.m5.xlarge", expectedType: "m5.xlarge"},
-		{rdsClass: "db.t3.medium", expectedType: "t3.medium"},
-		{rdsClass: "db.r6g.2xlarge", expectedType: "r6g.2xlarge"},
-		{rdsClass: "db.serverless", expectedType: "serverless"},
-		{rdsClass: "m5.xlarge", expectErr: true},
-		{rdsClass: "db.", expectErr: true},
-		{rdsClass: "", expectErr: true},
+		{instanceClass: "db.m5.xlarge", expectedSize: "xlarge"},
+		{instanceClass: "db.t3.medium", expectedSize: "medium"},
+		{instanceClass: "db.r6g.2xlarge", expectedSize: "2xlarge"},
+		{instanceClass: "db.m5.metal", expectedSize: "metal"},
+		{instanceClass: "db.t3.micro", expectedSize: "micro"},
+		{instanceClass: "db.r6g.16xlarge", expectedSize: "16xlarge"},
+		{instanceClass: "m5.xlarge", expectErr: true},
+		{instanceClass: "db.m5", expectErr: true},
+		{instanceClass: "db.", expectErr: true},
+		{instanceClass: "", expectErr: true},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.rdsClass, func(t *testing.T) {
-			result, err := rdsClassToEC2Type(tc.rdsClass)
+		t.Run(tc.instanceClass, func(t *testing.T) {
+			size, err := extractInstanceSize(tc.instanceClass)
 
 			if tc.expectErr {
 				require.Error(t, err)
@@ -53,98 +40,76 @@ func TestRdsClassToEC2Type(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			assert.Equal(t, tc.expectedType, result)
+			assert.Equal(t, tc.expectedSize, size)
 		})
 	}
 }
 
-func TestLookupInstanceVCPUs(t *testing.T) {
-	t.Run("returns vcpu count for valid instance type", func(t *testing.T) {
-		mock := &mockEC2API{
-			describeInstanceTypesFunc: func(ctx context.Context, params *ec2.DescribeInstanceTypesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypesOutput, error) {
-				assert.Equal(t, ec2types.InstanceType("m5.xlarge"), params.InstanceTypes[0])
+func TestResolveRDSInstanceVCPUs(t *testing.T) {
+	testCases := []struct {
+		instanceClass string
+		expectedVCPUs int
+		expectErr     bool
+	}{
+		{instanceClass: "db.t3.micro", expectedVCPUs: 1},
+		{instanceClass: "db.t3.small", expectedVCPUs: 1},
+		{instanceClass: "db.t3.medium", expectedVCPUs: 2},
+		{instanceClass: "db.m5.large", expectedVCPUs: 2},
+		{instanceClass: "db.m5.xlarge", expectedVCPUs: 4},
+		{instanceClass: "db.r6g.2xlarge", expectedVCPUs: 8},
+		{instanceClass: "db.r6g.4xlarge", expectedVCPUs: 16},
+		{instanceClass: "db.r6g.8xlarge", expectedVCPUs: 32},
+		{instanceClass: "db.r6g.16xlarge", expectedVCPUs: 64},
+		{instanceClass: "db.m5.24xlarge", expectedVCPUs: 96},
+		{instanceClass: "db.m5.metal", expectedVCPUs: 96},
+		{instanceClass: "db.m5.5xlarge", expectedVCPUs: 20},
+		{instanceClass: "invalid", expectErr: true},
+		{instanceClass: "db.m5", expectErr: true},
+		{instanceClass: "db.m5.unknown", expectErr: true},
+	}
 
-				return &ec2.DescribeInstanceTypesOutput{
-					InstanceTypes: []ec2types.InstanceTypeInfo{
-						{InstanceType: ec2types.InstanceType("m5.xlarge"), VCpuInfo: &ec2types.VCpuInfo{DefaultVCpus: aws.Int32(4)}},
-					},
-				}, nil
-			},
-		}
+	for _, tc := range testCases {
+		t.Run(tc.instanceClass, func(t *testing.T) {
+			vcpus, err := resolveRDSInstanceVCPUs(tc.instanceClass)
 
-		vcpus, err := lookupInstanceVCPUs(context.Background(), mock, "db.m5.xlarge")
+			if tc.expectErr {
+				require.Error(t, err)
+				return
+			}
 
-		require.NoError(t, err)
-		assert.Equal(t, 4, vcpus)
-	})
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedVCPUs, vcpus)
+		})
+	}
+}
 
-	t.Run("returns vcpu count for large instance", func(t *testing.T) {
-		mock := &mockEC2API{
-			describeInstanceTypesFunc: func(ctx context.Context, params *ec2.DescribeInstanceTypesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypesOutput, error) {
-				return &ec2.DescribeInstanceTypesOutput{
-					InstanceTypes: []ec2types.InstanceTypeInfo{
-						{InstanceType: ec2types.InstanceType("r6g.16xlarge"), VCpuInfo: &ec2types.VCpuInfo{DefaultVCpus: aws.Int32(64)}},
-					},
-				}, nil
-			},
-		}
+func TestParseXlargeMultiplier(t *testing.T) {
+	testCases := []struct {
+		size          string
+		expectedVCPUs int
+		expectErr     bool
+	}{
+		{size: "2xlarge", expectedVCPUs: 8},
+		{size: "4xlarge", expectedVCPUs: 16},
+		{size: "5xlarge", expectedVCPUs: 20},
+		{size: "xlarge", expectErr: true},
+		{size: "large", expectErr: true},
+		{size: "abcxlarge", expectErr: true},
+	}
 
-		vcpus, err := lookupInstanceVCPUs(context.Background(), mock, "db.r6g.16xlarge")
+	for _, tc := range testCases {
+		t.Run(tc.size, func(t *testing.T) {
+			vcpus, err := parseXlargeMultiplier(tc.size)
 
-		require.NoError(t, err)
-		assert.Equal(t, 64, vcpus)
-	})
+			if tc.expectErr {
+				require.Error(t, err)
+				return
+			}
 
-	t.Run("returns error for instance type not found", func(t *testing.T) {
-		mock := &mockEC2API{
-			describeInstanceTypesFunc: func(ctx context.Context, params *ec2.DescribeInstanceTypesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypesOutput, error) {
-				return &ec2.DescribeInstanceTypesOutput{InstanceTypes: []ec2types.InstanceTypeInfo{}}, nil
-			},
-		}
-
-		_, err := lookupInstanceVCPUs(context.Background(), mock, "db.nonexistent.type")
-
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not found")
-	})
-
-	t.Run("returns error for missing vcpu info", func(t *testing.T) {
-		mock := &mockEC2API{
-			describeInstanceTypesFunc: func(ctx context.Context, params *ec2.DescribeInstanceTypesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypesOutput, error) {
-				return &ec2.DescribeInstanceTypesOutput{
-					InstanceTypes: []ec2types.InstanceTypeInfo{
-						{InstanceType: ec2types.InstanceType("m5.xlarge"), VCpuInfo: nil},
-					},
-				}, nil
-			},
-		}
-
-		_, err := lookupInstanceVCPUs(context.Background(), mock, "db.m5.xlarge")
-
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "vCPU info not available")
-	})
-
-	t.Run("returns error for invalid rds class", func(t *testing.T) {
-		mock := &mockEC2API{}
-		_, err := lookupInstanceVCPUs(context.Background(), mock, "invalid-class")
-
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid RDS instance class")
-	})
-
-	t.Run("returns error on api failure", func(t *testing.T) {
-		mock := &mockEC2API{
-			describeInstanceTypesFunc: func(ctx context.Context, params *ec2.DescribeInstanceTypesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypesOutput, error) {
-				return nil, assert.AnError
-			},
-		}
-
-		_, err := lookupInstanceVCPUs(context.Background(), mock, "db.m5.xlarge")
-
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to describe EC2 instance type")
-	})
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedVCPUs, vcpus)
+		})
+	}
 }
 
 func TestResolveLocalVCPUs(t *testing.T) {
@@ -152,4 +117,24 @@ func TestResolveLocalVCPUs(t *testing.T) {
 
 	assert.Equal(t, runtime.NumCPU(), vcpus)
 	assert.GreaterOrEqual(t, vcpus, minParallelJobs)
+}
+
+func TestResolveParallelism(t *testing.T) {
+	t.Run("resolves both dump and restore jobs", func(t *testing.T) {
+		cfg := &Config{RDSClone: RDSCloneConfig{InstanceClass: "db.m5.xlarge"}}
+
+		result, err := ResolveParallelism(cfg)
+
+		require.NoError(t, err)
+		assert.Equal(t, 4, result.DumpJobs)
+		assert.Equal(t, runtime.NumCPU(), result.RestoreJobs)
+	})
+
+	t.Run("returns error for invalid instance class", func(t *testing.T) {
+		cfg := &Config{RDSClone: RDSCloneConfig{InstanceClass: "invalid"}}
+
+		_, err := ResolveParallelism(cfg)
+
+		require.Error(t, err)
+	})
 }
