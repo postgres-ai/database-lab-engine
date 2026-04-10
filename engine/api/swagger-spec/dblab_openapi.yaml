@@ -1219,11 +1219,11 @@ paths:
                 message: "Check your verification token."
       x-codegen-request-body-name: body
   /admin/ws-auth:
-    post:
+    get:
       tags:
       - Admin
-      summary: Test source database
-      operationId: testDBConnection2
+      summary: WebSocket authentication
+      operationId: wsAuth
       parameters:
       - name: Verification-Token
         in: header
@@ -1645,6 +1645,8 @@ components:
           type: string
         password:
           type: string
+        dbName:
+          type: string
     Clone:
       type: object
       properties:
@@ -1654,6 +1656,10 @@ components:
           type: string
         snapshot:
           $ref: '#/components/schemas/Snapshot'
+        branch:
+          type: string
+        revision:
+          type: integer
         protected:
           type: boolean
           default: false
@@ -1730,6 +1736,11 @@ components:
               default:
             db_name:
               type: string
+        extra_conf:
+          type: object
+          additionalProperties:
+            type: string
+          description: Extra PostgreSQL configuration parameters for the clone
     ResetClone:
       type: object
       properties:
