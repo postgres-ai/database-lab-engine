@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go v1.55.8
 	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/config v1.32.14
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.297.0
 	github.com/aws/aws-sdk-go-v2/service/rds v1.117.1
 	github.com/containerd/errdefs v1.0.0
 	github.com/docker/cli v28.5.2+incompatible

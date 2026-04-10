@@ -191,6 +191,70 @@ func TestDBLabClientUpdateSourceConfig(t *testing.T) {
 		assert.Nil(t, receivedConfig.RDSIAMDBInstance)
 	})
 
+	t.Run("successful with parallelism settings", func(t *testing.T) {
+		var receivedConfig models.ConfigProjection
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var nested map[string]interface{}
+			err := json.NewDecoder(r.Body).Decode(&nested)
+			require.NoError(t, err)
+
+			err = projection.LoadJSON(&receivedConfig, nested, projection.LoadOptions{
+				Groups: []string{"default", "sensitive"},
+			})
+			require.NoError(t, err)
+
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
+
+		client, err := NewDBLabClient(&DBLabConfig{APIEndpoint: server.URL, Token: "test-token"})
+		require.NoError(t, err)
+
+		err = client.UpdateSourceConfig(context.Background(), SourceConfigUpdate{
+			Host: "clone-host.rds.amazonaws.com", Port: 5432, DBName: "postgres",
+			Username: "dbuser", Password: "dbpass",
+			DumpParallelJobs: 4, RestoreParallelJobs: 8,
+		})
+		require.NoError(t, err)
+
+		require.NotNil(t, receivedConfig.DumpParallelJobs)
+		assert.Equal(t, int64(4), *receivedConfig.DumpParallelJobs)
+		require.NotNil(t, receivedConfig.RestoreParallelJobs)
+		assert.Equal(t, int64(8), *receivedConfig.RestoreParallelJobs)
+	})
+
+	t.Run("omits parallelism when zero", func(t *testing.T) {
+		var receivedConfig models.ConfigProjection
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var nested map[string]interface{}
+			err := json.NewDecoder(r.Body).Decode(&nested)
+			require.NoError(t, err)
+
+			err = projection.LoadJSON(&receivedConfig, nested, projection.LoadOptions{
+				Groups: []string{"default", "sensitive"},
+			})
+			require.NoError(t, err)
+
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
+
+		client, err := NewDBLabClient(&DBLabConfig{APIEndpoint: server.URL, Token: "test-token"})
+		require.NoError(t, err)
+
+		err = client.UpdateSourceConfig(context.Background(), SourceConfigUpdate{
+			Host: "host.rds.amazonaws.com", Port: 5432, DBName: "postgres",
+			Username: "dbuser", Password: "dbpass",
+			DumpParallelJobs: 0, RestoreParallelJobs: 0,
+		})
+		require.NoError(t, err)
+
+		assert.Nil(t, receivedConfig.DumpParallelJobs)
+		assert.Nil(t, receivedConfig.RestoreParallelJobs)
+	})
+
 	t.Run("error on non-2xx status", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)

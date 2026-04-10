@@ -180,6 +180,10 @@ type SourceConfigUpdate struct {
 	Password string
 	// RDSIAMDBInstance is the RDS DB instance identifier for IAM auth. When empty, this field is omitted from the config update.
 	RDSIAMDBInstance string
+	// DumpParallelJobs sets the -j flag for pg_dump. When zero, the existing value is preserved.
+	DumpParallelJobs int
+	// RestoreParallelJobs sets the -j flag for pg_restore. When zero, the existing value is preserved.
+	RestoreParallelJobs int
 }
 
 // UpdateSourceConfig updates the source database connection in DBLab config.
@@ -196,6 +200,16 @@ func (c *DBLabClient) UpdateSourceConfig(ctx context.Context, update SourceConfi
 
 	if update.RDSIAMDBInstance != "" {
 		proj.RDSIAMDBInstance = &update.RDSIAMDBInstance
+	}
+
+	if update.DumpParallelJobs > 0 {
+		dumpJobs := int64(update.DumpParallelJobs)
+		proj.DumpParallelJobs = &dumpJobs
+	}
+
+	if update.RestoreParallelJobs > 0 {
+		restoreJobs := int64(update.RestoreParallelJobs)
+		proj.RestoreParallelJobs = &restoreJobs
 	}
 
 	nested := map[string]interface{}{}

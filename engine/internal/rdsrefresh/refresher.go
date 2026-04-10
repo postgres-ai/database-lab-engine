@@ -59,14 +59,15 @@ func NewRefresherWithStateFile(ctx context.Context, cfg *Config, stateFile *Stat
 
 // Run executes the full refresh workflow:
 // 1. Verifies DBLab is healthy and not already refreshing
-// 2. Gets source database info
-// 3. Finds the latest RDS snapshot
-// 4. Creates a temporary RDS clone from the RDS snapshot
-// 5. Waits for the RDS clone to be available
-// 6. Updates DBLab config with the RDS clone endpoint
-// 7. Triggers DBLab full refresh
-// 8. Waits for refresh to complete
-// 9. Deletes the temporary RDS clone
+// 2. Resolves parallelism levels (RDS clone vCPUs for dump, local vCPUs for restore)
+// 3. Gets source database info
+// 4. Finds the latest RDS snapshot
+// 5. Creates a temporary RDS clone from the RDS snapshot
+// 6. Waits for the RDS clone to be available
+// 7. Updates DBLab config with the RDS clone endpoint and parallelism
+// 8. Triggers DBLab full refresh
+// 9. Waits for refresh to complete
+// 10. Deletes the temporary RDS clone
 func (r *Refresher) Run(ctx context.Context) *RefreshResult {
 	result := &RefreshResult{
 		StartTime: time.Now(),
@@ -96,7 +97,17 @@ func (r *Refresher) Run(ctx context.Context) *RefreshResult {
 		return result
 	}
 
-	// step 2: get source info
+	// step 2: resolve parallelism levels
+	log.Msg("resolving parallelism levels...")
+
+	parallelism, err := ResolveParallelism(ctx, r.cfg)
+	if err != nil {
+		log.Warn("failed to auto-detect parallelism, using defaults:", err)
+
+		parallelism = &ParallelismConfig{DumpJobs: 0, RestoreJobs: 0}
+	}
+
+	// step 3: get source info
 	log.Msg("checking source database...")
 
 	sourceInfo, err := r.rds.GetSourceInfo(ctx)
@@ -107,7 +118,7 @@ func (r *Refresher) Run(ctx context.Context) *RefreshResult {
 
 	log.Msg("source:", sourceInfo)
 
-	// step 3: find latest RDS snapshot
+	// step 4: find latest RDS snapshot
 	log.Msg("finding latest RDS snapshot...")
 
 	snapshotID, err := r.rds.FindLatestSnapshot(ctx)
@@ -119,7 +130,7 @@ func (r *Refresher) Run(ctx context.Context) *RefreshResult {
 	result.SnapshotID = snapshotID
 	log.Msg("using RDS snapshot:", snapshotID)
 
-	// step 4: create temporary RDS clone
+	// step 5: create temporary RDS clone
 	log.Msg("creating RDS clone from RDS snapshot...")
 
 	// write state file before clone creation for crash recovery
@@ -166,7 +177,7 @@ func (r *Refresher) Run(ctx context.Context) *RefreshResult {
 		}
 	}()
 
-	// step 5: wait for RDS clone to be available
+	// step 6: wait for RDS clone to be available
 	log.Msg("waiting for RDS clone (10-30 min)...")
 
 	if err := r.rds.WaitForCloneAvailable(ctx, clone); err != nil {
@@ -177,16 +188,18 @@ func (r *Refresher) Run(ctx context.Context) *RefreshResult {
 	result.CloneEndpoint = clone.Endpoint
 	log.Msg("RDS clone ready:", fmt.Sprintf("%s:%d", clone.Endpoint, clone.Port))
 
-	// step 6: update DBLab config with RDS clone endpoint
+	// step 7: update DBLab config with RDS clone endpoint and parallelism
 	log.Msg("updating DBLab config...")
 
 	if err := r.dblab.UpdateSourceConfig(ctx, SourceConfigUpdate{
-		Host:             clone.Endpoint,
-		Port:             int(clone.Port),
-		DBName:           r.cfg.Source.DBName,
-		Username:         r.cfg.Source.Username,
-		Password:         r.cfg.Source.Password,
-		RDSIAMDBInstance: clone.Identifier,
+		Host:                clone.Endpoint,
+		Port:                int(clone.Port),
+		DBName:              r.cfg.Source.DBName,
+		Username:            r.cfg.Source.Username,
+		Password:            r.cfg.Source.Password,
+		RDSIAMDBInstance:    clone.Identifier,
+		DumpParallelJobs:    parallelism.DumpJobs,
+		RestoreParallelJobs: parallelism.RestoreJobs,
 	}); err != nil {
 		result.Error = fmt.Errorf("failed to update DBLab config: %w", err)
 		return result
@@ -194,7 +207,7 @@ func (r *Refresher) Run(ctx context.Context) *RefreshResult {
 
 	log.Msg("DBLab config updated successfully")
 
-	// step 7: trigger DBLab full refresh
+	// step 8: trigger DBLab full refresh
 	log.Msg("triggering DBLab full refresh...")
 
 	if err := r.dblab.TriggerFullRefresh(ctx); err != nil {
@@ -204,7 +217,7 @@ func (r *Refresher) Run(ctx context.Context) *RefreshResult {
 
 	log.Msg("full refresh triggered, waiting for completion...")
 
-	// step 8: wait for refresh to complete
+	// step 9: wait for refresh to complete
 	pollInterval := r.cfg.DBLab.PollInterval.Duration()
 
 	timeout := r.cfg.DBLab.Timeout.Duration()
@@ -263,6 +276,14 @@ func (r *Refresher) DryRun(ctx context.Context) error {
 
 	log.Msg("would use RDS snapshot:", snapshotID)
 	log.Msg("would create RDS clone with instance class:", r.cfg.RDSClone.InstanceClass)
+
+	// check parallelism
+	parallelism, err := ResolveParallelism(ctx, r.cfg)
+	if err != nil {
+		log.Warn("could not auto-detect parallelism:", err)
+	} else {
+		log.Msg("auto-parallelism: dump jobs =", parallelism.DumpJobs, ", restore jobs =", parallelism.RestoreJobs)
+	}
 
 	log.Msg("=== DRY RUN COMPLETE - all checks passed ===")
 
