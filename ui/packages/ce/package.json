@@ -76,7 +76,7 @@
     "globals": "^16.2.0",
     "typescript-eslint": "^8.32.1",
     "monaco-editor": "^0.55.0",
-    "postcss": "^8.3.3",
+    "postcss": "^8.5.10",
     "prettier": "^2.8.8",
     "sass": "^1.86.0",
     "stylelint": "^14.0.1",
