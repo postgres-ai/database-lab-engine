@@ -62,6 +62,10 @@ const (
 
 	// defaultLogsDir defines default location of diagnostic logs on the host machine.
 	defaultLogsDir = "~/.dblab/engine/logs"
+
+	// defaultPostgresLogTailLines is the number of trailing log lines fetched when
+	// reporting Postgres logs after a failed health check.
+	defaultPostgresLogTailLines = 20
 )
 
 // ErrHealthCheck defines a health check errors.
@@ -473,16 +477,83 @@ func printPostgresLogsHint(ctx context.Context, dockerClient *client.Client, con
 		"check (%s) on DLE machine.\n", logsHostDir))
 }
 
-// PrintLastPostgresLogs prints Postgres container logs.
+// PrintLastPostgresLogs prints the last lines of Postgres container logs.
+// It reads the newest CSV produced by the logging collector under
+// clonePath/log; if no CSV is present or the CSV read fails, it falls
+// back to the container stdout/stderr stream.
 func PrintLastPostgresLogs(ctx context.Context, dockerClient *client.Client, containerID, clonePath string) {
-	command := []string{"bash", "-c", "tail -n 20 $(ls -t " + clonePath + "/log/*.csv | tail -n 1)"}
+	if output := tryTailCSV(ctx, dockerClient, containerID, clonePath); output != "" {
+		log.Msg("Postgres logs: ", output)
+		return
+	}
 
-	output, err := ExecCommandWithOutput(ctx, dockerClient, containerID, container.ExecOptions{Cmd: command})
+	output, err := tailContainerLogs(ctx, dockerClient, containerID)
 	if err != nil {
-		log.Err(errors.Wrap(err, "failed to read Postgres logs"))
+		if output != "" {
+			log.Msg("Postgres logs (partial): ", output)
+		}
+
+		log.Err(errors.Wrap(err, "failed to read Postgres container logs"))
+
+		return
+	}
+
+	if output == "" {
+		log.Msg("Postgres logs: (no output)")
+		return
 	}
 
 	log.Msg("Postgres logs: ", output)
+}
+
+// tryTailCSV returns the tail of the newest CSV log file under clonePath/log,
+// or "" if no CSV is found or the read fails. The list and tail run in a
+// single exec to reduce (but not eliminate) the TOCTOU window with the
+// Postgres logging collector rotating the file between calls.
+func tryTailCSV(ctx context.Context, dockerClient *client.Client, containerID, clonePath string) string {
+	script := `f=$(ls -t "$1"/log/*.csv 2>/dev/null | head -n 1); ` +
+		`[ -z "$f" ] && exit 0; tail -n "$2" -- "$f"`
+	cmd := []string{"bash", "-c", script, "_", clonePath, strconv.Itoa(defaultPostgresLogTailLines)}
+
+	output, err := ExecCommandWithOutput(ctx, dockerClient, containerID, container.ExecOptions{Cmd: cmd})
+	if err != nil {
+		log.Warn("failed to read Postgres CSV logs: ", err)
+		return ""
+	}
+
+	if strings.TrimSpace(output) == "" {
+		return ""
+	}
+
+	return output
+}
+
+// tailContainerLogs fetches the last defaultPostgresLogTailLines entries from
+// the container's stdout/stderr stream. When the read fails partway, the
+// partial buffer is returned along with the error so the caller can still
+// surface diagnostics.
+func tailContainerLogs(ctx context.Context, dockerClient *client.Client, containerID string) (string, error) {
+	reader, err := dockerClient.ContainerLogs(ctx, containerID, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Tail:       strconv.Itoa(defaultPostgresLogTailLines),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	defer func() {
+		if err := reader.Close(); err != nil {
+			log.Err(errors.Wrap(err, "failed to close container logs reader"))
+		}
+	}()
+
+	buf := &bytes.Buffer{}
+	if _, err := io.Copy(buf, dlog.NewReader(reader)); err != nil {
+		return buf.String(), err
+	}
+
+	return buf.String(), nil
 }
 
 // StopContainer stops container.
