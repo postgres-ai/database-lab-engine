@@ -71,6 +71,12 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
             maxRetries: 200 # Max retries before giving up
           configs: # Additional Postgres configuration for sync container
             shared_buffers: 2GB # Bigger buffer pool helps avoid lagging behind the source
+            # Uncomment to ship sync-container Postgres logs to the Docker logging driver
+            # (e.g. for ingestion by an external log collector) instead of CSV files in PGDATA/log.
+            # Note: disables the CSV-based diagnostics fallback for the sync container.
+            # Optionally append "jsonlog" to log_destination for structured JSON output (Postgres 15+).
+            # log_destination: stderr
+            # logging_collector: "off" # quoted: go-yaml.v2 (YAML 1.1) treats bare off as boolean false
           recovery: # Legacy recovery.conf options; only for Postgres 11 or older
             # standby_mode: on
             # recovery_target_timeline: 'latest'
@@ -98,6 +104,12 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
             inline: "" # Direct SQL queries to execute after scripts from 'queryPath'. Supports multiple statements separated by semicolons
           configs: # Postgres configuration overrides for promotion container
             shared_buffers: 2GB
+            # Uncomment to ship promotion-container Postgres logs to the Docker logging driver
+            # (e.g. for ingestion by an external log collector) instead of CSV files in PGDATA/log.
+            # Note: disables the CSV-based diagnostics fallback for the promotion container.
+            # Optionally append "jsonlog" to log_destination for structured JSON output (Postgres 15+).
+            # log_destination: stderr
+            # logging_collector: "off" # quoted: go-yaml.v2 (YAML 1.1) treats bare off as boolean false
           recovery: # Legacy recovery.conf configuration options; only applicable for Postgres 11 or earlier versions
             # recovery_target: 'immediate'
             # recovery_target_action: 'promote'
