@@ -56,8 +56,8 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 	log.Dbg(fmt.Sprintf("Host info: %#v", hostInfo))
 
 	if hostInfo.VirtualizationRole == "guest" {
-		// Build custom mounts rely on mounts of the Database Lab instance if it's running inside Docker container.
-		// We cannot use --volumes-from because it removes the ZFS mount point.
+		// build custom mounts rely on mounts of the Database Lab instance if it's running inside Docker container.
+		// we cannot use --volumes-from because it removes the ZFS mount point.
 		volumes, err = getMountVolumes(r, c, hostInfo.Hostname)
 		if err != nil {
 			return errors.Wrap(err, "failed to detect container volumes")
@@ -119,7 +119,7 @@ func publishPorts(provisionHosts string, instancePort string) string {
 func createDefaultVolumes(c *resources.AppConfig) (string, []string) {
 	unixSocketCloneDir := c.Pool.SocketCloneDir(c.CloneName)
 
-	// Directly mount PGDATA if Database Lab is running without any virtualization.
+	// directly mount PGDATA if Database Lab is running without any virtualization.
 	volumes := []string{
 		fmt.Sprintf("--volume %s:%s", c.CloneDir(), c.CloneDir()),
 		fmt.Sprintf("--volume %s:%s", unixSocketCloneDir, unixSocketCloneDir),
@@ -151,7 +151,7 @@ func buildVolumesFromMountPoints(c *resources.AppConfig, mountPoints []container
 	volumes := make([]string, 0, len(mounts))
 
 	for _, mountPoint := range mountPoints {
-		// Add an extra mount for socket directories.
+		// add an extra mount for socket directories.
 		if strings.HasPrefix(unixSocketCloneDir, mountPoint.Destination) {
 			volumes = append(volumes, buildSocketMount(unixSocketCloneDir, mountPoint.Source, mountPoint.Destination))
 			break
@@ -159,7 +159,7 @@ func buildVolumesFromMountPoints(c *resources.AppConfig, mountPoints []container
 	}
 
 	for _, mount := range mounts {
-		// Exclude system and non-data volumes from a clone container.
+		// exclude system and non-data volumes from a clone container.
 		if isSystemVolume(mount.Source) || !strings.HasPrefix(mount.Source, c.Pool.MountDir) {
 			continue
 		}

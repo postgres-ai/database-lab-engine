@@ -52,8 +52,8 @@ func NewRunnerError(command string, stderr string, e error) error {
 
 	case (*exec.ExitError):
 		// SO: https://stackoverflow.com/questions/10385551/get-exit-code-go.
-		// The program has exited with an exit code != 0
-		// This works on both Unix and Windows. Although package
+		// the program has exited with an exit code != 0.
+		// this works on both Unix and Windows. Although package
 		// syscall is generally platform dependent, WaitStatus is
 		// defined for both Unix and Windows and in both cases has
 		// an ExitStatus() method with the same signature.
@@ -124,19 +124,19 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
-	// TODO(anatoly): Remove hot fix of pg_ctl endless wait.
+	// TODO(anatoly): remove hot fix of pg_ctl endless wait.
 	if strings.Contains(command, "start") {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
 
-	// Psql with the file option returns error response to stderr with
+	// psql with the file option returns error response to stderr with
 	// success exit code. In that case err will be nil, but we need
 	// to treat the case as error and read proper output.
 	err := cmd.Run()
 	psqlErr := strings.Contains(command, "psql") && len(stderr.String()) > 0
 
-	// TODO(anatoly): Remove hotfix.
+	// TODO(anatoly): remove hotfix.
 	psqlErr = psqlErr && !strings.Contains(stderr.String(), "unable to resolve host")
 
 	if err != nil || psqlErr {
@@ -158,7 +158,7 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 	return outFormatted, nil
 }
 
-// Utils.
+// utils.
 func parseOptions(options ...bool) bool {
 	logsEnabled := LogsEnabledDefault
 	if len(options) > 0 {

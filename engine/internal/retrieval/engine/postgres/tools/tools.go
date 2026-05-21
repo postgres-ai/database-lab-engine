@@ -746,8 +746,8 @@ func processAttachResponse(ctx context.Context, reader io.Reader) ([]byte, error
 	return bytes.TrimSpace(outBuf.Bytes()), nil
 }
 
-// CreateContainerIfMissing create a new container if there is no other container with the same name, if the container
-// exits returns existing container id.
+// CreateContainerIfMissing creates a new container if no container with the same name exists.
+// If a container with the same name already exists, its ID is returned.
 func CreateContainerIfMissing(ctx context.Context, docker *client.Client, containerName string,
 	config *container.Config, hostConfig *container.HostConfig) (string, error) {
 	containerData, err := docker.ContainerInspect(ctx, containerName)

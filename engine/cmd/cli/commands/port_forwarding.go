@@ -37,7 +37,7 @@ func BuildTunnel(cliCtx *cli.Context, remoteHost *url.URL) (*portfwd.SSHTunnel, 
 			authMethod,
 		},
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			// Always accept key.
+			// always accept key.
 			return nil
 		},
 	}

@@ -32,7 +32,7 @@ DataStateAt: {{.DataStateAt | formatDSA }}{{if and (ne .Message "-") (ne .Messag
 {{end}}`
 )
 
-// Create a new template and parse the letter into it.
+// create a new template and parse the letter into it.
 var logTemplate = template.Must(template.New("branchLog").Funcs(
 	template.FuncMap{
 		"formatDSA": func(dsa string) string {
@@ -86,17 +86,17 @@ func list(cliCtx *cli.Context) error {
 		return err
 	}
 
-	// Create a new branch.
+	// create a new branch.
 	if branchName := cliCtx.Args().First(); branchName != "" {
 		return create(cliCtx)
 	}
 
-	// Delete branch.
+	// delete branch.
 	if branchName := cliCtx.String("delete"); branchName != "" {
 		return deleteBranch(cliCtx)
 	}
 
-	// List branches.
+	// list branches.
 	branches, err := dblabClient.ListBranches(cliCtx.Context)
 	if err != nil {
 		return err
