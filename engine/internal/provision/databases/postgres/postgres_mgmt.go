@@ -91,7 +91,7 @@ func CreateUser(c *resources.AppConfig, user resources.EphemeralUser) error {
 	}
 
 	if user.Restricted {
-		// Create or alter restricted user.
+		// create or alter restricted user.
 		query = restrictedUserQuery(user.Name, user.Password, userExists)
 		out, err := runSimpleSQL(query, pgConnStr)
 
@@ -101,7 +101,7 @@ func CreateUser(c *resources.AppConfig, user resources.EphemeralUser) error {
 
 		log.Dbg("Restricted user has been created: ", out)
 
-		// Change user ownership.
+		// change user ownership.
 		query = restrictedUserOwnershipQuery(user.Name, user.Password)
 		out, err = runSimpleSQL(query, pgConnStr)
 
@@ -111,7 +111,7 @@ func CreateUser(c *resources.AppConfig, user resources.EphemeralUser) error {
 
 		log.Dbg("Database ownership has been changed: ", out)
 
-		// Set restricted user as owner for database objects.
+		// set restricted user as owner for database objects.
 		databaseList, err := runSQLSelectQuery(selectAllDatabases, pgConnStr)
 
 		if err != nil {

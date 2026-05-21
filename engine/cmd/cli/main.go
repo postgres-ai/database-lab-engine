@@ -30,10 +30,10 @@ func main() {
 		},
 		Before: loadEnvironmentParams,
 		Commands: joinCommands(
-			// Config commands.
+			// config commands.
 			global.List(),
 
-			// Branching.
+			// branching.
 			branch.List(),
 
 			// Database Lab API.
@@ -116,7 +116,7 @@ func loadEnvironmentParams(c *cli.Context) error {
 
 	cfg, err := config.Load(filename)
 	if err != nil {
-		// Failed to load config, skip auto-loading environment keys.
+		// failed to load config, skip auto-loading environment keys.
 		return nil
 	}
 
@@ -185,7 +185,7 @@ func loadEnvironmentParams(c *cli.Context) error {
 }
 
 func joinCommands(cliGroups ...[]*cli.Command) []*cli.Command {
-	// There are at least len(cliGroups) elements.
+	// there are at least len(cliGroups) elements.
 	cliCommands := make([]*cli.Command, 0, len(cliGroups))
 
 	for _, cliGroup := range cliGroups {
