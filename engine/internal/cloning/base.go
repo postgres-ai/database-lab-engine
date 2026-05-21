@@ -502,11 +502,11 @@ func (c *Base) calculateProtectionTime(durationMinutes *uint) *models.LocalTime 
 	maxMinutes := c.config.ProtectionMaxDurationMinutes
 
 	if minutes == 0 {
-		if maxMinutes > 0 {
-			minutes = maxMinutes
-		} else {
+		if maxMinutes == 0 {
 			return nil
 		}
+
+		minutes = maxMinutes
 	}
 
 	if maxMinutes > 0 && minutes > maxMinutes {

@@ -31,11 +31,11 @@ func initCLI(c *cli.Context) error {
 
 	cfg, err := config.Load(filename)
 	if err != nil {
-		if os.IsNotExist(err) {
-			cfg = &config.CLIConfig{}
-		} else {
+		if !os.IsNotExist(err) {
 			return err
 		}
+
+		cfg = &config.CLIConfig{}
 	}
 
 	environmentID := c.String(commands.EnvironmentIDKey)
