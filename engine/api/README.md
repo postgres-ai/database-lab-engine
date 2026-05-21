@@ -15,7 +15,7 @@ We use ReadMe.io to host the API documentation: https://dblab.readme.io/. Once a
 The Postman collection is generated from the OpenAPI spec file using [Portman](https://github.com/apideck-libraries/portman).
 1. Install and initialize `portman`.
 1. Generate a new version of the Postman collection:
-    ```
+    ```bash
     portman --cliOptionsFile engine/api/postman/portman-cli.json
     ```
 1. Review and adjust the collection:

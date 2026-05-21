@@ -16,7 +16,7 @@ To report a security issue, please email us at security@postgres.ai with all the
 - Your issue is not security related.
 
 ## Security Vulnerability Response
-Each report is acknowledged and analyzed by the project's maintainers and the security team within 3 working days. 
+Each report is acknowledged and analyzed by the project's maintainers and the security team within 3 working days.
 
 The reporter will be kept updated at every stage of the issue's analysis and resolution (triage -> fix -> release).
 

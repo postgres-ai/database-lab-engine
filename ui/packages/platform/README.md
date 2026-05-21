@@ -9,7 +9,7 @@ For detailed information about UI development, please refer to the main [CONTRIB
 ### Start Development Server
 Specify REST API server URL with `REACT_APP_API_SERVER` environment variable.
 
-```
+```bash
 npm install
 npm run build
 npm run start
