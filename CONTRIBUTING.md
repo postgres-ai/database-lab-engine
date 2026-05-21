@@ -133,7 +133,7 @@ Consistent messaging is important throughout the codebase. Follow these guidelin
 
 #### CLI output
 - Use concise, action-oriented language
-- Present tense with ellipsis for in-progress actions: `Creating clone...` 
+- Present tense with ellipsis for in-progress actions: `Creating clone...`
   - Ellipsis (`...`) indicates an ongoing process where the user should wait
   - Always follow up with a completion message when the operation finishes
 - Past tense with period for results: `Clone created successfully.`
@@ -166,7 +166,7 @@ Documentation for Database Lab Engine and additional components is hosted at htt
 We're building documentation following the principles described at https://documentation.divio.com/:
 
 > There is a secret that needs to be understood in order to write good software documentation: there isn’t one thing called documentation, there are four.
-> 
+>
 > They are: tutorials, how-to guides, technical reference and explanation. They represent four different purposes or functions, and require four different approaches to their creation. Understanding the implications of this will help improve most documentation - often immensely.
 
 Learn more: https://documentation.divio.com/.
@@ -194,7 +194,7 @@ Postman collection is generated based on the OpenAPI spec file, using [Portman](
 ##### Setup and Generation
 1. Install Portman: `npm install -g @apideck/portman`
 2. Generate Postman collection file:
-   ```
+   ```bash
    portman --cliOptionsFile engine/api/postman/portman-cli.json
    ```
 
@@ -207,7 +207,7 @@ Postman collection is generated based on the OpenAPI spec file, using [Portman](
 
 ##### CI/CD Integration
 The Postman collection is automatically run in CI/CD pipelines using Newman. For local testing:
-```
+```bash
 newman run engine/api/postman/dblab_api.postman_collection.json -e engine/api/postman/branching.aws.postgres.ai.postman_environment.json
 ```
 

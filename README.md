@@ -16,7 +16,7 @@
 <div align="center">
   <strong>⚡ Blazing-fast PostgreSQL cloning and branching 🐘</strong><br /><br />
   🛠️ Build powerful dev/test environments.<br />
-  🔃 Cover 100% of DB migrations with CI tests.<br>
+  🔃 Cover 100% of DB migrations with CI tests.<br />
   💡 Quickly verify ChatGPT ideas to get rid of hallucinations.<br /><br />
   Available for any PostgreSQL, including self-managed and managed services<sup>*</sup> like AWS RDS, GCP Cloud SQL, Supabase, and Timescale.<br /><br />
   It can be installed and used anywhere: across all cloud environments and on-premises.
@@ -204,15 +204,13 @@ Many thanks to our amazing contributors!
 </a>
 
 ## Translations
-Making DBLab more accessible to engineers around the globe is a great help for the project. Check details in the [translation section of contributing guide](./CONTRIBUTING.md#Translation).
+Making DBLab more accessible to engineers around the globe is a great help for the project. Check details in the [translation section of contributing guide](./CONTRIBUTING.md#translation).
 
 This README is available in the following translations:
 - [German / Deutsch](translations/README.german.md) (by [@ane4ka](https://github.com/ane4ka))
 - [Brazilian Portuguese / Português (BR)](translations/README.portuguese-br.md) (by [@Alexand](https://gitlab.com/Alexand))
-- [Russian / Pусский](translations/README.russian.md) (by [@Tanya301](https://github.com/Tanya301))
+- [Russian / Русский](translations/README.russian.md) (by [@Tanya301](https://github.com/Tanya301))
 - [Spanish / Español](translations/README.spanish.md) (by [@asotolongo](https://gitlab.com/asotolongo))
 - [Ukrainian / Українська](translations/README.ukrainian.md) (by [@denis-boost](https://github.com/denis-boost))
 
 👉 [How to make a translation contribution](./CONTRIBUTING.md#translation)
-
-
