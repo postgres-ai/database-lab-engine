@@ -9,6 +9,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"gitlab.com/postgres-ai/database-lab/v3/cmd/cli/commands"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/envvar"
 )
 
 // DefaultBranch defines the name of data branch.
@@ -30,6 +31,14 @@ type Environment struct {
 	RequestTimeout Duration   `yaml:"request_timeout,omitempty" json:"request_timeout,omitempty"`
 	Forwarding     Forwarding `yaml:"forwarding" json:"forwarding"`
 	Branching      Branching  `yaml:"branching" json:"branching"`
+}
+
+// ResolvedToken returns the token with "${VAR}" / "$VAR" environment
+// references expanded. It returns an error if any referenced variable is unset
+// so a missing env var fails loudly instead of silently producing an empty
+// token that would be rejected by the API as unauthorized.
+func (e Environment) ResolvedToken() (string, error) {
+	return envvar.ExpandStrict(e.Token)
 }
 
 // Forwarding defines configuration for port forwarding.

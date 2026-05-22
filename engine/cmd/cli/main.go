@@ -135,7 +135,12 @@ func loadEnvironmentParams(c *cli.Context) error {
 		}
 
 		if !c.IsSet(commands.TokenKey) {
-			if err := c.Set(commands.TokenKey, env.Token); err != nil {
+			token, err := env.ResolvedToken()
+			if err != nil {
+				return err
+			}
+
+			if err := c.Set(commands.TokenKey, token); err != nil {
 				return err
 			}
 		}

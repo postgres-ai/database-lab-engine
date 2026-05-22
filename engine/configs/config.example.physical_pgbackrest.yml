@@ -1,7 +1,7 @@
 # Copy this configuration to: ~/.dblab/engine/configs/server.yml
 # Configuration reference guide: https://postgres.ai/docs/reference-guides/database-lab-engine-configuration-reference
 server:
-  verificationToken: "secret_token" # Primary auth token; can be empty (not recommended); for multi-user mode, use DBLab EE
+  verificationToken: "${DBLAB_VERIFICATION_TOKEN}" # Primary auth token; can be empty (not recommended); for multi-user mode, use DBLab EE
   port: 2345 # API server port; default: "2345"
   disableConfigModification: false # When true, configuration changes via API/CLI/UI are disabled; default: "false"
 
@@ -202,6 +202,6 @@ platform:
 #
 #  projectName: "project_name" # Project name
 #  orgKey: "org_key" # Organization key
-#  accessToken: "platform_access_token" # Token for authorization in Platform API; get it at https://postgres.ai/console/YOUR_ORG_NAME/tokens
+#  accessToken: "${PGAI_PLATFORM_ACCESS_TOKEN}" # Token for authorization in Platform API; get it at https://postgres.ai/console/YOUR_ORG_NAME/tokens
 #  enablePersonalTokens: true # Enable authorization with personal tokens of the organization's members.
 #

@@ -13,6 +13,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/runci/source"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/envvar"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
@@ -65,6 +66,15 @@ func LoadConfiguration() (*Config, error) {
 	cfg := &Config{}
 	if err := yaml.Unmarshal(b, cfg); err != nil {
 		return nil, errors.WithMessagef(err, "error parsing %s config", configPath)
+	}
+
+	if err := envvar.ExpandFields([]envvar.Field{
+		{Name: "app.verificationToken", Ptr: &cfg.App.VerificationToken},
+		{Name: "dle.verificationToken", Ptr: &cfg.DLE.VerificationToken},
+		{Name: "platform.accessToken", Ptr: &cfg.Platform.AccessToken},
+		{Name: "source.token", Ptr: &cfg.Source.Token},
+	}); err != nil {
+		return nil, errors.Wrap(err, "failed to resolve environment placeholders")
 	}
 
 	return cfg, nil
