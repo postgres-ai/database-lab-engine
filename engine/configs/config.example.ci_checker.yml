@@ -15,7 +15,7 @@ app:
   # If the integration with Postgres.ai Platform is configured
   # (see below, "platform: ..." configuration),
   # tokens (including personal) generated on the Platform may be used.
-  verificationToken: "secret_token"
+  verificationToken: "${CI_CHECKER_VERIFICATION_TOKEN}"
 
 # Database Lab instance that starts clone to check DB migrations.
 dle:
@@ -23,7 +23,7 @@ dle:
   url: "https://dblab.domain.com"
 
   # Secret token used to communicate with the Database Lab Engine API.
-  verificationToken: "checker_secret_token"
+  verificationToken: "${DBLAB_VERIFICATION_TOKEN}"
 
 # Integration with Postgres.ai Platform instance. It may be either
 # SaaS (https://postgres.ai) of self-managed instance (usually located inside
@@ -33,7 +33,7 @@ platform:
   url: "https://postgres.ai/api/general"
 
   # Postgres.ai Platform API secret token.
-  accessToken: "platform_access_token"
+  accessToken: "${PGAI_PLATFORM_ACCESS_TOKEN}"
 
   # Enable authorization with personal tokens of the organization's members.
   # If false: all users must use "verificationToken" value for any API request
@@ -47,7 +47,7 @@ source:
   type: "github"
 
   # Access token for getting source code from version control system.
-  token: "vcs_secret_token"
+  token: "${VCS_ACCESS_TOKEN}"
 
 runner:
   # Docker image containing tools for executing database migration commands.

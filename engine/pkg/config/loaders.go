@@ -9,6 +9,7 @@ import (
 	"github.com/rs/xid"
 	"gopkg.in/yaml.v2"
 
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/envvar"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/backup"
@@ -79,7 +80,30 @@ func readConfig() (*Config, error) {
 		return nil, errors.WithMessagef(err, "error parsing %s config", configPath)
 	}
 
+	if err := resolveEnvTokens(cfg); err != nil {
+		return nil, errors.Wrap(err, "failed to resolve environment placeholders")
+	}
+
 	return cfg, nil
+}
+
+// resolveEnvTokens expands "${VAR}" and "$VAR" placeholders in fields that are
+// expected to hold secrets. Other fields are left untouched so values like
+// regex backreferences ("***$1") and passwords containing "$" survive load.
+func resolveEnvTokens(cfg *Config) error {
+	fields := []envvar.Field{
+		{Name: "server.verificationToken", Ptr: &cfg.Server.VerificationToken},
+		{Name: "platform.accessToken", Ptr: &cfg.Platform.AccessToken},
+	}
+
+	for i := range cfg.Webhooks.Hooks {
+		fields = append(fields, envvar.Field{
+			Name: fmt.Sprintf("webhooks.hooks[%d].secret", i),
+			Ptr:  &cfg.Webhooks.Hooks[i].Secret,
+		})
+	}
+
+	return envvar.ExpandFields(fields)
 }
 
 // GetConfigBytes returns config bytes.
