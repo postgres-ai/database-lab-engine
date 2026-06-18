@@ -26,7 +26,7 @@ cve-govulncheck:
   <<: *security_rules
   stage: security
   image:
-    name: golang:1.26.2
+    name: golang:1.26.4
     pull_policy: if-not-present
   before_script:
     - go install golang.org/x/vuln/cmd/govulncheck@latest
