@@ -1,26 +1,10 @@
 import { DatabaseType } from '@postgres.ai/shared/types/api/entities/config'
 
 import { dockerImageOptions } from '../configOptions'
+import { dockerImagesConfig, genericImagePrefix } from '../dockerCatalog'
 import { FormValues } from '../useForm'
 
 const seContainerRegistry = 'se-images'
-const genericImagePrefix = 'postgresai/extended-postgres'
-// Predefined list of Docker images for UI display
-// This list is shown to users for convenient selection
-// IMPORTANT: if user specified an image in config that's not in this list,
-// it will be automatically added via createEnhancedDockerImages()
-const dockerImagesConfig = {
-  '9.6': ['0.5.3', '0.5.2', '0.5.1'],
-  '10': ['0.5.3', '0.5.2', '0.5.1'],
-  '11': ['0.5.3', '0.5.2', '0.5.1'],
-  '12': ['0.5.3', '0.5.2', '0.5.1'],
-  '13': ['0.5.3', '0.5.2', '0.5.1'],
-  '14': ['0.5.3', '0.5.2', '0.5.1'],
-  '15': ['0.5.3', '0.5.2', '0.5.1'],
-  '16': ['0.5.3', '0.5.2', '0.5.1'],
-  '17': ['0.5.3', '0.5.2', '0.5.1'],
-  '18': ['0.6.1'],
-}
 
 export type FormValuesKey = keyof FormValues
 

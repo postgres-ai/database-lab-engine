@@ -1,5 +1,8 @@
 # Copy this configuration to: ~/.dblab/engine/configs/server.yml
 # Configuration reference guide: https://postgres.ai/docs/reference-guides/database-lab-engine-configuration-reference
+# Since 4.2 the UI Configuration page's Expert tab can edit the structured WAL-G fields
+# (walg.backupName, sync.enabled, dockerImage) plus the envs map. Hand-editing this file
+# remains supported; the Expert tab serializes back into the same YAML schema.
 server:
   verificationToken: "${DBLAB_VERIFICATION_TOKEN}" # Primary auth token; can be empty (not recommended); for multi-user mode, use DBLab EE
   port: 2345 # API server port; default: "2345"

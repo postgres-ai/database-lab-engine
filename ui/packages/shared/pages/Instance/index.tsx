@@ -96,8 +96,6 @@ export const Instance = observer((props: Props) => {
     instanceRetrieval ||
     (!isLoadingInstance && !isLoadingInstanceRetrieval && instance && instance?.url && !instanceError)
 
-  const isConfigurationActive = instanceRetrieval?.mode !== 'physical'
-
   useEffect(() => {
     load(instanceId, isPlatform)
   }, [instanceId])
@@ -111,7 +109,6 @@ export const Instance = observer((props: Props) => {
     if (
       instance &&
       instance.state?.retrieving?.status === 'pending' &&
-      isConfigurationActive &&
       !hasBeenRedirected
     ) {
       setActiveTab(TABS_INDEX.CONFIGURATION)
@@ -193,7 +190,6 @@ export const Instance = observer((props: Props) => {
                 <Configuration
                   instanceId={instanceId}
                   switchActiveTab={switchTab}
-                  isConfigurationActive={isConfigurationActive}
                   reload={() => load(props.instanceId)}
                   disableConfigModification={
                     instance?.state?.engine.disableConfigModification

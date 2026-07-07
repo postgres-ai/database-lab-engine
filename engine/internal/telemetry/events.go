@@ -73,6 +73,14 @@ type BranchDestroyed struct {
 // ConfigUpdated describes the config updates.
 type ConfigUpdated struct{}
 
+// ConfigProbed describes a successful Simple-mode source probe. The payload
+// carries the detected provider key only — URL, host, dbname, and username
+// are deliberately omitted because private DNS names and internal hostnames
+// can be sensitive.
+type ConfigProbed struct {
+	Provider string `json:"provider"`
+}
+
 // Alert describes alert events.
 type Alert struct {
 	Level   models.AlertType `json:"level"`

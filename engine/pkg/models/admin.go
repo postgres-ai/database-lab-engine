@@ -82,3 +82,50 @@ type DBSource struct {
 	DBVersion    int               `json:"dbVersion,omitempty"`
 	TuningParams map[string]string `json:"tuningParams"`
 }
+
+// ProbeSourceRequest is the JSON body for POST /admin/probe-source.
+// The password is supplied as a separate field so it is never embedded in
+// the URL (the engine rejects such inputs).
+type ProbeSourceRequest struct {
+	URL      string `json:"url"`
+	Password string `json:"password"`
+}
+
+// SourceConnection is the source endpoint described in a ProposedConfig.
+// Password is intentionally absent — proposals never carry the credential.
+type SourceConnection struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Username string `json:"username"`
+	DBName   string `json:"dbname"`
+}
+
+// ProposedConfig is the response of POST /admin/probe-source. It mirrors
+// probe.ProposedConfig as a JSON-tagged DTO so the engine can change the
+// internal type without breaking wire compatibility.
+//
+// DockerImage carries the provider key (e.g. "rds", "supabase") for backward
+// compatibility; the UI resolves the concrete docker-image id from its catalog
+// when resolvedImage is empty. DockerTag is the registry tag the engine selected
+// (empty when no registry tag matched). ResolvedImage is the full `<repo>:<tag>`
+// reference the engine resolved from the live registries (with offline
+// fallback); when set, clients should prefer it over re-deriving from the
+// provider key. CollationVersion is the source's recorded collation version
+// (PG15+), surfaced for the glibc-mismatch warning.
+//
+// There is intentionally no Warnings field — the UI generates copy from
+// structured signals (detectedProvider, memoryProbed, collationVersion).
+type ProposedConfig struct {
+	Source                 SourceConnection  `json:"source"`
+	DetectedProvider       string            `json:"detectedProvider"`
+	DockerImage            string            `json:"dockerImage"`
+	DockerTag              string            `json:"dockerTag"`
+	ResolvedImage          string            `json:"resolvedImage"`
+	PgMajorVersion         int               `json:"pgMajorVersion"`
+	CollationVersion       string            `json:"collationVersion"`
+	Databases              []string          `json:"databases"`
+	SharedBuffers          string            `json:"sharedBuffers"`
+	MemoryProbed           bool              `json:"memoryProbed"`
+	SharedPreloadLibraries string            `json:"sharedPreloadLibraries"`
+	QueryTuning            map[string]string `json:"queryTuning"`
+}

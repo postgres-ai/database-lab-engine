@@ -28,6 +28,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/probe"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	srvCfg "gitlab.com/postgres-ai/database-lab/v3/internal/srv/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/metrics"
@@ -69,6 +70,7 @@ type Server struct {
 	metricsRegistry  *prometheus.Registry
 	metricsCollector *metrics.Collector
 	metricsCancel    context.CancelFunc
+	imageRegistry    *probe.Registry
 }
 
 // WSService defines a service to manage web-sockets.
@@ -117,6 +119,7 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps *global
 		reloadFn:        reloadConfigFn,
 		webhookCh:       webhookCh,
 		metricsRegistry: metricsRegistry,
+		imageRegistry:   probe.NewRegistry(),
 	}
 
 	collector, err := metrics.NewCollector(m, cloning, retrievalSvc, pm, engineProps, dockerClient, startedAt)
@@ -260,6 +263,7 @@ func (s *Server) InitHandlers() {
 	adminR.HandleFunc("/config.yaml", s.getAdminConfigYaml).Methods(http.MethodGet)
 	adminR.HandleFunc("/config", s.setProjectedAdminConfig).Methods(http.MethodPost)
 	adminR.HandleFunc("/test-db-source", s.testDBSource).Methods(http.MethodPost)
+	adminR.HandleFunc("/probe-source", s.probeSource).Methods(http.MethodPost)
 	adminR.HandleFunc("/billing-status", s.billingStatus).Methods(http.MethodGet)
 	adminR.HandleFunc("/activate", s.activate).Methods(http.MethodPost)
 

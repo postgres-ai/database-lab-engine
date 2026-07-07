@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'node:url'
+/// <reference types="vitest" />
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tsconfigPaths from 'vite-tsconfig-paths'
@@ -83,5 +84,10 @@ export default defineConfig({
   build: {
     outDir: 'build',
     sourcemap: 'hidden',
+  },
+  test: {
+    environment: 'happy-dom',
+    globals: false,
+    setupFiles: ['./src/test/setup.ts'],
   },
 })

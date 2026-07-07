@@ -13,6 +13,7 @@ import { Config } from '@postgres.ai/shared/types/api/entities/config'
 import { GetConfig } from '@postgres.ai/shared/types/api/endpoints/getConfig'
 import { UpdateConfig } from '@postgres.ai/shared/types/api/endpoints/updateConfig'
 import { TestDbSource } from '@postgres.ai/shared/types/api/endpoints/testDbSource'
+import { ProbeSource } from '@postgres.ai/shared/types/api/endpoints/probeSource'
 import { RefreshInstance } from '@postgres.ai/shared/types/api/endpoints/refreshInstance'
 import { DestroyClone } from '@postgres.ai/shared/types/api/endpoints/destroyClone'
 import { ResetClone } from '@postgres.ai/shared/types/api/endpoints/resetClone'
@@ -47,6 +48,7 @@ export type Api = {
   getConfig?: GetConfig
   updateConfig?: UpdateConfig
   testDbSource?: TestDbSource
+  probeSource?: ProbeSource
   getFullConfig?: GetFullConfig
   getSeImages?: GetSeImages
   getEngine?: GetEngine
@@ -291,7 +293,12 @@ export class MainStore {
       this.fullConfig = response
 
       const splitYML = this.fullConfig.split('---')
-      this.platformUrl = splitYML[0]?.split('url: ')[1]?.split('\n')[0]
+      const platformSection = splitYML[0]?.split('\nplatform:')[1] ?? ''
+      const rawPlatformUrl = platformSection.split('url: ')[1]?.split('\n')[0]
+      this.platformUrl = rawPlatformUrl
+        ?.replace(/['"]+/g, '')
+        .trim()
+        .split(/\s+/)[0]
       this.uiVersion = splitYML[0]
         ?.split('dockerImage: "postgresai/ce-ui:')[2]
         ?.split('\n')[0]
@@ -344,6 +351,17 @@ export class MainStore {
     if (!this.api.testDbSource) return
 
     const { response, error } = await this.api.testDbSource(values)
+
+    return {
+      response,
+      error,
+    }
+  }
+
+  probeSource = async (values: { url: string; password: string }) => {
+    if (!this.api.probeSource) return
+
+    const { response, error } = await this.api.probeSource(values)
 
     return {
       response,

@@ -311,7 +311,23 @@ func TestParsingDockerImage(t *testing.T) {
 			},
 			{
 				image:           "internal.example.com:5000/pg:9.6-ext",
-				expectedVersion: "9.6",
+				expectedVersion: "9",
+			},
+			{
+				image:           "postgresai/extended-postgres:14.2",
+				expectedVersion: "14",
+			},
+			{
+				image:           "postgresai/extended-postgres:16-0.7.0-glibc236",
+				expectedVersion: "16",
+			},
+			{
+				image:           "registry.gitlab.com/postgres-ai/se-images/rds:15-0.8.0",
+				expectedVersion: "15",
+			},
+			{
+				image:           "internal.example.com:5000/postgres:16-0.7.0-glibc236",
+				expectedVersion: "16",
 			},
 		}
 

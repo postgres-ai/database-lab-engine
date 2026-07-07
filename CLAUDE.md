@@ -8,6 +8,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    1.1. **Entry Points** (`cmd/`)
 2. **Frontend code** (`ui/`)
 
+### Notable patterns
+- **Source-detection logic** lives in `engine/internal/retrieval/probe/`. The `Propose` orchestrator returns a structured `ProposedConfig` consumed by both the `/admin/probe-source` HTTP handler and the `dblab local-install` CLI (`engine/cmd/cli/commands/localinstall/`). Extend probe rules there, not in `tools/db/pg.go`.
+- **Config projection** (`engine/pkg/models/configuration.go` + `engine/pkg/util/projection/`) walks only top-level struct fields with single flat `proj:"..."` paths — no recursion into nested structs. The `RetrievalMode` field on `ConfigProjection` carries no `proj:` tag because it's a synthetic field injected by `projectedAdminConfig` after `StoreJSON`; the request-side dispatcher reads it directly from the incoming JSON map. A projection field for a key that is **not pre-seeded** in the config scaffold (e.g. `connectionString`) needs the `,createKey` tag — `projection.Set` silently skips a missing leaf without it.
+- **Mode-aware config writes**: `applyProjectedAdminConfig` dispatches on the synthetic `retrievalMode`, and `guardModeFields` enforces a per-mode allow-list of populated fields so logical-only fields cannot leak into a physical config (and vice-versa).
+- **Source connection-string passthrough**: when `logicalDump.options.source.connectionString` is set it wins over the discrete `connection.*` fields. `logical/connstring.go` (`withDatabase`, `sourcePgxConfig`) preserves every libpq option (sslmode, connect_timeout, …) end-to-end into `pg_dump` (`-d <conninfo>`) and the engine's own pgx connections to the **source** (`getDBList`, `dbSourceActivity`). The password is always injected separately — never embedded in the string. Restore paths target the local container and must never receive it.
+- **Engine-side image resolution**: `probe/registry.go` resolves a glibc-aware docker image by querying the live registries (Docker Hub for the generic image, GitLab for managed-provider SE images) with a per-repo TTL cache and a `go:embed` offline snapshot (`images_fallback.json`). Resolution never hard-fails or hangs: fresh cache → live fetch (bounded) → last good cache → embedded snapshot → provider default `<repo>:<major>`. Tag selection (`imageselect.go`) is pure and unit-tested; the `Registry` is built once on `Server`.
+
 ## Testing Before Pushing
 
 **Always run tests before pushing.** If tests fail, do not push. Fix the failing tests first. Only skip this if the user explicitly says to ignore test failures.

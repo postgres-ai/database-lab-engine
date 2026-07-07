@@ -86,7 +86,6 @@ func TestConvert_Int64TypeErrors(t *testing.T) {
 	}{
 		{name: "non-numeric string", input: "abc"},
 		{name: "float string", input: "3.14"},
-		{name: "empty string", input: ""},
 		{name: "bool value", input: true},
 		{name: "nil value", input: nil},
 		{name: "slice value", input: []string{"a"}},
@@ -130,7 +129,6 @@ func TestConvert_Float64TypeErrors(t *testing.T) {
 		input interface{}
 	}{
 		{name: "non-numeric string", input: "abc"},
-		{name: "empty string", input: ""},
 		{name: "bool value", input: true},
 		{name: "nil value", input: nil},
 		{name: "map value", input: map[string]interface{}{}},
@@ -173,7 +171,6 @@ func TestConvert_BoolTypeErrors(t *testing.T) {
 		input interface{}
 	}{
 		{name: "invalid string", input: "notabool"},
-		{name: "empty string", input: ""},
 		{name: "int64 value", input: int64(1)},
 		{name: "float64 value", input: float64(1.0)},
 		{name: "nil value", input: nil},
@@ -183,6 +180,25 @@ func TestConvert_BoolTypeErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := Convert(tc.input, Bool)
 			require.Error(t, err)
+		})
+	}
+}
+
+func TestConvert_EmptyStringIsUnset(t *testing.T) {
+	tests := []struct {
+		name     string
+		expected Type
+	}{
+		{name: "int64", expected: Int64},
+		{name: "float64", expected: Float64},
+		{name: "bool", expected: Bool},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := Convert("", tc.expected)
+			require.NoError(t, err)
+			assert.Nil(t, result)
 		})
 	}
 }

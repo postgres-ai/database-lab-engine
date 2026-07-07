@@ -1,0 +1,15 @@
+retrieval:
+  jobs:
+    - physicalRestore
+    - physicalSnapshot
+  spec:
+    physicalRestore:
+      options:
+        tool: walg
+        sync:
+          enabled: true
+        walg:
+          backupName: LATEST
+    physicalSnapshot:
+      options:
+        skipStartSnapshot: false

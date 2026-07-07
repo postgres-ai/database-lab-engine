@@ -25,6 +25,19 @@ func getJSONNormal() map[string]interface{} {
 	}
 }
 
+func getJSONEmptyString() map[string]interface{} {
+	return map[string]interface{}{
+		"nested": map[string]interface{}{
+			"int":      "",
+			"float":    "",
+			"bool":     "",
+			"ptrInt":   "",
+			"ptrFloat": "",
+			"ptrBool":  "",
+		},
+	}
+}
+
 func getJSONNull() map[string]interface{} {
 	return map[string]interface{}{
 		"nested": map[string]interface{}{
