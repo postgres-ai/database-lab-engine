@@ -434,12 +434,42 @@ func TestDumpCommandBuilding(t *testing.T) {
 			},
 			command: []string{"sh", "-c", "pg_dump --create --host localhost --port 5432 --username john --dbname testDB --jobs 1 --table test --table users --exclude-table test2 --exclude-table users2 --exclude-scheme=test-scheme --format custom | pg_restore --username postgres --dbname postgres --create --no-privileges --no-owner --exit-on-error"},
 		},
+		{
+			copyOptions: DumpOptions{
+				ParallelJobs: 1,
+				DumpLocation: "/tmp/db.dump",
+				Source:       Source{ConnectionString: "postgres://john@localhost:5432/postgres?sslmode=require&connect_timeout=5"},
+				Databases:    map[string]DumpDefinition{"shop": {}},
+			},
+			command: []string{"pg_dump", "--create", "-d", "postgres://john@localhost:5432/shop?sslmode=require&connect_timeout=5", "--jobs", "1", "--format", "directory", "--file", "/tmp/db.dump/shop"},
+		},
+		{
+			copyOptions: DumpOptions{
+				ParallelJobs: 1,
+				DumpLocation: "/tmp/db.dump",
+				Source:       Source{ConnectionString: "postgres://john@localhost:5432/postgres?sslmode=require"},
+				Databases:    map[string]DumpDefinition{"shop": {}},
+				Restore:      ImmediateRestore{Enabled: true, CustomOptions: []string{"--no-owner"}},
+			},
+			command: []string{"sh", "-c", "pg_dump --create -d 'postgres://john@localhost:5432/shop?sslmode=require' --jobs 1 --format custom | pg_restore --username postgres --dbname postgres --create --no-owner"},
+		},
+		{
+			copyOptions: DumpOptions{
+				ParallelJobs: 1,
+				DumpLocation: "/tmp/db.dump",
+				Source:       Source{ConnectionString: "host=localhost port=5432 dbname=postgres sslmode=require connect_timeout=5"},
+				Databases:    map[string]DumpDefinition{"shop": {}},
+				Restore:      ImmediateRestore{Enabled: true, CustomOptions: []string{"--no-owner"}},
+			},
+			command: []string{"sh", "-c", `pg_dump --create -d 'host=localhost port=5432 dbname=postgres sslmode=require connect_timeout=5 dbname='\''shop'\''' --jobs 1 --format custom | pg_restore --username postgres --dbname postgres --create --no-owner`},
+		},
 	}
 
 	for _, tc := range testCases {
 		logicalJob.DumpOptions = tc.copyOptions
 		for dbName, definition := range tc.copyOptions.Databases {
-			dumpCommand := logicalJob.buildLogicalDumpCommand(dbName, definition)
+			dumpCommand, err := logicalJob.buildLogicalDumpCommand(dbName, definition)
+			require.NoError(t, err)
 			assert.Equal(t, tc.command, dumpCommand)
 		}
 	}

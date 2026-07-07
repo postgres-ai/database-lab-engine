@@ -1,5 +1,7 @@
 # Copy this configuration to: ~/.dblab/engine/configs/server.yml
 # Configuration reference guide: https://postgres.ai/docs/reference-guides/database-lab-engine-configuration-reference
+# Note: RDS IAM authentication has no password and so cannot be configured via Simple-mode
+# in the UI; this file stays YAML-edited or written via the Expert tab.
 server:
   verificationToken: "${DBLAB_VERIFICATION_TOKEN}" # Primary auth token; can be empty (not recommended); for multi-user mode, use DBLab EE
   port: 2345 # API server port; default: "2345"

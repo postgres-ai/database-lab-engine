@@ -70,6 +70,10 @@ func convertString(value interface{}) (interface{}, error) {
 func convertInt64(value interface{}) (interface{}, error) {
 	switch v := value.(type) {
 	case string:
+		if v == "" {
+			return nil, nil
+		}
+
 		i, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
 			return nil, err
@@ -88,6 +92,10 @@ func convertInt64(value interface{}) (interface{}, error) {
 func convertFloat64(value interface{}) (interface{}, error) {
 	switch v := value.(type) {
 	case string:
+		if v == "" {
+			return nil, nil
+		}
+
 		f, err := strconv.ParseFloat(v, 64)
 		if err != nil {
 			return nil, err
@@ -106,6 +114,10 @@ func convertFloat64(value interface{}) (interface{}, error) {
 func convertBool(value interface{}) (interface{}, error) {
 	switch v := value.(type) {
 	case string:
+		if v == "" {
+			return nil, nil
+		}
+
 		b, err := strconv.ParseBool(v)
 		if err != nil {
 			return nil, err

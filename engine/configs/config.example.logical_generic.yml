@@ -1,5 +1,7 @@
 # Copy this configuration to: ~/.dblab/engine/configs/server.yml
 # Configuration reference guide: https://postgres.ai/docs/reference-guides/database-lab-engine-configuration-reference
+# Since 4.2 the UI Configuration page offers a Simple-mode "paste URL + password" setup;
+# hand-editing this file remains fully supported and is what the Expert tab writes back to.
 server:
   verificationToken: "${DBLAB_VERIFICATION_TOKEN}" # Primary auth token; can be empty (not recommended); for multi-user mode, use DBLab EE
   port: 2345 # API server port; default: "2345"
@@ -71,6 +73,15 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
         
         source:
           type: remote # Source types: "local", "remote", "rdsIam"
+          # connectionString: an optional full libpq connection string (URI
+          # "postgresql://user@host:5432/dbname?sslmode=require" or keyword/value
+          # "host=... port=... dbname=... sslmode=...") for the source. When set it
+          # wins over the discrete connection.* fields below and preserves every
+          # libpq option (sslmode, connect_timeout, sslrootcert, options, ...)
+          # end-to-end into pg_dump and the engine's own connections to the source.
+          # The password must NOT be embedded here — set it via connection.password
+          # or the PGPASSWORD env var.
+          # connectionString: "postgresql://postgres@host:5432/postgres?sslmode=require"
           connection: # Database connection parameters; use PGPASSWORD env var for password
             dbname: postgres
             host:

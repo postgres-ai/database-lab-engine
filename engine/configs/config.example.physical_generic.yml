@@ -1,5 +1,8 @@
 # Copy this configuration to: ~/.dblab/engine/configs/server.yml
 # Configuration reference guide: https://postgres.ai/docs/reference-guides/database-lab-engine-configuration-reference
+# Note: customTool configurations (e.g. pg_basebackup) are not editable in the UI.
+# The Expert tab detects tool: customTool and shows an "edit YAML directly" banner; the
+# YAML is preserved across config writes from the UI.
 server:
   verificationToken: "${DBLAB_VERIFICATION_TOKEN}" # Primary auth token; can be empty (not recommended); for multi-user mode, use DBLab EE
   port: 2345 # API server port; default: "2345"

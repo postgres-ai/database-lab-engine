@@ -11,10 +11,13 @@ export interface DatabaseType {
   [name: string]: string | Object
 }
 
+export type RetrievalMode = 'logical' | 'physical' | 'unknown' | ''
+
 export type configTypes = {
   global?: {
     debug?: boolean
   }
+  retrievalMode?: RetrievalMode
   databaseContainer?: {
     dockerImage?: string
     dockerPath?: string
@@ -54,14 +57,57 @@ export type configTypes = {
           configs?: { [key: string]: string }
         }
       }
+      physicalRestore?: {
+        options?: {
+          tool?: string
+          dockerImage?: string
+          sync?: {
+            enabled?: boolean
+          }
+          walg?: {
+            backupName?: string
+          }
+          pgbackrest?: {
+            stanza?: string
+            delta?: boolean
+          }
+          envs?: { [key: string]: string | number | boolean }
+        }
+      }
     }
   }
 }
 
+const formatPhysicalEnvs = (
+  envs?: { [key: string]: string | number | boolean } | null,
+): Array<{ key: string; value: string }> => {
+  if (!envs) return []
+  return Object.entries(envs).map(([key, value]) => ({
+    key,
+    value: typeof value === 'string' ? value : String(value),
+  }))
+}
+
+const inferRetrievalMode = (config: configTypes): RetrievalMode => {
+  if (config.retrievalMode) return config.retrievalMode
+  if (config.retrieval?.spec?.physicalRestore) return 'physical'
+  if (config.retrieval?.spec?.logicalDump) return 'logical'
+  return ''
+}
+
 export const formatConfig = (config: configTypes) => {
   const dockerImage = config.databaseContainer?.dockerImage
+  const physical = config.retrieval?.spec?.physicalRestore?.options
   return {
     debug: config.global?.debug,
+    retrievalMode: inferRetrievalMode(config),
+    physicalTool: physical?.tool ?? '',
+    physicalDockerImage: physical?.dockerImage ?? '',
+    physicalSyncEnabled: physical?.sync?.enabled ?? false,
+    physicalWalgBackupName: physical?.walg?.backupName ?? '',
+    physicalPgbackrestStanza: physical?.pgbackrest?.stanza ?? '',
+    physicalPgbackrestDelta: physical?.pgbackrest?.delta ?? false,
+    physicalEnvs: formatPhysicalEnvs(physical?.envs),
     dockerImage: isSeDockerImage(dockerImage)
       ? getImageMajorVersion(dockerImage)
       : dockerImage && getImageType(dockerImage) === 'Generic Postgres'

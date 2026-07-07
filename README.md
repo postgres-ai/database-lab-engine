@@ -104,6 +104,8 @@ Read more:
     - Location flexibility: self-managed PostgreSQL, AWS RDS, GCP Cloud SQL, Azure, etc.—no source adjustments needed.
     - No ZFS or Docker requirements for source databases
 - Data provisioning & retrieval
+    - Simple-mode setup: paste source URL + password, get a probed configuration in one click (UI Configuration → Simple tab)
+    - Expert-mode form for both logical (dump/restore) and physical (WAL-G, pgBackRest) retrieval
     - Physical (pg_basebackup, WAL-G, pgBackRest) and logical (dump/restore) provisioning
     - Partial data retrieval in logical mode (specific databases/tables)
     - Database renaming during snapshot creation (`databaseRename` option)

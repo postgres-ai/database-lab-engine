@@ -16,6 +16,7 @@ import { getFullConfig } from 'api/configs/getFullConfig'
 import { getSeImages } from 'api/configs/getSeImages'
 import { updateConfig } from 'api/configs/updateConfig'
 import { testDbSource } from 'api/configs/testDbSource'
+import { probeSource } from 'api/configs/probeSource'
 import { getEngine } from 'api/engine/getEngine'
 import { createBranch } from 'api/branches/createBranch'
 import { getBranches } from 'api/branches/getBranches'
@@ -52,6 +53,7 @@ export const Page = ({ renderCurrentTab }: { renderCurrentTab?: number }) => {
     getSeImages,
     updateConfig,
     testDbSource,
+    probeSource,
     initWS,
     getEngine,
     createBranch,

@@ -3,6 +3,7 @@ package srv
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -14,8 +15,9 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/logical"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/physical"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/db"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/probe"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config"
@@ -139,6 +141,159 @@ func (s *Server) testDBSource(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) probeSource(w http.ResponseWriter, r *http.Request) {
+	if s.Config.DisableConfigModification {
+		api.SendBadRequestError(w, r, configManagementDenied)
+		return
+	}
+
+	var req models.ProbeSourceRequest
+	if err := api.ReadJSON(r, &req); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), connectionCheckTimeout)
+	defer cancel()
+
+	proposed, err := probe.Propose(ctx, req.URL, req.Password, s.imageRegistry)
+	if err != nil {
+		// matches testDBSource's "400 for input + connectivity" convention. the error message
+		// is never the raw URL or password — Propose wraps with structured prefixes
+		// (parse / connect to source / query ...).
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	s.tm.SendEvent(r.Context(), telemetry.ConfigProbedEvent, telemetry.ConfigProbed{
+		Provider: string(proposed.DetectedProvider),
+	})
+
+	resp := models.ProposedConfig{
+		Source: models.SourceConnection{
+			Host:     proposed.Source.Host,
+			Port:     proposed.Source.Port,
+			Username: proposed.Source.Username,
+			DBName:   proposed.Source.DBName,
+		},
+		DetectedProvider:       string(proposed.DetectedProvider),
+		DockerImage:            proposed.DockerImage,
+		DockerTag:              proposed.DockerTag,
+		ResolvedImage:          proposed.ResolvedImage,
+		PgMajorVersion:         proposed.PgMajorVersion,
+		CollationVersion:       proposed.CollationVersion,
+		Databases:              proposed.Databases,
+		SharedBuffers:          proposed.SharedBuffers,
+		MemoryProbed:           proposed.MemoryProbed,
+		SharedPreloadLibraries: proposed.SharedPreloadLibraries,
+		QueryTuning:            proposed.QueryTuning,
+	}
+
+	if err := api.WriteJSON(w, http.StatusOK, resp); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
+}
+
+// requestedRetrievalMode reads the synthetic `retrievalMode` field from the
+// incoming projection JSON, falling back to the running retrieval state when
+// the client omits it (older UI builds, direct API callers).
+func requestedRetrievalMode(objMap map[string]interface{}, fallback models.RetrievalMode) models.RetrievalMode {
+	raw, ok := objMap["retrievalMode"]
+	if !ok {
+		return fallback
+	}
+
+	asString, ok := raw.(string)
+	if !ok || asString == "" {
+		return fallback
+	}
+
+	return models.RetrievalMode(asString)
+}
+
+// guardModeFields rejects projections that mix logical-only and physical-only
+// fields with the wrong mode. It protects hand-edited physical configs from
+// being wiped by stale UI state, and vice-versa.
+func guardModeFields(mode models.RetrievalMode, proj *models.ConfigProjection) error {
+	logicalFields := []struct {
+		name string
+		set  bool
+	}{
+		{"connectionString", proj.ConnectionString != nil},
+		{"host", proj.Host != nil},
+		{"port", proj.Port != nil},
+		{"username", proj.Username != nil},
+		{"dbname", proj.DBName != nil},
+		{"password", proj.Password != nil},
+		{"databases", proj.DBList != nil},
+		{"dumpParallelJobs", proj.DumpParallelJobs != nil},
+		{"restoreParallelJobs", proj.RestoreParallelJobs != nil},
+		{"restoreConfigs", proj.RestoreConfigs != nil},
+		{"dumpCustomOptions", proj.DumpCustomOptions != nil},
+		{"restoreCustomOptions", proj.RestoreCustomOptions != nil},
+		{"ignoreDumpErrors", proj.IgnoreDumpErrors != nil},
+		{"ignoreRestoreErrors", proj.IgnoreRestoreErrors != nil},
+		{"rdsIamDbInstanceIdentifier", proj.RDSIAMDBInstance != nil},
+	}
+
+	physicalFields := []struct {
+		name string
+		set  bool
+	}{
+		{"physicalTool", proj.PhysicalTool != nil},
+		{"physicalDockerImage", proj.PhysicalDockerImage != nil},
+		{"physicalSyncEnabled", proj.PhysicalSyncEnabled != nil},
+		{"physicalWalgBackupName", proj.PhysicalWalgBackupName != nil},
+		{"physicalPgbackrestStanza", proj.PhysicalPgbackrestStanza != nil},
+		{"physicalPgbackrestDelta", proj.PhysicalPgbackrestDelta != nil},
+		{"physicalEnvs", proj.PhysicalEnvs != nil},
+	}
+
+	switch mode {
+	case models.Logical:
+		for _, f := range physicalFields {
+			if f.set {
+				return fmt.Errorf("logical-mode config update must not set physical-mode field %q", f.name)
+			}
+		}
+
+	case models.Physical:
+		for _, f := range logicalFields {
+			if f.set {
+				return fmt.Errorf("physical-mode config update must not set logical-mode field %q", f.name)
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateSourceConnectionString rejects a source connection string that embeds
+// a password (or is otherwise unparseable) before it is persisted to the config.
+// The returned error never echoes the string, so a password placed in it cannot
+// leak into logs or the API response. An empty string is a no-op: Expert-mode
+// saves send it to clear a stale connection string written by the CLI, and the
+// discrete connection.* fields then take effect.
+func validateSourceConnectionString(connStr *string) error {
+	if connStr == nil || *connStr == "" {
+		return nil
+	}
+
+	_, err := probe.ParseConnectionString(*connStr)
+
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, probe.ErrPasswordInConnString):
+		return probe.ErrPasswordInConnString
+	case errors.Is(err, probe.ErrMultiHostConnString):
+		return probe.ErrMultiHostConnString
+	default:
+		return errors.New("invalid source connection string")
+	}
+}
+
 func connectionPassword(connection *models.ConnectionTest) error {
 	if connection.Password != "" {
 		return nil
@@ -225,21 +380,41 @@ func (s *Server) projectedAdminConfig() (interface{}, error) {
 		return nil, fmt.Errorf("failed to jsonify config projection: %w", err)
 	}
 
+	// retrievalMode is a synthetic field — it has no YAML counterpart, so the
+	// projection layer never writes it. The UI needs it to choose the initial
+	// tab and the right Expert sub-form, so populate it from the running
+	// retrieval state.
+	obj["retrievalMode"] = string(s.Retrieval.State.Mode)
+
 	return obj, nil
 }
 
 func (s *Server) applyProjectedAdminConfig(ctx context.Context, obj interface{}) (interface{}, error) {
-	if s.Retrieval.State.Mode != models.Logical {
-		return nil, fmt.Errorf("config is only available in logical mode")
-	}
-
-	if _, err := s.Retrieval.GetStageSpec(logical.DumpJobType); err == retrieval.ErrStageNotFound {
-		return nil, fmt.Errorf("logicalDump job is not enabled. Consider editing DLE config manually")
-	}
-
 	objMap, ok := obj.(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("config must be an object: %T", obj)
+	}
+
+	mode := requestedRetrievalMode(objMap, s.Retrieval.State.Mode)
+
+	completeLogicalPipeline := false
+
+	switch mode {
+	case models.Logical:
+		if s.Retrieval.State.Mode == models.Physical {
+			return nil, fmt.Errorf("cannot apply a logical config: the instance is configured for physical " +
+				"retrieval; switch modes by editing the config manually")
+		}
+
+		completeLogicalPipeline = true
+
+	case models.Physical:
+		if _, err := s.Retrieval.GetStageSpec(physical.RestoreJobType); err == retrieval.ErrStageNotFound {
+			return nil, fmt.Errorf("physicalRestore job is not enabled. Consider editing DLE config manually")
+		}
+
+	default:
+		return nil, fmt.Errorf("config update requires retrievalMode to be logical or physical, got %q", mode)
 	}
 
 	proj := &models.ConfigProjection{}
@@ -251,8 +426,20 @@ func (s *Server) applyProjectedAdminConfig(ctx context.Context, obj interface{})
 		return nil, fmt.Errorf("failed to load json config projection: %w", err)
 	}
 
+	if err := guardModeFields(mode, proj); err != nil {
+		return nil, err
+	}
+
+	if err := validateSourceConnectionString(proj.ConnectionString); err != nil {
+		return nil, err
+	}
+
 	if proj.Password != nil && *proj.Password == "" {
 		proj.Password = nil // Avoid storing empty password
+	}
+
+	if proj.DockerImage != nil && *proj.DockerImage == "" {
+		proj.DockerImage = nil // avoid pulling or storing an empty image reference
 	}
 
 	data, err := config.GetConfigBytes()
@@ -265,6 +452,12 @@ func (s *Server) applyProjectedAdminConfig(ctx context.Context, obj interface{})
 	err = yaml.Unmarshal(data, node)
 	if err != nil {
 		return nil, err
+	}
+
+	if completeLogicalPipeline {
+		if err := ensureLogicalPipeline(node); err != nil {
+			return nil, fmt.Errorf("failed to ensure logical retrieval pipeline: %w", err)
+		}
 	}
 
 	err = projection.StoreYaml(proj, node, projection.StoreOptions{

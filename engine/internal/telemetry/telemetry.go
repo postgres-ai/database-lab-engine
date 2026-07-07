@@ -43,6 +43,9 @@ const (
 
 	ConfigUpdatedEvent = "config_updated"
 
+	// ConfigProbedEvent describes a successful Simple-mode probe against a source database.
+	ConfigProbedEvent = "config_probed"
+
 	// AlertEvent describes alert events.
 	AlertEvent = "alert"
 )

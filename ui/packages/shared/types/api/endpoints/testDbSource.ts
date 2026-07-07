@@ -33,7 +33,16 @@ export const formatTuningParams = (
   return formattedTuningParams
 }
 
-export const formatTuningParamsToObj = (tuningParams: string | undefined) => {
+export const formatTuningParamsToObj = (
+  tuningParams: string | { [key: string]: string } | undefined,
+) => {
+  // Simple mode seeds tuningParams as an object (the proposed queryTuning map);
+  // Expert mode keeps it as the textarea string. Pass an already-parsed object
+  // through unchanged so callers never run .split on a non-string.
+  if (tuningParams && typeof tuningParams === 'object') {
+    return tuningParams
+  }
+
   let formattedTuningParams: { [key: string]: string } = {}
 
   if (tuningParams) {

@@ -17,6 +17,21 @@ func TestLoadJson(t *testing.T) {
 	requireMissEmpty(t, s)
 }
 
+func TestLoadJsonEmptyStringUnsetsNumericFields(t *testing.T) {
+	r := require.New(t)
+	s := fullTestStruct()
+
+	err := LoadJSON(s, getJSONEmptyString(), LoadOptions{})
+	r.NoError(err)
+
+	r.Zero(s.IntField)
+	r.Zero(s.FloatField)
+	r.Zero(s.BoolField)
+	r.Nil(s.PtrIntField)
+	r.Nil(s.PtrFloatField)
+	r.Nil(s.PtrBoolField)
+}
+
 func TestLoadJsonNull(t *testing.T) {
 	r := require.New(t)
 	s := fullTestStruct()

@@ -14,7 +14,6 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/db"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
@@ -40,12 +39,10 @@ const (
   where application_name = '` + dleRetrieval + "'"
 )
 
-func dbSourceActivity(ctx context.Context, dbCfg Connection) ([]activity.PGEvent, error) {
-	connStr := db.ConnectionString(dbCfg.Host, strconv.Itoa(dbCfg.Port), dbCfg.Username, dbCfg.DBName, dbCfg.Password)
-
-	pgxCfg, err := pgx.ParseConfig(connStr)
+func dbSourceActivity(ctx context.Context, connStr string, dbCfg Connection) ([]activity.PGEvent, error) {
+	pgxCfg, err := sourcePgxConfig(connStr, dbCfg, dbCfg.DBName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse connection config: %w", err)
+		return nil, fmt.Errorf("failed to build source connection config: %w", err)
 	}
 
 	pgxCfg.ConnectTimeout = connectTimeout

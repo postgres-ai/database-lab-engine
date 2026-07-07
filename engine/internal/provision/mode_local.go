@@ -896,7 +896,12 @@ func (p *Provisioner) DetectDBVersion() string {
 	return strconv.FormatFloat(pgVersion, 'g', -1, 64)
 }
 
-var regDockerImage = regexp.MustCompile(":([.0-9]+)")
+// regDockerImage captures the leading integer of an image tag (the part after
+// the final colon). This yields the Postgres major from both legacy dotted tags
+// (`:14.2` → 14, `:9.6` → 9) and the unified tag scheme
+// (`:16-0.7.0-glibc236` → 16), and matches the major returned by the primary
+// PG_VERSION-file detection path.
+var regDockerImage = regexp.MustCompile(`:(\d+)`)
 
 func parseImageVersion(image string) string {
 	allStringSubmatch := regDockerImage.FindAllStringSubmatch(image, -1)

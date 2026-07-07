@@ -65,6 +65,8 @@
     ]
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6",
+    "@testing-library/react": "^12",
     "@types/byte-size": "^8.1.0",
     "@vitejs/plugin-react": "^4.3.4",
     "cspell": "^5.12.6",
@@ -74,7 +76,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^16.2.0",
-    "typescript-eslint": "^8.32.1",
+    "happy-dom": "^20.9.0",
     "monaco-editor": "^0.55.0",
     "postcss": "^8.3.3",
     "prettier": "^2.8.8",
@@ -82,9 +84,10 @@
     "stylelint": "^14.0.1",
     "stylelint-config-standard-scss": "^2.0.1",
     "stylelint-prettier": "^2.0.0",
-    "vitest": "^3.2.1",
+    "typescript-eslint": "^8.32.1",
     "vite": "^6.4.2",
     "vite-plugin-checker": "^0.9.1",
-    "vite-tsconfig-paths": "^5.1.4"
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.1"
   }
 }

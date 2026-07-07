@@ -8,8 +8,7 @@ export const getSeImages = async ({
   platformUrl?: string
 }) => {
   const response = await request(
-    `/dblab_se_images?package_group=eq.${packageGroup}
-    `,
+    `/dblab_se_images?package_group=eq.${packageGroup}`,
     {},
     platformUrl,
   )

@@ -28,10 +28,10 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/db"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/probe"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
@@ -93,9 +93,20 @@ type DumpOptions struct {
 
 // Source describes source of data to dump.
 type Source struct {
-	Type       string     `yaml:"type"`
-	Connection Connection `yaml:"connection"`
-	RDS        *RDSConfig `yaml:"rdsIam"`
+	Type string `yaml:"type"`
+	// ConnectionString is an optional libpq connection string (URI or
+	// keyword/value form) describing the source. When set it wins over the
+	// discrete Connection fields and preserves every libpq option (sslmode,
+	// connect_timeout, options, …) end-to-end into pg_dump and the engine's
+	// own pgx connections to the source. The password must never be embedded
+	// in it — it is supplied separately via Connection.Password / PGPASSWORD.
+	//
+	// It is intended for remote/managed sources: the connection target is used
+	// verbatim (including any explicit port), so the local-source reserve-port
+	// remapping in getEnvironmentVariables does not apply when it is set.
+	ConnectionString string     `yaml:"connectionString"`
+	Connection       Connection `yaml:"connection"`
+	RDS              *RDSConfig `yaml:"rdsIam"`
 }
 
 // DumpDefinition describes a database for dumping.
@@ -230,6 +241,10 @@ func (d *DumpJob) Reload(cfg map[string]interface{}) (err error) {
 		return errors.Wrap(err, "failed to unmarshal configuration options")
 	}
 
+	if err := d.applySourceConnectionString(); err != nil {
+		return errors.Wrap(err, "invalid source connection string")
+	}
+
 	if err := d.validate(); err != nil {
 		return errors.Wrap(err, "invalid logical dump job")
 	}
@@ -239,12 +254,40 @@ func (d *DumpJob) Reload(cfg map[string]interface{}) (err error) {
 	return nil
 }
 
+// applySourceConnectionString derives the discrete source connection fields
+// (host/port/username/dbname) from Source.ConnectionString when it is set. The
+// connection string wins over any YAML connection.* values, which then serve
+// only display and validation. The password is never taken from the string —
+// it is kept in Connection.Password (or supplied via PGPASSWORD) so it never
+// reaches logs, telemetry, or projection writes.
+func (d *DumpJob) applySourceConnectionString() error {
+	if d.DumpOptions.Source.ConnectionString == "" {
+		return nil
+	}
+
+	conn, err := probe.ParseConnectionString(d.DumpOptions.Source.ConnectionString)
+	if err != nil {
+		return err
+	}
+
+	password := d.DumpOptions.Source.Connection.Password
+	d.DumpOptions.Source.Connection = Connection{
+		Host:     conn.Host,
+		Port:     conn.Port,
+		DBName:   conn.DBName,
+		Username: conn.Username,
+		Password: password,
+	}
+
+	return nil
+}
+
 // ReportActivity reports the current job activity.
 func (d *DumpJob) ReportActivity(ctx context.Context) (*activity.Activity, error) {
 	dbConnection := d.config.db
 	dbConnection.Password = d.getPassword()
 
-	pgeList, err := dbSourceActivity(ctx, dbConnection)
+	pgeList, err := dbSourceActivity(ctx, d.DumpOptions.Source.ConnectionString, dbConnection)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get source activity: %w", err)
 	}
@@ -421,9 +464,15 @@ func collectDiagnostics(ctx context.Context, client *client.Client, postgresName
 func (d *DumpJob) getDBList(ctx context.Context) (map[string]DumpDefinition, error) {
 	dbList := make(map[string]DumpDefinition)
 
-	connStr := db.ConnectionString(d.config.db.Host, strconv.Itoa(d.config.db.Port), d.config.db.Username, d.config.db.DBName, d.getPassword())
+	conn := d.config.db
+	conn.Password = d.getPassword()
 
-	querier, err := pgx.Connect(ctx, connStr)
+	pgxCfg, err := sourcePgxConfig(d.DumpOptions.Source.ConnectionString, conn, d.config.db.DBName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build source connection config: %w", err)
+	}
+
+	querier, err := pgx.ConnectConfig(ctx, pgxCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}
@@ -492,7 +541,10 @@ func (d *DumpJob) cleanupDumpLocation(ctx context.Context, dumpContID string, db
 }
 
 func (d *DumpJob) dumpDatabase(ctx context.Context, dumpContID, dbName string, dumpDefinition DumpDefinition) error {
-	dumpCommand := d.buildLogicalDumpCommand(dbName, dumpDefinition)
+	dumpCommand, err := d.buildLogicalDumpCommand(dbName, dumpDefinition)
+	if err != nil {
+		return fmt.Errorf("failed to build dump command: %w", err)
+	}
 
 	if len(dumpDefinition.Tables) > 0 ||
 		len(dumpDefinition.ExcludeTables) > 0 {
@@ -683,25 +735,19 @@ func (d *DumpJob) getExecEnvironmentVariables() []string {
 	return execEnvs
 }
 
-func (d *DumpJob) buildLogicalDumpCommand(dbName string, dump DumpDefinition) []string {
+func (d *DumpJob) buildLogicalDumpCommand(dbName string, dump DumpDefinition) ([]string, error) {
 	// don't use map here, it creates inconsistency in the order of arguments
 	dumpCmd := []string{"pg_dump", "--create"}
 
-	if d.config.db.Host != "" {
-		dumpCmd = append(dumpCmd, "--host", d.config.db.Host)
+	// the immediate-restore branch joins dumpCmd into a single `sh -c` string, so
+	// the connection-string value must be shell-quoted to keep its spaces and
+	// metacharacters from breaking argument boundaries or being interpreted.
+	connArgs, err := d.dumpConnectionArgs(dbName, d.DumpOptions.Restore.Enabled)
+	if err != nil {
+		return nil, err
 	}
 
-	if d.config.db.Port > 0 {
-		dumpCmd = append(dumpCmd, "--port", strconv.Itoa(d.config.db.Port))
-	}
-
-	if d.config.db.Username != "" {
-		dumpCmd = append(dumpCmd, "--username", d.config.db.Username)
-	}
-
-	if dbName != "" {
-		dumpCmd = append(dumpCmd, "--dbname", dbName)
-	}
+	dumpCmd = append(dumpCmd, connArgs...)
 
 	if d.DumpOptions.ParallelJobs > 0 {
 		dumpCmd = append(dumpCmd, "--jobs", strconv.Itoa(d.DumpOptions.ParallelJobs))
@@ -725,12 +771,60 @@ func (d *DumpJob) buildLogicalDumpCommand(dbName string, dump DumpDefinition) []
 
 		log.Dbg(cmd)
 
-		return []string{"sh", "-c", cmd}
+		return []string{"sh", "-c", cmd}, nil
 	}
 
 	dumpCmd = append(dumpCmd, "--format", directoryFormat, "--file", path.Join(d.DumpOptions.DumpLocation, dbName))
 
-	return dumpCmd
+	return dumpCmd, nil
+}
+
+// dumpConnectionArgs returns the pg_dump connection-target arguments for dbName.
+// When Source.ConnectionString is set it passes a single libpq conninfo via -d
+// (preserving sslmode and every other option), with the database overridden to
+// dbName through withDatabase; otherwise it emits the discrete
+// --host/--port/--username/--dbname flags. The two forms are mutually exclusive.
+// The password is never included here — it travels separately via PGPASSWORD
+// (see getExecEnvironmentVariables).
+//
+// When forShell is true the -d connection string is shell-quoted, because the
+// immediate-restore path joins the command into a single `sh -c` string where an
+// unquoted connection string (which legitimately contains spaces in the
+// keyword/value form, and may contain shell metacharacters) would break argument
+// boundaries. The discrete-flag and non-shell exec paths take the value verbatim.
+func (d *DumpJob) dumpConnectionArgs(dbName string, forShell bool) ([]string, error) {
+	if d.DumpOptions.Source.ConnectionString != "" {
+		connStr, err := withDatabase(d.DumpOptions.Source.ConnectionString, dbName)
+		if err != nil {
+			return nil, err
+		}
+
+		if forShell {
+			connStr = shellQuote(connStr)
+		}
+
+		return []string{"-d", connStr}, nil
+	}
+
+	var args []string
+
+	if d.config.db.Host != "" {
+		args = append(args, "--host", d.config.db.Host)
+	}
+
+	if d.config.db.Port > 0 {
+		args = append(args, "--port", strconv.Itoa(d.config.db.Port))
+	}
+
+	if d.config.db.Username != "" {
+		args = append(args, "--username", d.config.db.Username)
+	}
+
+	if dbName != "" {
+		args = append(args, "--dbname", dbName)
+	}
+
+	return args, nil
 }
 
 func (d *DumpJob) buildLogicalRestoreCommand(dbName string) []string {

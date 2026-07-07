@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { observer } from 'mobx-react-lite'
 import Editor from '@monaco-editor/react'
 import {
@@ -15,6 +15,10 @@ import {
   Snackbar,
   makeStyles,
   Button,
+  Tab,
+  Tabs,
+  Radio,
+  RadioGroup,
 } from '@material-ui/core'
 import Box from '@mui/material/Box'
 
@@ -45,6 +49,10 @@ import {
   InputWithTooltip,
 } from './InputWithTooltip'
 
+import { SimpleMode, buildProjectionFromProposed } from './SimpleMode'
+import { ConfigMode, getInitialConfigMode } from './configMode'
+import { PhysicalMode } from './PhysicalMode'
+
 import styles from './styles.module.scss'
 import { SeImages } from '@postgres.ai/shared/types/api/endpoints/getSeImages'
 import {
@@ -58,8 +66,6 @@ type PgOptionsType = {
   pgRestoreOptions: string[]
 }
 
-const NON_LOGICAL_RETRIEVAL_MESSAGE =
-  'Configuration editing is only available in logical mode'
 const PREVENT_MODIFYING_MESSAGE = 'Editing is disabled by admin'
 
 const useStyles = makeStyles(
@@ -80,13 +86,11 @@ export const Configuration = observer(
     instanceId,
     switchActiveTab,
     reload,
-    isConfigurationActive,
     disableConfigModification,
   }: {
     instanceId: string
     switchActiveTab: (_: null, activeTab: number) => void
     reload: () => void
-    isConfigurationActive: boolean
     disableConfigModification?: boolean
   }) => {
     const classes = useStyles()
@@ -106,8 +110,7 @@ export const Configuration = observer(
 
     const configData: MainStore['config'] =
       config && JSON.parse(JSON.stringify(config))
-    const isConfigurationDisabled =
-      !isConfigurationActive || disableConfigModification
+    const isConfigurationDisabled = disableConfigModification
 
     const [dleEdition, setDledition] = useState('')
     const isCeEdition = dleEdition === 'community'
@@ -117,6 +120,25 @@ export const Configuration = observer(
             option.type === 'custom' || option.type === 'Generic Postgres',
         )
       : dockerImageOptions
+
+    const [userPickedMode, setUserPickedMode] = useState<ConfigMode | null>(
+      null,
+    )
+    // Seeded lazily — only once configData transitions from null to non-null.
+    // Prevents the Simple/Expert default from flipping mid-session when an
+    // Apply triggers a refetch and the recomputed default would differ.
+    const [initialMode, setInitialMode] = useState<ConfigMode | null>(null)
+    useEffect(() => {
+      if (initialMode === null && configData) {
+        setInitialMode(
+          getInitialConfigMode(configData.host, configData.retrievalMode),
+        )
+      }
+    }, [configData, initialMode])
+    const configMode: ConfigMode =
+      userPickedMode ?? initialMode ?? 'simple'
+    const setConfigMode = setUserPickedMode
+    const portInitFromConfig = useRef(false)
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [submitState, setSubmitState] = useState({
@@ -172,6 +194,8 @@ export const Configuration = observer(
       await updateConfig(
         {
           ...values,
+          // Preserve configs that originally had no port: key.
+          ...(omitPortOnSubmit && { port: '' }),
           tuningParams: formatTuningParamsToObj(
             values.tuningParams,
           ) as unknown as string,
@@ -194,8 +218,18 @@ export const Configuration = observer(
         }
       })
     }
-    const [{ formik, connectionData, isConnectionDataValid }] =
-      useForm(onSubmit)
+    const [
+      {
+        formik,
+        connectionData,
+        isConnectionDataValid,
+        connectionString,
+        connectionStringError,
+        onConnectionStringChange,
+        markPortInitialState,
+        omitPortOnSubmit,
+      },
+    ] = useForm(onSubmit)
 
     // Memoized enhanced Docker images to avoid recreation on every render
     // This combines predefined images with any custom image from configuration
@@ -578,6 +612,12 @@ export const Configuration = observer(
     // Set initial data, empty string for password
     useEffect(() => {
       if (configData) {
+        if (!portInitFromConfig.current) {
+          markPortInitialState(
+            configData.port == null || configData.port === '',
+          )
+          portInitFromConfig.current = true
+        }
         for (const [key, value] of Object.entries(configData)) {
           if (key !== 'password') {
             formik.setFieldValue(key, value)
@@ -681,9 +721,7 @@ export const Configuration = observer(
           message={
             Boolean(dockerState.error)
               ? dockerState.error
-              : disableConfigModification
-              ? PREVENT_MODIFYING_MESSAGE
-              : NON_LOGICAL_RETRIEVAL_MESSAGE
+              : PREVENT_MODIFYING_MESSAGE
           }
           className={styles.snackbar}
         />
@@ -693,7 +731,37 @@ export const Configuration = observer(
           </div>
         ) : (
           <Box>
-            <Header retrievalMode="logical" setOpen={handleModalClick} />
+            <Header
+              retrievalMode={formik.values.retrievalMode}
+              setOpen={handleModalClick}
+            />
+            <Tabs
+              value={configMode}
+              onChange={(_, value: ConfigMode) => setConfigMode(value)}
+              indicatorColor="primary"
+              textColor="primary"
+              aria-label="Configuration mode"
+            >
+              <Tab value="simple" label="Simple" />
+              <Tab value="expert" label="Expert" />
+            </Tabs>
+            {configMode === 'simple' ? (
+              <SimpleMode
+                instanceId={instanceId}
+                disabled={isConfigurationDisabled}
+                onApplied={switchTab}
+                onEdit={(proposed, password) => {
+                  const projection = buildProjectionFromProposed(
+                    proposed,
+                    password,
+                  )
+                  formik.setValues({ ...formik.values, ...projection })
+                  setConfigMode('expert')
+                }}
+              />
+            ) : null}
+            {configMode === 'expert' ? (
+            <>
             <Box>
               <Box>
                 <FormControlLabel
@@ -715,6 +783,45 @@ export const Configuration = observer(
               </Box>
               <Box mb={1} mt={1}>
                 <ConfigSectionTitle tag="retrieval" />
+                <Box mt={1} mb={1}>
+                  <Typography className={styles.subsection}>
+                    Retrieval mode
+                  </Typography>
+                  <RadioGroup
+                    row
+                    aria-label="retrieval mode"
+                    value={formik.values.retrievalMode}
+                    onChange={(_, value) => {
+                      formik.setFieldValue('retrievalMode', value)
+                    }}
+                  >
+                    <FormControlLabel
+                      value="logical"
+                      control={<Radio disabled={isConfigurationDisabled} />}
+                      label="Logical (dump/restore)"
+                    />
+                    <FormControlLabel
+                      value="physical"
+                      control={<Radio disabled={isConfigurationDisabled} />}
+                      label="Physical (WAL-G / pgBackRest)"
+                    />
+                  </RadioGroup>
+                </Box>
+                {formik.values.retrievalMode === 'physical' && (
+                  <PhysicalMode
+                    values={formik.values}
+                    onChange={(key, value) =>
+                      formik.setFieldValue(key, value, key === 'physicalEnvs')
+                    }
+                    disabled={isConfigurationDisabled}
+                    envsKeyErrors={(
+                      formik.errors.physicalEnvs as
+                        | Array<{ key?: string } | undefined>
+                        | undefined
+                    )?.map((row) => row?.key)}
+                  />
+                )}
+                {formik.values.retrievalMode === 'logical' && (
                 <Box mt={1}>
                   <Typography className={styles.subsection}>
                     Subsection "retrieval.spec.logicalDump"
@@ -723,35 +830,35 @@ export const Configuration = observer(
                     Source database credentials and dumping options.
                   </span>
                   <InputWithTooltip
-                    label="source.connection.host *"
-                    value={formik.values.host}
-                    error={formik.errors.host}
-                    tooltipText={tooltipText.host}
-                    disabled={isConfigurationDisabled}
-                    onChange={(e) =>
-                      formik.setFieldValue('host', e.target.value)
+                    label="Connection string *"
+                    value={connectionString}
+                    error={
+                      connectionStringError ||
+                      formik.errors.host ||
+                      formik.errors.username ||
+                      formik.errors.dbname
                     }
-                  />
-                  <InputWithTooltip
-                    label="source.connection.port *"
-                    value={formik.values.port}
-                    error={formik.errors.port}
-                    tooltipText={tooltipText.port}
+                    tooltipText={() => (
+                      <>
+                        URI form: <code>postgres://user@host:5432/dbname</code>
+                        . DSN form is also accepted. Do not include the
+                        password here — use the Password field below.
+                      </>
+                    )}
                     disabled={isConfigurationDisabled}
-                    onChange={(e) =>
-                      formik.setFieldValue('port', e.target.value)
-                    }
+                    onChange={(e) => onConnectionStringChange(e.target.value)}
                   />
-                  <InputWithTooltip
-                    label="source.connection.username *"
-                    value={formik.values.username}
-                    error={formik.errors.username}
-                    tooltipText={tooltipText.username}
-                    disabled={isConfigurationDisabled}
-                    onChange={(e) =>
-                      formik.setFieldValue('username', e.target.value)
-                    }
-                  />
+                  <Box mt={0.5} mb={1}>
+                    <span
+                      className={classes.grayText}
+                      data-testid="connection-string-parsed"
+                    >
+                      host: {formik.values.host || '—'} | port:{' '}
+                      {formik.values.port || '5432 (default)'} | user:{' '}
+                      {formik.values.username || '—'} | dbname:{' '}
+                      {formik.values.dbname || '—'}
+                    </span>
+                  </Box>
                   <InputWithTooltip
                     type="password"
                     value={formik.values.password}
@@ -760,16 +867,6 @@ export const Configuration = observer(
                     disabled={isConfigurationDisabled}
                     onChange={(e) =>
                       formik.setFieldValue('password', e.target.value)
-                    }
-                  />
-                  <InputWithTooltip
-                    label="source.connection.dbname *"
-                    value={formik.values.dbname}
-                    error={formik.errors.dbname}
-                    tooltipText={tooltipText.dbname}
-                    disabled={isConfigurationDisabled}
-                    onChange={(e) =>
-                      formik.setFieldValue('dbname', e.target.value)
                     }
                   />
                   <InputWithChip
@@ -863,6 +960,7 @@ export const Configuration = observer(
                     label={'Ignore errors during logical data dump'}
                   />
                 </Box>
+                )}
               </Box>
               <Box mb={2} mt={1}>
                 <ConfigSectionTitle tag="databaseContainer" />
@@ -1090,6 +1188,7 @@ export const Configuration = observer(
                   />
                 ) : null}
               </Box>
+              {formik.values.retrievalMode === 'logical' && (
               <Box>
                 <Box>
                   <Typography className={styles.subsection}>
@@ -1151,6 +1250,7 @@ export const Configuration = observer(
                   label={'Ignore errors during logical data restore'}
                 />
               </Box>
+              )}
               <Box mt={1}>
                 <Typography className={styles.subsection}>
                   Subsection "retrieval.refresh"
@@ -1218,6 +1318,8 @@ export const Configuration = observer(
                 type={configError ? 'error' : submitState.status}
                 message={configError || submitState.response}
               />
+            ) : null}
+            </>
             ) : null}
           </Box>
         )}
