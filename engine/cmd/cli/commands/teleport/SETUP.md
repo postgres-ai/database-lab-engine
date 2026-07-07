@@ -121,6 +121,9 @@ spec:
     db_users: ['*']
 ```
 
+To gate access on your own taxonomy instead of `dblab: "true"`, attach custom
+labels with `--label` and match on those — see [Resource Labels](#resource-labels).
+
 ### 5. SSL/TLS for Postgres Clones
 
 Teleport **always** initiates TLS to backend databases, even when `tls.mode: insecure`
@@ -275,8 +278,77 @@ dblab teleport serve \
   --listen-addr 0.0.0.0:9876 \
   --dblab-url http://localhost:2345 \
   --dblab-token "$DBLAB_TOKEN" \
-  --webhook-secret "$WEBHOOK_SECRET"
+  --webhook-secret "$WEBHOOK_SECRET" \
+  --label environment=production \
+  --label db-type=main \
+  --label service=dblab
 ```
+
+## Resource Labels
+
+Every Teleport `db` and `app` resource the sidecar creates carries a set of
+labels. Some are managed by the sidecar and cannot be overridden; the rest are
+supplied by the operator to match an existing Teleport taxonomy.
+
+**Managed (reserved) labels — always set:**
+
+| Label | Value | Purpose |
+|-------|-------|---------|
+| `dblab` | `"true"` | Marks the resource as DBLab-managed; used by the agent matcher and user roles |
+| `dblab_instance` | `<environment-id>` | Owning DBLab instance; used internally to keep reconciliation isolated per instance |
+| `clone_id` | clone ID | DB resources only |
+| `dblab_user` | clone username | DB resources only, when known |
+| `environment` | `<environment-id>` | Set **only** when no custom `environment` label is provided (backwards compatibility) |
+
+> **Important:** Each DBLab instance must use a **unique** `--environment-id`.
+> It becomes the `dblab_instance` ownership label, and instances that share one
+> would reconcile each other's resources.
+
+**Custom labels — `--label key=value` (repeatable):**
+
+Use `--label` to attach any additional labels so DBLab clones fit the same
+access taxonomy as other database resources in your cluster — keys and values
+are entirely operator-defined. Labels can also be supplied via the
+`TELEPORT_LABELS` environment variable (comma-separated, e.g.
+`TELEPORT_LABELS=environment=production,db-type=main`). Reserved keys
+(`dblab`, `dblab_instance`, `clone_id`, `dblab_user`) are rejected at startup.
+
+Because instance ownership is tracked by the dedicated `dblab_instance` label,
+the `environment` label is free for operator use. Multiple DBLab instances can
+therefore share the same `environment` value (e.g. `production`) and be
+distinguished by `db-type` while each `--environment-id` keeps reconciliation
+isolated:
+
+```bash
+# instance serving the main OLTP database
+dblab teleport serve --environment-id production-main \
+  --label environment=production --label db-type=main --label service=dblab ...
+
+# instance serving the analytics database
+dblab teleport serve --environment-id production-analytics \
+  --label environment=production --label db-type=analytics --label service=dblab ...
+```
+
+A user/bot role can then gate access on the stable labels, with the rest as
+wildcards:
+
+```yaml
+spec:
+  allow:
+    db_labels:
+      service: ["dblab"]
+      environment: ["*"]
+      db-type: ["*"]
+    app_labels:
+      service: ["dblab"]
+      environment: ["*"]
+      db-type: ["*"]
+```
+
+> **Note:** Teleport requires the resource to carry **every** label key named in
+> a role's `db_labels`/`app_labels`. If a role lists a key (e.g. `writable`) that
+> the sidecar does not set, add it with `--label writable=readwrite`, otherwise
+> access is denied.
 
 ## Connecting to a Clone
 
