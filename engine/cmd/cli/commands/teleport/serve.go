@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -45,6 +46,7 @@ type Config struct {
 	DblabURL         string
 	DblabToken       string
 	WebhookSecret    string
+	Labels           map[string]string
 }
 
 // service holds runtime state for the teleport sidecar.
@@ -120,13 +122,56 @@ func CommandList() []*cli.Command {
 						Required: true,
 						EnvVars:  []string{"WEBHOOK_SECRET"},
 					},
+					&cli.StringSliceFlag{
+						Name:    "label",
+						Usage:   "additional Teleport resource label in key=value form (repeatable)",
+						EnvVars: []string{"TELEPORT_LABELS"},
+					},
 				},
 			},
 		},
 	}}
 }
 
+// parseLabels converts repeated key=value flag entries into a label map,
+// rejecting malformed entries and keys reserved by the sidecar.
+func parseLabels(entries []string) (map[string]string, error) {
+	labels := make(map[string]string, len(entries))
+
+	for _, entry := range entries {
+		key, value, found := strings.Cut(entry, "=")
+		if !found || key == "" || value == "" {
+			return nil, fmt.Errorf("invalid label %q: expected non-empty key=value", entry)
+		}
+
+		if _, dup := labels[key]; dup {
+			return nil, fmt.Errorf("duplicate label %q", key)
+		}
+
+		if reservedLabels[key] {
+			return nil, fmt.Errorf("label %q is reserved and managed by the sidecar", key)
+		}
+
+		if _, err := sanitizeLabelKey(key); err != nil {
+			return nil, err
+		}
+
+		if _, err := sanitizeYAMLValue(value, key); err != nil {
+			return nil, err
+		}
+
+		labels[key] = value
+	}
+
+	return labels, nil
+}
+
 func serveAction(c *cli.Context) error {
+	labels, err := parseLabels(c.StringSlice("label"))
+	if err != nil {
+		return err
+	}
+
 	cfg := &Config{
 		ListenAddr:       c.String("listen-addr"),
 		EnvironmentID:    c.String("environment-id"),
@@ -136,6 +181,7 @@ func serveAction(c *cli.Context) error {
 		DblabURL:         c.String("dblab-url"),
 		DblabToken:       c.String("dblab-token"),
 		WebhookSecret:    c.String("webhook-secret"),
+		Labels:           labels,
 	}
 
 	if cfg.WebhookSecret == "" {
