@@ -21,6 +21,14 @@ type SnapshotBox struct {
 	snapshotMutex  sync.RWMutex
 	items          map[string]*models.Snapshot
 	latestSnapshot *models.Snapshot
+	protection     map[string]snapshotProtection
+}
+
+// snapshotProtection holds the locally-set protection state of a snapshot.
+type snapshotProtection struct {
+	protected     bool
+	protectedTill *models.LocalTime
+	deleteAt      *models.LocalTime
 }
 
 func (c *Base) fetchSnapshots() error {
@@ -28,6 +36,9 @@ func (c *Base) fetchSnapshots() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get snapshots")
 	}
+
+	c.ensureProtectionLoaded()
+	protection := c.getProtection()
 
 	var latestSnapshot *models.Snapshot
 
@@ -54,6 +65,12 @@ func (c *Base) fetchSnapshots() error {
 			Message:      entry.Message,
 		}
 
+		if p, ok := protection[entry.ID]; ok {
+			currentSnapshot.Protected = p.protected
+			currentSnapshot.ProtectedTill = p.protectedTill
+			currentSnapshot.DeleteAt = p.deleteAt
+		}
+
 		snapshots[entry.ID] = currentSnapshot
 		latestSnapshot = defineLatestSnapshot(latestSnapshot, currentSnapshot)
 
@@ -63,6 +80,52 @@ func (c *Base) fetchSnapshots() error {
 	c.resetSnapshots(snapshots, latestSnapshot)
 
 	return nil
+}
+
+// ensureProtectionLoaded loads the protection cache once if it has never been populated.
+// the cache is refreshed on demand and by ReloadSnapshots, so reads do not run a ZFS call per request.
+func (c *Base) ensureProtectionLoaded() {
+	c.snapshotBox.snapshotMutex.RLock()
+	loaded := c.snapshotBox.protection != nil
+	c.snapshotBox.snapshotMutex.RUnlock()
+
+	if !loaded {
+		c.refreshProtection()
+	}
+}
+
+// getProtection returns the cached protection map. the map is replaced wholesale on refresh,
+// so the returned reference is safe to read after the lock is released.
+func (c *Base) getProtection() map[string]snapshotProtection {
+	c.snapshotBox.snapshotMutex.RLock()
+	defer c.snapshotBox.snapshotMutex.RUnlock()
+
+	return c.snapshotBox.protection
+}
+
+// refreshProtection reloads the cached snapshot protection state with one ZFS call per pool.
+func (c *Base) refreshProtection() {
+	raw := c.provision.ListProtection()
+
+	protection := make(map[string]snapshotProtection, len(raw))
+
+	for id, props := range raw {
+		protected, till, err := models.ParseProtectedTill(props.ProtectedTill)
+		if err != nil {
+			log.Warn(err)
+		}
+
+		deleteAt, err := models.ParseDeleteAt(props.DeleteAt)
+		if err != nil {
+			log.Warn(err)
+		}
+
+		protection[id] = snapshotProtection{protected: protected, protectedTill: till, deleteAt: deleteAt}
+	}
+
+	c.snapshotBox.snapshotMutex.Lock()
+	c.snapshotBox.protection = protection
+	c.snapshotBox.snapshotMutex.Unlock()
 }
 
 func (c *Base) counterClones() map[string][]string {

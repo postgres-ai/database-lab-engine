@@ -42,6 +42,17 @@ type EngineStopped struct {
 // SnapshotCreated describes a snapshot creation event.
 type SnapshotCreated struct{}
 
+// SnapshotUpdated describes a snapshot protection update event.
+type SnapshotUpdated struct {
+	ID        string `json:"id"`
+	Protected bool   `json:"protected"`
+}
+
+// SnapshotDestroyed describes a snapshot destruction event.
+type SnapshotDestroyed struct {
+	ID string `json:"id"`
+}
+
 // CloneCreated describes the clone creation and clone reset events.
 type CloneCreated struct {
 	ID          string   `json:"id"`
@@ -63,6 +74,12 @@ type CloneDestroyed struct {
 // BranchCreated describes a branch creation event.
 type BranchCreated struct {
 	Name string `json:"name"`
+}
+
+// BranchUpdated describes a branch protection update event.
+type BranchUpdated struct {
+	Name      string `json:"name"`
+	Protected bool   `json:"protected"`
 }
 
 // BranchDestroyed describes a branch destruction event.

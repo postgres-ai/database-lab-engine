@@ -44,6 +44,10 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
+// listRefreshIntervalMs is how often the snapshot list is silently refreshed so background
+// auto-deletion does not leave stale rows in the list.
+const listRefreshIntervalMs = 30_000
+
 interface SnapshotsProps {
   instanceId: string
 }
@@ -97,11 +101,17 @@ export const Snapshots: React.FC<SnapshotsProps> = observer(
     }, [])
 
     useEffect(() => {
-      if (selectedBranch) {
-        stores.main.reloadSnapshots(
-          selectedBranch === 'All branches' ? '' : selectedBranch,
-        )
-      }
+      if (!selectedBranch) return
+
+      const branchName = selectedBranch === 'All branches' ? '' : selectedBranch
+
+      stores.main.reloadSnapshots(branchName)
+
+      const intervalId = setInterval(() => {
+        stores.main.reloadSnapshots(branchName, true)
+      }, listRefreshIntervalMs)
+
+      return () => clearInterval(intervalId)
     }, [selectedBranch])
 
     if (!instance && !snapshots.isLoading) return <></>

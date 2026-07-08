@@ -301,7 +301,8 @@ paths:
         - Snapshots
       summary: Delete a snapshot
       description: "Permanently delete the specified snapshot.
-        If the snapshot has dependent clones or datasets, `force=true` can be provided as a query parameter."
+        If the snapshot has dependent clones or datasets, `force=true` can be provided as a query parameter.
+        Deletion of a protected snapshot returns 400; remove protection via PATCH first."
       parameters:
         - name: id
           in: path
@@ -332,6 +333,53 @@ paths:
           description: Bad request
           content:
             '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags:
+        - Snapshots
+      summary: Update a snapshot
+      description: "Update deletion protection or scheduled deletion of the specified snapshot.
+        Protection and scheduled deletion are mutually exclusive: enabling protection clears any
+        scheduled deletion, and scheduling deletion clears protection."
+      operationId: updateSnapshot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The ID of the snapshot to update.
+          schema:
+            type: string
+            pattern: '.*'
+        - name: Verification-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Snapshot protection settings
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSnapshot'
+        required: true
+      responses:
+        200:
+          description: Successfully updated the specified snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Snapshot'
+        400:
+          description: Bad request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /clones:
@@ -920,7 +968,10 @@ paths:
       tags:
       - Branches
       summary: Delete a branch
-      description: "Permanently delete the specified branch. It cannot be undone."
+      description: "Permanently delete the specified branch. It cannot be undone.
+        Deletion of a protected branch returns 400; remove protection via PATCH first.
+        Deletion of a branch whose snapshots are the fork point of another branch returns 400;
+        delete the child branches first."
       parameters:
         - name: branchName
           in: path
@@ -944,6 +995,53 @@ paths:
           description: Bad request
           content:
             '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+    patch:
+      tags:
+      - Branches
+      summary: Update a branch
+      description: "Update deletion protection or scheduled deletion of the specified branch.
+        Protection and scheduled deletion are mutually exclusive: enabling protection clears any
+        scheduled deletion, and scheduling deletion clears protection."
+      operationId: updateBranch
+      parameters:
+        - name: branchName
+          in: path
+          required: true
+          schema:
+            type: string
+            description: "The name of the branch to update."
+        - name: Verification-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Branch protection settings
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBranch'
+        required: true
+      responses:
+        200:
+          description: Successfully updated the specified branch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateBranchResponse'
+        400:
+          description: Bad request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
@@ -1632,6 +1730,17 @@ components:
         numClones:
           type: integer
           format: int
+        protected:
+          type: boolean
+          description: Whether the snapshot is protected from deletion (manual, retention, and auto-deletion).
+        protectedTill:
+          type: string
+          format: date-time
+          description: Time until which the snapshot is protected; omitted means indefinite when protected, or none.
+        deleteAt:
+          type: string
+          format: date-time
+          description: Scheduled auto-deletion time; omitted means none. Mutually exclusive with protection.
     Database:
       type: object
       properties:
@@ -1753,6 +1862,58 @@ components:
           format: int64
           minimum: 0
           description: Protection duration in minutes. 0 means forever, omit for default duration.
+    UpdateSnapshot:
+      type: object
+      description: "Protection update for a snapshot. Set 'protected' to toggle protection (optionally timed via
+        'protectionDurationMinutes'), or 'deleteAt' to schedule deletion. The two are mutually exclusive."
+      properties:
+        protected:
+          type: boolean
+          description: Enable or disable deletion protection. Omit to leave unchanged.
+        protectionDurationMinutes:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Protection duration in minutes. 0 or omitted means indefinite, unless the server's protectionMaxDurationMinutes cap is set, in which case it is limited to that many minutes.
+        deleteAt:
+          type: string
+          format: date-time
+          description: Schedule deletion at this time. Clears protection. Mutually exclusive with 'protected'.
+    UpdateBranch:
+      type: object
+      description: "Protection update for a branch. Set 'protected' to toggle protection (optionally timed via
+        'protectionDurationMinutes'), or 'deleteAt' to schedule deletion. The two are mutually exclusive."
+      properties:
+        protected:
+          type: boolean
+          description: Enable or disable deletion protection. Omit to leave unchanged.
+        protectionDurationMinutes:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Protection duration in minutes. 0 or omitted means indefinite, unless the server's protectionMaxDurationMinutes cap is set, in which case it is limited to that many minutes.
+        deleteAt:
+          type: string
+          format: date-time
+          description: Schedule deletion at this time. Clears protection. Mutually exclusive with 'protected'.
+    UpdateBranchResponse:
+      type: object
+      description: "Result of a branch protection update. Only the branch name and the protection
+        fields are populated; other branch attributes are not returned by this endpoint."
+      properties:
+        name:
+          type: string
+        protected:
+          type: boolean
+          description: Whether the branch is protected from deletion (manual and auto-deletion).
+        protectedTill:
+          type: string
+          format: date-time
+          description: Time until which the branch is protected; omitted means indefinite when protected, or none.
+        deleteAt:
+          type: string
+          format: date-time
+          description: Scheduled auto-deletion time; omitted means none. Mutually exclusive with protection.
     StartObservationRequest:
       type: object
       properties:
@@ -1938,6 +2099,17 @@ components:
           format: date-time
         snapshotID:
           type: string
+        protected:
+          type: boolean
+          description: Whether the branch is protected from deletion (manual and auto-deletion).
+        protectedTill:
+          type: string
+          format: date-time
+          description: Time until which the branch is protected; omitted means indefinite when protected, or none.
+        deleteAt:
+          type: string
+          format: date-time
+          description: Scheduled auto-deletion time; omitted means none. Mutually exclusive with protection.
     SnapshotDetails:
       type: object
       properties:

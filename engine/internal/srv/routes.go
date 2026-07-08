@@ -233,198 +233,9 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	poolName, err := s.detectPoolName(snapshotID)
-	if err != nil {
+	if err := s.destroySnapshotByID(snapshotID, force); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
-	}
-
-	if poolName == "" {
-		api.SendBadRequestError(w, r, fmt.Sprintf("pool for requested snapshot (%s) not found", snapshotID))
-		return
-	}
-
-	fsm, err := s.pm.GetFSManager(poolName)
-	if err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	// Prevent deletion of automatic snapshots in the pool.
-	if fullDataset, _, found := strings.Cut(snapshotID, "@"); found && fullDataset == poolName {
-		api.SendBadRequestError(w, r, "cannot destroy automatic snapshot in the pool")
-		return
-	}
-
-	// Check if snapshot exists.
-	if _, err := fsm.GetSnapshotProperties(snapshotID); err != nil {
-		if runnerError, ok := err.(runners.RunnerError); ok {
-			api.SendBadRequestError(w, r, runnerError.Stderr)
-		} else {
-			api.SendBadRequestError(w, r, err.Error())
-		}
-
-		return
-	}
-
-	cloneIDs := []string{}
-	protectedClones := []string{}
-
-	dependentCloneDatasets, err := fsm.HasDependentEntity(snapshotID)
-	if err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	for _, cloneDataset := range dependentCloneDatasets {
-		cloneID, ok := branching.ParseCloneName(cloneDataset, poolName)
-		if !ok {
-			log.Dbg(fmt.Sprintf("cannot parse clone ID from %q", cloneDataset))
-			continue
-		}
-
-		clone, err := s.Cloning.GetClone(cloneID)
-
-		if err != nil {
-			continue
-		}
-
-		cloneIDs = append(cloneIDs, clone.ID)
-
-		if clone.Protected {
-			protectedClones = append(protectedClones, clone.ID)
-		}
-	}
-
-	if len(protectedClones) != 0 {
-		api.SendBadRequestError(w, r, fmt.Sprintf("cannot delete snapshot %s because it has dependent protected clones: %s",
-			snapshotID, strings.Join(protectedClones, ",")))
-		return
-	}
-
-	if len(cloneIDs) != 0 && !force {
-		api.SendBadRequestError(w, r, fmt.Sprintf("cannot delete snapshot %s because it has dependent clones: %s",
-			snapshotID, strings.Join(cloneIDs, ",")))
-		return
-	}
-
-	snapshotProperties, err := fsm.GetSnapshotProperties(snapshotID)
-	if err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	if snapshotProperties.Clones != "" && !force {
-		api.SendBadRequestError(w, r, fmt.Sprintf("cannot delete snapshot %s because it has dependent datasets: %s",
-			snapshotID, snapshotProperties.Clones))
-		return
-	}
-
-	// Remove dependent clones.
-	for _, cloneID := range cloneIDs {
-		if err = s.Cloning.DestroyCloneSync(cloneID); err != nil {
-			api.SendBadRequestError(w, r, err.Error())
-			return
-		}
-	}
-
-	// Remove snapshot and dependent datasets.
-	if !force {
-		if err := fsm.KeepRelation(snapshotID); err != nil {
-			api.SendBadRequestError(w, r, err.Error())
-			return
-		}
-	}
-
-	// When recursively deleting, set the branch label to the parent
-	if force && snapshotProperties.Parent != "" {
-		parentProps, err := fsm.GetSnapshotProperties(snapshotProperties.Parent)
-		if err != nil {
-			log.Err(err.Error())
-		}
-
-		branchName := snapshotProperties.Branch
-		fullDataset, _, found := strings.Cut(snapshotID, "@")
-
-		if branchName == "" && found {
-			branchName, _ = branching.ParseBranchName(fullDataset, poolName)
-		}
-
-		if branchName != "" && !isRoot(parentProps.Root, branchName) {
-			err := fsm.AddBranchProp(branchName, snapshotProperties.Parent)
-			if err != nil {
-				log.Err(err.Error())
-			}
-		}
-	}
-
-	if err = fsm.DestroySnapshot(snapshotID, thinclones.DestroyOptions{Force: force}); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	snapshot, err := s.Cloning.GetSnapshotByID(snapshotID)
-	if err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
-	if snapshotProperties.Clones == "" && snapshot.NumClones == 0 && snapshotProperties.Child == "" {
-		// Destroy dataset if there are no related objects
-		if fullDataset, _, found := strings.Cut(snapshotID, "@"); found && fullDataset != poolName {
-			activeDatasets, err := fsm.GetActiveDatasets(fullDataset)
-			if err != nil {
-				api.SendBadRequestError(w, r, err.Error())
-				return
-			}
-
-			// No active datasets or clones
-			if len(activeDatasets) == 0 && !s.hasActiveClone(fullDataset, poolName) {
-				if err = fsm.DestroyDataset(fullDataset); err != nil {
-					api.SendBadRequestError(w, r, err.Error())
-					return
-				}
-			}
-
-			// Remove dle:branch and dle:root from parent snapshot
-			if snapshotProperties.Parent != "" {
-				parentProps, err := fsm.GetSnapshotProperties(snapshotProperties.Parent)
-				if err != nil {
-					log.Err(err.Error())
-				}
-
-				branchName := snapshotProperties.Branch
-				if branchName == "" {
-					branchName, _ = branching.ParseBranchName(fullDataset, poolName)
-				}
-
-				// Clean up user branch labels and prevent main branch deletion
-				if branchName != "" && branchName != branching.DefaultBranch && isRoot(parentProps.Root, branchName) {
-					if err := fsm.DeleteBranchProp(branchName, snapshotProperties.Parent); err != nil {
-						log.Err(err.Error())
-					}
-
-					if err := fsm.DeleteRootProp(branchName, snapshotProperties.Parent); err != nil {
-						log.Err(err.Error())
-					}
-				}
-			}
-
-			// Check if the dataset ends with revision (for example, /r0)
-			if branching.RevisionPattern.MatchString(fullDataset) {
-				// Remove the revision suffix
-				baseDataset := branching.RevisionPattern.ReplaceAllString(fullDataset, "")
-				origins := fsm.GetDatasetOrigins(baseDataset)
-
-				// If this is the last revision, remove the base dataset
-				if len(origins) < branching.MinDatasetNumber {
-					if err = fsm.DestroyDataset(baseDataset); err != nil {
-						api.SendBadRequestError(w, r, err.Error())
-						return
-					}
-				}
-			}
-		}
 	}
 
 	log.Dbg(fmt.Sprintf("Snapshot %s has been deleted", snapshotID))
@@ -437,8 +248,6 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fsm.RefreshSnapshotList()
-
 	if err := s.Cloning.ReloadSnapshots(); err != nil {
 		log.Dbg("Failed to reload snapshots", err.Error())
 	}
@@ -446,6 +255,246 @@ func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
 	s.webhookCh <- webhooks.BasicEvent{
 		EventType: webhooks.SnapshotDeleteEvent,
 		EntityID:  snapshotID,
+	}
+
+	s.tm.SendEvent(context.Background(), telemetry.SnapshotDestroyedEvent, telemetry.SnapshotDestroyed{
+		ID: snapshotID,
+	})
+}
+
+// ensureNotProtected returns an error when the target snapshot or branch dataset is
+// currently protected, reading the local (non-inherited) protection. Shared by the
+// snapshot and branch delete paths so the protection rule lives in one place.
+func ensureNotProtected(fsm pool.FSManager, target, kind, name string) error {
+	protection, err := fsm.GetProtection(target)
+	if err != nil {
+		return err
+	}
+
+	if models.ProtectedTillActive(protection.ProtectedTill) {
+		return fmt.Errorf("%s %s is protected", kind, name)
+	}
+
+	return nil
+}
+
+// destroySnapshotByID deletes a snapshot and its now-orphaned datasets. It is the
+// HTTP-independent core shared by the delete handler and the auto-deletion sweeper:
+// protected snapshots are refused, dependent clones block a non-force delete, and the
+// underlying zfs destroy is non-force unless force is set.
+func (s *Server) destroySnapshotByID(snapshotID string, force bool) error {
+	poolName, err := s.detectPoolName(snapshotID)
+	if err != nil {
+		return err
+	}
+
+	if poolName == "" {
+		return fmt.Errorf("pool for requested snapshot (%s) not found", snapshotID)
+	}
+
+	fsm, err := s.pm.GetFSManager(poolName)
+	if err != nil {
+		return err
+	}
+
+	// Prevent deletion of automatic snapshots in the pool.
+	if fullDataset, _, found := strings.Cut(snapshotID, "@"); found && fullDataset == poolName {
+		return errors.New("cannot destroy automatic snapshot in the pool")
+	}
+
+	// Check if snapshot exists.
+	if _, err := fsm.GetSnapshotProperties(snapshotID); err != nil {
+		if runnerError, ok := err.(runners.RunnerError); ok {
+			return errors.New(runnerError.Stderr)
+		}
+
+		return err
+	}
+
+	// protected snapshots cannot be deleted manually, by force, or by the sweeper.
+	if err := ensureNotProtected(fsm, snapshotID, "snapshot", snapshotID); err != nil {
+		return err
+	}
+
+	cloneIDs, protectedClones, err := s.dependentClones(fsm, snapshotID, poolName)
+	if err != nil {
+		return err
+	}
+
+	if len(protectedClones) != 0 {
+		return fmt.Errorf("cannot delete snapshot %s because it has dependent protected clones: %s",
+			snapshotID, strings.Join(protectedClones, ","))
+	}
+
+	if len(cloneIDs) != 0 && !force {
+		return fmt.Errorf("cannot delete snapshot %s because it has dependent clones: %s",
+			snapshotID, strings.Join(cloneIDs, ","))
+	}
+
+	snapshotProperties, err := fsm.GetSnapshotProperties(snapshotID)
+	if err != nil {
+		return err
+	}
+
+	if snapshotProperties.Clones != "" && !force {
+		return fmt.Errorf("cannot delete snapshot %s because it has dependent datasets: %s",
+			snapshotID, snapshotProperties.Clones)
+	}
+
+	for _, cloneID := range cloneIDs {
+		if err = s.Cloning.DestroyCloneSync(cloneID); err != nil {
+			return err
+		}
+	}
+
+	if !force {
+		if err := fsm.KeepRelation(snapshotID); err != nil {
+			return err
+		}
+	}
+
+	if force && snapshotProperties.Parent != "" {
+		s.relabelParentBranch(fsm, snapshotID, poolName, snapshotProperties)
+	}
+
+	if err = fsm.DestroySnapshot(snapshotID, thinclones.DestroyOptions{Force: force}); err != nil {
+		return err
+	}
+
+	snapshot, err := s.Cloning.GetSnapshotByID(snapshotID)
+	if err != nil {
+		return err
+	}
+
+	if snapshotProperties.Clones == "" && snapshot.NumClones == 0 && snapshotProperties.Child == "" {
+		if err := s.cleanupSnapshotDataset(fsm, snapshotID, poolName, snapshotProperties); err != nil {
+			return err
+		}
+	}
+
+	fsm.RefreshSnapshotList()
+
+	return nil
+}
+
+// dependentClones returns the IDs of clones that depend on the snapshot and, separately,
+// those among them that are protected.
+func (s *Server) dependentClones(fsm pool.FSManager, snapshotID, poolName string) (
+	cloneIDs, protectedClones []string, err error,
+) {
+	dependentCloneDatasets, err := fsm.HasDependentEntity(snapshotID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, cloneDataset := range dependentCloneDatasets {
+		cloneID, ok := branching.ParseCloneName(cloneDataset, poolName)
+		if !ok {
+			log.Dbg(fmt.Sprintf("cannot parse clone ID from %q", cloneDataset))
+			continue
+		}
+
+		clone, err := s.Cloning.GetClone(cloneID)
+		if err != nil {
+			continue
+		}
+
+		cloneIDs = append(cloneIDs, clone.ID)
+
+		if clone.Protected {
+			protectedClones = append(protectedClones, clone.ID)
+		}
+	}
+
+	return cloneIDs, protectedClones, nil
+}
+
+// relabelParentBranch moves a branch label to the parent snapshot when a snapshot is
+// force-deleted, so the branch keeps pointing at a live snapshot. Failures are logged, not fatal.
+func (s *Server) relabelParentBranch(fsm pool.FSManager, snapshotID, poolName string, props thinclones.SnapshotProperties) {
+	parentProps, err := fsm.GetSnapshotProperties(props.Parent)
+	if err != nil {
+		log.Err(err.Error())
+	}
+
+	branchName := props.Branch
+	fullDataset, _, found := strings.Cut(snapshotID, "@")
+
+	if branchName == "" && found {
+		branchName, _ = branching.ParseBranchName(fullDataset, poolName)
+	}
+
+	if branchName != "" && !isRoot(parentProps.Root, branchName) {
+		if err := fsm.AddBranchProp(branchName, props.Parent); err != nil {
+			log.Err(err.Error())
+		}
+	}
+}
+
+// cleanupSnapshotDataset removes the snapshot's dataset and base revision dataset once no
+// active datasets or clones remain, and clears stale branch labels from the parent snapshot.
+func (s *Server) cleanupSnapshotDataset(
+	fsm pool.FSManager, snapshotID, poolName string, props thinclones.SnapshotProperties,
+) error {
+	fullDataset, _, found := strings.Cut(snapshotID, "@")
+	if !found || fullDataset == poolName {
+		return nil
+	}
+
+	activeDatasets, err := fsm.GetActiveDatasets(fullDataset)
+	if err != nil {
+		return err
+	}
+
+	if len(activeDatasets) == 0 && !s.hasActiveClone(fullDataset, poolName) {
+		if err = fsm.DestroyDataset(fullDataset); err != nil {
+			return err
+		}
+	}
+
+	if props.Parent != "" {
+		s.cleanupParentBranchLabels(fsm, fullDataset, poolName, props)
+	}
+
+	// check if the dataset ends with a revision (for example, /r0).
+	if branching.RevisionPattern.MatchString(fullDataset) {
+		baseDataset := branching.RevisionPattern.ReplaceAllString(fullDataset, "")
+		origins := fsm.GetDatasetOrigins(baseDataset)
+
+		// if this is the last revision, remove the base dataset.
+		if len(origins) < branching.MinDatasetNumber {
+			if err = fsm.DestroyDataset(baseDataset); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// cleanupParentBranchLabels removes dle:branch and dle:root for a user branch from the
+// parent snapshot, leaving the default branch intact. Failures are logged, not fatal.
+func (s *Server) cleanupParentBranchLabels(
+	fsm pool.FSManager, fullDataset, poolName string, props thinclones.SnapshotProperties,
+) {
+	parentProps, err := fsm.GetSnapshotProperties(props.Parent)
+	if err != nil {
+		log.Err(err.Error())
+	}
+
+	branchName := props.Branch
+	if branchName == "" {
+		branchName, _ = branching.ParseBranchName(fullDataset, poolName)
+	}
+
+	if branchName != "" && branchName != branching.DefaultBranch && isRoot(parentProps.Root, branchName) {
+		if err := fsm.DeleteBranchProp(branchName, props.Parent); err != nil {
+			log.Err(err.Error())
+		}
+
+		if err := fsm.DeleteRootProp(branchName, props.Parent); err != nil {
+			log.Err(err.Error())
+		}
 	}
 }
 
@@ -474,6 +523,10 @@ func isRoot(root, branch string) bool {
 }
 
 func (s *Server) detectPoolName(snapshotID string) (string, error) {
+	if !isValidSnapshotID(snapshotID) {
+		return "", fmt.Errorf("invalid snapshot ID given: %q", snapshotID)
+	}
+
 	const snapshotParts = 2
 
 	parts := strings.Split(snapshotID, "@")
@@ -713,6 +766,120 @@ func (s *Server) destroyClone(w http.ResponseWriter, r *http.Request) {
 	})
 
 	log.Dbg(fmt.Sprintf("Clone ID=%s is being deleted", cloneID))
+}
+
+// applyProtectionUpdate enforces the mutual-exclusivity rules of a protection update and
+// writes the resulting values via the given setters (a snapshot or one-or-more branch
+// datasets). Enabling protection clears the scheduled deletion and vice versa.
+func applyProtectionUpdate(maxMin uint, protected *bool, durationMinutes *uint, deleteAt *models.LocalTime,
+	setProtectedTill, setDeleteAt func(string) error) error {
+	if protected == nil && deleteAt == nil {
+		return errors.New("nothing to update: specify protected or deleteAt")
+	}
+
+	protect := protected != nil && *protected
+
+	if protect && deleteAt != nil {
+		return errors.New("cannot enable protection and schedule deletion at the same time")
+	}
+
+	if protect {
+		value := models.ProtectionForever
+		if till := models.CalculateProtectionTime(durationMinutes, 0, maxMin); till != nil {
+			value = till.UTC().Format(time.RFC3339)
+		}
+
+		// clear the scheduled deletion before enabling protection so a mid-write failure
+		// leaves the entity unprotected rather than both protected and scheduled to delete.
+		if err := setDeleteAt(""); err != nil {
+			return err
+		}
+
+		return setProtectedTill(value)
+	}
+
+	if deleteAt != nil {
+		if err := setProtectedTill(""); err != nil {
+			return err
+		}
+
+		return setDeleteAt(deleteAt.UTC().Format(time.RFC3339))
+	}
+
+	// protected == false with no deleteAt: clear protection only.
+	return setProtectedTill("")
+}
+
+func (s *Server) patchSnapshot(w http.ResponseWriter, r *http.Request) {
+	snapshotID := mux.Vars(r)["id"]
+	if snapshotID == "" {
+		api.SendBadRequestError(w, r, "snapshot ID must not be empty")
+		return
+	}
+
+	var req types.SnapshotUpdateRequest
+	if err := api.ReadJSON(r, &req); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	poolName, err := s.detectPoolName(snapshotID)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if poolName == "" {
+		api.SendBadRequestError(w, r, fmt.Sprintf("pool for requested snapshot (%s) not found", snapshotID))
+		return
+	}
+
+	fsm, err := s.pm.GetFSManager(poolName)
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if _, err := fsm.GetSnapshotProperties(snapshotID); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	setTill := func(v string) error { return fsm.SetProtectedTill(v, snapshotID) }
+	setDeleteAt := func(v string) error { return fsm.SetDeleteAt(v, snapshotID) }
+
+	if err := applyProtectionUpdate(s.Retention().ProtectionMaxDurationMinutes,
+		req.Protected, req.ProtectionDurationMinutes, req.DeleteAt, setTill, setDeleteAt); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if err := s.Cloning.ReloadSnapshots(); err != nil {
+		log.Dbg("failed to reload snapshots", err.Error())
+	}
+
+	// build the response from the authoritative live protection. Enrich from the in-memory
+	// snapshot when it is present, but never fail after a successful write: a snapshot that
+	// exists in ZFS yet is absent from the cloning box (e.g. a branch commit or _pre snapshot)
+	// must still return the change that was just applied.
+	snapshot := &models.Snapshot{ID: snapshotID}
+
+	if existing, err := s.Cloning.GetSnapshotByID(snapshotID); err == nil {
+		snapshotCopy := *existing
+		snapshot = &snapshotCopy
+	}
+
+	snapshot.Protected, snapshot.ProtectedTill, snapshot.DeleteAt = readProtection(fsm, snapshotID)
+
+	s.tm.SendEvent(context.Background(), telemetry.SnapshotUpdatedEvent, telemetry.SnapshotUpdated{
+		ID:        snapshotID,
+		Protected: snapshot.Protected,
+	})
+
+	if err := api.WriteJSON(w, http.StatusOK, snapshot); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
 }
 
 func (s *Server) patchClone(w http.ResponseWriter, r *http.Request) {

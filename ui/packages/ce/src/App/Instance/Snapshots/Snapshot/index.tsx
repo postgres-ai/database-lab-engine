@@ -8,6 +8,7 @@ import { PageContainer } from 'components/PageContainer'
 
 import { destroySnapshot } from 'api/snapshots/destroySnapshot'
 import { getSnapshots } from 'api/snapshots/getSnapshots'
+import { updateSnapshot } from 'api/snapshots/updateSnapshot'
 import { getBranchSnapshot } from 'api/snapshots/getBranchSnapshot'
 import { initWS } from 'api/engine/initWS'
 
@@ -21,6 +22,7 @@ export const Snapshot = () => {
   const api = {
     destroySnapshot,
     getSnapshots,
+    updateSnapshot,
     getBranchSnapshot,
     initWS,
   }

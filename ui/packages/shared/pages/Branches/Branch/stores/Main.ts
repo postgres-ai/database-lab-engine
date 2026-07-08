@@ -10,11 +10,13 @@ import { makeAutoObservable } from 'mobx'
 import { GetBranches } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 import { Branch } from '@postgres.ai/shared/types/api/endpoints/getBranches'
 import { DeleteBranch } from '@postgres.ai/shared/types/api/endpoints/deleteBranch'
+import { UpdateBranch } from '@postgres.ai/shared/types/api/endpoints/updateBranch'
 import {
   SnapshotList,
   GetSnapshotList,
 } from '@postgres.ai/shared/types/api/endpoints/getSnapshotList'
 import { InitWS } from '@postgres.ai/shared/types/api/endpoints/initWS'
+import { getTextFromUnknownApiError } from '@postgres.ai/shared/utils/api'
 
 type Error = {
   title?: string
@@ -25,6 +27,7 @@ export type Api = {
   getBranches: GetBranches
   deleteBranch: DeleteBranch
   getSnapshotList: GetSnapshotList
+  updateBranch?: UpdateBranch
   initWS?: InitWS
 }
 
@@ -35,6 +38,8 @@ export class MainStore {
 
   isReloading = false
   isBranchesLoading = false
+  isUpdatingBranch = false
+  updateBranchError: string | null = null
 
   branches: Branch[] | null = null
   branch: Branch | null = null
@@ -97,6 +102,41 @@ export class MainStore {
     }
 
     return !!currentBranch
+  }
+
+  updateBranchProtection = async (
+    branchName: string,
+    instanceId: string,
+    durationMinutes: number | null,
+  ) => {
+    if (!this.api.updateBranch || !this.branch) return
+
+    this.isUpdatingBranch = true
+    this.updateBranchError = null
+
+    const prevProtected = this.branch.protected
+    const isProtected = durationMinutes !== null
+
+    this.branch.protected = isProtected
+
+    const { response, error } = await this.api.updateBranch({
+      instanceId,
+      branchName,
+      branch: {
+        isProtected,
+        protectionDurationMinutes: durationMinutes ?? undefined,
+      },
+    })
+
+    if (response) {
+      await this.reload(branchName, instanceId)
+    } else if (this.branch) {
+      this.branch.protected = prevProtected
+    }
+
+    if (error) this.updateBranchError = await getTextFromUnknownApiError(error)
+
+    this.isUpdatingBranch = false
   }
 
   deleteBranch = async (branchName: string, instanceId: string) => {

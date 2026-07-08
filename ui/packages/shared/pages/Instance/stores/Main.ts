@@ -169,9 +169,9 @@ export class MainStore {
     })
   }
 
-  reloadSnapshots = async (branchName?: string) => {
+  reloadSnapshots = async (branchName?: string, silent?: boolean) => {
     if (!this.instance) return
-    await this.snapshots.reload(this.instance.id, branchName)
+    await this.snapshots.reload(this.instance.id, branchName, silent)
   }
 
   reloadInstanceRetrieval = async () => {
@@ -402,15 +402,19 @@ export class MainStore {
     this.isReloadingClones = false
   }
 
-  getBranches = async (instanceId: string) => {
+  getBranches = async (instanceId: string, silent?: boolean) => {
     if (!this.api.getBranches) return
-    this.isBranchesLoading = true
+    if (!silent) this.isBranchesLoading = true
 
     const { response, error } = await this.api.getBranches(instanceId)
 
-    this.isBranchesLoading = false
+    if (!silent) this.isBranchesLoading = false
 
-    if (error) this.getBranchesError = await error.json().then((err) => err)
+    if (response) this.getBranchesError = null
+
+    // a silent background refresh must not replace the rendered list with an error stub on a
+    // transient failure; errors surface only on a foreground load.
+    if (error && !silent) this.getBranchesError = await error.json().then((err) => err)
 
     return response
   }

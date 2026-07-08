@@ -28,6 +28,11 @@ func List() []*cli.Command {
 					Name:  "snapshot-id",
 					Usage: "specify snapshot ID is starting point for new branch; cannot be used together with --parent-branch",
 				},
+				&cli.StringFlag{
+					Name:    "protected",
+					Usage:   "update deletion protection of BRANCH_NAME: 'true'=default, minutes or 30m/2h/7d, 0=forever, 'false'=off",
+					Aliases: []string{"p"},
+				},
 			},
 			ArgsUsage: "BRANCH_NAME",
 		},

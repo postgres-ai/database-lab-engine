@@ -18,13 +18,15 @@ import (
 )
 
 const (
-	branchProp  = "dle:branch"
-	parentProp  = "dle:parent"
-	childProp   = "dle:child"
-	rootProp    = "dle:root"
-	messageProp = "dle:message"
-	branchSep   = ","
-	empty       = "-"
+	branchProp        = "dle:branch"
+	parentProp        = "dle:parent"
+	childProp         = "dle:child"
+	rootProp          = "dle:root"
+	messageProp       = "dle:message"
+	protectedTillProp = "dle:protected_till"
+	deleteAtProp      = "dle:delete_at"
+	branchSep         = ","
+	empty             = "-"
 )
 
 type cmdCfg struct {
@@ -504,7 +506,10 @@ func (m *Manager) listBranches() (map[string]string, error) {
 	return branches, nil
 }
 
-var repoFields = []any{"name", parentProp, childProp, branchProp, rootProp, dataStateAtLabel, messageProp, "clones"}
+var repoFields = []any{
+	"name", parentProp, childProp, branchProp, rootProp, dataStateAtLabel, messageProp, "clones",
+	protectedTillProp, deleteAtProp,
+}
 
 // GetRepo provides repository details about snapshots and branches filtered by data pool.
 func (m *Manager) GetRepo() (*models.Repo, error) {
@@ -549,16 +554,29 @@ func (m *Manager) getRepo(cmdCfg cmdCfg) (*models.Repo, error) {
 
 		dataset, _, _ := strings.Cut(fields[0], "@")
 
+		protected, protectedTill, err := models.ParseProtectedTill(strings.Trim(fields[8], empty))
+		if err != nil {
+			log.Warn(err)
+		}
+
+		deleteAt, err := models.ParseDeleteAt(strings.Trim(fields[9], empty))
+		if err != nil {
+			log.Warn(err)
+		}
+
 		snDetail := models.SnapshotDetails{
-			ID:          fields[0],
-			Parent:      fields[1],
-			Child:       unwindField(fields[2]),
-			Branch:      unwindField(fields[3]),
-			Root:        unwindField(fields[4]),
-			DataStateAt: strings.Trim(fields[5], empty),
-			Message:     decodeCommitMessage(fields[6]),
-			Dataset:     dataset,
-			Clones:      unwindField(fields[7]),
+			ID:            fields[0],
+			Parent:        fields[1],
+			Child:         unwindField(fields[2]),
+			Branch:        unwindField(fields[3]),
+			Root:          unwindField(fields[4]),
+			DataStateAt:   strings.Trim(fields[5], empty),
+			Message:       decodeCommitMessage(fields[6]),
+			Dataset:       dataset,
+			Clones:        unwindField(fields[7]),
+			Protected:     protected,
+			ProtectedTill: protectedTill,
+			DeleteAt:      deleteAt,
 		}
 
 		repo.Snapshots[fields[0]] = snDetail
@@ -633,14 +651,16 @@ func (m *Manager) GetSnapshotProperties(snapshotName string) (thinclones.Snapsho
 	}
 
 	properties := thinclones.SnapshotProperties{
-		Name:        strings.Trim(fields[0], empty),
-		Parent:      strings.Trim(fields[1], empty),
-		Child:       strings.Trim(fields[2], empty),
-		Branch:      strings.Trim(fields[3], empty),
-		Root:        strings.Trim(fields[4], empty),
-		DataStateAt: strings.Trim(fields[5], empty),
-		Message:     decodeCommitMessage(fields[6]),
-		Clones:      strings.Trim(fields[7], empty),
+		Name:          strings.Trim(fields[0], empty),
+		Parent:        strings.Trim(fields[1], empty),
+		Child:         strings.Trim(fields[2], empty),
+		Branch:        strings.Trim(fields[3], empty),
+		Root:          strings.Trim(fields[4], empty),
+		DataStateAt:   strings.Trim(fields[5], empty),
+		Message:       decodeCommitMessage(fields[6]),
+		Clones:        strings.Trim(fields[7], empty),
+		ProtectedTill: strings.Trim(fields[8], empty),
+		DeleteAt:      strings.Trim(fields[9], empty),
 	}
 
 	return properties, nil
@@ -823,6 +843,79 @@ func (m *Manager) setProperty(property, value, snapshotName string) error {
 	}
 
 	return nil
+}
+
+// SetProtectedTill sets the protection-expiry timestamp on a snapshot or branch dataset.
+// An empty value clears the property.
+func (m *Manager) SetProtectedTill(value, target string) error {
+	return m.setProperty(protectedTillProp, value, target)
+}
+
+// SetDeleteAt sets the scheduled-deletion timestamp on a snapshot or branch dataset.
+// An empty value clears the property.
+func (m *Manager) SetDeleteAt(value, target string) error {
+	return m.setProperty(deleteAtProp, value, target)
+}
+
+// GetProtection returns the locally-set protection properties of a snapshot or branch
+// dataset in a single zfs call. Inherited values are excluded (-s local) so a branch-level
+// property is not reported for nested clones or snapshots that merely inherit it.
+func (m *Manager) GetProtection(target string) (thinclones.ProtectionProperties, error) {
+	cmd := fmt.Sprintf("zfs get -H -o property,value -s local %s,%s %s", protectedTillProp, deleteAtProp, target)
+
+	out, err := m.runner.Run(cmd)
+	if err != nil {
+		return thinclones.ProtectionProperties{}, fmt.Errorf("failed to get protection properties: %w. Out: %v", err, out)
+	}
+
+	props := thinclones.ProtectionProperties{}
+
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		property, value, _ := strings.Cut(line, "\t")
+		setProtectionField(&props, property, strings.Trim(value, empty))
+	}
+
+	return props, nil
+}
+
+// ListProtection returns the locally-set protection properties of every snapshot in the
+// pool, keyed by snapshot name, in a single zfs call. Inherited values are excluded
+// (-s local), so callers do not read each entity separately.
+func (m *Manager) ListProtection() (map[string]thinclones.ProtectionProperties, error) {
+	cmd := fmt.Sprintf("zfs get -H -o name,property,value -s local -t snapshot -r %s,%s %s",
+		protectedTillProp, deleteAtProp, m.config.Pool.Name)
+
+	out, err := m.runner.Run(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list protection properties: %w. Out: %v", err, out)
+	}
+
+	result := make(map[string]thinclones.ProtectionProperties)
+
+	const namePropertyValueColumns = 3
+
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		fields := strings.SplitN(line, "\t", namePropertyValueColumns)
+		if len(fields) != namePropertyValueColumns {
+			continue
+		}
+
+		props := result[fields[0]]
+		setProtectionField(&props, fields[1], strings.Trim(fields[2], empty))
+		result[fields[0]] = props
+	}
+
+	return result, nil
+}
+
+// setProtectionField assigns a single zfs property value to the matching protection field.
+func setProtectionField(props *thinclones.ProtectionProperties, property, value string) {
+	switch property {
+	case protectedTillProp:
+		props.ProtectedTill = value
+	case deleteAtProp:
+		props.DeleteAt = value
+	}
 }
 
 func unique(originalList []string) []string {

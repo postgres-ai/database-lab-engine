@@ -486,36 +486,12 @@ func (c *Base) UpdateClone(id string, patch types.CloneUpdateRequest) (*models.C
 	return clone, nil
 }
 
-// calculateProtectionTime calculates the protection expiry time based on the requested duration.
-// If durationMinutes is nil, uses the default from config.
-// If durationMinutes is 0, returns nil (infinite protection) unless max duration is configured.
-// If max duration is configured, the duration is capped at the max.
+// calculateProtectionTime calculates the protection expiry time based on the requested
+// duration, using the clone protection lease as the default and the configured maximum as
+// the cap. The shared logic lives in models.CalculateProtectionTime.
 func (c *Base) calculateProtectionTime(durationMinutes *uint) *models.LocalTime {
-	var minutes uint
-
-	if durationMinutes != nil {
-		minutes = *durationMinutes
-	} else {
-		minutes = c.config.ProtectionLeaseDurationMinutes
-	}
-
-	maxMinutes := c.config.ProtectionMaxDurationMinutes
-
-	if minutes == 0 {
-		if maxMinutes == 0 {
-			return nil
-		}
-
-		minutes = maxMinutes
-	}
-
-	if maxMinutes > 0 && minutes > maxMinutes {
-		minutes = maxMinutes
-	}
-
-	expiry := time.Now().Add(time.Duration(minutes) * time.Minute)
-
-	return models.NewLocalTime(expiry)
+	return models.CalculateProtectionTime(durationMinutes,
+		c.config.ProtectionLeaseDurationMinutes, c.config.ProtectionMaxDurationMinutes)
 }
 
 // UpdateCloneStatus updates the clone status.
@@ -676,9 +652,51 @@ func (c *Base) GetSnapshotByID(snapshotID string) (*models.Snapshot, error) {
 	return c.getSnapshotByID(snapshotID)
 }
 
-// ReloadSnapshots reloads snapshot list.
+// ReloadSnapshots reloads snapshot list and refreshes cached protection state.
 func (c *Base) ReloadSnapshots() error {
+	c.refreshProtection()
+
 	return c.fetchSnapshots()
+}
+
+// WithBranchDeletionLock runs a branch-destroy closure atomically with respect to clone
+// creation. It holds cloneMutex while checking that none of the given snapshots has a
+// registered clone and then invoking destroy. CreateClone registers a clone in the clones
+// map (under cloneMutex) before it provisions the dataset, so a concurrent creation is
+// either already registered here (the destroy is refused) or blocked on cloneMutex until
+// the destroy completes (its later zfs clone cannot land in a dataset being removed). The
+// map is checked rather than the snapshot clone counter because the counter is bumped under
+// a different lock at a slightly later point than registration.
+func (c *Base) WithBranchDeletionLock(snapshotIDs []string, destroy func() error) error {
+	c.cloneMutex.Lock()
+	defer c.cloneMutex.Unlock()
+
+	if snapshotID := c.cloneDependentSnapshotLocked(snapshotIDs); snapshotID != "" {
+		return fmt.Errorf("snapshot %s has a dependent clone", snapshotID)
+	}
+
+	return destroy()
+}
+
+// cloneDependentSnapshotLocked returns the first of the given snapshots that has a
+// registered clone, or an empty string if none do. It assumes cloneMutex is held.
+func (c *Base) cloneDependentSnapshotLocked(snapshotIDs []string) string {
+	wanted := make(map[string]struct{}, len(snapshotIDs))
+	for _, id := range snapshotIDs {
+		wanted[id] = struct{}{}
+	}
+
+	for _, w := range c.clones {
+		if w == nil || w.Clone.Snapshot == nil {
+			continue
+		}
+
+		if _, ok := wanted[w.Clone.Snapshot.ID]; ok {
+			return w.Clone.Snapshot.ID
+		}
+	}
+
+	return ""
 }
 
 // GetClones returns the list of clones descend ordered by creation time.

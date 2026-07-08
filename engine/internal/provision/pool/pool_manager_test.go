@@ -76,6 +76,15 @@ func (m *mockFSManager) HasDependentEntity(_ string) ([]string, error)   { retur
 func (m *mockFSManager) KeepRelation(_ string) error                     { return nil }
 func (m *mockFSManager) GetDatasetOrigins(_ string) []string             { return nil }
 func (m *mockFSManager) GetActiveDatasets(_ string) ([]string, error)    { return nil, nil }
+func (m *mockFSManager) SetProtectedTill(_, _ string) error              { return nil }
+func (m *mockFSManager) SetDeleteAt(_, _ string) error                   { return nil }
+func (m *mockFSManager) GetProtection(_ string) (thinclones.ProtectionProperties, error) {
+	return thinclones.ProtectionProperties{}, nil
+}
+func (m *mockFSManager) ListProtection() (map[string]thinclones.ProtectionProperties, error) {
+	return nil, nil
+}
+func (m *mockFSManager) DestroyBranchDataset(_ string) error { return nil }
 
 func newTestManager(pools map[string]FSManager, poolList *list.List) *Manager {
 	return &Manager{

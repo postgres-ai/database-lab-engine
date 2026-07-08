@@ -69,6 +69,24 @@ func (r *recordingRunnerMock) Run(cmd string, _ ...bool) (string, error) {
 		return "", nil
 	}
 
+	// Handle: zfs get -H -o property,value -s local prop1,prop2 target (GetProtection).
+	if after, ok := strings.CutPrefix(cmd, "zfs get -H -o property,value -s local "); ok {
+		props, target, _ := strings.Cut(after, " ")
+
+		var b strings.Builder
+
+		for _, prop := range strings.Split(props, ",") {
+			value := "-"
+			if v, ok := r.props[target+":"+prop]; ok {
+				value = v
+			}
+
+			b.WriteString(prop + "\t" + value + "\n")
+		}
+
+		return b.String(), nil
+	}
+
 	// Handle: zfs get -H -o value prop snapshot
 	if after, ok := strings.CutPrefix(cmd, "zfs get -H -o value "); ok {
 		prop, snap, _ := strings.Cut(after, " ")
@@ -528,27 +546,27 @@ func TestGetRepo(t *testing.T) {
 			wantBranches:  map[string]string{},
 		},
 		{
-			name:          "all 8 fields populated",
-			output:        "pool@snap1\tparent1\tchild1\tmain\troot1\t20250101\t" + msg + "\t-",
+			name:          "all fields populated",
+			output:        "pool@snap1\tparent1\tchild1\tmain\troot1\t20250101\t" + msg + "\t-\t-\t-",
 			wantSnapshots: 1,
 			wantBranches:  map[string]string{"main": "pool@snap1"},
 		},
 		{
-			name:          "line with fewer than 8 fields is skipped",
+			name:          "line with fewer than expected fields is skipped",
 			output:        "pool@snap1\tparent1\tchild1\tmain\troot1\t20250101\t" + msg,
 			wantSnapshots: 0,
 			wantBranches:  map[string]string{},
 		},
 		{
 			name:          "base64 commit message decodes correctly",
-			output:        "pool@snap1\t-\t-\tmain\t-\t20250101\t" + msg + "\t-",
+			output:        "pool@snap1\t-\t-\tmain\t-\t20250101\t" + msg + "\t-\t-\t-",
 			wantSnapshots: 1,
 			wantBranches:  map[string]string{"main": "pool@snap1"},
 		},
 		{
 			name: "multiple snapshots with branches",
-			output: "pool@snap1\t-\tpool@snap2\tmain\troot1\t20250101\t" + msg + "\t-\n" +
-				"pool@snap2\tpool@snap1\t-\tfeature\troot1\t20250102\t" + msg + "\t-",
+			output: "pool@snap1\t-\tpool@snap2\tmain\troot1\t20250101\t" + msg + "\t-\t-\t-\n" +
+				"pool@snap2\tpool@snap1\t-\tfeature\troot1\t20250102\t" + msg + "\t-\t-\t-",
 			wantSnapshots: 2,
 			wantBranches:  map[string]string{"main": "pool@snap1", "feature": "pool@snap2"},
 		},
@@ -574,6 +592,39 @@ func TestGetRepo(t *testing.T) {
 	}
 }
 
+func TestGetRepoProtection(t *testing.T) {
+	msg := base64.StdEncoding.EncodeToString([]byte("commit"))
+
+	testCases := []struct {
+		name              string
+		output            string
+		wantProtected     bool
+		wantProtectedTill bool
+		wantDeleteAt      bool
+	}{
+		{name: "no protection", output: "pool@snap1\t-\t-\tmain\t-\t20250101\t" + msg + "\t-\t-\t-", wantProtected: false},
+		{name: "timed protection", output: "pool@snap1\t-\t-\tmain\t-\t20250101\t" + msg + "\t-\t2026-06-17T14:30:00Z\t-", wantProtected: true, wantProtectedTill: true},
+		{name: "indefinite protection (forever)", output: "pool@snap1\t-\t-\tmain\t-\t20250101\t" + msg + "\t-\tforever\t-", wantProtected: true, wantProtectedTill: false},
+		{name: "scheduled deletion", output: "pool@snap1\t-\t-\tmain\t-\t20250101\t" + msg + "\t-\t-\t2026-06-18T00:00:00Z", wantDeleteAt: true},
+		{name: "malformed protected_till is treated as unprotected", output: "pool@snap1\t-\t-\tmain\t-\t20250101\t" + msg + "\t-\t2026-13-99\t-", wantProtected: false, wantProtectedTill: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := Manager{runner: runnerMock{cmdOutput: tc.output}, config: Config{Pool: resources.NewPool("pool")}}
+
+			repo, err := m.getRepo(cmdCfg{pool: "pool"})
+			require.NoError(t, err)
+			require.Len(t, repo.Snapshots, 1)
+
+			snap := repo.Snapshots["pool@snap1"]
+			assert.Equal(t, tc.wantProtected, snap.Protected)
+			assert.Equal(t, tc.wantProtectedTill, snap.ProtectedTill != nil)
+			assert.Equal(t, tc.wantDeleteAt, snap.DeleteAt != nil)
+		})
+	}
+}
+
 func TestGetSnapshotProperties(t *testing.T) {
 	msg := base64.StdEncoding.EncodeToString([]byte("test message"))
 
@@ -583,8 +634,8 @@ func TestGetSnapshotProperties(t *testing.T) {
 		expected thinclones.SnapshotProperties
 	}{
 		{
-			name:   "well-formed 8-field output",
-			output: "pool@snap1\tparent1\tchild1\tmain\troot1\t20250101\t" + msg + "\tclone1",
+			name:   "well-formed output",
+			output: "pool@snap1\tparent1\tchild1\tmain\troot1\t20250101\t" + msg + "\tclone1\t-\t-",
 			expected: thinclones.SnapshotProperties{
 				Name: "pool@snap1", Parent: "parent1", Child: "child1", Branch: "main",
 				Root: "root1", DataStateAt: "20250101", Message: "test message", Clones: "clone1",
@@ -592,10 +643,18 @@ func TestGetSnapshotProperties(t *testing.T) {
 		},
 		{
 			name:   "field containing spaces is preserved",
-			output: "pool@snap1\tparent with spaces\tchild1\tmain\troot1\t20250101\t" + msg + "\tclone1",
+			output: "pool@snap1\tparent with spaces\tchild1\tmain\troot1\t20250101\t" + msg + "\tclone1\t-\t-",
 			expected: thinclones.SnapshotProperties{
 				Name: "pool@snap1", Parent: "parent with spaces", Child: "child1", Branch: "main",
 				Root: "root1", DataStateAt: "20250101", Message: "test message", Clones: "clone1",
+			},
+		},
+		{
+			name:   "protection properties are parsed",
+			output: "pool@snap1\t-\t-\tmain\t-\t20250101\t" + msg + "\t-\t2026-06-17T14:30:00Z\t2026-06-18T00:00:00Z",
+			expected: thinclones.SnapshotProperties{
+				Name: "pool@snap1", Branch: "main", DataStateAt: "20250101", Message: "test message",
+				ProtectedTill: "2026-06-17T14:30:00Z", DeleteAt: "2026-06-18T00:00:00Z",
 			},
 		},
 	}

@@ -8,6 +8,9 @@ export interface Branch {
   snapshotID: string
   dataset: string
   numSnapshots: number
+  protected: boolean
+  protectedTill?: string
+  deleteAt?: string
 }
 
 export const formatBranchesDto = (dto: Branch[]) =>

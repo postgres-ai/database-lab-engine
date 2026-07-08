@@ -30,6 +30,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/fs"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
@@ -309,6 +310,32 @@ func (p *Provisioner) ResetSession(session *resources.Session, clone *models.Clo
 	}
 
 	return snapshotModel, nil
+}
+
+// ListProtection aggregates locally-set protection properties of all snapshots across
+// available pools, keyed by snapshot name. It backs the display-only protection cache
+// (refreshProtection); deletion safety never reads it. A failing pool is logged and skipped
+// so a single transient error does not blank protection display for the healthy pools. The
+// delete paths re-read protection live and fail safe instead: manual delete via
+// ensureNotProtected (GetProtection), the sweeper via isProtectedNow (GetProtection, a read
+// error counts as protected), and count-based retention via getProtectedSnapshots (a read
+// error aborts the cleanup for that pool).
+func (p *Provisioner) ListProtection() map[string]thinclones.ProtectionProperties {
+	protection := make(map[string]thinclones.ProtectionProperties)
+
+	for _, activeFSManager := range p.pm.GetAvailableFSManagers() {
+		poolProtection, err := activeFSManager.ListProtection()
+		if err != nil {
+			log.Err(fmt.Sprintf("failed to list protection for pool %s: %v", activeFSManager.Pool().Name, err))
+			continue
+		}
+
+		for name, props := range poolProtection {
+			protection[name] = props
+		}
+	}
+
+	return protection
 }
 
 // GetSnapshots provides a snapshot list from active pools.

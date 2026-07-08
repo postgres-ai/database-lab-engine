@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"path"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -511,6 +512,17 @@ func (m *Manager) DestroyDataset(dataset string) error {
 	return nil
 }
 
+// DestroyBranchDataset recursively destroys a branch dataset and everything nested under it:
+// its commit snapshots and the residual committed-snapshot clone datasets that DestroyClone
+// deliberately leaves behind (<pool>/branch/<name>/<clone>/r<n>). Those residuals belong to
+// the branch and must be swept. The recursive destroy has no ZFS backstop against removing a
+// live clone, so callers must run it under the clone-deletion lock (WithBranchDeletionLock),
+// which atomically guarantees no registered clone depends on the branch's snapshots before
+// the destroy proceeds.
+func (m *Manager) DestroyBranchDataset(branchDataset string) error {
+	return m.DestroyDataset(branchDataset)
+}
+
 type snapshotRelation struct {
 	parent string
 	branch string
@@ -594,6 +606,13 @@ func (m *Manager) CleanupSnapshots(retentionLimit int, mode models.RetrievalMode
 	}
 
 	busySnapshots = append(busySnapshots, branchHeads...)
+
+	protectedSnapshots, err := m.getProtectedSnapshots()
+	if err != nil {
+		return nil, err
+	}
+
+	busySnapshots = append(busySnapshots, protectedSnapshots...)
 
 	modeFilter := ""
 
@@ -812,13 +831,43 @@ func (m *Manager) getBranchHeadSnapshots() ([]string, error) {
 }
 
 // excludeBusySnapshots excludes snapshots that match a pattern by name.
-// The exclusion logic relies on the fact that snapshots have unique substrings (timestamps).
+// Names are regexp-quoted so metacharacters in a snapshot/dataset name (`.`, etc.) match
+// literally and a protected name cannot accidentally over- or under-match another.
+// regexp.QuoteMeta escapes regex metacharacters, not shell ones: the result is embedded in a
+// single-quoted grep argument run via bash, so a name containing a single quote would break
+// out of the quoting. This is safe only because ZFS rejects single quotes and shell
+// metacharacters in dataset/snapshot names; the patterns here always come from ZFS-listed names.
 func excludeBusySnapshots(busySnapshots []string) string {
 	if len(busySnapshots) == 0 {
 		return ""
 	}
 
-	return fmt.Sprintf("| grep -Ev '%s' ", strings.Join(busySnapshots, "|"))
+	quoted := make([]string, 0, len(busySnapshots))
+	for _, name := range busySnapshots {
+		quoted = append(quoted, regexp.QuoteMeta(name))
+	}
+
+	return fmt.Sprintf("| grep -Ev '%s' ", strings.Join(quoted, "|"))
+}
+
+// getProtectedSnapshots returns names of snapshots with a locally-set, currently-active
+// dle:protected_till. Only local values count (inherited branch-dataset protection must not
+// over-protect every snapshot under it), and an expired or malformed value does not protect.
+func (m *Manager) getProtectedSnapshots() ([]string, error) {
+	protection, err := m.ListProtection()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list protected snapshots: %w", err)
+	}
+
+	protected := make([]string, 0, len(protection))
+
+	for name, props := range protection {
+		if models.ProtectedTillActive(props.ProtectedTill) {
+			protected = append(protected, name)
+		}
+	}
+
+	return protected, nil
 }
 
 // GetSessionState returns a state of a session.

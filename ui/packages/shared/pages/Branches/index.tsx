@@ -41,6 +41,10 @@ const useStyles = makeStyles(
   { index: 1 },
 )
 
+// listRefreshIntervalMs is how often the branch list is silently refreshed so background
+// auto-deletion does not leave stale rows in the table.
+const listRefreshIntervalMs = 30_000
+
 interface BranchesProps {
   instanceId: string
 }
@@ -72,7 +76,15 @@ export const Branches: React.FC<BranchesProps> = observer(({ instanceId }) => {
 
   useEffect(() => {
     loadBranches()
-  }, [])
+
+    const intervalId = setInterval(() => {
+      getBranches(instanceId, true).then((response) => {
+        response && setBranches(response)
+      })
+    }, listRefreshIntervalMs)
+
+    return () => clearInterval(intervalId)
+  }, [instanceId])
 
   if (!instance && !isBranchesLoading) return <></>
 

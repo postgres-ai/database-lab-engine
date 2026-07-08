@@ -37,12 +37,20 @@ type DestroyOptions struct {
 
 // SnapshotProperties describe custom properties of the dataset.
 type SnapshotProperties struct {
-	Name        string
-	Parent      string
-	Child       string
-	Branch      string
-	Root        string
-	DataStateAt string
-	Message     string
-	Clones      string
+	Name          string
+	Parent        string
+	Child         string
+	Branch        string
+	Root          string
+	DataStateAt   string
+	Message       string
+	Clones        string
+	ProtectedTill string
+	DeleteAt      string
+}
+
+// ProtectionProperties describes the protection-related properties of an entity.
+type ProtectionProperties struct {
+	ProtectedTill string
+	DeleteAt      string
 }

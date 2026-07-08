@@ -17,8 +17,8 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
-// ListBranches returns branches list.
-func (c *Client) ListBranches(ctx context.Context) ([]string, error) {
+// ListBranchesView returns the detailed branch list, including protection settings.
+func (c *Client) ListBranchesView(ctx context.Context) ([]models.BranchView, error) {
 	u := c.URL("/branches")
 
 	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
@@ -37,6 +37,16 @@ func (c *Client) ListBranches(ctx context.Context) ([]string, error) {
 
 	if err := json.NewDecoder(response.Body).Decode(&branches); err != nil {
 		return nil, fmt.Errorf("failed to get response: %w", err)
+	}
+
+	return branches, nil
+}
+
+// ListBranches returns branches list.
+func (c *Client) ListBranches(ctx context.Context) ([]string, error) {
+	branches, err := c.ListBranchesView(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	listBranches := make([]string, 0, len(branches))
@@ -161,4 +171,10 @@ func (c *Client) DeleteBranch(ctx context.Context, r types.BranchDeleteRequest) 
 	defer func() { _ = response.Body.Close() }()
 
 	return nil
+}
+
+// UpdateBranch updates branch protection and scheduled-deletion settings.
+func (c *Client) UpdateBranch(ctx context.Context, branchName string,
+	updateRequest types.BranchUpdateRequest) (*models.BranchView, error) {
+	return patchJSON[models.BranchView](ctx, c, fmt.Sprintf("/branch/%s", branchName), updateRequest)
 }

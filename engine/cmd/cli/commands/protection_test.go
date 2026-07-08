@@ -1,4 +1,4 @@
-package clone
+package commands
 
 import (
 	"flag"
@@ -47,7 +47,7 @@ func TestParseDurationMinutes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			result, err := parseDurationMinutes(tt.input)
+			result, err := ParseDurationMinutes(tt.input)
 			if tt.hasError {
 				require.Error(t, err)
 				return
@@ -72,26 +72,28 @@ func newProtectedContext(value string, isSet bool) *cli.Context {
 
 func uintPtr(v uint) *uint { return &v }
 
+func boolPtr(v bool) *bool { return &v }
+
 func TestParseProtectedFlag(t *testing.T) {
 	tests := []struct {
 		name              string
 		value             string
 		isSet             bool
-		expectedProtected bool
+		expectedProtected *bool
 		expectedDuration  *uint
 		hasError          bool
 	}{
-		{name: "not set", value: "", isSet: false, expectedProtected: false, expectedDuration: nil},
-		{name: "empty string", value: "", isSet: true, expectedProtected: true, expectedDuration: nil},
-		{name: "true", value: "true", isSet: true, expectedProtected: true, expectedDuration: nil},
-		{name: "TRUE", value: "TRUE", isSet: true, expectedProtected: true, expectedDuration: nil},
-		{name: "false", value: "false", isSet: true, expectedProtected: false, expectedDuration: nil},
-		{name: "FALSE", value: "FALSE", isSet: true, expectedProtected: false, expectedDuration: nil},
-		{name: "zero minutes", value: "0", isSet: true, expectedProtected: true, expectedDuration: uintPtr(0)},
-		{name: "plain minutes", value: "30", isSet: true, expectedProtected: true, expectedDuration: uintPtr(30)},
-		{name: "minutes suffix", value: "30m", isSet: true, expectedProtected: true, expectedDuration: uintPtr(30)},
-		{name: "hours suffix", value: "2h", isSet: true, expectedProtected: true, expectedDuration: uintPtr(120)},
-		{name: "days suffix", value: "7d", isSet: true, expectedProtected: true, expectedDuration: uintPtr(10080)},
+		{name: "not set", value: "", isSet: false, expectedProtected: nil, expectedDuration: nil},
+		{name: "empty string", value: "", isSet: true, expectedProtected: boolPtr(true), expectedDuration: nil},
+		{name: "true", value: "true", isSet: true, expectedProtected: boolPtr(true), expectedDuration: nil},
+		{name: "TRUE", value: "TRUE", isSet: true, expectedProtected: boolPtr(true), expectedDuration: nil},
+		{name: "false", value: "false", isSet: true, expectedProtected: boolPtr(false), expectedDuration: nil},
+		{name: "FALSE", value: "FALSE", isSet: true, expectedProtected: boolPtr(false), expectedDuration: nil},
+		{name: "zero minutes", value: "0", isSet: true, expectedProtected: boolPtr(true), expectedDuration: uintPtr(0)},
+		{name: "plain minutes", value: "30", isSet: true, expectedProtected: boolPtr(true), expectedDuration: uintPtr(30)},
+		{name: "minutes suffix", value: "30m", isSet: true, expectedProtected: boolPtr(true), expectedDuration: uintPtr(30)},
+		{name: "hours suffix", value: "2h", isSet: true, expectedProtected: boolPtr(true), expectedDuration: uintPtr(120)},
+		{name: "days suffix", value: "7d", isSet: true, expectedProtected: boolPtr(true), expectedDuration: uintPtr(10080)},
 		{name: "invalid value", value: "abc", isSet: true, hasError: true},
 		{name: "overflow value", value: "366d", isSet: true, hasError: true},
 	}
@@ -100,14 +102,20 @@ func TestParseProtectedFlag(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cliCtx := newProtectedContext(tt.value, tt.isSet)
 
-			isProtected, duration, err := parseProtectedFlag(cliCtx)
+			protected, duration, err := ParseProtectedFlag(cliCtx)
 			if tt.hasError {
 				require.Error(t, err)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.Equal(t, tt.expectedProtected, isProtected)
+
+			if tt.expectedProtected == nil {
+				assert.Nil(t, protected)
+			} else {
+				require.NotNil(t, protected)
+				assert.Equal(t, *tt.expectedProtected, *protected)
+			}
 
 			if tt.expectedDuration == nil {
 				assert.Nil(t, duration)

@@ -187,14 +187,18 @@ func (c *Client) CreateCloneAsync(ctx context.Context, cloneRequest types.CloneC
 
 // UpdateClone updates an existing Database Lab clone.
 func (c *Client) UpdateClone(ctx context.Context, cloneID string, updateRequest types.CloneUpdateRequest) (*models.Clone, error) {
-	u := c.URL(fmt.Sprintf("/clone/%s", cloneID))
+	return patchJSON[models.Clone](ctx, c, fmt.Sprintf("/clone/%s", cloneID), updateRequest)
+}
 
+// patchJSON encodes payload, sends it as a PATCH request to path, and decodes the
+// response body into a new value of T. Shared by the Update* client methods.
+func patchJSON[T any](ctx context.Context, c *Client, path string, payload any) (*T, error) {
 	body := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(body).Encode(updateRequest); err != nil {
-		return nil, errors.Wrap(err, "failed to encode CloneUpdateRequest")
+	if err := json.NewEncoder(body).Encode(payload); err != nil {
+		return nil, errors.Wrap(err, "failed to encode request")
 	}
 
-	request, err := http.NewRequest(http.MethodPatch, u.String(), body)
+	request, err := http.NewRequest(http.MethodPatch, c.URL(path).String(), body)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to make a request")
 	}
@@ -206,13 +210,13 @@ func (c *Client) UpdateClone(ctx context.Context, cloneID string, updateRequest 
 
 	defer func() { _ = response.Body.Close() }()
 
-	var clone models.Clone
+	var result T
 
-	if err := json.NewDecoder(response.Body).Decode(&clone); err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
 		return nil, errors.Wrap(err, "failed to decode a response body")
 	}
 
-	return &clone, nil
+	return &result, nil
 }
 
 // ResetClone resets a Database Lab clone session.

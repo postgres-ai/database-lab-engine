@@ -57,7 +57,7 @@ func (s *Server) activate(w http.ResponseWriter, r *http.Request) {
 		InstanceID:                s.engProps.InstanceID,
 		StartedAt:                 s.startedAt,
 		Telemetry:                 pointer.ToBool(s.Platform.IsTelemetryEnabled()),
-		DisableConfigModification: pointer.ToBool(s.Config.DisableConfigModification),
+		DisableConfigModification: pointer.ToBool(s.configModificationDisabled()),
 	}
 
 	if err := api.WriteJSON(w, http.StatusOK, engine); err != nil {

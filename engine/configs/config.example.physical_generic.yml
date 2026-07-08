@@ -5,6 +5,13 @@ server:
   port: 2345 # API server port; default: "2345"
   disableConfigModification: false # When true, configuration changes via API/CLI/UI are disabled; default: "false"
 
+retention: # Background auto-deletion of unused branches/snapshots; safe-only (never force-deletes dependents)
+  unusedSnapshotMinutes: 0 # Auto-delete a snapshot with no clones/children after N minutes unused; 0 = disabled (default)
+  unusedBranchMinutes: 0 # Auto-delete a branch with no clones/child branches after N minutes unused; 0 = disabled (default)
+  checkIntervalMinutes: 5 # Sweep cadence in minutes; default: "5"
+  protectionMaxDurationMinutes: 0 # Cap for timed protection set via API/CLI, in minutes; 0 = no cap (default)
+  maxDeletionsPerTick: 50 # Max entities deleted per sweep; default: "50"; excess deferred to the next tick
+
 embeddedUI:
   enabled: true # If enabled, a separate UI container will be started
   dockerImage: "postgresai/ce-ui:latest" # Default: "postgresai/ce-ui:latest"

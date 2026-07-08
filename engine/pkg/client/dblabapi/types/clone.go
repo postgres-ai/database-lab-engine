@@ -5,6 +5,8 @@
 // Package types provides request structures for Database Lab HTTP API.
 package types
 
+import "gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+
 // CloneCreateRequest represents clone params of a create request.
 type CloneCreateRequest struct {
 	ID                        string                     `json:"id"`
@@ -21,6 +23,24 @@ type CloneCreateRequest struct {
 type CloneUpdateRequest struct {
 	Protected                 bool  `json:"protected"`
 	ProtectionDurationMinutes *uint `json:"protectionDurationMinutes,omitempty"`
+}
+
+// SnapshotUpdateRequest represents params of a snapshot update request. Pointer fields
+// distinguish "unset" from a zero value; protection and scheduled deletion are mutually
+// exclusive (setting one clears the other).
+type SnapshotUpdateRequest struct {
+	Protected                 *bool             `json:"protected,omitempty"`
+	ProtectionDurationMinutes *uint             `json:"protectionDurationMinutes,omitempty"`
+	DeleteAt                  *models.LocalTime `json:"deleteAt,omitempty"`
+}
+
+// BranchUpdateRequest represents params of a branch update request. Pointer fields
+// distinguish "unset" from a zero value; protection and scheduled deletion are mutually
+// exclusive (setting one clears the other).
+type BranchUpdateRequest struct {
+	Protected                 *bool             `json:"protected,omitempty"`
+	ProtectionDurationMinutes *uint             `json:"protectionDurationMinutes,omitempty"`
+	DeleteAt                  *models.LocalTime `json:"deleteAt,omitempty"`
 }
 
 // DatabaseRequest represents database params of a clone request.

@@ -23,8 +23,14 @@ import {
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
+import { Select } from '@postgres.ai/shared/components/Select'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
+import { parseDate } from '@postgres.ai/shared/utils/date'
+import {
+  protectionOptions,
+  getProtectionSelectValue,
+} from '@postgres.ai/shared/utils/protection'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { DeleteBranchModal } from '@postgres.ai/shared/pages/Branches/components/Modals/DeleteBranchModal'
@@ -96,6 +102,13 @@ const useStyles = makeStyles(
     summary: {
       marginTop: 20,
     },
+    protectionControl: {
+      display: 'flex',
+      alignItems: 'center',
+      marginTop: '8px',
+      marginBottom: '8px',
+      maxWidth: 525,
+    },
     text: {
       marginTop: '4px',
     },
@@ -156,12 +169,28 @@ export const BranchesPage = observer((props: Props) => {
     load,
     isReloading,
     isBranchesLoading,
+    isUpdatingBranch,
+    updateBranchProtection,
+    updateBranchError,
     getBranchesError,
     snapshotListError,
     getBranchError,
   } = stores.main
 
   const hasBranchError = getBranchesError || getBranchError || snapshotListError
+
+  const protectedTillDate = branch?.protectedTill
+    ? parseDate(branch.protectedTill)
+    : null
+
+  const handleProtectionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    updateBranchProtection(
+      props.branchId,
+      props.instanceId,
+      value === 'none' ? null : parseInt(value, 10),
+    )
+  }
 
   const branchLogLength = snapshotList?.reduce((acc, snapshot) => {
     if (snapshot?.branch !== null) {
@@ -289,6 +318,47 @@ export const BranchesPage = observer((props: Props) => {
                 <span className={classes.paramTitle}>Parent branch:</span>
                 {branch?.parent}
               </p>
+            </div>
+            <div className={classes.summary}>
+              <p>
+                <strong>Deletion protection</strong>
+              </p>
+              <div className={classes.protectionControl}>
+                <Select
+                  label="Deletion protection"
+                  items={
+                    branch?.protected && protectedTillDate
+                      ? [
+                          {
+                            value: 'current',
+                            children: `Protected until ${protectedTillDate.toLocaleString()}`,
+                          },
+                          ...protectionOptions,
+                        ]
+                      : protectionOptions
+                  }
+                  value={getProtectionSelectValue(
+                    Boolean(branch?.protected),
+                    protectedTillDate,
+                  )}
+                  onChange={handleProtectionChange}
+                  disabled={isReloading || isUpdatingBranch}
+                  fullWidth
+                />
+                {isUpdatingBranch && (
+                  <Spinner size="sm" className={classes.spinner} />
+                )}
+              </div>
+              <p className={classes.text}>
+                Protected branches cannot be deleted manually or automatically.
+              </p>
+              {updateBranchError && (
+                <ErrorStub
+                  title="Update error"
+                  message={updateBranchError}
+                  className={classes.marginTop}
+                />
+              )}
             </div>
             <br />
             <p>

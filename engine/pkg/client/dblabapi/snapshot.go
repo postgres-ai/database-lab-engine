@@ -117,3 +117,9 @@ func (c *Client) DeleteSnapshot(ctx context.Context, snapshotRequest types.Snaps
 
 	return nil
 }
+
+// UpdateSnapshot updates snapshot protection and scheduled-deletion settings.
+func (c *Client) UpdateSnapshot(ctx context.Context, snapshotID string,
+	updateRequest types.SnapshotUpdateRequest) (*models.Snapshot, error) {
+	return patchJSON[models.Snapshot](ctx, c, fmt.Sprintf("/snapshot/%s", snapshotID), updateRequest)
+}

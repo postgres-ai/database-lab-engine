@@ -12,11 +12,13 @@ import {
   SnapshotsApi,
 } from '@postgres.ai/shared/stores/Snapshots'
 import { DestroySnapshot } from '@postgres.ai/shared/types/api/endpoints/destroySnapshot'
+import { UpdateSnapshot } from '@postgres.ai/shared/types/api/endpoints/updateSnapshot'
 import { SnapshotDto } from '@postgres.ai/shared/types/api/entities/snapshot'
 import { GetBranchSnapshot } from '@postgres.ai/shared/types/api/endpoints/getBranchSnapshot'
 import { BranchSnapshotDto } from '@postgres.ai/shared/types/api/entities/branchSnapshot'
 import { generateSnapshotPageId } from '@postgres.ai/shared/pages/Instance/Snapshots/utils'
 import { InitWS } from '@postgres.ai/shared/types/api/endpoints/initWS'
+import { getTextFromUnknownApiError } from '@postgres.ai/shared/utils/api'
 
 type Error = {
   title?: string
@@ -25,6 +27,7 @@ type Error = {
 
 export type Api = SnapshotsApi & {
   destroySnapshot: DestroySnapshot
+  updateSnapshot?: UpdateSnapshot
   getBranchSnapshot?: GetBranchSnapshot
   initWS?: InitWS
 }
@@ -37,6 +40,8 @@ export class MainStore {
   branchSnapshotError: Error | null = null
 
   isSnapshotsLoading = false
+  isUpdatingSnapshot = false
+  updateSnapshotError: string | null = null
 
   private readonly api: Api
   readonly snapshots: SnapshotsStore
@@ -97,6 +102,41 @@ export class MainStore {
     }
 
     return response
+  }
+
+  updateSnapshotProtection = async (
+    snapshotId: string,
+    instanceId: string,
+    durationMinutes: number | null,
+  ) => {
+    if (!this.api.updateSnapshot || !this.snapshot) return
+
+    this.isUpdatingSnapshot = true
+    this.updateSnapshotError = null
+
+    const prevProtected = this.snapshot.protected
+    const isProtected = durationMinutes !== null
+
+    this.snapshot.protected = isProtected
+
+    const { response, error } = await this.api.updateSnapshot({
+      instanceId,
+      snapshotId: this.snapshot.id,
+      snapshot: {
+        isProtected,
+        protectionDurationMinutes: durationMinutes ?? undefined,
+      },
+    })
+
+    if (response) {
+      await this.load(snapshotId, instanceId)
+    } else if (this.snapshot) {
+      this.snapshot.protected = prevProtected
+    }
+
+    if (error) this.updateSnapshotError = await getTextFromUnknownApiError(error)
+
+    this.isUpdatingSnapshot = false
   }
 
   destroySnapshot = async (

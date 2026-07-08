@@ -11,6 +11,9 @@ export type SnapshotDto = {
   logicalSize: number
   message: string
   branch: string
+  protected: boolean
+  protectedTill?: string
+  deleteAt?: string
 }
 
 export const formatSnapshotDto = (dto: SnapshotDto) => ({

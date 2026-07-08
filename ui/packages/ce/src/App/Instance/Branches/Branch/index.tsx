@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom'
 
 import { getBranches } from 'api/branches/getBranches'
 import { deleteBranch } from 'api/branches/deleteBranch'
+import { updateBranch } from 'api/branches/updateBranch'
 import { getSnapshotList } from 'api/branches/getSnapshotList'
 import { initWS } from 'api/engine/initWS'
 
@@ -20,6 +21,7 @@ export const Branch = () => {
   const api = {
     getBranches,
     deleteBranch,
+    updateBranch,
     getSnapshotList,
     initWS
   }

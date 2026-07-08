@@ -112,9 +112,10 @@ Read more:
 - Recovery & management
     - Fast Point in Time Recovery (PITR) for physical mode
     - Auto-deletion of unused clones
+    - Time-based auto-deletion of unused branches and snapshots (`retention` config; safe-only, never force-deletes dependents)
     - Snapshot retention policies in DBLab configuration
-- Clones
-    - "Deletion protection" for preventing clone deletion
+- Clones, branches & snapshots
+    - "Deletion protection" for clones, branches, and snapshots (blocks manual and auto-deletion, plus count-based retention for snapshots)
     - Persistent clones withstand DBLab restarts
     - "Reset" command for data version switching
     - Resource quotas: CPU, RAM

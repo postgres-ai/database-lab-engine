@@ -23,11 +23,18 @@ import {
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
+import { Select } from '@postgres.ai/shared/components/Select'
+import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { DestroySnapshotModal } from '@postgres.ai/shared/pages/Snapshots/Snapshot/DestorySnapshotModal'
 import { HorizontalScrollContainer } from '@postgres.ai/shared/components/HorizontalScrollContainer'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
+import { parseDate } from '@postgres.ai/shared/utils/date'
+import {
+  protectionOptions,
+  getProtectionSelectValue,
+} from '@postgres.ai/shared/utils/protection'
 import { styles } from '@postgres.ai/shared/styles/styles'
 import { SyntaxHighlight } from '@postgres.ai/shared/components/SyntaxHighlight'
 import {
@@ -93,6 +100,13 @@ const useStyles = makeStyles(
     },
     summary: {
       marginTop: 20,
+    },
+    protectionControl: {
+      display: 'flex',
+      alignItems: 'center',
+      marginTop: '8px',
+      marginBottom: '8px',
+      maxWidth: 525,
     },
     text: {
       marginTop: '4px',
@@ -160,6 +174,9 @@ export const SnapshotPage = observer((props: Props) => {
     snapshot,
     branchSnapshot,
     isSnapshotsLoading,
+    isUpdatingSnapshot,
+    updateSnapshotProtection,
+    updateSnapshotError,
     snapshotError,
     branchSnapshotError,
     load,
@@ -168,6 +185,19 @@ export const SnapshotPage = observer((props: Props) => {
   const afterSubmitClick = () => {
     history.push(props.routes.snapshots())
     load(props.snapshotId, props.instanceId)
+  }
+
+  const protectedTillDate = snapshot?.protectedTill
+    ? parseDate(snapshot.protectedTill)
+    : null
+
+  const handleProtectionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    updateSnapshotProtection(
+      props.snapshotId,
+      props.instanceId,
+      value === 'none' ? null : parseInt(value, 10),
+    )
   }
 
   const headRendered = (
@@ -289,6 +319,47 @@ export const SnapshotPage = observer((props: Props) => {
                   <span className={classes.paramTitle}>Message:</span>
                   {branchSnapshot.message}
                 </p>
+              )}
+            </div>
+            <div className={classes.summary}>
+              <p>
+                <strong>Deletion protection</strong>
+              </p>
+              <div className={classes.protectionControl}>
+                <Select
+                  label="Deletion protection"
+                  items={
+                    snapshot?.protected && protectedTillDate
+                      ? [
+                          {
+                            value: 'current',
+                            children: `Protected until ${protectedTillDate.toLocaleString()}`,
+                          },
+                          ...protectionOptions,
+                        ]
+                      : protectionOptions
+                  }
+                  value={getProtectionSelectValue(
+                    Boolean(snapshot?.protected),
+                    protectedTillDate,
+                  )}
+                  onChange={handleProtectionChange}
+                  disabled={isUpdatingSnapshot}
+                  fullWidth
+                />
+                {isUpdatingSnapshot && (
+                  <Spinner size="sm" className={classes.spinner} />
+                )}
+              </div>
+              <p className={classes.text}>
+                Protected snapshots cannot be deleted manually or automatically.
+              </p>
+              {updateSnapshotError && (
+                <ErrorStub
+                  title="Update error"
+                  message={updateSnapshotError}
+                  className={classes.marginTop}
+                />
               )}
             </div>
             <br />
