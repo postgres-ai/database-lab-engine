@@ -100,6 +100,7 @@ func TestClientChecksPlatformToken(t *testing.T) {
 	expectedResponse := TokenCheckResponse{
 		OrganizationID: 1,
 		Personal:       true,
+		Email:          "jsmith@acme.com",
 	}
 
 	testClient := NewTestClient(func(req *http.Request) *http.Response {
@@ -124,6 +125,7 @@ func TestClientChecksPlatformToken(t *testing.T) {
 
 	assert.Equal(t, expectedResponse.OrganizationID, platformToken.OrganizationID)
 	assert.Equal(t, expectedResponse.Personal, platformToken.Personal)
+	assert.Equal(t, expectedResponse.Email, platformToken.Email)
 }
 
 func TestClientChecksPlatformSEToken(t *testing.T) {
@@ -153,6 +155,7 @@ func TestClientChecksPlatformSEToken(t *testing.T) {
 
 	assert.Equal(t, expectedResponse.OrganizationID, platformToken.OrganizationID)
 	assert.False(t, platformToken.Personal)
+	assert.Empty(t, platformToken.Email)
 }
 
 func TestClientChecksPlatformTokenFailed(t *testing.T) {

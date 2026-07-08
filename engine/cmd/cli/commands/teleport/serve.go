@@ -66,6 +66,7 @@ type WebhookPayload struct {
 	Port          uint   `json:"port,omitempty"`
 	Username      string `json:"username,omitempty"`
 	DBName        string `json:"dbname,omitempty"`
+	OwnerUser     string `json:"owner_user,omitempty"`
 	ContainerName string `json:"container_name,omitempty"`
 }
 
@@ -304,7 +305,7 @@ func (s *service) handleCloneCreate(ctx context.Context, p *WebhookPayload) erro
 
 	name := CloneServiceName(s.cfg.EnvironmentID, p.EntityID, int(p.Port))
 
-	res := dbResource{Name: name, Port: int(p.Port), EnvID: s.cfg.EnvironmentID, CloneID: p.EntityID, Username: p.Username}
+	res := dbResource{Name: name, Port: int(p.Port), EnvID: s.cfg.EnvironmentID, CloneID: p.EntityID, OwnerUser: p.OwnerUser}
 
 	s.mu.Lock()
 	err := createDB(ctx, s.cfg, res)

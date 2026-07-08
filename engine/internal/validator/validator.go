@@ -25,6 +25,10 @@ type Service struct {
 
 // ValidateCloneRequest validates a clone request.
 func (v Service) ValidateCloneRequest(cloneRequest *types.CloneCreateRequest) error {
+	if cloneRequest == nil {
+		return errors.New("missing clone request")
+	}
+
 	if cloneRequest.DB == nil {
 		return errors.New("missing both DB username and password")
 	}

@@ -177,4 +177,5 @@ platform:
 #  orgKey: "org_key" # Organization key
 #  accessToken: "${PGAI_PLATFORM_ACCESS_TOKEN}" # Token for authorization in Platform API; get it at https://postgres.ai/console/YOUR_ORG_NAME/tokens
 #  enablePersonalTokens: true # Enable authorization with personal tokens of the organization's members.
+#  bindClonesToUser: false # Label each clone with a trusted Teleport dblab_user tag from the authenticated user's email local part (requires enablePersonalTokens); shared-token clones are left untagged and the clone's Postgres username is unchanged.
 #

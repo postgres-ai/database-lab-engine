@@ -378,8 +378,8 @@ func TestParseListDBsOutput(t *testing.T) {
 }
 
 func TestBuildDBYAML(t *testing.T) {
-	t.Run("with username", func(t *testing.T) {
-		res := dbResource{Name: "dblab-clone-prod-abc-5432", Port: 5432, EnvID: "prod", CloneID: "abc", Username: "testuser"}
+	t.Run("with owner user", func(t *testing.T) {
+		res := dbResource{Name: "dblab-clone-prod-abc-5432", Port: 5432, EnvID: "prod", CloneID: "abc", OwnerUser: "testuser"}
 		yaml, err := buildDBYAML(res, nil)
 		require.NoError(t, err)
 		s := string(yaml)
@@ -392,8 +392,8 @@ func TestBuildDBYAML(t *testing.T) {
 		assert.Contains(t, s, `uri: "127.0.0.1:5432"`)
 	})
 
-	t.Run("without username", func(t *testing.T) {
-		res := dbResource{Name: "dblab-clone-prod-abc-5432", Port: 5432, EnvID: "prod", CloneID: "abc", Username: ""}
+	t.Run("without owner user", func(t *testing.T) {
+		res := dbResource{Name: "dblab-clone-prod-abc-5432", Port: 5432, EnvID: "prod", CloneID: "abc", OwnerUser: ""}
 		yaml, err := buildDBYAML(res, nil)
 		require.NoError(t, err)
 		s := string(yaml)
@@ -440,8 +440,8 @@ func TestBuildDBYAML(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("invalid username", func(t *testing.T) {
-		res := dbResource{Name: "valid-name", Port: 5432, EnvID: "prod", CloneID: "abc", Username: "user\ninjection"}
+	t.Run("invalid owner user", func(t *testing.T) {
+		res := dbResource{Name: "valid-name", Port: 5432, EnvID: "prod", CloneID: "abc", OwnerUser: "user\ninjection"}
 		_, err := buildDBYAML(res, nil)
 		require.Error(t, err)
 	})

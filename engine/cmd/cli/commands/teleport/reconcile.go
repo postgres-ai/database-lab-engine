@@ -97,7 +97,7 @@ func (s *service) reconcile(ctx context.Context) {
 			continue
 		}
 
-		res := dbResource{Name: name, Port: port, EnvID: s.cfg.EnvironmentID, CloneID: clone.ID, Username: clone.DB.Username}
+		res := dbResource{Name: name, Port: port, EnvID: s.cfg.EnvironmentID, CloneID: clone.ID, OwnerUser: clone.DB.OwnerUser}
 
 		s.mu.Lock()
 		err = createDB(ctx, s.cfg, res)

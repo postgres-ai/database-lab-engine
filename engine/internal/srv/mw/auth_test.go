@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/ws"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
@@ -27,6 +28,7 @@ const (
 // MockPersonalTokenVerifier mocks personal verifier methods.
 type MockPersonalTokenVerifier struct {
 	isPersonalTokenEnabled bool
+	email                  string
 }
 
 func (m MockPersonalTokenVerifier) IsAllowedToken(_ context.Context, token string) bool {
@@ -35,6 +37,14 @@ func (m MockPersonalTokenVerifier) IsAllowedToken(_ context.Context, token strin
 
 func (m MockPersonalTokenVerifier) IsPersonalTokenEnabled() bool {
 	return m.isPersonalTokenEnabled
+}
+
+func (m MockPersonalTokenVerifier) AuthenticatePersonalToken(_ context.Context, token string) (platform.UserIdentity, bool) {
+	if !m.isPersonalTokenEnabled || token != testPlatformAccessToken {
+		return platform.UserIdentity{}, false
+	}
+
+	return platform.UserIdentity{Email: m.email}, true
 }
 
 func TestAccess(t *testing.T) {
@@ -122,6 +132,42 @@ func TestAuthorized_ResponseBody(t *testing.T) {
 	var errResp models.Error
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &errResp))
 	assert.Equal(t, models.ErrCodeUnauthorized, errResp.Code)
+}
+
+func TestAuthorized_UserIdentity(t *testing.T) {
+	testCases := []struct {
+		name      string
+		token     string
+		wantOK    bool
+		wantEmail string
+	}{
+		{name: "personal token attaches identity", token: testPlatformAccessToken, wantOK: true, wantEmail: "u@acme.io"},
+		{name: "shared token has no identity", token: testVerificationToken, wantOK: false, wantEmail: ""},
+	}
+
+	auth := NewAuth(testVerificationToken, MockPersonalTokenVerifier{isPersonalTokenEnabled: true, email: "u@acme.io"})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotIdentity platform.UserIdentity
+
+			var gotOK bool
+
+			handler := auth.Authorized(func(w http.ResponseWriter, r *http.Request) {
+				gotIdentity, gotOK = UserIdentityFromContext(r.Context())
+				w.WriteHeader(http.StatusOK)
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/clone", nil)
+			req.Header.Set(VerificationTokenHeader, tc.token)
+			rec := httptest.NewRecorder()
+			handler(rec, req)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			assert.Equal(t, tc.wantOK, gotOK)
+			assert.Equal(t, tc.wantEmail, gotIdentity.Email)
+		})
+	}
 }
 
 func TestAdminMW(t *testing.T) {

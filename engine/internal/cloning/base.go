@@ -198,8 +198,9 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 			Message: models.CloneMessageCreating,
 		},
 		DB: models.Database{
-			Username: cloneRequest.DB.Username,
-			DBName:   cloneRequest.DB.DBName,
+			Username:  cloneRequest.DB.Username,
+			DBName:    cloneRequest.DB.DBName,
+			OwnerUser: cloneRequest.DB.OwnerUser,
 		},
 		Revision: cloneRequest.Revision,
 	}
@@ -246,6 +247,7 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 			Port:          session.Port,
 			Username:      clone.DB.Username,
 			DBName:        clone.DB.DBName,
+			OwnerUser:     clone.DB.OwnerUser,
 			ContainerName: cloneID,
 		}
 	}()
