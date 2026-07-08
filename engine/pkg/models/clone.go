@@ -24,30 +24,13 @@ type Clone struct {
 
 // IsProtected returns true if the clone is currently protected.
 func (c *Clone) IsProtected() bool {
-	if !c.Protected {
-		return false
-	}
-
-	if c.ProtectedTill == nil {
-		return true
-	}
-
-	return c.ProtectedTill.After(time.Now())
+	return isProtected(c.Protected, c.ProtectedTill)
 }
 
 // ProtectionExpiresIn returns the duration until protection expires.
 // Returns 0 if not protected, protection has no expiry, or protection has already expired.
 func (c *Clone) ProtectionExpiresIn() time.Duration {
-	if !c.Protected || c.ProtectedTill == nil {
-		return 0
-	}
-
-	duration := time.Until(c.ProtectedTill.Time)
-	if duration < 0 {
-		return 0
-	}
-
-	return duration
+	return protectionExpiresIn(c.Protected, c.ProtectedTill)
 }
 
 // CloneMetadata contains fields describing a clone model.

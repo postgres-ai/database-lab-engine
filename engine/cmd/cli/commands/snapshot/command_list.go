@@ -48,6 +48,20 @@ func CommandList() []*cli.Command {
 					ArgsUsage: "SNAPSHOT_ID",
 					Before:    checkSnapshotIDBefore,
 				},
+				{
+					Name:      "update",
+					Usage:     "update snapshot deletion protection",
+					Action:    updateSnapshot,
+					ArgsUsage: "SNAPSHOT_ID",
+					Before:    checkSnapshotIDBefore,
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:    "protected",
+							Usage:   "deletion protection: 'true'=default, minutes or 30m/2h/7d, 0=forever, 'false'=off",
+							Aliases: []string{"p"},
+						},
+					},
+				},
 			},
 		},
 	}

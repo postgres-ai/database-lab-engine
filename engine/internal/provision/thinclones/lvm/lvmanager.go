@@ -182,6 +182,13 @@ func (m *LVManager) DestroyDataset(_ string) error {
 	return nil
 }
 
+// DestroyBranchDataset destroys a branch dataset.
+func (m *LVManager) DestroyBranchDataset(_ string) error {
+	log.Msg("destroyBranchDataset is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
 // Snapshot takes a snapshot of the current data state.
 func (m *LVManager) Snapshot(_ string) error {
 	log.Msg("Snapshot is not supported for LVM. Skip the operation")
@@ -215,6 +222,34 @@ func (m *LVManager) GetSnapshotProperties(_ string) (thinclones.SnapshotProperti
 	log.Msg("GetSnapshotProperties is not supported for LVM. Skip the operation")
 
 	return thinclones.SnapshotProperties{}, nil
+}
+
+// SetProtectedTill sets the protection-expiry timestamp.
+func (m *LVManager) SetProtectedTill(_, _ string) error {
+	log.Msg("setProtectedTill is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// SetDeleteAt sets the scheduled-deletion timestamp.
+func (m *LVManager) SetDeleteAt(_, _ string) error {
+	log.Msg("setDeleteAt is not supported for LVM. Skip the operation")
+
+	return nil
+}
+
+// GetProtection returns protection properties.
+func (m *LVManager) GetProtection(_ string) (thinclones.ProtectionProperties, error) {
+	log.Msg("getProtection is not supported for LVM. Skip the operation")
+
+	return thinclones.ProtectionProperties{}, nil
+}
+
+// ListProtection returns protection properties for all snapshots.
+func (m *LVManager) ListProtection() (map[string]thinclones.ProtectionProperties, error) {
+	log.Msg("listProtection is not supported for LVM. Skip the operation")
+
+	return nil, nil
 }
 
 // AddBranchProp adds branch to snapshot property.

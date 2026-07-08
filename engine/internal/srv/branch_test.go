@@ -49,6 +49,76 @@ func TestBranchNames(t *testing.T) {
 
 }
 
+func TestSnapshotIDValidation(t *testing.T) {
+	t.Run("valid snapshot ids", func(t *testing.T) {
+		testCases := []string{
+			"pool@snap1",
+			"pool@snap.1",
+			"dblab_pool@snapshot_20210127123000_pre",
+			"pool1/pg14@snapshot_20240912082141",
+			"pool1/pg14/branch/dev001@snapshot_20240912082141",
+			"pool1/pg14/branch/dev001/20240912082141@20240912082141",
+			"pool/branch/main/myclone/r0@snap1",
+		}
+
+		for _, tc := range testCases {
+			require.True(t, isValidSnapshotID(tc), tc)
+		}
+	})
+
+	t.Run("invalid or injection-bearing snapshot ids", func(t *testing.T) {
+		testCases := []string{
+			"",
+			"pool",
+			"pool@",
+			"@snap1",
+			"pool@snap1@snap2",
+			"pool@snap; rm -rf /",
+			"pool@snap`id`",
+			"pool@snap$(id)",
+			"pool@snap|id",
+			"pool@snap&whoami",
+			"pool@snap snap",
+			"pool@snap\nid",
+			"pool@snap%3Bid",
+			"pool@snap'id",
+			"pool@snap>file",
+			"-pool@snap1",
+		}
+
+		for _, tc := range testCases {
+			require.False(t, isValidSnapshotID(tc), tc)
+		}
+	})
+}
+
+func TestChildForkInBranch(t *testing.T) {
+	repo := &models.Repo{
+		Snapshots: map[string]models.SnapshotDetails{
+			"s1": {ID: "s1", Child: []string{"s2"}},
+			"s2": {ID: "s2", Parent: "s1", Root: []string{"feature"}},
+			"s3": {ID: "s3", Parent: "s2"},
+		},
+	}
+
+	t.Run("returns the fork-point snapshot and its child branches", func(t *testing.T) {
+		id, children := childForkInBranch(repo, []string{"s1", "s2", "s3"})
+		assert.Equal(t, "s2", id)
+		assert.Equal(t, []string{"feature"}, children)
+	})
+
+	t.Run("returns empty when no snapshot is a fork point", func(t *testing.T) {
+		id, children := childForkInBranch(repo, []string{"s1", "s3"})
+		assert.Empty(t, id)
+		assert.Nil(t, children)
+	})
+
+	t.Run("ignores snapshot ids absent from the repo", func(t *testing.T) {
+		id, _ := childForkInBranch(repo, []string{"missing"})
+		assert.Empty(t, id)
+	})
+}
+
 func TestSnapshotFiltering(t *testing.T) {
 	t.Run("filter snapshots", func(t *testing.T) {
 		pool := &resources.Pool{Name: "pool1/pg14"}

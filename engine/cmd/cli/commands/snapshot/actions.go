@@ -106,6 +106,40 @@ func createFromClone(cliCtx *cli.Context, client *dblabapi.Client) ([]byte, erro
 	return json.MarshalIndent(snapshot, "", "    ")
 }
 
+// updateSnapshot runs a request to update snapshot deletion protection.
+func updateSnapshot(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
+		return err
+	}
+
+	protected, duration, err := commands.ParseProtectedFlag(cliCtx)
+	if err != nil {
+		return err
+	}
+
+	snapshotID := cliCtx.Args().First()
+
+	updateRequest := types.SnapshotUpdateRequest{
+		Protected:                 protected,
+		ProtectionDurationMinutes: duration,
+	}
+
+	snapshot, err := dblabClient.UpdateSnapshot(cliCtx.Context, snapshotID, updateRequest)
+	if err != nil {
+		return err
+	}
+
+	commandResponse, err := json.MarshalIndent(snapshot, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
+
+	return err
+}
+
 // deleteSnapshot runs a request to delete existing snapshot.
 func deleteSnapshot(cliCtx *cli.Context) error {
 	dblabClient, err := commands.ClientByCLIContext(cliCtx)

@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -26,69 +25,16 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
-// parseProtectedFlag parses the --protected flag value.
-// Returns (isProtected, durationMinutes, error).
-// durationMinutes is nil if default duration should be used.
-func parseProtectedFlag(cliCtx *cli.Context) (bool, *uint, error) {
-	if !cliCtx.IsSet("protected") {
-		return false, nil, nil
-	}
-
-	value := cliCtx.String("protected")
-
-	switch strings.ToLower(value) {
-	case "", "true":
-		return true, nil, nil
-	case "false":
-		return false, nil, nil
-	default:
-		minutes, err := parseDurationMinutes(value)
-		if err != nil {
-			return false, nil, errors.Errorf("invalid --protected value: %q (use 'true', 'false', minutes, or duration like 30m/2h/7d)", value)
-		}
-
-		d := uint(minutes)
-
-		return true, &d, nil
-	}
-}
-
-const (
-	minutesPerHour     = 60
-	minutesPerDay      = minutesPerHour * 24
-	maxDurationMinutes = 365 * minutesPerDay
-)
-
-// parseDurationMinutes parses a duration string into minutes.
-// Accepted formats: plain number (minutes), or number with suffix: m (minutes), h (hours), d (days).
-// Suffix matching is case-insensitive (m/M, h/H, d/D).
-func parseDurationMinutes(value string) (uint64, error) {
-	lower := strings.ToLower(value)
-
-	var multiplier uint64 = 1
-
-	switch {
-	case strings.HasSuffix(lower, "d"):
-		multiplier = minutesPerDay
-		lower = strings.TrimSuffix(lower, "d")
-	case strings.HasSuffix(lower, "h"):
-		multiplier = minutesPerHour
-		lower = strings.TrimSuffix(lower, "h")
-	case strings.HasSuffix(lower, "m"):
-		lower = strings.TrimSuffix(lower, "m")
-	}
-
-	n, err := strconv.ParseUint(lower, 10, 32)
+// protectedFlag parses the --protected flag for clone requests, where protection is two-state:
+// an unset flag means not protected. It delegates to the shared parser and collapses the
+// three-state result accordingly.
+func protectedFlag(cliCtx *cli.Context) (bool, *uint, error) {
+	protected, duration, err := commands.ParseProtectedFlag(cliCtx)
 	if err != nil {
-		return 0, err
+		return false, nil, err
 	}
 
-	result := n * multiplier
-	if result > maxDurationMinutes {
-		return 0, errors.Errorf("duration too large: %d minutes exceeds maximum of %d minutes (365 days)", result, maxDurationMinutes)
-	}
-
-	return result, nil
+	return protected != nil && *protected, duration, nil
 }
 
 // list runs a request to list clones of an instance.
@@ -162,7 +108,7 @@ func create(cliCtx *cli.Context) error {
 		return err
 	}
 
-	isProtected, protectionDuration, err := parseProtectedFlag(cliCtx)
+	isProtected, protectionDuration, err := protectedFlag(cliCtx)
 	if err != nil {
 		return err
 	}
@@ -256,7 +202,7 @@ func update(cliCtx *cli.Context) error {
 		return err
 	}
 
-	isProtected, protectionDuration, err := parseProtectedFlag(cliCtx)
+	isProtected, protectionDuration, err := protectedFlag(cliCtx)
 	if err != nil {
 		return err
 	}

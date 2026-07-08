@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/AlekSi/pointer"
@@ -52,6 +53,9 @@ type Server struct {
 	Cloning          *cloning.Base
 	provisioner      *provision.Provisioner
 	Config           *srvCfg.Config
+	configMu         sync.RWMutex
+	retention        srvCfg.Retention
+	retentionMu      sync.RWMutex
 	Global           *global.Config
 	engProps         *global.EngineProps
 	Retrieval        *retrieval.Retrieval
@@ -152,7 +156,7 @@ func (s *Server) instanceStatus() *models.InstanceStatus {
 			BillingActive:             pointer.ToBool(s.engProps.BillingActive),
 			StartedAt:                 s.startedAt,
 			Telemetry:                 pointer.ToBool(s.Platform.IsTelemetryEnabled()),
-			DisableConfigModification: pointer.ToBool(s.Config.DisableConfigModification),
+			DisableConfigModification: pointer.ToBool(s.configModificationDisabled()),
 		},
 		Pools:       s.provisioner.GetPoolEntryList(),
 		Cloning:     s.Cloning.GetCloningState(),
@@ -221,7 +225,36 @@ func attachAPI(r *mux.Router) error {
 
 // Reload reloads server configuration.
 func (s *Server) Reload(cfg srvCfg.Config) {
+	s.configMu.Lock()
 	*s.Config = cfg
+	s.configMu.Unlock()
+}
+
+// configModificationDisabled reports whether the config-modification endpoints are disabled,
+// reading under the config lock so a concurrent Reload (which replaces the whole struct) cannot
+// tear the read.
+func (s *Server) configModificationDisabled() bool {
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
+
+	return s.Config.DisableConfigModification
+}
+
+// Retention returns a copy of the current retention config. The copy is safe to read after
+// the lock is released because srvCfg.Retention holds only value-type fields; this lets the
+// background sweeper and request handlers read it concurrently with SetRetention on reload.
+func (s *Server) Retention() srvCfg.Retention {
+	s.retentionMu.RLock()
+	defer s.retentionMu.RUnlock()
+
+	return s.retention
+}
+
+// SetRetention replaces the retention config under the write lock; called on config reload.
+func (s *Server) SetRetention(r srvCfg.Retention) {
+	s.retentionMu.Lock()
+	s.retention = r
+	s.retentionMu.Unlock()
 }
 
 // InitHandlers initializes handler functions of the HTTP server.
@@ -235,6 +268,7 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/snapshot/{id:.*}", authMW.Authorized(s.getSnapshot)).Methods(http.MethodGet)
 	r.HandleFunc("/snapshot", authMW.Authorized(s.createSnapshot)).Methods(http.MethodPost)
 	r.HandleFunc("/snapshot/{id:.*}", authMW.Authorized(s.deleteSnapshot)).Methods(http.MethodDelete)
+	r.HandleFunc("/snapshot/{id:.*}", authMW.Authorized(s.patchSnapshot)).Methods(http.MethodPatch)
 	r.HandleFunc("/snapshot/clone", authMW.Authorized(s.createSnapshotClone)).Methods(http.MethodPost)
 	r.HandleFunc("/clones", authMW.Authorized(s.clones)).Methods(http.MethodGet)
 	r.HandleFunc("/clone", authMW.Authorized(s.createClone)).Methods(http.MethodPost)
@@ -254,6 +288,7 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/branch/snapshot", authMW.Authorized(s.snapshot)).Methods(http.MethodPost)
 	r.HandleFunc("/branch/{branchName}/log", authMW.Authorized(s.log)).Methods(http.MethodGet)
 	r.HandleFunc("/branch/{branchName}", authMW.Authorized(s.deleteBranch)).Methods(http.MethodDelete)
+	r.HandleFunc("/branch/{branchName}", authMW.Authorized(s.patchBranch)).Methods(http.MethodPatch)
 
 	// Sub-route /admin
 	adminR := r.PathPrefix("/admin").Subrouter()
@@ -294,9 +329,13 @@ func (s *Server) InitHandlers() {
 	s.httpSrv = &http.Server{Addr: fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port), Handler: mw.Logging(r)}
 }
 
-// Run starts HTTP server on specified port in configuration.
-func (s *Server) Run() error {
+// Run starts HTTP server on specified port in configuration. The provided context governs the
+// background auto-deletion sweeper, which stops when the context is cancelled.
+func (s *Server) Run(ctx context.Context) error {
 	reportLaunching(s.Config)
+
+	go s.runAutoDeletion(ctx)
+
 	return s.httpSrv.ListenAndServe()
 }
 

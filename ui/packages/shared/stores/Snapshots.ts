@@ -40,8 +40,8 @@ export class SnapshotsStore {
     return this.loadData(instanceId)
   }
 
-  reload = (instanceId: string, branchName?: string) =>
-    this.loadData(instanceId, branchName)
+  reload = (instanceId: string, branchName?: string, silent?: boolean) =>
+    this.loadData(instanceId, branchName, silent)
 
   createSnapshot = async (
     cloneId: string,
@@ -72,21 +72,30 @@ export class SnapshotsStore {
     return response
   }
 
-  private loadData = async (instanceId: string, branchName?: string) => {
+  private loadData = async (
+    instanceId: string,
+    branchName?: string,
+    silent?: boolean,
+  ) => {
     if (!this.api.getSnapshots) return
 
-    this.isLoading = true
+    if (!silent) this.isLoading = true
 
     const { response, error } = await this.api.getSnapshots({
       instanceId,
       branchName,
     })
 
-    this.isLoading = false
+    if (!silent) this.isLoading = false
 
-    if (response) this.data = response
+    if (response) {
+      this.data = response
+      this.error = null
+    }
 
-    if (error) {
+    // a silent background refresh keeps the existing list on a transient failure; errors
+    // surface only on a foreground load.
+    if (error && !silent) {
       this.error = await error
         .json()
         .then((error) => error.details?.split('"message": "')[1]?.split('"')[0])

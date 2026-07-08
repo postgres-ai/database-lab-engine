@@ -50,6 +50,16 @@ const useStyles = makeStyles(
     header: {
       fontWeight: 500,
     },
+    protectedBadge: {
+      marginLeft: '8px',
+      padding: '1px 6px',
+      fontSize: '11px',
+      fontWeight: 400,
+      color: '#1a7f37',
+      border: '1px solid #1a7f37',
+      borderRadius: '4px',
+      whiteSpace: 'nowrap',
+    },
     infoContent: {
       fontSize: '12px',
       color: '#808080',
@@ -139,7 +149,17 @@ const SnapshotListItem = ({
     <div className={classes.commitItem}>
       <div className={classes.gridContainer}>
         <div className={classes.infoBlock}>
-          <div className={classes.header}>{snapshot.message || '-'}</div>
+          <div className={classes.header}>
+            {snapshot.message || '-'}
+            {snapshot.protected && (
+              <span
+                className={classes.protectedBadge}
+                title="Protected from deletion"
+              >
+                Protected
+              </span>
+            )}
+          </div>
           <div className={classes.infoContent} title={snapshot.dataStateAt}>
             {timeAgo}
           </div>

@@ -35,8 +35,17 @@ const (
 	// SnapshotCreatedEvent describes a snapshot creation event.
 	SnapshotCreatedEvent = "snapshot_created"
 
+	// SnapshotUpdatedEvent describes a snapshot update event.
+	SnapshotUpdatedEvent = "snapshot_updated"
+
+	// SnapshotDestroyedEvent describes a snapshot destruction event.
+	SnapshotDestroyedEvent = "snapshot_destroyed"
+
 	// BranchCreatedEvent describes a branch creation event.
 	BranchCreatedEvent = "branch_created"
+
+	// BranchUpdatedEvent describes a branch update event.
+	BranchUpdatedEvent = "branch_updated"
 
 	// BranchDestroyedEvent describes a branch destruction event.
 	BranchDestroyedEvent = "branch_destroyed"

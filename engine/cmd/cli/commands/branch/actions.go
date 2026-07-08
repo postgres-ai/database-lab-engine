@@ -6,9 +6,11 @@
 package branch
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -86,18 +88,29 @@ func list(cliCtx *cli.Context) error {
 		return err
 	}
 
+	branchName := cliCtx.Args().First()
+
+	// update branch protection.
+	if cliCtx.IsSet("protected") {
+		if branchName == "" {
+			return commands.NewActionError("BRANCH_NAME is required to update protection")
+		}
+
+		return updateBranch(cliCtx)
+	}
+
 	// create a new branch.
-	if branchName := cliCtx.Args().First(); branchName != "" {
+	if branchName != "" {
 		return create(cliCtx)
 	}
 
 	// delete branch.
-	if branchName := cliCtx.String("delete"); branchName != "" {
+	if deleteName := cliCtx.String("delete"); deleteName != "" {
 		return deleteBranch(cliCtx)
 	}
 
 	// list branches.
-	branches, err := dblabClient.ListBranches(cliCtx.Context)
+	branches, err := dblabClient.ListBranchesView(cliCtx.Context)
 	if err != nil {
 		return err
 	}
@@ -107,30 +120,77 @@ func list(cliCtx *cli.Context) error {
 		return err
 	}
 
-	formatted := formatBranchList(cliCtx, branches)
+	formatted := formatBranchList(getBaseBranch(cliCtx), branches)
 
 	_, err = fmt.Fprint(cliCtx.App.Writer, formatted)
 
 	return err
 }
 
-func formatBranchList(cliCtx *cli.Context, branches []string) string {
-	baseBranch := getBaseBranch(cliCtx)
+func formatBranchList(baseBranch string, branches []models.BranchView) string {
+	views := dedupBranchViews(branches)
+
+	names := make([]string, 0, len(views))
+	for name := range views {
+		names = append(names, name)
+	}
+
+	sort.Strings(names)
 
 	s := strings.Builder{}
 
-	for _, branch := range branches {
-		var prefixStar = "  "
+	for _, name := range names {
+		prefixStar := "  "
+		display := name
 
-		if baseBranch == branch {
+		if baseBranch == name {
 			prefixStar = "* "
-			branch = "\033[1;32m" + branch + "\033[0m"
+			display = "\033[1;32m" + name + "\033[0m"
 		}
 
-		s.WriteString(prefixStar + branch + "\n")
+		s.WriteString(prefixStar + display)
+
+		if annotation := branchProtectionAnnotation(views[name]); annotation != "" {
+			s.WriteString("  " + annotation)
+		}
+
+		s.WriteString("\n")
 	}
 
 	return s.String()
+}
+
+// dedupBranchViews keeps the first view per branch name, since a branch may be reported once
+// per pool.
+func dedupBranchViews(branches []models.BranchView) map[string]models.BranchView {
+	views := make(map[string]models.BranchView, len(branches))
+
+	for _, branch := range branches {
+		if _, ok := views[branch.Name]; !ok {
+			views[branch.Name] = branch
+		}
+	}
+
+	return views
+}
+
+// branchProtectionAnnotation renders the protection or scheduled-deletion state of a branch for
+// the list output, or an empty string when neither is active. It uses the expiry-aware
+// IsProtected so an expired timed protection is not shown as still protecting.
+func branchProtectionAnnotation(branch models.BranchView) string {
+	if branch.IsProtected() && branch.ProtectedTill != nil {
+		return "[protected until " + branch.ProtectedTill.Format(time.RFC3339) + "]"
+	}
+
+	if branch.IsProtected() {
+		return "[protected]"
+	}
+
+	if branch.DeleteAt != nil {
+		return "[auto-delete at " + branch.DeleteAt.Format(time.RFC3339) + "]"
+	}
+
+	return ""
 }
 
 func switchBranch(cliCtx *cli.Context) error {
@@ -208,6 +268,39 @@ func create(cliCtx *cli.Context) error {
 	}
 
 	_, err = fmt.Fprintf(cliCtx.App.Writer, "Switched to new branch '%s'\n", branch.Name)
+
+	return err
+}
+
+func updateBranch(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
+		return err
+	}
+
+	protected, duration, err := commands.ParseProtectedFlag(cliCtx)
+	if err != nil {
+		return err
+	}
+
+	branchName := cliCtx.Args().First()
+
+	updateRequest := types.BranchUpdateRequest{
+		Protected:                 protected,
+		ProtectionDurationMinutes: duration,
+	}
+
+	branch, err := dblabClient.UpdateBranch(cliCtx.Context, branchName, updateRequest)
+	if err != nil {
+		return err
+	}
+
+	commandResponse, err := json.MarshalIndent(branch, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintln(cliCtx.App.Writer, string(commandResponse))
 
 	return err
 }

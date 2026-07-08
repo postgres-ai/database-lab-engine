@@ -59,6 +59,7 @@ type Branching interface {
 	CreateDataset(datasetName string) error
 	CreateBranch(branchName, snapshotID string) error
 	DestroyDataset(dataset string) (err error)
+	DestroyBranchDataset(branchDataset string) error
 	ListBranches() (map[string]string, error)
 	ListAllBranches(filterPools []string) ([]models.BranchEntity, error)
 	GetRepo() (*models.Repo, error)
@@ -81,6 +82,10 @@ type Branching interface {
 	KeepRelation(snapshotName string) error
 	GetDatasetOrigins(snapshotName string) []string
 	GetActiveDatasets(dataset string) ([]string, error)
+	SetProtectedTill(value, target string) error
+	SetDeleteAt(value, target string) error
+	GetProtection(target string) (thinclones.ProtectionProperties, error)
+	ListProtection() (map[string]thinclones.ProtectionProperties, error)
 }
 
 // Pooler describes methods for Pool providing.

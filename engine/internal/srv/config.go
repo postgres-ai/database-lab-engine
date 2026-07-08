@@ -64,7 +64,7 @@ func (s *Server) getAdminConfigYaml(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) setProjectedAdminConfig(w http.ResponseWriter, r *http.Request) {
-	if s.Config.DisableConfigModification {
+	if s.configModificationDisabled() {
 		api.SendBadRequestError(w, r, configManagementDenied)
 		return
 	}
@@ -105,7 +105,7 @@ func (s *Server) setProjectedAdminConfig(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) testDBSource(w http.ResponseWriter, r *http.Request) {
-	if s.Config.DisableConfigModification {
+	if s.configModificationDisabled() {
 		api.SendBadRequestError(w, r, configManagementDenied)
 		return
 	}

@@ -337,3 +337,36 @@ func TestGetCloningState(t *testing.T) {
 	assert.Equal(t, uint64(1), state.NumClones)
 	assert.Equal(t, 1.5, state.ExpectedCloningTime)
 }
+
+func TestWithBranchDeletionLock(t *testing.T) {
+	c := &Base{
+		clones: map[string]*CloneWrapper{
+			"clone1": {Clone: &models.Clone{ID: "clone1", Snapshot: &models.Snapshot{ID: "pool@snap2"}}},
+		},
+	}
+
+	t.Run("runs destroy when no listed snapshot has a registered clone", func(t *testing.T) {
+		called := false
+
+		err := c.WithBranchDeletionLock([]string{"pool@snap1"}, func() error {
+			called = true
+			return nil
+		})
+
+		require.NoError(t, err)
+		assert.True(t, called)
+	})
+
+	t.Run("refuses and skips destroy when a listed snapshot has a registered clone", func(t *testing.T) {
+		called := false
+
+		err := c.WithBranchDeletionLock([]string{"pool@snap1", "pool@snap2"}, func() error {
+			called = true
+			return nil
+		})
+
+		require.Error(t, err)
+		assert.False(t, called)
+		assert.Contains(t, err.Error(), "dependent clone")
+	})
+}

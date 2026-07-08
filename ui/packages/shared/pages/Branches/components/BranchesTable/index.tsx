@@ -134,6 +134,7 @@ export const BranchesTable = ({
             <TableHeaderCell>Data state time</TableHeaderCell>
             <TableHeaderCell>Latest Snapshot ID</TableHeaderCell>
             <TableHeaderCell>Number of snapshots</TableHeaderCell>
+            <TableHeaderCell>Protected</TableHeaderCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -170,6 +171,7 @@ export const BranchesTable = ({
                 </TableBodyCell>
                 <TableBodyCell>{branch.snapshotID}</TableBodyCell>
                 <TableBodyCell>{branch.numSnapshots}</TableBodyCell>
+                <TableBodyCell>{branch.protected ? 'Yes' : '—'}</TableBodyCell>
               </TableRow>
             )
           })}

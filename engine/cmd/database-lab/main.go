@@ -190,11 +190,12 @@ func main() {
 
 	server := srv.NewServer(&cfg.Server, &cfg.Global, &engProps, docker, cloningSvc, provisioner, retrievalSvc, platformSvc,
 		billingSvc, obs, pm, tm, tokenHolder, logFilter, embeddedUI, reloadConfigFn, webhookChan)
+	server.SetRetention(cfg.Retention)
 
 	server.InitHandlers()
 
 	go func() {
-		if err := server.Run(); err != nil {
+		if err := server.Run(ctx); err != nil {
 			log.Msg(err)
 		}
 	}()
@@ -366,6 +367,7 @@ func reloadConfig(ctx context.Context, engProp global.EngineProps, provisionSvc 
 	platformSvc.Reload(newPlatformSvc)
 	billingSvc.Reload(newPlatformSvc.Client)
 	server.Reload(cfg.Server)
+	server.SetRetention(cfg.Retention)
 	whs.Reload(&cfg.Webhooks)
 
 	return nil
