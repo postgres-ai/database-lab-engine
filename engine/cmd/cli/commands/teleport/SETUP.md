@@ -297,7 +297,7 @@ supplied by the operator to match an existing Teleport taxonomy.
 | `dblab` | `"true"` | Marks the resource as DBLab-managed; used by the agent matcher and user roles |
 | `dblab_instance` | `<environment-id>` | Owning DBLab instance; used internally to keep reconciliation isolated per instance |
 | `clone_id` | clone ID | DB resources only |
-| `dblab_user` | clone username | DB resources only, when known |
+| `dblab_user` | authenticated user (email local part) | DB resources only, set when clone binding is enabled and the creator used a personal token |
 | `environment` | `<environment-id>` | Set **only** when no custom `environment` label is provided (backwards compatibility) |
 
 > **Important:** Each DBLab instance must use a **unique** `--environment-id`.
@@ -349,6 +349,71 @@ spec:
 > a role's `db_labels`/`app_labels`. If a role lists a key (e.g. `writable`) that
 > the sidecar does not set, add it with `--label writable=readwrite`, otherwise
 > access is denied.
+
+## Per-User Clone Access
+
+By default, every Teleport user who holds a role granting access to DBLab
+resources can connect to **any** clone. To make access per-user, the Engine can
+attach a trusted `dblab_user` label to each clone, derived from the
+**authenticated user's identity** rather than from any client-supplied value.
+
+### Enable binding in server.yml
+
+```yaml
+platform:
+  enablePersonalTokens: true   # required — identity comes from the personal token
+  bindClonesToUser: true
+```
+
+When `bindClonesToUser` is enabled, a clone created with a **personal per-user
+token** is labeled `dblab_user: <email local part>` — the part of the
+authenticated user's email before `@`, matching Teleport's
+`email.local(external.email)`. The clone's Postgres username (`db.username`) is
+**not** changed, so existing connection strings, Joe, and CI automation keep
+working.
+
+Clones created with the shared `verificationToken` (for example CI pipelines or
+Joe) carry **no** `dblab_user` label. They are created normally — not rejected —
+but are not reachable through a per-user role that matches on `dblab_user`; grant
+those callers access through a broader role instead.
+
+### Restrict access with a per-user role
+
+```yaml
+kind: role
+version: v7
+metadata:
+  name: dblab-self-access
+spec:
+  allow:
+    db_labels:
+      dblab: ['true']
+      dblab_user: ['{{email.local(external.email)}}']
+    db_names: ['*']
+    db_users: ['*']
+```
+
+With this role a user can reach only the clones labeled with their own email
+local part, e.g. `jsmith@acme.com` reaches resources labeled `dblab_user: jsmith`.
+
+### Limitations
+
+- **Two identity sources must agree.** The label is computed from the email the
+  PostgresAI Platform returns at clone-create time, while Teleport matches
+  against `email.local(external.email)` from its own SSO/IdP at connect time.
+  Both sides preserve case, and the `dblab_user` label is
+  case-sensitive, so the two emails must match **exactly, including case**
+  (`JSmith@acme.com` and `jsmith@acme.com` are different). If they differ, the
+  user is denied access to their own clone (it fails closed). Make sure the
+  Platform and the Teleport IdP emit the same address for each user.
+- Users whose email local parts collide across domains
+  (`jsmith@acme.com` vs `jsmith@other.com`) map to the same `dblab_user` value.
+- Email local parts that cannot be represented as a Teleport label value
+  (those containing `+` or other characters outside `[a-zA-Z0-9._-]`) cause the
+  personal-token clone-create request to be rejected rather than silently
+  rewritten, so the Engine label always equals Teleport's computed value.
+- Clones created before binding was enabled, or with the shared token, have no
+  `dblab_user` label; recreate them with a personal token to apply it.
 
 ## Connecting to a Clone
 

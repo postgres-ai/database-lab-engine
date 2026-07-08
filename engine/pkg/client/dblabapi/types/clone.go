@@ -49,6 +49,9 @@ type DatabaseRequest struct {
 	Password   string `json:"password"`
 	Restricted bool   `json:"restricted"`
 	DBName     string `json:"db_name"`
+	// OwnerUser is resolved server-side from the authenticated identity; it is
+	// never accepted from the client request body.
+	OwnerUser string `json:"-"`
 }
 
 // SnapshotCloneFieldRequest represents snapshot params of a create request.

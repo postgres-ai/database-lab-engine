@@ -22,8 +22,9 @@ type TokenCheckRequest struct {
 // TokenCheckResponse represents response of a token checking request.
 type TokenCheckResponse struct {
 	APIResponse
-	OrganizationID uint `json:"org_id"`
-	Personal       bool `json:"is_personal"`
+	OrganizationID uint   `json:"org_id"`
+	Personal       bool   `json:"is_personal"`
+	Email          string `json:"email"`
 }
 
 // CheckPlatformToken makes an HTTP request to check the Platform Access Token.

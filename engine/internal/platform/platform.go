@@ -19,6 +19,12 @@ import (
 type PersonalTokenVerifier interface {
 	IsAllowedToken(ctx context.Context, token string) bool
 	IsPersonalTokenEnabled() bool
+	AuthenticatePersonalToken(ctx context.Context, token string) (UserIdentity, bool)
+}
+
+// UserIdentity holds the identity behind a verified personal token.
+type UserIdentity struct {
+	Email string
 }
 
 // Config provides configuration for the Platform service.
@@ -29,6 +35,7 @@ type Config struct {
 	AccessToken         string `yaml:"accessToken"`
 	EnablePersonalToken bool   `yaml:"enablePersonalTokens"`
 	EnableTelemetry     bool   `yaml:"enableTelemetry"`
+	BindClonesToUser    bool   `yaml:"bindClonesToUser"`
 }
 
 // Service defines a Platform service.
@@ -94,22 +101,40 @@ func (s *Service) Reload(newService *Service) {
 
 // IsAllowedToken checks if the Platform Personal Token is allowed.
 func (s *Service) IsAllowedToken(ctx context.Context, personalToken string) bool {
+	_, ok := s.AuthenticatePersonalToken(ctx, personalToken)
+
+	return ok
+}
+
+// AuthenticatePersonalToken verifies a personal token and returns the user identity behind it.
+func (s *Service) AuthenticatePersonalToken(ctx context.Context, personalToken string) (UserIdentity, bool) {
 	if !s.IsPersonalTokenEnabled() {
-		return false
+		return UserIdentity{}, false
 	}
 
 	platformToken, err := s.Client.CheckPlatformToken(ctx, platform.TokenCheckRequest{Token: personalToken})
 	if err != nil {
-		return false
+		return UserIdentity{}, false
 	}
 
 	if !platformToken.Personal {
 		log.Dbg("Non-personal token given")
 
-		return false
+		return UserIdentity{}, false
 	}
 
-	return s.isAllowedOrganization(platformToken.OrganizationID)
+	if !s.isAllowedOrganization(platformToken.OrganizationID) {
+		return UserIdentity{}, false
+	}
+
+	return UserIdentity{Email: platformToken.Email}, true
+}
+
+// BindClonesToUser reports whether each clone must be labeled with a trusted dblab_user
+// value derived from the authenticated user identity; the clone's Postgres username is
+// left unchanged.
+func (s *Service) BindClonesToUser() bool {
+	return s.cfg.BindClonesToUser
 }
 
 // IsPersonalTokenEnabled checks if the Platform Personal Token is enabled.

@@ -40,6 +40,10 @@ platform:
   # If true: "verificationToken" is known only to admin, users use their own tokens,
   #           and any token can be revoked not affecting others
   enablePersonalTokens: true
+  # Label each clone with a trusted Teleport dblab_user tag from the authenticated
+  # user's email local part; requires enablePersonalTokens. Shared-token clones
+  # (e.g. CI) are left untagged rather than rejected; the Postgres username is unchanged.
+  #  bindClonesToUser: false
 
 
 source:

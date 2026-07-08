@@ -25,6 +25,13 @@ func TestValidationCloneRequest(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestValidationCloneRequestNil(t *testing.T) {
+	validator := Service{}
+	err := validator.ValidateCloneRequest(nil)
+
+	assert.EqualError(t, err, "missing clone request")
+}
+
 func TestWeakPassword(t *testing.T) {
 	validator := Service{}
 	err := validator.ValidateCloneRequest(

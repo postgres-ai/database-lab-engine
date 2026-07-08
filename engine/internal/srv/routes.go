@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/mail"
 	"os"
 	"path"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,6 +23,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/mw"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
@@ -627,6 +630,16 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if s.Platform != nil && s.Platform.BindClonesToUser() {
+		owner, err := ownerFromContext(r.Context())
+		if err != nil {
+			api.SendBadRequestError(w, r, err.Error())
+			return
+		}
+
+		cloneRequest.DB.OwnerUser = owner
+	}
+
 	if cloneRequest.Snapshot != nil && cloneRequest.Snapshot.ID != "" {
 		fsm, err := s.getFSManagerForSnapshot(cloneRequest.Snapshot.ID)
 		if err != nil {
@@ -713,6 +726,62 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 	})
 
 	log.Dbg(fmt.Sprintf("Clone ID=%s is being created", newClone.ID))
+}
+
+// maxOwnerLabelLength caps the derived owner label length.
+const maxOwnerLabelLength = 63
+
+// safeOwnerLabel restricts the derived owner label to characters valid as a
+// Teleport label value (a subset of the sidecar's safeYAMLValue), so the engine
+// label always matches Teleport's computed email.local value.
+var safeOwnerLabel = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+
+// ownerFromContext resolves the clone owner label from the authenticated user
+// identity on the context. It returns an empty string and no error when no
+// identity is present, so shared-token callers create unlabeled clones. A
+// resolved personal-token identity with an empty email is logged as a likely
+// misconfiguration (the Platform is not returning the user email) and also
+// yields an unlabeled clone. It errors only when an identity is present with an
+// email that cannot be represented as a valid owner label.
+func ownerFromContext(ctx context.Context) (string, error) {
+	identity, ok := mw.UserIdentityFromContext(ctx)
+	if !ok {
+		return "", nil
+	}
+
+	if identity.Email == "" {
+		log.Warn("clone-to-user binding is enabled but the authenticated identity has no email; " +
+			"creating an unlabeled clone (check that the Platform returns the user email)")
+
+		return "", nil
+	}
+
+	return ownerFromEmail(identity.Email)
+}
+
+// ownerFromEmail extracts the email local part exactly as Teleport's
+// email.local(external.email) does — mail.ParseAddress, then the part before the
+// first "@" — and validates that it is usable as a Teleport label value, so the
+// engine label always matches Teleport's value.
+func ownerFromEmail(email string) (string, error) {
+	addr, err := mail.ParseAddress(email)
+	if err != nil {
+		return "", fmt.Errorf("cannot parse email %q: %w", email, err)
+	}
+
+	local, _, _ := strings.Cut(addr.Address, "@")
+	if !isValidOwnerLabel(local) {
+		return "", fmt.Errorf("cannot derive a valid owner label from email %q", email)
+	}
+
+	return local, nil
+}
+
+// isValidOwnerLabel reports whether name is usable as a Teleport dblab_user
+// label value: a non-empty identifier of at most maxOwnerLabelLength characters
+// from the safeOwnerLabel set.
+func isValidOwnerLabel(name string) bool {
+	return name != "" && len(name) <= maxOwnerLabelLength && safeOwnerLabel.MatchString(name)
 }
 
 func findMaxCloneRevision(path string) int {

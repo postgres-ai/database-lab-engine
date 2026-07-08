@@ -103,8 +103,8 @@ func dbResourceLabels(res dbResource, custom map[string]string) map[string]strin
 	labels := baseLabels(res.EnvID, custom)
 	labels[labelCloneID] = res.CloneID
 
-	if res.Username != "" {
-		labels[labelUser] = res.Username
+	if res.OwnerUser != "" {
+		labels[labelUser] = res.OwnerUser
 	}
 
 	return labels
@@ -149,11 +149,11 @@ type tctlDB struct {
 
 // dbResource holds parameters for creating a Teleport DB resource.
 type dbResource struct {
-	Name     string
-	Port     int
-	EnvID    string
-	CloneID  string
-	Username string
+	Name      string
+	Port      int
+	EnvID     string
+	CloneID   string
+	OwnerUser string
 }
 
 func runTctl(ctx context.Context, tctlPath, identityFile, proxyAddr string, args ...string) ([]byte, error) {

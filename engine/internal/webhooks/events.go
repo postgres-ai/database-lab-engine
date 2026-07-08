@@ -48,6 +48,7 @@ type CloneEvent struct {
 	Port          uint   `json:"port,omitempty"`
 	Username      string `json:"username,omitempty"`
 	DBName        string `json:"dbname,omitempty"`
+	OwnerUser     string `json:"owner_user,omitempty"`
 	ContainerName string `json:"container_name,omitempty"`
 }
 
