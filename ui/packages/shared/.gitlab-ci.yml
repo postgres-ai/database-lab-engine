@@ -74,6 +74,10 @@ publish-shared-release:
     - npm version "$VERSION" --no-git-tag-version --allow-same-version
     - pnpm run pack
 
-    # Publish
+    # Publish: stable releases go to the "latest" dist-tag, prereleases (e.g. 4.2.0-rc.1)
+    # go to a channel dist-tag matching their identifier (rc/beta/alpha), since npm refuses
+    # to publish a prerelease version to "latest" without an explicit --tag.
     - TARBALL=$(ls postgres.ai-shared-*.tgz)
-    - pnpm publish "$TARBALL" --no-git-checks
+    - DIST_TAG=latest
+    - case "$VERSION" in *-*) PRERELEASE=${VERSION#*-}; DIST_TAG=${PRERELEASE%%.*} ;; esac
+    - pnpm publish "$TARBALL" --no-git-checks --tag "$DIST_TAG"
