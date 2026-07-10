@@ -93,7 +93,6 @@ sudo docker run \
   --volume "${configDir}":/home/dblab/configs \
   --volume "${metaDir}":/home/dblab/meta \
   --volume /tmp:/tmp:ro \
-  --env DOCKER_API_VERSION=1.39 \
   --env DBLAB_VERIFICATION_TOKEN=secret_token \
   --detach \
   "${IMAGE2TEST}"
