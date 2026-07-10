@@ -701,6 +701,29 @@ func (c *Base) cloneDependentSnapshotLocked(snapshotIDs []string) string {
 	return ""
 }
 
+// ClonedSnapshots returns the set of snapshot IDs that currently back at least one registered
+// clone. The auto-deletion sweeper consults it to decide whether a branch still has a live clone
+// dependent, using the same registry that WithBranchDeletionLock checks before a destroy so the
+// deletion clock and the destroy guard cannot disagree. A branch's own residual committed-snapshot
+// datasets (<pool>/branch/<name>/<clone>/r<n>), left behind by DestroyClone and destroyed
+// recursively together with the branch, are not registered clones and so are absent from the set.
+func (c *Base) ClonedSnapshots() map[string]struct{} {
+	c.cloneMutex.RLock()
+	defer c.cloneMutex.RUnlock()
+
+	ids := make(map[string]struct{}, len(c.clones))
+
+	for _, w := range c.clones {
+		if w == nil || w.Clone == nil || w.Clone.Snapshot == nil {
+			continue
+		}
+
+		ids[w.Clone.Snapshot.ID] = struct{}{}
+	}
+
+	return ids
+}
+
 // GetClones returns the list of clones descend ordered by creation time.
 func (c *Base) GetClones() []*models.Clone {
 	clones := make([]*models.Clone, 0, c.lenClones())

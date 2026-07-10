@@ -62,6 +62,7 @@ type sweep struct {
 	now              time.Time
 	budget           deletionBudget
 	changed          bool
+	clonedSnapshots  map[string]struct{}
 	deletedSnapshots []string
 	deletedBranches  map[string]struct{}
 }
@@ -130,6 +131,7 @@ func (s *Server) runRetentionSweep(ctx context.Context) {
 		retention:       s.Retention(),
 		now:             time.Now(),
 		budget:          deletionBudget{remaining: s.maxDeletionsPerTick()},
+		clonedSnapshots: s.Cloning.ClonedSnapshots(),
 		deletedBranches: make(map[string]struct{}),
 	}
 
@@ -310,7 +312,7 @@ func (sw *sweep) reconcileBranch(fsm pool.FSManager, repo *models.Repo, branchNa
 
 	protected := models.ProtectedTillActive(prot.ProtectedTill)
 	current := parseDeleteAt(prot.DeleteAt)
-	hasDependents := branchHasDependents(repo, branchName, headID)
+	hasDependents := branchHasDependents(repo, branchName, headID, sw.clonedSnapshots)
 
 	next, shouldDelete := nextDeleteState(sw.now, protected, hasDependents, current, retention)
 
@@ -421,20 +423,23 @@ func snapshotIsLeaf(details models.SnapshotDetails, branchHeads map[string]struc
 	return !isHead
 }
 
-// branchHasDependents reports whether any snapshot belonging to the branch has a dependent:
-// a ZFS clone (native clones property) or a child branch forked from it (dle:root). The fork
-// check matters because deleting the branch destroys its dataset recursively, which would
-// cascade into a child branch cloned off one of its snapshots; that cascade is not caught by
-// destroyBranchOnPool's lock, which tracks user clones only, so the clock must never start
-// while a fork exists. This governs only whether the deletion clock runs.
-func branchHasDependents(repo *models.Repo, branchName, headID string) bool {
+// branchHasDependents reports whether any snapshot belonging to the branch has a live dependent
+// that must keep the deletion clock stopped: a registered clone (a user clone provisioned on one
+// of the branch's snapshots) or a child branch forked from it (dle:root). Registered clones are
+// read from clonedSnapshots — the same registry destroyBranchOnPool's lock consults — rather than
+// the raw ZFS clones property, so the branch's own residual committed-snapshot datasets
+// (<pool>/branch/<name>/<clone>/r<n>, left behind by DestroyClone and destroyed recursively with
+// the branch) are not mistaken for external dependents. The fork check matters because deleting
+// the branch destroys its dataset recursively, which would cascade into a child branch cloned off
+// one of its snapshots; that cascade is not caught by the lock, which tracks user clones only, so
+// the clock must never start while a fork exists. This governs only whether the deletion clock runs.
+func branchHasDependents(repo *models.Repo, branchName, headID string, clonedSnapshots map[string]struct{}) bool {
 	for _, id := range snapshotsToRemove(repo, headID, branchName) {
-		details, ok := repo.Snapshots[id]
-		if !ok {
-			continue
+		if _, cloned := clonedSnapshots[id]; cloned {
+			return true
 		}
 
-		if len(details.Clones) > 0 || len(details.Root) > 0 {
+		if details, ok := repo.Snapshots[id]; ok && len(details.Root) > 0 {
 			return true
 		}
 	}

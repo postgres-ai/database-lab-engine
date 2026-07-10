@@ -79,37 +79,33 @@ func TestSnapshotIsLeaf(t *testing.T) {
 }
 
 func TestBranchHasDependents(t *testing.T) {
-	t.Run("no clones on any branch snapshot", func(t *testing.T) {
-		repo := &models.Repo{
+	// dev lineage: s1 (fork point) -> s2 (intermediate commit) -> s3 (head). s2 carries a native
+	// ZFS clone (pool/branch/dev/cl-dev/r0), the residual committed-snapshot dataset DestroyClone
+	// leaves under the branch once its working clone is removed.
+	newRepo := func() *models.Repo {
+		return &models.Repo{
 			Snapshots: map[string]models.SnapshotDetails{
 				"s1": {ID: "s1", Parent: "-", Root: []string{"dev"}, Child: []string{"s2"}},
-				"s2": {ID: "s2", Parent: "s1", Child: []string{}},
+				"s2": {ID: "s2", Parent: "s1", Child: []string{"s3"}, Clones: []string{"pool/branch/dev/cl-dev/r0"}},
+				"s3": {ID: "s3", Parent: "s2", Child: []string{}},
 			},
-			Branches: map[string]string{"dev": "s2"},
+			Branches: map[string]string{"dev": "s3"},
 		}
-		assert.False(t, branchHasDependents(repo, "dev", "s2"))
+	}
+
+	t.Run("residual committed dataset does not block deletion", func(t *testing.T) {
+		assert.False(t, branchHasDependents(newRepo(), "dev", "s3", map[string]struct{}{}))
 	})
 
-	t.Run("clone on a branch snapshot blocks deletion", func(t *testing.T) {
-		repo := &models.Repo{
-			Snapshots: map[string]models.SnapshotDetails{
-				"s1": {ID: "s1", Parent: "-", Root: []string{"dev"}, Child: []string{"s2"}},
-				"s2": {ID: "s2", Parent: "s1", Child: []string{}, Clones: []string{"pool/branch/dev/clone/r0"}},
-			},
-			Branches: map[string]string{"dev": "s2"},
-		}
-		assert.True(t, branchHasDependents(repo, "dev", "s2"))
+	t.Run("registered clone on a branch snapshot blocks deletion", func(t *testing.T) {
+		assert.True(t, branchHasDependents(newRepo(), "dev", "s3", map[string]struct{}{"s2": {}}))
 	})
 
 	t.Run("child branch forked from a branch snapshot blocks deletion", func(t *testing.T) {
-		repo := &models.Repo{
-			Snapshots: map[string]models.SnapshotDetails{
-				"s1": {ID: "s1", Parent: "-", Root: []string{"dev"}, Child: []string{"s2"}},
-				"s2": {ID: "s2", Parent: "s1", Child: []string{}, Root: []string{"feature"}},
-			},
-			Branches: map[string]string{"dev": "s2", "feature": "s3"},
-		}
-		assert.True(t, branchHasDependents(repo, "dev", "s2"))
+		repo := newRepo()
+		repo.Snapshots["s2"] = models.SnapshotDetails{ID: "s2", Parent: "s1", Child: []string{"s3"}, Root: []string{"feature"}}
+		repo.Branches["feature"] = "s4"
+		assert.True(t, branchHasDependents(repo, "dev", "s3", map[string]struct{}{}))
 	})
 }
 
