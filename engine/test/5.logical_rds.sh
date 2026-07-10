@@ -77,7 +77,6 @@ sudo docker run \
   --volume ~/.dblab/rds-combined-ca-bundle.pem:/cert/rds-combined-ca-bundle.pem \
   --env AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY}" \
   --env AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" \
-  --env DOCKER_API_VERSION=1.39 \
   --env DBLAB_VERIFICATION_TOKEN=secret_token \
   --detach \
   "${IMAGE2TEST}"

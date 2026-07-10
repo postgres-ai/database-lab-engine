@@ -101,7 +101,6 @@ run-dle: build-dle
     --volume $(PWD)/configs:/home/dblab/configs:ro \
     --volume $(PWD)/meta:/home/dblab/meta \
 	--volume /proc:/host_proc:ro \
-	--env DOCKER_API_VERSION=1.39 \
 	-p "2345:2345" \
 	dblab_server:local
 
