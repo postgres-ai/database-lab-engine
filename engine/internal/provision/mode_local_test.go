@@ -87,6 +87,10 @@ func (m mockFSManager) ListClonesNames() ([]string, error) {
 	return m.cloneList, nil
 }
 
+func (m mockFSManager) EnsureDataOwnership(_ string) error {
+	return nil
+}
+
 func (m mockFSManager) CreateSnapshot(_, _ string) (snapshotName string, err error) {
 	return "", nil
 }

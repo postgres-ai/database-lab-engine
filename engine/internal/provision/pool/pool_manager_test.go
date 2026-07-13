@@ -37,6 +37,7 @@ func (m *mockFSManager) GetBatchSessionState(_ []resources.SessionStateRequest) 
 	return nil, nil
 }
 func (m *mockFSManager) GetFilesystemState() (models.FileSystem, error)              { return m.filesystem, m.fsErr }
+func (m *mockFSManager) EnsureDataOwnership(_ string) error                          { return nil }
 func (m *mockFSManager) CreateSnapshot(_, _ string) (string, error)                  { return "", nil }
 func (m *mockFSManager) DestroySnapshot(_ string, _ thinclones.DestroyOptions) error { return nil }
 func (m *mockFSManager) CleanupSnapshots(_ int, _ models.RetrievalMode) ([]string, error) {

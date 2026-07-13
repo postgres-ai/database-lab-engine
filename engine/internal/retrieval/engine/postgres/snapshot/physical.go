@@ -412,6 +412,11 @@ func (p *PhysicalInitial) run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to mark the prepared data")
 	}
 
+	// normalize ownership of the prepared data so clones inherit it and skip the per-clone chown.
+	if err := p.cloneManager.EnsureDataOwnership(cloneDataDir); err != nil {
+		return errors.Wrap(err, "failed to ensure data ownership")
+	}
+
 	// Create a snapshot.
 	fullClonePath := path.Join(branching.BranchDir, branching.DefaultBranch, cloneName, branching.RevisionSegment(branching.DefaultRevision))
 	if _, err := p.cloneManager.CreateSnapshot(fullClonePath, p.dbMark.DataStateAt); err != nil {

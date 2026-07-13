@@ -292,6 +292,19 @@ func TestBuildingCommands(t *testing.T) {
 		command := buildSizeCommand("testSnapshot")
 		require.Equal(t, "zfs get -H -p -o value used testSnapshot", command)
 	})
+
+	t.Run("chown clone command", func(t *testing.T) {
+		command := chownCloneCommand("/mnt/pool/branch/main/c1/r0/data", "/mnt/pool/branch/main/c1/r0", "dblab")
+		require.Equal(t, "if [ \"$(stat -c '%u' '/mnt/pool/branch/main/c1/r0/data' 2>/dev/null)\" = "+
+			"\"$(id -u 'dblab' 2>/dev/null || echo nouid)\" ]; then chown 'dblab' '/mnt/pool/branch/main/c1/r0'; "+
+			"else chown -R 'dblab' '/mnt/pool/branch/main/c1/r0'; fi", command)
+	})
+
+	t.Run("ensure ownership command", func(t *testing.T) {
+		command := ensureOwnershipCommand("/mnt/pool/data", "dblab")
+		require.Equal(t, "if ! [ \"$(stat -c '%u' '/mnt/pool/data' 2>/dev/null)\" = "+
+			"\"$(id -u 'dblab' 2>/dev/null || echo nouid)\" ]; then chown -R 'dblab' '/mnt/pool/data'; fi", command)
+	})
 }
 
 func TestSnapshotList(t *testing.T) {
