@@ -165,6 +165,11 @@ func (s *LogicalInitial) Run(ctx context.Context) error {
 
 	dataStateAt := extractDataStateAt(s.dbMarker)
 
+	// normalize ownership of the prepared data so clones inherit it and skip the per-clone chown.
+	if err := s.cloneManager.EnsureDataOwnership(dataDir); err != nil {
+		return errors.Wrap(err, "failed to ensure data ownership")
+	}
+
 	if _, err := s.cloneManager.CreateSnapshot("", dataStateAt); err != nil {
 		var existsError *thinclones.SnapshotExistsError
 		if errors.As(err, &existsError) {

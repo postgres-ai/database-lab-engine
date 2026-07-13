@@ -91,6 +91,11 @@ func (m *LVManager) parsePool() error {
 	return nil
 }
 
+// EnsureDataOwnership is a no-op in LVM mode: volume ownership is managed at the volume level.
+func (m *LVManager) EnsureDataOwnership(_ string) error {
+	return nil
+}
+
 // CreateSnapshot is not supported in LVM mode.
 func (m *LVManager) CreateSnapshot(_, _ string) (string, error) {
 	log.Msg("Creating a snapshot is not supported in LVM mode. Skip the operation.")

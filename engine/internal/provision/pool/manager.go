@@ -45,6 +45,7 @@ type StateReporter interface {
 
 // Snapshotter describes methods of snapshot management.
 type Snapshotter interface {
+	EnsureDataOwnership(dataDir string) error
 	CreateSnapshot(poolSuffix, dataStateAt string) (snapshotName string, err error)
 	DestroySnapshot(snapshotName string, options thinclones.DestroyOptions) (err error)
 	CleanupSnapshots(retentionLimit int, mode models.RetrievalMode) ([]string, error)

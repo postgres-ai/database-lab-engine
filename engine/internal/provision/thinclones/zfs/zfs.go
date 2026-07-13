@@ -207,9 +207,11 @@ func (m *Manager) CreateClone(branchName, cloneName, snapshotID string, revision
 	}
 
 	cloneMountLocation := m.config.Pool.CloneLocation(branchName, cloneName, revision)
+	cloneDataDir := m.config.Pool.ClonePath(branchName, cloneName, revision)
 
-	cmd := fmt.Sprintf("zfs clone -p -o mountpoint=%s %s %s && chown -R %s %s",
-		cloneMountLocation, snapshotID, cloneMountName, m.config.OSUsername, cloneMountLocation)
+	cmd := fmt.Sprintf("zfs clone -p -o mountpoint=%s %s %s && %s",
+		cloneMountLocation, snapshotID, cloneMountName,
+		chownCloneCommand(cloneDataDir, cloneMountLocation, m.config.OSUsername))
 
 	log.Dbg(cmd)
 
@@ -219,6 +221,49 @@ func (m *Manager) CreateClone(branchName, cloneName, snapshotID string, revision
 	}
 
 	return nil
+}
+
+// EnsureDataOwnership makes dataDir and its contents owned by the engine OS user, walking the tree
+// only when it is not already owned by that user. Running it once while preparing a snapshot lets
+// every clone created from that snapshot inherit correct ownership and skip the recursive walk.
+func (m *Manager) EnsureDataOwnership(dataDir string) error {
+	cmd := ensureOwnershipCommand(dataDir, m.config.OSUsername)
+
+	log.Dbg(cmd)
+
+	out, err := m.runner.Run(cmd)
+	if err != nil {
+		return errors.Wrapf(err, "failed to ensure data ownership. Out: %v", out)
+	}
+
+	return nil
+}
+
+// ownedByUserCondition returns a shell test that succeeds when path is owned by osUsername. The
+// compared uid derives from osUsername, so the probe never disagrees with the chown that acts on it,
+// and it runs through the same runner as the operation it guards. A failed uid lookup falls back to a
+// non-numeric sentinel so that an unresolvable user never matches a missing path (empty == empty).
+func ownedByUserCondition(path, osUsername string) string {
+	return fmt.Sprintf("[ \"$(stat -c '%%u' '%s' 2>/dev/null)\" = \"$(id -u '%s' 2>/dev/null || echo nouid)\" ]",
+		path, osUsername)
+}
+
+// chownCloneCommand builds the ownership step for a freshly created clone. A ZFS clone inherits file
+// ownership from its origin snapshot, so when the clone data directory is already owned by the engine
+// OS user the expensive recursive walk over the whole data directory is skipped and only the mount
+// directory is adjusted; otherwise ownership is applied recursively. The data directory owner is a
+// sound probe because every ownership change in the pipeline is applied recursively (uniform owner)
+// and PostgreSQL gates startup on the data directory owner.
+func chownCloneCommand(dataDir, mountLocation, osUsername string) string {
+	return fmt.Sprintf("if %s; then chown '%s' '%s'; else chown -R '%s' '%s'; fi",
+		ownedByUserCondition(dataDir, osUsername), osUsername, mountLocation, osUsername, mountLocation)
+}
+
+// ensureOwnershipCommand builds a command that recursively assigns ownership of dataDir to osUsername
+// only when it is not already owned by that user.
+func ensureOwnershipCommand(dataDir, osUsername string) string {
+	return fmt.Sprintf("if ! %s; then chown -R '%s' '%s'; fi",
+		ownedByUserCondition(dataDir, osUsername), osUsername, dataDir)
 }
 
 // DestroyClone destroys a ZFS clone.
