@@ -11,6 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
+	srvCfg "gitlab.com/postgres-ai/database-lab/v3/internal/srv/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/webhooks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
@@ -281,4 +285,45 @@ func TestMapKeys(t *testing.T) {
 
 func timePtr(t time.Time) *time.Time {
 	return &t
+}
+
+// nilRepoFSM is a pool.FSManager whose GetRepo reports no repo data with no error, mirroring
+// thin-clone managers without repo support (LVM). It embeds the interface so unimplemented
+// methods are absent at compile time. ListProtection and GetProtection are the first FSManager
+// calls the sweep makes once it passes the nil-repo guard; they count reaches so a skipped pool
+// can be asserted positively, and returning empty (instead of panicking on the nil embedded
+// interface) keeps the without-guard failure at the same nil-repo dereference that crashes
+// production (branchHeadSet -> repo.Branches).
+type nilRepoFSM struct {
+	pool.FSManager
+	name    string
+	reached int
+}
+
+func (m *nilRepoFSM) GetRepo() (*models.Repo, error) {
+	return nil, nil
+}
+
+func (m *nilRepoFSM) Pool() *resources.Pool {
+	return &resources.Pool{Name: m.name}
+}
+
+func (m *nilRepoFSM) ListProtection() (map[string]thinclones.ProtectionProperties, error) {
+	m.reached++
+
+	return nil, nil
+}
+
+func (m *nilRepoFSM) GetProtection(string) (thinclones.ProtectionProperties, error) {
+	m.reached++
+
+	return thinclones.ProtectionProperties{}, nil
+}
+
+func TestSweepPoolSkipsNilRepo(t *testing.T) {
+	sw := &sweep{retention: srvCfg.Retention{UnusedSnapshotMinutes: 1, UnusedBranchMinutes: 1}}
+	fsm := &nilRepoFSM{name: "lvm_pool"}
+
+	assert.NotPanics(t, func() { sw.pool(fsm) })
+	assert.Zero(t, fsm.reached, "sweep must skip a pool with no repo data, not reconcile it")
 }
