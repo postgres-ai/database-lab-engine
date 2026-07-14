@@ -55,7 +55,7 @@ This project and everyone participating in it are governed by the [Database Lab 
 - If the issue is related to UI, include screenshots and animated GIFs. Please, do NOT use screenshots for console output, configs, and logs – for those, always prefer the textual form.
 - Check if you have sensitive information in the logs and configs and remove any.
 - You can submit a bug report in either [GitLab Issues](https://gitlab.com/postgres-ai/database-lab) or [GitHub Issues](https://github.com/postgres-ai/database-lab-engine) sections – both places are monitored.
-- If you believe that there is an urgency related to the reported bug, feel free to reach out to the project maintainers. Additionally, using one of [the channels described above](#tldr-i-just-have-a-question-where-to-ask-it).
+- If you believe that there is an urgency related to the reported bug, feel free to reach out to the project maintainers. You can also use one of [the channels described above](#tldr-i-just-have-a-question-where-to-ask-it).
 - If you need to report a security issue, follow instructions in ["Database Lab Engine security guidelines"](./SECURITY.md).
 
 ### Proposing enhancements
@@ -67,7 +67,7 @@ Enhancement suggestions are tracked on [GitLab](https://gitlab.com/postgres-ai/d
 
 - Use a clear and descriptive title for the issue to identify the suggestion.
 - Provide a step-by-step description of the proposed enhancement in as many details as possible.
-- Provide specific examples to demonstrate the steps. Include copy/pasteable snippets which you use in those examples
+- Provide specific examples to demonstrate the steps. Include copy/pasteable snippets that you use in those examples.
 - Use Markdown to format code snippets and improve the overall look of your issues (Markdown docs: [GitLab](https://docs.gitlab.com/ee/user/markdown.html), [GitHub](https://github.github.com/gfm/)).
 - Describe the current behavior and explain which behavior you expected to see instead and why (on GitLab, you can use the issue template, which is selected by default).
 - If your proposal is related to UI, include screenshots and animated GIFs which help you demonstrate the steps or point out the part of DLE to which the suggestion is related. Please, do NOT use screenshots for console output, logs, configs.
@@ -78,16 +78,16 @@ Enhancement suggestions are tracked on [GitLab](https://gitlab.com/postgres-ai/d
 ### Your first code contribution
 We appreciate first-time contributors, and we are happy to assist you in getting started. In case of any questions, reach out to us!
 
-You find some issues that are considered as good for first-time contributors looking at [the issues with the `good-first-issue` label](https://gitlab.com/postgres-ai/database-lab/-/issues?label_name%5B%5D=good+first+issue). Assign yourself to an issue and start discussing a possible solution. It is always a good idea to discuss and collaborate before you propose an MR/PR.
+You can find issues that are considered good for first-time contributors by looking at [the issues with the `good-first-issue` label](https://gitlab.com/postgres-ai/database-lab/-/issues?label_name%5B%5D=good+first+issue). Assign yourself to an issue and start discussing a possible solution. It is always a good idea to discuss and collaborate before you propose an MR/PR.
 
 ### Translation
-We are translating `README.md`, `CONTRIBUTING.md` (this document), and other documents in the repository to various languages to make Database Lab Engine more accessible around the globe. Help in this area is always appreciated. You can start from translating the [project's README](/README.md) to your native language and save it in `./translations/README.{language}.md`. You can find examples in the [./translations](./translations) directory
+We are translating `README.md`, `CONTRIBUTING.md` (this document), and other documents in the repository to various languages to make Database Lab Engine more accessible around the globe. Help in this area is always appreciated. You can start from translating the [project's README](/README.md) to your native language and save it in `./translations/README.{language}.md`. You can find examples in the [./translations](./translations) directory.
 
 ### Roadmap
 There is [the Roadmap section](https://postgres.ai/docs/roadmap) in the docs. It contains some major items defining big goals for the development team and the DLE community. However, these items cannot be considered a strict plan, so there are no guarantees that everything from the list will be necessarily implemented.
 
 ### Merge Requests / Pull Requests
-DLE is developed on GitLab, so MRs (merge requests) there is a way to propose a contribution. GitHub PRs (pull requests) are also an option but note that eventually, the proposal will need to be moved to GitLab, so the processing time may be increased.
+DLE is developed on GitLab, so opening a merge request (MR) there is the way to propose a contribution. GitHub PRs (pull requests) are also an option but note that eventually, the proposal will need to be moved to GitLab, so the processing time may be increased.
 
 Please follow these steps to have your contribution considered by the maintainers:
 1. Follow the [styleguides](#styleguides).
@@ -180,7 +180,7 @@ The DBLab API follows RESTful principles with these key guidelines:
 - JSON for request and response bodies
 - Comprehensive documentation with examples
 
-#### API Documentation
+#### API documentation
 We use readme.io to host the API docs: https://dblab.readme.io/ and https://api.dblab.dev.
 
 When updating the API specification:
@@ -191,21 +191,21 @@ When updating the API specification:
 #### Testing with Postman and Newman
 Postman collection is generated based on the OpenAPI spec file, using [Portman](https://github.com/apideck-libraries/portman).
 
-##### Setup and Generation
+##### Setup and generation
 1. Install Portman: `npm install -g @apideck/portman`
 2. Generate Postman collection file:
    ```bash
    portman --cliOptionsFile engine/api/postman/portman-cli.json
    ```
 
-##### Test Structure Best Practices
+##### Test structure best practices
 - Arrange tests in logical flows (create, read, update, delete)
 - Use environment variables to store and pass data between requests
 - For object creation tests, capture the ID in the response to use in subsequent requests
 - Add validation tests for response status, body structure, and expected values
 - Clean up created resources at the end of test flows
 
-##### CI/CD Integration
+##### CI/CD integration
 The Postman collection is automatically run in CI/CD pipelines using Newman. For local testing:
 ```bash
 newman run engine/api/postman/dblab_api.postman_collection.json -e engine/api/postman/branching.aws.postgres.ai.postman_environment.json
@@ -226,7 +226,7 @@ At the repository root:
 
 _Note: Don't use commands for `@postgres.ai/shared` - it's a dependent package that can't be run or built directly_
 
-#### Platform UI Development
+#### Platform UI development
 1. Set up environment variables:
    ```bash
    cd ui/packages/platform
@@ -244,7 +244,7 @@ git tag ui/1.0.12
 git push origin ui/1.0.12
 ```
 
-#### Handling Vulnerabilities
+#### Handling vulnerabilities
 When addressing vulnerabilities in UI packages:
 1. Update the affected package to a newer version if available
 2. For sub-package vulnerabilities, try using [npm-force-resolutions](https://www.npmjs.com/package/npm-force-resolutions)
@@ -255,7 +255,7 @@ For code-related issues:
 2. Follow recommendations from security analysis tools
 3. Only ignore false positives when absolutely necessary
 
-#### TypeScript Migration
+#### TypeScript migration
 - `@postgres.ai/shared` and `@postgres.ai/ce` are written in TypeScript
 - `@postgres.ai/platform` is partially written in TypeScript with ongoing migration efforts
 

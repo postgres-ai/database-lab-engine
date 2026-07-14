@@ -1,15 +1,15 @@
-# Database Lab Engine UI and DBLab Platform UI
+# DBLab Engine UI and DBLab Platform UI
 
 ## DBLab - thin database clones and database branching for faster development
 
-_See the [Database Lab Engine repository](https://gitlab.com/postgres-ai/database-lab) for more information about the underlying technology._
-Database Lab Engine (DLE) is an open-source (Apache 2.0) solution that enables blazing-fast cloning of PostgreSQL databases of any size in seconds. This capability helps solve common challenges, such as:
+_See the [DBLab Engine repository](https://gitlab.com/postgres-ai/database-lab) for more information about the underlying technology._
+DBLab Engine is an open-source (Apache 2.0) solution that clones Postgres databases of any size in seconds. This capability helps solve common challenges, such as:
 
 - Build dev/QA/staging environments with full-size, production-like databases.
 - Provide temporary full-size database clones for SQL query analysis and optimization.
 - Automatically verify database migrations (schema changes) and large data operations in CI/CD pipelines to minimize the risk of downtime and performance degradation.
 
-For example, cloning a 10 TiB PostgreSQL database can take less than 2 seconds.
+For example, cloning a 10 TiB Postgres database can take less than 2 seconds.
 
 ## Development
 
@@ -18,7 +18,7 @@ For example, cloning a 10 TiB PostgreSQL database can take less than 2 seconds.
 - `@postgres.ai/ce` - Community Edition UI package
 - `@postgres.ai/shared` - Shared modules and utilities
 
-## UI Development Documentation
+## UI development documentation
 
 At the repository root, you can run commands for all packages or individual packages:
 
@@ -55,19 +55,19 @@ git tag ui/1.0.12
 git push origin ui/1.0.12
 ```
 
-## Vulnerability Issues
-Vulnerabilities, CVEs, and security issues can be reported on GitLab or GitHub through the tools and bots we use to ensure that DLE code remains safe and secure. Below we outline two primary categories: known CVEs in dependencies and issues detected by static analysis tools.
+## Vulnerability issues
+Vulnerabilities, CVEs, and security issues can be reported on GitLab or GitHub through the tools and bots we use to ensure that DBLab Engine code remains safe and secure. Below we outline two primary categories: known CVEs in dependencies and issues detected by static analysis tools.
 
-#### Package Issues
+#### Package issues
 Ways to resolve (in descending order of preference):
 1. Update the package – search npm for a newer version, as the vulnerability may already be fixed.
-2. If the vulnerability is in a sub-package, use [`pnpm.overrides`](https://pnpm.io/package_json#pnpmoverrides) in the root `package.json` to pin the transitive dependency to a patched version. Use this technique with caution—it may break the project during build or at runtime. Perform a full end-to-end test afterward.
+2. If the vulnerability is in a sub-package, use [`pnpm.overrides`](https://pnpm.io/package_json#pnpmoverrides) in the root `package.json` to pin the transitive dependency to a patched version. Use this technique with caution — it may break the project during build or at runtime. Perform a full end-to-end test afterward.
 3. Fork the package and include it locally in this repository.
 4. If the issue is a false positive vulnerability, ignore it using your SAST tool's ignore directives. **This should be the last resort; apply other solutions first.**
 
-#### Code Issues
+#### Code issues
 Ways to resolve (in descending order of preference):
-1. If a portion of the source code is written in `.js`, rewrite it in `.ts` or `.tsx`—this can resolve many potential security issues.
+1. If a portion of the source code is written in `.js`, rewrite it in `.ts` or `.tsx` — this can resolve many potential security issues.
 2. Follow your SAST tool's recommendations and apply fixes manually or automatically.
 3. If the finding is a false positive, ignore it using your SAST tool's ignore directives. **This should be the last resort; apply other solutions first.**
 

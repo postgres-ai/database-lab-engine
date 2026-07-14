@@ -1,4 +1,4 @@
-# Prometheus Metrics
+# Prometheus metrics
 
 DBLab Engine exposes Prometheus metrics via the `/metrics` endpoint. These metrics can be used to monitor the health and performance of the DBLab instance.
 
@@ -10,9 +10,9 @@ GET /metrics
 
 The endpoint is publicly accessible (no authentication required) and returns metrics in Prometheus text format.
 
-## Available Metrics
+## Available metrics
 
-### Instance Metrics
+### Instance metrics
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
@@ -21,7 +21,7 @@ The endpoint is publicly accessible (no authentication required) and returns met
 | `dblab_instance_status_code` | Gauge | - | Status code of the DBLab instance (0=OK, 1=Warning, 2=Bad) |
 | `dblab_retrieval_status` | Gauge | `mode`, `status` | Status of data retrieval (1=active for status) |
 
-### Disk/Pool Metrics
+### Disk/pool metrics
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
@@ -34,7 +34,7 @@ The endpoint is publicly accessible (no authentication required) and returns met
 | `dblab_disk_compress_ratio` | Gauge | `pool` | Compression ratio of the filesystem (ZFS) |
 | `dblab_pool_status` | Gauge | `pool`, `mode`, `status` | Status of the pool (1=active for status) |
 
-### Clone Metrics (Aggregate)
+### Clone metrics (aggregate)
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
@@ -49,7 +49,7 @@ The endpoint is publicly accessible (no authentication required) and returns met
 | `dblab_clone_total_memory_limit_bytes` | Gauge | - | Total memory limit in bytes across all clone containers |
 | `dblab_clone_protected_count` | Gauge | - | Number of protected clones |
 
-### Snapshot Metrics (Aggregate)
+### Snapshot metrics (aggregate)
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
@@ -61,20 +61,20 @@ The endpoint is publicly accessible (no authentication required) and returns met
 | `dblab_snapshot_max_data_lag_seconds` | Gauge | - | Maximum data lag of any snapshot in seconds |
 | `dblab_snapshot_total_num_clones` | Gauge | - | Total number of clones across all snapshots |
 
-### Branch Metrics
+### Branch metrics
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
 | `dblab_branches_total` | Gauge | - | Total number of branches |
 
-### Dataset Metrics
+### Dataset metrics
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
 | `dblab_datasets_total` | Gauge | `pool` | Total number of datasets (slots) in the pool |
 | `dblab_datasets_available` | Gauge | `pool` | Number of available (non-busy) dataset slots for reuse |
 
-### Sync Instance Metrics (Physical Mode)
+### Sync instance metrics (physical mode)
 
 These metrics are only available when DBLab is running in physical mode with a sync instance enabled. They track the WAL replay status of the sync instance.
 
@@ -85,7 +85,7 @@ These metrics are only available when DBLab is running in physical mode with a s
 | `dblab_sync_uptime_seconds` | Gauge | - | Uptime of the sync instance in seconds |
 | `dblab_sync_last_replayed_timestamp` | Gauge | - | Unix timestamp of the last replayed transaction |
 
-### Observability Metrics
+### Observability metrics
 
 These metrics help monitor the health of the metrics collection system itself.
 
@@ -95,7 +95,7 @@ These metrics help monitor the health of the metrics collection system itself.
 | `dblab_scrape_duration_seconds` | Gauge | - | Duration of last metrics collection in seconds |
 | `dblab_scrape_errors_total` | Counter | - | Total number of errors during metrics collection |
 
-## Prometheus Configuration
+## Prometheus configuration
 
 Add the following to your `prometheus.yml`:
 
@@ -107,71 +107,71 @@ scrape_configs:
     metrics_path: /metrics
 ```
 
-## Example Queries
+## Example queries
 
-### Free Disk Space Percentage
+### Free disk space percentage
 
 ```promql
 100 * dblab_disk_free_bytes / dblab_disk_total_bytes
 ```
 
-### Number of Active Clones
+### Number of active clones
 
 ```promql
 dblab_clones_total
 ```
 
-### Maximum Clone Age in Hours
+### Maximum clone age in hours
 
 ```promql
 dblab_clone_max_age_seconds / 3600
 ```
 
-### Data Freshness (lag from current time)
+### Data freshness (lag from current time)
 
 ```promql
 dblab_snapshot_max_data_lag_seconds / 60
 ```
 
-### Total Memory Usage Across All Clones
+### Total memory usage across all clones
 
 ```promql
 dblab_clone_total_memory_usage_bytes
 ```
 
-### Average CPU Usage Across All Clones
+### Average CPU usage across all clones
 
 ```promql
 dblab_clone_avg_cpu_usage_percent
 ```
 
-### Clones by Status
+### Clones by status
 
 ```promql
 dblab_clones_by_status
 ```
 
-### Metrics Collection Health
+### Metrics collection health
 
 ```promql
 time() - dblab_scrape_success_timestamp
 ```
 
-### WAL Replay Lag (Physical Mode)
+### WAL replay lag (physical mode)
 
 ```promql
 dblab_sync_wal_lag_seconds
 ```
 
-### Time Since Last Replayed Transaction
+### Time since last replayed transaction
 
 ```promql
 time() - dblab_sync_last_replayed_timestamp
 ```
 
-## Alerting Examples
+## Alerting examples
 
-### Low Disk Space Alert
+### Low disk space alert
 
 ```yaml
 - alert: DBLabLowDiskSpace
@@ -184,7 +184,7 @@ time() - dblab_sync_last_replayed_timestamp
     description: "DBLab pool {{ $labels.pool }} has less than 20% free disk space"
 ```
 
-### Stale Snapshot Alert
+### Stale snapshot alert
 
 ```yaml
 - alert: DBLabStaleSnapshot
@@ -197,7 +197,7 @@ time() - dblab_sync_last_replayed_timestamp
     description: "DBLab snapshot data is more than 24 hours old"
 ```
 
-### High Clone Count Alert
+### High clone count alert
 
 ```yaml
 - alert: DBLabHighCloneCount
@@ -210,7 +210,7 @@ time() - dblab_sync_last_replayed_timestamp
     description: "DBLab has {{ $value }} clones running"
 ```
 
-### Metrics Collection Stale Alert
+### Metrics collection stale alert
 
 ```yaml
 - alert: DBLabMetricsStale
@@ -223,7 +223,7 @@ time() - dblab_sync_last_replayed_timestamp
     description: "DBLab metrics have not been updated for more than 5 minutes"
 ```
 
-### High WAL Replay Lag Alert (Physical Mode)
+### High WAL replay lag alert (physical mode)
 
 ```yaml
 - alert: DBLabHighWALLag
@@ -236,7 +236,7 @@ time() - dblab_sync_last_replayed_timestamp
     description: "DBLab sync instance WAL replay is {{ $value | humanizeDuration }} behind"
 ```
 
-### Sync Instance Down Alert (Physical Mode)
+### Sync instance down alert (physical mode)
 
 ```yaml
 - alert: DBLabSyncDown
@@ -249,11 +249,11 @@ time() - dblab_sync_last_replayed_timestamp
     description: "DBLab sync instance is not healthy"
 ```
 
-## OpenTelemetry Integration
+## OpenTelemetry integration
 
 DBLab metrics can be exported to OpenTelemetry-compatible backends using the OpenTelemetry Collector. This allows you to send metrics to Grafana Cloud, Datadog, New Relic, and other observability platforms.
 
-### Quick Start
+### Quick start
 
 1. Install the OpenTelemetry Collector:
    ```bash
@@ -292,7 +292,7 @@ DBLab metrics can be exported to OpenTelemetry-compatible backends using the Ope
                                                                      └─────────────┘
 ```
 
-### Supported Backends
+### Supported backends
 
 The OTel Collector can export to:
 - **Grafana Cloud** - Use OTLP exporter with Grafana Cloud endpoint

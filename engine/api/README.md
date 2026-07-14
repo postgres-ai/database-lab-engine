@@ -1,6 +1,6 @@
-# Database Lab Engine API
+# DBLab Engine API
 
-## Directory Contents
+## Directory contents
 - `swagger-spec` – OpenAPI 3.0 specification of DBLab API
 - `swagger-ui` – Swagger UI to see the API specification (embedded in DBLab, available at :2345 or :2346/api)
 - `postman` – [Postman](https://www.postman.com/) collection and environment files used to test the API in CI/CD pipelines via [`newman`](https://github.com/postmanlabs/newman)
