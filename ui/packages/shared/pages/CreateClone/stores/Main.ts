@@ -13,11 +13,10 @@ import {
 } from '@postgres.ai/shared/stores/Snapshots'
 import { getTextFromUnknownApiError } from '@postgres.ai/shared/utils/api'
 import { checkIsCloneStable } from '@postgres.ai/shared/utils/clone'
+import { ClonePoller } from '@postgres.ai/shared/utils/clonePoller'
 
 import { FormValues } from '../useForm'
 import { InitWS } from '@postgres.ai/shared/types/api/endpoints/initWS'
-
-const UNSTABLE_CLONE_UPDATE_TIMEOUT = 1000
 
 export type MainStoreApi = SnapshotsApi & {
   getInstance: GetInstance
@@ -37,7 +36,7 @@ export class MainStore {
   clone: Clone | null = null
   cloneError: string | null = null
 
-  private cloneUpdateTimeout?: number
+  private readonly poller = new ClonePoller()
 
   private readonly api: MainStoreApi
 
@@ -72,6 +71,8 @@ export class MainStore {
 
   createClone = async (data: FormValues) => {
     if (!this.instance) return false
+
+    this.poller.start()
 
     const { response, error } = await this.api.createClone({
       ...data,
@@ -115,11 +116,15 @@ export class MainStore {
     return response
   }
 
+  stopPolling = () => this.poller.stop()
+
   private updateCloneUntilStable = async (args: {
     instanceId: string
     cloneId: string
   }) => {
-    window.clearTimeout(this.cloneUpdateTimeout)
+    if (this.poller.isStopped) return
+
+    this.poller.cancel()
 
     const { response, error } = await this.api.getClone(args)
 
@@ -127,10 +132,7 @@ export class MainStore {
       this.clone = response
 
       if (!this.isCloneStable)
-        this.cloneUpdateTimeout = window.setTimeout(
-          () => this.updateCloneUntilStable(args),
-          UNSTABLE_CLONE_UPDATE_TIMEOUT,
-        )
+        this.poller.scheduleNext(() => this.updateCloneUntilStable(args))
     }
 
     if (error)

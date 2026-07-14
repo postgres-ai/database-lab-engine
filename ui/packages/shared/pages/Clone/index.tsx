@@ -205,6 +205,9 @@ export const Clone = observer((props: Props) => {
     stores.main.load(props.instanceId, props.cloneId)
   }, [])
 
+  // Stop clone status polling on unmount.
+  useEffect(() => () => stores.main.stopPolling(), [])
+
   const {
     instance,
     snapshots,
