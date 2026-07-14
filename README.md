@@ -190,7 +190,7 @@ You can find more in the ["How-to guides" section](https://postgres.ai/docs/how-
 ## License
 The DBLab source code is licensed under the OSI-approved open source license [Apache 2.0](https://opensource.org/license/apache-2-0/).
 
-Reach out to the Postgres.ai team if you want a trial or commercial license that does not contain the GPL clauses: [Contact page](https://postgres.ai/contact).
+Reach out to the PostgresAI team if you want a trial or commercial license that does not contain the GPL clauses: [Contact page](https://postgres.ai/contact).
 
 ## Community & Support
 - [Database Lab Engine Community Covenant Code of Conduct](./CODE_OF_CONDUCT.md)

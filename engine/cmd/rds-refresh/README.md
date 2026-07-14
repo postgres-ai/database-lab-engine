@@ -1,4 +1,4 @@
-# RDS/Aurora Refresh for DBLab
+# RDS/Aurora refresh for DBLab
 
 Perform full refresh from RDS/Aurora snapshots (logical mode).
 
@@ -16,7 +16,7 @@ Production ──RDS snapshot──► RDS Snapshot ──restore──► RDS C
               (automated)                              (temporary)
 ```
 
-## Quick Start
+## Quick start
 
 ```bash
 # 1. Configure
@@ -132,7 +132,7 @@ aws events put-targets --rule dblab-refresh --targets '[{
 ```
 </details>
 
-## IAM Policy
+## IAM policy
 
 ```json
 {
@@ -163,9 +163,9 @@ aws events put-targets --rule dblab-refresh --targets '[{
 
 RDS clone must be reachable from DBLab on port 5432. Same VPC or peered.
 
-## DBLab Setup
+## DBLab setup
 
-Must run in **logical mode**. Tool updates config via API (no SSH needed).
+Must run in **logical mode**. The tool updates the config via the API (no SSH needed).
 
 ```yaml
 retrieval:
@@ -181,7 +181,7 @@ retrieval:
             port: 5432
 ```
 
-## How It Works
+## How it works
 
 1. **Startup cleanup**: Check for orphaned clones from previous runs
 2. Check DBLab health
@@ -192,7 +192,7 @@ retrieval:
 7. Trigger refresh, wait for completion
 8. Delete RDS clone (always, even on error)
 
-## Orphan Protection
+## Orphan protection
 
 The tool has multiple layers of protection against orphaned clones:
 
@@ -201,7 +201,7 @@ The tool has multiple layers of protection against orphaned clones:
 3. **State file**: Tracks active clone in `./meta/rds-refresh.state` (same directory as DBLab meta files)
 4. **Tag scan**: Finds clones by `ManagedBy=dblab-rds-refresh` tag
 
-### Manual Cleanup
+### Manual cleanup
 
 ```bash
 # Dry run - see what would be deleted
@@ -214,7 +214,7 @@ rds-refresh cleanup -config config.yaml -max-age 24h
 0 3 * * 0 rds-refresh cleanup -config /etc/dblab/config.yaml -max-age 48h
 ```
 
-### Best Practice
+### Best practice
 
 Run inside `screen` or `tmux` to prevent SSH disconnections from orphaning clones:
 
@@ -235,10 +235,10 @@ rds-refresh -config config.yaml
 
 ## Cost
 
-RDS clone cost only while running (~2-5 hours):
+You pay for the RDS clone only while it runs (~2-5 hours):
 - db.t3.medium: ~$0.35
 - db.r5.large: ~$1.20
 
 ## License
 
-Apache 2.0 — [Postgres.ai](https://postgres.ai)
+Apache 2.0 — [PostgresAI](https://postgres.ai)

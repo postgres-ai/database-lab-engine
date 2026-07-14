@@ -9,9 +9,9 @@ This guide explains how to run DBLab Engine on macOS with Apple Silicon using Co
 - Docker CLI installed
 - Go 1.24+ (for building from source)
 
-## Known Limitations
+## Known limitations
 
-### ARM64 Docker Images
+### ARM64 Docker images
 
 The official DBLab images are currently **amd64 only**:
 - `postgresai/extended-postgres:*` - amd64 only
@@ -19,9 +19,9 @@ The official DBLab images are currently **amd64 only**:
 
 For ARM64, you need to build images from source (see below).
 
-## Setup Steps
+## Setup steps
 
-### 1. Start Colima and Set Up ZFS
+### 1. Start Colima and set up ZFS
 
 Colima does not include ZFS by default. Use the provided init script to install ZFS utilities and create the pool:
 
@@ -36,7 +36,7 @@ The script installs `zfsutils-linux`, creates a 5 GB virtual disk, and sets up a
 
 If you need to customize the pool size or dataset names, edit the variables at the top of `engine/scripts/init-zfs-colima.sh` before running it.
 
-### 2. Build ARM64 Images
+### 2. Build ARM64 images
 
 Make sure your Docker CLI is configured to use Colima's Docker daemon:
 
@@ -46,7 +46,7 @@ docker context use colima
 
 All `docker` commands below run against Colima, so no image transfer is needed.
 
-#### DBLab Server
+#### DBLab server
 
 From the repository root:
 
@@ -58,7 +58,7 @@ make build-image
 
 This builds the server binary for ARM64 and creates a Docker image tagged `dblab_server:local`.
 
-#### PostgreSQL Image
+#### PostgreSQL image
 
 The `postgresai/extended-postgres` images are amd64 only. For ARM64, create a minimal Postgres image.
 
@@ -99,7 +99,7 @@ docker build -f ui/packages/ce/Dockerfile \
   -t dblab-ce-ui:arm64 .
 ```
 
-### 3. Create DBLab Configuration
+### 3. Create DBLab configuration
 
 Create `engine/configs/server.yml` based on one of the example configs in `engine/configs/`. A minimal example:
 
@@ -161,7 +161,7 @@ platform:
   enableTelemetry: false
 ```
 
-### 4. Initialize PostgreSQL Data on ZFS
+### 4. Initialize PostgreSQL data on ZFS
 
 Start a PostgreSQL container to initialize data on the ZFS dataset:
 
@@ -182,7 +182,7 @@ docker stop pg-init && docker rm pg-init
 colima ssh -- sudo zfs snapshot dblab_pool/dataset_1@initial_data
 ```
 
-### 5. Start DBLab Server
+### 5. Start DBLab server
 
 Use `rshared` mount propagation so that ZFS clones are visible inside child containers.
 
@@ -236,7 +236,7 @@ dblab clone list
 psql -h localhost -p 6000 -U postgres -d postgres
 ```
 
-## Supabase Integration
+## Supabase integration
 
 To use DBLab with a Supabase-managed PostgreSQL instance:
 

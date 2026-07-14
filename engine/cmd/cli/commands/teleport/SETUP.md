@@ -1,9 +1,9 @@
-# Teleport Integration — Setup Guide
+# Teleport integration — setup guide
 
 This document covers the prerequisites and configuration required to run
 `dblab teleport serve` alongside a DBLab Engine instance.
 
-## Architecture Overview
+## Architecture overview
 
 ```
 ┌──────────────┐   webhooks    ┌──────────────────┐   tctl    ┌──────────────────┐
@@ -31,7 +31,7 @@ with `db_service` enabled handles the actual proxying.
 
 ## Prerequisites
 
-### 1. Bot Role Permissions
+### 1. Bot role permissions
 
 The bot role must be created **before** generating the bot identity, because the
 identity captures the role's permissions at generation time.
@@ -56,7 +56,7 @@ spec:
 
 Apply with `tctl create -f dblab-bot-role.yaml`.
 
-### 2. Teleport Bot Identity
+### 2. Teleport bot identity
 
 The sidecar authenticates to the Teleport Auth Server using a bot identity file.
 Create a bot and generate the identity:
@@ -85,7 +85,7 @@ tbot start --oneshot \
 # The identity file is at /etc/teleport/bot-dest/identity
 ```
 
-### 3. Teleport Database Agent
+### 3. Teleport database agent
 
 The sidecar only registers DB resources via `tctl` — it does **not** proxy
 connections. A Teleport agent must run on the DBLab host with `db_service`
@@ -103,7 +103,7 @@ db_service:
 This tells the agent to proxy connections for any DB resource with the
 `dblab: "true"` label (which the sidecar sets automatically).
 
-### 4. User Role for Database Access
+### 4. User role for database access
 
 Teleport users who need to connect to DBLab clones need a role granting
 database access:
@@ -124,7 +124,7 @@ spec:
 To gate access on your own taxonomy instead of `dblab: "true"`, attach custom
 labels with `--label` and match on those — see [Resource Labels](#resource-labels).
 
-### 5. SSL/TLS for Postgres Clones
+### 5. SSL/TLS for Postgres clones
 
 Teleport **always** initiates TLS to backend databases, even when `tls.mode: insecure`
 is set (that only skips certificate *verification*, it does not skip TLS itself).
@@ -168,9 +168,9 @@ databaseConfigs: &db_configs
 > required. These settings are applied during snapshot creation and baked into
 > `postgresql.dblab.snapshot.conf`. Existing snapshots are not affected.
 
-### 6. pg_hba.conf — Certificate Authentication
+### 6. pg_hba.conf — certificate authentication
 
-Starting with DLE 4.1.0, the default `pg_hba.conf` includes a `hostssl ... cert`
+Starting with DBLab Engine 4.1.0, the default `pg_hba.conf` includes a `hostssl ... cert`
 rule that enables Teleport certificate authentication out of the box:
 
 ```
@@ -194,9 +194,9 @@ No custom `pg_hba.conf` or volume mount is required for Teleport.
 > rejected. Clients that do not use Teleport should connect with `sslmode=disable`
 > or `sslmode=prefer` (which falls back to non-SSL when cert auth fails).
 
-### 7. Volume Mounting for Certs
+### 7. Volume mounting for certs
 
-Clone containers only inherit DLE container volumes whose source is under
+Clone containers only inherit DBLab Engine container volumes whose source is under
 `poolManager.mountDir`. For SSL certs stored outside the pool, use
 `containerConfig`:
 
@@ -209,9 +209,9 @@ databaseContainer: &db_container
 ```
 
 **Important:** Cert files on the host must have uid 999 ownership *before*
-DLE starts, because the postgres user inside the container runs as uid 999.
+DBLab Engine starts, because the postgres user inside the container runs as uid 999.
 
-### 8. Webhook URL — Docker Networking
+### 8. Webhook URL — Docker networking
 
 DBLab Engine runs inside Docker, so `localhost:9876` from within the Engine
 container resolves to the container itself, not the host.
@@ -219,7 +219,7 @@ container resolves to the container itself, not the host.
 Options:
 - Use `host.docker.internal:9876` (Docker Desktop / Docker 20.10+)
 - Use the Docker bridge IP (typically `172.17.0.1:9876`)
-- Run the sidecar in the same Docker network as DLE
+- Run the sidecar in the same Docker network as DBLab Engine
 
 The sidecar should listen on `0.0.0.0:9876` (not `localhost:9876`) if
 containers need to reach it:
@@ -243,7 +243,7 @@ webhooks:
 
 ---
 
-## Full server.yml Example (Teleport-relevant sections)
+## Full server.yml example (Teleport-relevant sections)
 
 ```yaml
 databaseContainer: &db_container
@@ -268,7 +268,7 @@ webhooks:
         - clone_delete
 ```
 
-## Running the Sidecar
+## Running the sidecar
 
 ```bash
 dblab teleport serve \
@@ -284,7 +284,7 @@ dblab teleport serve \
   --label service=dblab
 ```
 
-## Resource Labels
+## Resource labels
 
 Every Teleport `db` and `app` resource the sidecar creates carries a set of
 labels. Some are managed by the sidecar and cannot be overridden; the rest are
@@ -350,7 +350,7 @@ spec:
 > the sidecar does not set, add it with `--label writable=readwrite`, otherwise
 > access is denied.
 
-## Per-User Clone Access
+## Per-user clone access
 
 By default, every Teleport user who holds a role granting access to DBLab
 resources can connect to **any** clone. To make access per-user, the Engine can
@@ -415,7 +415,7 @@ local part, e.g. `jsmith@acme.com` reaches resources labeled `dblab_user: jsmith
 - Clones created before binding was enabled, or with the shared token, have no
   `dblab_user` label; recreate them with a personal token to apply it.
 
-## Connecting to a Clone
+## Connecting to a clone
 
 Once everything is running, users connect through Teleport:
 
@@ -444,8 +444,8 @@ tsh proxy db --tunnel dblab-clone-production-<clone-id>-6000
 | Clone registered but can't connect | No Teleport DB agent running | Start `teleport` with `db_service.enabled: true` |
 | "connection refused" on IPv6 | `localhost` resolving to `[::1]` | Use `127.0.0.1` explicitly (fixed in e25c54e5) |
 | TLS handshake failure | Clone doesn't have SSL enabled | Add `ssl: "on"` + cert paths to `databaseConfigs.configs` |
-| "no pg_hba.conf entry" | Missing `hostssl ... cert` entry | Upgrade to DLE 4.1.0+ which includes this rule by default (see §6) |
-| "password authentication failed" via Teleport | `host ... md5` rule matches before `hostssl ... cert` | Ensure `hostssl ... cert` comes before `host ... md5` in pg_hba.conf (default since DLE 4.1.0, see §6) |
+| "no pg_hba.conf entry" | Missing `hostssl ... cert` entry | Upgrade to DBLab Engine 4.1.0+ which includes this rule by default (see §6) |
+| "password authentication failed" via Teleport | `host ... md5` rule matches before `hostssl ... cert` | Ensure `hostssl ... cert` comes before `host ... md5` in pg_hba.conf (default since DBLab Engine 4.1.0, see §6) |
 | "root certificate store not available" | Missing `ssl_ca_file` | Export Teleport DB CA with `tctl auth export --type=db-client` and set `ssl_ca_file` (see §5) |
 | SSL settings not applied to new clones | Snapshot created before SSL config was added | Trigger a data refresh to create a new snapshot with the updated `databaseConfigs` |
 | Webhook not received | Docker networking issue | Use `host.docker.internal` or bridge IP for webhook URL |
