@@ -166,6 +166,9 @@ export const CreateClone = observer((props: Props) => {
     history.push(props.routes.clone(stores.main.clone.id))
   }, [stores.main.clone, stores.main.isCloneStable])
 
+  // Stop clone status polling on unmount.
+  useEffect(() => () => stores.main.stopPolling(), [])
+
   const headRendered = (
     <>
       {/* //TODO: make global reset styles. */}
