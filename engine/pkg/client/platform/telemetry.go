@@ -147,11 +147,15 @@ func (p *Client) SendUsage(ctx context.Context, props *global.EngineProps, usage
 		log.Dbg("Instance state updated. Billing is active:", respData.BillingActive)
 	}
 
-	respData.Org.BillingPage = (&url.URL{
-		Scheme: p.url.Scheme,
-		Host:   p.url.Host,
-		Path:   path.Join(consolePath, respData.Org.Alias, billingPath),
-	}).String()
+	// the org is optional in the response ("recognized_org,omitempty"); build the billing
+	// page URL only when the platform recognized the organization
+	if respData.Org != nil {
+		respData.Org.BillingPage = (&url.URL{
+			Scheme: p.url.Scheme,
+			Host:   p.url.Host,
+			Path:   path.Join(consolePath, respData.Org.Alias, billingPath),
+		}).String()
+	}
 
 	log.Dbg("Usage event response", respData)
 

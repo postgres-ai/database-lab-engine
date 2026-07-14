@@ -14,6 +14,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 )
 
 // roundTripFunc represents a mock type.
@@ -190,4 +192,53 @@ func TestClientChecksPlatformTokenFailed(t *testing.T) {
 	assert.Equal(t, expectedResponse.APIResponse.Message, platformToken.Message)
 	assert.Equal(t, expectedResponse.APIResponse.Hint, platformToken.Hint)
 	assert.Equal(t, expectedResponse.APIResponse.Details, platformToken.Details)
+}
+
+func TestClientSendUsage(t *testing.T) {
+	testCases := []struct {
+		name            string
+		response        BillingResponse
+		wantBillingPage string
+	}{
+		{name: "response without recognized org", response: BillingResponse{Result: "ok", BillingActive: true}},
+		{name: "response with recognized org", response: BillingResponse{Result: "ok", BillingActive: true, Org: &Org{ID: 1, Alias: "acme"}},
+			wantBillingPage: "https://example.com/console/acme/billing"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			testClient := NewTestClient(func(req *http.Request) *http.Response {
+				body, err := json.Marshal(EditionResponse{BillingResponse: tc.response})
+				require.NoError(t, err)
+
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(bytes.NewBuffer(body)),
+				}
+			})
+
+			platformClient, err := NewClient(ClientConfig{
+				URL:         "https://example.com/",
+				AccessToken: "testVerify",
+				OrgKey:      "testOrgKey",
+			})
+			require.NoError(t, err)
+			platformClient.client = testClient
+
+			props := &global.EngineProps{}
+			respData, err := platformClient.SendUsage(context.Background(), props, InstanceUsage{InstanceID: "test"})
+			require.NoError(t, err)
+
+			assert.True(t, respData.BillingActive)
+			assert.True(t, props.BillingActive)
+
+			if tc.wantBillingPage == "" {
+				assert.Nil(t, respData.Org)
+				return
+			}
+
+			require.NotNil(t, respData.Org)
+			assert.Equal(t, tc.wantBillingPage, respData.Org.BillingPage)
+		})
+	}
 }
