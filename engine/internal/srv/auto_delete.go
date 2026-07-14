@@ -203,11 +203,19 @@ func mapKeys(set map[string]struct{}) []string {
 	return keys
 }
 
-// pool reconciles one active pool. Snapshots and branches share a single repo read.
+// pool reconciles one active pool. Snapshots and branches share a single repo read; pools that
+// report no repo data (e.g. LVM) have no metadata to reconcile and are skipped.
 func (sw *sweep) pool(fsm pool.FSManager) {
 	repo, err := fsm.GetRepo()
 	if err != nil {
 		log.Err(fmt.Sprintf("auto-deletion: failed to read repo for pool %s: %v", fsm.Pool().Name, err))
+		return
+	}
+
+	// thin-clone managers without repo support (LVM) return a nil repo with no error;
+	// such pools have no snapshot or branch metadata to reconcile
+	if repo == nil {
+		log.Dbg(fmt.Sprintf("auto-deletion: pool %s provides no repo data; skipping", fsm.Pool().Name))
 		return
 	}
 
