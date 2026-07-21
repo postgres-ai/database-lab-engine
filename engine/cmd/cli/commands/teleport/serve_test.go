@@ -379,7 +379,7 @@ func TestParseListDBsOutput(t *testing.T) {
 
 func TestBuildDBYAML(t *testing.T) {
 	t.Run("with owner user", func(t *testing.T) {
-		res := dbResource{Name: "dblab-clone-prod-abc-5432", Port: 5432, EnvID: "prod", CloneID: "abc", OwnerUser: "testuser"}
+		res := dbResource{Name: "dblab-clone-prod-abc-5432", Port: 5432, EnvID: "prod", CloneID: "abc", OwnerUser: "jsmith@acme.io"}
 		yaml, err := buildDBYAML(res, nil)
 		require.NoError(t, err)
 		s := string(yaml)
@@ -388,7 +388,7 @@ func TestBuildDBYAML(t *testing.T) {
 		assert.Contains(t, s, `dblab_instance: "prod"`)
 		assert.Contains(t, s, `environment: "prod"`)
 		assert.Contains(t, s, `clone_id: "abc"`)
-		assert.Contains(t, s, `dblab_user: "testuser"`)
+		assert.Contains(t, s, `dblab_user: "jsmith@acme.io"`)
 		assert.Contains(t, s, `uri: "127.0.0.1:5432"`)
 	})
 

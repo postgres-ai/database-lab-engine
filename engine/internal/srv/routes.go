@@ -631,13 +631,7 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if s.Platform != nil && s.Platform.BindClonesToUser() {
-		owner, err := ownerFromContext(r.Context())
-		if err != nil {
-			api.SendBadRequestError(w, r, err.Error())
-			return
-		}
-
-		cloneRequest.DB.OwnerUser = owner
+		cloneRequest.DB.OwnerUser = ownerFromContext(r.Context())
 	}
 
 	if cloneRequest.Snapshot != nil && cloneRequest.Snapshot.ID != "" {
@@ -728,53 +722,63 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 	log.Dbg(fmt.Sprintf("Clone ID=%s is being created", newClone.ID))
 }
 
-// maxOwnerLabelLength caps the derived owner label length.
-const maxOwnerLabelLength = 63
+// maxOwnerLabelLength caps the derived owner label length; RFC 5321 limits an
+// email address to 254 characters.
+const maxOwnerLabelLength = 254
 
 // safeOwnerLabel restricts the derived owner label to characters valid as a
 // Teleport label value (a subset of the sidecar's safeYAMLValue), so the engine
-// label always matches Teleport's computed email.local value.
-var safeOwnerLabel = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+// label always matches Teleport's external.email value.
+var safeOwnerLabel = regexp.MustCompile(`^[a-zA-Z0-9._@-]+$`)
 
 // ownerFromContext resolves the clone owner label from the authenticated user
-// identity on the context. It returns an empty string and no error when no
-// identity is present, so shared-token callers create unlabeled clones. A
-// resolved personal-token identity with an empty email is logged as a likely
-// misconfiguration (the Platform is not returning the user email) and also
-// yields an unlabeled clone. It errors only when an identity is present with an
-// email that cannot be represented as a valid owner label.
-func ownerFromContext(ctx context.Context) (string, error) {
+// identity on the context. It returns an empty string when no identity is
+// present, when the identity has no email, or when the email cannot be
+// represented as a valid owner label — such requests create unlabeled clones
+// instead of failing; the fallback is logged as a warning so a misconfiguration
+// (the Platform not returning the email) or an unlabelable address (e.g. a
+// plus-tagged local part) stays visible without blocking clone creation.
+func ownerFromContext(ctx context.Context) string {
 	identity, ok := mw.UserIdentityFromContext(ctx)
 	if !ok {
-		return "", nil
+		return ""
 	}
 
 	if identity.Email == "" {
 		log.Warn("clone-to-user binding is enabled but the authenticated identity has no email; " +
 			"creating an unlabeled clone (check that the Platform returns the user email)")
 
-		return "", nil
+		return ""
 	}
 
-	return ownerFromEmail(identity.Email)
+	owner, err := ownerFromEmail(identity.Email)
+	if err != nil {
+		log.Warn(fmt.Sprintf("clone-to-user binding is enabled but no owner label can be derived: %v; "+
+			"creating an unlabeled clone", err))
+
+		return ""
+	}
+
+	return owner
 }
 
-// ownerFromEmail extracts the email local part exactly as Teleport's
-// email.local(external.email) does — mail.ParseAddress, then the part before the
-// first "@" — and validates that it is usable as a Teleport label value, so the
-// engine label always matches Teleport's value.
+// ownerFromEmail normalizes the email exactly as Teleport's external.email trait
+// carries it — mail.ParseAddress strips any display name and surrounding
+// whitespace — and validates that the full address is usable as a Teleport label
+// value, so the engine label always matches Teleport's external.email value. The
+// full address is used (not just the local part) so users whose local parts
+// collide across domains still map to distinct labels.
 func ownerFromEmail(email string) (string, error) {
 	addr, err := mail.ParseAddress(email)
 	if err != nil {
 		return "", fmt.Errorf("cannot parse email %q: %w", email, err)
 	}
 
-	local, _, _ := strings.Cut(addr.Address, "@")
-	if !isValidOwnerLabel(local) {
+	if !isValidOwnerLabel(addr.Address) {
 		return "", fmt.Errorf("cannot derive a valid owner label from email %q", email)
 	}
 
-	return local, nil
+	return addr.Address, nil
 }
 
 // isValidOwnerLabel reports whether name is usable as a Teleport dblab_user
