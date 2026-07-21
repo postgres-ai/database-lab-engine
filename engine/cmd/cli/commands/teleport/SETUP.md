@@ -297,7 +297,7 @@ supplied by the operator to match an existing Teleport taxonomy.
 | `dblab` | `"true"` | Marks the resource as DBLab-managed; used by the agent matcher and user roles |
 | `dblab_instance` | `<environment-id>` | Owning DBLab instance; used internally to keep reconciliation isolated per instance |
 | `clone_id` | clone ID | DB resources only |
-| `dblab_user` | authenticated user (email local part) | DB resources only, set when clone binding is enabled and the creator used a personal token |
+| `dblab_user` | authenticated user (full email address) | DB resources only, set when clone binding is enabled and the creator used a personal token |
 | `environment` | `<environment-id>` | Set **only** when no custom `environment` label is provided (backwards compatibility) |
 
 > **Important:** Each DBLab instance must use a **unique** `--environment-id`.
@@ -366,16 +366,23 @@ platform:
 ```
 
 When `bindClonesToUser` is enabled, a clone created with a **personal per-user
-token** is labeled `dblab_user: <email local part>` — the part of the
-authenticated user's email before `@`, matching Teleport's
-`email.local(external.email)`. The clone's Postgres username (`db.username`) is
-**not** changed, so existing connection strings, Joe, and CI automation keep
-working.
+token** is labeled `dblab_user: <email>` — the authenticated user's full email
+address, matching Teleport's `external.email`. The clone's Postgres username
+(`db.username`) is **not** changed, so existing connection strings, Joe, and CI
+automation keep working.
 
 Clones created with the shared `verificationToken` (for example CI pipelines or
 Joe) carry **no** `dblab_user` label. They are created normally — not rejected —
 but are not reachable through a per-user role that matches on `dblab_user`; grant
 those callers access through a broader role instead.
+
+A trusted proxy that authenticates with the shared `verificationToken` on behalf
+of a known user (for example the PostgresAI Platform serving console requests)
+can assert the acting user by sending the `X-Forwarded-User-Email` header. The
+Engine then labels the clone exactly as if that user had used a personal token.
+The header is ignored on personal-token requests and when authorization is
+disabled; asserting an identity grants the caller nothing beyond what the shared
+token already allows.
 
 ### Restrict access with a per-user role
 
@@ -388,32 +395,40 @@ spec:
   allow:
     db_labels:
       dblab: ['true']
-      dblab_user: ['{{email.local(external.email)}}']
+      dblab_user: ['{{external.email}}']
     db_names: ['*']
     db_users: ['*']
 ```
 
-With this role a user can reach only the clones labeled with their own email
-local part, e.g. `jsmith@acme.com` reaches resources labeled `dblab_user: jsmith`.
+With this role a user can reach only the clones labeled with their own email,
+e.g. `jsmith@acme.com` reaches resources labeled `dblab_user: jsmith@acme.com`.
 
 ### Limitations
 
-- **Two identity sources must agree.** The label is computed from the email the
+- **Two identity sources must agree.** The label is the full email the
   PostgresAI Platform returns at clone-create time, while Teleport matches
-  against `email.local(external.email)` from its own SSO/IdP at connect time.
-  Both sides preserve case, and the `dblab_user` label is
-  case-sensitive, so the two emails must match **exactly, including case**
-  (`JSmith@acme.com` and `jsmith@acme.com` are different). If they differ, the
-  user is denied access to their own clone (it fails closed). Make sure the
-  Platform and the Teleport IdP emit the same address for each user.
-- Users whose email local parts collide across domains
-  (`jsmith@acme.com` vs `jsmith@other.com`) map to the same `dblab_user` value.
-- Email local parts that cannot be represented as a Teleport label value
-  (those containing `+` or other characters outside `[a-zA-Z0-9._-]`) cause the
-  personal-token clone-create request to be rejected rather than silently
-  rewritten, so the Engine label always equals Teleport's computed value.
+  against `external.email` from its own SSO/IdP at connect time. Both sides
+  preserve case, and the `dblab_user` label is case-sensitive, so the two emails
+  must match **exactly, including case** (`JSmith@acme.com` and `jsmith@acme.com`
+  are different). If they differ, the user is denied access to their own clone
+  (it fails closed). Make sure the Platform and the Teleport IdP emit the same
+  address for each user. This includes the **domain**: because the full address
+  is compared, a source that normalizes the domain case on only one side
+  (`user@Acme.io` vs `user@acme.io`) also fails closed, even though DNS treats
+  the two as the same mailbox.
+- Email addresses that cannot be represented as a Teleport label value
+  (those containing `+` or other characters outside `[a-zA-Z0-9._@-]`) produce an
+  **unlabeled** clone with a warning in the Engine log — the label is never
+  silently rewritten, so when a label is present it always equals Teleport's
+  value. Such users need a broader role to reach their clones.
 - Clones created before binding was enabled, or with the shared token, have no
   `dblab_user` label; recreate them with a personal token to apply it.
+- Upgrading from a build that labeled clones with the email **local part**:
+  existing Teleport `db` resources keep their old `dblab_user: <local part>`
+  label — reconciliation matches resources by name and does not relabel them —
+  so once the role matches on `{{external.email}}` those users lose access.
+  Remove the affected `db` resources (or recreate the clones) so the sidecar
+  re-registers them with the full-email label.
 
 ## Connecting to a clone
 

@@ -170,6 +170,57 @@ func TestAuthorized_UserIdentity(t *testing.T) {
 	}
 }
 
+func TestAuthorized_ForwardedIdentity(t *testing.T) {
+	testCases := []struct {
+		name              string
+		verificationToken string
+		token             string
+		forwardedEmail    string
+		wantStatus        int
+		wantOK            bool
+		wantEmail         string
+	}{
+		{name: "shared token with forwarded email attaches identity", verificationToken: testVerificationToken,
+			token: testVerificationToken, forwardedEmail: "console@acme.io", wantStatus: http.StatusOK, wantOK: true, wantEmail: "console@acme.io"},
+		{name: "shared token without forwarded email has no identity", verificationToken: testVerificationToken,
+			token: testVerificationToken, wantStatus: http.StatusOK},
+		{name: "personal token ignores forwarded email", verificationToken: testVerificationToken,
+			token: testPlatformAccessToken, forwardedEmail: "spoofed@acme.io", wantStatus: http.StatusOK, wantOK: true, wantEmail: "u@acme.io"},
+		{name: "wrong token with forwarded email is unauthorized", verificationToken: testVerificationToken,
+			token: "wrong", forwardedEmail: "console@acme.io", wantStatus: http.StatusUnauthorized},
+		{name: "disabled authorization ignores forwarded email", verificationToken: "",
+			token: "", forwardedEmail: "console@acme.io", wantStatus: http.StatusOK},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotIdentity platform.UserIdentity
+
+			var gotOK bool
+
+			auth := NewAuth(tc.verificationToken, MockPersonalTokenVerifier{isPersonalTokenEnabled: true, email: "u@acme.io"})
+			handler := auth.Authorized(func(w http.ResponseWriter, r *http.Request) {
+				gotIdentity, gotOK = UserIdentityFromContext(r.Context())
+				w.WriteHeader(http.StatusOK)
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/clone", nil)
+			req.Header.Set(VerificationTokenHeader, tc.token)
+
+			if tc.forwardedEmail != "" {
+				req.Header.Set(ForwardedUserEmailHeader, tc.forwardedEmail)
+			}
+
+			rec := httptest.NewRecorder()
+			handler(rec, req)
+
+			require.Equal(t, tc.wantStatus, rec.Code)
+			assert.Equal(t, tc.wantOK, gotOK)
+			assert.Equal(t, tc.wantEmail, gotIdentity.Email)
+		})
+	}
+}
+
 func TestAdminMW(t *testing.T) {
 	okHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
