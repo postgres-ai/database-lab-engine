@@ -10,6 +10,7 @@ import (
 func TestExpandStrict(t *testing.T) {
 	t.Setenv("DBLAB_TOKEN", "secret-from-env")
 	t.Setenv("EMPTY_VAR", "")
+	t.Setenv("en", "injected-value")
 
 	tests := []struct {
 		name    string
@@ -23,7 +24,13 @@ func TestExpandStrict(t *testing.T) {
 		{name: "unbraced placeholder", input: "$DBLAB_TOKEN", want: "secret-from-env"},
 		{name: "explicitly empty env var", input: "${EMPTY_VAR}", want: ""},
 		{name: "unset variable", input: "${DBLAB_MISSING}", wantErr: `environment variable "DBLAB_MISSING" is not set`},
-		{name: "regex backreference looks like unset var", input: "***$1", wantErr: `environment variable "1" is not set`},
+		{name: "regex backreference preserved", input: "***$1", want: "***$1"},
+		{name: "password with dollar preserved", input: "pa$$w0rd", want: "pa$$w0rd"},
+		{name: "embedded reference not expanded", input: "tok$en", want: "tok$en"},
+		{name: "leading dollar embedded preserved", input: "$DBLAB_TOKEN-suffix", want: "$DBLAB_TOKEN-suffix"},
+		{name: "unclosed brace preserved", input: "${UNCLOSED", want: "${UNCLOSED"},
+		{name: "empty braces preserved", input: "${}", want: "${}"},
+		{name: "bare dollar preserved", input: "$", want: "$"},
 	}
 
 	for _, tc := range tests {
