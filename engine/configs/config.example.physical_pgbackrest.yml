@@ -91,6 +91,8 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
             # standby_mode: on
             # recovery_target_timeline: 'latest'
 
+        # These envs reach the restore and sync containers only; the promotion container reads the
+        # physicalSnapshot envs below, so anything WAL replay needs must be set in both places.
         envs: # Environment variables for pgBackRest; see https://pgbackrest.org/user-guide.html
           PGBACKREST_LOG_LEVEL_CONSOLE: detail # Log level; options: off, error, warn, info, detail, debug, trace
           PGBACKREST_PROCESS_MAX: 2 # Maximum number of processes to use for compression/decompression
@@ -111,6 +113,21 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
         pgbackrest: # pgBackRest specific configuration
           stanza: stanzaName # Stanza name (must match the stanza configured in your pgBackRest setup)
           delta: false # Use delta restore; set to true for incremental restores from last backup
+          # Uncomment to append extra flags to the "pgbackrest restore" command.
+          # The list is joined into a shell command line, so entries follow shell quoting rules: quote a value
+          # containing whitespace or glob characters.
+          # Do not repeat --type, --stanza, --pg1-path or --delta: pgBackRest rejects a single-valued option set
+          # twice ("cannot be set multiple times"). List options such as --db-include may be repeated freely.
+          # --recovery-option may be repeated too, but where it ends up depends on the Postgres version, and
+          # neither outcome is what a reader expects. On 12 and newer pgBackRest writes it to
+          # postgresql.auto.conf, read after the recovery config DBLab generates, so it overrides DBLab's
+          # restore_command; on 11 and older it goes to recovery.conf, which DBLab then truncates and rewrites,
+          # so it is dropped without a word. Never set recovery_target* through it either way - promotion relies
+          # on recovery_target=immediate with recovery_target_action=promote.
+          # Choose a repository with the PGBACKREST_REPO env rather than --repo, since restore and archive-get
+          # both read it.
+          # customOptions:
+          #   - "--db-include=mydb"
 
     physicalSnapshot:
       options:

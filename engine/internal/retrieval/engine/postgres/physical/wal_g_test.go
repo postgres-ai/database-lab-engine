@@ -51,6 +51,28 @@ func TestWALGGetRestoreCommand(t *testing.T) {
 	}
 }
 
+func TestWALGGetRestoreCommand_CustomOptions(t *testing.T) {
+	testCases := []struct {
+		name          string
+		customOptions []string
+		expected      string
+	}{
+		{name: "no custom options", customOptions: nil, expected: "wal-g backup-fetch /pgdata LATEST"},
+		{name: "empty custom options", customOptions: []string{}, expected: "wal-g backup-fetch /pgdata LATEST"},
+		{name: "single option", customOptions: []string{"--reverse-unpack"}, expected: "wal-g backup-fetch /pgdata LATEST --reverse-unpack"},
+		{name: "option with value", customOptions: []string{"--mask", "'base/*'"}, expected: "wal-g backup-fetch /pgdata LATEST --mask 'base/*'"},
+		{name: "multiple options", customOptions: []string{"--reverse-unpack", "--skip-redundant-tars"}, expected: "wal-g backup-fetch /pgdata LATEST --reverse-unpack --skip-redundant-tars"},
+		{name: "quotes are passed through unmodified", customOptions: []string{`--restore-only=my_db,"another db"`}, expected: `wal-g backup-fetch /pgdata LATEST --restore-only=my_db,"another db"`},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := newWALG(nil, "/pgdata", walgOptions{BackupName: "LATEST", CustomOptions: tc.customOptions})
+			assert.Equal(t, tc.expected, w.GetRestoreCommand())
+		})
+	}
+}
+
 func TestWALGVersionParse_TableDriven(t *testing.T) {
 	testCases := []struct {
 		name     string

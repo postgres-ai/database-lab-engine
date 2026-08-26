@@ -11,6 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 )
 
 func TestInitParamsExtraction(t *testing.T) {
@@ -82,4 +84,34 @@ some_other_param setting:             value
 	settings, err := extractControlDataParams(context.Background(), controlDataOutput)
 	require.NoError(t, err)
 	assert.Empty(t, settings)
+}
+
+func TestRestoreJobReload_CustomOptions(t *testing.T) {
+	r := &RestoreJob{fsPool: &resources.Pool{MountDir: "/", PoolDirName: "pgdata"}}
+
+	err := r.Reload(map[string]interface{}{
+		"tool": walgTool,
+		"walg": map[string]interface{}{
+			"backupName":    "LATEST",
+			"customOptions": []interface{}{"--mask", "'base/*'"},
+		},
+		"pgbackrest": map[string]interface{}{
+			"stanza":        "main",
+			"customOptions": []interface{}{"--db-include=mydb"},
+		},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"--mask", "'base/*'"}, r.WALG.CustomOptions)
+	assert.Equal(t, []string{"--db-include=mydb"}, r.PgBackRest.CustomOptions)
+
+	walgRestorer, err := r.getRestorer(nil, walgTool)
+	require.NoError(t, err)
+	assert.Equal(t, "wal-g backup-fetch /pgdata LATEST --mask 'base/*'", walgRestorer.GetRestoreCommand())
+
+	pgBackRestRestorer, err := r.getRestorer(nil, pgbackrestTool)
+	require.NoError(t, err)
+	assert.Equal(t, "sudo -Eu postgres pgbackrest --type=standby --pg1-path=${PGDATA} --stanza=main restore "+
+		"--recovery-option=restore_command='pgbackrest --pg1-path=${PGDATA} --stanza=main archive-get %f %p' --db-include=mydb",
+		pgBackRestRestorer.GetRestoreCommand())
 }

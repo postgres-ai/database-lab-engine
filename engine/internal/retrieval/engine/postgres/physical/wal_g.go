@@ -33,7 +33,8 @@ type walg struct {
 }
 
 type walgOptions struct {
-	BackupName string `yaml:"backupName"`
+	BackupName    string   `yaml:"backupName"`
+	CustomOptions []string `yaml:"customOptions"`
 }
 
 func newWALG(dockerClient *client.Client, pgDataDir string, options walgOptions) *walg {
@@ -49,7 +50,13 @@ func newWALG(dockerClient *client.Client, pgDataDir string, options walgOptions)
 
 // GetRestoreCommand returns a command to restore data.
 func (w *walg) GetRestoreCommand() string {
-	return fmt.Sprintf("wal-g backup-fetch %s %s", w.pgDataDir, w.parsedBackupName)
+	restoreCmd := fmt.Sprintf("wal-g backup-fetch %s %s", w.pgDataDir, w.parsedBackupName)
+
+	if len(w.options.CustomOptions) > 0 {
+		restoreCmd += " " + strings.Join(w.options.CustomOptions, " ")
+	}
+
+	return restoreCmd
 }
 
 // GetRecoveryConfig returns a recovery config to restore data.
