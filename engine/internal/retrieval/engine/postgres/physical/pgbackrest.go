@@ -7,6 +7,7 @@ package physical
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
 )
@@ -21,8 +22,9 @@ type pgbackrest struct {
 }
 
 type pgbackrestOptions struct {
-	Stanza string `yaml:"stanza"`
-	Delta  bool   `yaml:"delta"`
+	Stanza        string   `yaml:"stanza"`
+	Delta         bool     `yaml:"delta"`
+	CustomOptions []string `yaml:"customOptions"`
 }
 
 func newPgBackRest(options pgbackrestOptions) *pgbackrest {
@@ -38,6 +40,10 @@ func (p *pgbackrest) GetRestoreCommand() string {
 
 	if p.options.Delta {
 		restoreCmd += " --delta"
+	}
+
+	if len(p.options.CustomOptions) > 0 {
+		restoreCmd += " " + strings.Join(p.options.CustomOptions, " ")
 	}
 
 	return restoreCmd

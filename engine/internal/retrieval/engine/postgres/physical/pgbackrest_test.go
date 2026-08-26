@@ -66,6 +66,31 @@ func TestPgBackRestRestoreCommand_DifferentStanzas(t *testing.T) {
 	}
 }
 
+func TestPgBackRestRestoreCommand_CustomOptions(t *testing.T) {
+	baseCmd := "sudo -Eu postgres pgbackrest --type=standby --pg1-path=${PGDATA} --stanza=stanzaName restore " +
+		"--recovery-option=restore_command='pgbackrest --pg1-path=${PGDATA} --stanza=stanzaName archive-get %f %p'"
+
+	testCases := []struct {
+		name          string
+		delta         bool
+		customOptions []string
+		expected      string
+	}{
+		{name: "no custom options", customOptions: nil, expected: baseCmd},
+		{name: "empty custom options", customOptions: []string{}, expected: baseCmd},
+		{name: "single option", customOptions: []string{"--db-include=mydb"}, expected: baseCmd + " --db-include=mydb"},
+		{name: "multiple options", customOptions: []string{"--db-include=mydb", "--process-max=4"}, expected: baseCmd + " --db-include=mydb --process-max=4"},
+		{name: "appended after delta", delta: true, customOptions: []string{"--db-include=mydb"}, expected: baseCmd + " --delta --db-include=mydb"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := newPgBackRest(pgbackrestOptions{Stanza: "stanzaName", Delta: tc.delta, CustomOptions: tc.customOptions})
+			assert.Equal(t, tc.expected, p.GetRestoreCommand())
+		})
+	}
+}
+
 func TestPgBackRestRecoveryConfig_VersionBoundary(t *testing.T) {
 	p := newPgBackRest(pgbackrestOptions{Stanza: "mydb"})
 

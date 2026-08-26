@@ -91,12 +91,24 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
             # standby_mode: on
             # recovery_target_timeline: 'latest'
 
+        # These envs reach the restore and sync containers only; the promotion container reads the
+        # physicalSnapshot envs below, so anything WAL replay needs must be set in both places.
         envs: # Environment variables for WAL-G; see https://github.com/wal-g/wal-g/blob/master/docs/README.md
           WALG_GS_PREFIX: "gs://{BUCKET}/{SCOPE}" # Google Storage prefix for WAL-G backups
           GOOGLE_APPLICATION_CREDENTIALS: "/tmp/sa.json" # Path to Google service account credentials
 
         walg: # WAL-G specific configuration
           backupName: LATEST # Which backup to restore; use "LATEST" for most recent backup
+          # Uncomment to append extra flags to the "wal-g backup-fetch" command, for options wal-g exposes
+          # only as flags (--mask, --restore-spec, --restore-only); anything with a WALG_* variable belongs in envs.
+          # The list is joined into a shell command line, so entries follow shell quoting rules: quote a value
+          # containing whitespace or glob characters, e.g. - '--restore-only=my_db,"another db"'.
+          # The flags reach backup-fetch alone - not the backup-list that resolves LATEST, and not the wal-fetch
+          # in restore_command - so choose a storage with WALG_TARGET_STORAGE, which all three read, not --target-storage.
+          # --target-user-data cannot be combined with backupName, in either form: wal-g rejects the flag and
+          # the WALG_FETCH_TARGET_USER_DATA env alike when a backup name is also given.
+          # customOptions:
+          #   - "--restore-only=mydb"
 
     physicalSnapshot:
       options:
