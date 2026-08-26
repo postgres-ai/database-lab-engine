@@ -26,6 +26,11 @@ include:
     file: '/ci/templates/approval-check.yml'
     rules:
       - if: $SECURITY_AUDIT != "1"
+  - project: 'postgres-ai/infra'
+    ref: '2f602b9f7df9e1100f095ef8e70823c216cb61a9'
+    file: '/ci/templates/trivy-image-scan.yml'
+    rules:
+      - if: $SECURITY_AUDIT != "1"
 
 empty-job:
   stage: test

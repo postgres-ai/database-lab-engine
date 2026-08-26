@@ -9,7 +9,7 @@ workflow:
 
 default:
   image:
-    name: golang:1.26.4
+    name: golang:1.26.5
     pull_policy: if-not-present
   interruptible: true  # All jobs can be cancelled by default
 
@@ -17,6 +17,7 @@ stages:
   - test
   - build-binary
   - build
+  - scan
   - integration-test
 
 ## Conditions.
@@ -70,7 +71,7 @@ lint:
 build-binary-alpine:
   <<: *only_engine
   image:
-    name: golang:1.26.4-alpine
+    name: golang:1.26.5-alpine
     pull_policy: if-not-present
   stage: build-binary
   artifacts:
@@ -270,6 +271,36 @@ build-image-master-client:
     DOCKER_FILE: "Dockerfile.dblab-cli"
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-cli"
     TAGS: "${DOCKER_NAME}:master,${DOCKER_NAME}:master-${CI_COMMIT_SHORT_SHA}"
+
+trivy-engine-images-feature:
+  extends: .trivy_image_scan
+  <<: *only_feature
+  needs:
+    - build-image-feature-server
+    - build-image-feature-ci-checker
+    - build-image-feature-rds-refresh
+    - build-image-feature-client
+  variables:
+    TRIVY_IMAGES: >-
+      ${CI_REGISTRY_IMAGE}/dblab-server:${CI_COMMIT_REF_SLUG}
+      ${CI_REGISTRY_IMAGE}/dblab-ci-checker:${CI_COMMIT_REF_SLUG}
+      ${CI_REGISTRY_IMAGE}/dblab-rds-refresh:${CI_COMMIT_REF_SLUG}
+      ${CI_REGISTRY_IMAGE}/dblab-cli:${CI_COMMIT_REF_SLUG}
+
+trivy-engine-images-master:
+  extends: .trivy_image_scan
+  <<: *only_master
+  needs:
+    - build-image-master-server
+    - build-image-master-ci-checker
+    - build-image-master-rds-refresh
+    - build-image-master-client
+  variables:
+    TRIVY_IMAGES: >-
+      ${CI_REGISTRY_IMAGE}/dblab-server:master-${CI_COMMIT_SHORT_SHA}
+      ${CI_REGISTRY_IMAGE}/dblab-ci-checker:master-${CI_COMMIT_SHORT_SHA}
+      ${CI_REGISTRY_IMAGE}/dblab-rds-refresh:master-${CI_COMMIT_SHORT_SHA}
+      ${CI_REGISTRY_IMAGE}/dblab-cli:master-${CI_COMMIT_SHORT_SHA}
 
 build-image-latest-server:
   <<: *build_image_definition

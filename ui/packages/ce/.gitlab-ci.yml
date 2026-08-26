@@ -76,3 +76,19 @@ ui_build_ce_image_dev:
     REGISTRY: "${CI_REGISTRY}"
     DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/ce-ui"
     TAGS: "${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
+
+trivy-ce-image-master:
+  extends: .trivy_image_scan
+  <<: *only_ui_master
+  needs:
+    - ui_build_ce_image_master
+  variables:
+    TRIVY_IMAGES: "${CI_REGISTRY_IMAGE}/ce-ui:master-${CI_COMMIT_SHORT_SHA}"
+
+trivy-ce-image-feature:
+  extends: .trivy_image_scan
+  <<: *only_ui_feature
+  needs:
+    - ui_build_ce_image_dev
+  variables:
+    TRIVY_IMAGES: "${CI_REGISTRY_IMAGE}/ce-ui:${CI_COMMIT_REF_SLUG}"
