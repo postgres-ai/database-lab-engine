@@ -6,10 +6,12 @@
 package runci
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	yamlv2 "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/runci/source"
@@ -63,18 +65,36 @@ func LoadConfiguration() (*Config, error) {
 		return nil, errors.Errorf("error loading %s config file", configPath)
 	}
 
-	cfg := &Config{}
-	if err := yaml.Unmarshal(b, cfg); err != nil {
+	cfg, err := parseConfig(b)
+	if err != nil {
 		return nil, errors.WithMessagef(err, "error parsing %s config", configPath)
 	}
 
-	if err := envvar.ExpandFields([]envvar.Field{
-		{Name: "app.verificationToken", Ptr: &cfg.App.VerificationToken},
-		{Name: "dle.verificationToken", Ptr: &cfg.DLE.VerificationToken},
-		{Name: "platform.accessToken", Ptr: &cfg.Platform.AccessToken},
-		{Name: "source.token", Ptr: &cfg.Source.Token},
-	}); err != nil {
-		return nil, errors.Wrap(err, "failed to resolve environment placeholders")
+	return cfg, nil
+}
+
+// parseConfig resolves environment placeholders on the parsed document and then
+// decodes it, matching how the engine loads its own config: walk the tree with
+// yaml.v3, decode with yaml.v2 so decode semantics are unchanged.
+func parseConfig(b []byte) (*Config, error) {
+	var root yaml.Node
+
+	if err := yaml.Unmarshal(b, &root); err != nil {
+		return nil, fmt.Errorf("failed to parse config document: %w", err)
+	}
+
+	if err := envvar.ExpandNode(&root); err != nil {
+		return nil, fmt.Errorf("failed to resolve environment placeholders: %w", err)
+	}
+
+	expanded, err := yaml.Marshal(&root)
+	if err != nil {
+		return nil, fmt.Errorf("failed to rebuild config document: %w", err)
+	}
+
+	cfg := &Config{}
+	if err := yamlv2.Unmarshal(expanded, cfg); err != nil {
+		return nil, fmt.Errorf("failed to decode config: %w", err)
 	}
 
 	return cfg, nil

@@ -44,7 +44,8 @@ func (f *Filtering) ReloadLogRegExp(secretStings []string) {
 
 	for _, secret := range secretStings {
 		if len(secret) >= minTokenLength && !containsSpace(secret) {
-			secretPatterns = append(secretPatterns, secret)
+			// a secret is matched literally: one holding "$" or "(" is not a pattern
+			secretPatterns = append(secretPatterns, regexp.QuoteMeta(secret))
 		}
 	}
 

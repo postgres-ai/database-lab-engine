@@ -5,6 +5,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/envvar"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/ptypes"
 )
 
@@ -79,10 +80,16 @@ func (y *yamlSoft) Set(set FieldSet) error {
 		return nil
 	}
 
+	// Encode rebuilds the node and drops its anchor, which would leave every
+	// alias to it, such as a "<<: *db_configs" merge, dangling
+	anchor := node.Anchor
+
 	if mv, ok := set.Value.(map[string]interface{}); ok {
 		if err := node.Encode(mv); err != nil {
 			return fmt.Errorf("cannot encode map: %w", err)
 		}
+
+		node.Anchor = anchor
 
 		return nil
 	}
@@ -91,6 +98,8 @@ func (y *yamlSoft) Set(set FieldSet) error {
 		if err := node.Encode(seq); err != nil {
 			return fmt.Errorf("cannot encode slice: %w", err)
 		}
+
+		node.Anchor = anchor
 
 		return nil
 	}
@@ -131,6 +140,14 @@ func (y *yamlSoft) Get(get FieldGet) (interface{}, error) {
 
 	if node.Tag == "!!seq" {
 		return convertSlice(node)
+	}
+
+	// a field still holding an environment placeholder has no value of the target
+	// type yet: the admin API reads the config file raw, by design, so that saving
+	// it cannot persist resolved secrets. Report it as absent rather than failing
+	// the whole projection — Store then leaves the placeholder in place.
+	if get.Type != ptypes.String && envvar.IsPlaceholder(node.Value) {
+		return nil, nil
 	}
 
 	typed, err := ptypes.Convert(node.Value, get.Type)

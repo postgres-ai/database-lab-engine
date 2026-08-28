@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -9,7 +10,9 @@ import (
 
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/yaml.v3"
 
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/envvar"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
@@ -29,6 +32,9 @@ func copyFile(src, dst string, process func([]byte) []byte) error {
 type ConfigSuite struct {
 	suite.Suite
 	mountDir string
+	// exampleDir holds the repository's configs directory, captured before the
+	// working directory moves to the temporary mount.
+	exampleDir string
 }
 
 func (s *ConfigSuite) SetupTest() {
@@ -39,6 +45,8 @@ func (s *ConfigSuite) SetupTest() {
 
 	cwd, err := os.Getwd()
 	s.Require().NoError(err)
+
+	s.exampleDir = filepath.Join(cwd, "..", "..", "configs")
 
 	t.Chdir(s.mountDir)
 
@@ -152,8 +160,11 @@ func (s *ConfigSuite) TestLoadConfigurationErrorsOnMissingEnvVariable() {
 
 	_, err = LoadConfiguration()
 	s.Require().Error(err)
-	s.Contains(err.Error(), "server.verificationToken")
-	s.Contains(err.Error(), `"DBLAB_MISSING_TOKEN" is not set`)
+	s.True(errors.Is(err, envvar.ErrUnsetEnv))
+	s.Contains(err.Error(), "DBLAB_MISSING_TOKEN")
+	// The position replaces the field path: expansion runs on the document, so
+	// it can point at any scalar, including ones no struct field names.
+	s.Contains(err.Error(), "line 2")
 }
 
 func (s *ConfigSuite) TestLoadConfigurationPreservesDollarSignsOutsideTokenFields() {
@@ -166,6 +177,8 @@ func (s *ConfigSuite) TestLoadConfigurationPreservesDollarSignsOutsideTokenField
 
 	configData := []byte(`server:
   verificationToken: "${DBLAB_VERIFICATION_TOKEN}"
+platform:
+  accessToken: "p@$$w0rd"
 observer:
   replacementRules:
     "[a-z0-9._%+\\-]+(@[a-z0-9.\\-]+\\.[a-z]{2,4})": "***$1"
@@ -176,6 +189,7 @@ observer:
 	cfg, err := LoadConfiguration()
 	s.Require().NoError(err)
 	s.Equal("env-verification-token", cfg.Server.VerificationToken)
+	s.Equal("p@$$w0rd", cfg.Platform.AccessToken, "a secret is never reinterpreted")
 	s.Equal("***$1", cfg.Observer.ReplacementRules[`[a-z0-9._%+\-]+(@[a-z0-9.\-]+\.[a-z]{2,4})`])
 }
 
@@ -201,4 +215,176 @@ func (s *ConfigSuite) TestRotateConfig() {
 	backupData, err := os.ReadFile(matches[0])
 	s.Require().NoError(err)
 	s.Equal(original, backupData)
+}
+
+func (s *ConfigSuite) TestLoadConfigurationExpandsRetrievalJobOptions() {
+	t := s.T()
+
+	t.Setenv("DBLAB_VERIFICATION_TOKEN", "env-verification-token")
+	t.Setenv("SOURCE_DB_HOST", "db.example.com")
+	t.Setenv("SOURCE_DB_PASSWORD", "s3cr3t-p@ssword")
+
+	configPath, err := util.GetConfigPath("server.yml")
+	s.Require().NoError(err)
+
+	configData := []byte(`server:
+  verificationToken: "${DBLAB_VERIFICATION_TOKEN}"
+retrieval:
+  jobs:
+    - logicalDump
+  spec:
+    logicalDump:
+      options:
+        source:
+          type: remote
+          connection:
+            dbname: postgres
+            host: "${SOURCE_DB_HOST}"
+            port: 5432
+            username: postgres
+            password: "${SOURCE_DB_PASSWORD}"
+`)
+	s.Require().NoError(os.WriteFile(configPath, configData, 0600))
+
+	cfg, err := LoadConfiguration()
+	s.Require().NoError(err)
+
+	spec, ok := cfg.Retrieval.JobsSpec["logicalDump"]
+	s.Require().True(ok)
+
+	// Nested option values stay map[interface{}]interface{}: the document is
+	// walked with yaml.v3 but decoded with yaml.v2, so what the retrieval jobs
+	// receive is shaped exactly as before.
+	source, ok := spec.Options["source"].(map[interface{}]interface{})
+	s.Require().True(ok)
+
+	connection, ok := source["connection"].(map[interface{}]interface{})
+	s.Require().True(ok)
+
+	s.Equal("db.example.com", connection["host"])
+	s.Equal("s3cr3t-p@ssword", connection["password"])
+}
+
+func (s *ConfigSuite) TestLoadConfigurationKeepsAmbiguousSecretsIntact() {
+	t := s.T()
+
+	configPath, err := util.GetConfigPath("server.yml")
+	s.Require().NoError(err)
+
+	for _, password := range []string{"no", "yes", "off", "0755", "007", "1e5", "1_000", "null", "~", "3m", "1:30"} {
+		s.Run(password, func() {
+			t.Setenv("SOURCE_DB_PASSWORD", password)
+
+			configData := []byte(`retrieval:
+  jobs:
+    - logicalDump
+  spec:
+    logicalDump:
+      options:
+        source:
+          connection:
+            password: ${SOURCE_DB_PASSWORD}
+`)
+			s.Require().NoError(os.WriteFile(configPath, configData, 0600))
+
+			cfg, err := LoadConfiguration()
+			s.Require().NoError(err)
+
+			source, ok := cfg.Retrieval.JobsSpec["logicalDump"].Options["source"].(map[interface{}]interface{})
+			s.Require().True(ok)
+
+			connection, ok := source["connection"].(map[interface{}]interface{})
+			s.Require().True(ok)
+			s.Equal(password, connection["password"])
+		})
+	}
+}
+
+func (s *ConfigSuite) TestLoadConfigurationExpandsTypedFields() {
+	t := s.T()
+
+	t.Setenv("DBLAB_PORT", "3000")
+	t.Setenv("DBLAB_DEBUG", "true")
+
+	configPath, err := util.GetConfigPath("server.yml")
+	s.Require().NoError(err)
+
+	configData := []byte(`server:
+  port: ${DBLAB_PORT}
+global:
+  debug: ${DBLAB_DEBUG}
+`)
+	s.Require().NoError(os.WriteFile(configPath, configData, 0600))
+
+	cfg, err := LoadConfiguration()
+	s.Require().NoError(err)
+	s.Equal(uint(3000), cfg.Server.Port)
+	s.True(cfg.Global.Debug)
+}
+
+func (s *ConfigSuite) TestGetConfigBytesKeepsPlaceholders() {
+	t := s.T()
+
+	t.Setenv("DBLAB_VERIFICATION_TOKEN", "env-verification-token")
+
+	configPath, err := util.GetConfigPath("server.yml")
+	s.Require().NoError(err)
+
+	configData := []byte(`server:
+  verificationToken: "${DBLAB_VERIFICATION_TOKEN}"
+`)
+	s.Require().NoError(os.WriteFile(configPath, configData, 0600))
+
+	cfg, err := LoadConfiguration()
+	s.Require().NoError(err)
+	s.Equal("env-verification-token", cfg.Server.VerificationToken)
+
+	raw, err := GetConfigBytes()
+	s.Require().NoError(err)
+	s.Contains(string(raw), "${DBLAB_VERIFICATION_TOKEN}")
+	s.NotContains(string(raw), "env-verification-token")
+
+	// The admin API round-trip goes through a yaml.Node; the placeholder has to
+	// survive that too, since the result is what RotateConfig persists.
+	var node yaml.Node
+	s.Require().NoError(yaml.Unmarshal(raw, &node))
+
+	rewritten, err := yaml.Marshal(&node)
+	s.Require().NoError(err)
+	s.Contains(string(rewritten), "${DBLAB_VERIFICATION_TOKEN}")
+	s.NotContains(string(rewritten), "env-verification-token")
+}
+
+func (s *ConfigSuite) TestShippedExampleConfigsLoad() {
+	t := s.T()
+
+	for _, name := range []string{
+		"DBLAB_VERIFICATION_TOKEN",
+		"PGAI_PLATFORM_ACCESS_TOKEN",
+	} {
+		t.Setenv(name, "resolved-"+name)
+	}
+
+	examples, err := filepath.Glob(filepath.Join(s.exampleDir, "config.example.*.yml"))
+	s.Require().NoError(err)
+	s.Require().NotEmpty(examples)
+
+	configPath, err := util.GetConfigPath("server.yml")
+	s.Require().NoError(err)
+
+	for _, example := range examples {
+		if filepath.Base(example) == "config.example.ci_checker.yml" {
+			continue // Migration checker config, loaded by internal/runci.
+		}
+
+		s.Run(filepath.Base(example), func() {
+			s.Require().NoError(copyFile(example, configPath, func(data []byte) []byte {
+				return bytes.ReplaceAll(data, []byte("/var/lib/dblab"), []byte(s.mountDir))
+			}))
+
+			cfg, err := LoadConfiguration()
+			s.Require().NoError(err)
+			s.Equal("resolved-DBLAB_VERIFICATION_TOKEN", cfg.Server.VerificationToken)
+		})
+	}
 }

@@ -36,7 +36,7 @@ func main() {
 	}
 
 	log.SetDebug(cfg.App.Debug)
-	log.Dbg("Config loaded: ", cfg)
+	log.Dbg("Config loaded")
 
 	if cfg.App.VerificationToken == "" {
 		log.Err("migration checker is insecure since verification token is empty")

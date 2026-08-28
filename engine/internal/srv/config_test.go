@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -506,5 +508,209 @@ func TestValidateCustomOptions_AdditionalCases(t *testing.T) {
 		for _, opt := range validOpts {
 			assert.NoError(t, validateCustomOptions([]interface{}{opt}), "option %q should be valid", opt)
 		}
+	})
+}
+
+func TestProjectedAdminConfig_EnvPlaceholders(t *testing.T) {
+	const base = `
+global:
+  debug: ${DBLAB_DEBUG}
+retrieval:
+  spec:
+    logicalDump:
+      options:
+        parallelJobs: ${DUMP_JOBS}
+        source:
+          connection:
+            host: ${SOURCE_HOST}
+            port: ${SOURCE_PORT}
+`
+
+	node := &yaml.Node{}
+	require.NoError(t, yaml.Unmarshal([]byte(base), node))
+
+	// the admin API reads the config file raw, so a typed field may still hold a
+	// placeholder. It has to project as absent instead of failing the whole
+	// request, or the Configuration page dies for the config the engine runs on.
+	proj := &models.ConfigProjection{}
+	require.NoError(t, projection.LoadYaml(proj, node, projection.LoadOptions{Groups: []string{"default"}}))
+
+	assert.Nil(t, proj.Debug)
+	assert.Nil(t, proj.Port)
+	assert.Nil(t, proj.DumpParallelJobs)
+	require.NotNil(t, proj.Host)
+	assert.Equal(t, "${SOURCE_HOST}", *proj.Host)
+
+	require.NoError(t, projection.StoreYaml(proj, node, projection.StoreOptions{Groups: []string{"default"}}))
+
+	stored, err := yaml.Marshal(node)
+	require.NoError(t, err)
+
+	for _, placeholder := range []string{"${DBLAB_DEBUG}", "${DUMP_JOBS}", "${SOURCE_HOST}", "${SOURCE_PORT}"} {
+		assert.Contains(t, string(stored), placeholder, "saving config must not resolve placeholders on disk")
+	}
+}
+
+func TestConnectionPassword_ResolvesPlaceholder(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Chdir(tmpDir)
+	require.NoError(t, os.Mkdir("configs", 0700))
+
+	t.Setenv("SOURCE_DB_PASSWORD", "s3cr3t-p@$$word")
+
+	configData := []byte(`retrieval:
+  spec:
+    logicalDump:
+      options:
+        source:
+          connection:
+            password: "${SOURCE_DB_PASSWORD}"
+`)
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "configs", "server.yml"), configData, 0600))
+
+	connection := &models.ConnectionTest{}
+	require.NoError(t, connectionPassword(connection))
+	assert.Equal(t, "s3cr3t-p@$$word", connection.Password,
+		"the source check must authenticate with the password the retrieval job uses")
+}
+
+func writeAdminTestConfig(t *testing.T) *Server {
+	t.Helper()
+
+	tmpDir := t.TempDir()
+	t.Chdir(tmpDir)
+	require.NoError(t, os.Mkdir("configs", 0700))
+
+	configData := []byte(`global:
+  debug: ${DBLAB_DEBUG}
+provision:
+  portPool:
+    from: 6000
+    to: 6100
+retrieval:
+  jobs:
+    - logicalDump
+  refresh:
+    timetable: "0 0 * * *"
+  spec:
+    logicalDump:
+      options:
+        databases:
+          mydb:
+            tables:
+              - orders
+        source:
+          connection:
+            host: "${SOURCE_HOST}"
+            username: postgres
+            password: "${SOURCE_DB_PASSWORD}"
+`)
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "configs", "server.yml"), configData, 0600))
+
+	srv := newProbeTestServer(t, false)
+	srv.Retrieval = &retrieval.Retrieval{State: retrieval.State{Mode: models.Logical}}
+	srv.reloadFn = func(*Server) error { return nil }
+
+	return srv
+}
+
+func postAdminConfig(t *testing.T, srv *Server, body string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/config", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	srv.setProjectedAdminConfig(rec, req)
+
+	return rec
+}
+
+func TestSetProjectedAdminConfig_KeepsPlaceholdersOnDisk(t *testing.T) {
+	t.Setenv("DBLAB_DEBUG", "true")
+	t.Setenv("SOURCE_HOST", "db.example.com")
+	t.Setenv("SOURCE_DB_PASSWORD", "s3cr3t-value")
+
+	srv := writeAdminTestConfig(t)
+
+	// the body the UI builds: it always sends global.debug, and a typed field
+	// held by a placeholder projects as absent, so the form default comes back
+	rec := postAdminConfig(t, srv, `{"retrievalMode": "logical", "global": {"debug": false},
+		"retrieval": {"spec": {"logicalDump": {"options": {"source": {"connection": {"host": "${SOURCE_HOST}", "username": "alice"}}}}}}}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	stored, err := os.ReadFile(filepath.Join("configs", "server.yml"))
+	require.NoError(t, err)
+
+	for _, placeholder := range []string{"${SOURCE_HOST}", "${SOURCE_DB_PASSWORD}"} {
+		assert.Contains(t, string(stored), placeholder, "a string placeholder the UI echoes survives a save")
+	}
+
+	// known limit, tracked in #763: the UI never sees a typed placeholder and
+	// its default replaces it
+	assert.Contains(t, string(stored), "debug: false")
+	assert.NotContains(t, string(stored), "${DBLAB_DEBUG}")
+	assert.Contains(t, string(stored), "username: alice")
+	assert.NotContains(t, string(stored), "s3cr3t-value")
+}
+
+func TestSetProjectedAdminConfig_RejectsNewPlaceholders(t *testing.T) {
+	t.Setenv("DBLAB_DEBUG", "true")
+	t.Setenv("SOURCE_HOST", "db.example.com")
+	t.Setenv("SOURCE_DB_PASSWORD", "s3cr3t-value")
+	t.Setenv("VICTIM_SECRET", "AKIAIOSFODNN7EXAMPLE")
+
+	for name, body := range map[string]string{
+		"string field": `{"retrievalMode": "logical", "retrieval": {"refresh": {"timetable": "${VICTIM_SECRET}"}}}`,
+		"nested value": `{"retrievalMode": "logical", "retrieval": {"spec": {"logicalDump": {"options": {"databases": {"mydb": {"tables": ["${VICTIM_SECRET}"]}}}}}}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			srv := writeAdminTestConfig(t)
+
+			rec := postAdminConfig(t, srv, body)
+			require.Equal(t, http.StatusBadRequest, rec.Code)
+			assert.Contains(t, rec.Body.String(), "cannot be introduced through the API")
+			assert.NotContains(t, rec.Body.String(), "AKIAIOSFODNN7EXAMPLE")
+
+			stored, err := os.ReadFile(filepath.Join("configs", "server.yml"))
+			require.NoError(t, err)
+			assert.NotContains(t, string(stored), "VICTIM_SECRET")
+		})
+	}
+
+	// a merge key or a projection write may repeat a placeholder the file
+	// already holds under another path; the UI echoes the merged view back
+	t.Run("a placeholder the file holds elsewhere is not new", func(t *testing.T) {
+		t.Setenv("PG_BUFFERS", "1GB")
+		srv := writeAdminTestConfig(t)
+
+		merged := []byte(`global:
+  debug: ${DBLAB_DEBUG}
+provision:
+  portPool:
+    from: 6000
+    to: 6100
+databaseConfigs:
+  configs: &db_configs
+    shared_buffers: ${PG_BUFFERS}
+retrieval:
+  jobs:
+    - logicalDump
+    - logicalRestore
+  spec:
+    logicalDump:
+      options:
+        source:
+          connection:
+            host: "${SOURCE_HOST}"
+            username: postgres
+            password: "${SOURCE_DB_PASSWORD}"
+    logicalRestore:
+      options:
+        <<: *db_configs
+`)
+		require.NoError(t, os.WriteFile(filepath.Join("configs", "server.yml"), merged, 0600))
+
+		rec := postAdminConfig(t, srv, `{"retrievalMode": "logical", "databaseConfigs": {"configs": {"shared_buffers": "${PG_BUFFERS}"}},
+			"retrieval": {"spec": {"logicalRestore": {"options": {"configs": {"shared_buffers": "${PG_BUFFERS}"}}}}}}`)
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	})
 }
