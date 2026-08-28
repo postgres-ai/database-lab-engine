@@ -9,7 +9,7 @@ workflow:
 
 default:
   image:
-    name: golang:1.26.5
+    name: golang:1.26.7
     pull_policy: if-not-present
   interruptible: true  # All jobs can be cancelled by default
 
@@ -71,7 +71,7 @@ lint:
 build-binary-alpine:
   <<: *only_engine
   image:
-    name: golang:1.26.5-alpine
+    name: golang:1.26.7-alpine
     pull_policy: if-not-present
   stage: build-binary
   artifacts:
@@ -105,10 +105,10 @@ build-binary-client-branch:
     - cd engine
     - make build-client
 
-    # Install google-cloud-sdk.
+    # Install google-cloud-cli.
     - curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
     - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-    - apt-get update && apt-get install -y google-cloud-sdk
+    - apt-get update && apt-get install -y google-cloud-cli
 
     # Authenticate.
     - GCP_KEY_FILE=$(mktemp) && trap "rm -f \"$GCP_KEY_FILE\"" EXIT && printf '%s' "${GCP_SERVICE_KEY}" > "$GCP_KEY_FILE" && gcloud auth activate-service-account --key-file="$GCP_KEY_FILE" && rm -f "$GCP_KEY_FILE"
@@ -126,10 +126,10 @@ build-binary-client-master:
     - cd engine
     - make build-client
 
-    # Install google-cloud-sdk.
+    # Install google-cloud-cli.
     - curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
     - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-    - apt-get update && apt-get install -y google-cloud-sdk
+    - apt-get update && apt-get install -y google-cloud-cli
 
     # Authenticate.
     - GCP_KEY_FILE=$(mktemp) && trap "rm -f \"$GCP_KEY_FILE\"" EXIT && printf '%s' "${GCP_SERVICE_KEY}" > "$GCP_KEY_FILE" && gcloud auth activate-service-account --key-file="$GCP_KEY_FILE" && rm -f "$GCP_KEY_FILE"
@@ -146,10 +146,10 @@ build-binary-client:
     - cd engine
     - make build-client
 
-    # Install google-cloud-sdk.
+    # Install google-cloud-cli.
     - curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
     - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-    - apt-get update && apt-get install -y google-cloud-sdk
+    - apt-get update && apt-get install -y google-cloud-cli
 
     # Authenticate.
     - GCP_KEY_FILE=$(mktemp) && trap "rm -f \"$GCP_KEY_FILE\"" EXIT && printf '%s' "${GCP_SERVICE_KEY}" > "$GCP_KEY_FILE" && gcloud auth activate-service-account --key-file="$GCP_KEY_FILE" && rm -f "$GCP_KEY_FILE"
@@ -167,10 +167,10 @@ build-binary-client-rc:
     - cd engine
     - make build-client
 
-    # Install google-cloud-sdk.
+    # Install google-cloud-cli.
     - curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
     - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-    - apt-get update && apt-get install -y google-cloud-sdk
+    - apt-get update && apt-get install -y google-cloud-cli
 
     # Authenticate.
     - GCP_KEY_FILE=$(mktemp) && trap "rm -f \"$GCP_KEY_FILE\"" EXIT && printf '%s' "${GCP_SERVICE_KEY}" > "$GCP_KEY_FILE" && gcloud auth activate-service-account --key-file="$GCP_KEY_FILE" && rm -f "$GCP_KEY_FILE"
