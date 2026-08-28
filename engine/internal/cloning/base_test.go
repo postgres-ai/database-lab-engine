@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
@@ -26,8 +28,12 @@ type BaseCloningSuite struct {
 }
 
 func (s *BaseCloningSuite) SetupSuite() {
+	prov, err := newProvisioner()
+	s.Require().NoError(err)
+
 	cloning := &Base{
 		clones:      make(map[string]*CloneWrapper),
+		provision:   prov,
 		snapshotBox: SnapshotBox{items: make(map[string]*models.Snapshot)},
 	}
 
@@ -369,4 +375,130 @@ func TestWithBranchDeletionLock(t *testing.T) {
 		assert.False(t, called)
 		assert.Contains(t, err.Error(), "dependent clone")
 	})
+}
+
+func (s *BaseCloningSuite) TestUpgradeClonePreChecks() {
+	tests := []struct {
+		name    string
+		cloneID string
+		wrapper *CloneWrapper
+		wantErr string
+	}{
+		{name: "clone not found", cloneID: "missing", wantErr: "the clone not found"},
+		{name: "clone without a session", cloneID: "noSession", wrapper: &CloneWrapper{Clone: &models.Clone{ID: "noSession"}}, wantErr: "clone is not started yet"},
+		{name: "clone without an origin snapshot", cloneID: "noSnapshot", wrapper: &CloneWrapper{Clone: &models.Clone{ID: "noSnapshot", Status: models.Status{Code: models.StatusOK}}, Session: &resources.Session{Pool: "testPool"}}, wantErr: "no origin snapshot"},
+		{name: "clone still creating", cloneID: "creating", wrapper: startedWrapper("creating", models.StatusCreating), wantErr: "but it is CREATING"},
+		{name: "clone already upgrading", cloneID: "upgrading", wrapper: startedWrapper("upgrading", models.StatusUpgrading), wantErr: "but it is UPGRADING"},
+		{name: "clone in fatal state", cloneID: "fatal", wrapper: startedWrapper("fatal", models.StatusFatal), wantErr: "but it is FATAL"},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			if tt.wrapper != nil {
+				s.cloning.setWrapper(tt.cloneID, tt.wrapper)
+			}
+
+			err := s.cloning.UpgradeClone(tt.cloneID, UpgradeRequest{TargetVersion: 17, TargetImage: "img:17"})
+
+			s.Require().Error(err)
+			s.Contains(err.Error(), tt.wantErr)
+		})
+	}
+}
+
+func (s *BaseCloningSuite) TestMarkUpgradingClaimsOnlyIdleClones() {
+	s.cloning.setWrapper("okClone", startedWrapper("okClone", models.StatusOK))
+
+	s.Require().NoError(s.cloning.markUpgrading("okClone"))
+
+	wrapper, ok := s.cloning.findWrapper("okClone")
+	s.Require().True(ok)
+	s.Equal(models.StatusUpgrading, wrapper.Clone.Status.Code)
+
+	// The second caller loses the race because the claim and the check share one lock.
+	err := s.cloning.markUpgrading("okClone")
+
+	s.Require().Error(err)
+	s.Contains(err.Error(), "but it is UPGRADING")
+	s.Equal(models.StatusUpgrading, wrapper.Clone.Status.Code)
+}
+
+func (s *BaseCloningSuite) TestMarkUpgradingRetriesAfterAFailedUpgrade() {
+	s.cloning.setWrapper("warned", startedWrapper("warned", models.StatusWarning))
+
+	// Every upgrade that converts nothing leaves the clone running and in WARNING, so refusing
+	// that status would make one aborted attempt permanent.
+	s.Require().NoError(s.cloning.markUpgrading("warned"))
+
+	wrapper, ok := s.cloning.findWrapper("warned")
+	s.Require().True(ok)
+	s.Equal(models.StatusUpgrading, wrapper.Clone.Status.Code)
+}
+
+func (s *BaseCloningSuite) TestMarkUpgradingLeavesForeignStatusAlone() {
+	s.cloning.setWrapper("resetting", startedWrapper("resetting", models.StatusResetting))
+
+	s.Require().Error(s.cloning.markUpgrading("resetting"))
+
+	wrapper, ok := s.cloning.findWrapper("resetting")
+	s.Require().True(ok)
+	s.Equal(models.StatusResetting, wrapper.Clone.Status.Code, "a refused claim must not disturb the clone")
+}
+
+func (s *BaseCloningSuite) TestDestroyRefusedWhileUpgrading() {
+	s.cloning.setWrapper("upgradingClone", startedWrapper("upgradingClone", models.StatusUpgrading))
+
+	wrapper, ok := s.cloning.findWrapper("upgradingClone")
+	s.Require().True(ok)
+
+	err := s.cloning.destroyPreChecks("upgradingClone", wrapper)
+
+	s.Require().Error(err)
+	s.Contains(err.Error(), "clone is being upgraded")
+	s.Equal(models.StatusUpgrading, wrapper.Clone.Status.Code, "the pre-check must not move the clone to DELETING")
+}
+
+func (s *BaseCloningSuite) TestResetRefusedWhileUpgrading() {
+	s.cloning.setWrapper("upgradingClone", startedWrapper("upgradingClone", models.StatusUpgrading))
+
+	err := s.cloning.ResetClone("upgradingClone", types.ResetCloneRequest{Latest: true})
+
+	s.Require().Error(err)
+	s.Contains(err.Error(), "clone is being upgraded")
+}
+
+func (s *BaseCloningSuite) TestIdleSweeperSkipsUpgradingClones() {
+	wrapper := startedWrapper("upgradingClone", models.StatusUpgrading)
+	wrapper.TimeStartedAt = time.Now().Add(-24 * time.Hour)
+
+	s.cloning.config = &Config{MaxIdleMinutes: 10}
+
+	isIdle, err := s.cloning.isIdleClone(wrapper)
+
+	s.Require().NoError(err)
+	s.False(isIdle, "an upgrading clone must survive the idle sweeper even with no recent activity")
+}
+
+func (s *BaseCloningSuite) TestUpgradingClonesSelection() {
+	s.cloning.setWrapper("ok", startedWrapper("ok", models.StatusOK))
+	s.cloning.setWrapper("upgrading", startedWrapper("upgrading", models.StatusUpgrading))
+	s.cloning.setWrapper("fatal", startedWrapper("fatal", models.StatusFatal))
+	s.cloning.setWrapper("noSession", &CloneWrapper{Clone: &models.Clone{ID: "noSession", Status: models.Status{Code: models.StatusUpgrading}}})
+
+	recovering := s.cloning.clonesToRecover()
+
+	s.Require().Len(recovering, 1, "a started clone marked UPGRADING is recovered; the rest carry no upgrade state")
+	s.Equal("upgrading", recovering[0].Clone.ID)
+}
+
+func startedWrapper(cloneID string, code models.StatusCode) *CloneWrapper {
+	return &CloneWrapper{
+		Clone: &models.Clone{
+			ID:       cloneID,
+			Status:   models.Status{Code: code},
+			Snapshot: &models.Snapshot{ID: "testPool@snapshot_20260813"},
+		},
+		Session:       &resources.Session{Pool: "testPool"},
+		TimeStartedAt: time.Now(),
+	}
 }

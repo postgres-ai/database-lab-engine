@@ -35,6 +35,9 @@ const useStyles = makeStyles(
     },
     message: {
       margin: '4px 0 0 0',
+      // A failed upgrade appends up to 20 lines of pg_upgrade log to the WARNING message, and
+      // HTML would otherwise collapse them into one unreadable run of text.
+      whiteSpace: 'pre-wrap',
     },
     errorMessage: {
       marginTop: '8px',

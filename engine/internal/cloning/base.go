@@ -98,6 +98,10 @@ func (c *Base) Run(ctx context.Context) error {
 		log.Err("failed to load stored sessions:", err)
 	}
 
+	// Must precede filterRunningClones: an interrupted upgrade has no container, and the filter
+	// drops container-less clones straight into dataset destruction.
+	c.RecoverInterruptedUpgrades()
+
 	c.restartCloneContainers(ctx)
 
 	c.filterRunningClones(ctx)
@@ -193,6 +197,9 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 		Protected:     cloneRequest.Protected,
 		ProtectedTill: protectedTill,
 		CreatedAt:     models.NewLocalTime(createdAt),
+		// A fresh clone runs the engine-wide image, so the instance version is its version.
+		// Recording it here is what lets the API report a per-clone major at all.
+		DBVersion: c.provision.DetectDBVersion(),
 		Status: models.Status{
 			Code:    models.StatusCreating,
 			Message: models.CloneMessageCreating,
@@ -341,6 +348,12 @@ var errNoSession = errors.New("no clone session")
 func (c *Base) destroyPreChecks(cloneID string, w *CloneWrapper) error {
 	if w.Clone.IsProtected() && w.Clone.Status.Code != models.StatusFatal {
 		return models.New(models.ErrCodeBadRequest, "clone is protected")
+	}
+
+	// A destroy in the middle of pg_upgrade would pull the dataset out from under the running
+	// upgrade container.
+	if w.Clone.Status.Code == models.StatusUpgrading {
+		return models.New(models.ErrCodeBadRequest, "clone is being upgraded")
 	}
 
 	if c.hasDependentSnapshots(w) {
@@ -537,6 +550,10 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 		return models.New(models.ErrCodeNotFound, "clone is not started yet")
 	}
 
+	if w.Clone.Status.Code == models.StatusUpgrading {
+		return models.New(models.ErrCodeBadRequest, "clone is being upgraded")
+	}
+
 	var snapshotID string
 
 	if resetOptions.SnapshotID != "" {
@@ -588,8 +605,15 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 			return
 		}
 
+		// Reset re-provisions from the snapshot on the engine default image, which is exactly
+		// what undoes a major upgrade, so the per-clone override goes with it and the version
+		// is the instance one again, as on a fresh clone.
+		dbVersion := c.provision.DetectDBVersion()
+
 		c.cloneMutex.Lock()
 		w.Clone.Snapshot = snapshot
+		w.Clone.DockerImage = ""
+		w.Clone.DBVersion = dbVersion
 		c.cloneMutex.Unlock()
 		c.decrementCloneNumber(originalSnapshotID)
 		c.IncrementCloneNumber(snapshot.ID)
@@ -882,7 +906,8 @@ func (c *Base) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 	idleDuration := time.Duration(c.config.MaxIdleMinutes) * time.Minute
 	minimumTime := currentTime.Add(-idleDuration)
 
-	if wrapper.Clone.IsProtected() || wrapper.Clone.Status.Code == models.StatusExporting || wrapper.TimeStartedAt.After(minimumTime) ||
+	if wrapper.Clone.IsProtected() || wrapper.Clone.Status.Code == models.StatusExporting ||
+		wrapper.Clone.Status.Code == models.StatusUpgrading || wrapper.TimeStartedAt.After(minimumTime) ||
 		c.hasDependentSnapshots(wrapper) {
 		return false, nil
 	}

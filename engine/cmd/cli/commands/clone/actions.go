@@ -6,6 +6,7 @@
 package clone
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
@@ -272,6 +274,55 @@ func reset(cliCtx *cli.Context) error {
 	}
 
 	_, err = fmt.Fprintf(cliCtx.App.Writer, "The clone has been successfully reset: %s\n", cloneID)
+
+	return err
+}
+
+// upgradeWaitTimeout bounds the synchronous wait for an upgrade. The engine reports progress
+// through the clone status, and watchCloneStatus only falls back to the client request timeout
+// when the caller sets no deadline of its own - which for an upgrade would be far too short.
+const upgradeWaitTimeout = 30 * time.Minute
+
+// buildUpgradeRequest maps the command flags onto the API request.
+func buildUpgradeRequest(cliCtx *cli.Context) types.CloneUpgradeRequest {
+	return types.CloneUpgradeRequest{
+		TargetVersion: cliCtx.Int(cloneUpgradeTargetVersionFlag),
+		DockerImage:   cliCtx.String(cloneUpgradeDockerImageFlag),
+	}
+}
+
+// upgrade runs a request to upgrade a clone to a newer PostgreSQL major version.
+func upgrade(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
+		return err
+	}
+
+	cloneID := cliCtx.Args().First()
+	upgradeRequest := buildUpgradeRequest(cliCtx)
+
+	if cliCtx.Bool("async") {
+		if err := dblabClient.UpgradeCloneAsync(cliCtx.Context, cloneID, upgradeRequest); err != nil {
+			return err
+		}
+
+		_, err = fmt.Fprintf(cliCtx.App.Writer, "The clone is being upgraded to PostgreSQL %d: %s\n",
+			upgradeRequest.TargetVersion, cloneID)
+
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(cliCtx.Context, upgradeWaitTimeout)
+	defer cancel()
+
+	// A failed upgrade surfaces as an error carrying the clone status message, which already
+	// names the version the clone ended up on and where to find the pg_upgrade log.
+	if err := dblabClient.UpgradeClone(ctx, cloneID, upgradeRequest); err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(cliCtx.App.Writer, "The clone has been upgraded to PostgreSQL %d: %s\n",
+		upgradeRequest.TargetVersion, cloneID)
 
 	return err
 }

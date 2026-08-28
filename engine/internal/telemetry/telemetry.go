@@ -26,6 +26,9 @@ const (
 	// CloneResetEvent describes the clone reset event.
 	CloneResetEvent = "clone_reset"
 
+	// CloneUpgradeEvent describes the clone major upgrade event.
+	CloneUpgradeEvent = "clone_upgrade"
+
 	// CloneDestroyedEvent describes a clone destruction event.
 	CloneDestroyedEvent = "clone_destroyed"
 

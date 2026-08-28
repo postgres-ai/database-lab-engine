@@ -13,6 +13,8 @@ const STATUS_CODE_TO_TYPE = {
   CREATING: 'waiting' as const,
   DELETING: 'waiting' as const,
   RESETTING: 'waiting' as const,
+  UPGRADING: 'waiting' as const,
+  WARNING: 'warning' as const,
   FATAL: 'error' as const,
 }
 
@@ -27,5 +29,9 @@ export const getCloneStatusText = (statusCode: StatusCode) => {
   return capitalize(statusCode)
 }
 
+// WARNING is terminal too: it means the clone is running, just not on the version that was
+// requested. Leaving it out would make the clone page poll forever after a failed upgrade.
 export const checkIsCloneStable = (clone: Clone) =>
-  clone.status.code === 'OK' || clone.status.code === 'FATAL'
+  clone.status.code === 'OK' ||
+  clone.status.code === 'WARNING' ||
+  clone.status.code === 'FATAL'

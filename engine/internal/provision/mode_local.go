@@ -54,12 +54,25 @@ type PortPool struct {
 
 // Config defines configuration for provisioning.
 type Config struct {
-	PortPool             PortPool          `yaml:"portPool"`
-	DockerImage          string            `yaml:"dockerImage"`
-	UseSudo              bool              `yaml:"useSudo"`
-	KeepUserPasswords    bool              `yaml:"keepUserPasswords"`
-	ContainerConfig      map[string]string `yaml:"containerConfig"`
-	CloneAccessAddresses string            `yaml:"cloneAccessAddresses"`
+	PortPool    PortPool `yaml:"portPool"`
+	DockerImage string   `yaml:"dockerImage"`
+	// PgUpgradeImage runs pg_upgrade for the clone major upgrade action. An empty value is
+	// valid and means the feature is not configured: engine startup is unaffected and only
+	// the upgrade endpoint rejects requests.
+	PgUpgradeImage string `yaml:"pgUpgradeImage"`
+	// PgUpgradeTimeout bounds a single upgrade container run. Zero means defaultUpgradeTimeout.
+	PgUpgradeTimeout time.Duration `yaml:"pgUpgradeTimeout"`
+	// PgUpgradePullTimeout bounds a single image pull made for an upgrade. Zero means
+	// defaultUpgradePullTimeout.
+	PgUpgradePullTimeout time.Duration `yaml:"pgUpgradePullTimeout"`
+	// UpgradeImageAllowList restricts the repositories an upgrade request may name explicitly.
+	// Empty allows any, which is the default: the instance already runs whatever image its
+	// configuration points at.
+	UpgradeImageAllowList []string          `yaml:"upgradeImageAllowList"`
+	UseSudo               bool              `yaml:"useSudo"`
+	KeepUserPasswords     bool              `yaml:"keepUserPasswords"`
+	ContainerConfig       map[string]string `yaml:"containerConfig"`
+	CloneAccessAddresses  string            `yaml:"cloneAccessAddresses"`
 }
 
 // Provisioner describes a struct for ports and clones management.
@@ -187,6 +200,7 @@ func (p *Provisioner) StartSession(clone *models.Clone, user resources.Ephemeral
 	}
 
 	appConfig := p.getAppConfig(fsm.Pool(), clone.Branch, name, clone.Revision, port)
+	appConfig.DockerImage = resolveCloneImage(p.config.DockerImage, clone.DockerImage)
 	appConfig.SetExtraConf(extraConfig)
 
 	if err := fs.CleanupLogsDir(appConfig.DataDir()); err != nil {
@@ -282,6 +296,9 @@ func (p *Provisioner) ResetSession(session *resources.Session, clone *models.Clo
 		return nil, errors.Wrap(err, "failed to create clone")
 	}
 
+	// Reset deliberately keeps the engine-wide image even when the clone carries an override:
+	// re-provisioning from the origin snapshot is what undoes a major upgrade, so the clone has
+	// to come back on the version the snapshot data belongs to.
 	appConfig := p.getAppConfig(newFSManager.Pool(), clone.Branch, name, clone.Revision, session.Port)
 	appConfig.SetExtraConf(session.ExtraConfig)
 
@@ -730,6 +747,29 @@ func (p *Provisioner) getAppConfig(pool *resources.Pool, branch, name string, re
 	}
 
 	return appConfig
+}
+
+// PgUpgradeImage returns the image that runs pg_upgrade for the clone major upgrade action.
+// An empty value means the feature is not configured on this instance.
+func (p *Provisioner) PgUpgradeImage() string {
+	return p.config.PgUpgradeImage
+}
+
+// UpgradeImageAllowList returns the repositories an upgrade request may name explicitly. An empty
+// list allows any repository.
+func (p *Provisioner) UpgradeImageAllowList() []string {
+	return p.config.UpgradeImageAllowList
+}
+
+// resolveCloneImage picks the image a clone container must run. A clone carries an override only
+// after a major upgrade; an empty override means the engine-wide image, which is how a reset
+// returns an upgraded clone to the default version.
+func resolveCloneImage(defaultImage, cloneImage string) string {
+	if cloneImage == "" {
+		return defaultImage
+	}
+
+	return cloneImage
 }
 
 // getProvisionHosts adds an internal Docker gateway to the hosts rule if the user restricts access to IP addresses.

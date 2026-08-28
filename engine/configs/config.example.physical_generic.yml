@@ -70,6 +70,12 @@ provision: # Defines how data is provisioned
   useSudo: false # Use sudo for ZFS/LVM and Docker commands if DBLab server running outside a container (not recommended)
   keepUserPasswords: false # Keep user passwords in clones; default: "false"
   cloneAccessAddresses: "127.0.0.1" # IP addresses that can be used to access clones; supports multiple IPs and IPv6; default: "127.0.0.1" (loop-back)
+  # pgUpgradeImage: "postgresai/pg-upgrade:17" # Image running pg_upgrade for "dblab clone upgrade"; must match the target major version.
+  # pgUpgradeTimeout: 3h # How long a single "dblab clone upgrade" run may take before the clone is put back on its original version.
+  # pgUpgradePullTimeout: 1h # How long a single image pull made for "dblab clone upgrade" may take; the clone keeps running while it happens.
+  # upgradeImageAllowList: # Repositories an explicit "dblab clone upgrade --docker-image" may name. Empty (default) allows any.
+  #   - "postgresai/extended-postgres"
+  #                                           # Leave unset to disable clone major upgrades.
 
 retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
             #   - logical: dump/restore (works with RDS, different physical layout)
@@ -168,6 +174,7 @@ webhooks: # Webhooks can be used to trigger actions in external systems upon eve
 #      trigger:
 #        - clone_create
 #        - clone_reset
+#        - clone_upgrade
 
 platform:
   url: "https://postgres.ai/api/general" # Default: "https://postgres.ai/api/general"

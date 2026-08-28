@@ -8,10 +8,17 @@ import "time"
 
 // Clone defines a clone model.
 type Clone struct {
-	ID                    string        `json:"id"`
-	Snapshot              *Snapshot     `json:"snapshot"`
-	Branch                string        `json:"branch"`
-	Revision              int           `json:"revision"`
+	ID       string    `json:"id"`
+	Snapshot *Snapshot `json:"snapshot"`
+	Branch   string    `json:"branch"`
+	Revision int       `json:"revision"`
+	// DockerImage overrides the engine-wide provision image for this clone only. It is set
+	// by a major upgrade and cleared by a reset; empty means the clone runs the engine default.
+	DockerImage string `json:"dockerImage,omitempty"`
+	// DBVersion is the PostgreSQL major version the clone is currently running. It is
+	// reported as a string to match the instance-level version and to keep pre-10 values
+	// ("9.6") intact.
+	DBVersion             string        `json:"dbVersion,omitempty"`
 	Protected             bool          `json:"protected"`
 	ProtectedTill         *LocalTime    `json:"protectedTill,omitempty"`
 	ProtectionWarningSent bool          `json:"-"`

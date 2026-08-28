@@ -20,6 +20,12 @@ stages:
   - scan
   - integration-test
 
+variables:
+  # The majors the build-image-*-pg-upgrade matrices publish a pg-upgrade image for. It has to stay
+  # in step with those matrices: engine/test/6.clone_upgrade.sh treats a target on this list as one
+  # it must be able to upgrade into, and fails instead of skipping when the images are missing.
+  PG_UPGRADE_MAJORS: "17 18"
+
 ## Conditions.
 .only_engine: &only_engine
   rules:
@@ -195,6 +201,80 @@ build-binary-client-rc:
     - cd engine
     - apk update && apk upgrade && apk add --no-cache bash # TODO(anatoly): Remove dependency.
     - bash ./scripts/ci_docker_build_push.sh
+
+# The clone major upgrade image is built per target major from the matching extended-postgres
+# image, so it is parameterized by PG_MAJOR through a parallel matrix. It deliberately does not
+# reuse *build_image_definition: that template publishes engine/bin as artifacts, and this image
+# contains no engine binary. The resulting tag mirrors the base tag (PG_UPGRADE_BASE_TAG), so
+# pinning the base to "17-0.8.0" produces pg-upgrade:17-0.8.0.
+.pg_upgrade_job_template: &build_pg_upgrade_image_definition
+  image:
+    name: docker:24
+    pull_policy: if-not-present
+  stage: build
+  services:
+    - name: docker:24-dind
+      alias: docker
+      command: [ "--tls=false" ]
+      pull_policy: if-not-present
+  before_script:
+    # Defaults to the moving major tag; set PG_UPGRADE_BASE_TAG on the job to pin a base such
+    # as "17-0.8.0", which then also becomes the pg-upgrade tag.
+    - export PG_UPGRADE_BASE_TAG="${PG_UPGRADE_BASE_TAG:-$PG_MAJOR}"
+    - export BUILD_ARGS="--build-arg BASE_IMAGE=postgresai/extended-postgres:${PG_UPGRADE_BASE_TAG}"
+    # The image carries scripts/pg_upgrade_clone.sh, so its contents are branch-specific and the
+    # tag has to be too. Publishing every branch to the bare major would let concurrent MRs
+    # overwrite each other in the shared project registry, and bash-test-17 would then pull and
+    # exercise some other branch's upgrade script while still reporting its own result. Only the
+    # release job leaves the suffix empty and publishes the bare major.
+    - export TAGS="${DOCKER_NAME}:${PG_UPGRADE_BASE_TAG}${PG_UPGRADE_TAG_SUFFIX}"
+  script:
+    - cd engine
+    - apk update && apk upgrade && apk add --no-cache bash
+    - bash ./scripts/ci_docker_build_push.sh
+
+build-image-feature-pg-upgrade:
+  <<: *build_pg_upgrade_image_definition
+  <<: *only_feature
+  parallel:
+    matrix:
+      - PG_MAJOR: [ "17", "18" ]
+  variables:
+    REGISTRY_USER: "${CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.pg-upgrade"
+    DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/pg-upgrade"
+    PG_UPGRADE_TAG_SUFFIX: "-${CI_COMMIT_REF_SLUG}"
+
+build-image-master-pg-upgrade:
+  <<: *build_pg_upgrade_image_definition
+  <<: *only_master
+  parallel:
+    matrix:
+      - PG_MAJOR: [ "17", "18" ]
+  variables:
+    REGISTRY_USER: "${CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.pg-upgrade"
+    DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/pg-upgrade"
+    PG_UPGRADE_TAG_SUFFIX: "-${CI_COMMIT_REF_SLUG}"
+
+build-image-latest-pg-upgrade:
+  <<: *build_pg_upgrade_image_definition
+  <<: *only_tag_release
+  parallel:
+    matrix:
+      - PG_MAJOR: [ "17", "18" ]
+  variables:
+    REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${DH_CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.pg-upgrade"
+    DOCKER_NAME: "postgresai/pg-upgrade"
+    # Released images are the ones the documented pgUpgradeImage default points at.
+    PG_UPGRADE_TAG_SUFFIX: ""
 
 build-image-feature-server:
   <<: *build_image_definition
@@ -512,6 +592,20 @@ build-image-swagger-release:
     - bash engine/test/1.synthetic.sh
     - bash engine/test/2.logical_generic.sh
     - bash engine/test/4.physical_basebackup.sh
+    # Runs the upgrade for a POSTGRES_VERSION whose next major is in PG_UPGRADE_MAJORS and reports a
+    # skip for the rest; either way it prints an UPGRADE_TEST_RESULT line naming the version pair.
+    # The marker is asserted rather than merely printed when the job is one that must upgrade, so
+    # coverage cannot quietly disappear behind a passing pipeline.
+    - |
+      # pipefail so that tee cannot mask a failing test run - the exact way a green pipeline
+      # comes to claim coverage it never produced.
+      set -o pipefail
+      bash engine/test/6.clone_upgrade.sh 2>&1 | tee upgrade_test.log
+    - |
+      if [ "${UPGRADE_TEST_REQUIRED}" = "true" ] && ! grep -q "UPGRADE_TEST_RESULT: executed" upgrade_test.log; then
+        echo "ERROR: this job must run a clone upgrade, but no UPGRADE_TEST_RESULT: executed was reported" >&2
+        exit 1
+      fi
   after_script:
     - bash engine/test/_cleanup.sh
   tags:
@@ -543,6 +637,9 @@ bash-test-17:
   <<: *bash_test_mr
   variables:
     POSTGRES_VERSION: 17
+    # 17 -> 18 is the pair this pipeline publishes both images for, so this job has to run the
+    # clone upgrade; 6.clone_upgrade.sh fails instead of skipping when it cannot.
+    UPGRADE_TEST_REQUIRED: "true"
 
 bash-test-18:
   <<: *bash_test_mr
@@ -589,6 +686,7 @@ bash-test-main-17:
   <<: *bash_test_main
   variables:
     POSTGRES_VERSION: 17
+    UPGRADE_TEST_REQUIRED: "true"
 
 bash-test-main-18:
   <<: *bash_test_main
@@ -615,6 +713,18 @@ integration-test:
     DOCKER_DRIVER: overlay2
     # Maximum supported API version is 1.41 for the current image
     DOCKER_API_VERSION: "1.41"
+    # The clone upgrade tests run pg_upgrade in this image. The build stage precedes this one and
+    # publishes it under the target major's ref-scoped tag; the tests authenticate with
+    # CI_REGISTRY_USER and CI_REGISTRY_PASSWORD. This is the Go integration suite only - the bash
+    # suite reads PG_UPGRADE_IMAGE, which it derives per job.
+    #
+    # These tests read a clone directory that containers write, so they need a daemon that shares
+    # this job's filesystem. The docker:dind service below does not provide that, so the upgrade
+    # tests currently SKIP here rather than run - `make test-ci-integration` passes -v so the trace
+    # says so plainly. Moving this job to a runner whose daemon is local (the dle-test shell
+    # runners are) and setting DBLAB_UPGRADE_TESTS_REQUIRED: "true" turns those skips into
+    # failures and makes the coverage real; until then this job does not exercise pg_upgrade.
+    DBLAB_PG_UPGRADE_IMAGE: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/pg-upgrade:17-${CI_COMMIT_REF_SLUG}"
   script:
     - cd engine
     - make test-ci-integration

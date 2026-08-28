@@ -4,6 +4,9 @@ set -euo pipefail
 
 docker_file=${DOCKER_FILE:-"Dockerfile"}
 tags=${TAGS:-""}
+# Extra "--build-arg name=value" pairs, used by images that are parameterized at build time
+# (Dockerfile.pg-upgrade takes the extended-postgres base it derives from).
+build_args=${BUILD_ARGS:-""}
 
 registry_user=${REGISTRY_USER:-"${CI_REGISTRY_USER}"}
 registry_password=${REGISTRY_PASSWORD:-"${CI_REGISTRY_PASSWORD}"}
@@ -24,7 +27,7 @@ for tag in "${ADDR[@]}"; do
 done
 
 set -x
-docker build $tags_build --file $docker_file .
+docker build $tags_build $build_args --file $docker_file .
 set +x
 
 # Smoke-test the trimmed runtime images:
@@ -65,6 +68,23 @@ case "$docker_file" in
         exit 1
       fi
     done
+    ;;
+  Dockerfile.pg-upgrade)
+    # The upgrade image is only useful if it carries the target-major pg_upgrade, at least one
+    # older server bindir to point --old-bindir at, and a runnable entrypoint.
+    if [ "${#ADDR[@]}" -eq 0 ] || [ -z "${ADDR[0]:-}" ]; then
+      echo "ERROR: smoke test cannot run, TAGS is empty" >&2
+      exit 1
+    fi
+    smoke_image=$(printf '%s' "${ADDR[0]}" | tr '[:upper:]' '[:lower:]')
+    set -x
+    docker run --rm --entrypoint sh "$smoke_image" -c '
+      set -eu
+      test -x /usr/local/bin/pg_upgrade_clone.sh
+      test -x "/usr/lib/postgresql/${PG_MAJOR}/bin/pg_upgrade"
+      ls -d /usr/lib/postgresql/*/bin/pg_ctl | grep -qv "/${PG_MAJOR}/bin/"
+    '
+    set +x
     ;;
 esac
 

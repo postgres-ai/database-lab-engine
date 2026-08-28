@@ -7,6 +7,7 @@ import { getInstance } from 'api/instances/getInstance'
 import { getInstanceRetrieval } from 'api/instances/getInstanceRetrieval'
 import { getClone } from 'api/clones/getClone'
 import { resetClone } from 'api/clones/resetClone'
+import { upgradeClone } from 'api/clones/upgradeClone'
 import { destroyClone } from 'api/clones/destroyClone'
 import { updateClone } from 'api/clones/updateClone'
 import { createSnapshot } from 'api/snapshots/createSnapshot'
@@ -30,6 +31,7 @@ export const Clone = () => {
     getInstanceRetrieval,
     getClone,
     resetClone,
+    upgradeClone,
     destroyClone,
     destroySnapshot,
     updateClone,

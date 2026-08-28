@@ -60,6 +60,13 @@ type CloneCreated struct {
 	DSADiff     *float64 `json:"dsa_diff,omitempty"`
 }
 
+// CloneUpgraded describes the clone major upgrade event.
+type CloneUpgraded struct {
+	ID              string `json:"id"`
+	PreviousVersion string `json:"previous_version"`
+	NewVersion      string `json:"new_version"`
+}
+
 // CloneUpdated describes the clone updates.
 type CloneUpdated struct {
 	ID        string `json:"id"`

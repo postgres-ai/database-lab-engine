@@ -11,6 +11,14 @@ export const getTextFromUnknownApiError = async (error: Response) => {
   try {
     const result = await error.json()
     log(result)
+
+    // The engine answers with models.Error{code, message}. Showing the serialized object puts
+    // `{"code":"BAD_REQUEST","message":"..."}` in front of the user when the message alone is
+    // what they need; anything without a usable message still falls back to the raw body.
+    if (typeof result?.message === 'string' && result.message !== '') {
+      return result.message
+    }
+
     return JSON.stringify(result)
   } catch (e) {
     // not a json

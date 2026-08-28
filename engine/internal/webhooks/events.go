@@ -5,6 +5,8 @@ const (
 	CloneCreatedEvent = "clone_create"
 	// CloneResetEvent defines the clone reset event type.
 	CloneResetEvent = "clone_reset"
+	// CloneUpgradeEvent defines the clone major upgrade event type.
+	CloneUpgradeEvent = "clone_upgrade"
 	// CloneDeleteEvent defines the clone delete event type.
 	CloneDeleteEvent = "clone_delete"
 	// CloneProtectionExpiringEvent defines the clone protection expiring event type.

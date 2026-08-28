@@ -158,6 +158,13 @@ func (r *LocalRunner) Run(command string, options ...bool) (string, error) {
 	return outFormatted, nil
 }
 
+// Quote wraps a value in single quotes so it survives the shell that Run executes commands
+// with. Values that originate from a database (collations, locale names) or from user config
+// must reach the command as data, never as shell syntax.
+func Quote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
+}
+
 // utils.
 func parseOptions(options ...bool) bool {
 	logsEnabled := LogsEnabledDefault

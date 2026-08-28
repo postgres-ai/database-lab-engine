@@ -5,10 +5,12 @@
 package models
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClone_IsProtected(t *testing.T) {
@@ -106,4 +108,51 @@ func TestClone_ProtectionExpiresIn_EdgeCases(t *testing.T) {
 		result := clone.ProtectionExpiresIn()
 		assert.Equal(t, time.Duration(0), result)
 	})
+}
+
+func TestClone_UpgradeFieldsJSON(t *testing.T) {
+	const image = "postgresai/extended-postgres:17-0.6.2-glibc236"
+
+	tests := []struct {
+		name     string
+		clone    Clone
+		contains []string
+		omits    []string
+	}{
+		{name: "both fields set", clone: Clone{ID: "c1", DockerImage: image, DBVersion: "17"},
+			contains: []string{`"dockerImage":"` + image + `"`, `"dbVersion":"17"`}},
+		{name: "both fields empty are omitted", clone: Clone{ID: "c1"}, omits: []string{"dockerImage", "dbVersion"}},
+		{name: "image without version", clone: Clone{ID: "c1", DockerImage: image}, contains: []string{`"dockerImage":"` + image + `"`}, omits: []string{"dbVersion"}},
+		{name: "version without image", clone: Clone{ID: "c1", DBVersion: "9.6"}, contains: []string{`"dbVersion":"9.6"`}, omits: []string{"dockerImage"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.clone)
+			require.NoError(t, err)
+
+			for _, expected := range tt.contains {
+				assert.Contains(t, string(data), expected)
+			}
+
+			for _, unexpected := range tt.omits {
+				assert.NotContains(t, string(data), unexpected)
+			}
+
+			decoded := Clone{}
+			require.NoError(t, json.Unmarshal(data, &decoded))
+			assert.Equal(t, tt.clone.DockerImage, decoded.DockerImage)
+			assert.Equal(t, tt.clone.DBVersion, decoded.DBVersion)
+		})
+	}
+}
+
+func TestCloneView_UpgradeFieldsJSON(t *testing.T) {
+	clone := &Clone{ID: "c1", DockerImage: "img:17", DBVersion: "17"}
+
+	data, err := json.Marshal(CloneView{Clone: clone})
+	require.NoError(t, err)
+
+	assert.Contains(t, string(data), `"dockerImage":"img:17"`)
+	assert.Contains(t, string(data), `"dbVersion":"17"`)
 }

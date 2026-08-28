@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
@@ -542,4 +543,55 @@ func TestProvisionHosts(t *testing.T) {
 			assert.Equal(t, tt.expectedHosts, p.getProvisionHosts())
 		})
 	}
+}
+
+func TestResolveCloneImage(t *testing.T) {
+	const defaultImage = "postgresai/extended-postgres:16-0.8.0"
+
+	tests := []struct {
+		name       string
+		cloneImage string
+		expected   string
+	}{
+		{name: "no override keeps the engine image", cloneImage: "", expected: defaultImage},
+		{name: "override wins", cloneImage: "postgresai/extended-postgres:17-0.8.0", expected: "postgresai/extended-postgres:17-0.8.0"},
+		{name: "override equal to default", cloneImage: defaultImage, expected: defaultImage},
+		{name: "override with registry path", cloneImage: "registry.gitlab.com/postgres-ai/se-images/rds:17-0.8.0", expected: "registry.gitlab.com/postgres-ai/se-images/rds:17-0.8.0"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, resolveCloneImage(defaultImage, tt.cloneImage))
+		})
+	}
+}
+
+func TestConfigPgUpgradeImage(t *testing.T) {
+	tests := []struct {
+		name     string
+		yamlCfg  string
+		expected string
+	}{
+		{name: "configured", yamlCfg: "dockerImage: \"img:16\"\npgUpgradeImage: \"postgresai/pg-upgrade:17\"\n", expected: "postgresai/pg-upgrade:17"},
+		{name: "absent means feature unconfigured", yamlCfg: "dockerImage: \"img:16\"\n", expected: ""},
+		{name: "explicitly empty", yamlCfg: "dockerImage: \"img:16\"\npgUpgradeImage: \"\"\n", expected: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Config{}
+			require.NoError(t, yaml.Unmarshal([]byte(tt.yamlCfg), &cfg))
+			assert.Equal(t, tt.expected, cfg.PgUpgradeImage)
+			assert.Equal(t, "img:16", cfg.DockerImage)
+
+			p := &Provisioner{config: &cfg}
+			assert.Equal(t, tt.expected, p.PgUpgradeImage())
+		})
+	}
+}
+
+func TestConfigPgUpgradeImageIsNotRequired(t *testing.T) {
+	cfg := Config{PortPool: PortPool{From: 6000, To: 6100}}
+
+	require.NoError(t, IsValidConfig(cfg), "an unconfigured upgrade image must not block engine startup")
 }

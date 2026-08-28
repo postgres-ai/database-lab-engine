@@ -619,3 +619,124 @@ func TestClientResetCloneWithFailedRequest(t *testing.T) {
 	err = c.ResetClone(context.Background(), "testCloneID", types.ResetCloneRequest{Latest: true, SnapshotID: "test"})
 	assert.EqualError(t, err, `failed to get response: Check your verification token.`)
 }
+
+func TestClientUpgradeClone(t *testing.T) {
+	expectedClone := models.Clone{
+		ID:          "testCloneID",
+		DockerImage: "postgresai/extended-postgres:17-0.8.0",
+		DBVersion:   "17",
+		Status:      models.Status{Code: models.StatusOK, Message: "Clone has been upgraded to PostgreSQL 17."},
+	}
+
+	mockClient := NewTestClient(func(req *http.Request) *http.Response {
+		if req.Method == http.MethodPost {
+			assert.Equal(t, "https://example.com/clone/testCloneID/upgrade", req.URL.String())
+
+			body, err := io.ReadAll(req.Body)
+			require.NoError(t, err)
+			assert.Contains(t, string(body), `"targetVersion":17`)
+
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBuffer(nil)), Header: make(http.Header)}
+		}
+
+		assert.Equal(t, "https://example.com/clone/testCloneID", req.URL.String())
+
+		responseBody, err := json.Marshal(expectedClone)
+		require.NoError(t, err)
+
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBuffer(responseBody)), Header: make(http.Header)}
+	})
+
+	c, err := NewClient(Options{Host: "https://example.com/", VerificationToken: "token"})
+	require.NoError(t, err)
+
+	c.client = mockClient
+	c.pollingInterval = time.Millisecond
+
+	err = c.UpgradeClone(context.Background(), "testCloneID", types.CloneUpgradeRequest{TargetVersion: 17})
+	require.NoError(t, err)
+}
+
+func TestClientUpgradeCloneReportsWarning(t *testing.T) {
+	warned := models.Clone{
+		ID: "testCloneID",
+		Status: models.Status{
+			Code:    models.StatusWarning,
+			Message: "Upgrade was not applied. The clone is still running on PostgreSQL 16.",
+		},
+	}
+
+	mockClient := NewTestClient(func(req *http.Request) *http.Response {
+		if req.Method == http.MethodPost {
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBuffer(nil)), Header: make(http.Header)}
+		}
+
+		responseBody, err := json.Marshal(warned)
+		require.NoError(t, err)
+
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBuffer(responseBody)), Header: make(http.Header)}
+	})
+
+	c, err := NewClient(Options{Host: "https://example.com/", VerificationToken: "token"})
+	require.NoError(t, err)
+
+	c.client = mockClient
+	c.pollingInterval = time.Millisecond
+
+	err = c.UpgradeClone(context.Background(), "testCloneID", types.CloneUpgradeRequest{TargetVersion: 17})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "still running on PostgreSQL 16")
+}
+
+func TestClientUpgradeCloneAsync(t *testing.T) {
+	mockClient := NewTestClient(func(req *http.Request) *http.Response {
+		assert.Equal(t, http.MethodPost, req.Method)
+		assert.Equal(t, "https://example.com/clone/testCloneID/upgrade", req.URL.String())
+
+		body, err := io.ReadAll(req.Body)
+		require.NoError(t, err)
+		assert.Contains(t, string(body), `"dockerImage":"custom/pg:17"`)
+
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBuffer(nil)), Header: make(http.Header)}
+	})
+
+	c, err := NewClient(Options{Host: "https://example.com/", VerificationToken: "token"})
+	require.NoError(t, err)
+
+	c.client = mockClient
+
+	err = c.UpgradeCloneAsync(context.Background(), "testCloneID",
+		types.CloneUpgradeRequest{TargetVersion: 17, DockerImage: "custom/pg:17"})
+	require.NoError(t, err)
+}
+
+func TestClientUpgradeCloneHonoursContextDeadline(t *testing.T) {
+	// The clone never leaves UPGRADING, so only the caller's deadline can end the wait.
+	stuck := models.Clone{ID: "testCloneID", Status: models.Status{Code: models.StatusUpgrading}}
+
+	mockClient := NewTestClient(func(req *http.Request) *http.Response {
+		if req.Method == http.MethodPost {
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBuffer(nil)), Header: make(http.Header)}
+		}
+
+		responseBody, err := json.Marshal(stuck)
+		require.NoError(t, err)
+
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBuffer(responseBody)), Header: make(http.Header)}
+	})
+
+	c, err := NewClient(Options{Host: "https://example.com/", VerificationToken: "token"})
+	require.NoError(t, err)
+
+	c.client = mockClient
+	c.pollingInterval = time.Millisecond
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	err = c.UpgradeClone(ctx, "testCloneID", types.CloneUpgradeRequest{TargetVersion: 17})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "context deadline exceeded")
+}
