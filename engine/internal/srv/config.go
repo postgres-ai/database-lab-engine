@@ -21,6 +21,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/envvar"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/projection"
@@ -319,7 +320,16 @@ func connectionPassword(connection *models.ConnectionTest) error {
 	}
 
 	if proj.Password != nil {
-		connection.Password = *proj.Password
+		// the config is read raw, so the stored password may still be a
+		// placeholder. Resolve it the way the retrieval job will, or the source
+		// check authenticates with the literal "${...}" and reports a failure the
+		// running config does not have.
+		password, err := envvar.ExpandStrict(*proj.Password)
+		if err != nil {
+			return fmt.Errorf("failed to resolve source password: %w", err)
+		}
+
+		connection.Password = password
 	}
 
 	return nil
@@ -472,6 +482,10 @@ func (s *Server) applyProjectedAdminConfig(ctx context.Context, obj interface{})
 		return nil, err
 	}
 
+	if err := rejectNewPlaceholders(data, cfgData); err != nil {
+		return nil, err
+	}
+
 	if !bytes.Equal(cfgData, data) {
 		log.Msg("Config changed, validating...")
 
@@ -517,9 +531,16 @@ func (s *Server) validateConfig(
 ) error {
 	cfg := &config.Config{}
 
-	// yamlv2 is used because v3 returns an error when config is deserialized
-	err := yamlv2.Unmarshal(nodeBytes, cfg)
+	// validate what the engine will actually load: the bytes on their way to disk
+	// keep their placeholders, so they have to be resolved here or a typed field
+	// such as global.debug fails to decode. The expanded copy is never written.
+	expanded, err := config.ExpandDocument(nodeBytes)
 	if err != nil {
+		return err
+	}
+
+	// yamlv2 is used because v3 returns an error when config is deserialized
+	if err := yamlv2.Unmarshal(expanded, cfg); err != nil {
 		return err
 	}
 
@@ -552,6 +573,41 @@ func (s *Server) validateConfig(
 		if err != nil {
 			log.Err(err)
 		}
+	}
+
+	return nil
+}
+
+// rejectNewPlaceholders refuses a candidate config that references an
+// environment variable the file on disk references nowhere. A placeholder
+// resolves against the engine's process environment when the config is
+// loaded, so one written through the API would silently change what the
+// engine loads; placeholders are written by editing the file. Names, not
+// positions, are compared: a merge key or a projection write can legitimately
+// repeat a placeholder the file already holds under another path.
+func rejectNewPlaceholders(current, candidate []byte) error {
+	existing, err := config.References(current)
+	if err != nil {
+		return err
+	}
+
+	held := make(map[string]struct{}, len(existing))
+	for _, ref := range existing {
+		held[ref.Name] = struct{}{}
+	}
+
+	introduced, err := config.References(candidate)
+	if err != nil {
+		return err
+	}
+
+	for _, ref := range introduced {
+		if _, ok := held[ref.Name]; ok {
+			continue
+		}
+
+		return fmt.Errorf("%s: environment placeholders cannot be introduced through the API; "+
+			"edit the config file instead", ref.Path)
 	}
 
 	return nil

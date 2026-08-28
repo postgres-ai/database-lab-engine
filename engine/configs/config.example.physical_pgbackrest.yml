@@ -3,6 +3,14 @@
 # Since 4.2 the UI Configuration page's Expert tab can edit pgBackRest stanza + delta toggle
 # plus the envs map. Hand-editing this file remains supported; the Expert tab serializes back
 # into the same YAML schema.
+#
+# A value that is exactly ${VAR} or $VAR is replaced with that environment
+# variable when the config is read, and DBLab refuses to start when the variable
+# is unset. Anything else is a literal: a "$" inside a password, a regex, or a
+# SQL block needs no escaping and reaches its consumer untouched. Quoting decides
+# the resulting type - a quoted placeholder is always a string, while an unquoted
+# one can also stand in for a numeric or boolean setting (spell booleans "true"
+# and "false"; "yes" and "no" stay strings).
 server:
   verificationToken: "${DBLAB_VERIFICATION_TOKEN}" # Primary auth token; can be empty (not recommended); for multi-user mode, use DBLab EE
   port: 2345 # API server port; default: "2345"
