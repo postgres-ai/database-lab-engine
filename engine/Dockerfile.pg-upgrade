@@ -1,0 +1,72 @@
+# 2026 © Postgres.ai
+#
+# One-off image that performs an in-place PostgreSQL major upgrade of a DBLab clone.
+# It is never a long-running container: the engine starts it with `docker run --rm`, waits for
+# it to exit, and classifies the exit code (see scripts/pg_upgrade_clone.sh).
+#
+# The base is the extended-postgres image of the TARGET major, which gives us:
+#   - new-major server binaries under /usr/lib/postgresql/$PG_MAJOR/bin
+#   - the same extension set the upgraded clone will run, so pg_upgrade's loadable-library
+#     check resolves every .so the source database references
+#   - the PGDG apt repository and signing key, since extended-postgres installs PostgreSQL
+#     from apt.postgresql.org (PG_VERSION looks like "17.10-1.pgdg13+1")
+# On top of that we add the server packages of the preceding majors to supply --old-bindir.
+# They come from the same PGDG suite as the base, so old and new binaries share a Debian
+# release and a glibc build.
+#
+# Build (context is engine/):
+#   docker build --file Dockerfile.pg-upgrade \
+#     --build-arg BASE_IMAGE=postgresai/extended-postgres:17-0.8.0 \
+#     --tag postgresai/pg-upgrade:17-0.8.0 .
+
+ARG BASE_IMAGE=postgresai/extended-postgres:17
+
+FROM ${BASE_IMAGE}
+
+# OLD_MAJORS lists the source majors this image can upgrade from, space separated. When empty it
+# defaults to the four majors preceding the base image's own major, which is the range the engine
+# accepts. Widen it only together with the endpoint's validation.
+ARG OLD_MAJORS=""
+
+# PG_MAJOR comes from the base image, so the target major can never drift from the binaries.
+#
+# Three things in this step are not obvious:
+#   - extended-postgres pins the pgdg apt component to its own major, so pgdg.list has to be
+#     rewritten before the older server packages become visible at all;
+#   - postgresql-common would otherwise initdb a cluster per installed package and try to
+#     start it, which fails and bloats the image;
+#   - the server package carries the contrib modules since PostgreSQL 10, and --old-bindir only
+#     needs postgres/pg_ctl/pg_controldata/pg_resetwal (pg_dump always comes from --new-bindir),
+#     so there is no separate contrib package to install.
+RUN set -eux; \
+    : "${PG_MAJOR:?the base image must define PG_MAJOR}"; \
+    old_majors="${OLD_MAJORS}"; \
+    if [ -z "${old_majors}" ]; then \
+        first=$((PG_MAJOR - 4)); \
+        if [ "${first}" -lt 12 ]; then first=12; fi; \
+        old_majors="$(seq "${first}" "$((PG_MAJOR - 1))" | tr '\n' ' ')"; \
+    fi; \
+    echo "old majors: ${old_majors}"; \
+    suite="$(. /etc/os-release && echo "${VERSION_CODENAME}")"; \
+    echo "deb [ signed-by=/usr/local/share/keyrings/postgres.gpg.asc ] http://apt.postgresql.org/pub/repos/apt/ ${suite}-pgdg main ${PG_MAJOR} ${old_majors}" \
+        > /etc/apt/sources.list.d/pgdg.list; \
+    mkdir -p /etc/postgresql-common; \
+    echo "create_main_cluster = false" > /etc/postgresql-common/createcluster.conf; \
+    apt-get update; \
+    for major in ${old_majors}; do \
+        apt-get install -y --no-install-recommends "postgresql-${major}"; \
+    done; \
+    rm -rf /var/lib/apt/lists/*; \
+    for major in ${old_majors}; do \
+        test -x "/usr/lib/postgresql/${major}/bin/pg_ctl"; \
+    done; \
+    test -x "/usr/lib/postgresql/${PG_MAJOR}/bin/pg_upgrade"
+
+COPY scripts/pg_upgrade_clone.sh /usr/local/bin/pg_upgrade_clone.sh
+
+RUN chmod 0755 /usr/local/bin/pg_upgrade_clone.sh
+
+# The engine always passes --user (the uid owning the clone dataset) and --workdir; pg_upgrade
+# refuses to run as root, so an accidental plain `docker run` fails loudly instead of writing
+# root-owned files into a clone.
+ENTRYPOINT ["/usr/local/bin/pg_upgrade_clone.sh"]

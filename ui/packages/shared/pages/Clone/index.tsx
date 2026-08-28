@@ -29,6 +29,7 @@ import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { DestroyCloneRestrictionModal } from '@postgres.ai/shared/components/DestroyCloneRestrictionModal'
 import { DestroyCloneModal } from '@postgres.ai/shared/components/DestroyCloneModal'
 import { ResetCloneModal } from '@postgres.ai/shared/components/ResetCloneModal'
+import { UpgradeCloneModal } from '@postgres.ai/shared/components/UpgradeCloneModal'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { round } from '@postgres.ai/shared/utils/numbers'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
@@ -199,6 +200,7 @@ export const Clone = observer((props: Props) => {
   const [isOpenRestrictionModal, setIsOpenRestrictionModal] = useState(false)
   const [isOpenDestroyModal, setIsOpenDestroyModal] = useState(false)
   const [isOpenResetModal, setIsOpenResetModal] = useState(false)
+  const [isOpenUpgradeModal, setIsOpenUpgradeModal] = useState(false)
 
   // Initial loading data.
   useEffect(() => {
@@ -213,10 +215,12 @@ export const Clone = observer((props: Props) => {
     snapshots,
     clone,
     isResettingClone,
+    isUpgradingClone,
     isDestroyingClone,
     isReloading,
     isUpdatingClone,
     isCloneStable,
+    isUpgradeSupported,
   } = stores.main
 
   const headRendered = (
@@ -272,6 +276,12 @@ export const Clone = observer((props: Props) => {
   const requestResetClone = () => setIsOpenResetModal(true)
 
   const resetClone = (snapshotId: string) => stores.main.resetClone(snapshotId)
+
+  // Clone major upgrade.
+  const requestUpgradeClone = () => setIsOpenUpgradeModal(true)
+
+  const upgradeClone = (targetVersion: number, dockerImage?: string) =>
+    stores.main.upgradeClone(targetVersion, dockerImage)
 
   // Clone destroy.
   const requestDestroyClone = () => {
@@ -346,6 +356,7 @@ export const Clone = observer((props: Props) => {
   // Controls.
   const isDisabledControls =
     isResettingClone ||
+    isUpgradingClone ||
     isDestroyingClone ||
     isReloading ||
     isUpdatingClone ||
@@ -370,6 +381,21 @@ export const Clone = observer((props: Props) => {
                 <Spinner size="sm" className={classes.spinner} />
               )}
             </Button>
+            {isUpgradeSupported && (
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={requestUpgradeClone}
+                disabled={isDisabledControls}
+                title={'Upgrade clone to a newer PostgreSQL major version'}
+                className={classes.actionButton}
+              >
+                Upgrade clone
+                {isUpgradingClone && (
+                  <Spinner size="sm" className={classes.spinner} />
+                )}
+              </Button>
+            )}
             <Button
               variant="contained"
               color="primary"
@@ -416,6 +442,13 @@ export const Clone = observer((props: Props) => {
                 className={classes.errorStub}
               />
             ))}
+          {stores.main.upgradeCloneError && (
+            <ErrorStub
+              title={'Upgrade error'}
+              message={stores.main.upgradeCloneError}
+              className={classes.errorStub}
+            />
+          )}
           {!props.hideBranchingFeatures && <div>
             <p>
               <strong>Branch</strong>
@@ -454,6 +487,17 @@ export const Clone = observer((props: Props) => {
 
             <Status rawClone={clone} className={classes.status} />
           </div>
+          {clone.dbVersion && (
+            <>
+              <br />
+              <div>
+                <p>
+                  <strong>PostgreSQL version</strong>
+                </p>
+                <p className={classes.text}>{clone.dbVersion}</p>
+              </div>
+            </>
+          )}
           <br />
           <div>
             <p>
@@ -752,6 +796,15 @@ export const Clone = observer((props: Props) => {
             onResetClone={resetClone}
             version={instance.state?.engine.version}
           />
+
+          {isUpgradeSupported && (
+            <UpgradeCloneModal
+              isOpen={isOpenUpgradeModal}
+              onClose={() => setIsOpenUpgradeModal(false)}
+              clone={clone}
+              onUpgradeClone={upgradeClone}
+            />
+          )}
         </>
       </div>
     </>

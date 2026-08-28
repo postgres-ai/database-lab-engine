@@ -102,7 +102,19 @@ func (c *Base) filterRunningClones(ctx context.Context) {
 			snapshotCache[snapshot.ID] = struct{}{}
 		}
 
-		if !c.provision.IsCloneRunning(ctx, wrapper.Clone.ID) {
+		// A clone whose upgrade has not settled keeps its place in the registry even without a
+		// container. RecoverInterruptedUpgrades runs just before this and normally brings such a
+		// clone back up, but it can fail - an unreachable registry when the target image is not
+		// local is enough - and dropping the clone here would put it outside keepClones, so
+		// cleanupInvalidClones would destroy a dataset holding a finished or still-recoverable
+		// upgrade. The state on disk outlives any number of failed recovery attempts; the clone
+		// must outlive them too.
+		//
+		// Only the removal is skipped, never the clone-count bookkeeping below: the origin
+		// snapshot is what a reprovision falls back on, so it has to keep counting this clone.
+		pendingUpgrade := c.provision.HasPendingUpgrade(wrapper.Session, wrapper.Clone)
+
+		if !pendingUpgrade && !c.provision.IsCloneRunning(ctx, wrapper.Clone.ID) {
 			delete(c.clones, cloneID)
 		}
 

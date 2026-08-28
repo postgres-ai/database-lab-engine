@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
@@ -85,7 +87,7 @@ func newProvisioner() (*provision.Provisioner, error) {
 			From: 1,
 			To:   5,
 		},
-	}, nil, nil, nil, "instID", "nwID", "")
+	}, nil, nil, pool.NewPoolManager(&pool.Config{}, runners.NewLocalRunner(false)), "instID", "nwID", "")
 }
 
 func TestLoadingSessionState(t *testing.T) {

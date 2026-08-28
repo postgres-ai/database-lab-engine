@@ -65,6 +65,15 @@ type ResetCloneRequest struct {
 	Latest     bool   `json:"latest"`
 }
 
+// CloneUpgradeRequest represents params of a clone major upgrade request. TargetVersion is the
+// PostgreSQL major version to upgrade to and must be greater than the version the clone runs.
+// DockerImage pins the image the upgraded clone starts on; when empty, the engine substitutes
+// the major in the current image tag and keeps every other tag component.
+type CloneUpgradeRequest struct {
+	TargetVersion int    `json:"targetVersion"`
+	DockerImage   string `json:"dockerImage,omitempty"`
+}
+
 // SnapshotCreateRequest describes params for creating snapshot request.
 type SnapshotCreateRequest struct {
 	PoolName string `json:"poolName"`

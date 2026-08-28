@@ -219,46 +219,14 @@ func patchJSON[T any](ctx context.Context, c *Client, path string, payload any) 
 	return &result, nil
 }
 
-// ResetClone resets a Database Lab clone session.
-func (c *Client) ResetClone(ctx context.Context, cloneID string, params types.ResetCloneRequest) error {
-	u := c.URL(fmt.Sprintf("/clone/%s/reset", cloneID))
+// postCloneAction posts a JSON body to a clone sub-resource and discards the response. The engine
+// answers these actions with an empty 200 and reports progress through the clone status.
+func (c *Client) postCloneAction(ctx context.Context, cloneID, action string, params any) error {
+	u := c.URL(fmt.Sprintf("/clone/%s/%s", cloneID, action))
 
 	body := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(body).Encode(params); err != nil {
-		return errors.Wrap(err, "failed to encode ResetClone parameters to JSON")
-	}
-
-	request, err := http.NewRequest(http.MethodPost, u.String(), body)
-	if err != nil {
-		return errors.Wrap(err, "failed to make a request")
-	}
-
-	response, err := c.Do(ctx, request)
-	if err != nil {
-		return errors.Wrap(err, "failed to get response")
-	}
-
-	defer func() { _ = response.Body.Close() }()
-
-	clone, err := c.watchCloneStatus(ctx, cloneID, models.StatusResetting)
-	if err != nil {
-		return errors.Wrap(err, "failed to watch the clone status")
-	}
-
-	if clone.Status.Code == models.StatusOK {
-		return nil
-	}
-
-	return errors.Errorf("unexpected clone status given: %v", clone.Status)
-}
-
-// ResetCloneAsync asynchronously resets a Database Lab clone session.
-func (c *Client) ResetCloneAsync(ctx context.Context, cloneID string, params types.ResetCloneRequest) error {
-	u := c.URL(fmt.Sprintf("/clone/%s/reset", cloneID))
-
-	body := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(body).Encode(params); err != nil {
-		return errors.Wrap(err, "failed to encode ResetClone parameters to JSON")
+		return errors.Wrapf(err, "failed to encode %s parameters to JSON", action)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, u.String(), body)
@@ -274,6 +242,57 @@ func (c *Client) ResetCloneAsync(ctx context.Context, cloneID string, params typ
 	defer func() { _ = response.Body.Close() }()
 
 	return nil
+}
+
+// ResetClone resets a Database Lab clone session.
+func (c *Client) ResetClone(ctx context.Context, cloneID string, params types.ResetCloneRequest) error {
+	if err := c.ResetCloneAsync(ctx, cloneID, params); err != nil {
+		return err
+	}
+
+	clone, err := c.watchCloneStatus(ctx, cloneID, models.StatusResetting)
+	if err != nil {
+		return errors.Wrap(err, "failed to watch the clone status")
+	}
+
+	if clone.Status.Code == models.StatusOK {
+		return nil
+	}
+
+	return errors.Errorf("unexpected clone status given: %v", clone.Status)
+}
+
+// ResetCloneAsync asynchronously resets a Database Lab clone session.
+func (c *Client) ResetCloneAsync(ctx context.Context, cloneID string, params types.ResetCloneRequest) error {
+	return c.postCloneAction(ctx, cloneID, "reset", params)
+}
+
+// UpgradeClone starts a major upgrade of a clone and waits for it to finish.
+//
+// Pass a context with a deadline: watchCloneStatus only falls back to the client request timeout
+// when the caller has not set one, and an upgrade routinely outlives that default.
+func (c *Client) UpgradeClone(ctx context.Context, cloneID string, params types.CloneUpgradeRequest) error {
+	if err := c.UpgradeCloneAsync(ctx, cloneID, params); err != nil {
+		return err
+	}
+
+	clone, err := c.watchCloneStatus(ctx, cloneID, models.StatusUpgrading)
+	if err != nil {
+		return errors.Wrap(err, "failed to watch the clone status")
+	}
+
+	if clone.Status.Code == models.StatusOK {
+		return nil
+	}
+
+	// A warning means the clone is running but not on the requested version, which is a failed
+	// upgrade from the caller's point of view.
+	return errors.Errorf("clone has not been upgraded: %s", clone.Status.Message)
+}
+
+// UpgradeCloneAsync starts a major upgrade of a clone and returns without waiting.
+func (c *Client) UpgradeCloneAsync(ctx context.Context, cloneID string, params types.CloneUpgradeRequest) error {
+	return c.postCloneAction(ctx, cloneID, "upgrade", params)
 }
 
 // DestroyClone destroys a Database Lab clone.

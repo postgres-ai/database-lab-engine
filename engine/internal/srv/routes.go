@@ -572,6 +572,15 @@ func (s *Server) createSnapshotClone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Mid-upgrade the data directory is half-swapped and carries no valid pg_control, so a
+	// snapshot taken now would be permanently unusable. The check is on the upgrade state rather
+	// than the status: an upgrade that failed after the clone was stopped leaves the directory in
+	// exactly that shape while the clone reads WARNING, until the next engine start recovers it.
+	if s.Cloning.HasUnsettledUpgrade(createRequest.CloneID) {
+		api.SendBadRequestError(w, r, "clone is being upgraded")
+		return
+	}
+
 	fsm, err := s.pm.GetFSManager(clone.Snapshot.Pool)
 	if err != nil {
 		api.SendBadRequestError(w, r, fmt.Sprintf("failed to find filesystem manager: %s", err.Error()))

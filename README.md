@@ -120,11 +120,94 @@ Read more:
     - "Deletion protection" for clones, branches, and snapshots (blocks manual and auto-deletion, plus count-based retention for snapshots)
     - Persistent clones withstand DBLab restarts
     - "Reset" command for data version switching
+    - "Upgrade" command to move a single clone to a newer PostgreSQL major version in place
     - Resource quotas: CPU, RAM
 - Monitoring & security
     - `/healthz` API endpoint (no auth), extended `/status` endpoint ([API docs](https://api.dblab.dev))
     - Prometheus metrics endpoint (`/metrics`) for monitoring
     - Netdata module for insights
+
+## Clone major upgrade
+
+A single clone can be moved to a newer PostgreSQL major version without touching the rest of the
+instance, which makes it practical to test an upgrade against production-like data:
+
+```bash
+dblab clone upgrade --target-version 17 my-clone
+```
+
+The same action is available in the UI on the clone page and over the API as
+`POST /clone/{id}/upgrade`.
+
+The clone's Postgres is shut down cleanly, `pg_upgrade --link` converts its data directory in
+place, and the clone restarts on an image of the target major. Because `--link` hard-links the
+data files instead of copying them, the upgrade is fast and consumes almost no extra space. The
+request returns as soon as the clone enters the `UPGRADING` state; watch the clone status for the
+result.
+
+**Enabling it.** Set `provision.pgUpgradeImage` to an upgrade image matching the target major.
+When it is unset the feature is simply unavailable and the endpoint says so; nothing else about
+the instance changes.
+
+```yaml
+provision:
+  pgUpgradeImage: "postgresai/pg-upgrade:17"
+  pgUpgradeTimeout: 3h
+  pgUpgradePullTimeout: 1h
+```
+
+`pgUpgradeTimeout` bounds a single upgrade run; it defaults to three hours. When the budget runs
+out, the upgrade container is removed and the clone is put back on the version its data directory
+still holds, exactly as it would be after any other failure.
+
+`pgUpgradePullTimeout` bounds each of the two image pulls that precede it, and defaults to one
+hour. The upgrade image carries the target major plus the server packages of the four preceding
+ones, so the first upgrade on an instance downloads several gigabytes; pre-pulling both images
+makes the step a no-op. Both pulls happen while the clone is still serving traffic, so exceeding
+the budget leaves the clone untouched and running. The two budgets are separate on purpose — a
+slow pull must not eat into the time `pg_upgrade` gets once the clone is already stopped.
+
+An upgrade request may name an image explicitly instead of letting the engine substitute the major
+in the current tag. Set `provision.upgradeImageAllowList` to restrict which repositories such a
+request may name; when it is empty, as it is by default, any repository the instance can reach is
+accepted.
+
+```yaml
+provision:
+  upgradeImageAllowList:
+    - "postgresai/extended-postgres"
+```
+
+**How it can end.** Almost every outcome leaves the clone running:
+
+| Status | Meaning |
+|---|---|
+| `OK` | The clone runs the target version; `dbVersion` reports it. |
+| `WARNING` | The upgrade was not applied. Either nothing had been converted and the clone still runs its original version, or conversion had begun and the clone was rebuilt from its origin snapshot — in which case data written since the clone was created is lost. The message says which, and points at the `pg_upgrade` log under `<clone dir>/upgrade/logs/`. |
+| `WARNING`, clone not running | The upgrade settled on disk but the clone container did not come back up. The data directory is intact and the upgrade is still recorded as pending, so the next engine start finishes or undoes it and brings the clone back. |
+| `FATAL` | Recovery itself failed and there is nothing left to finish. Reset or delete the clone. |
+
+**Rolling back.** Resetting the clone returns it to the version the instance is configured with,
+because a reset re-provisions from the origin snapshot using the engine-wide image.
+
+**Things to know.**
+
+- The target must be newer than the clone's current major and at most four majors ahead — the
+  upgrade image carries binaries for the four preceding versions.
+- Only majors DBLab ships a default configuration for can be targeted (10–18 today).
+- The image tag keeps its extension bundle and glibc suffix; only the major changes
+  (`…:16-0.8.0-glibc236` → `…:17-0.8.0-glibc236`). Changing the glibc build across an upgrade
+  would change collation behaviour, and `pg_upgrade` does not reindex. Pass `--docker-image` to
+  override the choice.
+- `pg_upgrade` verifies that every extension in the source database has a matching library for
+  the new major. An extension outside the image's set fails this check, and the clone rolls back
+  untouched.
+- Clones using non-default tablespaces are refused: those live outside the clone dataset.
+- In physical mode the sync instance and the pool are untouched — the upgrade only ever acts on a
+  clone's own dataset. The instance-wide `dockerImage` must still match the source major.
+- **Iteration 1 limitation:** a snapshot created from an upgraded clone does not record its major
+  version, so clones created from that snapshot start on the instance-wide image and will fail to
+  start. Avoid snapshotting upgraded clones until snapshot-level version resolution lands.
 
 ## How to contribute
 ### Support us on GitHub/GitLab

@@ -84,7 +84,9 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 		strings.Join(volumes, " "),
 		fmt.Sprintf("--label %s='%s'", LabelClone, c.Pool.Name),
 		strings.Join(containerFlags, " "),
-		c.DockerImage,
+		// The image can come from a request (the clone upgrade override) and reaches this through
+		// a /bin/bash -c string, so it is passed as data rather than as shell syntax.
+		runners.Quote(c.DockerImage),
 	}, " ")
 
 	if _, err := r.Run(dockerRunCmd, true); err != nil {
@@ -98,6 +100,96 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 	}
 
 	return nil
+}
+
+// UpgradeContainerConfig describes a one-off pg_upgrade run against a clone data directory.
+type UpgradeContainerConfig struct {
+	Image string
+	Name  string
+	// User is the numeric "uid:gid" owning the clone data directory. pg_upgrade refuses to run
+	// as root and has to write every file it links, so the value is resolved from the directory
+	// itself instead of assumed from the engine process or the image.
+	User string
+	// Env holds already formatted "NAME=value" pairs for the upgrade script.
+	Env []string
+}
+
+// RunUpgradeContainer runs the upgrade image against a clone data directory and waits for it to
+// exit, returning the container exit code so the caller can map it to a recovery action. An exit
+// code is a normal outcome here, not an error: only a failure to run the container at all is.
+//
+// The container is detached and waited on through ctx, which is what bounds a pg_upgrade that
+// never finishes. It is removed before this returns whatever ended the wait, because the caller
+// decides what to do next by reading the directory the container writes into, and because a
+// container left behind would take the name the next attempt needs.
+//
+// Volumes are derived exactly like clone containers derive them, so a Database Lab instance that
+// itself runs inside Docker mounts the pool through its own mounts rather than a host path.
+func RunUpgradeContainer(ctx context.Context, dockerClient *client.Client, r runners.Runner,
+	c *resources.AppConfig, cfg UpgradeContainerConfig) (int, error) {
+	hostInfo, err := host.Info()
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to get host info")
+	}
+
+	_, volumes := createDefaultVolumes(c)
+
+	if hostInfo.VirtualizationRole == "guest" {
+		volumes, err = getMountVolumes(r, c, hostInfo.Hostname)
+		if err != nil {
+			return 0, errors.Wrap(err, "failed to detect container volumes")
+		}
+	}
+
+	envFlags := make([]string, 0, len(cfg.Env)+1)
+	for _, envPair := range append(cfg.Env, "HOME="+c.CloneDir()) {
+		envFlags = append(envFlags, "--env "+runners.Quote(envPair))
+	}
+
+	// pg_upgrade writes pg_upgrade_output.d and its temporary sockets into the working
+	// directory, which would otherwise be the image's "/".
+	dockerRunCmd := strings.Join([]string{
+		"docker run",
+		"--detach",
+		"--name", cfg.Name,
+		"--user", cfg.User,
+		"--workdir", runners.Quote(c.CloneDir()),
+		strings.Join(envFlags, " "),
+		strings.Join(volumes, " "),
+		runners.Quote(cfg.Image),
+	}, " ")
+
+	if _, err := r.Run(dockerRunCmd, true); err != nil {
+		return 0, errors.Wrap(err, "failed to run the upgrade container")
+	}
+
+	defer func() {
+		if _, err := RemoveContainer(r, cfg.Name); err != nil {
+			log.Dbg("failed to remove the upgrade container:", err)
+		}
+	}()
+
+	return waitForUpgradeContainer(ctx, dockerClient, cfg.Name)
+}
+
+// waitForUpgradeContainer blocks until the upgrade container exits or ctx ends. The condition has
+// to be "not running" rather than "next exit": the container is started before the wait is
+// requested, and a short run that has already exited by then would never produce a next exit.
+func waitForUpgradeContainer(ctx context.Context, dockerClient *client.Client, name string) (int, error) {
+	waiting := dockerClient.ContainerWait(ctx, name, client.ContainerWaitOptions{
+		Condition: container.WaitConditionNotRunning,
+	})
+
+	select {
+	case result := <-waiting.Result:
+		return int(result.StatusCode), nil
+
+	case err := <-waiting.Error:
+		return 0, errors.Wrapf(err, "failed to wait for the upgrade container %s", name)
+
+	case <-ctx.Done():
+		return 0, errors.Wrapf(ctx.Err(), "the upgrade container %s did not finish in time", name)
+	}
 }
 
 func publishPorts(provisionHosts string, instancePort string) string {

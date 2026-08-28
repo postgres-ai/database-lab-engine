@@ -5,6 +5,7 @@ DLE_TEST_MOUNT_DIR="/var/lib/test/dblab_mount"
 DLE_TEST_POOL_NAME="test_dblab_pool"
 TMP_DATA_DIR="/tmp/dle_test"
 ZFS_FILE="$(pwd)/zfs_file"
+META_DIR="$HOME/.dblab/engine/meta"
 
 # Stop and remove test Docker containers
 sudo docker ps -aq --filter label="test_dblab_pool" | xargs --no-run-if-empty sudo docker rm -f \
@@ -51,3 +52,8 @@ dblab config remove test \
 # Clean up tmp source database
 sudo rm -rf ${TMP_DATA_DIR}/postgresql/* \
   || echo "Cleaning up tmp source directory finished with errors but it is OK to ignore them."
+
+# Clean up engine meta directory, which every test mounts into the container. A sessions.json or
+# pending.retrieval left by an earlier run is read back by the engine on start.
+sudo rm -rf "${META_DIR}"/* \
+  || echo "Cleaning up meta directory finished with errors but it is OK to ignore them."

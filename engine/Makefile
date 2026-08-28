@@ -81,7 +81,10 @@ test-coverage: ## Run unit tests with coverage report
 	@go tool cover -func=coverage.out
 
 test-ci-integration: ## Run integration tests
-	GO111MODULE=on go test -race  -tags=integration ./...
+	# -v so that a skipped test is visible in the job trace. Without it a suite that skipped itself
+	# entirely - an unreachable image, a daemon that does not share the filesystem - is
+	# indistinguishable from one that ran and passed.
+	GO111MODULE=on go test -race -v -tags=integration ./...
 
 fmt: ## Format code
 	go fmt $$(go list ./... | grep -v /vendor/)

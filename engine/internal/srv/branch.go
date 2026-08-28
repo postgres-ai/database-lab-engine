@@ -403,6 +403,16 @@ func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Mid-upgrade the data directory is half-swapped and carries no valid pg_control, so a
+	// snapshot taken now would be permanently unusable - and, as the branch head, would hand that
+	// state to every clone created from it afterwards. The check is on the upgrade state rather
+	// than the status: an upgrade that failed after the clone was stopped leaves the directory in
+	// exactly that shape while the clone reads WARNING, until the next engine start recovers it.
+	if s.Cloning.HasUnsettledUpgrade(snapshotRequest.CloneID) {
+		api.SendBadRequestError(w, r, "clone is being upgraded")
+		return
+	}
+
 	fsm, err := s.pm.GetFSManager(clone.Snapshot.Pool)
 
 	if err != nil {

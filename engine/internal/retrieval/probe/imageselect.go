@@ -97,6 +97,32 @@ func parseImageTag(tag string) (imageTag, bool) {
 	return imageTag{raw: tag, major: major, extVersion: m[2], glibc: m[3]}, true
 }
 
+// SubstituteTagMajor rewrites the major of a release tag and keeps every other component, so
+// "16-0.8.0-glibc236" with major 17 becomes "17-0.8.0-glibc236". It reports false for anything
+// outside the strict release-tag grammar - dotted majors, pre-releases, branch-named CI tags -
+// because inventing a target tag from those produces an image reference that does not exist.
+//
+// Keeping the extension bundle and glibc suffix is the point: a different glibc build means
+// different collation behaviour, and pg_upgrade does not reindex.
+func SubstituteTagMajor(tag string, major int) (string, bool) {
+	parsed, ok := parseImageTag(tag)
+	if !ok || major <= 0 {
+		return "", false
+	}
+
+	substituted := strconv.Itoa(major)
+
+	if parsed.extVersion != "" {
+		substituted += "-" + parsed.extVersion
+	}
+
+	if parsed.glibc != "" {
+		substituted += "-glibc" + parsed.glibc
+	}
+
+	return substituted, true
+}
+
 // selectImageTag picks the best tag for major from tags. When glibcSuffix is set
 // only tags carrying the matching glibc suffix are considered; otherwise only
 // non-glibc tags are considered. Among candidates the newest extVersion wins; a

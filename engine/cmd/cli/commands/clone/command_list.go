@@ -13,13 +13,16 @@ import (
 const (
 	cloneResetLatestFlag     = "latest"
 	cloneResetSnapshotIDFlag = "snapshot-id"
+
+	cloneUpgradeTargetVersionFlag = "target-version"
+	cloneUpgradeDockerImageFlag   = "docker-image"
 )
 
 // CommandList returns available commands for a clones management.
 func CommandList() []*cli.Command {
 	return []*cli.Command{{
 		Name:  "clone",
-		Usage: "create, update, delete, reset, or retrieve clone",
+		Usage: "create, update, delete, reset, upgrade, or retrieve clone",
 		Subcommands: []*cli.Command{
 			{
 				Name:   "list",
@@ -117,6 +120,30 @@ func CommandList() []*cli.Command {
 					&cli.StringFlag{
 						Name:  cloneResetSnapshotIDFlag,
 						Usage: "snapshot ID used when resetting clone's state",
+					},
+				},
+			},
+			{
+				Name:      "upgrade",
+				Usage:     "upgrade clone to a newer PostgreSQL major version",
+				ArgsUsage: "CLONE_ID",
+				Before:    checkCloneIDBefore,
+				Action:    upgrade,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:    "async",
+						Usage:   "run the command asynchronously",
+						Aliases: []string{"a"},
+					},
+					&cli.IntFlag{
+						Name:     cloneUpgradeTargetVersionFlag,
+						Usage:    "PostgreSQL major version to upgrade to",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name: cloneUpgradeDockerImageFlag,
+						Usage: "image the upgraded clone runs; by default the major is substituted " +
+							"in the clone's current image tag, keeping every other tag component",
 					},
 				},
 			},

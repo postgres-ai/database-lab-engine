@@ -16,9 +16,21 @@ export type CloneDto = {
   id: string
   branch: string
   status: {
-    code: 'OK' | 'CREATING' | 'DELETING' | 'RESETTING' | 'FATAL'
+    code:
+      | 'OK'
+      | 'CREATING'
+      | 'DELETING'
+      | 'RESETTING'
+      | 'UPGRADING'
+      | 'WARNING'
+      | 'FATAL'
     message: string
   }
+  // Set once a clone has been upgraded to another major version; empty means the clone runs
+  // the engine-wide image.
+  dockerImage?: string
+  // PostgreSQL major version the clone is currently running.
+  dbVersion?: string
   protected: boolean
   protectedTill?: string
   metadata: {

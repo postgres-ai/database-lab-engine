@@ -154,3 +154,33 @@ func TestProviderRepo(t *testing.T) {
 		})
 	}
 }
+
+func TestSubstituteTagMajor(t *testing.T) {
+	tests := []struct {
+		name     string
+		tag      string
+		major    int
+		expected string
+		ok       bool
+	}{
+		{name: "bare major", tag: "16", major: 17, expected: "17", ok: true},
+		{name: "extension bundle", tag: "16-0.8.0", major: 17, expected: "17-0.8.0", ok: true},
+		{name: "bundle and glibc are preserved", tag: "16-0.8.0-glibc236", major: 18, expected: "18-0.8.0-glibc236", ok: true},
+		{name: "glibc only", tag: "16-glibc241", major: 17, expected: "17-glibc241", ok: true},
+		{name: "pre-release is not a release tag", tag: "16beta4", major: 17, ok: false},
+		{name: "branch-named CI tag", tag: "16-nik-ci", major: 17, ok: false},
+		{name: "dotted major", tag: "14.2", major: 17, ok: false},
+		{name: "latest", tag: "latest", major: 17, ok: false},
+		{name: "empty", tag: "", major: 17, ok: false},
+		{name: "non-positive major", tag: "16", major: 0, ok: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := SubstituteTagMajor(tt.tag, tt.major)
+
+			assert.Equal(t, tt.ok, ok)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}

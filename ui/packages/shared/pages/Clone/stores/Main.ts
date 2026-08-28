@@ -10,6 +10,7 @@ import { makeAutoObservable } from 'mobx'
 import { GetInstance } from '@postgres.ai/shared/types/api/endpoints/getInstance'
 import { GetClone } from '@postgres.ai/shared/types/api/endpoints/getClone'
 import { ResetClone } from '@postgres.ai/shared/types/api/endpoints/resetClone'
+import { UpgradeClone } from '@postgres.ai/shared/types/api/endpoints/upgradeClone'
 import { DestroyClone } from '@postgres.ai/shared/types/api/endpoints/destroyClone'
 import { UpdateClone } from '@postgres.ai/shared/types/api/endpoints/updateClone'
 import {
@@ -27,6 +28,7 @@ export type Api = SnapshotsApi & {
   getInstance: GetInstance
   getClone: GetClone
   resetClone: ResetClone
+  upgradeClone?: UpgradeClone
   destroyClone: DestroyClone
   updateClone: UpdateClone
   initWS?: InitWS
@@ -49,6 +51,9 @@ export class MainStore {
   isResettingClone = false
   resetCloneError: string | null = null
 
+  isUpgradingClone = false
+  upgradeCloneError: string | null = null
+
   isDestroyingClone = false
   destroyCloneError: string | null = null
 
@@ -66,6 +71,12 @@ export class MainStore {
     this.api = api
 
     makeAutoObservable(this)
+  }
+
+  // The closed Platform app implements the same Api and may not provide the endpoint, so the
+  // action is hidden rather than broken when it is absent.
+  get isUpgradeSupported() {
+    return Boolean(this.api.upgradeClone)
   }
 
   get isCloneStable() {
@@ -164,6 +175,28 @@ export class MainStore {
     if (error) this.resetCloneError = await getTextFromUnknownApiError(error)
 
     this.isResettingClone = false
+
+    return Boolean(response)
+  }
+
+  upgradeClone = async (targetVersion: number, dockerImage?: string) => {
+    if (!this.instance || !this.clone || !this.api.upgradeClone) return false
+
+    this.isUpgradingClone = true
+    this.upgradeCloneError = null
+
+    const { response, error } = await this.api.upgradeClone({
+      instanceId: this.instance.id,
+      cloneId: this.clone.id,
+      targetVersion,
+      dockerImage,
+    })
+
+    if (response) await this.loadClone(this.instance.id, this.clone.id)
+
+    if (error) this.upgradeCloneError = await getTextFromUnknownApiError(error)
+
+    this.isUpgradingClone = false
 
     return Boolean(response)
   }

@@ -1369,6 +1369,72 @@ paths:
             text/plain:
               schema:
                 type: string
+  /clone/{id}/upgrade:
+    post:
+      tags:
+      - Clones
+      summary: Upgrade a clone to a newer PostgreSQL major version
+      description: "Upgrade the specified clone in place to a newer PostgreSQL major version.
+        The clone's Postgres is shut down, pg_upgrade converts the data directory in link mode,
+        and the clone restarts on an image of the target major. Data is not copied, so the
+        operation is fast and consumes almost no extra space. The request returns as soon as the
+        clone enters the UPGRADING state; watch the clone status for the result.
+        On success the status returns to OK and dbVersion reports the new major.
+        If the upgrade fails before any data is converted, the clone is restarted on its original
+        version and the status becomes WARNING with nothing lost. If it fails after conversion
+        began, the old cluster can no longer be trusted, so the clone is re-created from its
+        origin snapshot and the status becomes WARNING - data written since the clone was created
+        is lost in that case. If the clone container itself fails to come back up, the status also
+        becomes WARNING and the clone stops accepting connections, but its data directory is kept
+        and the next engine start finishes or undoes the upgrade. A single run is bounded by
+        provision.pgUpgradeTimeout, three hours by default.
+        Resetting the clone always returns it to the engine default version.
+        Requires provision.pgUpgradeImage to be configured on the instance."
+      operationId: upgradeClone
+      parameters:
+      - in: header
+        name: Verification-Token
+        schema:
+          type: string
+        required: true
+      - in: path
+        required: true
+        name: id
+        schema:
+          type: string
+        description: Clone ID
+      requestBody:
+        description: Upgrade object
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpgradeClone'
+      responses:
+        200:
+          description: Upgrade of the specified clone has started
+          content:
+            application/json:
+              example: OK
+        400:
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        404:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /observation/start:
     post:
       tags:
@@ -1778,6 +1844,12 @@ components:
           format: date-time
         status:
           $ref: '#/components/schemas/Status'
+        dockerImage:
+          type: string
+          description: Per-clone image override, set by a major upgrade and cleared by a reset. Empty means the clone runs the engine-wide image
+        dbVersion:
+          type: string
+          description: PostgreSQL major version the clone is currently running
         db:
           $ref: '#/components/schemas/Database'
         metadata:
@@ -1851,6 +1923,21 @@ components:
        'snapshotID' allows specifying the exact snapshot, while 'latest' allows using 
        the latest snapshot among all available snapshots. The latter method can be 
        helpful when the exact snapshot ID is not known."
+    UpgradeClone:
+      type: object
+      description: Object defining the PostgreSQL major version a clone is upgraded to
+      required:
+      - targetVersion
+      properties:
+        targetVersion:
+          type: integer
+          description: Target PostgreSQL major version. Must be greater than the clone's current major and at most 4 majors ahead of it
+          example: 17
+        dockerImage:
+          type: string
+          description: Image the upgraded clone runs. When omitted, the engine substitutes the major in the clone's current image tag and keeps every other tag component
+          example: postgresai/extended-postgres:17-0.8.0
+
     UpdateClone:
       type: object
       properties:
