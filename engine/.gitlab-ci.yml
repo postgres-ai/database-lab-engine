@@ -9,7 +9,7 @@ workflow:
 
 default:
   image:
-    name: golang:1.26.5
+    name: golang:1.26.7
     pull_policy: if-not-present
   interruptible: true  # All jobs can be cancelled by default
 
@@ -71,7 +71,7 @@ lint:
 build-binary-alpine:
   <<: *only_engine
   image:
-    name: golang:1.26.5-alpine
+    name: golang:1.26.7-alpine
     pull_policy: if-not-present
   stage: build-binary
   artifacts:
