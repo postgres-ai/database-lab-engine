@@ -4,7 +4,7 @@ FROM alpine:3.23@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a50
 
 # Install dependencies
 RUN apk upgrade --no-cache \
-  && apk add --no-cache docker-cli=29.1.3-r4 zfs lvm2 bash util-linux tzdata
+  && apk add --no-cache 'docker-cli~29' zfs lvm2 bash util-linux tzdata
 
 WORKDIR /home/dblab
 
