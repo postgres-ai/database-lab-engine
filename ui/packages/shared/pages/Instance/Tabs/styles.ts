@@ -1,8 +1,7 @@
-import { makeStyles } from '@material-ui/core'
-import { colors } from '@postgres.ai/shared/styles/colors'
+import { makeStyles, Theme } from '@material-ui/core'
 
 export const useTabsStyles = makeStyles(
-  {
+  (theme: Theme) => ({
     tabsRoot: {
       minHeight: 0,
       marginTop: '-8px',
@@ -24,7 +23,7 @@ export const useTabsStyles = makeStyles(
         height: '18px',
       },
       '& a': {
-        color: colors.black,
+        color: theme.palette.text.primary,
         textDecoration: 'none',
 
         '@media (max-width: 700px)': {
@@ -43,18 +42,19 @@ export const useTabsStyles = makeStyles(
       height: '3px',
     },
     tabRoot: {
+      color: theme.palette.text.primary,
       fontWeight: 400,
       minWidth: 0,
       minHeight: 0,
       width: '100%',
       padding: '6px 16px',
-      borderBottom: `3px solid ${colors.consoleStroke}`,
+      borderBottom: `3px solid ${theme.palette.divider}`,
       '& + $tabRoot': {
         marginLeft: '10px',
       },
       '&.Mui-disabled': {
         opacity: 1,
-        color: colors.pgaiDarkGray,
+        color: theme.palette.text.disabled,
       },
       '@media (max-width: 700px)': {
         width: 'max-content',
@@ -63,6 +63,6 @@ export const useTabsStyles = makeStyles(
     tabHidden: {
       display: 'none',
     },
-  },
+  }),
   { index: 1 },
 )
