@@ -21,7 +21,7 @@ const useStyles = makeStyles(
       position: 'relative',
       cursor: 'default',
       flex: `0 0 ${CELL_SIZE}px`,
-      background: '#f4f4f4',
+      background: 'rgba(128, 128, 128, 0.1)',
       height: `${CELL_SIZE}px`,
       display: 'flex',
       borderRadius: `${CELL_SIZE / 2}px`,
@@ -31,7 +31,7 @@ const useStyles = makeStyles(
       fontSize: '12px',
     },
     rootHasSnapshots: {
-      background: colors.secondary2.lightLight,
+      background: 'rgba(15, 135, 157, 0.32)',
       cursor: 'pointer',
     },
     rootCurrent: {
@@ -46,7 +46,7 @@ const useStyles = makeStyles(
       right: '-6px',
       position: 'absolute',
       fontSize: '8px',
-      backgroundColor: colors.white,
+      backgroundColor: 'inherit',
       border: `1px solid ${colors.secondary2.lightLight}`,
       borderRadius: '8px',
       height: '16px',
