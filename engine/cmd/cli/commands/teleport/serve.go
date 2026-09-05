@@ -167,6 +167,30 @@ func parseLabels(entries []string) (map[string]string, error) {
 	return labels, nil
 }
 
+// validateEnvironmentID rejects an environment ID that cannot produce a working
+// Teleport resource at all, and warns about the ones it can serve only in part.
+// Both cases would otherwise surface as a create failure repeated by every
+// reconcile tick, with the sidecar reporting itself as healthy.
+func validateEnvironmentID(envID string) error {
+	// The ID is rendered into the dblab_instance and environment labels of every
+	// resource the sidecar creates, so an ID that is not a safe YAML value fails
+	// every create, for clones and for the API app alike.
+	if _, err := sanitizeYAMLValue(envID, "environment-id"); err != nil {
+		return err
+	}
+
+	if _, err := sanitizeAppName(APIServiceName(envID)); err != nil {
+		log.Warn(fmt.Sprintf("clones are registered, but the DBLab API app is not: %v", err))
+	}
+
+	if safeEnvID := nameFragment(envID); safeEnvID != envID {
+		log.Warn(fmt.Sprintf("environment ID %q is mapped to %q in clone resource names; "+
+			"environment IDs of different instances must stay distinct after mapping", envID, safeEnvID))
+	}
+
+	return nil
+}
+
 func serveAction(c *cli.Context) error {
 	labels, err := parseLabels(c.StringSlice("label"))
 	if err != nil {
@@ -187,6 +211,10 @@ func serveAction(c *cli.Context) error {
 
 	if cfg.WebhookSecret == "" {
 		return fmt.Errorf("webhook secret must not be empty")
+	}
+
+	if err := validateEnvironmentID(cfg.EnvironmentID); err != nil {
+		return err
 	}
 
 	dbClient, err := newDblabClient(cfg)

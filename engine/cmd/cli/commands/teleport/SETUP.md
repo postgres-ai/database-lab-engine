@@ -284,6 +284,43 @@ dblab teleport serve \
   --label service=dblab
 ```
 
+## Resource names
+
+Clones are registered as `dblab-clone-<environment-id>-<clone-id>-<port>`, and
+the DBLab API app as `dblab-api-<environment-id>`.
+
+Teleport validates the two kinds of name differently:
+
+| Kind | Rule | Notes |
+|------|------|-------|
+| `db` | `^[a-zA-Z]([-a-zA-Z0-9]*[a-zA-Z0-9])?$` | No underscores or dots; upper case allowed |
+| `app` | Dot-separated labels of lowercase alphanumeric, `-`, `_`; each label ends alphanumeric and starts alphanumeric or with a single `_`; max 253 | Upper case rejected. Enforced by Teleport master; releases up to v18 do not validate app names, and the sidecar applies the rule regardless |
+
+Clone IDs are chosen by whoever creates the clone and routinely contain
+characters the `db` rule rejects, so the sidecar maps each of them to a hyphen:
+a clone named `my_clone` on port 6000 is registered as
+`dblab-clone-production-my-clone-6000`. The unmodified clone ID remains
+available as the `clone_id` label:
+
+```bash
+tsh db ls --format=json | jq -r '.[] | [.metadata.name, .metadata.labels.clone_id] | @tsv'
+```
+
+Names longer than 200 characters have the clone ID truncated and a short hash
+of the untruncated identifiers appended, before the port suffix.
+
+The same mapping applies to the environment ID in clone names, so environment
+IDs of different instances must stay distinct after it (`prod_1` and `prod.1`
+both become `prod-1`); the sidecar logs the mapped form at startup. App names
+keep the environment ID as given, because the `app` rule accepts `_` and `.`
+and renaming would orphan an app that is already registered — an environment ID
+containing upper case therefore registers clones but no API app, which the
+sidecar also warns about at startup.
+
+Characters outside `[a-zA-Z0-9._:/@-]` are still rejected: they are refused in
+the `clone_id` label rather than in the name, so a clone whose ID contains, for
+example, a space or a `+` is not registered.
+
 ## Resource labels
 
 Every Teleport `db` and `app` resource the sidecar creates carries a set of
@@ -302,7 +339,10 @@ supplied by the operator to match an existing Teleport taxonomy.
 
 > **Important:** Each DBLab instance must use a **unique** `--environment-id`.
 > It becomes the `dblab_instance` ownership label, and instances that share one
-> would reconcile each other's resources.
+> would reconcile each other's resources. It must also stay unique after the
+> mapping described in "Resource names": `prod_1` and `prod-1` keep distinct
+> ownership labels but produce the same clone resource names, so the two
+> instances overwrite each other's registrations on every reconcile tick.
 
 **Custom labels — `--label key=value` (repeatable):**
 
@@ -464,5 +504,8 @@ tsh proxy db --tunnel dblab-clone-production-<clone-id>-6000
 | "root certificate store not available" | Missing `ssl_ca_file` | Export Teleport DB CA with `tctl auth export --type=db-client` and set `ssl_ca_file` (see §5) |
 | SSL settings not applied to new clones | Snapshot created before SSL config was added | Trigger a data refresh to create a new snapshot with the updated `databaseConfigs` |
 | Webhook not received | Docker networking issue | Use `host.docker.internal` or bridge IP for webhook URL |
+| `tctl create failed: ERROR: invalid database name` | Clone or environment ID contains characters the `db` rule rejects (e.g. `my_clone`), and the sidecar predates name mapping | Upgrade the sidecar; such characters are now mapped to hyphens (see "Resource names") |
+| `invalid db resource: clone_id contains invalid characters` | Clone ID contains a character outside `[a-zA-Z0-9._:/@-]`, e.g. a space or `+` | Recreate the clone with an ID drawn from that set |
+| `app name ... does not match the Teleport format` (startup warning, then `failed to ensure api app` on every reconcile tick) | Environment ID contains upper case | Restart the sidecar with a lowercase `--environment-id` (clones are unaffected) |
 | "access to app denied" from sidecar | Bot identity generated before role was created/updated | Regenerate the bot identity after ensuring the role exists (see §1, §2) |
 | Permission denied on cert files | Wrong file ownership | `chown 999:999` on cert files |
