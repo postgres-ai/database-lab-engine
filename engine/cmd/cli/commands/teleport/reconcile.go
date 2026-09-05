@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"regexp"
 	"strconv"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi"
@@ -20,21 +21,37 @@ const hashSuffixLen = 8
 
 const maxNameLen = 200
 
-// CloneServiceName builds the Teleport DB resource name for a clone.
-// The port suffix is always preserved; if the full name would exceed
-// maxNameLen the cloneID portion is truncated in the middle.
+// invalidNameChars matches every character Teleport rejects in a resource name.
+var invalidNameChars = regexp.MustCompile(`[^-a-zA-Z0-9]`)
+
+// nameFragment maps characters Teleport rejects in a database resource name to
+// hyphens. Clone and environment IDs are user-chosen and commonly contain
+// underscores or dots, while a database name must be a DNS label so that it is
+// routable for `tsh db connect`. The unmodified clone ID stays available as the
+// clone_id label, and names stay unique because the port suffix is unique among
+// concurrent clones.
+func nameFragment(s string) string {
+	return invalidNameChars.ReplaceAllString(s, "-")
+}
+
+// CloneServiceName builds the Teleport DB resource name for a clone. Characters
+// Teleport rejects in a resource name are mapped to hyphens, so the name is
+// always accepted by tctl. The port suffix is always preserved; if the full name
+// would exceed maxNameLen the cloneID portion is truncated in the middle.
 func CloneServiceName(envID, cloneID string, port int) string {
 	portSuffix := fmt.Sprintf("-%d", port)
-	prefix := fmt.Sprintf("dblab-clone-%s-", envID)
-	full := prefix + cloneID + portSuffix
+	prefix := fmt.Sprintf("dblab-clone-%s-", nameFragment(envID))
+	body := nameFragment(cloneID)
+	full := prefix + body + portSuffix
 
 	if len(full) <= maxNameLen {
 		return full
 	}
 
-	// Truncate cloneID and append a short hash of the full name to prevent
-	// collisions between different cloneIDs that share the same prefix.
-	hash := shortHash(full)
+	// Truncate cloneID and append a short hash of the raw identifiers to prevent
+	// collisions between different cloneIDs that share the same prefix, including
+	// IDs that differ only in characters nameFragment maps to a hyphen.
+	hash := shortHash(fmt.Sprintf("dblab-clone-%s-%s%s", envID, cloneID, portSuffix))
 	hashPart := "-" + hash
 	available := maxNameLen - len(prefix) - len(hashPart) - len(portSuffix)
 
@@ -42,10 +59,17 @@ func CloneServiceName(envID, cloneID string, port int) string {
 		available = 1
 	}
 
-	return prefix + cloneID[:available] + hashPart + portSuffix
+	if available > len(body) {
+		available = len(body)
+	}
+
+	return prefix + body[:available] + hashPart + portSuffix
 }
 
 // APIServiceName builds the Teleport App resource name for the DBLab API.
+// Teleport accepts underscores and dots in an app name, so the environment ID
+// is used as given: mapping it would rename apps that are already registered,
+// and reconcile never removes an app it did not just create.
 func APIServiceName(envID string) string {
 	name := fmt.Sprintf("dblab-api-%s", envID)
 	if len(name) > maxNameLen {

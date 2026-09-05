@@ -27,6 +27,10 @@ func TestCloneServiceName(t *testing.T) {
 	// prefix(14) + available(172) + hashPart(9) + portSuffix(5) = 200
 	longWant := "dblab-clone-e-" + strings.Repeat("x", 172) + "-" + hash + "-1234"
 
+	punctClone := strings.Repeat("_", 300)
+	punctHash := shortHash("dblab-clone-e-" + punctClone + "-1234")
+	punctWant := "dblab-clone-e-" + strings.Repeat("-", 172) + "-" + punctHash + "-1234"
+
 	tests := []struct {
 		envID   string
 		cloneID string
@@ -35,16 +39,28 @@ func TestCloneServiceName(t *testing.T) {
 	}{
 		{"prod", "abc123", 5432, "dblab-clone-prod-abc123-5432"},
 		{"staging", "my-clone", 6000, "dblab-clone-staging-my-clone-6000"},
+		{"prod", "my_clone2", 6000, "dblab-clone-prod-my-clone2-6000"},
+		{"prod", "user.name:1", 5432, "dblab-clone-prod-user-name-1-5432"},
+		{"prod_main", "abc123", 5432, "dblab-clone-prod-main-abc123-5432"},
 		{"e", longClone, 1234, longWant},
+		{"e", punctClone, 1234, punctWant},
 	}
 
 	for _, tc := range tests {
 		name := CloneServiceName(tc.envID, tc.cloneID, tc.port)
 		assert.LessOrEqual(t, len(name), maxNameLen)
 		assert.Equal(t, tc.want, name)
+		assert.Regexp(t, teleportDBName, name)
 		assert.True(t, strings.HasSuffix(name, fmt.Sprintf("-%d", tc.port)),
 			"name %q must end with port suffix", name)
 	}
+}
+
+func TestCloneServiceName_TruncatedNamesStayDistinct(t *testing.T) {
+	underscores := CloneServiceName("e", strings.Repeat("a_", 150), 1234)
+	dots := CloneServiceName("e", strings.Repeat("a.", 150), 1234)
+
+	assert.NotEqual(t, underscores, dots)
 }
 
 func TestAPIServiceName(t *testing.T) {
@@ -59,6 +75,7 @@ func TestAPIServiceName(t *testing.T) {
 	}{
 		{"prod", "dblab-api-prod"},
 		{"staging", "dblab-api-staging"},
+		{"prod_main", "dblab-api-prod_main"},
 		{longEnv, longWant},
 	}
 
@@ -66,6 +83,7 @@ func TestAPIServiceName(t *testing.T) {
 		name := APIServiceName(tc.envID)
 		assert.LessOrEqual(t, len(name), maxNameLen)
 		assert.Equal(t, tc.want, name)
+		assert.Regexp(t, teleportAppName, name)
 	}
 }
 
@@ -239,6 +257,97 @@ func TestSanitizeYAMLValue(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := sanitizeYAMLValue(tc.value, "field")
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestSanitizeDBName(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{"valid alphanumeric", "dblab-clone-prod-abc123-6000", false},
+		{"valid single letter", "d", false},
+		{"valid upper case", "dblab-clone-Prod-abc123-6000", false},
+		{"empty string", "", true},
+		{"underscore", "dblab-clone-prod-my_clone-6000", true},
+		{"dot", "dblab-clone-prod-my.clone-6000", true},
+		{"leading digit", "1dblab-clone", true},
+		{"leading hyphen", "-dblab-clone", true},
+		{"trailing hyphen", "dblab-clone-", true},
+		{"space", "dblab clone", true},
+		{"newline injection", "valid\ninjected: true", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := sanitizeDBName(tc.value)
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestSanitizeAppName(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{"valid alphanumeric", "dblab-api-prod", false},
+		{"valid underscore", "dblab-api-prod_main", false},
+		{"valid dot", "dblab-api-prod.main", false},
+		{"valid leading underscore", "_dblab-api-prod", false},
+		{"empty string", "", true},
+		{"upper case", "dblab-api-Production", true},
+		{"trailing hyphen", "dblab-api-prod-", true},
+		{"trailing underscore", "dblab-api-prod_", true},
+		{"space", "dblab api", true},
+		{"too long", strings.Repeat("a", maxAppNameLen+1), true},
+		{"empty label between dots", "dblab-api-a..b", true},
+		{"label starting with hyphen", "dblab-api-a.-b", true},
+		{"label ending with hyphen", "dblab-api-a-.b", true},
+		{"label ending with underscore", "dblab-api-a_.b", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := sanitizeAppName(tc.value)
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateEnvironmentID(t *testing.T) {
+	tests := []struct {
+		name    string
+		envID   string
+		wantErr bool
+	}{
+		{"plain", "production", false},
+		{"underscore", "prod_main", false},
+		{"upper case keeps clones working", "Production", false},
+		{"empty", "", true},
+		{"space breaks every label", "prod main", true},
+		{"plus breaks every label", "prod+main", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateEnvironmentID(tc.envID)
 			if tc.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -425,6 +534,15 @@ func TestBuildDBYAML(t *testing.T) {
 		assert.Less(t, strings.Index(s, `dblab:`), strings.Index(s, `dblab_instance:`))
 		assert.Less(t, strings.Index(s, `dblab_instance:`), strings.Index(s, `environment:`))
 		assert.Less(t, strings.Index(s, `environment:`), strings.Index(s, `service:`))
+	})
+
+	t.Run("clone id with underscore", func(t *testing.T) {
+		res := dbResource{Name: CloneServiceName("prod", "my_clone", 6000), Port: 6000, EnvID: "prod", CloneID: "my_clone"}
+		yaml, err := buildDBYAML(res, nil)
+		require.NoError(t, err)
+		s := string(yaml)
+		assert.Contains(t, s, `name: "dblab-clone-prod-my-clone-6000"`)
+		assert.Contains(t, s, `clone_id: "my_clone"`)
 	})
 
 	t.Run("invalid name", func(t *testing.T) {

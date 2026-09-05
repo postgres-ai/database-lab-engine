@@ -46,6 +46,25 @@ var safeYAMLValue = regexp.MustCompile(`^[a-zA-Z0-9._:/@\-]+$`)
 // safeLabelKey matches characters allowed in Teleport label keys.
 var safeLabelKey = regexp.MustCompile(`^[a-zA-Z0-9._/\-]+$`)
 
+// teleportDBName is the format Teleport enforces for database resource names.
+var teleportDBName = regexp.MustCompile(`^[a-zA-Z]([-a-zA-Z0-9]*[a-zA-Z0-9])?$`)
+
+// teleportAppLabel is one dot-separated label of a Teleport app resource name,
+// as defined by k8s.io/apimachinery IsDNS1123SubdomainWithUnderscore: lower-case
+// alphanumeric, hyphens and underscores, ending alphanumeric, with at most one
+// leading underscore.
+const teleportAppLabel = `_?[a-z0-9]([-_a-z0-9]*[a-z0-9])?`
+
+// teleportAppName is the format Teleport applies to app resource names in
+// ValidateApp as of the master branch (releases up to v18 do not validate the
+// name, so this guard is stricter than those servers). It is deliberately
+// different from teleportDBName, which rejects underscores and dots but admits
+// upper case.
+var teleportAppName = regexp.MustCompile(`^` + teleportAppLabel + `(\.` + teleportAppLabel + `)*$`)
+
+// maxAppNameLen is the length limit Teleport applies to app resource names.
+const maxAppNameLen = 253
+
 // sanitizeYAMLValue validates that a string is safe to embed in a YAML value.
 // It rejects values containing characters that could break YAML structure
 // (newlines, quotes, braces, etc.) to prevent YAML injection.
@@ -62,6 +81,39 @@ func sanitizeYAMLValue(value, fieldName string) (string, error) {
 	}
 
 	return value, nil
+}
+
+// sanitizeDBName validates that a string is a valid Teleport database resource
+// name. Names are produced by CloneServiceName, which maps characters Teleport
+// rejects to hyphens; this guard turns anything that slips past it into a
+// descriptive error instead of an opaque tctl failure.
+func sanitizeDBName(name string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("name must not be empty")
+	}
+
+	if !teleportDBName.MatchString(name) {
+		return "", fmt.Errorf("database name %q does not match the Teleport format %s", name, teleportDBName)
+	}
+
+	return name, nil
+}
+
+// sanitizeAppName validates that a string is a valid Teleport app resource name.
+func sanitizeAppName(name string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("name must not be empty")
+	}
+
+	if len(name) > maxAppNameLen {
+		return "", fmt.Errorf("app name %q is longer than %d characters", name, maxAppNameLen)
+	}
+
+	if !teleportAppName.MatchString(name) {
+		return "", fmt.Errorf("app name %q does not match the Teleport format %s", name, teleportAppName)
+	}
+
+	return name, nil
 }
 
 // sanitizeLabelKey validates that a string is a valid Teleport label key.
@@ -182,7 +234,7 @@ func createDB(ctx context.Context, cfg *Config, res dbResource) error {
 
 // buildDBYAML produces the Teleport DB resource YAML for a clone.
 func buildDBYAML(res dbResource, custom map[string]string) ([]byte, error) {
-	safeName, err := sanitizeYAMLValue(res.Name, "name")
+	safeName, err := sanitizeDBName(res.Name)
 	if err != nil {
 		return nil, fmt.Errorf("invalid db resource: %w", err)
 	}
@@ -208,7 +260,7 @@ metadata:
 }
 
 func removeDB(ctx context.Context, cfg *Config, name string) error {
-	if _, err := sanitizeYAMLValue(name, "name"); err != nil {
+	if _, err := sanitizeDBName(name); err != nil {
 		return fmt.Errorf("invalid db resource: %w", err)
 	}
 
@@ -228,7 +280,7 @@ func createApp(ctx context.Context, cfg *Config, name, uri, envID string) error 
 
 // buildAppYAML produces the Teleport app resource YAML for a DBLab UI app.
 func buildAppYAML(name, uri, envID string, custom map[string]string) ([]byte, error) {
-	safeName, err := sanitizeYAMLValue(name, "name")
+	safeName, err := sanitizeAppName(name)
 	if err != nil {
 		return nil, fmt.Errorf("invalid app resource: %w", err)
 	}
