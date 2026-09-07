@@ -8,9 +8,7 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 default:
-  image:
-    name: golang:1.26.7
-    pull_policy: if-not-present
+  image: golang:1.26.7
   interruptible: true  # All jobs can be cancelled by default
 
 stages:
@@ -76,9 +74,7 @@ lint:
 ### Build binary.
 build-binary-alpine:
   <<: *only_engine
-  image:
-    name: golang:1.26.7-alpine
-    pull_policy: if-not-present
+  image: golang:1.26.7-alpine
   stage: build-binary
   artifacts:
     paths:
@@ -185,9 +181,7 @@ build-binary-client-rc:
     - gsutil -m cp -r bin/cli/* gs://database-lab-cli/${CLEAN_TAG}/
 
 .job_template: &build_image_definition
-  image:
-    name: docker:24
-    pull_policy: if-not-present
+  image: docker:24
   stage: build
   artifacts:
     paths:
@@ -196,7 +190,6 @@ build-binary-client-rc:
     - name: docker:24-dind
       alias: docker
       command: [ "--tls=false" ]
-      pull_policy: if-not-present    
   script:
     - cd engine
     - apk update && apk upgrade && apk add --no-cache bash # TODO(anatoly): Remove dependency.
@@ -208,15 +201,12 @@ build-binary-client-rc:
 # contains no engine binary. The resulting tag mirrors the base tag (PG_UPGRADE_BASE_TAG), so
 # pinning the base to "17-0.8.0" produces pg-upgrade:17-0.8.0.
 .pg_upgrade_job_template: &build_pg_upgrade_image_definition
-  image:
-    name: docker:24
-    pull_policy: if-not-present
+  image: docker:24
   stage: build
   services:
     - name: docker:24-dind
       alias: docker
       command: [ "--tls=false" ]
-      pull_policy: if-not-present
   before_script:
     # Defaults to the moving major tag; set PG_UPGRADE_BASE_TAG on the job to pin a base such
     # as "17-0.8.0", which then also becomes the pg-upgrade tag.
@@ -698,7 +688,6 @@ integration-test:
     - name: docker:24-dind
       alias: docker
       command: [ "--tls=false" ]
-      pull_policy: if-not-present
   <<: *only_feature
   stage: integration-test
   retry:
@@ -728,3 +717,11 @@ integration-test:
   script:
     - cd engine
     - make test-ci-integration
+  tags:
+    # The suite reaches the daemon over unix:///var/run/docker.sock, which only the hetzner docker
+    # runners bind-mount - the dind service above is not reachable that way, and DOCKER_HOST stays
+    # commented out above for the filesystem-sharing reason already noted. Instance runners expose
+    # no such socket, so every test that starts a container fails there. Both tags are required so
+    # this lands on hetzner-gitlab-runner-01/02 and not on the dle-test shell runners.
+    - hetzner-runner
+    - docker

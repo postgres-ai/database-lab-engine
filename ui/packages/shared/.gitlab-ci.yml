@@ -11,7 +11,7 @@
 .shared_base: &shared_base
   image:
     name: node:lts-alpine
-    pull_policy: if-not-present
+    pull_policy: always
   allow_failure: true
   cache:
     key: "$CI_COMMIT_REF_SLUG"
