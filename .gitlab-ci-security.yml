@@ -25,9 +25,7 @@ stages:
 cve-govulncheck:
   <<: *security_rules
   stage: security
-  image:
-    name: golang:1.26.7
-    pull_policy: if-not-present
+  image: golang:1.26.7
   before_script:
     - go install golang.org/x/vuln/cmd/govulncheck@latest
   script:
@@ -50,9 +48,7 @@ cve-govulncheck:
 cve-pnpm-audit:
   <<: *security_rules
   stage: security
-  image:
-    name: node:20-alpine
-    pull_policy: if-not-present
+  image: node:20-alpine
   before_script:
     - apk add --no-cache git jq
     - npm install -g pnpm@9
@@ -80,7 +76,7 @@ cve-trivy-image:
   image:
     name: aquasec/trivy:latest
     entrypoint: [""]
-    pull_policy: if-not-present
+    pull_policy: always
   variables:
     # Latest build from the master branch. Override via schedule variable for ad-hoc scans.
     CVE_SCAN_IMAGE: "registry.gitlab.com/postgres-ai/database-lab/dblab-server:master"
@@ -125,9 +121,7 @@ cve-summary:
     - job: cve-trivy-image
       artifacts: true
       optional: true
-  image:
-    name: alpine:3.20
-    pull_policy: if-not-present
+  image: alpine:3.20
   before_script:
     - apk add --no-cache jq bash
   script:

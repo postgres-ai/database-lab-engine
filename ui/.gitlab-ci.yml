@@ -14,9 +14,7 @@ include:
         - ui/**/*
 
 .ui_cache: &ui_cache
-  image:
-    name: node:22-alpine
-    pull_policy: if-not-present
+  image: node:22-alpine
   cache: &cache
     key: "$CI_COMMIT_REF_SLUG"
     paths:
@@ -79,7 +77,7 @@ semgrep-sast:
   stage: test
   image:
     name: returntocorp/semgrep
-    pull_policy: if-not-present
+    pull_policy: always
   <<: *ui_checks
   variables:
     # See more at semgrep.dev/explore.
@@ -99,9 +97,7 @@ semgrep-sast:
 
 e2e-ce-ui-test:
   <<: *ui_checks
-  image:
-    name: node:22
-    pull_policy: if-not-present
+  image: node:22
   stage: integration-test
   variables:
     CYPRESS_CACHE_FOLDER: '$CI_PROJECT_DIR/cache/Cypress'

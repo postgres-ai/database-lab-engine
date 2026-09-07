@@ -18,7 +18,7 @@
 .ui_cache: &ui_cache
   image:
     name: node:lts-alpine
-    pull_policy: if-not-present
+    pull_policy: always
   cache:
     key: "$CI_COMMIT_REF_SLUG"
     paths:
@@ -28,15 +28,12 @@
 # Jobs templates.
 .build_definition: &build_definition
   <<: *ui_cache
-  image:
-    name: docker:24
-    pull_policy: if-not-present
+  image: docker:24
   stage: build
   services:
     - name: docker:24-dind
       alias: docker
       command: [ "--tls=false" ]
-      pull_policy: if-not-present
   script:
     - apk add --no-cache bash
     - bash ./ui/packages/ce/ci_docker_build_push.sh
