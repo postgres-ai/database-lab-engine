@@ -22,6 +22,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
 
@@ -38,8 +39,6 @@ type upgradeImageInput struct {
 	TargetVersion  int
 	// RequestedImage is the caller's explicit override; it wins when set.
 	RequestedImage string
-	// PgUpgradeImage is the configured upgrade image; empty means the feature is unconfigured.
-	PgUpgradeImage string
 	// AllowedRepositories restricts which repositories RequestedImage may name. An empty list
 	// allows any, which is what an instance pulling its images from wherever its administrator
 	// points it needs.
@@ -76,14 +75,27 @@ func (s *Server) upgradeClone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The target is a property of the instance, not of the request: the configured upgrade image
+	// is built on the target major's binaries, so asking for any other version could only be
+	// answered by failing.
+	targetVersion, err := s.provisioner.UpgradeTargetVersion()
+	if err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
+	if err := checkDefaultConfigDir(targetVersion); err != nil {
+		api.SendBadRequestError(w, r, err.Error())
+		return
+	}
+
 	// A clone that has never been upgraded carries no override, so the engine-wide image and
 	// version are what it actually runs.
 	targetImage, err := resolveUpgradeImage(upgradeImageInput{
 		CurrentImage:        firstNonEmpty(clone.DockerImage, s.provisioner.ContainerOptions().DockerImage),
 		CurrentVersion:      firstNonEmpty(clone.DBVersion, s.provisioner.DetectDBVersion()),
-		TargetVersion:       upgradeRequest.TargetVersion,
+		TargetVersion:       targetVersion,
 		RequestedImage:      upgradeRequest.DockerImage,
-		PgUpgradeImage:      s.provisioner.PgUpgradeImage(),
 		AllowedRepositories: s.provisioner.UpgradeImageAllowList(),
 	})
 	if err != nil {
@@ -91,20 +103,39 @@ func (s *Server) upgradeClone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := checkDefaultConfigDir(upgradeRequest.TargetVersion); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
-		return
-	}
-
 	if err := s.Cloning.UpgradeClone(cloneID, cloning.UpgradeRequest{
-		TargetVersion: upgradeRequest.TargetVersion,
+		TargetVersion: targetVersion,
 		TargetImage:   targetImage,
 	}); err != nil {
 		api.SendError(w, r, errors.Wrap(err, "failed to upgrade clone"))
 		return
 	}
 
-	log.Dbg(fmt.Sprintf("Clone ID=%s is being upgraded to PostgreSQL %d", cloneID, upgradeRequest.TargetVersion))
+	log.Dbg(fmt.Sprintf("Clone ID=%s is being upgraded to PostgreSQL %d", cloneID, targetVersion))
+
+	if err := api.WriteJSON(w, http.StatusOK, models.CloneUpgradePlan{
+		TargetVersion: targetVersion,
+		DockerImage:   targetImage,
+	}); err != nil {
+		api.SendError(w, r, err)
+		return
+	}
+}
+
+// cloneUpgradeStatus reports what the upgrade endpoint would accept right now. Everything it
+// checks is instance-wide, so a client can both decide whether to offer the action and name the
+// version it lands on without asking for an upgrade first.
+func (s *Server) cloneUpgradeStatus() models.CloneUpgrade {
+	targetVersion, err := s.provisioner.UpgradeTargetVersion()
+	if err != nil {
+		return models.CloneUpgrade{Reason: err.Error()}
+	}
+
+	if err := checkDefaultConfigDir(targetVersion); err != nil {
+		return models.CloneUpgrade{Reason: err.Error()}
+	}
+
+	return models.CloneUpgrade{Available: true, TargetVersion: targetVersion}
 }
 
 // resolveUpgradeImage decides which image the upgraded clone runs. An explicit request wins;
@@ -112,12 +143,11 @@ func (s *Server) upgradeClone(w http.ResponseWriter, r *http.Request) {
 // build carry over unchanged. Changing the glibc build across an upgrade would change collation
 // behaviour, and pg_upgrade does not reindex.
 func resolveUpgradeImage(in upgradeImageInput) (string, error) {
-	if in.PgUpgradeImage == "" {
-		return "", errors.New("clone upgrade is not configured on this instance; set provision.pgUpgradeImage")
-	}
-
+	// Every caller resolves the target from the instance configuration, which cannot yield this.
+	// Checking anyway keeps the failure legible: without it a zero target is refused further down
+	// by a message blaming the clone's own tag for not being a release tag.
 	if in.TargetVersion <= 0 {
-		return "", errors.New("targetVersion must be a positive PostgreSQL major version")
+		return "", errors.New("the upgrade target must be a positive PostgreSQL major version")
 	}
 
 	if err := validateVersionJump(in.CurrentVersion, in.TargetVersion); err != nil {
@@ -125,7 +155,7 @@ func resolveUpgradeImage(in upgradeImageInput) (string, error) {
 	}
 
 	if in.RequestedImage != "" {
-		if err := validateRequestedImage(in.RequestedImage, in.AllowedRepositories); err != nil {
+		if err := validateRequestedImage(in.RequestedImage, in.TargetVersion, in.AllowedRepositories); err != nil {
 			return "", err
 		}
 
@@ -137,7 +167,7 @@ func resolveUpgradeImage(in upgradeImageInput) (string, error) {
 			"pass dockerImage explicitly")
 	}
 
-	repository, tag := splitImageTag(in.CurrentImage)
+	repository, tag := probe.SplitImageTag(in.CurrentImage)
 	if tag == "" {
 		return "", fmt.Errorf("cannot derive the target image from %q because it carries no tag; "+
 			"pass dockerImage explicitly", in.CurrentImage)
@@ -157,12 +187,20 @@ func resolveUpgradeImage(in upgradeImageInput) (string, error) {
 
 // validateRequestedImage checks an explicit image override before the engine pulls it and runs a
 // clone on it. The reference has to parse, which keeps anything that is not an image name out of
-// the command the provisioner builds around it, and it has to name an allowed repository whenever
-// the instance lists any.
-func validateRequestedImage(image string, allowedRepositories []string) error {
+// the command the provisioner builds around it; its major, when the tag states one, has to be the
+// major the cluster is being converted to; and it has to name an allowed repository whenever the
+// instance lists any.
+func validateRequestedImage(image string, targetVersion int, allowedRepositories []string) error {
 	parsed, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
 		return fmt.Errorf("dockerImage %q is not a valid image reference: %w", image, err)
+	}
+
+	// Booting a converted cluster on another major's binaries is exactly what the upgrade avoids
+	// doing. A tag outside the release grammar states no major and is taken on trust.
+	if major, ok := probe.MajorFromImage(image); ok && major != targetVersion {
+		return fmt.Errorf("dockerImage %q runs PostgreSQL %d, but this instance upgrades to %d",
+			image, major, targetVersion)
 	}
 
 	if len(allowedRepositories) == 0 {
@@ -227,18 +265,6 @@ func validateVersionJump(currentVersion string, targetVersion int) error {
 	}
 
 	return nil
-}
-
-// splitImageTag splits an image reference into repository and tag. The tag follows the last
-// colon, but only when that colon comes after the last slash: a registry host with a port
-// (registry:5000/repo) puts a colon in the repository part too.
-func splitImageTag(image string) (string, string) {
-	colon := strings.LastIndex(image, ":")
-	if colon < 0 || colon < strings.LastIndex(image, "/") {
-		return image, ""
-	}
-
-	return image[:colon], image[colon+1:]
 }
 
 // checkDefaultConfigDir makes sure the engine can configure the upgraded cluster. Without a

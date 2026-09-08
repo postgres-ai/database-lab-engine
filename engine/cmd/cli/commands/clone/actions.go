@@ -283,15 +283,9 @@ func reset(cliCtx *cli.Context) error {
 // when the caller sets no deadline of its own - which for an upgrade would be far too short.
 const upgradeWaitTimeout = 30 * time.Minute
 
-// buildUpgradeRequest maps the command flags onto the API request.
-func buildUpgradeRequest(cliCtx *cli.Context) types.CloneUpgradeRequest {
-	return types.CloneUpgradeRequest{
-		TargetVersion: cliCtx.Int(cloneUpgradeTargetVersionFlag),
-		DockerImage:   cliCtx.String(cloneUpgradeDockerImageFlag),
-	}
-}
-
-// upgrade runs a request to upgrade a clone to a newer PostgreSQL major version.
+// upgrade runs a request to upgrade a clone to a newer PostgreSQL major version. The version is
+// the instance's, not the caller's: it comes from the configured upgrade image and is reported
+// back in the plan the engine accepted.
 func upgrade(cliCtx *cli.Context) error {
 	dblabClient, err := commands.ClientByCLIContext(cliCtx)
 	if err != nil {
@@ -299,15 +293,16 @@ func upgrade(cliCtx *cli.Context) error {
 	}
 
 	cloneID := cliCtx.Args().First()
-	upgradeRequest := buildUpgradeRequest(cliCtx)
+	upgradeRequest := types.CloneUpgradeRequest{DockerImage: cliCtx.String(cloneUpgradeDockerImageFlag)}
 
 	if cliCtx.Bool("async") {
-		if err := dblabClient.UpgradeCloneAsync(cliCtx.Context, cloneID, upgradeRequest); err != nil {
+		plan, err := dblabClient.UpgradeCloneAsync(cliCtx.Context, cloneID, upgradeRequest)
+		if err != nil {
 			return err
 		}
 
-		_, err = fmt.Fprintf(cliCtx.App.Writer, "The clone is being upgraded to PostgreSQL %d: %s\n",
-			upgradeRequest.TargetVersion, cloneID)
+		_, err = fmt.Fprintf(cliCtx.App.Writer, "The clone is being upgraded%s: %s\n",
+			upgradeTargetSuffix(plan.TargetVersion), cloneID)
 
 		return err
 	}
@@ -317,14 +312,26 @@ func upgrade(cliCtx *cli.Context) error {
 
 	// A failed upgrade surfaces as an error carrying the clone status message, which already
 	// names the version the clone ended up on and where to find the pg_upgrade log.
-	if err := dblabClient.UpgradeClone(ctx, cloneID, upgradeRequest); err != nil {
+	plan, err := dblabClient.UpgradeClone(ctx, cloneID, upgradeRequest)
+	if err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprintf(cliCtx.App.Writer, "The clone has been upgraded to PostgreSQL %d: %s\n",
-		upgradeRequest.TargetVersion, cloneID)
+	_, err = fmt.Fprintf(cliCtx.App.Writer, "The clone has been upgraded%s: %s\n",
+		upgradeTargetSuffix(plan.TargetVersion), cloneID)
 
 	return err
+}
+
+// upgradeTargetSuffix names the target when the engine reported one. It may not have: the upgrade
+// is accepted the moment the engine answers, before the plan is read back, so a body that could
+// not be decoded costs the message its version and nothing else.
+func upgradeTargetSuffix(targetVersion int) string {
+	if targetVersion <= 0 {
+		return ""
+	}
+
+	return fmt.Sprintf(" to PostgreSQL %d", targetVersion)
 }
 
 // destroy runs a request to destroy clone.

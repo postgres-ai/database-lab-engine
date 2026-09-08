@@ -221,6 +221,7 @@ export const Clone = observer((props: Props) => {
     isUpdatingClone,
     isCloneStable,
     isUpgradeSupported,
+    upgradeTargetVersion,
   } = stores.main
 
   const headRendered = (
@@ -280,8 +281,8 @@ export const Clone = observer((props: Props) => {
   // Clone major upgrade.
   const requestUpgradeClone = () => setIsOpenUpgradeModal(true)
 
-  const upgradeClone = (targetVersion: number, dockerImage?: string) =>
-    stores.main.upgradeClone(targetVersion, dockerImage)
+  const upgradeClone = (dockerImage?: string) =>
+    stores.main.upgradeClone(dockerImage)
 
   // Clone destroy.
   const requestDestroyClone = () => {
@@ -797,11 +798,12 @@ export const Clone = observer((props: Props) => {
             version={instance.state?.engine.version}
           />
 
-          {isUpgradeSupported && (
+          {isUpgradeSupported && upgradeTargetVersion && (
             <UpgradeCloneModal
               isOpen={isOpenUpgradeModal}
               onClose={() => setIsOpenUpgradeModal(false)}
               clone={clone}
+              targetVersion={upgradeTargetVersion}
               onUpgradeClone={upgradeClone}
             />
           )}

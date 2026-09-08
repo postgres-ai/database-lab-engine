@@ -73,10 +73,19 @@ export class MainStore {
     makeAutoObservable(this)
   }
 
-  // The closed Platform app implements the same Api and may not provide the endpoint, so the
-  // action is hidden rather than broken when it is absent.
+  // The closed Platform app implements the same Api and may not provide the endpoint, and the
+  // engine only accepts an upgrade once one is configured, so the action is hidden rather than
+  // offered and then refused.
   get isUpgradeSupported() {
-    return Boolean(this.api.upgradeClone)
+    return Boolean(this.api.upgradeClone) && Boolean(this.upgradeTargetVersion)
+  }
+
+  // The major an upgrade lands on. It follows from the instance's upgrade image, so the UI reads
+  // it instead of asking for one.
+  get upgradeTargetVersion() {
+    const cloneUpgrade = this.instance?.state?.cloneUpgrade
+
+    return cloneUpgrade?.available ? cloneUpgrade.targetVersion : undefined
   }
 
   get isCloneStable() {
@@ -179,7 +188,7 @@ export class MainStore {
     return Boolean(response)
   }
 
-  upgradeClone = async (targetVersion: number, dockerImage?: string) => {
+  upgradeClone = async (dockerImage?: string) => {
     if (!this.instance || !this.clone || !this.api.upgradeClone) return false
 
     this.isUpgradingClone = true
@@ -188,7 +197,6 @@ export class MainStore {
     const { response, error } = await this.api.upgradeClone({
       instanceId: this.instance.id,
       cloneId: this.clone.id,
-      targetVersion,
       dockerImage,
     })
 

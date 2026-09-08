@@ -21,6 +21,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/probe"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
@@ -77,6 +78,10 @@ const (
 	// which is the one phase that cannot be retried cheaply. provision.pgUpgradePullTimeout raises
 	// it for instances on slow links or far from their registry.
 	defaultUpgradePullTimeout = time.Hour
+
+	// upgradeInspectTimeout bounds the image inspect that resolves a target major the tag does
+	// not state. It talks to the local daemon, so it is short: the caller is an HTTP handler.
+	upgradeInspectTimeout = 5 * time.Second
 
 	// logTailLines bounds the pg_upgrade log excerpt carried in a clone status message. It is
 	// deliberately separate from the container-log tail in the tools package: the two bound
@@ -247,6 +252,13 @@ func (p *Provisioner) UpgradeSession(
 		}
 	}
 
+	// A tag claims a major; the pulled image states one. They disagree only when the image was
+	// built or retagged wrongly, and without this check that shows up as initdb failing on a
+	// missing bindir - by which point the workspace is prepared and the clone is on its way down.
+	if err := p.verifyUpgradeImageMajor(req.TargetVersion); err != nil {
+		return abortedUpgradeFrom(state, err.Error()), nil
+	}
+
 	owner, err := dataDirOwner(p.runner, appConfig.DataDir())
 	if err != nil {
 		return abortedUpgradeFrom(state, err.Error()), nil
@@ -321,6 +333,123 @@ func (p *Provisioner) upgradePullTimeout() time.Duration {
 	}
 
 	return defaultUpgradePullTimeout
+}
+
+// UpgradeTargetVersion resolves the PostgreSQL major a clone upgrade on this instance produces.
+// It is not a caller's choice: the upgrade image is built on top of that major's binaries and
+// carries only the preceding majors' server packages, so one configured image means exactly one
+// target.
+//
+// A release tag states the major outright. Anything else - a digest pin, "latest", the
+// branch-named tags CI publishes - has to be read out of the image itself, which needs it locally;
+// ResolveUpgradeTarget fetches it in the background so that is a delay after startup rather than
+// a standing refusal.
+func (p *Provisioner) UpgradeTargetVersion() (int, error) {
+	image := p.config.PgUpgradeImage
+	if image == "" {
+		return 0, errors.New("clone upgrade is not configured on this instance; set provision.pgUpgradeImage")
+	}
+
+	if major, ok := probe.MajorFromImage(image); ok {
+		return major, nil
+	}
+
+	if major, ok := p.upgradeTarget.get(image); ok {
+		return major, nil
+	}
+
+	major, err := p.inspectUpgradeMajor(image)
+	if err != nil {
+		return 0, fmt.Errorf("cannot tell which PostgreSQL major %q upgrades to: its tag is not a release tag and the "+
+			"image could not be read (%w); it is being fetched, or point provision.pgUpgradeImage at a tagged release", image, err)
+	}
+
+	if major == 0 {
+		return 0, fmt.Errorf("cannot tell which PostgreSQL major %q upgrades to: its tag is not a release tag and the "+
+			"image declares no PG_MAJOR; point provision.pgUpgradeImage at a tagged release", image)
+	}
+
+	return major, nil
+}
+
+// ResolveUpgradeTarget makes the target resolvable for an upgrade image whose tag does not state a
+// major, by fetching the image and reading PG_MAJOR out of it. Only released images carry a bare
+// major in their tag - CI publishes branch-named ones - so without this the feature would sit
+// unavailable on most instances until an administrator pulled the image by hand. It also warms the
+// pull the first upgrade would otherwise pay for.
+//
+// It reports nothing back: an image that cannot be fetched leaves the upgrade unavailable, which
+// is what the status endpoint already says, and must not hold up engine startup.
+func (p *Provisioner) ResolveUpgradeTarget() {
+	image := p.config.PgUpgradeImage
+	if image == "" {
+		return
+	}
+
+	if _, ok := probe.MajorFromImage(image); ok {
+		return
+	}
+
+	if _, ok := p.upgradeTarget.get(image); ok {
+		return
+	}
+
+	if err := p.prepareUpgradeImage(image); err != nil {
+		log.Err(fmt.Sprintf("failed to fetch the upgrade image %q, clone upgrade stays unavailable: %s", image, err))
+		return
+	}
+
+	major, err := p.inspectUpgradeMajor(image)
+	if err != nil {
+		log.Err(fmt.Sprintf("failed to read the major of the upgrade image %q: %s", image, err))
+		return
+	}
+
+	if major == 0 {
+		log.Warn(fmt.Sprintf("upgrade image %q declares no PG_MAJOR, clone upgrade stays unavailable", image))
+		return
+	}
+
+	log.Msg(fmt.Sprintf("clone upgrade target resolved from %q: PostgreSQL %d", image, major))
+}
+
+// inspectUpgradeMajor reads the major out of the image itself and caches it under the image it
+// came from. This is the authoritative answer: a tag only claims a major, while PG_MAJOR comes
+// from the base image the upgrade binaries were built from. A zero major and no error means the
+// image is there and declares none.
+func (p *Provisioner) inspectUpgradeMajor(image string) (int, error) {
+	ctx, cancel := context.WithTimeout(p.ctx, upgradeInspectTimeout)
+	defer cancel()
+
+	major, err := docker.ImagePGMajor(ctx, p.dockerClient, image)
+	if err != nil {
+		return 0, err
+	}
+
+	if major > 0 {
+		p.upgradeTarget.set(image, major)
+	}
+
+	return major, nil
+}
+
+// verifyUpgradeImageMajor checks that the upgrade image really carries the binaries of the major
+// the request targets, now that it has been pulled. It re-reads the image rather than trusting
+// what was advertised, so a tag repointed at another build is caught here instead of by initdb
+// failing on a missing bindir - and the re-read refreshes what the status endpoint reports. An
+// image that declares no major of its own is left to pg_upgrade to reject.
+func (p *Provisioner) verifyUpgradeImageMajor(targetVersion int) error {
+	major, err := p.inspectUpgradeMajor(p.config.PgUpgradeImage)
+	if err != nil {
+		return fmt.Errorf("failed to check the upgrade image: %w", err)
+	}
+
+	if major == 0 || major == targetVersion {
+		return nil
+	}
+
+	return fmt.Errorf("upgrade image %q carries PostgreSQL %d, not %d; check provision.pgUpgradeImage",
+		p.config.PgUpgradeImage, major, targetVersion)
 }
 
 // prepareUpgradeImage makes sure an image is present locally, bounding the pull it may need.

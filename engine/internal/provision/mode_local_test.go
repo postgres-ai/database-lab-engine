@@ -583,9 +583,6 @@ func TestConfigPgUpgradeImage(t *testing.T) {
 			require.NoError(t, yaml.Unmarshal([]byte(tt.yamlCfg), &cfg))
 			assert.Equal(t, tt.expected, cfg.PgUpgradeImage)
 			assert.Equal(t, "img:16", cfg.DockerImage)
-
-			p := &Provisioner{config: &cfg}
-			assert.Equal(t, tt.expected, p.PgUpgradeImage())
 		})
 	}
 }

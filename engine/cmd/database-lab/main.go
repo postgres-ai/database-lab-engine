@@ -215,6 +215,11 @@ func main() {
 		return
 	}
 
+	// Resolving the clone upgrade target may have to fetch the upgrade image, which is several
+	// gigabytes. Startup does not wait for it: until it lands the status endpoint reports the
+	// upgrade as unavailable, which is what it would report anyway.
+	go provisioner.ResolveUpgradeTarget()
+
 	systemMetrics := billing.GetSystemMetrics(pm)
 
 	tm.SendEvent(ctx, telemetry.EngineStartedEvent, telemetry.EngineStarted{

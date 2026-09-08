@@ -90,6 +90,38 @@ type Provisioner struct {
 	networkID      string
 	instanceID     string
 	gateway        string
+
+	// upgradeTarget caches the major read out of the configured upgrade image itself. Only the
+	// image-inspect path fills it: reading the major out of a release tag costs nothing and needs
+	// no cache, while an inspect is a call to the daemon on every status poll.
+	upgradeTarget upgradeTargetCache
+}
+
+// upgradeTargetCache holds the major resolved for one upgrade image. The image is part of the
+// entry rather than assumed constant because Reload can repoint provision.pgUpgradeImage, and a
+// major resolved for the previous image must not be answered for the new one.
+type upgradeTargetCache struct {
+	mu    sync.Mutex
+	image string
+	major int
+}
+
+func (c *upgradeTargetCache) get(image string) (int, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.image != image || c.major <= 0 {
+		return 0, false
+	}
+
+	return c.major, true
+}
+
+func (c *upgradeTargetCache) set(image string, major int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.image, c.major = image, major
 }
 
 // New creates a new Provisioner instance.
@@ -149,10 +181,13 @@ func (p *Provisioner) Init() error {
 	return nil
 }
 
-// Reload reloads provision configuration.
+// Reload reloads provision configuration. A repointed pgUpgradeImage needs its target resolved
+// again, and the fetch that may involve must not block the reload.
 func (p *Provisioner) Reload(cfg Config, dbCfg resources.DB) {
 	*p.config = cfg
 	*p.dbCfg = dbCfg
+
+	go p.ResolveUpgradeTarget()
 }
 
 // ContainerOptions returns provisioner configuration for running containers.
@@ -747,12 +782,6 @@ func (p *Provisioner) getAppConfig(pool *resources.Pool, branch, name string, re
 	}
 
 	return appConfig
-}
-
-// PgUpgradeImage returns the image that runs pg_upgrade for the clone major upgrade action.
-// An empty value means the feature is not configured on this instance.
-func (p *Provisioner) PgUpgradeImage() string {
-	return p.config.PgUpgradeImage
 }
 
 // UpgradeImageAllowList returns the repositories an upgrade request may name explicitly. An empty

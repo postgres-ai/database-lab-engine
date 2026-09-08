@@ -17,6 +17,19 @@ type InstanceStatus struct {
 	Retrieving      Retrieving       `json:"retrieving"`
 	Provisioner     ContainerOptions `json:"provisioner"`
 	Synchronization *Sync            `json:"synchronization"`
+	CloneUpgrade    CloneUpgrade     `json:"cloneUpgrade"`
+}
+
+// CloneUpgrade describes the clone major upgrade action on this instance. The target is not a
+// caller's choice: it follows from the configured upgrade image, so clients read it here instead
+// of asking for one. Available folds in everything the upgrade endpoint checks before it accepts
+// a request, so a client that hides the action when it is false never offers one that would fail.
+type CloneUpgrade struct {
+	Available     bool `json:"available"`
+	TargetVersion int  `json:"targetVersion,omitempty"`
+	// Reason explains an unavailable upgrade to whoever can act on it - always an instance
+	// configuration matter, never a property of a particular clone.
+	Reason string `json:"reason,omitempty"`
 }
 
 // PoolEntry represents a pool entry.
