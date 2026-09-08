@@ -19,6 +19,12 @@ export type InstanceStateDto = {
     code: 'OK' | 'WARNING' | 'NO_RESPONSE'
     message: string
   }
+  // Absent on engines that do not report it, which is the same as an upgrade being unavailable.
+  cloneUpgrade?: {
+    available: boolean
+    targetVersion?: number
+    reason?: string
+  }
   // Fallback for capability with old API.
   clones?: CloneDto[]
   // Fallback for capability with old API.

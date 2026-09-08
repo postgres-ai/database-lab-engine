@@ -362,6 +362,51 @@ func PrepareImage(ctx context.Context, docker *client.Client, dockerImage string
 	return nil
 }
 
+// pgMajorEnv is the environment variable the PostgreSQL images carry their major version in.
+// The pg-upgrade image inherits it from its base image, so it names the major its pg_upgrade
+// binaries actually produce - which an image tag can only claim.
+const pgMajorEnv = "PG_MAJOR"
+
+// ImagePGMajor reports the PostgreSQL major an image carries binaries for, read from PG_MAJOR in
+// the image config. A zero major means the image is there but declares no such variable, which
+// leaves the caller with the tag as its only evidence; that is a different answer from an error,
+// which says nothing about the image at all.
+func ImagePGMajor(ctx context.Context, docker *client.Client, dockerImage string) (int, error) {
+	inspection, err := docker.ImageInspect(ctx, dockerImage)
+	if err != nil {
+		return 0, fmt.Errorf("failed to inspect image %q: %w", dockerImage, err)
+	}
+
+	if inspection.Config == nil {
+		return 0, nil
+	}
+
+	return pgMajorFromEnv(inspection.Config.Env), nil
+}
+
+// pgMajorFromEnv picks the PostgreSQL major out of an image's environment, or zero when there is
+// none to read. Docker keeps the entries in the order they were declared and a later assignment
+// shadows an earlier one, so the last one decides - including when it is the unparsable one,
+// because that is the value a container would see.
+func pgMajorFromEnv(env []string) int {
+	major := 0
+
+	for _, entry := range env {
+		value, found := strings.CutPrefix(entry, pgMajorEnv+"=")
+		if !found {
+			continue
+		}
+
+		major, _ = strconv.Atoi(strings.TrimSpace(value))
+	}
+
+	if major < 0 {
+		return 0
+	}
+
+	return major
+}
+
 // ImageExists checks existence of Docker image.
 func ImageExists(ctx context.Context, docker *client.Client, dockerImage string) (bool, error) {
 	filterArgs := make(client.Filters)

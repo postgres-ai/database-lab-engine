@@ -377,7 +377,10 @@ paths:
         and the next engine start finishes or undoes the upgrade. A single run is bounded by
         provision.pgUpgradeTimeout, three hours by default.
         Resetting the clone always returns it to the engine default version.
-        Requires provision.pgUpgradeImage to be configured on the instance."
+        The target major is not a request parameter: it follows from provision.pgUpgradeImage,
+        which is built on that major's binaries, and is reported by GET /status as
+        cloneUpgrade.targetVersion. Requires provision.pgUpgradeImage to be configured on the
+        instance."
       operationId: upgradeClone
       parameters:
         - in: header
@@ -393,7 +396,7 @@ paths:
           description: "Clone ID"
       requestBody:
         description: "Upgrade object"
-        required: true
+        required: false
         content:
           application/json:
             schema:
@@ -403,8 +406,8 @@ paths:
           description: Upgrade of the specified clone has started
           content:
             application/json:
-              example:
-                "OK"
+              schema:
+                $ref: '#/components/schemas/CloneUpgradePlan'
         400:
           description: "Bad request"
           content:
@@ -928,6 +931,8 @@ components:
           $ref: "#/components/schemas/Provisioner"
         synchronization:
           $ref: "#/components/schemas/Synchronization"
+        cloneUpgrade:
+          $ref: "#/components/schemas/CloneUpgrade"
 
     Status:
       type: "object"
@@ -1240,18 +1245,42 @@ components:
 
     UpgradeClone:
       type: "object"
-      description: "Object defining the PostgreSQL major version a clone is upgraded to"
-      required:
-        - targetVersion
+      description: "Object defining how a clone is upgraded. The target version is not part of it: it follows from provision.pgUpgradeImage and is reported by GET /status as cloneUpgrade.targetVersion"
+      properties:
+        dockerImage:
+          type: "string"
+          description: "Image the upgraded clone runs. When omitted, the engine substitutes the major in the clone's current image tag and keeps every other tag component, so the extension bundle and glibc build do not change. When its tag names a major, that major has to be the one the instance upgrades to"
+          example: "postgresai/extended-postgres:17-0.8.0"
+
+    CloneUpgradePlan:
+      type: "object"
+      description: "What an accepted upgrade request will do"
       properties:
         targetVersion:
           type: "integer"
-          description: "Target PostgreSQL major version. Must be greater than the clone's current major and at most 4 majors ahead of it"
+          description: "PostgreSQL major version the clone is being upgraded to"
           example: 17
         dockerImage:
           type: "string"
-          description: "Image the upgraded clone runs. When omitted, the engine substitutes the major in the clone's current image tag and keeps every other tag component, so the extension bundle and glibc build do not change"
+          description: "Image the upgraded clone runs"
           example: "postgresai/extended-postgres:17-0.8.0"
+
+    CloneUpgrade:
+      type: "object"
+      description: "The clone major upgrade action on this instance. Available folds in everything the upgrade endpoint checks before accepting a request, so a client that hides the action when it is false never offers one that would fail"
+      properties:
+        available:
+          type: "boolean"
+          description: "Whether a clone upgrade can be requested on this instance"
+          example: true
+        targetVersion:
+          type: "integer"
+          description: "PostgreSQL major version clones are upgraded to. Derived from provision.pgUpgradeImage; absent when the upgrade is unavailable"
+          example: 17
+        reason:
+          type: "string"
+          description: "Why the upgrade is unavailable. Always an instance configuration matter, never a property of a particular clone"
+          example: "clone upgrade is not configured on this instance; set provision.pgUpgradeImage"
 
     UpdateClone:
       type: "object"

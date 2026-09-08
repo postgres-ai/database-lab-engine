@@ -263,3 +263,28 @@ func TestSystemVolumes_BoundaryPaths(t *testing.T) {
 		assert.Equal(t, tc.expectedSystem, isSystemVolume(tc.path), "path: %s", tc.path)
 	}
 }
+
+func TestPgMajorFromEnv(t *testing.T) {
+	tests := []struct {
+		name     string
+		env      []string
+		expected int
+	}{
+		{name: "declared major", env: []string{"PATH=/usr/bin", "PG_MAJOR=17"}, expected: 17},
+		{name: "padded value", env: []string{"PG_MAJOR= 18 "}, expected: 18},
+		{name: "a later assignment shadows an earlier one", env: []string{"PG_MAJOR=16", "PG_MAJOR=17"}, expected: 17},
+		{name: "an unparsable later assignment shadows a good one", env: []string{"PG_MAJOR=17", "PG_MAJOR=17-custom"}},
+		{name: "no such variable", env: []string{"PATH=/usr/bin"}},
+		{name: "empty environment"},
+		{name: "prefix of another variable", env: []string{"PG_MAJOR_MIN=16"}},
+		{name: "not a number", env: []string{"PG_MAJOR=seventeen"}},
+		{name: "zero is not a major", env: []string{"PG_MAJOR=0"}},
+		{name: "negative is not a major", env: []string{"PG_MAJOR=-17"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, pgMajorFromEnv(tt.env))
+		})
+	}
+}

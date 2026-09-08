@@ -133,8 +133,13 @@ A single clone can be moved to a newer PostgreSQL major version without touching
 instance, which makes it practical to test an upgrade against production-like data:
 
 ```bash
-dblab clone upgrade --target-version 17 my-clone
+dblab clone upgrade my-clone
 ```
+
+The target version is not a parameter: it follows from the upgrade image the instance is
+configured with, which is built on that major's binaries. The engine reports it in
+`GET /status` as `cloneUpgrade.targetVersion`, the CLI prints it, and the UI shows it on the
+confirmation dialog.
 
 The same action is available in the UI on the clone page and over the API as
 `POST /clone/{id}/upgrade`.
@@ -145,9 +150,14 @@ data files instead of copying them, the upgrade is fast and consumes almost no e
 request returns as soon as the clone enters the `UPGRADING` state; watch the clone status for the
 result.
 
-**Enabling it.** Set `provision.pgUpgradeImage` to an upgrade image matching the target major.
-When it is unset the feature is simply unavailable and the endpoint says so; nothing else about
-the instance changes.
+**Enabling it.** Set `provision.pgUpgradeImage` to an upgrade image of the major you want clones
+upgraded to. That image is the single source of the target: the engine reads the major out of a
+release tag (`:17`, `:17-0.8.0`, `:17-0.8.0-glibc236`), and re-reads it from the image's own
+`PG_MAJOR` before every upgrade, so a tag repointed at another build is caught before any data
+moves. A tag outside that grammar — a digest pin, `latest`, a CI build — states no major, so the
+engine fetches the image in the background at startup and reads it from there; until that lands
+the upgrade reports itself unavailable. When `pgUpgradeImage` is unset the feature is simply
+unavailable and the endpoint says so; nothing else about the instance changes.
 
 ```yaml
 provision:
@@ -193,12 +203,13 @@ because a reset re-provisions from the origin snapshot using the engine-wide ima
 **Things to know.**
 
 - The target must be newer than the clone's current major and at most four majors ahead — the
-  upgrade image carries binaries for the four preceding versions.
+  upgrade image carries binaries for the four preceding versions. A clone outside that range is
+  refused; upgrading it means pointing `pgUpgradeImage` at a different major.
 - Only majors DBLab ships a default configuration for can be targeted (10–18 today).
 - The image tag keeps its extension bundle and glibc suffix; only the major changes
   (`…:16-0.8.0-glibc236` → `…:17-0.8.0-glibc236`). Changing the glibc build across an upgrade
   would change collation behaviour, and `pg_upgrade` does not reindex. Pass `--docker-image` to
-  override the choice.
+  override the choice; when its tag names a major, that major has to be the one being upgraded to.
 - `pg_upgrade` verifies that every extension in the source database has a matching library for
   the new major. An extension outside the image's set fails this check, and the clone rolls back
   untouched.

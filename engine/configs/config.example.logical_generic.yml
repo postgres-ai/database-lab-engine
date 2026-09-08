@@ -69,7 +69,7 @@ provision: # Defines how data is provisioned
   useSudo: false # Use sudo for ZFS/LVM and Docker commands if DBLab server running outside a container (not recommended)
   keepUserPasswords: false # Keep user passwords in clones; default: "false"
   cloneAccessAddresses: "127.0.0.1" # IP addresses that can be used to access clones; supports multiple IPs and IPv6; default: "127.0.0.1" (loop-back)
-  # pgUpgradeImage: "postgresai/pg-upgrade:17" # Image running pg_upgrade for "dblab clone upgrade"; must match the target major version.
+  # pgUpgradeImage: "postgresai/pg-upgrade:17" # Image running pg_upgrade for "dblab clone upgrade"; its major is the version clones are upgraded to.
   # pgUpgradeTimeout: 3h # How long a single "dblab clone upgrade" run may take before the clone is put back on its original version.
   # pgUpgradePullTimeout: 1h # How long a single image pull made for "dblab clone upgrade" may take; the clone keeps running while it happens.
   # upgradeImageAllowList: # Repositories an explicit "dblab clone upgrade --docker-image" may name. Empty (default) allows any.

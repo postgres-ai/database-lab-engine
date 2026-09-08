@@ -18,6 +18,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
@@ -222,26 +223,37 @@ func patchJSON[T any](ctx context.Context, c *Client, path string, payload any) 
 // postCloneAction posts a JSON body to a clone sub-resource and discards the response. The engine
 // answers these actions with an empty 200 and reports progress through the clone status.
 func (c *Client) postCloneAction(ctx context.Context, cloneID, action string, params any) error {
+	response, err := c.doCloneAction(ctx, cloneID, action, params)
+	if err != nil {
+		return err
+	}
+
+	_ = response.Body.Close()
+
+	return nil
+}
+
+// doCloneAction posts a JSON body to a clone sub-resource and hands the response to the caller,
+// which then owns its body. Actions that answer with one use it; postCloneAction covers the rest.
+func (c *Client) doCloneAction(ctx context.Context, cloneID, action string, params any) (*http.Response, error) {
 	u := c.URL(fmt.Sprintf("/clone/%s/%s", cloneID, action))
 
 	body := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(body).Encode(params); err != nil {
-		return errors.Wrapf(err, "failed to encode %s parameters to JSON", action)
+		return nil, errors.Wrapf(err, "failed to encode %s parameters to JSON", action)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, u.String(), body)
 	if err != nil {
-		return errors.Wrap(err, "failed to make a request")
+		return nil, errors.Wrap(err, "failed to make a request")
 	}
 
 	response, err := c.Do(ctx, request)
 	if err != nil {
-		return errors.Wrap(err, "failed to get response")
+		return nil, errors.Wrap(err, "failed to get response")
 	}
 
-	defer func() { _ = response.Body.Close() }()
-
-	return nil
+	return response, nil
 }
 
 // ResetClone resets a Database Lab clone session.
@@ -267,32 +279,52 @@ func (c *Client) ResetCloneAsync(ctx context.Context, cloneID string, params typ
 	return c.postCloneAction(ctx, cloneID, "reset", params)
 }
 
-// UpgradeClone starts a major upgrade of a clone and waits for it to finish.
+// UpgradeClone starts a major upgrade of a clone and waits for it to finish. It returns the plan
+// the engine accepted, which is what names the version the clone ends up on.
 //
 // Pass a context with a deadline: watchCloneStatus only falls back to the client request timeout
 // when the caller has not set one, and an upgrade routinely outlives that default.
-func (c *Client) UpgradeClone(ctx context.Context, cloneID string, params types.CloneUpgradeRequest) error {
-	if err := c.UpgradeCloneAsync(ctx, cloneID, params); err != nil {
-		return err
+func (c *Client) UpgradeClone(
+	ctx context.Context, cloneID string, params types.CloneUpgradeRequest) (models.CloneUpgradePlan, error) {
+	plan, err := c.UpgradeCloneAsync(ctx, cloneID, params)
+	if err != nil {
+		return plan, err
 	}
 
 	clone, err := c.watchCloneStatus(ctx, cloneID, models.StatusUpgrading)
 	if err != nil {
-		return errors.Wrap(err, "failed to watch the clone status")
+		return plan, errors.Wrap(err, "failed to watch the clone status")
 	}
 
 	if clone.Status.Code == models.StatusOK {
-		return nil
+		return plan, nil
 	}
 
-	// A warning means the clone is running but not on the requested version, which is a failed
+	// A warning means the clone is running but not on the target version, which is a failed
 	// upgrade from the caller's point of view.
-	return errors.Errorf("clone has not been upgraded: %s", clone.Status.Message)
+	return plan, errors.Errorf("clone has not been upgraded: %s", clone.Status.Message)
 }
 
-// UpgradeCloneAsync starts a major upgrade of a clone and returns without waiting.
-func (c *Client) UpgradeCloneAsync(ctx context.Context, cloneID string, params types.CloneUpgradeRequest) error {
-	return c.postCloneAction(ctx, cloneID, "upgrade", params)
+// UpgradeCloneAsync starts a major upgrade of a clone and returns without waiting. The engine
+// derives the target version and image, and reports both in the returned plan.
+func (c *Client) UpgradeCloneAsync(
+	ctx context.Context, cloneID string, params types.CloneUpgradeRequest) (models.CloneUpgradePlan, error) {
+	response, err := c.doCloneAction(ctx, cloneID, "upgrade", params)
+	if err != nil {
+		return models.CloneUpgradePlan{}, err
+	}
+
+	defer func() { _ = response.Body.Close() }()
+
+	var plan models.CloneUpgradePlan
+
+	// The upgrade was accepted the moment the engine answered 2xx, so a body that cannot be read
+	// costs the caller the version it would have printed, never the upgrade itself.
+	if err := json.NewDecoder(response.Body).Decode(&plan); err != nil {
+		log.Dbg(fmt.Sprintf("failed to decode the upgrade plan: %s", err))
+	}
+
+	return plan, nil
 }
 
 // DestroyClone destroys a Database Lab clone.

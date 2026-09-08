@@ -620,6 +620,10 @@ func TestClientResetCloneWithFailedRequest(t *testing.T) {
 	assert.EqualError(t, err, `failed to get response: Check your verification token.`)
 }
 
+// upgradePlanBody is what the engine answers an accepted upgrade with: the target it derived and
+// the image the clone will run.
+const upgradePlanBody = `{"targetVersion":17,"dockerImage":"postgresai/extended-postgres:17"}`
+
 func TestClientUpgradeClone(t *testing.T) {
 	expectedClone := models.Clone{
 		ID:          "testCloneID",
@@ -634,9 +638,9 @@ func TestClientUpgradeClone(t *testing.T) {
 
 			body, err := io.ReadAll(req.Body)
 			require.NoError(t, err)
-			assert.Contains(t, string(body), `"targetVersion":17`)
+			assert.NotContains(t, string(body), "targetVersion", "the target is the engine's to decide")
 
-			return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBuffer(nil)), Header: make(http.Header)}
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBufferString(upgradePlanBody)), Header: make(http.Header)}
 		}
 
 		assert.Equal(t, "https://example.com/clone/testCloneID", req.URL.String())
@@ -653,8 +657,10 @@ func TestClientUpgradeClone(t *testing.T) {
 	c.client = mockClient
 	c.pollingInterval = time.Millisecond
 
-	err = c.UpgradeClone(context.Background(), "testCloneID", types.CloneUpgradeRequest{TargetVersion: 17})
+	plan, err := c.UpgradeClone(context.Background(), "testCloneID", types.CloneUpgradeRequest{})
 	require.NoError(t, err)
+	assert.Equal(t, 17, plan.TargetVersion)
+	assert.Equal(t, "postgresai/extended-postgres:17", plan.DockerImage)
 }
 
 func TestClientUpgradeCloneReportsWarning(t *testing.T) {
@@ -668,7 +674,7 @@ func TestClientUpgradeCloneReportsWarning(t *testing.T) {
 
 	mockClient := NewTestClient(func(req *http.Request) *http.Response {
 		if req.Method == http.MethodPost {
-			return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBuffer(nil)), Header: make(http.Header)}
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBufferString(upgradePlanBody)), Header: make(http.Header)}
 		}
 
 		responseBody, err := json.Marshal(warned)
@@ -683,7 +689,7 @@ func TestClientUpgradeCloneReportsWarning(t *testing.T) {
 	c.client = mockClient
 	c.pollingInterval = time.Millisecond
 
-	err = c.UpgradeClone(context.Background(), "testCloneID", types.CloneUpgradeRequest{TargetVersion: 17})
+	_, err = c.UpgradeClone(context.Background(), "testCloneID", types.CloneUpgradeRequest{})
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "still running on PostgreSQL 16")
@@ -698,7 +704,7 @@ func TestClientUpgradeCloneAsync(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, string(body), `"dockerImage":"custom/pg:17"`)
 
-		return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBuffer(nil)), Header: make(http.Header)}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBufferString(upgradePlanBody)), Header: make(http.Header)}
 	})
 
 	c, err := NewClient(Options{Host: "https://example.com/", VerificationToken: "token"})
@@ -706,9 +712,10 @@ func TestClientUpgradeCloneAsync(t *testing.T) {
 
 	c.client = mockClient
 
-	err = c.UpgradeCloneAsync(context.Background(), "testCloneID",
-		types.CloneUpgradeRequest{TargetVersion: 17, DockerImage: "custom/pg:17"})
+	plan, err := c.UpgradeCloneAsync(context.Background(), "testCloneID",
+		types.CloneUpgradeRequest{DockerImage: "custom/pg:17"})
 	require.NoError(t, err)
+	assert.Equal(t, 17, plan.TargetVersion)
 }
 
 func TestClientUpgradeCloneHonoursContextDeadline(t *testing.T) {
@@ -717,7 +724,7 @@ func TestClientUpgradeCloneHonoursContextDeadline(t *testing.T) {
 
 	mockClient := NewTestClient(func(req *http.Request) *http.Response {
 		if req.Method == http.MethodPost {
-			return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBuffer(nil)), Header: make(http.Header)}
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewBufferString(upgradePlanBody)), Header: make(http.Header)}
 		}
 
 		responseBody, err := json.Marshal(stuck)
@@ -735,7 +742,7 @@ func TestClientUpgradeCloneHonoursContextDeadline(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	err = c.UpgradeClone(ctx, "testCloneID", types.CloneUpgradeRequest{TargetVersion: 17})
+	_, err = c.UpgradeClone(ctx, "testCloneID", types.CloneUpgradeRequest{})
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "context deadline exceeded")

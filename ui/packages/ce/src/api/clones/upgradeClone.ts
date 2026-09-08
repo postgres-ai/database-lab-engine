@@ -12,10 +12,9 @@ import { request } from 'helpers/request'
 export const upgradeClone: UpgradeClone = async (req) => {
   const response = await request(`/clone/${req.cloneId}/upgrade`, {
     method: 'POST',
-    body: JSON.stringify({
-      targetVersion: req.targetVersion,
-      ...(req.dockerImage ? { dockerImage: req.dockerImage } : {}),
-    }),
+    body: JSON.stringify(
+      req.dockerImage ? { dockerImage: req.dockerImage } : {},
+    ),
   })
 
   return {

@@ -184,3 +184,55 @@ func TestSubstituteTagMajor(t *testing.T) {
 		})
 	}
 }
+
+func TestSplitImageTag(t *testing.T) {
+	tests := []struct {
+		name  string
+		image string
+		repo  string
+		tag   string
+	}{
+		{name: "simple", image: "postgres:17", repo: "postgres", tag: "17"},
+		{name: "namespaced", image: "postgresai/extended-postgres:17-0.8.0", repo: "postgresai/extended-postgres", tag: "17-0.8.0"},
+		{name: "registry host with port", image: "registry:5000/repo:17", repo: "registry:5000/repo", tag: "17"},
+		{name: "registry host with port and no tag", image: "registry:5000/repo", repo: "registry:5000/repo", tag: ""},
+		{name: "no tag", image: "postgres", repo: "postgres", tag: ""},
+		{name: "deep path", image: "registry.gitlab.com/postgres-ai/se-images/rds:16-0.8.0", repo: "registry.gitlab.com/postgres-ai/se-images/rds", tag: "16-0.8.0"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo, tag := SplitImageTag(tt.image)
+			assert.Equal(t, tt.repo, repo)
+			assert.Equal(t, tt.tag, tag)
+		})
+	}
+}
+
+func TestMajorFromImage(t *testing.T) {
+	tests := []struct {
+		name     string
+		image    string
+		expected int
+		ok       bool
+	}{
+		{name: "bare major", image: "postgresai/pg-upgrade:17", expected: 17, ok: true},
+		{name: "ext version", image: "postgresai/pg-upgrade:17-0.8.0", expected: 17, ok: true},
+		{name: "glibc suffix", image: "postgresai/pg-upgrade:18-0.8.0-glibc236", expected: 18, ok: true},
+		{name: "registry host with a port", image: "registry:5000/pg-upgrade:17", expected: 17, ok: true},
+		{name: "untagged", image: "postgresai/pg-upgrade"},
+		{name: "latest", image: "postgresai/pg-upgrade:latest"},
+		{name: "dotted minor", image: "postgres:14.2"},
+		{name: "pre-release", image: "postgres:16beta4"},
+		{name: "branch-named CI tag", image: "registry.gitlab.com/postgres-ai/se-images/rds:16-nik-ci"},
+		{name: "zero is not a major", image: "postgres:0"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			major, ok := MajorFromImage(tt.image)
+			assert.Equal(t, tt.ok, ok)
+			assert.Equal(t, tt.expected, major)
+		})
+	}
+}

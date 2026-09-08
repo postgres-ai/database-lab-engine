@@ -215,6 +215,17 @@ dblab init \
 
 dblab instance status
 
+# The instance advertises the target it derived from pgUpgradeImage. Everything below assumes the
+# engine and this script agree on it, and no request carries the version any more.
+ADVERTISED_TARGET=$(dblab instance status | jq -r '.cloneUpgrade.targetVersion')
+if [[ "${ADVERTISED_TARGET}" != "${TARGET_VERSION}" ]]; then
+  echo "ERROR: the instance must advertise PostgreSQL ${TARGET_VERSION} as the upgrade target, got ${ADVERTISED_TARGET}" && exit 1
+fi
+
+if [[ "$(dblab instance status | jq -r '.cloneUpgrade.available')" != "true" ]]; then
+  echo "ERROR: a configured upgrade image must make the upgrade available" && exit 1
+fi
+
 CLONE_ID="upgradeclone"
 
 dblab clone create \
@@ -240,11 +251,11 @@ psql_clone -c "alter system set pg_stat_statements.track = 'all'"
 
 ### Step 4. A rejected upgrade must leave the clone usable
 
-# 99 is beyond anything the upgrade image can serve. The request has to fail, and the clone has to
-# stay alive and claimable afterwards - a clone that a rejected request left unusable could never
-# be upgraded again.
-if dblab clone upgrade --target-version 99 ${CLONE_ID}; then
-  echo "ERROR: an unreachable target version must be rejected" && exit 1
+# The instance decides the target, and an explicit image of another major contradicts it. The
+# request has to fail, and the clone has to stay alive and claimable afterwards - a clone that a
+# rejected request left unusable could never be upgraded again.
+if dblab clone upgrade --docker-image "postgresai/extended-postgres:99" ${CLONE_ID}; then
+  echo "ERROR: an image of another major must be rejected" && exit 1
 fi
 
 REJECTED_STATUS=$(dblab clone status ${CLONE_ID} | jq -r '.status.code')
@@ -263,7 +274,6 @@ psql_clone -tAc 'select answer from upgrade_probe'
 CLONE_DIR="${DLE_TEST_MOUNT_DIR}/${DLE_TEST_POOL_NAME}/branch/main/${CLONE_ID}/r0"
 
 if dblab clone upgrade \
-  --target-version ${TARGET_VERSION} \
   --docker-image "registry.gitlab.com/postgres-ai/database-lab/pg-upgrade:0-does-not-exist" \
   ${CLONE_ID}; then
   echo "ERROR: an upgrade to an unpullable image must not report success" && exit 1
@@ -302,7 +312,7 @@ psql_clone -tAc 'select answer from upgrade_probe'
 sudo mkdir -p "${CLONE_DIR}/upgrade/logs"
 sudo touch "${CLONE_DIR}/upgrade/logs/.s.PGSQL.50432.lock"
 
-dblab clone upgrade --target-version ${TARGET_VERSION} ${CLONE_ID}
+dblab clone upgrade ${CLONE_ID}
 
 CLONE_STATUS=$(dblab clone status ${CLONE_ID})
 echo "${CLONE_STATUS}"

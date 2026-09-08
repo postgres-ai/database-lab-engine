@@ -123,6 +123,32 @@ func SubstituteTagMajor(tag string, major int) (string, bool) {
 	return substituted, true
 }
 
+// SplitImageTag splits an image reference into repository and tag. The tag follows the last
+// colon, but only when that colon comes after the last slash: a registry host with a port
+// (registry:5000/repo) puts a colon in the repository part too.
+func SplitImageTag(image string) (string, string) {
+	colon := strings.LastIndex(image, ":")
+	if colon < 0 || colon < strings.LastIndex(image, "/") {
+		return image, ""
+	}
+
+	return image[:colon], image[colon+1:]
+}
+
+// MajorFromImage reports the PostgreSQL major an image reference names in its tag. It reports
+// false for an untagged reference and for anything outside the strict release-tag grammar,
+// because a major read out of such a tag would not be a claim the image makes about itself.
+func MajorFromImage(image string) (int, bool) {
+	_, tag := SplitImageTag(image)
+
+	parsed, ok := parseImageTag(tag)
+	if !ok || parsed.major <= 0 {
+		return 0, false
+	}
+
+	return parsed.major, true
+}
+
 // selectImageTag picks the best tag for major from tags. When glibcSuffix is set
 // only tags carrying the matching glibc suffix are considered; otherwise only
 // non-glibc tags are considered. Among candidates the newest extVersion wins; a

@@ -158,9 +158,10 @@ func (s *Server) instanceStatus() *models.InstanceStatus {
 			Telemetry:                 pointer.ToBool(s.Platform.IsTelemetryEnabled()),
 			DisableConfigModification: pointer.ToBool(s.configModificationDisabled()),
 		},
-		Pools:       s.provisioner.GetPoolEntryList(),
-		Cloning:     s.Cloning.GetCloningState(),
-		Provisioner: s.provisioner.ContainerOptions(),
+		Pools:        s.provisioner.GetPoolEntryList(),
+		Cloning:      s.Cloning.GetCloningState(),
+		Provisioner:  s.provisioner.ContainerOptions(),
+		CloneUpgrade: s.cloneUpgradeStatus(),
 		Retrieving: models.Retrieving{
 			Mode:        s.Retrieval.State.Mode,
 			Status:      s.Retrieval.State.Status,

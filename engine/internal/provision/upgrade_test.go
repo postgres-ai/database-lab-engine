@@ -683,3 +683,66 @@ func TestUpgradeScriptDeclaresTheSameMarkerName(t *testing.T) {
 	assert.Contains(t, string(script), `DONE_MARKER_NAME="`+upgradeDoneMarkerName+`"`,
 		"scripts/pg_upgrade_clone.sh must declare the marker name the engine looks for")
 }
+
+// A target that a release tag states is resolved without touching the daemon; the image-inspect
+// fallback needs one and is covered by the docker package.
+func TestUpgradeTargetVersion(t *testing.T) {
+	tests := []struct {
+		name            string
+		image           string
+		expectedVersion int
+		wantErr         string
+	}{
+		{name: "bare major tag", image: "postgresai/pg-upgrade:17", expectedVersion: 17},
+		{name: "ext-versioned tag", image: "postgresai/pg-upgrade:17-0.8.0", expectedVersion: 17},
+		{name: "glibc tag", image: "postgresai/pg-upgrade:18-0.8.0-glibc236", expectedVersion: 18},
+		{name: "registry with a port", image: "registry:5000/pg-upgrade:17", expectedVersion: 17},
+		{name: "unconfigured", image: "", wantErr: "not configured"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &Provisioner{config: &Config{PgUpgradeImage: tt.image}}
+
+			version, err := p.UpgradeTargetVersion()
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedVersion, version)
+		})
+	}
+}
+
+// A tag the release grammar does not accept is answered from the cache, which is why repointing
+// the configuration must not be answered from the entry the previous image left behind.
+func TestUpgradeTargetVersionFromCache(t *testing.T) {
+	const image = "registry.gitlab.com/postgres-ai/database-lab/pg-upgrade:17-my-branch"
+
+	p := &Provisioner{config: &Config{PgUpgradeImage: image}}
+	p.upgradeTarget.set(image, 17)
+
+	version, err := p.UpgradeTargetVersion()
+	require.NoError(t, err)
+	assert.Equal(t, 17, version)
+
+	t.Run("a repointed image is not answered from the previous entry", func(t *testing.T) {
+		cached, ok := p.upgradeTarget.get("registry.gitlab.com/postgres-ai/database-lab/pg-upgrade:18-my-branch")
+		assert.False(t, ok)
+		assert.Zero(t, cached)
+	})
+
+	t.Run("a release tag wins over a stale entry", func(t *testing.T) {
+		p.upgradeTarget.set("postgresai/pg-upgrade:18", 17)
+		p.config.PgUpgradeImage = "postgresai/pg-upgrade:18"
+
+		version, err := p.UpgradeTargetVersion()
+		require.NoError(t, err)
+		assert.Equal(t, 18, version, "the tag states the major, so nothing has to be remembered")
+	})
+}

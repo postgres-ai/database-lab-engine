@@ -63,3 +63,10 @@ type CloneMetadataView struct {
 	CloneDiffSize Size `json:"cloneDiffSize"`
 	LogicalSize   Size `json:"logicalSize"`
 }
+
+// CloneUpgradePlan is what an accepted upgrade request will do. The engine derives both fields,
+// so this is the caller's only account of the version it is getting.
+type CloneUpgradePlan struct {
+	TargetVersion int    `json:"targetVersion"`
+	DockerImage   string `json:"dockerImage"`
+}
