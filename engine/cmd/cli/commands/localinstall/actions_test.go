@@ -17,6 +17,8 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
+const preloadLibs = "pg_stat_statements"
+
 func sampleProposal() *models.ProposedConfig {
 	return &models.ProposedConfig{
 		Source:                 models.SourceConnection{Host: "db.example.com", Port: 5432, Username: "alice", DBName: "shop"},
@@ -28,7 +30,8 @@ func sampleProposal() *models.ProposedConfig {
 		CollationVersion:       "2.36",
 		Databases:              []string{"shop"},
 		SharedBuffers:          "4GB",
-		SharedPreloadLibraries: "pg_stat_statements",
+		SharedPreloadLibraries: preloadLibs,
+		QueryTuning:            map[string]string{"work_mem": "64MB", "random_page_cost": "1.1"},
 	}
 }
 
@@ -62,7 +65,7 @@ func TestShouldStartRefresh(t *testing.T) {
 }
 
 func TestRenderPreview(t *testing.T) {
-	out := renderPreview(sampleProposal())
+	out := renderPreview(sampleProposal(), installOptions{})
 
 	assert.Contains(t, out, "alice@db.example.com:5432/shop")
 	assert.Contains(t, out, "rds")
@@ -70,13 +73,36 @@ func TestRenderPreview(t *testing.T) {
 	assert.Contains(t, out, "2.36")
 	assert.Contains(t, out, "registry.gitlab.com/postgres-ai/se-images/rds:16-0.8.0")
 	assert.Contains(t, out, "4GB")
-	assert.Contains(t, out, "pg_stat_statements")
+	assert.Contains(t, out, preloadLibs)
+	assert.Contains(t, out, "random_page_cost: 1.1")
+	assert.Contains(t, out, "work_mem: 64MB")
 	assert.NotContains(t, out, "secret", "the preview must never carry a credential")
+}
+
+func TestRenderPreview_ShowsOverriddenValues(t *testing.T) {
+	opts := installOptions{sharedBuffers: "8GB", sharedPreloadLibraries: "pg_stat_statements,auto_explain"}
+	out := renderPreview(sampleProposal(), opts)
+
+	assert.Contains(t, out, "shared_buffers: 8GB")
+	assert.Contains(t, out, "Preload libs:   pg_stat_statements,auto_explain")
+	assert.NotContains(t, out, "shared_buffers: 4GB", "the preview must not show a value the apply step overrides")
+	assert.Contains(t, out, "Query tuning:")
+	assert.Contains(t, out, "work_mem: 64MB")
+}
+
+func TestRenderPreview_NoQueryTuningSection(t *testing.T) {
+	p := &models.ProposedConfig{SharedBuffers: "4GB", SharedPreloadLibraries: preloadLibs}
+	p.QueryTuning = map[string]string{sharedBuffersKey: "1GB", sharedPreloadLibrariesKey: "x"}
+
+	out := renderPreview(p, installOptions{})
+
+	assert.NotContains(t, out, "Query tuning:", "reserved keys have their own lines and must not open the section")
+	assert.Contains(t, out, "shared_buffers: 4GB")
 }
 
 func TestRenderPreview_GlibcWarning(t *testing.T) {
 	t.Run("warns when PG15+ libc source lacks a glibc-pinned tag", func(t *testing.T) {
-		out := renderPreview(sampleProposal())
+		out := renderPreview(sampleProposal(), installOptions{})
 		assert.Contains(t, out, "WARNING")
 		assert.Contains(t, out, "2.36")
 	})
@@ -84,19 +110,19 @@ func TestRenderPreview_GlibcWarning(t *testing.T) {
 	t.Run("no warning when the tag is glibc-pinned", func(t *testing.T) {
 		p := sampleProposal()
 		p.DockerTag = "16-0.8.0-glibc236"
-		assert.NotContains(t, renderPreview(p), "WARNING")
+		assert.NotContains(t, renderPreview(p, installOptions{}), "WARNING")
 	})
 
 	t.Run("no warning below PG15", func(t *testing.T) {
 		p := sampleProposal()
 		p.PgMajorVersion = 14
-		assert.NotContains(t, renderPreview(p), "WARNING")
+		assert.NotContains(t, renderPreview(p, installOptions{}), "WARNING")
 	})
 
 	t.Run("no warning without a collation version", func(t *testing.T) {
 		p := sampleProposal()
 		p.CollationVersion = ""
-		assert.NotContains(t, renderPreview(p), "WARNING")
+		assert.NotContains(t, renderPreview(p, installOptions{}), "WARNING")
 	})
 }
 
@@ -145,7 +171,10 @@ func TestBuildProjection_DiscreteFields(t *testing.T) {
 
 	assert.Equal(t, "registry.gitlab.com/postgres-ai/se-images/rds:16-0.8.0",
 		dig(t, m, "databaseContainer", "dockerImage"))
-	assert.Equal(t, "4GB", dig(t, m, "databaseConfigs", "configs", "shared_buffers"))
+	assert.Equal(t, "4GB", dig(t, m, "databaseConfigs", "configs", sharedBuffersKey))
+	assert.Equal(t, preloadLibs, dig(t, m, "databaseConfigs", "configs", sharedPreloadLibrariesKey))
+	assert.Equal(t, "64MB", dig(t, m, "databaseConfigs", "configs", "work_mem"))
+	assert.Equal(t, "1.1", dig(t, m, "databaseConfigs", "configs", "random_page_cost"))
 
 	databases := dig(t, m, "retrieval", "spec", "logicalDump", "options", "databases").(map[string]interface{})
 	assert.Contains(t, databases, "shop")
@@ -182,12 +211,63 @@ func TestBuildProjection_Overrides(t *testing.T) {
 
 	m := projectionMap(t, raw)
 	assert.Equal(t, "custom/postgres:99", dig(t, m, "databaseContainer", "dockerImage"))
-	assert.Equal(t, "8GB", dig(t, m, "databaseConfigs", "configs", "shared_buffers"))
+	assert.Equal(t, "8GB", dig(t, m, "databaseConfigs", "configs", sharedBuffersKey))
+	assert.Equal(t, preloadLibs, dig(t, m, "databaseConfigs", "configs", sharedPreloadLibrariesKey))
 
 	databases := dig(t, m, "retrieval", "spec", "logicalDump", "options", "databases").(map[string]interface{})
 	assert.Contains(t, databases, "a")
 	assert.Contains(t, databases, "b")
 	assert.NotContains(t, databases, "shop")
+}
+
+func TestDatabaseConfigs(t *testing.T) {
+	tests := []struct {
+		name     string
+		proposal *models.ProposedConfig
+		opts     installOptions
+		want     map[string]string
+	}{
+		{
+			name: "full proposal", proposal: sampleProposal(),
+			want: map[string]string{
+				sharedBuffersKey: "4GB", sharedPreloadLibrariesKey: preloadLibs, "work_mem": "64MB", "random_page_cost": "1.1",
+			},
+		},
+		{
+			name: "explicit shared_buffers wins", proposal: sampleProposal(), opts: installOptions{sharedBuffers: "8GB"},
+			want: map[string]string{
+				sharedBuffersKey: "8GB", sharedPreloadLibrariesKey: preloadLibs, "work_mem": "64MB", "random_page_cost": "1.1",
+			},
+		},
+		{
+			name: "explicit preload libraries win", proposal: sampleProposal(), opts: installOptions{sharedPreloadLibraries: "auto_explain"},
+			want: map[string]string{
+				sharedBuffersKey: "4GB", sharedPreloadLibrariesKey: "auto_explain", "work_mem": "64MB", "random_page_cost": "1.1",
+			},
+		},
+		{name: "empty proposal", proposal: &models.ProposedConfig{}, want: map[string]string{}},
+		{
+			name: "flags only", proposal: &models.ProposedConfig{},
+			opts: installOptions{sharedBuffers: "1GB", sharedPreloadLibraries: preloadLibs},
+			want: map[string]string{sharedBuffersKey: "1GB", sharedPreloadLibrariesKey: preloadLibs},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, databaseConfigs(tt.proposal, tt.opts))
+		})
+	}
+}
+
+func TestBuildProjection_NoDatabaseConfigs(t *testing.T) {
+	opts := installOptions{sourceURL: "postgres://alice@db.example.com:5432/shop"}
+
+	raw, err := buildProjection(&models.ProposedConfig{}, opts)
+	require.NoError(t, err)
+
+	_, has := projectionMap(t, raw)["databaseConfigs"]
+	assert.False(t, has, "an empty configs block must not be written")
 }
 
 func TestComposeImage(t *testing.T) {
@@ -261,16 +341,22 @@ func TestOptionsFromContext(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	fs.String("source-url", "", "")
 	fs.String("password", "", "")
+	fs.String("shared-buffers", "", "")
+	fs.String("shared-preload-libraries", "", "")
 	fs.Bool("start", false, "")
 	fs.Bool("no-start", false, "")
 
 	require.NoError(t, fs.Set("source-url", "postgres://x@y/z"))
 	require.NoError(t, fs.Set("password", "secret"))
+	require.NoError(t, fs.Set("shared-buffers", "8GB"))
+	require.NoError(t, fs.Set("shared-preload-libraries", preloadLibs))
 	require.NoError(t, fs.Set("start", "true"))
 
 	opts := optionsFromContext(cli.NewContext(&cli.App{}, fs, nil))
 	assert.Equal(t, "postgres://x@y/z", opts.sourceURL)
 	assert.Equal(t, "secret", opts.password)
+	assert.Equal(t, "8GB", opts.sharedBuffers)
+	assert.Equal(t, preloadLibs, opts.sharedPreloadLibraries)
 	assert.True(t, opts.start)
 	assert.False(t, opts.noStart)
 }

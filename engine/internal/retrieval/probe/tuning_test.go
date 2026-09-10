@@ -30,6 +30,17 @@ func TestTuningParamNames_AlphabeticalOrder(t *testing.T) {
 	require.Equal(t, sorted, tuningParamNames, "tuningParamNames must stay alphabetically sorted")
 }
 
+func TestTuningParamNames_ExcludesSeparatelyWrittenKeys(t *testing.T) {
+	// shared_buffers and shared_preload_libraries are written by the clients
+	// from their own proposal fields, into the same databaseConfigs.configs map
+	// the tuning params land in. The CLI and the UI resolve a collision in
+	// opposite orders, so adding either name here would make them disagree.
+	for _, name := range []string{"shared_buffers", "shared_preload_libraries"} {
+		require.NotContainsf(t, tuningParamNames, name,
+			"%q is written from a dedicated proposal field; adding it to the whitelist diverges the CLI and UI", name)
+	}
+}
+
 func TestTuningQuery_UsesAnyOnNames(t *testing.T) {
 	// guard against accidental regression to the prior regex-based query in tools/db/pg.go;
 	// the simplified-install plan calls for an explicit whitelist via name = any($1).
