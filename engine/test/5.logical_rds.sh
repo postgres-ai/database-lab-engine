@@ -71,7 +71,6 @@ sudo docker run \
   --publish ${DLE_SERVER_PORT}:${DLE_SERVER_PORT} \
   --volume "${configDir}":/home/dblab/configs \
   --volume "${metaDir}":/home/dblab/meta \
-  --volume ${DLE_TEST_MOUNT_DIR}/${DLE_TEST_POOL_NAME}/dump:${DLE_TEST_MOUNT_DIR}/${DLE_TEST_POOL_NAME}/dump \
   --volume ${DLE_TEST_MOUNT_DIR}:${DLE_TEST_MOUNT_DIR}/:rshared \
   --volume /var/run/docker.sock:/var/run/docker.sock \
   --volume ~/.dblab/rds-combined-ca-bundle.pem:/cert/rds-combined-ca-bundle.pem \
