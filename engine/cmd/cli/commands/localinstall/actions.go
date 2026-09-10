@@ -10,7 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/urfave/cli/v2"
@@ -22,32 +24,42 @@ import (
 
 const logicalRetrievalMode = "logical"
 
+// databaseConfigs.configs keys that get a dedicated preview line and are
+// merged into the same map as the probed query tuning, overriding a probed
+// entry of the same name.
+const (
+	sharedBuffersKey          = "shared_buffers"
+	sharedPreloadLibrariesKey = "shared_preload_libraries"
+)
+
 // installOptions holds the resolved local-install flags.
 type installOptions struct {
-	sourceURL     string
-	password      string
-	provider      string
-	dockerImage   string
-	dockerTag     string
-	sharedBuffers string
-	dbnames       []string
-	start         bool
-	noStart       bool
-	yes           bool
+	sourceURL              string
+	password               string
+	provider               string
+	dockerImage            string
+	dockerTag              string
+	sharedBuffers          string
+	sharedPreloadLibraries string
+	dbnames                []string
+	start                  bool
+	noStart                bool
+	yes                    bool
 }
 
 func optionsFromContext(c *cli.Context) installOptions {
 	return installOptions{
-		sourceURL:     c.String("source-url"),
-		password:      c.String("password"),
-		provider:      c.String("provider"),
-		dockerImage:   c.String("docker-image"),
-		dockerTag:     c.String("docker-tag"),
-		sharedBuffers: c.String("shared-buffers"),
-		dbnames:       c.StringSlice("dbname"),
-		start:         c.Bool("start"),
-		noStart:       c.Bool("no-start"),
-		yes:           c.Bool("yes"),
+		sourceURL:              c.String("source-url"),
+		password:               c.String("password"),
+		provider:               c.String("provider"),
+		dockerImage:            c.String("docker-image"),
+		dockerTag:              c.String("docker-tag"),
+		sharedBuffers:          c.String("shared-buffers"),
+		sharedPreloadLibraries: c.String("shared-preload-libraries"),
+		dbnames:                c.StringSlice("dbname"),
+		start:                  c.Bool("start"),
+		noStart:                c.Bool("no-start"),
+		yes:                    c.Bool("yes"),
 	}
 }
 
@@ -93,7 +105,7 @@ func localInstall(cliCtx *cli.Context) error {
 		proposal.DetectedProvider = opts.provider
 	}
 
-	_, _ = fmt.Fprintln(w, renderPreview(proposal))
+	_, _ = fmt.Fprintln(w, renderPreview(proposal, opts))
 
 	if !opts.yes {
 		confirmed, err := readConfirmation(os.Stdin, w)
@@ -194,9 +206,11 @@ func shouldStartRefresh(status models.RetrievalStatus, start, noStart bool) bool
 	return start
 }
 
-// renderPreview formats a human-readable summary of the proposal. It is built
+// renderPreview formats a human-readable summary of the proposal. The database
+// configs come from databaseConfigs, the same values buildProjection applies,
+// so the preview never shows a value the apply step would override. It is built
 // from the password-free ProposedConfig, so no credential can leak into output.
-func renderPreview(p *models.ProposedConfig) string {
+func renderPreview(p *models.ProposedConfig, o installOptions) string {
 	var b strings.Builder
 
 	b.WriteString("Proposed configuration:\n")
@@ -210,16 +224,26 @@ func renderPreview(p *models.ProposedConfig) string {
 
 	fmt.Fprintf(&b, "  Docker image:   %s\n", displayImage(p))
 
-	if p.SharedBuffers != "" {
-		fmt.Fprintf(&b, "  shared_buffers: %s\n", p.SharedBuffers)
+	configs := databaseConfigs(p, o)
+
+	if sharedBuffers := configs[sharedBuffersKey]; sharedBuffers != "" {
+		fmt.Fprintf(&b, "  shared_buffers: %s\n", sharedBuffers)
 	}
 
 	if len(p.Databases) > 0 {
 		fmt.Fprintf(&b, "  Databases:      %s\n", strings.Join(p.Databases, ", "))
 	}
 
-	if p.SharedPreloadLibraries != "" {
-		fmt.Fprintf(&b, "  Preload libs:   %s\n", p.SharedPreloadLibraries)
+	if preloadLibraries := configs[sharedPreloadLibrariesKey]; preloadLibraries != "" {
+		fmt.Fprintf(&b, "  Preload libs:   %s\n", preloadLibraries)
+	}
+
+	if tuning := queryTuning(configs); len(tuning) > 0 {
+		b.WriteString("  Query tuning:\n")
+
+		for _, key := range slices.Sorted(maps.Keys(tuning)) {
+			fmt.Fprintf(&b, "    %s: %s\n", key, tuning[key])
+		}
 	}
 
 	if warning := glibcWarning(p); warning != "" {
@@ -227,6 +251,16 @@ func renderPreview(p *models.ProposedConfig) string {
 	}
 
 	return b.String()
+}
+
+// queryTuning returns the configs that have no dedicated preview line. It
+// shapes the preview only; the projection always writes the whole map.
+func queryTuning(configs map[string]string) map[string]string {
+	tuning := maps.Clone(configs)
+	delete(tuning, sharedBuffersKey)
+	delete(tuning, sharedPreloadLibrariesKey)
+
+	return tuning
 }
 
 func displayImage(p *models.ProposedConfig) string {
@@ -296,13 +330,32 @@ func buildProjection(p *models.ProposedConfig, o installOptions) (json.RawMessag
 		projection["databaseContainer"] = map[string]interface{}{"dockerImage": image}
 	}
 
-	if sharedBuffers := firstNonEmpty(o.sharedBuffers, p.SharedBuffers); sharedBuffers != "" {
-		projection["databaseConfigs"] = map[string]interface{}{
-			"configs": map[string]interface{}{"shared_buffers": sharedBuffers},
-		}
+	if configs := databaseConfigs(p, o); len(configs) > 0 {
+		projection["databaseConfigs"] = map[string]interface{}{"configs": configs}
 	}
 
 	return json.Marshal(projection)
+}
+
+// databaseConfigs builds the databaseConfigs.configs block from the proposal:
+// the probed query-tuning parameters, the resolved shared_preload_libraries and
+// shared_buffers. It is the same set the UI Simple mode applies, so clones of a
+// CLI-installed instance get the same runtime configuration. The explicit
+// --shared-buffers and --shared-preload-libraries flags win over the probed
+// values.
+func databaseConfigs(p *models.ProposedConfig, o installOptions) map[string]string {
+	configs := make(map[string]string, len(p.QueryTuning))
+	maps.Copy(configs, p.QueryTuning)
+
+	if sharedBuffers := firstNonEmpty(o.sharedBuffers, p.SharedBuffers); sharedBuffers != "" {
+		configs[sharedBuffersKey] = sharedBuffers
+	}
+
+	if preloadLibraries := firstNonEmpty(o.sharedPreloadLibraries, p.SharedPreloadLibraries); preloadLibraries != "" {
+		configs[sharedPreloadLibrariesKey] = preloadLibraries
+	}
+
+	return configs
 }
 
 // databaseSet builds the databases map for the dump options. Explicit --dbname

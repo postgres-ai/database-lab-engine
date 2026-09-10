@@ -22,9 +22,12 @@ func CommandList() []*cli.Command {
 				"Examples:\n" +
 				"  # discrete fields, prompt for the password, start retrieval:\n" +
 				"  dblab local-install --source-url postgresql://postgres@db.example.com:5432/app --start\n\n" +
-				"  # managed provider requiring TLS — the full connection string is preserved:\n" +
+				"  # managed provider requiring TLS — the full connection string is preserved.\n" +
+				"  # the source preloads rdsutils, which the clone image does not ship, so the\n" +
+				"  # probed list is replaced:\n" +
 				"  dblab local-install \\\n" +
 				"    --source-url 'postgresql://app@db.rds.amazonaws.com:5432/app?sslmode=require' \\\n" +
+				"    --shared-preload-libraries pg_stat_statements \\\n" +
 				"    --password \"$PGPASSWORD\" --yes --start",
 			Action: localInstall,
 			Flags: []cli.Flag{
@@ -52,6 +55,11 @@ func CommandList() []*cli.Command {
 				&cli.StringFlag{
 					Name:  "shared-buffers",
 					Usage: "override the recommended shared_buffers value",
+				},
+				&cli.StringFlag{
+					Name: "shared-preload-libraries",
+					Usage: "override the shared_preload_libraries probed from the source; " +
+						"use it when the source loads libraries the chosen image does not ship",
 				},
 				&cli.StringSliceFlag{
 					Name:  "dbname",
