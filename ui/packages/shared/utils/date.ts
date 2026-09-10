@@ -21,25 +21,30 @@ import {
   formatDistanceToNowStrict,
 } from 'date-fns'
 
+const compactDatePattern = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/
+
+// formatDateToISO converts a compact UTC timestamp ('20060102150405') to RFC3339 ('2006-01-02T15:04:05Z').
+// The value is a UTC wall-clock, so it must never be interpreted in the browser timezone.
 export const formatDateToISO = (dateString: string) => {
-  // Handle empty or invalid date strings
-  if (!dateString || dateString.trim() === '') {
+  const parts = compactDatePattern.exec(dateString?.trim() ?? '')
+
+  if (!parts) {
     return ''
   }
-  
-  try {
-    const parsedDate = parse(dateString, 'yyyyMMddHHmmss', new Date())
-    
-    // Additional validation of parsed date
-    if (!isValidDate(parsedDate) || isNaN(parsedDate.getTime())) {
-      return ''
-    }
-    
-    return format(parsedDate, "yyyy-MM-dd'T'HH:mm:ssXXX")
-  } catch (error) {
-    // Return empty string for invalid date formats
+
+  const [compact, year, month, day, hours, minutes, seconds] = parts
+  const parsedDate = new Date(
+    Date.UTC(+year, +month - 1, +day, +hours, +minutes, +seconds),
+  )
+
+  if (!isValidDate(parsedDate)) {
     return ''
   }
+
+  const isoDate = parsedDate.toISOString().replace(/\.\d+Z$/, 'Z')
+
+  // reject values rolled over by Date.UTC, e.g. month 13 or hour 25.
+  return isoDate.replace(/[-:TZ]/g, '') === compact ? isoDate : ''
 }
 
 // parseDate parses date of both format: '2006-01-02 15:04:05 UTC' and `2006-01-02T15:04:05Z` (RFC3339).
