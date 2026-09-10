@@ -25,6 +25,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/cloning"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/diagnostic"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/embeddedui"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/mountcheck"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
@@ -83,6 +84,8 @@ func main() {
 
 	log.Msg("Database Lab Instance ID:", engProps.InstanceID)
 	log.Msg("Database Lab Engine version:", version.GetVersion())
+
+	mountcheck.Report(ctx, docker, engProps.ContainerName)
 
 	// Create a platform service to make requests to Platform.
 	platformSvc, err := platform.New(ctx, cfg.Platform, engProps.InstanceID)

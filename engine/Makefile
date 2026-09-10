@@ -35,7 +35,7 @@ help: ## Display the help message
 all: clean build ## Build all binary components of the project
 
 install-lint: ## Install the linter to $GOPATH/bin which is expected to be in $PATH
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.11.4
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.11.4
 
 run-lint: ## Run linters
 	golangci-lint run
@@ -98,7 +98,6 @@ run-dle: build-dle
 	--volume /tmp:/tmp \
 	--volume /var/run/docker.sock:/var/run/docker.sock \
 	--volume /var/lib/dblab:/var/lib/dblab/:rshared \
-	--volume /var/lib/dblab/dblab_pool/dump:/var/lib/dblab/dblab_pool/dump \
 	--volume /sys/kernel/debug:/sys/kernel/debug:rw \
 	--volume /lib/modules:/lib/modules:ro \
     --volume $(PWD)/configs:/home/dblab/configs:ro \
