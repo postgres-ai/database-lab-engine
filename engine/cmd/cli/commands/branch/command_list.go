@@ -12,12 +12,17 @@ import (
 func List() []*cli.Command {
 	return []*cli.Command{
 		{
-			Name:   "branch",
-			Usage:  "list, create, or delete branches",
-			Action: list,
+			Name:  "branch",
+			Usage: "list, create, delete, or switch branches",
+			Description: "Without arguments, lists branches. A bare positional BRANCH_NAME creates a branch, so a name\n" +
+				"   that looks like a verb is better spelled out: use `branch create list` to create a branch named\n" +
+				"   `list`, and the subcommands below for everything else.",
+			Action: branchAction,
+			Before: rejectBareFormFlags,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "delete",
+					Usage:   "delete the branch with the given name; same as the delete subcommand",
 					Aliases: []string{"d"},
 				},
 				&cli.StringFlag{
@@ -34,7 +39,48 @@ func List() []*cli.Command {
 					Aliases: []string{"p"},
 				},
 			},
-			ArgsUsage: "BRANCH_NAME",
+			ArgsUsage: "[BRANCH_NAME]",
+			Subcommands: []*cli.Command{
+				{
+					Name:            "list",
+					Aliases:         []string{"ls"},
+					Usage:           "list branches",
+					Action:          listBranches,
+					HideHelpCommand: true,
+				},
+				{
+					Name:            "create",
+					Usage:           "create a new branch",
+					Action:          create,
+					ArgsUsage:       "BRANCH_NAME",
+					HideHelpCommand: true,
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:  "parent-branch",
+							Usage: "specify branch name as starting point for new branch; cannot be used together with --snapshot-id",
+						},
+						&cli.StringFlag{
+							Name:  "snapshot-id",
+							Usage: "specify snapshot ID is starting point for new branch; cannot be used together with --parent-branch",
+						},
+					},
+				},
+				{
+					Name:            "delete",
+					Aliases:         []string{"rm"},
+					Usage:           "delete a branch",
+					Action:          deleteBranch,
+					ArgsUsage:       "BRANCH_NAME",
+					HideHelpCommand: true,
+				},
+				{
+					Name:            "switch",
+					Usage:           "switch to a specified branch",
+					Action:          switchBranch,
+					ArgsUsage:       "BRANCH_NAME",
+					HideHelpCommand: true,
+				},
+			},
 		},
 		{
 			Name:   "switch",

@@ -82,12 +82,62 @@ func switchLocalContext(branchName string) error {
 	return err
 }
 
-func list(cliCtx *cli.Context) error {
-	dblabClient, err := commands.ClientByCLIContext(cliCtx)
-	if err != nil {
-		return err
+// bareFormFlag is a flag of the bare `dblab branch` form, with the spelling to use instead when a
+// subcommand is given. None of these flags may gain an EnvVars or FilePath source: the guard below
+// reads IsSet, which is also true for a value that did not come from the command line.
+type bareFormFlag struct {
+	name, hint string
+}
+
+var bareFormFlags = []bareFormFlag{
+	{name: "delete", hint: "use either `dblab branch --delete BRANCH_NAME` or `dblab branch delete BRANCH_NAME`"},
+	{name: "parent-branch", hint: "place it after the subcommand: `dblab branch create --parent-branch VALUE BRANCH_NAME`"},
+	{name: "snapshot-id", hint: "place it after the subcommand: `dblab branch create --snapshot-id VALUE BRANCH_NAME`"},
+	{name: "protected", hint: "it applies to the bare form only: `dblab branch --protected VALUE BRANCH_NAME`"},
+}
+
+// rejectBareFormFlags runs before `dblab branch` dispatches, and fails when a bare-form flag is
+// followed by a subcommand, the built-in help included. urfave/cli resolves the subcommand before
+// the bare-form action runs, so the flag would otherwise be parsed and then dropped:
+// `dblab branch --snapshot-id X create dev` would create from the wrong snapshot and
+// `dblab branch --protected 2h list` would list without changing any protection.
+func rejectBareFormFlags(cliCtx *cli.Context) error {
+	subcommand := subcommandNamed(cliCtx.Command, cliCtx.Args().First())
+	if subcommand == nil {
+		return nil
 	}
 
+	for _, flag := range bareFormFlags {
+		if !cliCtx.IsSet(flag.name) {
+			continue
+		}
+
+		return commands.NewActionError(fmt.Sprintf("--%s cannot precede the %s subcommand; %s",
+			flag.name, subcommand.Name, flag.hint))
+	}
+
+	return nil
+}
+
+func subcommandNamed(command *cli.Command, name string) *cli.Command {
+	if command == nil || name == "" {
+		return nil
+	}
+
+	for _, subcommand := range command.Subcommands {
+		if subcommand.HasName(name) {
+			return subcommand
+		}
+	}
+
+	return nil
+}
+
+// branchAction dispatches the bare `dblab branch` form: --protected updates the protection of the
+// named branch, a positional name creates a branch, --delete removes one, and no arguments lists
+// them. The list, create, delete and switch subcommands express the same operations unambiguously
+// and take precedence, so a name that collides with one of them never silently creates a branch.
+func branchAction(cliCtx *cli.Context) error {
 	branchName := cliCtx.Args().First()
 
 	// update branch protection.
@@ -104,12 +154,20 @@ func list(cliCtx *cli.Context) error {
 		return create(cliCtx)
 	}
 
-	// delete branch.
-	if deleteName := cliCtx.String("delete"); deleteName != "" {
+	// delete branch. an explicitly empty name reaches the guard in deleteBranch.
+	if cliCtx.IsSet("delete") {
 		return deleteBranch(cliCtx)
 	}
 
-	// list branches.
+	return listBranches(cliCtx)
+}
+
+func listBranches(cliCtx *cli.Context) error {
+	dblabClient, err := commands.ClientByCLIContext(cliCtx)
+	if err != nil {
+		return err
+	}
+
 	branches, err := dblabClient.ListBranchesView(cliCtx.Context)
 	if err != nil {
 		return err
@@ -234,12 +292,16 @@ func isBranchExist(cliCtx *cli.Context, branchName string) error {
 }
 
 func create(cliCtx *cli.Context) error {
+	branchName := cliCtx.Args().First()
+
+	if branchName == "" {
+		return commands.NewActionError("BRANCH_NAME is required to create a branch")
+	}
+
 	dblabClient, err := commands.ClientByCLIContext(cliCtx)
 	if err != nil {
 		return err
 	}
-
-	branchName := cliCtx.Args().First()
 
 	baseBranch := cliCtx.String("parent-branch")
 	snapshotID := cliCtx.String("snapshot-id")
@@ -315,15 +377,24 @@ func getBaseBranch(cliCtx *cli.Context) string {
 	return baseBranch
 }
 
+// deleteBranch removes the branch named by the --delete flag of the bare `dblab branch` form, or by
+// the positional argument of the `delete` subcommand.
 func deleteBranch(cliCtx *cli.Context) error {
+	branchName := cliCtx.String("delete")
+	if branchName == "" {
+		branchName = cliCtx.Args().First()
+	}
+
+	if branchName == "" {
+		return commands.NewActionError("BRANCH_NAME is required to delete a branch")
+	}
+
 	dblabClient, err := commands.ClientByCLIContext(cliCtx)
 	if err != nil {
 		return err
 	}
 
-	branchName := cliCtx.String("delete")
-
-	branching, err := getBranchingFromEnv()
+	branching, err := loadBranching()
 	if err != nil {
 		return err
 	}
@@ -399,6 +470,10 @@ func history(cliCtx *cli.Context) error {
 
 	return err
 }
+
+// loadBranching reads the branching state of the current environment. It is a variable so tests can
+// run deleteBranch without the invoking user's CLI config.
+var loadBranching = getBranchingFromEnv
 
 func getBranchingFromEnv() (config.Branching, error) {
 	branching := config.Branching{}
