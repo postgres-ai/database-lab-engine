@@ -15,7 +15,7 @@ info:
   license:
     name: AGPL v3 / Database Lab License
     url: https://github.com/postgres-ai/database-lab-engine/blob/master/LICENSE
-  version: 4.1.0
+  version: 4.2.0
 externalDocs:
   description: DBLab Docs
   url: https://postgres.ai/docs/database-lab
