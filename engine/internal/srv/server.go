@@ -260,7 +260,17 @@ func (s *Server) SetRetention(r srvCfg.Retention) {
 
 // InitHandlers initializes handler functions of the HTTP server.
 func (s *Server) InitHandlers() {
-	r := mux.NewRouter().StrictSlash(true).UseEncodedPath()
+	r := s.newRouter()
+
+	s.httpSrv = &http.Server{Addr: fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port), Handler: mw.Logging(r)}
+}
+
+// newRouter builds the API router with every route registered.
+func (s *Server) newRouter() *mux.Router {
+	// path variables are decoded by the router, so percent-encoded snapshot ids (as sent by
+	// Swagger UI) reach the handlers in their raw form. Ids that must not contain a slash are
+	// guarded by their own validators, not by the encoding.
+	r := mux.NewRouter().StrictSlash(true)
 
 	authMW := mw.NewAuth(s.Config.VerificationToken, s.Platform)
 
@@ -285,10 +295,11 @@ func (s *Server) InitHandlers() {
 	r.HandleFunc("/instance/retrieval", authMW.Authorized(s.retrievalState)).Methods(http.MethodGet)
 
 	r.HandleFunc("/branches", authMW.Authorized(s.listBranches)).Methods(http.MethodGet)
-	r.HandleFunc("/branch/snapshot/{id:.*}", authMW.Authorized(s.getCommit)).Methods(http.MethodGet)
 	r.HandleFunc("/branch", authMW.Authorized(s.createBranch)).Methods(http.MethodPost)
 	r.HandleFunc("/branch/snapshot", authMW.Authorized(s.snapshot)).Methods(http.MethodPost)
+	// the log route is registered before the commit route so a branch named "snapshot" stays reachable.
 	r.HandleFunc("/branch/{branchName}/log", authMW.Authorized(s.log)).Methods(http.MethodGet)
+	r.HandleFunc("/branch/snapshot/{id:.*}", authMW.Authorized(s.getCommit)).Methods(http.MethodGet)
 	r.HandleFunc("/branch/{branchName}", authMW.Authorized(s.deleteBranch)).Methods(http.MethodDelete)
 	r.HandleFunc("/branch/{branchName}", authMW.Authorized(s.patchBranch)).Methods(http.MethodPatch)
 
@@ -328,7 +339,7 @@ func (s *Server) InitHandlers() {
 	// Show not found error for all other possible routes.
 	r.NotFoundHandler = http.HandlerFunc(api.SendNotFoundError)
 
-	s.httpSrv = &http.Server{Addr: fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port), Handler: mw.Logging(r)}
+	return r
 }
 
 // Run starts HTTP server on specified port in configuration. The provided context governs the

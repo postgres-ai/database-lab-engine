@@ -4,7 +4,11 @@
 
 package models
 
-import "time"
+import (
+	"time"
+
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+)
 
 // Snapshot defines a snapshot entity.
 type Snapshot struct {
@@ -21,6 +25,20 @@ type Snapshot struct {
 	Protected     bool       `json:"protected"`
 	ProtectedTill *LocalTime `json:"protectedTill,omitempty"`
 	DeleteAt      *LocalTime `json:"deleteAt,omitempty"`
+}
+
+// NewSnapshot builds a Snapshot from the pool manager's snapshot entry.
+func NewSnapshot(entry resources.Snapshot) *Snapshot {
+	return &Snapshot{
+		ID:           entry.ID,
+		CreatedAt:    NewLocalTime(entry.CreatedAt),
+		DataStateAt:  NewLocalTime(entry.DataStateAt),
+		PhysicalSize: entry.Used,
+		LogicalSize:  entry.LogicalReferenced,
+		Pool:         entry.Pool,
+		Branch:       entry.Branch,
+		Message:      entry.Message,
+	}
 }
 
 // IsProtected returns true if the snapshot is currently protected.

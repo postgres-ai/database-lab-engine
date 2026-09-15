@@ -774,6 +774,12 @@ paths:
       responses:
         200:
           description: Successfully deleted the specified clone. The response has no body.
+        400:
+          description: "Bad request: the clone is protected or is being upgraded"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         401:
           description: Unauthorized access
           content:
@@ -869,15 +875,15 @@ paths:
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
-        #404:  # TODO: fix it in engine (currently returns 500)
-        #  description: Not found
-        #  content:
-        #    application/json:
-        #      schema:
-        #        $ref: '#/components/schemas/Error'
-        #      example:
-        #        code: NOT_FOUND
-        #        message: Requested object does not exist. Specify your request.
+        404:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: NOT_FOUND
+                message: Requested object does not exist. Specify your request.
       x-codegen-request-body-name: body
   /clone/{id}/reset:
     post:
@@ -919,7 +925,7 @@ paths:
         200:
           description: Successfully reset the state of the specified clone. The response has no body.
         400:
-          description: "Bad request: 'latest' and 'snapshotID' are both specified"
+          description: "Bad request: 'latest' and 'snapshotID' are both specified, the clone is not started yet, or it is being upgraded"
           content:
             application/json:
               schema:
@@ -933,12 +939,12 @@ paths:
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
-        #404:    # TODO: fix it in engine (currently returns 500)
-        #  description: Not found
-        #  content:
-        #    application/json:
-        #      schema:
-        #        $ref: '#/components/schemas/Error'
+        404:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
   /branches:
     get:

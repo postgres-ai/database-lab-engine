@@ -547,7 +547,7 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 	}
 
 	if w.Session == nil || w.Clone == nil {
-		return models.New(models.ErrCodeNotFound, "clone is not started yet")
+		return models.New(models.ErrCodeBadRequest, "clone is not started yet")
 	}
 
 	if w.Clone.Status.Code == models.StatusUpgrading {

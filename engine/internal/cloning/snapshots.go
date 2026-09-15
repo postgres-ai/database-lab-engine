@@ -52,18 +52,9 @@ func (c *Base) fetchSnapshots() error {
 			cloneList = foundList
 		}
 
-		currentSnapshot := &models.Snapshot{
-			ID:           entry.ID,
-			CreatedAt:    models.NewLocalTime(entry.CreatedAt),
-			DataStateAt:  models.NewLocalTime(entry.DataStateAt),
-			PhysicalSize: entry.Used,
-			LogicalSize:  entry.LogicalReferenced,
-			Pool:         entry.Pool,
-			Branch:       entry.Branch,
-			NumClones:    len(cloneList),
-			Clones:       cloneList,
-			Message:      entry.Message,
-		}
+		currentSnapshot := models.NewSnapshot(entry)
+		currentSnapshot.NumClones = len(cloneList)
+		currentSnapshot.Clones = cloneList
 
 		if p, ok := protection[entry.ID]; ok {
 			currentSnapshot.Protected = p.protected

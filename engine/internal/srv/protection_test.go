@@ -45,6 +45,15 @@ func TestApplyProtectionUpdate(t *testing.T) {
 		require.Error(t, applyProtectionUpdate(0, nil, nil, nil, noop, noop))
 	})
 
+	t.Run("rejects a zero deleteAt", func(t *testing.T) {
+		deleteAtCalled := false
+
+		err := applyProtectionUpdate(0, nil, nil, &models.LocalTime{}, noop, func(string) error { deleteAtCalled = true; return nil })
+
+		require.Error(t, err)
+		assert.False(t, deleteAtCalled, "a zero deleteAt must not be stored")
+	})
+
 	t.Run("rejects protection and scheduled deletion together", func(t *testing.T) {
 		err := applyProtectionUpdate(0, boolPtr(true), nil, models.NewLocalTime(time.Now()), noop, noop)
 		require.Error(t, err)
