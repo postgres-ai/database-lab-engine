@@ -349,18 +349,7 @@ func (p *Provisioner) ResetSession(session *resources.Session, clone *models.Clo
 		return nil, errors.Wrap(err, "failed to prepare database")
 	}
 
-	snapshotModel := &models.Snapshot{
-		ID:           snapshot.ID,
-		CreatedAt:    models.NewLocalTime(snapshot.CreatedAt),
-		DataStateAt:  models.NewLocalTime(snapshot.DataStateAt),
-		PhysicalSize: snapshot.Used,
-		LogicalSize:  snapshot.LogicalReferenced,
-		Pool:         snapshot.Pool,
-		Branch:       snapshot.Branch,
-		Message:      snapshot.Message,
-	}
-
-	return snapshotModel, nil
+	return models.NewSnapshot(*snapshot), nil
 }
 
 // ListProtection aggregates locally-set protection properties of all snapshots across

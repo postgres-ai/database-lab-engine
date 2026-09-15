@@ -19,6 +19,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
@@ -183,7 +184,8 @@ func (s *Server) createSnapshot(w http.ResponseWriter, r *http.Request) {
 
 	fsManager.RefreshSnapshotList()
 
-	snapshotList := fsManager.SnapshotList()
+	// copy the list: the manager hands out its internal slice, so sorting in place would race with other readers.
+	snapshotList := append([]resources.Snapshot(nil), fsManager.SnapshotList()...)
 
 	if len(snapshotList) == 0 {
 		api.SendBadRequestError(w, r, "No snapshots at pool: "+poolName)
@@ -203,7 +205,9 @@ func (s *Server) createSnapshot(w http.ResponseWriter, r *http.Request) {
 		log.Warn(fmt.Sprintf("failed to verify branch metadata: %v", err))
 	}
 
-	latestSnapshot := snapshotList[0]
+	// respond from the pool manager entry: the cloning cache skips empty pools, so a lookup there
+	// could report a failure for a snapshot that was just created.
+	latestSnapshot := models.NewSnapshot(snapshotList[0])
 
 	s.webhookCh <- webhooks.BasicEvent{
 		EventType: webhooks.SnapshotCreateEvent,
@@ -706,14 +710,7 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 
 	newClone, err := s.Cloning.CreateClone(cloneRequest)
 	if err != nil {
-		var reqErr *models.Error
-		if errors.As(err, &reqErr) {
-			api.SendBadRequestError(w, r, reqErr.Error())
-			return
-		}
-
 		api.SendError(w, r, errors.Wrap(err, "failed to create clone"))
-
 		return
 	}
 
@@ -857,6 +854,10 @@ func applyProtectionUpdate(maxMin uint, protected *bool, durationMinutes *uint, 
 	setProtectedTill, setDeleteAt func(string) error) error {
 	if protected == nil && deleteAt == nil {
 		return errors.New("nothing to update: specify protected or deleteAt")
+	}
+
+	if deleteAt != nil && deleteAt.IsZero() {
+		return errors.New("deleteAt must be a valid RFC3339 timestamp")
 	}
 
 	protect := protected != nil && *protected

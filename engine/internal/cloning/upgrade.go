@@ -72,7 +72,7 @@ func (c *Base) UpgradeClone(cloneID string, req UpgradeRequest) error {
 	}
 
 	if w.Session == nil || w.Clone == nil {
-		return models.New(models.ErrCodeNotFound, "clone is not started yet")
+		return models.New(models.ErrCodeBadRequest, "clone is not started yet")
 	}
 
 	// The origin snapshot is the only way back from a failed upgrade, and the provisioner

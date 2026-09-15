@@ -53,16 +53,21 @@ func TestErrorCodeStatuses(t *testing.T) {
 }
 
 func TestSendError(t *testing.T) {
+	badRequest := models.New(models.ErrCodeBadRequest, "bad input")
+	notFound := models.New(models.ErrCodeNotFound, "missing")
+	plain := fmt.Errorf("something broke")
+
 	testCases := []struct {
-		name       string
-		err        error
-		wantStatus int
-		wantCode   models.ErrorCode
+		name     string
+		err      error
+		status   int
+		wantCode models.ErrorCode
 	}{
-		{name: "models error is preserved", err: models.Error{Code: models.ErrCodeBadRequest, Message: "bad input"}, wantStatus: http.StatusBadRequest, wantCode: models.ErrCodeBadRequest},
-		{name: "plain error becomes internal", err: fmt.Errorf("something broke"), wantStatus: http.StatusInternalServerError, wantCode: models.ErrCodeInternal},
-		{name: "wrapped models error is unwrapped", err: errors.Wrap(models.Error{Code: models.ErrCodeNotFound, Message: "missing"}, "context"), wantStatus: http.StatusNotFound, wantCode: models.ErrCodeNotFound},
-		{name: "wrapped plain error becomes internal", err: errors.Wrap(fmt.Errorf("fail"), "wrapping"), wantStatus: http.StatusInternalServerError, wantCode: models.ErrCodeInternal},
+		{name: "models error is preserved", err: badRequest, status: 400, wantCode: models.ErrCodeBadRequest},
+		{name: "plain error becomes internal", err: plain, status: 500, wantCode: models.ErrCodeInternal},
+		{name: "pkg-wrapped models error", err: errors.Wrap(notFound, "context"), status: 404, wantCode: models.ErrCodeNotFound},
+		{name: "std-wrapped models error", err: fmt.Errorf("reset: %w", notFound), status: 404, wantCode: models.ErrCodeNotFound},
+		{name: "wrapped plain error becomes internal", err: errors.Wrap(plain, "wrap"), status: 500, wantCode: models.ErrCodeInternal},
 	}
 
 	for _, tc := range testCases {
@@ -72,7 +77,7 @@ func TestSendError(t *testing.T) {
 
 			SendError(rec, req, tc.err)
 
-			assert.Equal(t, tc.wantStatus, rec.Code)
+			assert.Equal(t, tc.status, rec.Code)
 			assert.Equal(t, JSONContentType, rec.Header().Get("Content-Type"))
 
 			var errResp models.Error

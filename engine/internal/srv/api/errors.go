@@ -20,45 +20,40 @@ import (
 func SendError(w http.ResponseWriter, r *http.Request, err error) {
 	log.Err(errDetailsMsg(r, err))
 
-	errorInternalServer, ok := errors.Cause(err).(models.Error)
+	responseErr, ok := asModelError(err)
 	if !ok {
-		errorInternalServer = models.Error{
+		responseErr = models.Error{
 			Code:    models.ErrCodeInternal,
 			Message: errors.Cause(err).Error(),
 		}
 	}
 
-	_ = WriteJSON(w, toStatusCode(errorInternalServer), errorInternalServer)
+	_ = WriteJSON(w, toStatusCode(responseErr), responseErr)
+}
+
+// asModelError finds the *models.Error produced by models.New anywhere in the error chain.
+func asModelError(err error) (models.Error, bool) {
+	var modelErr *models.Error
+	if !errors.As(err, &modelErr) {
+		return models.Error{}, false
+	}
+
+	return *modelErr, true
 }
 
 // SendBadRequestError sends a bad request error.
 func SendBadRequestError(w http.ResponseWriter, r *http.Request, message string) {
-	errorBadRequest := models.Error{
-		Code:    models.ErrCodeBadRequest,
-		Message: message,
-	}
-
-	SendError(w, r, errorBadRequest)
+	SendError(w, r, models.New(models.ErrCodeBadRequest, message))
 }
 
 // SendUnauthorizedError sends an unauthorized request error.
 func SendUnauthorizedError(w http.ResponseWriter, r *http.Request) {
-	errorUnauthorized := models.Error{
-		Code:    models.ErrCodeUnauthorized,
-		Message: "Check your verification token.",
-	}
-
-	SendError(w, r, errorUnauthorized)
+	SendError(w, r, models.New(models.ErrCodeUnauthorized, "Check your verification token."))
 }
 
 // SendNotFoundError sends a not found error.
 func SendNotFoundError(w http.ResponseWriter, r *http.Request) {
-	errorNotFound := models.Error{
-		Code:    models.ErrCodeNotFound,
-		Message: "Requested object does not exist. Specify your request.",
-	}
-
-	SendError(w, r, errorNotFound)
+	SendError(w, r, models.New(models.ErrCodeNotFound, "Requested object does not exist. Specify your request."))
 }
 
 // errDetailsMsg formats details of an error message.
