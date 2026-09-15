@@ -819,12 +819,12 @@ paths:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
   /admin/ws-auth:
-    post:
+    get:
       tags:
         - Admin
-      summary: "TBD"
-      description: ""
-      operationId: testDBConnection2
+      summary: "Issue a one-time WebSocket token"
+      description: "Issue a token for GET /instance/logs. The token can be used once and expires one minute after it is issued."
+      operationId: getWSToken
       parameters:
         - in: header
           name: Verification-Token
@@ -833,11 +833,20 @@ paths:
           required: true
       responses:
         200:
-          description: "Successful operation"
+          description: "Issued a WebSocket token"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/WSToken"
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
   /admin/billing-status:
     get:
       tags:

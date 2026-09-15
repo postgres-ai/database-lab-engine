@@ -189,6 +189,13 @@ paths:
       - name: branch
         in: query
         required: false
+        description: Return only the snapshots of this branch.
+        schema:
+          type: string
+      - name: dataset
+        in: query
+        required: false
+        description: Return only the snapshots of this pool (dataset). Together with 'branch', selects the pool the branch is looked up in.
         schema:
           type: string
       responses:
@@ -215,6 +222,12 @@ paths:
                   logicalSize: 11518015488
                   pool: dblab_pool/dataset_2
                   numClones: 1
+        400:
+          description: Bad request, for example an unknown branch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         401:
           description: Unauthorized access
           content:
@@ -247,6 +260,12 @@ paths:
               example:
                 status: OK
                 message: Full refresh started
+        400:
+          description: "Bad request: a refresh is already in progress, retrieval is pending, or no pool is available"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         401:
           description: Unauthorized access
           content:
@@ -263,6 +282,7 @@ paths:
       summary: Create a snapshot
       description: "Create a new snapshot from the current state of the selected pool.
         This snapshot can later be used to create clones or new branches."
+      operationId: createSnapshot
       parameters:
         - name: Verification-Token
           in: header
@@ -273,7 +293,7 @@ paths:
         description: "Optional parameters for snapshot creation.
           If no pool name is provided, the first available pool is used."
         content:
-          '*/*':
+          application/json:
             schema:
               type: object
               properties:
@@ -283,26 +303,82 @@ paths:
         required: false
       responses:
         200:
-          description: OK
+          description: Created snapshot
           content:
-            '*/*':
+            application/json:
               schema:
-                $ref: '#/components/schemas/Snapshot'
+                $ref: '#/components/schemas/CreatedSnapshot'
         400:
           description: Bad request
           content:
-            '*/*':
+            application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
       x-codegen-request-body-name: body
   /snapshot/{id}:
+    get:
+      tags:
+        - Snapshots
+      summary: Retrieve a snapshot
+      description: "Retrieves the information for the specified snapshot. Pass the snapshot ID as is,
+        without percent-encoding '/' and '@'."
+      operationId: getSnapshot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The ID of the snapshot.
+          schema:
+            type: string
+            pattern: '.*'
+        - name: Verification-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Returned the specified snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Snapshot'
+        400:
+          description: "Bad request: empty or unknown snapshot ID"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: BAD_REQUEST
+                message: no snapshot found
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
     delete:
       tags:
         - Snapshots
       summary: Delete a snapshot
       description: "Permanently delete the specified snapshot.
         If the snapshot has dependent clones or datasets, `force=true` can be provided as a query parameter.
-        Deletion of a protected snapshot returns 400; remove protection via PATCH first."
+        Deletion of a protected snapshot returns 400; remove protection via PATCH first.
+        Dependent protected clones block deletion even with `force=true`."
+      operationId: deleteSnapshot
       parameters:
         - name: id
           in: path
@@ -326,15 +402,24 @@ paths:
         200:
           description: OK
           content:
-            '*/*':
+            application/json:
               schema:
                 $ref: '#/components/schemas/ResponseStatus'
         400:
           description: Bad request
           content:
-            '*/*':
+            application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
     patch:
       tags:
         - Snapshots
@@ -373,7 +458,7 @@ paths:
         400:
           description: Bad request
           content:
-            '*/*':
+            application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         401:
@@ -382,12 +467,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /snapshot/clone:
+    post:
+      tags:
+        - Snapshots
+      summary: Create a snapshot from a clone
+      description: "Create a new snapshot from the current state of the specified clone and return it.
+        Unlike POST /branch/snapshot, this does not move any branch head."
+      operationId: createSnapshotFromClone
+      parameters:
+        - name: Verification-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Clone to snapshot
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cloneID
+              properties:
+                cloneID:
+                  type: string
+                  description: The ID of the clone to snapshot.
+        required: true
+      responses:
+        200:
+          description: Created snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Snapshot'
+        400:
+          description: "Bad request: invalid body, empty or unknown 'cloneID', the clone is being upgraded,
+            or the snapshot could not be created"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
+      x-codegen-request-body-name: body
   /clones:
     get:
       tags:
       - Clones
       summary: List all clones
       description: Return a list of all available clones (database endpoints).
+      operationId: listClones
       parameters:
       - name: Verification-Token
         in: header
@@ -636,11 +773,7 @@ paths:
           type: string
       responses:
         200:
-          description: Successfully deleted the specified clone
-          content:
-            application/json:
-              example:
-                "OK"
+          description: Successfully deleted the specified clone. The response has no body.
         401:
           description: Unauthorized access
           content:
@@ -664,7 +797,7 @@ paths:
       - Clones
       summary: Update a clone
       description: "Updates the specified clone by setting the values of the parameters passed.
-        Currently, only one paramater is supported: 'protected'."
+        Currently, only deletion protection can be changed: 'protected' and 'protectionDurationMinutes'."
       operationId: updateClone
       parameters:
       - name: Verification-Token
@@ -721,6 +854,12 @@ paths:
                   logicalSize: 11518030336
                   cloningTime: 1.5250661829999999
                   maxIdleMinutes: 120
+        400:
+          description: "Bad request: the request body cannot be parsed"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         401:
           description: Unauthorized access
           content:
@@ -778,11 +917,13 @@ paths:
         required: false
       responses:
         200:
-          description: Successfully reset the state of the specified clone
+          description: Successfully reset the state of the specified clone. The response has no body.
+        400:
+          description: "Bad request: 'latest' and 'snapshotID' are both specified"
           content:
             application/json:
-              example:
-                "OK"
+              schema:
+                $ref: '#/components/schemas/Error'
         401:
           description: Unauthorized access
           content:
@@ -805,6 +946,7 @@ paths:
       - Branches
       summary: List all branches
       description: Return a list of all available branches (named pointers to snapshots).
+      operationId: listBranches
       parameters:
       - name: Verification-Token
         in: header
@@ -815,7 +957,7 @@ paths:
         200:
           description: Returned a list of all available branches
           content:
-            '*/*':
+            application/json:
               schema:
                 type: array
                 items:
@@ -833,6 +975,12 @@ paths:
                   parent: "-"
                   dataStateAt: '20230224202652'
                   snapshotID: dblab_pool/dataset_2/main/20230224202652@20230224202652
+        400:
+          description: "Bad request: no pools are available or the branches cannot be read"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         401:
           description: Unauthorized access
           content:
@@ -846,8 +994,10 @@ paths:
     get:
       tags:
         - Snapshots
-      summary: Retrieve a snapshot
-      description: Retrieves the information for the specified snapshot.
+      summary: Retrieve branch details of a snapshot
+      description: "Retrieves the branching metadata of the specified snapshot: parent, children, branches,
+        message, and protection state. Pass the snapshot ID as is, without percent-encoding '/' and '@'."
+      operationId: getBranchSnapshot
       parameters:
       - name: id
         in: path
@@ -855,6 +1005,7 @@ paths:
         required: true
         schema:
           type: string
+          pattern: '.*'
       - name: Verification-Token
         in: header
         required: true
@@ -864,20 +1015,39 @@ paths:
         200:
           description: OK
           content:
-            '*/*':
+            application/json:
               schema:
                 $ref: '#/components/schemas/SnapshotDetails'
         400:
           description: Bad request
           content:
-            '*/*':
+            application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
+        404:
+          description: The snapshot is not found in the branch metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: NOT_FOUND
+                message: Requested object does not exist. Specify your request.
   /branch:
     post:
       tags:
       - Branches
       summary: Create a branch
+      operationId: createBranch
       parameters:
       - name: Verification-Token
         in: header
@@ -886,27 +1056,30 @@ paths:
           type: string
       requestBody:
         content:
-          '*/*':
+          application/json:
             schema:
               type: object
+              required:
+                - branchName
               properties:
                 branchName:
                   type: string
+                  pattern: '^[a-zA-Z0-9_][a-zA-Z0-9_-]*$'
                   description: The name of the new branch.
                 baseBranch:
                   type: string
-                  description: "The name of parent branch user to create a new branch.
-                    Must not be specified if 'snapshotID' is specified."
+                  description: "The name of the parent branch to create the new branch from.
+                    One of 'baseBranch' and 'snapshotID' is required; if both are specified, 'snapshotID' is used."
                 snapshotID:
                   type: string
-                  description: "The ID of the snapshot used to create a new branch.
-                    Must not be specified if 'baseBranch' is specified."
+                  description: "The ID of the snapshot to create the new branch from.
+                    One of 'baseBranch' and 'snapshotID' is required; if both are specified, 'snapshotID' is used."
         required: true
       responses:
         200:
           description: OK
           content:
-            '*/*':
+            application/json:
               schema:
                 type: object
                 properties:
@@ -915,18 +1088,29 @@ paths:
         400:
           description: Bad request
           content:
-            '*/*':
+            application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
       x-codegen-request-body-name: body
   /branch/snapshot:
     post:
       tags:
       - Snapshots
-      summary: Create a snapshot
-      description: "Create a new snapshot using the specified clone. After a snapshot
-        has been created, the original clone can be deleted in order to free up compute resources, if necessary. 
+      summary: Commit a clone to its branch
+      description: "Create a new snapshot using the specified clone and move the head of the clone's branch
+        to it (a branch commit). After a snapshot has been created, the original clone can be deleted
+        in order to free up compute resources, if necessary.
         The snapshot created by this endpoint can be used later to create one or more new clones."
+      operationId: createBranchSnapshot
       parameters:
       - name: Verification-Token
         in: header
@@ -937,9 +1121,11 @@ paths:
         description: "Parameters necessary for snapshot creation: 'cloneID' – the
           ID of the clone, 'message' – description of the snapshot"
         content:
-          '*/*':
+          application/json:
             schema:
               type: object
+              required:
+                - cloneID
               properties:
                 cloneID:
                   type: string
@@ -950,18 +1136,27 @@ paths:
         200:
           description: OK
           content:
-            '*/*':
+            application/json:
               schema:
                 type: object
                 properties:
                   snapshotID:
                     type: string
         400:
-          description: Bad request
+          description: "Bad request: unknown clone, the clone is not on a branch, or it is being upgraded"
           content:
-            '*/*':
+            application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
       x-codegen-request-body-name: body
   /branch/{branchName}:
     delete:
@@ -972,6 +1167,7 @@ paths:
         Deletion of a protected branch returns 400; remove protection via PATCH first.
         Deletion of a branch whose snapshots are the fork point of another branch returns 400;
         delete the child branches first."
+      operationId: deleteBranch
       parameters:
         - name: branchName
           in: path
@@ -988,16 +1184,24 @@ paths:
         200:
           description: OK
           content:
-            '*/*':
+            application/json:
               schema:
                 $ref: '#/components/schemas/ResponseStatus'
         400:
           description: Bad request
           content:
-            '*/*':
+            application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-      x-codegen-request-body-name: body
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
     patch:
       tags:
       - Branches
@@ -1035,7 +1239,7 @@ paths:
         400:
           description: Bad request
           content:
-            '*/*':
+            application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         401:
@@ -1051,6 +1255,7 @@ paths:
       - Branches
       summary: Retrieve a branch log
       description: Retrieve a log of the specified branch (history of snapshots).
+      operationId: getBranchLog
       parameters:
         - name: branchName
           in: path
@@ -1067,12 +1272,26 @@ paths:
         200:
           description: OK
           content:
-            '*/*':
+            application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/SnapshotDetails'
-      x-codegen-request-body-name: body
+        400:
+          description: "Bad request: invalid branch name, unknown branch, or the branch metadata cannot be read"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
   /instance/retrieval:
     get:
       tags:
@@ -1106,10 +1325,41 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Instance'
+                $ref: '#/components/schemas/Error'
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
+  /instance/logs:
+    get:
+      tags:
+      - Instance
+      summary: Stream engine logs (WebSocket)
+      description: "Upgrades the connection to a WebSocket and streams the DBLab Engine container logs:
+        the last 5 minutes, then new lines as they appear. Each text frame carries one base64-encoded log line
+        with sensitive values filtered out. Authentication uses a one-time 'token' query parameter obtained
+        from GET /admin/ws-auth, not the 'Verification-Token' header. The request Origin must match the UI
+        or Platform URL."
+      operationId: instanceLogs
+      parameters:
+      - name: token
+        in: query
+        required: true
+        description: One-time WebSocket token issued by GET /admin/ws-auth
+        schema:
+          type: string
+      responses:
+        101:
+          description: Switched to the WebSocket protocol
+        400:
+          description: Not a WebSocket request
+        401:
+          description: The token is missing, unknown, expired, or already used
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        403:
+          description: The request Origin is not allowed
   /healthz:
     get:
       tags:
@@ -1129,6 +1379,20 @@ paths:
                 version: "v4.0.0-alpha.5-20230516-0224"
                 edition: "standard"
                 instanceID: "chhfqfcnvrvc73d0lij0"
+    post:
+      tags:
+      - Instance
+      summary: Service health check
+      description: "Same as GET /healthz; the request body is ignored.
+        This endpoint does not require the 'Verification-Token' header."
+      operationId: healthzPost
+      responses:
+        200:
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Engine'
   /admin/config:
     get:
       tags:
@@ -1185,12 +1449,18 @@ paths:
                         - "--no-owner"
                         - "--exit-on-error"
                         parallelJobs: 4
+        400:
+          description: "Bad request: the configuration cannot be read or projected"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         401:
           description: Unauthorized access
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Instance'
+                $ref: '#/components/schemas/Error'
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
@@ -1237,7 +1507,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Instance'
+                $ref: '#/components/schemas/Error'
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
@@ -1264,13 +1534,20 @@ paths:
           content:
             application/yaml:
               schema:
-                $ref: '#/components/schemas/Config'
+                type: string
+                description: The whole configuration file with sensitive values masked
+        400:
+          description: "Bad request: the configuration file cannot be read"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         401:
           description: Unauthorized access
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Instance'
+                $ref: '#/components/schemas/Error'
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
@@ -1295,8 +1572,12 @@ paths:
         required: true
       responses:
         200:
-          description: Successful operation
-          content: {}
+          description: "Result of the source check. A failed connection is reported here too,
+            with status 'error' and result 'connection_error'."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestConnectionResponse'
         400:
           description: Bad request
           content:
@@ -1311,17 +1592,65 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Instance'
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
+      x-codegen-request-body-name: body
+  /admin/probe-source:
+    post:
+      tags:
+      - Admin
+      summary: Probe a source database
+      description: "Connect to the source database and propose a configuration for it: detected provider,
+        Docker image and tag, databases, shared_buffers, shared_preload_libraries, and query-tuning parameters.
+        The probe runs with a 10-second timeout."
+      operationId: probeSource
+      parameters:
+      - name: Verification-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        description: Source database to probe
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProbeSourceRequest'
+        required: true
+      responses:
+        200:
+          description: Proposed configuration for the source
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProposedConfig'
+        400:
+          description: "Bad request: configuration changes are disabled, the body is invalid, or the source
+            cannot be parsed, reached, or queried"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
       x-codegen-request-body-name: body
   /admin/ws-auth:
-    post:
+    get:
       tags:
       - Admin
-      summary: Test source database
-      operationId: testDBConnection2
+      summary: Issue a one-time WebSocket token
+      description: "Issue a token for GET /instance/logs. The token can be used once and expires one minute
+        after it is issued."
+      operationId: getWSToken
       parameters:
       - name: Verification-Token
         in: header
@@ -1330,26 +1659,94 @@ paths:
           type: string
       responses:
         200:
-          description: Successful operation
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/WSToken'
-        400:
-          description: Bad request
+          description: Issued a WebSocket token
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                code: BAD_REQUEST
-                message: configuration management via UI/API disabled by admin
+                $ref: '#/components/schemas/WSToken'
         401:
           description: Unauthorized access
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Instance'
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
+        500:
+          description: The token cannot be issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /admin/billing-status:
+    get:
+      tags:
+      - Admin
+      summary: Check billing status
+      description: "Report the billing status of the instance as seen by the Postgres.ai Platform."
+      operationId: billingStatus
+      parameters:
+      - name: Verification-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: Returned the billing status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingStatus'
+        400:
+          description: "Bad request: the Platform cannot be reached or returned an error"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
+  /admin/activate:
+    post:
+      tags:
+      - Admin
+      summary: Activate billing
+      description: "Send the usage statistics of the instance to the Postgres.ai Platform, which updates
+        its billing state, and return the engine information."
+      operationId: activateBilling
+      parameters:
+      - name: Verification-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: Returned the engine information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Engine'
+        400:
+          description: "Bad request: the usage statistics cannot be sent"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
               example:
                 code: "UNAUTHORIZED"
                 message: "Check your verification token."
@@ -1365,6 +1762,12 @@ paths:
       responses:
         200:
           description: Prometheus metrics in text format
+          content:
+            text/plain:
+              schema:
+                type: string
+        503:
+          description: The metrics collector is not initialized
           content:
             text/plain:
               schema:
@@ -1438,6 +1841,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        500:
+          description: The upgrade cannot be started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /observation/start:
     post:
@@ -1468,6 +1877,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ObservationSession'
+        400:
+          description: "Bad request: the Platform client is not configured, the body is invalid,
+            or the session cannot be started on the Platform"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
         404:
           description: Not found
           content:
@@ -1511,6 +1936,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
+        404:
+          description: The clone does not exist or is not under observation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
   /observation/summary/{clone_id}/{session_id}:
     get:
@@ -1536,7 +1976,8 @@ paths:
         description: Session ID
         required: true
         schema:
-          type: string
+          type: integer
+          format: int64
       responses:
         200:
           description: Successful operation
@@ -1546,6 +1987,21 @@ paths:
                 $ref: '#/components/schemas/ObservationSummaryArtifact'
         400:
           description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
+        404:
+          description: The clone is not under observation or the session is unknown
           content:
             application/json:
               schema:
@@ -1569,6 +2025,21 @@ paths:
         required: true
         schema:
           type: string
+          enum:
+          - pg_stat_statements
+          - pg_stat_user_tables
+          - pg_stat_database
+          - pg_stat_bgwriter
+          - pg_stat_kcache
+          - pg_stat_all_indexes
+          - pg_stat_all_tables
+          - pg_statio_all_indexes
+          - pg_statio_all_tables
+          - pg_statio_all_sequences
+          - pg_stat_user_functions
+          - pg_stat_slru
+          - objects_size
+          - log_errors
       - name: clone_id
         in: query
         description: Clone ID
@@ -1580,13 +2051,32 @@ paths:
         description: Session ID
         required: true
         schema:
-          type: string
+          type: integer
+          format: int64
       responses:
         200:
-          description: Successful operation
-          content: {}
+          description: The artifact file
+          content:
+            application/json:
+              schema:
+                type: object
         400:
           description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        401:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "UNAUTHORIZED"
+                message: "Check your verification token."
+        404:
+          description: The clone is not under observation or the artifact is not found
           content:
             application/json:
               schema:
@@ -1635,7 +2125,7 @@ components:
         edition:
           type: string
         billingActive:
-          type: string
+          type: boolean
         instanceID:
           type: string
         startedAt:
@@ -1687,14 +2177,14 @@ components:
           type: integer
           format: int64
         compressRatio:
-          type: integer
-          format: float64
+          type: number
+          format: double
     Cloning:
       type: object
       properties:
         expectedCloningTime:
-          type: integer
-          format: float64
+          type: number
+          format: double
         numClones:
           type: integer
           format: int64
@@ -1722,15 +2212,37 @@ components:
         lastRefresh:
           type: string
           format: date-time
+          nullable: true
         nextRefresh:
           type: string
           format: date-time
+          nullable: true
         alerts:
-          type: array
-          items:
-            type: string
+          type: object
+          description: Active alerts keyed by alert type, for example 'refresh_failed' or 'refresh_skipped'
+          additionalProperties:
+            $ref: '#/components/schemas/Alert'
         activity:
-          $ref: '#/components/schemas/Activity'
+          type: object
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/Activity'
+    Alert:
+      type: object
+      properties:
+        level:
+          type: string
+          enum:
+          - error
+          - warning
+          - unknown
+        message:
+          type: string
+        lastSeen:
+          type: string
+          format: date-time
+        count:
+          type: integer
     Activity:
       type: object
       properties:
@@ -1762,7 +2274,7 @@ components:
           type: string
         containerConfig:
           type: object
-          properties: {}
+          additionalProperties: true
     Synchronization:
       type: object
       properties:
@@ -1777,7 +2289,7 @@ components:
           type: string
           format: date-time
         replicationLag:
-          type: string
+          type: integer
         replicationUptime:
           type: integer
     Snapshot:
@@ -1802,6 +2314,15 @@ components:
         numClones:
           type: integer
           format: int
+        clones:
+          type: array
+          description: IDs of the clones created from the snapshot
+          items:
+            type: string
+        branch:
+          type: string
+        message:
+          type: string
         protected:
           type: boolean
           description: Whether the snapshot is protected from deletion (manual, retention, and auto-deletion).
@@ -1826,15 +2347,22 @@ components:
           type: string
         password:
           type: string
+        dbName:
+          type: string
+        ownerUser:
+          type: string
+          description: Authenticated user the clone is bound to, when clone-to-user binding is enabled
     Clone:
       type: object
       properties:
         id:
           type: string
-        name:
-          type: string
         snapshot:
           $ref: '#/components/schemas/Snapshot'
+        branch:
+          type: string
+        revision:
+          type: integer
         protected:
           type: boolean
           default: false
@@ -1845,6 +2373,7 @@ components:
         deleteAt:
           type: string
           format: date-time
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -1870,8 +2399,8 @@ components:
           type: integer
           format: int64
         cloningTime:
-          type: integer
-          format: float64
+          type: number
+          format: double
         maxIdleMinutes:
           type: integer
           format: int64
@@ -1887,6 +2416,8 @@ components:
           description: Maximum allowed protection duration in minutes
     CreateClone:
       type: object
+      required:
+      - db
       properties:
         id:
           type: string
@@ -1907,6 +2438,9 @@ components:
           description: Protection duration in minutes. 0 means forever, omit for default duration.
         db:
           type: object
+          required:
+          - username
+          - password
           properties:
             username:
               type: string
@@ -1917,6 +2451,11 @@ components:
               default:
             db_name:
               type: string
+        extra_conf:
+          type: object
+          description: Extra PostgreSQL configuration parameters for the clone
+          additionalProperties:
+            type: string
     ResetClone:
       type: object
       properties:
@@ -2016,7 +2555,7 @@ components:
     UpdateBranchResponse:
       type: object
       description: "Result of a branch protection update. Only the branch name and the protection
-        fields are populated; other branch attributes are not returned by this endpoint."
+        fields are populated; the other branch attributes are returned empty."
       properties:
         name:
           type: string
@@ -2040,7 +2579,8 @@ components:
           $ref: '#/components/schemas/ObservationConfig'
         tags:
           type: object
-          properties: {}
+          additionalProperties:
+            type: string
         db_name:
           type: string
     ObservationConfig:
@@ -2071,7 +2611,8 @@ components:
           $ref: '#/components/schemas/ObservationConfig'
         tags:
           type: object
-          properties: {}
+          additionalProperties:
+            type: string
         artifacts:
           type: array
           items:
@@ -2096,16 +2637,16 @@ components:
           type: string
           format: date-time
         duration:
-          type: integer
-          format: int64
+          type: number
+          format: double
         warning:
           type: string
     ObservationSummary:
       type: object
       properties:
         total_duration:
-          type: integer
-          format: float64
+          type: number
+          format: double
         total_intervals:
           type: integer
           format: int
@@ -2130,13 +2671,6 @@ components:
           type: string
         overall_error:
           type: boolean
-    SummaryObservationRequest:
-      type: object
-      properties:
-        clone_id:
-          type: string
-        session_id:
-          type: string
     ObservationSummaryArtifact:
       type: object
       properties:
@@ -2168,10 +2702,6 @@ components:
           type: string
         message:
           type: string
-        detail:
-          type: string
-        hint:
-          type: string
     ResponseStatus:
       type: object
       properties:
@@ -2181,6 +2711,18 @@ components:
           type: string
     Config:
       type: object
+      description: "Configuration parameters that can be changed via API, nested as in the configuration file."
+      properties:
+        retrievalMode:
+          type: string
+          enum:
+          - logical
+          - physical
+          - unknown
+          description: "Retrieval mode of the instance. GET returns the current mode. POST uses it to decide
+            which retrieval fields are accepted; when omitted, the running mode is used, and fields of the other
+            mode are rejected."
+      additionalProperties: true
     Connection:
       type: object
       properties:
@@ -2209,13 +2751,20 @@ components:
       properties:
         name:
           type: string
+        baseDataset:
+          type: string
         parent:
           type: string
         dataStateAt:
           type: string
-          format: date-time
+          description: Data state time in UTC, formatted as YYYYMMDDHHMMSS
+          example: '20230509212711'
         snapshotID:
           type: string
+        dataset:
+          type: string
+        numSnapshots:
+          type: integer
         protected:
           type: boolean
           description: Whether the branch is protected from deletion (manual and auto-deletion).
@@ -2235,18 +2784,44 @@ components:
         parent:
           type: string
         child:
-          type: string
+          type: array
+          nullable: true
+          items:
+            type: string
         branch:
           type: array
+          nullable: true
           items:
             type: string
         root:
-          type: string
+          type: array
+          nullable: true
+          items:
+            type: string
         dataStateAt:
           type: string
-          format: date-time
+          description: Data state time in UTC, formatted as YYYYMMDDHHMMSS
+          example: '20230509212711'
         message:
           type: string
+        dataset:
+          type: string
+        clones:
+          type: array
+          nullable: true
+          items:
+            type: string
+        protected:
+          type: boolean
+          description: Whether the snapshot is protected from deletion (manual, retention, and auto-deletion).
+        protectedTill:
+          type: string
+          format: date-time
+          description: Time until which the snapshot is protected; omitted means indefinite when protected, or none.
+        deleteAt:
+          type: string
+          format: date-time
+          description: Scheduled auto-deletion time; omitted means none. Mutually exclusive with protection.
     FullRefresh:
       type: object
       properties:
@@ -2256,3 +2831,130 @@ components:
         message:
           type: string
           example: Full refresh started
+    CreatedSnapshot:
+      type: object
+      description: Snapshot created by POST /snapshot, as reported by the pool manager
+      properties:
+        id:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        dataStateAt:
+          type: string
+          format: date-time
+        used:
+          type: integer
+          format: int64
+          description: Physical space used by the snapshot, in bytes
+        logicalReferenced:
+          type: integer
+          format: int64
+          description: Logical size of the data referenced by the snapshot, in bytes
+        pool:
+          type: string
+        branch:
+          type: string
+        message:
+          type: string
+    TestConnectionResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - ok
+          - notice
+          - warning
+          - error
+        result:
+          type: string
+          description: Result code, for example 'ok', 'connection_error', 'query_error', 'missing_extension'
+        message:
+          type: string
+        dbVersion:
+          type: integer
+          description: Major version of the source database, when it could be detected
+        tuningParams:
+          type: object
+          additionalProperties:
+            type: string
+    ProbeSourceRequest:
+      type: object
+      required:
+      - url
+      properties:
+        url:
+          type: string
+          description: "Source connection string: a postgresql:// URI or a keyword/value DSN with a single host.
+            It must not contain the password."
+          example: postgresql://john@db.example.com:5432/app?sslmode=require
+        password:
+          type: string
+    ProposedConfig:
+      type: object
+      properties:
+        source:
+          $ref: '#/components/schemas/SourceConnection'
+        detectedProvider:
+          type: string
+        dockerImage:
+          type: string
+        dockerTag:
+          type: string
+        resolvedImage:
+          type: string
+        pgMajorVersion:
+          type: integer
+        collationVersion:
+          type: string
+        databases:
+          type: array
+          nullable: true
+          items:
+            type: string
+        sharedBuffers:
+          type: string
+        memoryProbed:
+          type: boolean
+        sharedPreloadLibraries:
+          type: string
+        queryTuning:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: string
+    SourceConnection:
+      type: object
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        dbname:
+          type: string
+    BillingStatus:
+      type: object
+      properties:
+        result:
+          type: string
+        billing_active:
+          type: boolean
+        recognized_org:
+          $ref: '#/components/schemas/RecognizedOrg'
+    RecognizedOrg:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        alias:
+          type: string
+        billing_page:
+          type: string
+        priveleged_until:
+          type: string
+          format: date-time
