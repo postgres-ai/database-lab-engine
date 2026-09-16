@@ -234,6 +234,15 @@ func (s *Server) Reload(cfg srvCfg.Config) {
 	s.configMu.Unlock()
 }
 
+// verificationToken returns the current verification token under the config lock so a token
+// rotated by Reload is enforced on the next request.
+func (s *Server) verificationToken() string {
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
+
+	return s.Config.VerificationToken
+}
+
 // configModificationDisabled reports whether the config-modification endpoints are disabled,
 // reading under the config lock so a concurrent Reload (which replaces the whole struct) cannot
 // tear the read.
@@ -265,7 +274,7 @@ func (s *Server) SetRetention(r srvCfg.Retention) {
 func (s *Server) InitHandlers() {
 	r := s.newRouter()
 
-	s.httpSrv = &http.Server{Addr: fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port), Handler: mw.Logging(r)}
+	s.httpSrv = &http.Server{Addr: fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port), Handler: mw.Logging(mw.Recover(r))}
 }
 
 // newRouter builds the API router with every route registered.
@@ -275,7 +284,7 @@ func (s *Server) newRouter() *mux.Router {
 	// guarded by their own validators, not by the encoding.
 	r := mux.NewRouter().StrictSlash(true)
 
-	authMW := mw.NewAuth(s.Config.VerificationToken, s.Platform)
+	authMW := mw.NewAuth(s.verificationToken, s.Platform)
 
 	r.HandleFunc("/status", authMW.Authorized(s.getInstanceStatus)).Methods(http.MethodGet)
 	r.HandleFunc("/snapshots", authMW.Authorized(s.getSnapshots)).Methods(http.MethodGet)

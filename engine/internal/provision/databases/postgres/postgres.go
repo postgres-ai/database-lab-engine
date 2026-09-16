@@ -119,13 +119,23 @@ func Start(r runners.Runner, c *resources.AppConfig) error {
 				log.Err(runnerErr)
 			}
 
-			return errors.Wrap(err, "postgres start timeout")
+			return startTimeoutError(out, err)
 		}
 
 		time.Sleep(checkPostgresStatusPeriod * time.Millisecond)
 	}
 
 	return nil
+}
+
+// startTimeoutError describes why Postgres was not ready before the deadline: recoveryState is
+// the last pg_is_in_recovery() result and queryErr the error of the last status query, if any.
+func startTimeoutError(recoveryState string, queryErr error) error {
+	if queryErr != nil {
+		return fmt.Errorf("postgres start timeout: last status check failed: %w", queryErr)
+	}
+
+	return fmt.Errorf("postgres start timeout: instance is still in recovery (pg_is_in_recovery: %q)", recoveryState)
 }
 
 func collectDiagnostics(c *resources.AppConfig) {

@@ -97,7 +97,7 @@ func NewObservingClone(config types.Config, sudb *pgx.Conn) *ObservingClone {
 		config:          config,
 		ctx:             ctx,
 		cancel:          cancel,
-		done:            make(chan struct{}, 1),
+		done:            make(chan struct{}),
 		csvFields:       csvFields,
 		registryMu:      &sync.Mutex{},
 		sessionRegistry: make(map[uint64]struct{}),
@@ -202,8 +202,11 @@ func (c *ObservingClone) Init(clone *models.Clone, sessionID uint64, startedAt t
 	return nil
 }
 
-// RunSession runs observing session.
+// RunSession runs observing session. It closes the done channel on every return path so that
+// Stop never waits for a session that has already ended.
 func (c *ObservingClone) RunSession() error {
+	defer close(c.done)
+
 	if c.session == nil || c.db.IsClosed() {
 		return errors.New("failed to run session because it has not been initialized")
 	}
@@ -258,8 +261,6 @@ func (c *ObservingClone) RunSession() error {
 			if err := c.storeArtifacts(); err != nil {
 				log.Err("failed to store artifacts: ", err)
 			}
-
-			c.done <- struct{}{}
 
 			return nil
 		}
@@ -436,16 +437,20 @@ where table_name = 'postgres_log'`)
 }
 
 // Stop stops an observation session.
-func (c *ObservingClone) Stop() error {
+func (c *ObservingClone) Stop(ctx context.Context) error {
+	if c.session == nil {
+		return errors.New("failed to summarize session because it has not been initialized")
+	}
+
 	log.Msg(fmt.Sprintf("Observation session %v is stopping...", c.session.SessionID))
 
 	c.cancel()
 
-	// Waiting for the observation process stops.
-	<-c.done
-
-	if c.session == nil {
-		return errors.New("failed to summarize session because it has not been initialized")
+	// Wait until the observation process ends or the caller gives up.
+	select {
+	case <-c.done:
+	case <-ctx.Done():
+		return fmt.Errorf("observation session %v has not stopped: %w", c.session.SessionID, ctx.Err())
 	}
 
 	c.summarize()

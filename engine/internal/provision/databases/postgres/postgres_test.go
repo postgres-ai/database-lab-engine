@@ -170,3 +170,32 @@ func TestRemoveContainers(t *testing.T) {
 		assert.Equal(t, tc.err, errors.Cause(err))
 	}
 }
+
+func TestStartTimeoutError(t *testing.T) {
+	queryErr := errors.New("connection refused")
+
+	testCases := []struct {
+		name          string
+		recoveryState string
+		queryErr      error
+		wantContains  string
+	}{
+		{name: "still in recovery", recoveryState: "t", queryErr: nil, wantContains: `still in recovery (pg_is_in_recovery: "t")`},
+		{name: "no status at all", recoveryState: "", queryErr: nil, wantContains: `pg_is_in_recovery: ""`},
+		{name: "status check failed", recoveryState: "", queryErr: queryErr, wantContains: "last status check failed: connection refused"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := startTimeoutError(tc.recoveryState, tc.queryErr)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "postgres start timeout")
+			assert.Contains(t, err.Error(), tc.wantContains)
+
+			if tc.queryErr != nil {
+				assert.ErrorIs(t, err, tc.queryErr)
+			}
+		})
+	}
+}

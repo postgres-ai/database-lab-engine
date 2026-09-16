@@ -2,6 +2,8 @@ package retrieval
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -9,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/logical"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
@@ -305,4 +308,24 @@ func TestSkipRefreshingError(t *testing.T) {
 		var err error = NewSkipRefreshingError("some error")
 		assert.EqualError(t, err, "some error")
 	})
+}
+
+func TestIsSnapshotExempt(t *testing.T) {
+	testCases := []struct {
+		name   string
+		err    error
+		exempt bool
+	}{
+		{name: "no jobs", err: errNoJobs, exempt: true},
+		{name: "wrapped no jobs", err: fmt.Errorf("snapshot: %w", errNoJobs), exempt: true},
+		{name: "snapshot exists", err: thinclones.NewSnapshotExistsError("snap"), exempt: true},
+		{name: "wrapped snapshot exists", err: fmt.Errorf("snapshot: %w", thinclones.NewSnapshotExistsError("snap")), exempt: true},
+		{name: "other error", err: errors.New("zfs failed"), exempt: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.exempt, isSnapshotExempt(tc.err))
+		})
+	}
 }

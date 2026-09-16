@@ -34,13 +34,19 @@ const userIdentityKey ctxKey = "dblab_user_identity"
 
 // Auth defines an authorization middleware of the Database Lab HTTP server.
 type Auth struct {
-	verificationToken     string
+	verificationToken     func() string
 	personalTokenVerifier platform.PersonalTokenVerifier
 }
 
-// NewAuth creates a new Auth middleware.
-func NewAuth(verificationToken string, personalTokenVerifier platform.PersonalTokenVerifier) *Auth {
+// NewAuth creates a new Auth middleware. The verification token is read through the accessor on
+// every request, so a token rotated by a config reload takes effect without a server restart.
+func NewAuth(verificationToken func() string, personalTokenVerifier platform.PersonalTokenVerifier) *Auth {
 	return &Auth{verificationToken: verificationToken, personalTokenVerifier: personalTokenVerifier}
+}
+
+// StaticToken returns an accessor for a verification token that never changes.
+func StaticToken(token string) func() string {
+	return func() string { return token }
 }
 
 // Authorized checks if the user has permission to access and attaches the
@@ -83,11 +89,12 @@ func (a *Auth) isAccessAllowed(ctx context.Context, token string) bool {
 // acting user via forwardedEmail; the assertion is trusted because the shared
 // token already grants full instance access.
 func (a *Auth) authenticate(ctx context.Context, token, forwardedEmail string) (context.Context, bool) {
-	if a.verificationToken == "" {
+	verificationToken := a.verificationToken()
+	if verificationToken == "" {
 		return ctx, true
 	}
 
-	if subtle.ConstantTimeCompare([]byte(a.verificationToken), []byte(token)) == 1 {
+	if subtle.ConstantTimeCompare([]byte(verificationToken), []byte(token)) == 1 {
 		return withForwardedIdentity(ctx, forwardedEmail), true
 	}
 
