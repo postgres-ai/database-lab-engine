@@ -34,6 +34,7 @@ type Cloner interface {
 	CreateClone(branch, name, snapshotID string, revision int) error
 	DestroyClone(branch, name string, revision int) error
 	ListClonesNames() ([]string, error)
+	ListCloneDatasets() ([]thinclones.CloneDataset, error)
 }
 
 // StateReporter describes methods of state reporting.

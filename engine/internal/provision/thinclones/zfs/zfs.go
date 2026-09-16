@@ -382,6 +382,22 @@ func (m *Manager) cloneExists(name string) (bool, error) {
 
 // ListClonesNames lists ZFS clones.
 func (m *Manager) ListClonesNames() ([]string, error) {
+	datasets, err := m.ListCloneDatasets()
+	if err != nil {
+		return nil, err
+	}
+
+	cloneNames := make([]string, 0, len(datasets))
+
+	for _, dataset := range datasets {
+		cloneNames = append(cloneNames, dataset.Name)
+	}
+
+	return util.Unique(cloneNames), nil
+}
+
+// ListCloneDatasets lists ZFS clone datasets of the pool with their branch and revision.
+func (m *Manager) ListCloneDatasets() ([]thinclones.CloneDataset, error) {
 	listZfsClonesCmd := "zfs list -o name -H"
 
 	cmdOutput, err := m.runner.Run(listZfsClonesCmd, false)
@@ -389,34 +405,53 @@ func (m *Manager) ListClonesNames() ([]string, error) {
 		return nil, errors.Wrap(err, "failed to list clones")
 	}
 
-	cloneNames := []string{}
-	branchPrefix := m.config.Pool.Name + "/branch/"
-	lines := strings.Split(strings.TrimSpace(cmdOutput), "\n")
+	datasets := []thinclones.CloneDataset{}
+	branchPrefix := m.config.Pool.Name + "/" + branching.BranchDir + "/"
 
-	for _, line := range lines {
-		bc, found := strings.CutPrefix(line, branchPrefix)
+	for _, line := range strings.Split(strings.TrimSpace(cmdOutput), "\n") {
+		bcr, found := strings.CutPrefix(line, branchPrefix)
 		if !found {
 			// It's a pool dataset, not a clone. Skip it.
 			continue
 		}
 
-		segments := strings.Split(bc, "/")
-
-		if len(segments) != numCloneSegments {
-			// It's a branch dataset, not a clone. Skip it.
+		dataset, ok := parseCloneDataset(bcr)
+		if !ok {
 			continue
 		}
 
-		cloneName := segments[1]
-
-		// TODO: check revision suffix.
-
-		if cloneName != "" && !strings.Contains(line, "_pre") {
-			cloneNames = append(cloneNames, cloneName)
-		}
+		datasets = append(datasets, dataset)
 	}
 
-	return util.Unique(cloneNames), nil
+	return datasets, nil
+}
+
+// parseCloneDataset parses the "branch/clone/rN" tail of a clone dataset name. Branch datasets,
+// pre-snapshot clones and datasets without a revision segment are not clones.
+func parseCloneDataset(bcr string) (thinclones.CloneDataset, bool) {
+	segments := strings.Split(bcr, "/")
+
+	if len(segments) != numCloneSegments {
+		return thinclones.CloneDataset{}, false
+	}
+
+	branchName, cloneName := segments[0], segments[1]
+
+	if cloneName == "" || strings.Contains(bcr, "_pre") {
+		return thinclones.CloneDataset{}, false
+	}
+
+	revisionSegment, found := strings.CutPrefix(segments[2], "r")
+	if !found {
+		return thinclones.CloneDataset{}, false
+	}
+
+	revision, err := strconv.Atoi(revisionSegment)
+	if err != nil {
+		return thinclones.CloneDataset{}, false
+	}
+
+	return thinclones.CloneDataset{Branch: branchName, Name: cloneName, Revision: revision}, true
 }
 
 // CreateDataset creates a new dataset.

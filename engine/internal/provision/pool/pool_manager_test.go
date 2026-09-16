@@ -30,6 +30,9 @@ type mockFSManager struct {
 func (m *mockFSManager) CreateClone(_, _, _ string, _ int) error { return nil }
 func (m *mockFSManager) DestroyClone(_, _ string, _ int) error   { return nil }
 func (m *mockFSManager) ListClonesNames() ([]string, error)      { return m.clones, m.clonesErr }
+func (m *mockFSManager) ListCloneDatasets() ([]thinclones.CloneDataset, error) {
+	return nil, m.clonesErr
+}
 func (m *mockFSManager) GetSessionState(_, _ string) (*resources.SessionState, error) {
 	return nil, nil
 }

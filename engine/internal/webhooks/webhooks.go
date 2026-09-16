@@ -7,15 +7,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
+	"slices"
+	"sync"
+	"time"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 )
 
 const (
 	// DLEWebhookTokenHeader defines the HTTP header name to send secret with the webhook request.
 	DLEWebhookTokenHeader = "DBLab-Webhook-Token"
+
+	requestTimeout        = 10 * time.Second
+	dialTimeout           = 5 * time.Second
+	tlsHandshakeTimeout   = 5 * time.Second
+	idleConnTimeout       = 90 * time.Second
+	expectContinueTimeout = time.Second
+	maxIdleConns          = 10
+	maxResponseBodySize   = 64 << 10
 )
 
 // Config defines webhooks configuration.
@@ -33,6 +46,7 @@ type Hook struct {
 // Service listens events and performs webhooks requests.
 type Service struct {
 	client        *http.Client
+	mu            sync.RWMutex
 	hooksRegistry map[string][]Hook
 	eventCh       <-chan EventTyper
 }
@@ -40,9 +54,7 @@ type Service struct {
 // NewService creates a new Webhook Service.
 func NewService(cfg *Config, eventCh <-chan EventTyper) *Service {
 	whs := &Service{
-		client: &http.Client{
-			Transport: &http.Transport{},
-		},
+		client:        newClient(),
 		hooksRegistry: make(map[string][]Hook),
 		eventCh:       eventCh,
 	}
@@ -52,9 +64,24 @@ func NewService(cfg *Config, eventCh <-chan EventTyper) *Service {
 	return whs
 }
 
+func newClient() *http.Client {
+	return &http.Client{
+		Timeout: requestTimeout,
+		Transport: &http.Transport{
+			Proxy:                 http.ProxyFromEnvironment,
+			DialContext:           (&net.Dialer{Timeout: dialTimeout}).DialContext,
+			TLSHandshakeTimeout:   tlsHandshakeTimeout,
+			ResponseHeaderTimeout: requestTimeout,
+			ExpectContinueTimeout: expectContinueTimeout,
+			IdleConnTimeout:       idleConnTimeout,
+			MaxIdleConns:          maxIdleConns,
+		},
+	}
+}
+
 // Reload reloads Webhook Service configuration.
 func (s *Service) Reload(cfg *Config) {
-	s.hooksRegistry = make(map[string][]Hook)
+	registry := make(map[string][]Hook)
 
 	for _, hook := range cfg.Hooks {
 		if err := validateURL(hook.URL); err != nil {
@@ -63,11 +90,15 @@ func (s *Service) Reload(cfg *Config) {
 		}
 
 		for _, event := range hook.Trigger {
-			s.hooksRegistry[event] = append(s.hooksRegistry[event], hook)
+			registry[event] = append(registry[event], hook)
 		}
 	}
 
-	log.Dbg("Registered webhooks", s.hooksRegistry)
+	s.mu.Lock()
+	s.hooksRegistry = registry
+	s.mu.Unlock()
+
+	log.Dbg("Registered webhooks", registry)
 }
 
 func validateURL(hookURL string) error {
@@ -90,8 +121,8 @@ func validateURL(hookURL string) error {
 // Run starts webhook listener.
 func (s *Service) Run(ctx context.Context) {
 	for whEvent := range s.eventCh {
-		hooks, ok := s.hooksRegistry[whEvent.GetType()]
-		if !ok {
+		hooks := s.hooksFor(whEvent.GetType())
+		if len(hooks) == 0 {
 			log.Dbg("Skipped unknown hook: ", whEvent.GetType())
 
 			continue
@@ -100,29 +131,45 @@ func (s *Service) Run(ctx context.Context) {
 		log.Dbg("Trigger event:", whEvent)
 
 		for _, hook := range hooks {
-			go s.triggerWebhook(ctx, hook, whEvent)
+			goroutine.Go("webhook "+hook.URL, func() { s.triggerWebhook(ctx, hook, whEvent) })
 		}
 	}
+}
+
+// hooksFor returns a copy of the hooks registered for the event type, so a concurrent Reload
+// cannot alter the slice while it is being dispatched.
+func (s *Service) hooksFor(eventType string) []Hook {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return slices.Clone(s.hooksRegistry[eventType])
 }
 
 func (s *Service) triggerWebhook(ctx context.Context, hook Hook, whEvent EventTyper) {
 	log.Msg("Webhook request: ", hook.URL)
 
 	resp, err := s.makeRequest(ctx, hook, whEvent)
-
 	if err != nil {
 		log.Err("webhook error:", err)
+		return
+	}
+
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodySize))
+	if err != nil {
+		log.Err("webhook error:", err)
+		return
+	}
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		log.Warn(fmt.Sprintf("webhook %s responded with status %d", hook.URL, resp.StatusCode))
+		log.Dbg("Webhook response: ", string(body))
+
 		return
 	}
 
 	log.Dbg("Webhook status code: ", resp.StatusCode)
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Err("webhook error:", err)
-		return
-	}
-
 	log.Dbg("Webhook response: ", string(body))
 }
 

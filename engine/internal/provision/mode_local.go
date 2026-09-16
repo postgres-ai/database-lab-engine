@@ -741,7 +741,7 @@ func (p *Provisioner) stopPoolSessions(fsm pool.FSManager, exceptClones map[stri
 		}
 	}
 
-	clones, err := fsm.ListClonesNames()
+	clones, err := fsm.ListCloneDatasets()
 	if err != nil {
 		return err
 	}
@@ -749,14 +749,11 @@ func (p *Provisioner) stopPoolSessions(fsm pool.FSManager, exceptClones map[stri
 	log.Dbg("Clone list:", clones)
 
 	for _, clone := range clones {
-		if _, ok := exceptClones[clone]; ok {
+		if _, ok := exceptClones[clone.Name]; ok {
 			continue
 		}
 
-		branchName := branching.DefaultBranch // TODO: extract branch from name OR pass as an argument.
-		revision := branching.DefaultRevision // TODO: the same for the revision.
-
-		if err := fsm.DestroyClone(branchName, clone, revision); err != nil {
+		if err := fsm.DestroyClone(clone.Branch, clone.Name, clone.Revision); err != nil {
 			return err
 		}
 	}

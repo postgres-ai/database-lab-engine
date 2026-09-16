@@ -8,6 +8,7 @@ package log
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -82,6 +83,16 @@ func printLine(v ...interface{}) {
 
 func printf(format string, v ...interface{}) {
 	_ = std.Output(calldepth, fmt.Sprintf(format, v...))
+}
+
+// SetOutput redirects log output to the given writer.
+func SetOutput(w io.Writer) {
+	std.SetOutput(w)
+}
+
+// ResetOutput restores the default log output.
+func ResetOutput() {
+	std.SetOutput(os.Stderr)
 }
 
 // SetDebug enables debug logs.
