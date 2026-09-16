@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -88,6 +89,58 @@ func TestCleanupTokens(t *testing.T) {
 	tk.storeToken("token2")
 
 	require.Equal(t, 2, len(tk.jwtRegistry))
+	tk.cleanUpTokens()
+	require.Equal(t, 0, len(tk.jwtRegistry))
+}
+
+func TestCleanupTokensKeepsValidTokens(t *testing.T) {
+	tk, err := NewTokenKeeper()
+	require.NoError(t, err)
+
+	validToken, err := tk.IssueToken()
+	require.NoError(t, err)
+
+	expiredJWT, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.RegisteredClaims{
+		ExpiresAt: &jwt.NumericDate{Time: time.Now().Add(-time.Second)},
+		Issuer:    issuer,
+	}).SignedString(tk.signingKey)
+	require.NoError(t, err)
+
+	tk.storeToken(expiredJWT)
+	tk.storeToken("malformed")
+
+	require.Equal(t, 3, len(tk.jwtRegistry))
+
+	tk.cleanUpTokens()
+
+	require.Equal(t, 1, len(tk.jwtRegistry))
+	require.NoError(t, tk.ValidateToken(validToken))
+	require.EqualError(t, tk.ValidateToken(expiredJWT), "token not found")
+	require.EqualError(t, tk.ValidateToken("malformed"), "token not found")
+}
+
+func TestCleanupTokensConcurrentWithStore(t *testing.T) {
+	tk, err := NewTokenKeeper()
+	require.NoError(t, err)
+
+	const iterations = 500
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		for i := 0; i < iterations; i++ {
+			tk.storeToken(fmt.Sprintf("token-%d", i))
+		}
+	}()
+
+	for i := 0; i < iterations; i++ {
+		tk.cleanUpTokens()
+	}
+
+	<-done
+
 	tk.cleanUpTokens()
 	require.Equal(t, 0, len(tk.jwtRegistry))
 }

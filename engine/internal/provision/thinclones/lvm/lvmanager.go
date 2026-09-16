@@ -15,6 +15,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 )
 
 const (
@@ -61,6 +62,22 @@ func (m *LVManager) CreateClone(branch, name, _ string, _ int) error {
 // DestroyClone destroys volumes.
 func (m *LVManager) DestroyClone(branch, name string, _ int) error {
 	return RemoveVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir(branch))
+}
+
+// ListCloneDatasets returns the LVM volumes as clone datasets of the default branch.
+func (m *LVManager) ListCloneDatasets() ([]thinclones.CloneDataset, error) {
+	names, err := m.ListClonesNames()
+	if err != nil {
+		return nil, err
+	}
+
+	datasets := make([]thinclones.CloneDataset, 0, len(names))
+
+	for _, name := range names {
+		datasets = append(datasets, thinclones.CloneDataset{Branch: branching.DefaultBranch, Name: name, Revision: branching.DefaultRevision})
+	}
+
+	return datasets, nil
 }
 
 // ListClonesNames returns a list of clone names.

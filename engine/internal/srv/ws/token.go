@@ -69,6 +69,11 @@ func (tk *TokenKeeper) ValidateToken(tokenString string) error {
 		return errors.New("token not found")
 	}
 
+	return tk.parseToken(tokenString)
+}
+
+// parseToken checks the token signature and claims without touching the registry.
+func (tk *TokenKeeper) parseToken(tokenString string) error {
 	parsedToken, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -127,15 +132,43 @@ func (tk *TokenKeeper) isTokenExists(token string) bool {
 	return ok
 }
 
-// cleanUpTokens removes old tokens.
+// cleanUpTokens removes old tokens. The registry keys are snapshotted under the lock, validated
+// lock-free, and the expired set is deleted under a single lock hold; the sweep never holds
+// tk.mu while validating because isTokenExists takes the same non-reentrant mutex.
 func (tk *TokenKeeper) cleanUpTokens() {
-	for token := range tk.jwtRegistry {
-		if err := tk.ValidateToken(token); err != nil {
-			tk.mu.Lock()
-			delete(tk.jwtRegistry, token)
-			tk.mu.Unlock()
+	tokens := tk.registeredTokens()
+
+	expired := make([]string, 0, len(tokens))
+
+	for _, token := range tokens {
+		if err := tk.parseToken(token); err != nil {
+			expired = append(expired, token)
 		}
 	}
+
+	if len(expired) == 0 {
+		return
+	}
+
+	tk.mu.Lock()
+	defer tk.mu.Unlock()
+
+	for _, token := range expired {
+		delete(tk.jwtRegistry, token)
+	}
+}
+
+func (tk *TokenKeeper) registeredTokens() []string {
+	tk.mu.Lock()
+	defer tk.mu.Unlock()
+
+	tokens := make([]string, 0, len(tk.jwtRegistry))
+
+	for token := range tk.jwtRegistry {
+		tokens = append(tokens, token)
+	}
+
+	return tokens
 }
 
 func (tk *TokenKeeper) storeToken(token string) {

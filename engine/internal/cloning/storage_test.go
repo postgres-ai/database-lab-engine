@@ -3,6 +3,7 @@ package cloning
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -93,8 +94,9 @@ func newProvisioner() (*provision.Provisioner, error) {
 func TestLoadingSessionState(t *testing.T) {
 	t.Run("it shouldn't panic if a state file is absent", func(t *testing.T) {
 		s := &Base{}
-		err := s.loadSessionState("/tmp/absent_session_file.json")
+		err := s.loadSessionState(t.TempDir() + "/absent_session_file.json")
 		assert.NoError(t, err)
+		assert.Equal(t, 0, s.lenClones())
 	})
 
 	t.Run("it loads sessions.json", func(t *testing.T) {
@@ -183,15 +185,80 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 }
 
 func TestLoadSessionStateInvalidJSON(t *testing.T) {
-	tmpDir := t.TempDir()
-	sessionsPath := tmpDir + "/sessions.json"
+	testCases := []struct {
+		name string
+		data string
+	}{
+		{name: "not json", data: "not valid json"},
+		{name: "truncated", data: testingCloneState[:len(testingCloneState)/2]},
+		{name: "empty file", data: ""},
+	}
 
-	err := os.WriteFile(sessionsPath, []byte("not valid json"), 0600)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sessionsPath := t.TempDir() + "/sessions.json"
+			require.NoError(t, os.WriteFile(sessionsPath, []byte(tc.data), 0600))
+
+			base := &Base{}
+			err := base.loadSessionState(sessionsPath)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "failed to decode sessions data")
+		})
+	}
+}
+
+func TestSaveClonesStateIsAtomic(t *testing.T) {
+	prov, err := newProvisioner()
 	require.NoError(t, err)
 
-	base := &Base{}
-	err = base.loadSessionState(sessionsPath)
-	assert.Error(t, err)
+	t.Run("it leaves no temporary files after a successful save", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		sessionsPath := filepath.Join(tmpDir, "sessions.json")
+
+		base := NewBase(nil, nil, prov, &telemetry.Agent{}, nil, nil)
+		require.NoError(t, base.saveClonesState(sessionsPath))
+
+		entries, err := os.ReadDir(tmpDir)
+		require.NoError(t, err)
+		require.Len(t, entries, 1)
+		assert.Equal(t, "sessions.json", entries[0].Name())
+	})
+
+	t.Run("it keeps the previous file when the directory is not writable", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("directory permissions are not enforced for root")
+		}
+
+		tmpDir := t.TempDir()
+		sessionsPath := filepath.Join(tmpDir, "sessions.json")
+		require.NoError(t, os.WriteFile(sessionsPath, []byte(testingCloneState), 0600))
+		require.NoError(t, os.Chmod(tmpDir, 0500))
+
+		t.Cleanup(func() { _ = os.Chmod(tmpDir, 0700) })
+
+		base := NewBase(nil, nil, prov, &telemetry.Agent{}, nil, nil)
+		require.Error(t, base.saveClonesState(sessionsPath))
+
+		data, err := os.ReadFile(sessionsPath)
+		require.NoError(t, err)
+		assert.Equal(t, testingCloneState, string(data))
+
+		entries, err := os.ReadDir(tmpDir)
+		require.NoError(t, err)
+		assert.Len(t, entries, 1)
+	})
+
+	t.Run("it fails without a partial file when the directory does not exist", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		sessionsPath := filepath.Join(tmpDir, "missing", "sessions.json")
+
+		base := NewBase(nil, nil, prov, &telemetry.Agent{}, nil, nil)
+		require.Error(t, base.saveClonesState(sessionsPath))
+
+		entries, err := os.ReadDir(tmpDir)
+		require.NoError(t, err)
+		assert.Empty(t, entries)
+	})
 }
 
 func TestSaveClonesStateFilePermissions(t *testing.T) {

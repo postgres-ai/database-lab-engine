@@ -41,6 +41,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/networks"
 	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
@@ -118,7 +119,7 @@ func main() {
 	webhookChan := make(chan webhooks.EventTyper, 1)
 	whs := webhooks.NewService(&cfg.Webhooks, webhookChan)
 
-	go whs.Run(ctx)
+	goroutine.Loop(ctx, "webhooks", func() { whs.Run(ctx) })
 
 	pm := pool.NewPoolManager(&cfg.PoolManager, runner)
 	if err = pm.ReloadPools(); err != nil {
@@ -145,7 +146,7 @@ func main() {
 		log.Errf(errors.WithMessage(err, `failed to init WebSockets Token Manager`).Error())
 	}
 
-	go tokenHolder.RunCleaningUp(ctx)
+	goroutine.Loop(ctx, "websocket token cleanup", func() { tokenHolder.RunCleaningUp(ctx) })
 
 	observingChan := make(chan string, 1)
 
@@ -166,7 +167,7 @@ func main() {
 	obs := observer.NewObserver(docker, &cfg.Observer, pm)
 	billingSvc := billing.New(platformSvc.Client, &engProps, pm)
 
-	go removeObservingClones(observingChan, obs)
+	goroutine.Loop(ctx, "observing clones removal", func() { removeObservingClones(observingChan, obs) })
 
 	embeddedUI := embeddedui.New(cfg.EmbeddedUI, engProps, runner, docker)
 
@@ -196,19 +197,19 @@ func main() {
 
 	server.InitHandlers()
 
-	go func() {
+	goroutine.Go("http server", func() {
 		if err := server.Run(ctx); err != nil {
 			log.Msg(err)
 		}
-	}()
+	})
 
 	if cfg.EmbeddedUI.Enabled {
-		go func() {
+		goroutine.Go("embedded UI", func() {
 			if err := embeddedUI.Run(ctx); err != nil {
 				log.Err("failed to start embedded UI container:", err.Error())
 				return
 			}
-		}()
+		})
 	}
 
 	if err := provisioner.Init(); err != nil {
@@ -221,7 +222,7 @@ func main() {
 	// Resolving the clone upgrade target may have to fetch the upgrade image, which is several
 	// gigabytes. Startup does not wait for it: until it lands the status endpoint reports the
 	// upgrade as unavailable, which is what it would report anyway.
-	go provisioner.ResolveUpgradeTarget()
+	goroutine.Go("upgrade target resolution", provisioner.ResolveUpgradeTarget)
 
 	systemMetrics := billing.GetSystemMetrics(pm)
 
@@ -242,12 +243,14 @@ func main() {
 
 	shutdownCh := setShutdownListener()
 
-	go setReloadListener(ctx, engProps, provisioner, billingSvc,
-		retrievalSvc, pm, cloningSvc, platformSvc,
-		embeddedUI, server,
-		logCleaner, logFilter, whs)
+	goroutine.Loop(ctx, "config reload listener", func() {
+		setReloadListener(ctx, engProps, provisioner, billingSvc,
+			retrievalSvc, pm, cloningSvc, platformSvc,
+			embeddedUI, server,
+			logCleaner, logFilter, whs)
+	})
 
-	go billingSvc.CollectUsage(ctx, systemMetrics)
+	goroutine.Loop(ctx, "billing usage collection", func() { billingSvc.CollectUsage(ctx, systemMetrics) })
 
 	if err := retrievalSvc.Run(ctx); err != nil {
 		log.Err("failed to run data retrieval service:", err)

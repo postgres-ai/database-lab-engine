@@ -30,6 +30,13 @@ func (e *SnapshotExistsError) Error() string {
 	return fmt.Sprintf(`snapshot %s already exists`, e.name)
 }
 
+// CloneDataset identifies a clone dataset by its branch, clone name, and revision.
+type CloneDataset struct {
+	Branch   string
+	Name     string
+	Revision int
+}
+
 // DestroyOptions provides options for destroy commands.
 type DestroyOptions struct {
 	Force bool

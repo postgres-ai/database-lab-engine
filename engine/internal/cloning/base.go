@@ -30,6 +30,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/pglog"
 )
 
@@ -94,8 +95,10 @@ func (c *Base) Run(ctx context.Context) error {
 		log.Err("no available snapshots:", err)
 	}
 
+	// A sessions file that exists but cannot be read must stop the startup: an empty clone map
+	// would make cleanupInvalidClones destroy every clone dataset of the pool.
 	if err := c.RestoreClonesState(); err != nil {
-		log.Err("failed to load stored sessions:", err)
+		return fmt.Errorf("failed to load stored sessions: %w", err)
 	}
 
 	// Must precede filterRunningClones: an interrupted upgrade has no container, and the filter
@@ -114,8 +117,8 @@ func (c *Base) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to revise port pool: %w", err)
 	}
 
-	go c.runIdleCheck(ctx)
-	go c.runProtectionLeaseCheck(ctx)
+	goroutine.Loop(ctx, "idle clones check", func() { c.runIdleCheck(ctx) })
+	goroutine.Loop(ctx, "protection lease check", func() { c.runProtectionLeaseCheck(ctx) })
 
 	return nil
 }

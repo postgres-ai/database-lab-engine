@@ -42,6 +42,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
@@ -137,7 +138,9 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps *global
 		metricsCtx, metricsCancel := context.WithCancel(context.Background())
 		server.metricsCancel = metricsCancel
 
-		go collector.StartBackgroundCollection(metricsCtx, metricsCollectionInterval)
+		goroutine.Loop(metricsCtx, "metrics collection", func() {
+			collector.StartBackgroundCollection(metricsCtx, metricsCollectionInterval)
+		})
 	}
 
 	return server
@@ -347,7 +350,7 @@ func (s *Server) newRouter() *mux.Router {
 func (s *Server) Run(ctx context.Context) error {
 	reportLaunching(s.Config)
 
-	go s.runAutoDeletion(ctx)
+	goroutine.Loop(ctx, "auto-deletion sweeper", func() { s.runAutoDeletion(ctx) })
 
 	return s.httpSrv.ListenAndServe()
 }

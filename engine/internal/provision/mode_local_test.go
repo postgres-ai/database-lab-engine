@@ -74,18 +74,28 @@ func TestPortAllocation(t *testing.T) {
 type mockFSManager struct {
 	pool      *resources.Pool
 	cloneList []string
+	datasets  []thinclones.CloneDataset
+	destroyed *[]thinclones.CloneDataset
 }
 
 func (m mockFSManager) CreateClone(_, _, _ string, _ int) error {
 	return nil
 }
 
-func (m mockFSManager) DestroyClone(_, _ string, _ int) error {
+func (m mockFSManager) DestroyClone(branch, name string, revision int) error {
+	if m.destroyed != nil {
+		*m.destroyed = append(*m.destroyed, thinclones.CloneDataset{Branch: branch, Name: name, Revision: revision})
+	}
+
 	return nil
 }
 
 func (m mockFSManager) ListClonesNames() ([]string, error) {
 	return m.cloneList, nil
+}
+
+func (m mockFSManager) ListCloneDatasets() ([]thinclones.CloneDataset, error) {
+	return m.datasets, nil
 }
 
 func (m mockFSManager) EnsureDataOwnership(_ string) error {
@@ -251,6 +261,35 @@ func (m mockFSManager) GetDatasetOrigins(_ string) []string {
 
 func (m mockFSManager) GetActiveDatasets(_ string) ([]string, error) {
 	return nil, nil
+}
+
+type noopRunner struct{}
+
+func (noopRunner) Run(string, ...bool) (string, error) {
+	return "", nil
+}
+
+func TestStopPoolSessionsDestroysClonesByDataset(t *testing.T) {
+	destroyed := []thinclones.CloneDataset{}
+	fsm := mockFSManager{
+		pool: &resources.Pool{Name: "test_pool"},
+		datasets: []thinclones.CloneDataset{
+			{Branch: "main", Name: "clone_main", Revision: 0},
+			{Branch: "dev", Name: "clone_dev", Revision: 2},
+			{Branch: "dev", Name: "clone_kept", Revision: 0},
+		},
+		destroyed: &destroyed,
+	}
+
+	p := &Provisioner{runner: noopRunner{}}
+
+	err := p.stopPoolSessions(fsm, map[string]struct{}{"clone_kept": {}})
+	require.NoError(t, err)
+
+	assert.Equal(t, []thinclones.CloneDataset{
+		{Branch: "main", Name: "clone_main", Revision: 0},
+		{Branch: "dev", Name: "clone_dev", Revision: 2},
+	}, destroyed)
 }
 
 func TestBuildPoolEntry(t *testing.T) {

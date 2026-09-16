@@ -35,6 +35,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/status"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 
 	dblabCfg "gitlab.com/postgres-ai/database-lab/v3/pkg/config"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
@@ -586,7 +587,9 @@ func (r *Retrieval) setupScheduler(ctx context.Context) {
 
 	r.Scheduler.Cron = cron.New()
 	r.Scheduler.Spec = spec
-	r.Scheduler.Cron.Schedule(r.Scheduler.Spec, cron.FuncJob(r.refreshFunc(ctx)))
+	r.Scheduler.Cron.Schedule(r.Scheduler.Spec, cron.FuncJob(func() {
+		goroutine.Run("scheduled full refresh", r.refreshFunc(ctx))
+	}))
 	r.Scheduler.Cron.Start()
 }
 

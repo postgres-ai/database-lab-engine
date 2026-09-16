@@ -188,6 +188,36 @@ dblab_pool/branch/main/cls19p20l4rc73bc2v9g/r0
 	}
 }
 
+func TestListCloneDatasets(t *testing.T) {
+	m := Manager{
+		runner: runnerMock{
+			cmdOutput: `datastore
+datastore/branch
+datastore/branch/main
+datastore/branch/main/clone_pre_20200831030000
+datastore/branch/main/clone_pre_20200831030000/r0
+datastore/branch/main/cls19p20l4rc73bc2v9g
+datastore/branch/main/cls19p20l4rc73bc2v9g/r0
+datastore/branch/main/cls19p20l4rc73bc2v9g/r1
+datastore/branch/dev/cls184a0l4rc73bc2v90/r3
+datastore/branch/dev/broken/rev
+datastore/branch/dev/broken/x1
+dblab_pool/branch/main/cls19p20l4rc73bc2v9g/r0
+`,
+		},
+		config: Config{Pool: resources.NewPool("datastore"), PreSnapshotSuffix: "_pre"},
+	}
+
+	datasets, err := m.ListCloneDatasets()
+	require.NoError(t, err)
+
+	assert.Equal(t, []thinclones.CloneDataset{
+		{Branch: "main", Name: "cls19p20l4rc73bc2v9g", Revision: 0},
+		{Branch: "main", Name: "cls19p20l4rc73bc2v9g", Revision: 1},
+		{Branch: "dev", Name: "cls184a0l4rc73bc2v90", Revision: 3},
+	}, datasets)
+}
+
 func TestFailedListClones(t *testing.T) {
 	m := Manager{
 		runner: runnerMock{
