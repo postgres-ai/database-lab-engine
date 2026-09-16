@@ -2,6 +2,9 @@ package srv
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -10,6 +13,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/mw"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
 func TestOwnerFromEmail(t *testing.T) {
@@ -67,6 +71,37 @@ func TestOwnerFromContext_Identity(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := mw.WithUserIdentity(context.Background(), platform.UserIdentity{Email: tc.email})
 			assert.Equal(t, tc.want, ownerFromContext(ctx))
+		})
+	}
+}
+
+func TestObservation_NullBodyIsBadRequest(t *testing.T) {
+	pl, err := platform.New(context.Background(), platform.Config{}, "instanceID")
+	require.NoError(t, err)
+
+	s := &Server{Platform: pl}
+
+	testCases := []struct {
+		name    string
+		path    string
+		handler http.HandlerFunc
+	}{
+		{name: "start observation", path: "/observation/start", handler: s.startObservation},
+		{name: "stop observation", path: "/observation/stop", handler: s.stopObservation},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader("null"))
+			rec := httptest.NewRecorder()
+
+			require.NotPanics(t, func() { tc.handler(rec, req) })
+			assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+			var apiErr models.Error
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &apiErr))
+			assert.Equal(t, models.ErrCodeBadRequest, apiErr.Code)
+			assert.Equal(t, errEmptyRequestBody, apiErr.Message)
 		})
 	}
 }

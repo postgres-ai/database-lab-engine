@@ -132,7 +132,12 @@ func create(cliCtx *cli.Context) error {
 		cloneRequest.Snapshot = &types.SnapshotCloneFieldRequest{ID: cliCtx.String("snapshot-id")}
 	}
 
-	cloneRequest.ExtraConf = splitFlags(cliCtx.StringSlice("extra-config"))
+	extraConf, err := splitFlags(cliCtx.StringSlice("extra-config"))
+	if err != nil {
+		return fmt.Errorf("invalid --extra-config value: %w", err)
+	}
+
+	cloneRequest.ExtraConf = extraConf
 
 	var clone *models.Clone
 
@@ -373,10 +378,15 @@ func startObservation(cliCtx *cli.Context) error {
 		MaxDuration:         cliCtx.Uint64("max-duration"),
 	}
 
+	tags, err := splitFlags(cliCtx.StringSlice("tags"))
+	if err != nil {
+		return fmt.Errorf("invalid --tags value: %w", err)
+	}
+
 	start := types.StartObservationRequest{
 		CloneID: cloneID,
 		Config:  observationConfig,
-		Tags:    splitFlags(cliCtx.StringSlice("tags")),
+		Tags:    tags,
 		DBName:  cliCtx.String("db-name"),
 	}
 
@@ -569,19 +579,18 @@ func retrieveClonePort(cliCtx *cli.Context, wg *sync.WaitGroup, remoteHost *url.
 	return clone.DB.Port, nil
 }
 
-func splitFlags(flags []string) map[string]string {
-	const maxSplitParts = 2
-
+// splitFlags parses repeated key=value flag entries into a map; an entry without "=" is an error.
+func splitFlags(flags []string) (map[string]string, error) {
 	extraConfig := make(map[string]string, len(flags))
 
-	if len(flags) == 0 {
-		return extraConfig
-	}
-
 	for _, cfg := range flags {
-		parsed := strings.SplitN(cfg, "=", maxSplitParts)
-		extraConfig[parsed[0]] = parsed[1]
+		key, value, found := strings.Cut(cfg, "=")
+		if !found || key == "" {
+			return nil, fmt.Errorf("%q is not in the key=value form", cfg)
+		}
+
+		extraConfig[key] = value
 	}
 
-	return extraConfig
+	return extraConfig, nil
 }

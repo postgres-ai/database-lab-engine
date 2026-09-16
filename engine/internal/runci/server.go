@@ -54,7 +54,7 @@ func NewServer(cfg *Config, dle *dblabapi.Client, platform *platform.Service, co
 func (s *Server) Run() error {
 	r := mux.NewRouter().StrictSlash(true)
 
-	authMW := mw.NewAuth(s.config.App.VerificationToken, s.platform)
+	authMW := mw.NewAuth(mw.StaticToken(s.config.App.VerificationToken), s.platform)
 
 	r.HandleFunc("/migration/run", authMW.Authorized(s.runMigration)).Methods(http.MethodPost)
 	r.HandleFunc("/artifact/download", authMW.Authorized(s.downloadArtifact)).Methods(http.MethodGet)
@@ -63,7 +63,7 @@ func (s *Server) Run() error {
 
 	addr := fmt.Sprintf("%s:%d", s.config.App.Host, s.config.App.Port)
 
-	s.httpServer = &http.Server{Addr: addr, Handler: mw.Logging(r)}
+	s.httpServer = &http.Server{Addr: addr, Handler: mw.Logging(mw.Recover(r))}
 
 	log.Msg(fmt.Sprintf("Server started listening on %s...", addr))
 

@@ -367,9 +367,7 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 		r.State.cleanAlerts()
 	}
 
-	var existsErr *thinclones.SnapshotExistsError
-
-	if err := r.SnapshotData(ctx, poolName); err != nil && (err != errNoJobs || !errors.As(err, &existsErr)) {
+	if err := r.SnapshotData(ctx, poolName); err != nil && !isSnapshotExempt(err) {
 		return err
 	}
 
@@ -387,6 +385,14 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 	}
 
 	return nil
+}
+
+// isSnapshotExempt reports whether a SnapshotData error must not abort the run: having no
+// snapshot jobs or an already existing snapshot still leaves the pool ready to be activated.
+func isSnapshotExempt(err error) bool {
+	var existsErr *thinclones.SnapshotExistsError
+
+	return errors.Is(err, errNoJobs) || errors.As(err, &existsErr)
 }
 
 // RefreshData runs a group of data refresh jobs.

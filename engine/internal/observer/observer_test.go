@@ -1,6 +1,7 @@
 package observer
 
 import (
+	"context"
 	"regexp"
 	"sync"
 	"testing"
@@ -9,7 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
 func TestMaskingField(t *testing.T) {
@@ -218,4 +221,48 @@ func TestObservingClone_SetOverallError(t *testing.T) {
 
 	oc.SetOverallError(false)
 	assert.False(t, oc.session.state.OverallError)
+}
+
+func TestObservingClone_RunSessionErrorSignalsDone(t *testing.T) {
+	oc := NewObservingClone(types.Config{}, nil)
+
+	require.Error(t, oc.RunSession(), "a session that was never initialized cannot run")
+
+	select {
+	case <-oc.done:
+	case <-time.After(time.Second):
+		t.Fatal("done must be signalled when RunSession exits with an error")
+	}
+}
+
+func TestObservingClone_StopExpiredContext(t *testing.T) {
+	oc := NewObservingClone(types.Config{}, nil)
+	oc.session = &Session{SessionID: 42}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := oc.Stop(ctx)
+
+	require.Error(t, err, "Stop must not block when RunSession never started")
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestObservingClone_StopUninitializedSession(t *testing.T) {
+	oc := NewObservingClone(types.Config{}, nil)
+
+	require.Error(t, oc.Stop(context.Background()))
+}
+
+func TestObservingClone_StopTwiceAfterRunSessionExit(t *testing.T) {
+	oc := NewObservingClone(types.Config{}, nil)
+	oc.pool = &resources.Pool{Name: "pool", MountDir: t.TempDir()}
+	oc.session = &Session{SessionID: 7, Config: types.Config{MaxDuration: 60}, Result: &models.ObservationResult{}}
+
+	close(oc.done)
+
+	require.NotPanics(t, func() {
+		require.NoError(t, oc.Stop(context.Background()))
+		require.NoError(t, oc.Stop(context.Background()))
+	})
 }

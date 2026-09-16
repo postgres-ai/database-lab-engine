@@ -64,7 +64,7 @@ func TestAccess(t *testing.T) {
 	}
 
 	mw := Auth{
-		verificationToken: testVerificationToken,
+		verificationToken: StaticToken(testVerificationToken),
 	}
 
 	for _, tc := range testCases {
@@ -77,14 +77,14 @@ func TestAccess(t *testing.T) {
 }
 
 func TestAccess_EmptyVerificationToken(t *testing.T) {
-	mw := Auth{verificationToken: ""}
+	mw := Auth{verificationToken: StaticToken("")}
 
 	assert.True(t, mw.isAccessAllowed(context.Background(), ""))
 	assert.True(t, mw.isAccessAllowed(context.Background(), "anything"))
 }
 
 func TestAccess_NilPersonalTokenVerifier(t *testing.T) {
-	mw := Auth{verificationToken: testVerificationToken, personalTokenVerifier: nil}
+	mw := Auth{verificationToken: StaticToken(testVerificationToken), personalTokenVerifier: nil}
 
 	assert.False(t, mw.isAccessAllowed(context.Background(), "WrongToken"))
 	assert.True(t, mw.isAccessAllowed(context.Background(), testVerificationToken))
@@ -105,7 +105,7 @@ func TestAuthorized(t *testing.T) {
 		{name: "wrong token returns unauthorized", token: "wrong", wantStatus: http.StatusUnauthorized},
 	}
 
-	auth := NewAuth(testVerificationToken, nil)
+	auth := NewAuth(StaticToken(testVerificationToken), nil)
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -120,7 +120,7 @@ func TestAuthorized(t *testing.T) {
 }
 
 func TestAuthorized_ResponseBody(t *testing.T) {
-	auth := NewAuth(testVerificationToken, nil)
+	auth := NewAuth(StaticToken(testVerificationToken), nil)
 	handler := auth.Authorized(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -145,7 +145,7 @@ func TestAuthorized_UserIdentity(t *testing.T) {
 		{name: "shared token has no identity", token: testVerificationToken, wantOK: false, wantEmail: ""},
 	}
 
-	auth := NewAuth(testVerificationToken, MockPersonalTokenVerifier{isPersonalTokenEnabled: true, email: "u@acme.io"})
+	auth := NewAuth(StaticToken(testVerificationToken), MockPersonalTokenVerifier{isPersonalTokenEnabled: true, email: "u@acme.io"})
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -198,7 +198,7 @@ func TestAuthorized_ForwardedIdentity(t *testing.T) {
 
 			var gotOK bool
 
-			auth := NewAuth(tc.verificationToken, MockPersonalTokenVerifier{isPersonalTokenEnabled: true, email: "u@acme.io"})
+			auth := NewAuth(StaticToken(tc.verificationToken), MockPersonalTokenVerifier{isPersonalTokenEnabled: true, email: "u@acme.io"})
 			handler := auth.Authorized(func(w http.ResponseWriter, r *http.Request) {
 				gotIdentity, gotOK = UserIdentityFromContext(r.Context())
 				w.WriteHeader(http.StatusOK)
@@ -236,7 +236,7 @@ func TestAdminMW(t *testing.T) {
 		{name: "wrong token returns unauthorized", token: "invalid", wantStatus: http.StatusUnauthorized},
 	}
 
-	auth := NewAuth(testVerificationToken, nil)
+	auth := NewAuth(StaticToken(testVerificationToken), nil)
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -251,7 +251,7 @@ func TestAdminMW(t *testing.T) {
 }
 
 func TestAdminMW_WithPersonalToken(t *testing.T) {
-	auth := NewAuth(testVerificationToken, MockPersonalTokenVerifier{isPersonalTokenEnabled: true})
+	auth := NewAuth(StaticToken(testVerificationToken), MockPersonalTokenVerifier{isPersonalTokenEnabled: true})
 	handler := auth.AdminMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -275,7 +275,7 @@ func TestWebSocketsMW(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	auth := NewAuth(testVerificationToken, nil)
+	auth := NewAuth(StaticToken(testVerificationToken), nil)
 
 	testCases := []struct {
 		name       string
@@ -310,7 +310,7 @@ func TestWebSocketsMW_TokenExpendedAfterUse(t *testing.T) {
 	token, err := keeper.IssueToken()
 	require.NoError(t, err)
 
-	auth := NewAuth(testVerificationToken, nil)
+	auth := NewAuth(StaticToken(testVerificationToken), nil)
 	handler := auth.WebSocketsMW(keeper, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -328,9 +328,53 @@ func TestWebSocketsMW_TokenExpendedAfterUse(t *testing.T) {
 
 func TestNewAuth(t *testing.T) {
 	verifier := MockPersonalTokenVerifier{isPersonalTokenEnabled: true}
-	auth := NewAuth("my-token", verifier)
+	auth := NewAuth(StaticToken("my-token"), verifier)
 
 	require.NotNil(t, auth)
-	assert.Equal(t, "my-token", auth.verificationToken)
+	assert.Equal(t, "my-token", auth.verificationToken())
 	assert.Equal(t, verifier, auth.personalTokenVerifier)
+}
+
+func TestAuthorized_TokenRotation(t *testing.T) {
+	const rotatedToken = "RotatedToken"
+
+	currentToken := testVerificationToken
+	auth := NewAuth(func() string { return currentToken }, nil)
+	handler := auth.Authorized(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+
+	request := func(token string) int {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set(VerificationTokenHeader, token)
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+
+		return rec.Code
+	}
+
+	assert.Equal(t, http.StatusOK, request(testVerificationToken))
+	assert.Equal(t, http.StatusUnauthorized, request(rotatedToken))
+
+	currentToken = rotatedToken
+
+	assert.Equal(t, http.StatusUnauthorized, request(testVerificationToken))
+	assert.Equal(t, http.StatusOK, request(rotatedToken))
+}
+
+func TestAdminMW_TokenRotation(t *testing.T) {
+	currentToken := testVerificationToken
+	auth := NewAuth(func() string { return currentToken }, nil)
+	handler := auth.AdminMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) }))
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/config", nil)
+	req.Header.Set(VerificationTokenHeader, testVerificationToken)
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	currentToken = "RotatedToken"
+
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }

@@ -42,6 +42,9 @@ const (
 
 	// activityTimeout defines the timeout for retrieving activity data.
 	activityTimeout = 15 * time.Second
+
+	// errEmptyRequestBody is returned when a JSON body decodes to null instead of an object.
+	errEmptyRequestBody = "request body must be a JSON object"
 )
 
 func (s *Server) getInstanceStatus(w http.ResponseWriter, r *http.Request) {
@@ -1059,6 +1062,11 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if observationRequest == nil {
+		api.SendBadRequestError(w, r, errEmptyRequestBody)
+		return
+	}
+
 	clone, err := s.Cloning.GetClone(observationRequest.CloneID)
 	if err != nil {
 		api.SendNotFoundError(w, r)
@@ -1134,6 +1142,11 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if observationRequest == nil {
+		api.SendBadRequestError(w, r, errEmptyRequestBody)
+		return
+	}
+
 	observingClone, err := s.Observer.GetObservingClone(observationRequest.CloneID)
 	if err != nil {
 		api.SendNotFoundError(w, r)
@@ -1161,7 +1174,7 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 		observingClone.SetOverallError(true)
 	}
 
-	if err := observingClone.Stop(); err != nil {
+	if err := observingClone.Stop(r.Context()); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
 	}
