@@ -199,6 +199,54 @@ describe('PhysicalMode', () => {
     expect(screen.queryByText('Duplicate key')).not.toBeInTheDocument()
   })
 
+  it('envs editor explains masked values returned by the engine', () => {
+    const values = {
+      ...baseValues(),
+      physicalTool: 'walg' as const,
+      physicalEnvs: [
+        { key: 'AWS_SECRET_ACCESS_KEY', value: '****' },
+        { key: 'WALG_S3_PREFIX', value: 's3://bucket' },
+      ],
+    }
+    render(<PhysicalMode values={values} onChange={vi.fn()} />)
+
+    expect(screen.getByTestId('envs-masked-hint')).toBeInTheDocument()
+    expect((screen.getByTestId('envs-value-0') as HTMLInputElement).value).toBe(
+      '****',
+    )
+    expect(
+      screen.getByText('Stored on the server; kept unless you change it'),
+    ).toBeInTheDocument()
+  })
+
+  it('envs editor shows no masked hint when every value is visible', () => {
+    const values = {
+      ...baseValues(),
+      physicalTool: 'walg' as const,
+      physicalEnvs: [{ key: 'WALG_S3_PREFIX', value: 's3://bucket' }],
+    }
+    render(<PhysicalMode values={values} onChange={vi.fn()} />)
+
+    expect(screen.queryByTestId('envs-masked-hint')).not.toBeInTheDocument()
+  })
+
+  it('envs editor posts an overwritten masked value through onChange', () => {
+    const onChange = vi.fn()
+    const values = {
+      ...baseValues(),
+      physicalTool: 'walg' as const,
+      physicalEnvs: [{ key: 'AWS_SECRET_ACCESS_KEY', value: '****' }],
+    }
+    render(<PhysicalMode values={values} onChange={onChange} />)
+
+    fireEvent.change(screen.getByTestId('envs-value-0'), {
+      target: { value: 'new-secret' },
+    })
+    expect(onChange).toHaveBeenLastCalledWith('physicalEnvs', [
+      { key: 'AWS_SECRET_ACCESS_KEY', value: 'new-secret' },
+    ])
+  })
+
   it('Sync section binds docker image and sync.enabled', () => {
     const onChange = vi.fn()
     const values = {

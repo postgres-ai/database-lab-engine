@@ -73,7 +73,7 @@ provision: # Defines how data is provisioned
   # pgUpgradeImage: "postgresai/pg-upgrade:17" # Image running pg_upgrade for "dblab clone upgrade"; its major is the version clones are upgraded to.
   # pgUpgradeTimeout: 3h # How long a single "dblab clone upgrade" run may take before the clone is put back on its original version.
   # pgUpgradePullTimeout: 1h # How long a single image pull made for "dblab clone upgrade" may take; the clone keeps running while it happens.
-  # upgradeImageAllowList: # Repositories an explicit "dblab clone upgrade --docker-image" may name. Empty (default) allows any.
+  # upgradeImageAllowList: # Repositories an explicit "dblab clone upgrade --docker-image" may name. Empty (default) allows only the repository of the clone image; use ["*"] to allow any.
   #   - "postgresai/extended-postgres"
   #                                           # Leave unset to disable clone major upgrades.
 

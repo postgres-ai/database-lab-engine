@@ -10,10 +10,11 @@ type ErrorCode string
 
 // ErrCode constants define a response error codes.
 const (
-	ErrCodeInternal     ErrorCode = "INTERNAL_ERROR"
-	ErrCodeBadRequest   ErrorCode = "BAD_REQUEST"
-	ErrCodeUnauthorized ErrorCode = "UNAUTHORIZED"
-	ErrCodeNotFound     ErrorCode = "NOT_FOUND"
+	ErrCodeInternal        ErrorCode = "INTERNAL_ERROR"
+	ErrCodeBadRequest      ErrorCode = "BAD_REQUEST"
+	ErrCodeUnauthorized    ErrorCode = "UNAUTHORIZED"
+	ErrCodeNotFound        ErrorCode = "NOT_FOUND"
+	ErrCodePayloadTooLarge ErrorCode = "PAYLOAD_TOO_LARGE"
 )
 
 // Error struct represents a response error.

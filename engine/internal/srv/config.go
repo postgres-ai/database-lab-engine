@@ -72,7 +72,7 @@ func (s *Server) setProjectedAdminConfig(w http.ResponseWriter, r *http.Request)
 
 	var cfg interface{}
 	if err := api.ReadJSON(r, &cfg); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
+		api.SendDecodeError(w, r, err)
 		return
 	}
 
@@ -118,7 +118,7 @@ func (s *Server) testDBSource(w http.ResponseWriter, r *http.Request) {
 
 	var connection models.ConnectionTest
 	if err := api.ReadJSON(r, &connection); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
+		api.SendDecodeError(w, r, err)
 		return
 	}
 
@@ -150,7 +150,7 @@ func (s *Server) probeSource(w http.ResponseWriter, r *http.Request) {
 
 	var req models.ProbeSourceRequest
 	if err := api.ReadJSON(r, &req); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
+		api.SendDecodeError(w, r, err)
 		return
 	}
 
@@ -270,6 +270,80 @@ func guardModeFields(mode models.RetrievalMode, proj *models.ConfigProjection) e
 	return nil
 }
 
+// maskedEnvs returns envs with every value replaced by the mask, keys kept. A nil map stays nil,
+// so a config without envs projects without the key.
+func maskedEnvs(envs map[string]interface{}) map[string]interface{} {
+	if envs == nil {
+		return nil
+	}
+
+	masked := make(map[string]interface{}, len(envs))
+
+	for key := range envs {
+		masked[key] = yamlUtils.MaskValue
+	}
+
+	return masked
+}
+
+// restoreMaskedEnvs replaces every env the client posted as the mask with the value stored in
+// node, which is what a client that only saw masked values asks for. A masked key with no stored
+// value is an error: the client refers to a variable that is no longer configured.
+func restoreMaskedEnvs(proj *models.ConfigProjection, node *yaml.Node) error {
+	if !hasMaskedValue(proj.PhysicalEnvs) {
+		return nil
+	}
+
+	stored := &models.ConfigProjection{}
+
+	if err := projection.LoadYaml(stored, node, projection.LoadOptions{Groups: []string{"sensitive"}}); err != nil {
+		return fmt.Errorf("failed to load stored config projection: %w", err)
+	}
+
+	for key, value := range proj.PhysicalEnvs {
+		if value != yamlUtils.MaskValue {
+			continue
+		}
+
+		storedValue, ok := stored.PhysicalEnvs[key]
+		if !ok {
+			return fmt.Errorf("env %q is sent masked but has no stored value to keep; set its value or remove it", key)
+		}
+
+		proj.PhysicalEnvs[key] = storedValue
+	}
+
+	return nil
+}
+
+func hasMaskedValue(envs map[string]interface{}) bool {
+	for _, value := range envs {
+		if value == yamlUtils.MaskValue {
+			return true
+		}
+	}
+
+	return false
+}
+
+// dropEmptyRequestValues clears the fields a client sends empty when it has nothing to say about
+// them. The password is sensitive and never returned by GET, and the physical envs come back
+// masked, so a UI that saw neither posts them back blank; storing that would wipe the
+// credentials on disk. An empty docker image would be pulled and stored as an empty reference.
+func dropEmptyRequestValues(proj *models.ConfigProjection) {
+	if proj.Password != nil && *proj.Password == "" {
+		proj.Password = nil
+	}
+
+	if proj.PhysicalEnvs != nil && len(proj.PhysicalEnvs) == 0 {
+		proj.PhysicalEnvs = nil
+	}
+
+	if proj.DockerImage != nil && *proj.DockerImage == "" {
+		proj.DockerImage = nil
+	}
+}
+
 // validateSourceConnectionString rejects a source connection string that embeds
 // a password (or is otherwise unparseable) before it is persisted to the config.
 // The returned error never echoes the string, so a password placed in it cannot
@@ -381,10 +455,24 @@ func (s *Server) projectedAdminConfig() (interface{}, error) {
 		return nil, fmt.Errorf("failed to load yaml config projection: %w", err)
 	}
 
+	// the physical envs hold WAL-G and pgBackRest credentials, so only their keys are shown:
+	// the UI lists which variables are set and posts the mask back for any it leaves alone.
+	// Every other sensitive field stays nil here and is skipped by the store.
+	sensitive := &models.ConfigProjection{}
+
+	err = projection.LoadYaml(sensitive, document, projection.LoadOptions{
+		Groups: []string{"sensitive"},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to load sensitive config projection: %w", err)
+	}
+
+	proj.PhysicalEnvs = maskedEnvs(sensitive.PhysicalEnvs)
+
 	obj := map[string]interface{}{}
 
 	err = projection.StoreJSON(proj, obj, projection.StoreOptions{
-		Groups: []string{"default"},
+		Groups: []string{"default", "sensitive"},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to jsonify config projection: %w", err)
@@ -444,13 +532,7 @@ func (s *Server) applyProjectedAdminConfig(ctx context.Context, obj interface{})
 		return nil, err
 	}
 
-	if proj.Password != nil && *proj.Password == "" {
-		proj.Password = nil // Avoid storing empty password
-	}
-
-	if proj.DockerImage != nil && *proj.DockerImage == "" {
-		proj.DockerImage = nil // avoid pulling or storing an empty image reference
-	}
+	dropEmptyRequestValues(proj)
 
 	data, err := config.GetConfigBytes()
 	if err != nil {
@@ -461,6 +543,10 @@ func (s *Server) applyProjectedAdminConfig(ctx context.Context, obj interface{})
 
 	err = yaml.Unmarshal(data, node)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := restoreMaskedEnvs(proj, node); err != nil {
 		return nil, err
 	}
 

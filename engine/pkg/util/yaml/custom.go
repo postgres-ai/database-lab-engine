@@ -23,7 +23,7 @@ func TraverseNode(node *yaml.Node) {
 		for i := 0; i < len(node.Content); i += 2 {
 			if node.Content[i+1].Kind == yaml.ScalarNode {
 				if containsSecret(strings.ToLower(node.Content[i].Value)) {
-					node.Content[i+1].Value = maskValue
+					node.Content[i+1].Value = MaskValue
 					node.Content[i+1].Tag = "!!str"
 				}
 

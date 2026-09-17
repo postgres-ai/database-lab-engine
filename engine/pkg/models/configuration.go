@@ -44,5 +44,5 @@ type ConfigProjection struct {
 	PhysicalWalgBackupName   *string                `proj:"retrieval.spec.physicalRestore.options.walg.backupName"`
 	PhysicalPgbackrestStanza *string                `proj:"retrieval.spec.physicalRestore.options.pgbackrest.stanza"`
 	PhysicalPgbackrestDelta  *bool                  `proj:"retrieval.spec.physicalRestore.options.pgbackrest.delta"`
-	PhysicalEnvs             map[string]interface{} `proj:"retrieval.spec.physicalRestore.options.envs,createKey"`
+	PhysicalEnvs             map[string]interface{} `proj:"retrieval.spec.physicalRestore.options.envs,createKey" groups:"sensitive"`
 }

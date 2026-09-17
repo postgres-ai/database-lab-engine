@@ -425,7 +425,8 @@ func (c *Client) SummaryObservation(ctx context.Context, cloneID, sessionID stri
 	return &observationSummary, err
 }
 
-// DownloadArtifact downloads clone observation artifacts.
+// DownloadArtifact downloads clone observation artifacts. The returned body streams the artifact
+// and is not subject to the request timeout; only the wait for the response headers is.
 func (c *Client) DownloadArtifact(ctx context.Context, cloneID, sessionID, artifactType string) (io.ReadCloser, error) {
 	u := c.URL("/observation/download")
 
@@ -440,7 +441,7 @@ func (c *Client) DownloadArtifact(ctx context.Context, cloneID, sessionID, artif
 		return nil, errors.Wrap(err, "failed to make a request")
 	}
 
-	response, err := c.Do(ctx, request)
+	response, err := c.doStream(ctx, request)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get response")
 	}

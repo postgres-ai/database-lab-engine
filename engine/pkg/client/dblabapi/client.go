@@ -35,6 +35,7 @@ type Client struct {
 	url               *url.URL
 	verificationToken string
 	client            *http.Client
+	streamClient      *http.Client
 	requestTimeout    time.Duration
 	pollingInterval   time.Duration
 }
@@ -61,20 +62,27 @@ func NewClient(options Options) (*Client, error) {
 
 	u.Path = strings.TrimRight(u.Path, "/")
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: options.Insecure},
-	}
-
 	if options.RequestTimeout == 0 {
 		options.RequestTimeout = defaultPollingTimeout
 	}
 
+	tlsConfig := &tls.Config{InsecureSkipVerify: options.Insecure}
+
+	// http.Client.Timeout covers the whole exchange, body read included, which is right for
+	// every JSON call. A streamed artifact may legitimately take longer than that to arrive, so
+	// its client bounds only the wait for the response headers.
 	return &Client{
 		url:               u,
 		verificationToken: options.VerificationToken,
-		client:            &http.Client{Transport: tr},
-		requestTimeout:    options.RequestTimeout,
-		pollingInterval:   defaultPollingInterval,
+		client: &http.Client{
+			Transport: &http.Transport{TLSClientConfig: tlsConfig},
+			Timeout:   options.RequestTimeout,
+		},
+		streamClient: &http.Client{
+			Transport: &http.Transport{TLSClientConfig: tlsConfig, ResponseHeaderTimeout: options.RequestTimeout},
+		},
+		requestTimeout:  options.RequestTimeout,
+		pollingInterval: defaultPollingInterval,
 	}, nil
 }
 
@@ -88,8 +96,18 @@ func (c *Client) URL(endpoint string) *url.URL {
 	return &u
 }
 
-// Do makes an HTTP request.
-func (c *Client) Do(ctx context.Context, request *http.Request) (response *http.Response, err error) {
+// Do makes an HTTP request. The whole exchange is bounded by the request timeout.
+func (c *Client) Do(ctx context.Context, request *http.Request) (*http.Response, error) {
+	return c.do(ctx, c.client, request)
+}
+
+// doStream makes an HTTP request whose body the caller streams. Only the wait for the response
+// headers is bounded by the request timeout; the body may take as long as it takes.
+func (c *Client) doStream(ctx context.Context, request *http.Request) (*http.Response, error) {
+	return c.do(ctx, c.streamClient, request)
+}
+
+func (c *Client) do(ctx context.Context, client *http.Client, request *http.Request) (response *http.Response, err error) {
 	// Log request and response.
 	defer func() {
 		if err != nil {
@@ -118,7 +136,7 @@ func (c *Client) Do(ctx context.Context, request *http.Request) (response *http.
 	request.Header.Add(verificationHeader, c.verificationToken)
 	request = request.WithContext(ctx)
 
-	response, err = c.client.Do(request)
+	response, err = client.Do(request)
 	if err != nil {
 		return nil, err
 	}

@@ -40,12 +40,12 @@ func TestTraverseNode(t *testing.T) {
 	sensitive, found := FindNodeAtPathString(node, "retrieval.spec.logicalDump.options.envs.AWS_SECRET_ACCESS_KEY")
 	r.NotNil(sensitive)
 	r.True(found)
-	r.Equal(maskValue, sensitive.Value)
+	r.Equal(MaskValue, sensitive.Value)
 
 	sensitive2, found := FindNodeAtPathString(node, "retrieval.spec.logicalDump.options.envs.PGBACKREST_REPO1_S3_KEY_SECRET")
 	r.NotNil(sensitive2)
 	r.True(found)
-	r.Equal(maskValue, sensitive2.Value)
+	r.Equal(MaskValue, sensitive2.Value)
 
 	nonSensitive, found := FindNodeAtPathString(node, "retrieval.spec.logicalDump.options.envs.TEST_ENV")
 	r.NotNil(nonSensitive)
@@ -55,7 +55,7 @@ func TestTraverseNode(t *testing.T) {
 	password, found := FindNodeAtPathString(node, "retrieval.spec.logicalDump.options.source.connection.password")
 	r.NotNil(password)
 	r.True(found)
-	r.Equal(maskValue, password.Value)
+	r.Equal(MaskValue, password.Value)
 
 	host, found := FindNodeAtPathString(node, "retrieval.spec.logicalDump.options.source.connection.host")
 	r.NotNil(host)

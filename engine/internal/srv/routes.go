@@ -156,7 +156,7 @@ func (s *Server) createSnapshot(w http.ResponseWriter, r *http.Request) {
 	if r.Body != http.NoBody {
 		var createRequest types.SnapshotCreateRequest
 		if err := api.ReadJSON(r, &createRequest); err != nil {
-			api.SendBadRequestError(w, r, err.Error())
+			api.SendDecodeError(w, r, err)
 			return
 		}
 
@@ -564,7 +564,7 @@ func (s *Server) createSnapshotClone(w http.ResponseWriter, r *http.Request) {
 
 	var createRequest types.SnapshotCloneCreateRequest
 	if err := api.ReadJSON(r, &createRequest); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
+		api.SendDecodeError(w, r, err)
 		return
 	}
 
@@ -637,7 +637,7 @@ func (s *Server) createClone(w http.ResponseWriter, r *http.Request) {
 
 	var cloneRequest *types.CloneCreateRequest
 	if err := api.ReadJSON(r, &cloneRequest); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
+		api.SendDecodeError(w, r, err)
 		return
 	}
 
@@ -905,7 +905,7 @@ func (s *Server) patchSnapshot(w http.ResponseWriter, r *http.Request) {
 
 	var req types.SnapshotUpdateRequest
 	if err := api.ReadJSON(r, &req); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
+		api.SendDecodeError(w, r, err)
 		return
 	}
 
@@ -978,7 +978,7 @@ func (s *Server) patchClone(w http.ResponseWriter, r *http.Request) {
 
 	var patchClone types.CloneUpdateRequest
 	if err := api.ReadJSON(r, &patchClone); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
+		api.SendDecodeError(w, r, err)
 
 		return
 	}
@@ -1058,7 +1058,7 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 
 	var observationRequest *types.StartObservationRequest
 	if err := api.ReadJSON(r, &observationRequest); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
+		api.SendDecodeError(w, r, err)
 		return
 	}
 
@@ -1138,7 +1138,7 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 	var observationRequest *types.StopObservationRequest
 
 	if err := api.ReadJSON(r, &observationRequest); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
+		api.SendDecodeError(w, r, err)
 		return
 	}
 

@@ -737,9 +737,14 @@ func (d *DumpJob) buildLogicalDumpCommand(dbName string, dump DumpDefinition) ([
 	dumpCmd := []string{"pg_dump", "--create"}
 
 	// the immediate-restore branch joins dumpCmd into a single `sh -c` string, so
-	// the connection-string value must be shell-quoted to keep its spaces and
-	// metacharacters from breaking argument boundaries or being interpreted.
-	connArgs, err := d.dumpConnectionArgs(dbName, d.DumpOptions.Restore.Enabled)
+	// every value that is not a literal of this function must be shell-quoted to
+	// keep its spaces and metacharacters from breaking argument boundaries or
+	// being interpreted. Custom options are joined verbatim in both paths: they
+	// are operator-written option strings, not values the engine derives.
+	forShell := d.DumpOptions.Restore.Enabled
+	quote := quoteFor(forShell)
+
+	connArgs, err := d.dumpConnectionArgs(dbName, forShell)
 	if err != nil {
 		return nil, err
 	}
@@ -751,11 +756,11 @@ func (d *DumpJob) buildLogicalDumpCommand(dbName string, dump DumpDefinition) ([
 	}
 
 	for _, table := range dump.Tables {
-		dumpCmd = append(dumpCmd, "--table", table)
+		dumpCmd = append(dumpCmd, "--table", quote(table))
 	}
 
 	for _, table := range dump.ExcludeTables {
-		dumpCmd = append(dumpCmd, "--exclude-table", table)
+		dumpCmd = append(dumpCmd, "--exclude-table", quote(table))
 	}
 
 	dumpCmd = append(dumpCmd, d.DumpOptions.CustomOptions...)
@@ -784,29 +789,29 @@ func (d *DumpJob) buildLogicalDumpCommand(dbName string, dump DumpDefinition) ([
 // The password is never included here — it travels separately via PGPASSWORD
 // (see getExecEnvironmentVariables).
 //
-// When forShell is true the -d connection string is shell-quoted, because the
+// When forShell is true every value is shell-quoted, because the
 // immediate-restore path joins the command into a single `sh -c` string where an
 // unquoted connection string (which legitimately contains spaces in the
-// keyword/value form, and may contain shell metacharacters) would break argument
-// boundaries. The discrete-flag and non-shell exec paths take the value verbatim.
+// keyword/value form, and may contain shell metacharacters), host, user, or
+// database name (which comes from pg_database of the source) would break
+// argument boundaries or be interpreted. The non-shell exec path takes the
+// values verbatim.
 func (d *DumpJob) dumpConnectionArgs(dbName string, forShell bool) ([]string, error) {
+	quote := quoteFor(forShell)
+
 	if d.DumpOptions.Source.ConnectionString != "" {
 		connStr, err := withDatabase(d.DumpOptions.Source.ConnectionString, dbName)
 		if err != nil {
 			return nil, err
 		}
 
-		if forShell {
-			connStr = shellQuote(connStr)
-		}
-
-		return []string{"-d", connStr}, nil
+		return []string{"-d", quote(connStr)}, nil
 	}
 
 	var args []string
 
 	if d.config.db.Host != "" {
-		args = append(args, "--host", d.config.db.Host)
+		args = append(args, "--host", quote(d.config.db.Host))
 	}
 
 	if d.config.db.Port > 0 {
@@ -814,18 +819,32 @@ func (d *DumpJob) dumpConnectionArgs(dbName string, forShell bool) ([]string, er
 	}
 
 	if d.config.db.Username != "" {
-		args = append(args, "--username", d.config.db.Username)
+		args = append(args, "--username", quote(d.config.db.Username))
 	}
 
 	if dbName != "" {
-		args = append(args, "--dbname", dbName)
+		args = append(args, "--dbname", quote(dbName))
 	}
 
 	return args, nil
 }
 
+// quoteFor returns shellQuote when the value is going to be joined into a
+// `sh -c` string, and the identity otherwise, so that the exec path passes the
+// value as its own argv element without literal quotes.
+func quoteFor(forShell bool) func(string) string {
+	if forShell {
+		return shellQuote
+	}
+
+	return func(s string) string { return s }
+}
+
+// buildLogicalRestoreCommand returns the pg_restore half of the dump-and-restore
+// pipeline. It is only ever joined into a `sh -c` string, so the user name is
+// shell-quoted; the target database is a literal of the engine.
 func (d *DumpJob) buildLogicalRestoreCommand(dbName string) []string {
-	restoreCmd := []string{"|", "pg_restore", "--username", d.globalCfg.Database.User(), "--dbname", defaults.DBName}
+	restoreCmd := []string{"|", "pg_restore", "--username", shellQuote(d.globalCfg.Database.User()), "--dbname", defaults.DBName}
 
 	if dbName != defaults.DBName {
 		// To avoid recreating of the default database.

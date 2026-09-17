@@ -16,6 +16,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/runci/source"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/mw"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi"
@@ -63,7 +64,7 @@ func (s *Server) Run() error {
 
 	addr := fmt.Sprintf("%s:%d", s.config.App.Host, s.config.App.Port)
 
-	s.httpServer = &http.Server{Addr: addr, Handler: mw.Logging(mw.Recover(r))}
+	s.httpServer = api.NewServer(addr, mw.Logging(mw.Recover(r)))
 
 	log.Msg(fmt.Sprintf("Server started listening on %s...", addr))
 

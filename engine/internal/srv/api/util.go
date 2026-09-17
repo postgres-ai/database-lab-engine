@@ -6,6 +6,8 @@ package api
 
 import (
 	"encoding/json"
+	stderrors "errors"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -19,6 +21,14 @@ const YamlContentType = "application/yaml; charset=utf-8"
 
 // JSONContentType is the content type header for JSON.
 const JSONContentType = "application/json; charset=utf-8"
+
+// MaxRequestBodyBytes is the largest request body ReadJSON accepts. Every JSON body the API takes
+// is a small document; the cap keeps a client from holding memory with an unbounded one.
+const MaxRequestBodyBytes = 1 << 20
+
+// ErrBodyTooLarge reports a request body over MaxRequestBodyBytes. Callers test for it with
+// errors.Is; the *http.MaxBytesError it wraps is an implementation detail.
+var ErrBodyTooLarge = stderrors.New("request body is too large")
 
 // WriteJSON responds with JSON.
 func WriteJSON(w http.ResponseWriter, httpStatusCode int, v interface{}) error {
@@ -39,15 +49,22 @@ func WriteJSON(w http.ResponseWriter, httpStatusCode int, v interface{}) error {
 	return nil
 }
 
-// ReadJSON reads JSON from request.
+// ReadJSON decodes the request body into v. The body is capped at MaxRequestBodyBytes: a larger
+// one yields ErrBodyTooLarge. A decode failure names the JSON error only, never the body, which
+// may hold a credential.
 func ReadJSON(r *http.Request, v interface{}) error {
-	reqBody, err := io.ReadAll(r.Body)
+	reqBody, err := io.ReadAll(http.MaxBytesReader(nil, r.Body, MaxRequestBodyBytes))
 	if err != nil {
-		return errors.Wrap(err, "failed to read a request body")
+		var maxBytesErr *http.MaxBytesError
+		if stderrors.As(err, &maxBytesErr) {
+			return fmt.Errorf("%w: %w", ErrBodyTooLarge, maxBytesErr)
+		}
+
+		return fmt.Errorf("failed to read a request body: %w", err)
 	}
 
 	if err = json.Unmarshal(reqBody, v); err != nil {
-		return errors.Wrapf(err, "failed to unmarshal json: %s", string(reqBody))
+		return fmt.Errorf("failed to unmarshal json: %w", err)
 	}
 
 	return nil

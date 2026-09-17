@@ -714,3 +714,178 @@ retrieval:
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	})
 }
+
+func TestConfigProjection_PhysicalEnvsAreSensitive(t *testing.T) {
+	const physical = `
+retrieval:
+  spec:
+    physicalRestore:
+      options:
+        tool: walg
+        envs:
+          AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+          WALG_S3_PREFIX: s3://bucket/path
+`
+
+	node := &yaml.Node{}
+	require.NoError(t, yaml.Unmarshal([]byte(physical), node))
+
+	// GET /admin/config loads the default group only, the way projectedAdminConfig does
+	echoed := &models.ConfigProjection{}
+	require.NoError(t, projection.LoadYaml(echoed, node, projection.LoadOptions{Groups: []string{"default"}}))
+	require.Nil(t, echoed.PhysicalEnvs, "envs must not be echoed on the default (GET) group")
+	require.NotNil(t, echoed.PhysicalTool)
+
+	// the apply handler and the RDS refresher load both groups
+	full := &models.ConfigProjection{}
+	require.NoError(t, projection.LoadYaml(full, node, projection.LoadOptions{Groups: []string{"default", "sensitive"}}))
+	assert.Equal(t, map[string]interface{}{"AWS_SECRET_ACCESS_KEY": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "WALG_S3_PREFIX": "s3://bucket/path"},
+		full.PhysicalEnvs)
+}
+
+func TestDropEmptyRequestValues(t *testing.T) {
+	kept := map[string]interface{}{"AWS_SECRET_ACCESS_KEY": "value"}
+
+	proj := &models.ConfigProjection{
+		Password:     ptrString(""),
+		DockerImage:  ptrString(""),
+		PhysicalEnvs: map[string]interface{}{},
+		Host:         ptrString(""),
+	}
+	dropEmptyRequestValues(proj)
+
+	assert.Nil(t, proj.Password)
+	assert.Nil(t, proj.DockerImage)
+	assert.Nil(t, proj.PhysicalEnvs, "an empty envs map from a client that never saw the stored ones must not wipe them")
+	assert.NotNil(t, proj.Host, "an empty host is a value, not an omission")
+
+	proj = &models.ConfigProjection{Password: ptrString("p"), DockerImage: ptrString("img:17"), PhysicalEnvs: kept}
+	dropEmptyRequestValues(proj)
+
+	assert.Equal(t, "p", *proj.Password)
+	assert.Equal(t, "img:17", *proj.DockerImage)
+	assert.Equal(t, kept, proj.PhysicalEnvs)
+}
+
+const physicalEnvsConfig = `retrieval:
+  jobs:
+    - physicalRestore
+  spec:
+    physicalRestore:
+      options:
+        tool: walg
+        envs:
+          AWS_ACCESS_KEY_ID: AKIAIOSFODNN7EXAMPLE
+          AWS_SECRET_ACCESS_KEY: "${WALG_SECRET}"
+          WALG_S3_PREFIX: s3://bucket/path
+`
+
+func TestProjectedAdminConfig_MasksPhysicalEnvs(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Chdir(tmpDir)
+	require.NoError(t, os.Mkdir("configs", 0700))
+	require.NoError(t, os.WriteFile(filepath.Join("configs", "server.yml"), []byte(physicalEnvsConfig), 0600))
+
+	srv := newProbeTestServer(t, false)
+	srv.Retrieval = &retrieval.Retrieval{State: retrieval.State{Mode: models.Physical}}
+
+	result, err := srv.projectedAdminConfig()
+	require.NoError(t, err)
+
+	encoded, err := json.Marshal(result)
+	require.NoError(t, err)
+
+	for _, secret := range []string{"AKIAIOSFODNN7EXAMPLE", "WALG_SECRET", "s3://bucket/path"} {
+		assert.NotContains(t, string(encoded), secret)
+	}
+
+	options := result.(map[string]interface{})["retrieval"].(map[string]interface{})["spec"].(map[string]interface{})["physicalRestore"].(map[string]interface{})["options"].(map[string]interface{})
+	assert.Equal(t, "walg", options["tool"])
+	assert.Equal(t, map[string]interface{}{"AWS_ACCESS_KEY_ID": "****", "AWS_SECRET_ACCESS_KEY": "****", "WALG_S3_PREFIX": "****"}, options["envs"],
+		"keys are listed, values are masked")
+}
+
+func TestProjectedAdminConfig_KeepsOtherSensitiveFieldsOut(t *testing.T) {
+	// the store runs with the sensitive group so the masked envs can be written; every other
+	// sensitive field must stay out of the response, keys included
+	const cfg = physicalEnvsConfig + `    logicalDump:
+      options:
+        source:
+          connectionString: "postgres://alice@db.example.com:5432/shop?sslmode=require"
+          connection:
+            host: db.example.com
+            password: "s3cr3t-value"
+`
+
+	tmpDir := t.TempDir()
+	t.Chdir(tmpDir)
+	require.NoError(t, os.Mkdir("configs", 0700))
+	require.NoError(t, os.WriteFile(filepath.Join("configs", "server.yml"), []byte(cfg), 0600))
+
+	srv := newProbeTestServer(t, false)
+	srv.Retrieval = &retrieval.Retrieval{State: retrieval.State{Mode: models.Physical}}
+
+	result, err := srv.projectedAdminConfig()
+	require.NoError(t, err)
+
+	encoded, err := json.Marshal(result)
+	require.NoError(t, err)
+
+	for _, leaked := range []string{"password", "connectionString", "s3cr3t-value", "alice@db.example.com", "AKIAIOSFODNN7EXAMPLE"} {
+		assert.NotContains(t, string(encoded), leaked)
+	}
+
+	assert.Contains(t, string(encoded), `"host":"db.example.com"`, "non-sensitive source fields are still projected")
+	assert.Contains(t, string(encoded), `"AWS_ACCESS_KEY_ID":"****"`)
+}
+
+func TestProjectedAdminConfig_OmitsAbsentPhysicalEnvs(t *testing.T) {
+	srv := writeAdminTestConfig(t)
+
+	result, err := srv.projectedAdminConfig()
+	require.NoError(t, err)
+
+	spec := result.(map[string]interface{})["retrieval"].(map[string]interface{})["spec"].(map[string]interface{})
+	_, hasPhysical := spec["physicalRestore"]
+	assert.False(t, hasPhysical, "a config without envs must not gain an empty physicalRestore section")
+}
+
+func TestRestoreMaskedEnvs(t *testing.T) {
+	node := &yaml.Node{}
+	require.NoError(t, yaml.Unmarshal([]byte(physicalEnvsConfig), node))
+
+	t.Run("masked values are replaced by the stored ones, placeholders included", func(t *testing.T) {
+		proj := &models.ConfigProjection{PhysicalEnvs: map[string]interface{}{
+			"AWS_ACCESS_KEY_ID": "****", "AWS_SECRET_ACCESS_KEY": "****", "WALG_S3_PREFIX": "s3://other/path", "NEW_VAR": "1",
+		}}
+
+		require.NoError(t, restoreMaskedEnvs(proj, node))
+		assert.Equal(t, map[string]interface{}{
+			"AWS_ACCESS_KEY_ID": "AKIAIOSFODNN7EXAMPLE", "AWS_SECRET_ACCESS_KEY": "${WALG_SECRET}", "WALG_S3_PREFIX": "s3://other/path", "NEW_VAR": "1",
+		}, proj.PhysicalEnvs)
+	})
+
+	t.Run("a dropped key stays dropped", func(t *testing.T) {
+		proj := &models.ConfigProjection{PhysicalEnvs: map[string]interface{}{"AWS_ACCESS_KEY_ID": "****"}}
+
+		require.NoError(t, restoreMaskedEnvs(proj, node))
+		assert.Equal(t, map[string]interface{}{"AWS_ACCESS_KEY_ID": "AKIAIOSFODNN7EXAMPLE"}, proj.PhysicalEnvs)
+	})
+
+	t.Run("a masked key without a stored value is refused", func(t *testing.T) {
+		proj := &models.ConfigProjection{PhysicalEnvs: map[string]interface{}{"UNKNOWN": "****"}}
+
+		err := restoreMaskedEnvs(proj, node)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `env "UNKNOWN" is sent masked`)
+	})
+
+	t.Run("no masked values leaves the projection alone", func(t *testing.T) {
+		envs := map[string]interface{}{"WALG_S3_PREFIX": "s3://other/path"}
+		proj := &models.ConfigProjection{PhysicalEnvs: envs}
+
+		require.NoError(t, restoreMaskedEnvs(proj, node))
+		assert.Equal(t, envs, proj.PhysicalEnvs)
+		require.NoError(t, restoreMaskedEnvs(&models.ConfigProjection{}, node))
+	})
+}
