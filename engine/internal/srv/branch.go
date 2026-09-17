@@ -176,7 +176,7 @@ func (s *Server) getFSManagerForBranchAndDataset(branchName, dataset string) (po
 func (s *Server) createBranch(w http.ResponseWriter, r *http.Request) {
 	var createRequest types.BranchCreateRequest
 	if err := api.ReadJSON(r, &createRequest); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
+		api.SendDecodeError(w, r, err)
 		return
 	}
 
@@ -388,7 +388,7 @@ func (s *Server) getFSManagerForSnapshot(snapshotID string) (pool.FSManager, err
 func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
 	var snapshotRequest types.SnapshotCloneCreateRequest
 	if err := api.ReadJSON(r, &snapshotRequest); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
+		api.SendDecodeError(w, r, err)
 		return
 	}
 
@@ -785,7 +785,7 @@ func (s *Server) patchBranch(w http.ResponseWriter, r *http.Request) {
 
 	var req types.BranchUpdateRequest
 	if err := api.ReadJSON(r, &req); err != nil {
-		api.SendBadRequestError(w, r, err.Error())
+		api.SendDecodeError(w, r, err)
 		return
 	}
 

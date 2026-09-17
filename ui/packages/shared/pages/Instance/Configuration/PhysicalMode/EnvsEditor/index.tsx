@@ -11,6 +11,15 @@ type Props = {
   keyErrors?: (string | undefined)[]
 }
 
+// MASKED_ENV_VALUE is what the engine returns instead of a stored env value:
+// envs carry WAL-G and pgBackRest credentials, so GET /admin/config lists
+// the keys only. Posting the mask back for a key keeps the stored value.
+export const MASKED_ENV_VALUE = '****'
+
+export const isMaskedEnvValue = (value: string) => value === MASKED_ENV_VALUE
+
+const MASKED_HINT = 'Stored on the server; kept unless you change it'
+
 // EnvsEditor renders a rows-of-key/value editor with add/remove and a
 // click-to-add suggestion list. Engine consumes envs as a free-form map
 // (physical.go:76, CopyOptions.Envs map[string]string); the UI is a thin
@@ -39,10 +48,24 @@ export const EnvsEditor = ({
   }
 
   const usedKeys = new Set(envs.map((e) => e.key))
+  const hasMasked = envs.some((e) => isMaskedEnvValue(e.value))
 
   return (
     <Box mt={1} data-testid="envs-editor">
       <Typography variant="subtitle2">Environment variables</Typography>
+      {hasMasked && (
+        <Box mt={0.5}>
+          <Typography
+            variant="caption"
+            color="textSecondary"
+            data-testid="envs-masked-hint"
+          >
+            Values shown as {MASKED_ENV_VALUE} are stored on the server and are
+            kept unless you change them. Renaming such a variable requires
+            entering its value again.
+          </Typography>
+        </Box>
+      )}
       {envs.length === 0 ? (
         <Box mt={1} mb={1}>
           <Typography variant="caption" color="textSecondary">
@@ -74,6 +97,9 @@ export const EnvsEditor = ({
                 label="Value"
                 value={env.value}
                 disabled={disabled}
+                helperText={
+                  isMaskedEnvValue(env.value) ? MASKED_HINT : undefined
+                }
                 onChange={(e) => updateRow(i, { value: e.target.value })}
                 inputProps={{ 'data-testid': `envs-value-${i}` }}
               />

@@ -66,8 +66,8 @@ type Config struct {
 	// defaultUpgradePullTimeout.
 	PgUpgradePullTimeout time.Duration `yaml:"pgUpgradePullTimeout"`
 	// UpgradeImageAllowList restricts the repositories an upgrade request may name explicitly.
-	// Empty allows any, which is the default: the instance already runs whatever image its
-	// configuration points at.
+	// Empty, the default, allows only the repository of the clone image; a single "*" entry
+	// allows any repository.
 	UpgradeImageAllowList []string          `yaml:"upgradeImageAllowList"`
 	UseSudo               bool              `yaml:"useSudo"`
 	KeepUserPasswords     bool              `yaml:"keepUserPasswords"`
@@ -770,8 +770,9 @@ func (p *Provisioner) getAppConfig(pool *resources.Pool, branch, name string, re
 	return appConfig
 }
 
-// UpgradeImageAllowList returns the repositories an upgrade request may name explicitly. An empty
-// list allows any repository.
+// UpgradeImageAllowList returns the repositories an upgrade request may name explicitly, as
+// configured. An empty list stands for the repository of the clone image, which the upgrade
+// endpoint resolves per clone; a "*" entry allows any repository.
 func (p *Provisioner) UpgradeImageAllowList() []string {
 	return p.config.UpgradeImageAllowList
 }

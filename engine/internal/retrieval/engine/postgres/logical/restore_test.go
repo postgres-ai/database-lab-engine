@@ -432,7 +432,22 @@ func TestDumpCommandBuilding(t *testing.T) {
 				},
 				CustomOptions: []string{"--exclude-scheme=test-scheme"},
 			},
-			command: []string{"sh", "-c", "pg_dump --create --host localhost --port 5432 --username john --dbname testDB --jobs 1 --table test --table users --exclude-table test2 --exclude-table users2 --exclude-scheme=test-scheme --format custom | pg_restore --username postgres --dbname postgres --create --no-privileges --no-owner --exit-on-error"},
+			command: []string{"sh", "-c", "pg_dump --create --host 'localhost' --port 5432 --username 'john' --dbname 'testDB' --jobs 1 --table 'test' --table 'users' --exclude-table 'test2' --exclude-table 'users2' --exclude-scheme=test-scheme --format custom | pg_restore --username 'postgres' --dbname postgres --create --no-privileges --no-owner --exit-on-error"},
+		},
+		{
+			copyOptions: DumpOptions{
+				DumpLocation: "/tmp/db.dump",
+				Databases:    map[string]DumpDefinition{"x; touch /tmp/pwned": {Tables: []string{`public."My Table"`}}},
+				Restore:      ImmediateRestore{Enabled: true},
+			},
+			command: []string{"sh", "-c", `pg_dump --create --host 'localhost' --port 5432 --username 'john' --dbname 'x; touch /tmp/pwned' --table 'public."My Table"' --format custom | pg_restore --username 'postgres' --dbname postgres --create`},
+		},
+		{
+			copyOptions: DumpOptions{
+				DumpLocation: "/tmp/db.dump",
+				Databases:    map[string]DumpDefinition{"x; touch /tmp/pwned": {Tables: []string{`public."My Table"`}}},
+			},
+			command: []string{"pg_dump", "--create", "--host", "localhost", "--port", "5432", "--username", "john", "--dbname", "x; touch /tmp/pwned", "--table", `public."My Table"`, "--format", "directory", "--file", "/tmp/db.dump/x; touch /tmp/pwned"},
 		},
 		{
 			copyOptions: DumpOptions{
@@ -451,7 +466,7 @@ func TestDumpCommandBuilding(t *testing.T) {
 				Databases:    map[string]DumpDefinition{"shop": {}},
 				Restore:      ImmediateRestore{Enabled: true, CustomOptions: []string{"--no-owner"}},
 			},
-			command: []string{"sh", "-c", "pg_dump --create -d 'postgres://john@localhost:5432/shop?sslmode=require' --jobs 1 --format custom | pg_restore --username postgres --dbname postgres --create --no-owner"},
+			command: []string{"sh", "-c", "pg_dump --create -d 'postgres://john@localhost:5432/shop?sslmode=require' --jobs 1 --format custom | pg_restore --username 'postgres' --dbname postgres --create --no-owner"},
 		},
 		{
 			copyOptions: DumpOptions{
@@ -461,7 +476,7 @@ func TestDumpCommandBuilding(t *testing.T) {
 				Databases:    map[string]DumpDefinition{"shop": {}},
 				Restore:      ImmediateRestore{Enabled: true, CustomOptions: []string{"--no-owner"}},
 			},
-			command: []string{"sh", "-c", `pg_dump --create -d 'host=localhost port=5432 dbname=postgres sslmode=require connect_timeout=5 dbname='\''shop'\''' --jobs 1 --format custom | pg_restore --username postgres --dbname postgres --create --no-owner`},
+			command: []string{"sh", "-c", `pg_dump --create -d 'host=localhost port=5432 dbname=postgres sslmode=require connect_timeout=5 dbname='\''shop'\''' --jobs 1 --format custom | pg_restore --username 'postgres' --dbname postgres --create --no-owner`},
 		},
 	}
 

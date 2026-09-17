@@ -163,6 +163,19 @@ func TestTriggerWebhookHandlesNon2xx(t *testing.T) {
 	assert.NotContains(t, logBuf.String(), "boom", "response body must stay out of non-debug logs")
 }
 
+func TestNewClientBoundsEveryStage(t *testing.T) {
+	client := newClient()
+
+	assert.Equal(t, requestTimeout, client.Timeout)
+
+	transport, ok := client.Transport.(*http.Transport)
+	require.True(t, ok)
+
+	assert.Equal(t, requestTimeout, transport.ResponseHeaderTimeout)
+	assert.Equal(t, tlsHandshakeTimeout, transport.TLSHandshakeTimeout)
+	assert.Equal(t, idleConnTimeout, transport.IdleConnTimeout)
+}
+
 func TestMakeRequestTimesOut(t *testing.T) {
 	release := make(chan struct{})
 

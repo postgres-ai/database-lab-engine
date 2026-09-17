@@ -39,11 +39,13 @@ type upgradeImageInput struct {
 	TargetVersion  int
 	// RequestedImage is the caller's explicit override; it wins when set.
 	RequestedImage string
-	// AllowedRepositories restricts which repositories RequestedImage may name. An empty list
-	// allows any, which is what an instance pulling its images from wherever its administrator
-	// points it needs.
+	// AllowedRepositories restricts which repositories RequestedImage may name. See
+	// allowedUpgradeRepositories for how the configured list and the clone image combine.
 	AllowedRepositories []string
 }
+
+// anyRepository is the allow-list entry that disables the repository check.
+const anyRepository = "*"
 
 func (s *Server) upgradeClone(w http.ResponseWriter, r *http.Request) {
 	cloneID := mux.Vars(r)["id"]
@@ -92,11 +94,12 @@ func (s *Server) upgradeClone(w http.ResponseWriter, r *http.Request) {
 	// A clone that has never been upgraded carries no override, so the engine-wide image and
 	// version are what it actually runs.
 	targetImage, err := resolveUpgradeImage(upgradeImageInput{
-		CurrentImage:        firstNonEmpty(clone.DockerImage, s.provisioner.ContainerOptions().DockerImage),
-		CurrentVersion:      firstNonEmpty(clone.DBVersion, s.provisioner.DetectDBVersion()),
-		TargetVersion:       targetVersion,
-		RequestedImage:      upgradeRequest.DockerImage,
-		AllowedRepositories: s.provisioner.UpgradeImageAllowList(),
+		CurrentImage:   firstNonEmpty(clone.DockerImage, s.provisioner.ContainerOptions().DockerImage),
+		CurrentVersion: firstNonEmpty(clone.DBVersion, s.provisioner.DetectDBVersion()),
+		TargetVersion:  targetVersion,
+		RequestedImage: upgradeRequest.DockerImage,
+		AllowedRepositories: allowedUpgradeRepositories(s.provisioner.UpgradeImageAllowList(),
+			clone.DockerImage, s.provisioner.ContainerOptions().DockerImage),
 	})
 	if err != nil {
 		api.SendBadRequestError(w, r, err.Error())
@@ -185,11 +188,40 @@ func resolveUpgradeImage(in upgradeImageInput) (string, error) {
 	return repository + ":" + targetTag, nil
 }
 
+// allowedUpgradeRepositories resolves the repositories an explicit upgrade image may name. A
+// configured list is taken as is, "*" included. An empty list means the repositories of the
+// given images: the clone's own override when it carries one and the instance-wide clone image,
+// so that by default an upgrade can only move a clone within the repository it already runs
+// from. Images that are empty or do not parse contribute nothing and never widen the list.
+func allowedUpgradeRepositories(configured []string, images ...string) []string {
+	if len(configured) > 0 {
+		return configured
+	}
+
+	var repositories []string
+
+	for _, image := range images {
+		parsed, err := reference.ParseNormalizedNamed(image)
+		if err != nil {
+			continue
+		}
+
+		repository := reference.TrimNamed(parsed).Name()
+
+		if !util.IncludesString(repositories, repository) {
+			repositories = append(repositories, repository)
+		}
+	}
+
+	return repositories
+}
+
 // validateRequestedImage checks an explicit image override before the engine pulls it and runs a
 // clone on it. The reference has to parse, which keeps anything that is not an image name out of
 // the command the provisioner builds around it; its major, when the tag states one, has to be the
-// major the cluster is being converted to; and it has to name an allowed repository whenever the
-// instance lists any.
+// major the cluster is being converted to; and it has to name an allowed repository unless the
+// list holds "*". An empty list allows nothing: callers resolve the default through
+// allowedUpgradeRepositories, so an empty list here means no repository could be derived.
 func validateRequestedImage(image string, targetVersion int, allowedRepositories []string) error {
 	parsed, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
@@ -203,7 +235,7 @@ func validateRequestedImage(image string, targetVersion int, allowedRepositories
 			image, major, targetVersion)
 	}
 
-	if len(allowedRepositories) == 0 {
+	if util.IncludesString(allowedRepositories, anyRepository) {
 		return nil
 	}
 
@@ -215,7 +247,18 @@ func validateRequestedImage(image string, targetVersion int, allowedRepositories
 		}
 	}
 
-	return fmt.Errorf("dockerImage %q is not listed in provision.upgradeImageAllowList", image)
+	return fmt.Errorf("dockerImage %q is not listed in provision.upgradeImageAllowList, which permits %s; "+
+		"an empty list permits only the repository of the clone image and [\"*\"] permits any",
+		image, formatRepositories(allowedRepositories))
+}
+
+// formatRepositories renders an allow-list for an error message.
+func formatRepositories(repositories []string) string {
+	if len(repositories) == 0 {
+		return "no repository"
+	}
+
+	return strings.Join(repositories, ", ")
 }
 
 // normalizeRepository drops any tag or digest and expands the implicit registry and namespace, so

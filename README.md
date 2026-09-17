@@ -178,15 +178,21 @@ the budget leaves the clone untouched and running. The two budgets are separate 
 slow pull must not eat into the time `pg_upgrade` gets once the clone is already stopped.
 
 An upgrade request may name an image explicitly instead of letting the engine substitute the major
-in the current tag. Set `provision.upgradeImageAllowList` to restrict which repositories such a
-request may name; when it is empty, as it is by default, any repository the instance can reach is
-accepted.
+in the current tag. `provision.upgradeImageAllowList` says which repositories such a request may
+name. When it is empty, as it is by default, only the repository of the clone image is accepted:
+the one `databaseContainer.dockerImage` points at, plus the repository of the clone's own image
+when the clone has already been upgraded to another one. That default accepts exactly the image
+the engine would derive itself. List repositories to allow other ones, or `"*"` to allow any
+repository the instance can reach.
 
 ```yaml
 provision:
   upgradeImageAllowList:
     - "postgresai/extended-postgres"
 ```
+
+Releases up to v4.2.0 accepted any repository when the list was empty. An instance that relied on
+that must now set the list to `["*"]`.
 
 **How it can end.** Almost every outcome leaves the clone running:
 

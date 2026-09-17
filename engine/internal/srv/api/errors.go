@@ -46,6 +46,17 @@ func SendBadRequestError(w http.ResponseWriter, r *http.Request, message string)
 	SendError(w, r, models.New(models.ErrCodeBadRequest, message))
 }
 
+// SendDecodeError reports a request body ReadJSON could not decode: 413 when the body exceeded
+// MaxRequestBodyBytes, 400 otherwise.
+func SendDecodeError(w http.ResponseWriter, r *http.Request, err error) {
+	if errors.Is(err, ErrBodyTooLarge) {
+		SendError(w, r, models.New(models.ErrCodePayloadTooLarge, err.Error()))
+		return
+	}
+
+	SendBadRequestError(w, r, err.Error())
+}
+
 // SendUnauthorizedError sends an unauthorized request error.
 func SendUnauthorizedError(w http.ResponseWriter, r *http.Request) {
 	SendError(w, r, models.New(models.ErrCodeUnauthorized, "Check your verification token."))
@@ -77,6 +88,9 @@ func toStatusCode(err models.Error) int {
 
 	case models.ErrCodeNotFound:
 		return http.StatusNotFound
+
+	case models.ErrCodePayloadTooLarge:
+		return http.StatusRequestEntityTooLarge
 
 	case models.ErrCodeInternal:
 		return http.StatusInternalServerError

@@ -73,7 +73,7 @@ provision: # Defines how data is provisioned
   # pgUpgradeImage: "postgresai/pg-upgrade:17" # Image running pg_upgrade for "dblab clone upgrade"; its major is the version clones are upgraded to.
   # pgUpgradeTimeout: 3h # How long a single "dblab clone upgrade" run may take before the clone is put back on its original version.
   # pgUpgradePullTimeout: 1h # How long a single image pull made for "dblab clone upgrade" may take; the clone keeps running while it happens.
-  # upgradeImageAllowList: # Repositories an explicit "dblab clone upgrade --docker-image" may name. Empty (default) allows any.
+  # upgradeImageAllowList: # Repositories an explicit "dblab clone upgrade --docker-image" may name. Empty (default) allows only the repository of the clone image; use ["*"] to allow any.
   #   - "postgresai/extended-postgres"
   #                                           # Leave unset to disable clone major upgrades.
 
@@ -107,6 +107,8 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
 
         # These envs reach the restore and sync containers only; the promotion container reads the
         # physicalSnapshot envs below, so anything WAL replay needs must be set in both places.
+        # The API and UI show these values as **** and keep the stored value when **** is posted
+        # back, so **** itself cannot be used as a value.
         envs: # Environment variables for WAL-G; see https://github.com/wal-g/wal-g/blob/master/docs/README.md
           WALG_GS_PREFIX: "gs://{BUCKET}/{SCOPE}" # Google Storage prefix for WAL-G backups
           GOOGLE_APPLICATION_CREDENTIALS: "/tmp/sa.json" # Path to Google service account credentials

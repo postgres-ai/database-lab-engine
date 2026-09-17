@@ -274,7 +274,7 @@ func (s *Server) SetRetention(r srvCfg.Retention) {
 func (s *Server) InitHandlers() {
 	r := s.newRouter()
 
-	s.httpSrv = &http.Server{Addr: fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port), Handler: mw.Logging(mw.Recover(r))}
+	s.httpSrv = api.NewServer(fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port), mw.Logging(mw.Recover(r)))
 }
 
 // newRouter builds the API router with every route registered.

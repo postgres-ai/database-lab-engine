@@ -118,6 +118,24 @@ describe('updateConfig — mode-aware payload', () => {
     })
   })
 
+  it('physical mode posts masked env values back verbatim so the engine keeps them', async () => {
+    await updateConfig(
+      baseConfig({
+        retrievalMode: 'physical',
+        physicalTool: 'walg',
+        physicalEnvs: [
+          { key: 'AWS_SECRET_ACCESS_KEY', value: '****' },
+          { key: 'WALG_S3_PREFIX', value: 's3://bucket/prefix' },
+        ],
+      }),
+    )
+
+    expect(lastBody().retrieval.spec.physicalRestore.options.envs).toEqual({
+      AWS_SECRET_ACCESS_KEY: '****',
+      WALG_S3_PREFIX: 's3://bucket/prefix',
+    })
+  })
+
   it('physical+pgbackrest mode writes pgbackrest stanza/delta and skips walg block', async () => {
     await updateConfig(
       baseConfig({

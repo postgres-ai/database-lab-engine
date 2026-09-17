@@ -19,7 +19,10 @@ TARGET_VERSION=$((POSTGRES_VERSION + 1))
 # Ref-scoped exactly like IMAGE2TEST above: the upgrade image carries this branch's copy of
 # pg_upgrade_clone.sh, and pulling the bare major would test whichever branch pushed last.
 export PG_UPGRADE_IMAGE="${PG_UPGRADE_IMAGE:-registry.gitlab.com/postgres-ai/database-lab/pg-upgrade:${TARGET_VERSION}-${TAG}}"
-TARGET_CLONE_IMAGE="registry.gitlab.com/postgres-ai/custom-images/extended-postgres:${TARGET_VERSION}"
+# The repository of the clone image is also the only repository an explicit upgrade image may name
+# while provision.upgradeImageAllowList is unset, which is how the config below leaves it.
+export CLONE_IMAGE_REPOSITORY="registry.gitlab.com/postgres-ai/custom-images/extended-postgres"
+TARGET_CLONE_IMAGE="${CLONE_IMAGE_REPOSITORY}:${TARGET_VERSION}"
 
 # The majors the pipeline publishes a pg-upgrade image for; it has to match the parallel matrix of
 # the build-image-*-pg-upgrade jobs in .gitlab-ci.yml, which is where CI passes it in from. A target
@@ -161,7 +164,7 @@ yq eval -i '
   .poolManager.mountDir = env(DLE_TEST_MOUNT_DIR) |
   del(.retrieval.jobs[] | select(. == "logicalDump")) |
   del(.retrieval.jobs[] | select(. == "logicalRestore")) |
-  .databaseContainer.dockerImage = "registry.gitlab.com/postgres-ai/custom-images/extended-postgres:" + strenv(POSTGRES_VERSION)
+  .databaseContainer.dockerImage = strenv(CLONE_IMAGE_REPOSITORY) + ":" + strenv(POSTGRES_VERSION)
 ' "${configDir}/server.yml"
 
 ## Launch Database Lab server
@@ -180,8 +183,12 @@ sudo docker run \
   --detach \
   "${IMAGE2TEST}"
 
-# Check the Database Lab Engine logs
+# Check the Database Lab Engine logs. CI pipes this script through tee, which only ends once every
+# writer of its pipe is gone, so the follower has to die with the script or a failing run sits at
+# the job timeout instead of failing.
 sudo docker logs ${DLE_SERVER_NAME} -f 2>&1 | awk '{print "[CONTAINER ${DLE_SERVER_PORT}]: "$0}' &
+LOG_FOLLOWER_PID=$!
+trap 'kill "${LOG_FOLLOWER_PID}" 2>/dev/null || true' EXIT
 
 check_dle_readiness(){
   if [[ $(curl --silent --header 'Verification-Token: secret_token' --header 'Content-Type: application/json' http://localhost:${DLE_SERVER_PORT}/status | jq -r .retrieving.status) ==  "finished" ]] ; then
@@ -253,8 +260,14 @@ psql_clone -c "alter system set pg_stat_statements.track = 'all'"
 # The instance decides the target, and an explicit image of another major contradicts it. The
 # request has to fail, and the clone has to stay alive and claimable afterwards - a clone that a
 # rejected request left unusable could never be upgraded again.
-if dblab clone upgrade --docker-image "postgresai/extended-postgres:99" ${CLONE_ID}; then
+if dblab clone upgrade --docker-image "${CLONE_IMAGE_REPOSITORY}:99" ${CLONE_ID}; then
   echo "ERROR: an image of another major must be rejected" && exit 1
+fi
+
+# upgradeImageAllowList is unset, so only the repository of the clone image is allowed: an image
+# of the right major from any other repository is refused before anything is pulled.
+if dblab clone upgrade --docker-image "postgresai/extended-postgres:${TARGET_VERSION}" ${CLONE_ID}; then
+  echo "ERROR: an image outside the clone image repository must be rejected by default" && exit 1
 fi
 
 REJECTED_STATUS=$(dblab clone status ${CLONE_ID} | jq -r '.status.code')
@@ -266,14 +279,15 @@ psql_clone -tAc 'select answer from upgrade_probe'
 
 ### Step 5. An upgrade that fails once it has been accepted leaves the clone running
 
-# The target image cannot be pulled, so the upgrade is abandoned before the clone is touched. This
+# The target image names the clone image repository, so it passes the allow-list, but its tag
+# does not exist and the pull fails; the upgrade is abandoned before the clone is touched. This
 # is the asynchronous failure path: the request is accepted, the clone ends up in WARNING, and it
 # has to stay usable and claimable - the successful upgrade in the next step is what proves the
 # latter, because a clone in WARNING has to be accepted for another attempt.
 CLONE_DIR="${DLE_TEST_MOUNT_DIR}/${DLE_TEST_POOL_NAME}/branch/main/${CLONE_ID}/r0"
 
 if dblab clone upgrade \
-  --docker-image "registry.gitlab.com/postgres-ai/database-lab/pg-upgrade:0-does-not-exist" \
+  --docker-image "${CLONE_IMAGE_REPOSITORY}:0-does-not-exist" \
   ${CLONE_ID}; then
   echo "ERROR: an upgrade to an unpullable image must not report success" && exit 1
 fi

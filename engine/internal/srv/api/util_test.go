@@ -7,6 +7,8 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -153,4 +155,79 @@ func TestReadJSON_LargePayload(t *testing.T) {
 	err := ReadJSON(req, &got)
 	require.NoError(t, err)
 	assert.Equal(t, largeString, got.Data)
+}
+
+// jsonBodyOfSize returns a valid JSON document of exactly size bytes.
+func jsonBodyOfSize(t *testing.T, size int) string {
+	t.Helper()
+
+	const frame = `{"data":""}`
+
+	body := `{"data":"` + strings.Repeat("a", size-len(frame)) + `"}`
+	require.Len(t, body, size)
+
+	return body
+}
+
+func TestReadJSON_BodyTooLarge(t *testing.T) {
+	t.Run("a body at the cap is accepted", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(jsonBodyOfSize(t, MaxRequestBodyBytes)))
+
+		var got map[string]string
+		require.NoError(t, ReadJSON(req, &got))
+		assert.Len(t, got["data"], MaxRequestBodyBytes-len(`{"data":""}`))
+	})
+
+	t.Run("one byte over the cap is refused", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(jsonBodyOfSize(t, MaxRequestBodyBytes+1)))
+
+		var got map[string]string
+		err := ReadJSON(req, &got)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrBodyTooLarge)
+
+		var maxBytesErr *http.MaxBytesError
+		assert.ErrorAs(t, err, &maxBytesErr)
+		assert.NotContains(t, err.Error(), "aaaa", "the error never echoes the body")
+	})
+}
+
+func TestReadJSON_ErrorOmitsBody(t *testing.T) {
+	const secret = "AKIAIOSFODNN7EXAMPLE"
+
+	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(`{"password": "`+secret+`"`))
+
+	var got map[string]string
+	err := ReadJSON(req, &got)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), secret)
+	assert.Contains(t, err.Error(), "failed to unmarshal json")
+}
+
+func TestSendDecodeError(t *testing.T) {
+	testCases := []struct {
+		name   string
+		err    error
+		status int
+		code   string
+	}{
+		{name: "oversized body", err: fmt.Errorf("%w: %w", ErrBodyTooLarge, &http.MaxBytesError{Limit: 1}), status: http.StatusRequestEntityTooLarge, code: "PAYLOAD_TOO_LARGE"},
+		{name: "malformed body", err: errors.New("failed to unmarshal json: unexpected end of JSON input"), status: http.StatusBadRequest, code: "BAD_REQUEST"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, "/test", nil)
+
+			SendDecodeError(rec, req, tc.err)
+
+			assert.Equal(t, tc.status, rec.Code)
+
+			var response map[string]string
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+			assert.Equal(t, tc.code, response["code"])
+			assert.Equal(t, tc.err.Error(), response["message"])
+		})
+	}
 }
