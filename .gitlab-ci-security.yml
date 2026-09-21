@@ -18,14 +18,16 @@
 stages:
   - test
   - build-binary
-  - build
-  - integration-test
+  - build-staging
+  - e2e
+  - publish
+  - scan
   - security
 
 cve-govulncheck:
   <<: *security_rules
   stage: security
-  image: golang:1.26.7
+  image: golang:1.26.8
   before_script:
     - go install golang.org/x/vuln/cmd/govulncheck@latest
   script:

@@ -27,7 +27,12 @@ DIR=${0%/*}
 
 if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
 ### Step 0. Create source database
-  TMP_DATA_DIR="/tmp/dle_test/logical_generic"
+  # Deliberately disk-backed, not under /tmp: check_data_existence below reuses this source cluster
+  # across jobs, and on Ubuntu >= 25.04 - which the dle-test runners run - /tmp is a tmpfs sized at
+  # half of RAM. A full PG matrix leaves ~0.6-1 GB per major here and exhausts it mid-run.
+  TMP_DATA_DIR="${DLE_TEST_DATA_DIR:-/var/tmp/dle_test}/logical_generic"
+  SOURCE_DATA_DIR="${TMP_DATA_DIR}/postgresql/${POSTGRES_VERSION}/test"
+  source "${DIR}/_source_data.sh"
 
   sudo docker rm postgres"${POSTGRES_VERSION}" || true
 
@@ -42,7 +47,7 @@ if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
     --env POSTGRES_PASSWORD="${SOURCE_PASSWORD}" \
     --env POSTGRES_DB="${SOURCE_DBNAME}" \
     --env POSTGRES_HOST_AUTH_METHOD=md5 \
-    --volume "${TMP_DATA_DIR}"/postgresql/"${POSTGRES_VERSION}"/test:/var/lib/postgresql/pgdata \
+    --volume "${SOURCE_DATA_DIR}":/var/lib/postgresql/pgdata \
     --detach \
     postgres:"${POSTGRES_VERSION}-alpine"
 
@@ -55,6 +60,18 @@ if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
     check_database_readiness && break || echo "test database is not ready yet"
     sleep 1
   done
+
+  # Without this the loop above just falls through and pgbench runs against a dead server, which
+  # reports the failure far from its cause. The source data is dropped on the way out so the next
+  # job rebuilds it: a cluster the entrypoint considers initialized but an interrupted run left
+  # half-built is inherited by every later run for this major on this runner, and with release tags
+  # gated on the matrix one such directory blocks the release.
+  if ! check_database_readiness; then
+    sudo docker rm -f postgres"${POSTGRES_VERSION}" || true
+    discard_source_data "the source database did not become ready"
+    echo "ERROR: the source database is not ready" >&2
+    exit 1
+  fi
 
   check_data_existence(){
     sudo docker exec postgres"${POSTGRES_VERSION}" psql -d "${SOURCE_DBNAME}" -U postgres --command 'select from pgbench_accounts' > /dev/null 2>&1

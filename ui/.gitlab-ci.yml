@@ -98,7 +98,7 @@ semgrep-sast:
 e2e-ce-ui-test:
   <<: *ui_checks
   image: node:22
-  stage: integration-test
+  stage: e2e
   variables:
     CYPRESS_CACHE_FOLDER: '$CI_PROJECT_DIR/cache/Cypress'
   before_script:

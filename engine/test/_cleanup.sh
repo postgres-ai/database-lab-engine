@@ -3,7 +3,6 @@ set -euxo pipefail
 
 DLE_TEST_MOUNT_DIR="/var/lib/test/dblab_mount"
 DLE_TEST_POOL_NAME="test_dblab_pool"
-TMP_DATA_DIR="/tmp/dle_test"
 ZFS_FILE="$(pwd)/zfs_file"
 META_DIR="$HOME/.dblab/engine/meta"
 
@@ -49,9 +48,11 @@ sudo rm -f "${ZFS_FILE}" \
 dblab config remove test \
   || echo "Removing CLI configuration finished with errors but it is OK to ignore them."
 
-# Clean up tmp source database
-sudo rm -rf ${TMP_DATA_DIR}/postgresql/* \
-  || echo "Cleaning up tmp source directory finished with errors but it is OK to ignore them."
+# The source database directories under ${DLE_TEST_DATA_DIR:-/var/tmp/dle_test} are intentionally
+# left in place: 2.logical_generic.sh and 4.physical_basebackup.sh reuse them across jobs instead of
+# reloading pgbench every run. They are bounded (one per script per PG major) and disk-backed.
+# Because nothing removes them here, each of those scripts validates its own directory on start via
+# _source_data.sh and discards one an interrupted run left unusable.
 
 # Clean up engine meta directory, which every test mounts into the container. A sessions.json or
 # pending.retrieval left by an earlier run is read back by the engine on start.
