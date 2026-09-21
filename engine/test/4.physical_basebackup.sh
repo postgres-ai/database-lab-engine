@@ -26,7 +26,11 @@ DIR=${0%/*}
 
 if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
 ### Step 0. Create source database
-  TMP_DATA_DIR="/tmp/dle_test/physical_basebackup"
+  # Disk-backed for the same reason as 2.logical_generic.sh: the source cluster is reused across
+  # jobs and /tmp is a half-of-RAM tmpfs on the dle-test runners.
+  TMP_DATA_DIR="${DLE_TEST_DATA_DIR:-/var/tmp/dle_test}/physical_basebackup"
+  SOURCE_DATA_DIR="${TMP_DATA_DIR}/postgresql/${POSTGRES_VERSION}/test"
+  source "${DIR}/_source_data.sh"
 
   sudo docker rm postgres"${POSTGRES_VERSION}" || true
 
@@ -41,7 +45,7 @@ if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
     --env POSTGRES_PASSWORD="${SOURCE_PASSWORD}" \
     --env POSTGRES_DB=test \
     --env POSTGRES_HOST_AUTH_METHOD=md5 \
-    --volume "${TMP_DATA_DIR}"/postgresql/"${POSTGRES_VERSION}"/test:/var/lib/postgresql/pgdata \
+    --volume "${SOURCE_DATA_DIR}":/var/lib/postgresql/pgdata \
     --detach \
     postgres:"${POSTGRES_VERSION}-alpine"
 
@@ -54,6 +58,18 @@ if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
     check_database_readiness && break || echo "test database is not ready yet"
     sleep 1
   done
+
+  # Without this the loop above just falls through and the pg_hba.conf edit below runs against a
+  # dead server, which reports the failure far from its cause. The source data is dropped on the way
+  # out so the next job rebuilds it: a cluster the entrypoint considers initialized but an
+  # interrupted run left half-built is inherited by every later run for this major on this runner,
+  # and with release tags gated on the matrix one such directory blocks the release.
+  if ! check_database_readiness; then
+    sudo docker rm -f postgres"${POSTGRES_VERSION}" || true
+    discard_source_data "the source database did not become ready"
+    echo "ERROR: the source database is not ready" >&2
+    exit 1
+  fi
 
   # add "host replication" to pg_hba.conf
   sudo docker exec postgres"${POSTGRES_VERSION}" bash -c 'echo "host replication all 0.0.0.0/0 md5" >> $PGDATA/pg_hba.conf'

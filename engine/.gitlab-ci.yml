@@ -8,15 +8,20 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 default:
-  image: golang:1.26.7
+  image: golang:1.26.8
   interruptible: true  # All jobs can be cancelled by default
 
+# Publishing has to come after the tests that qualify the artifact, and `needs:` cannot point at a
+# later stage, so the two are ordered here rather than wired up job by job: `build-staging` produces
+# the ref-scoped images the tests pull from the project registry, `e2e` runs them, and `publish` is
+# the first stage allowed to push anything to Docker Hub or the release buckets.
 stages:
   - test
   - build-binary
-  - build
+  - build-staging
+  - e2e
+  - publish
   - scan
-  - integration-test
 
 variables:
   # The majors the build-image-*-pg-upgrade matrices publish a pg-upgrade image for. It has to stay
@@ -45,6 +50,14 @@ variables:
   rules:
     - if: $CI_COMMIT_TAG =~ /^v[0-9.]+[\-_]*[a-zA-Z]+[a-zA-Z0-9.\-_]*[a-zA-Z0-9]+$/
 
+# Both tag shapes at once, for the staging jobs that have to build the images the e2e matrix pulls
+# no matter which kind of release is being cut.
+.only_dle_tag_any: &only_tag_any
+  interruptible: false
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v[0-9.]+$/
+    - if: $CI_COMMIT_TAG =~ /^v[0-9.]+[\-_]*[a-zA-Z]+[a-zA-Z0-9.\-_]*[a-zA-Z0-9]+$/
+
 .only_dle_master: &only_master
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
@@ -56,6 +69,45 @@ variables:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - engine/**/*
+
+# The tag-pipeline test set, referenced by every publish job so the gate is stated at each push site
+# and not just implied by stage order. `artifacts: false` because publish jobs take their binaries
+# from the build-binary stage; the bash jobs re-export engine/bin only as a debugging aid.
+# These are the `.bash-test-main` matrix plus the Go integration suite - exactly the jobs whose rules
+# below include the two v-tag patterns. `.bash-test-mr` jobs are absent on purpose: they never run on
+# a tag, and naming them here would make every tag pipeline fail to generate.
+.e2e_gate:
+  needs:
+    - job: bash-test-main-10
+      artifacts: false
+    - job: bash-test-main-11
+      artifacts: false
+    - job: bash-test-main-12
+      artifacts: false
+    - job: bash-test-main-13
+      artifacts: false
+    - job: bash-test-main-14
+      artifacts: false
+    - job: bash-test-main-15
+      artifacts: false
+    - job: bash-test-main-16
+      artifacts: false
+    - job: bash-test-main-17
+      artifacts: false
+    - job: bash-test-main-18
+      artifacts: false
+    - job: integration-test
+      artifacts: false
+
+# The image publish jobs additionally need the binaries the Dockerfiles COPY in. Naming `needs:`
+# means artifacts arrive only from the jobs listed here, so build-binary-alpine has to be explicit -
+# it is the job whose `make build` produces bin/dblab-server, bin/run-ci, bin/dblab and
+# bin/rds-refresh.
+.publish_image_gate:
+  needs:
+    - !reference [.e2e_gate, needs]
+    - job: build-binary-alpine
+      artifacts: true
 
 test:
   <<: *only_engine
@@ -74,7 +126,7 @@ lint:
 ### Build binary.
 build-binary-alpine:
   <<: *only_engine
-  image: golang:1.26.7-alpine
+  image: golang:1.26.8-alpine
   stage: build-binary
   artifacts:
     paths:
@@ -139,50 +191,34 @@ build-binary-client-master:
     # Upload artifacts.
     - gsutil -m cp -r bin/cli/* gs://database-lab-cli/master/
 
+# The tag CLI binaries are built here and uploaded from the publish stage: the e2e jobs install
+# bin/cli/dblab-linux-amd64 out of these artifacts, so the build cannot wait for the tests that
+# consume it, while the upload to the release bucket must.
 build-binary-client:
   <<: *only_tag_release
   stage: build-binary
-  before_script:
-    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
+  artifacts:
+    paths:
+      - engine/bin
   script:
     - cd engine
     - make build-client
-
-    # Install google-cloud-cli.
-    - curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-    - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-    - apt-get update && apt-get install -y google-cloud-cli
-
-    # Authenticate.
-    - GCP_KEY_FILE=$(mktemp) && trap "rm -f \"$GCP_KEY_FILE\"" EXIT && printf '%s' "${GCP_SERVICE_KEY}" > "$GCP_KEY_FILE" && gcloud auth activate-service-account --key-file="$GCP_KEY_FILE" && rm -f "$GCP_KEY_FILE"
-
-    # Upload artifacts.
-    - gsutil -m cp -r bin/cli/* gs://database-lab-cli/${CLEAN_TAG}/
-    - gsutil -m cp -r bin/cli/* gs://database-lab-cli/latest/
 
 build-binary-client-rc:
   <<: *only_tag_rc
   stage: build-binary
-  before_script:
-    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
+  artifacts:
+    paths:
+      - engine/bin
   script:
     - cd engine
     - make build-client
 
-    # Install google-cloud-cli.
-    - curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-    - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-    - apt-get update && apt-get install -y google-cloud-cli
-
-    # Authenticate.
-    - GCP_KEY_FILE=$(mktemp) && trap "rm -f \"$GCP_KEY_FILE\"" EXIT && printf '%s' "${GCP_SERVICE_KEY}" > "$GCP_KEY_FILE" && gcloud auth activate-service-account --key-file="$GCP_KEY_FILE" && rm -f "$GCP_KEY_FILE"
-
-    # Upload artifacts.
-    - gsutil -m cp -r bin/cli/* gs://database-lab-cli/${CLEAN_TAG}/
-
+# Defaults to build-staging - the images the e2e matrix pulls from the project registry. The jobs
+# that push to Docker Hub override this with `stage: publish` so they land after the tests.
 .job_template: &build_image_definition
   image: docker:24
-  stage: build
+  stage: build-staging
   artifacts:
     paths:
       - engine/bin
@@ -202,7 +238,7 @@ build-binary-client-rc:
 # pinning the base to "17-0.8.0" produces pg-upgrade:17-0.8.0.
 .pg_upgrade_job_template: &build_pg_upgrade_image_definition
   image: docker:24
-  stage: build
+  stage: build-staging
   services:
     - name: docker:24-dind
       alias: docker
@@ -251,9 +287,28 @@ build-image-master-pg-upgrade:
     DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/pg-upgrade"
     PG_UPGRADE_TAG_SUFFIX: "-${CI_COMMIT_REF_SLUG}"
 
+# Tag pipelines run the same e2e matrix as master, and 6.clone_upgrade.sh / integration-test pull
+# pg-upgrade:<major>-${CI_COMMIT_REF_SLUG} from the project registry. Without this job those tags do
+# not exist on a tag and every upgrade test fails at `docker pull`.
+build-image-tag-pg-upgrade:
+  <<: *build_pg_upgrade_image_definition
+  <<: *only_tag_any
+  parallel:
+    matrix:
+      - PG_MAJOR: [ "17", "18" ]
+  variables:
+    REGISTRY_USER: "${CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
+    REGISTRY: "${CI_REGISTRY}"
+    DOCKER_FILE: "Dockerfile.pg-upgrade"
+    DOCKER_NAME: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/pg-upgrade"
+    PG_UPGRADE_TAG_SUFFIX: "-${CI_COMMIT_REF_SLUG}"
+
 build-image-latest-pg-upgrade:
   <<: *build_pg_upgrade_image_definition
   <<: *only_tag_release
+  stage: publish
+  needs: !reference [.e2e_gate, needs]
   parallel:
     matrix:
       - PG_MAJOR: [ "17", "18" ]
@@ -375,6 +430,8 @@ trivy-engine-images-master:
 build-image-latest-server:
   <<: *build_image_definition
   <<: *only_tag_release
+  stage: publish
+  needs: !reference [.publish_image_gate, needs]
   variables:
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
@@ -386,6 +443,10 @@ build-image-latest-server:
     - export LATEST_TAG=$(echo ${CLEAN_TAG%.*}-latest)
     - export TAGS="${DOCKER_NAME}:${LATEST_TAG},${DOCKER_NAME}:${CLEAN_TAG}"
 
+# The project-registry ("-dev") images are the release candidate under test, so they stay in
+# build-staging rather than being gated on the tests that consume them. This one also carries the
+# ref-scoped tag the bash matrix pulls as dblab-server:${CI_COMMIT_REF_SLUG}, which is why a tag
+# pipeline needs no separate staging build of the server image.
 build-image-latest-server-dev:
   <<: *build_image_definition
   <<: *only_tag_release
@@ -397,11 +458,13 @@ build-image-latest-server-dev:
     DOCKER_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-server"
   before_script:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
-    - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
+    - export TAGS="${DOCKER_NAME}:${CLEAN_TAG},${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
 
 build-image-latest-ci-checker:
   <<: *build_image_definition
   <<: *only_tag_release
+  stage: publish
+  needs: !reference [.publish_image_gate, needs]
   variables:
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
@@ -429,6 +492,8 @@ build-image-latest-ci-checker-dev:
 build-image-latest-rds-refresh:
   <<: *build_image_definition
   <<: *only_tag_release
+  stage: publish
+  needs: !reference [.publish_image_gate, needs]
   variables:
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
@@ -456,6 +521,8 @@ build-image-latest-rds-refresh-dev:
 build-image-latest-client:
   <<: *build_image_definition
   <<: *only_tag_release
+  stage: publish
+  needs: !reference [.publish_image_gate, needs]
   variables:
     REGISTRY_USER: "${DH_CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${DH_CI_REGISTRY_PASSWORD}"
@@ -470,6 +537,8 @@ build-image-latest-client:
 build-image-rc-server:
   <<: *build_image_definition
   <<: *only_tag_rc
+  stage: publish
+  needs: !reference [.publish_image_gate, needs]
   before_script:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
@@ -480,12 +549,13 @@ build-image-rc-server:
     DOCKER_FILE: "Dockerfile.dblab-server"
     DOCKER_NAME: "postgresai/dblab-server"
 
+# Carries the ref-scoped tag the bash matrix pulls, same as the release variant above.
 build-image-rc-server-dev:
   <<: *build_image_definition
   <<: *only_tag_rc
   before_script:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
-    - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
+    - export TAGS="${DOCKER_NAME}:${CLEAN_TAG},${DOCKER_NAME}:${CI_COMMIT_REF_SLUG}"
   variables:
     REGISTRY_USER: "${CI_REGISTRY_USER}"
     REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
@@ -496,6 +566,8 @@ build-image-rc-server-dev:
 build-image-rc-ci-checker:
   <<: *build_image_definition
   <<: *only_tag_rc
+  stage: publish
+  needs: !reference [.publish_image_gate, needs]
   before_script:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
@@ -522,6 +594,8 @@ build-image-rc-ci-checker-dev:
 build-image-rc-rds-refresh:
   <<: *build_image_definition
   <<: *only_tag_rc
+  stage: publish
+  needs: !reference [.publish_image_gate, needs]
   before_script:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
@@ -548,6 +622,8 @@ build-image-rc-rds-refresh-dev:
 build-image-rc-client:
   <<: *build_image_definition
   <<: *only_tag_rc
+  stage: publish
+  needs: !reference [.publish_image_gate, needs]
   before_script:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export TAGS="${DOCKER_NAME}:${CLEAN_TAG}"
@@ -561,6 +637,8 @@ build-image-rc-client:
 build-image-swagger-release:
   <<: *build_image_definition
   <<: *only_tag_release
+  stage: publish
+  needs: !reference [.publish_image_gate, needs]
   variables:
     DOCKER_FILE: "Dockerfile.swagger-ui"
     DOCKER_IMAGE_NAME: "registry.gitlab.com/postgres-ai/database-lab/dblab-swagger-ui"
@@ -568,9 +646,51 @@ build-image-swagger-release:
     - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
     - export TAGS="${DOCKER_IMAGE_NAME}:${CLEAN_TAG}"
 
+### Publish the CLI binaries built in build-binary, once the tests that exercised them have passed.
+.gcs_cli_upload: &gcs_cli_upload
+  stage: publish
+  script:
+    # Install google-cloud-cli.
+    - curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+    - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+    - apt-get update && apt-get install -y google-cloud-cli
+
+    # Authenticate.
+    - GCP_KEY_FILE=$(mktemp) && trap "rm -f \"$GCP_KEY_FILE\"" EXIT && printf '%s' "${GCP_SERVICE_KEY}" > "$GCP_KEY_FILE" && gcloud auth activate-service-account --key-file="$GCP_KEY_FILE" && rm -f "$GCP_KEY_FILE"
+
+    # Upload artifacts.
+    - cd engine
+    - gsutil -m cp -r bin/cli/* "gs://database-lab-cli/${CLEAN_TAG}/"
+    - if [ "${UPLOAD_LATEST}" = "true" ]; then gsutil -m cp -r bin/cli/* gs://database-lab-cli/latest/; fi
+
+publish-binary-client:
+  <<: *gcs_cli_upload
+  <<: *only_tag_release
+  needs:
+    - !reference [.e2e_gate, needs]
+    - job: build-binary-client
+      artifacts: true
+  variables:
+    UPLOAD_LATEST: "true"
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
+
+publish-binary-client-rc:
+  <<: *gcs_cli_upload
+  <<: *only_tag_rc
+  needs:
+    - !reference [.e2e_gate, needs]
+    - job: build-binary-client-rc
+      artifacts: true
+  variables:
+    # A release candidate never becomes the "latest" download.
+    UPLOAD_LATEST: "false"
+  before_script:
+    - export CLEAN_TAG=$(echo ${CI_COMMIT_TAG#"v"})
+
 # Base template for bash integration tests
 .bash-test-base: &bash_test_base
-  stage: integration-test
+  stage: e2e
   variables:
     IMAGE_TAG: "${CI_COMMIT_REF_SLUG}"
   artifacts:
@@ -612,7 +732,9 @@ build-image-swagger-release:
       changes:
         - engine/**/*
 
-# Main branch: Run full test matrix for comprehensive coverage
+# Main branch and release tags: run the full test matrix for comprehensive coverage. The tag rules
+# carry no `changes:` clause - a tag pipeline has no meaningful diff to compare against, and a
+# release has to be qualified on the whole matrix regardless of what the last commit touched.
 .bash-test-main: &bash_test_main
   <<: *bash_test_base
   rules:
@@ -621,6 +743,8 @@ build-image-swagger-release:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       changes:
         - engine/**/*
+    - if: $CI_COMMIT_TAG =~ /^v[0-9.]+$/
+    - if: $CI_COMMIT_TAG =~ /^v[0-9.]+[\-_]*[a-zA-Z]+[a-zA-Z0-9.\-_]*[a-zA-Z0-9]+$/
 
 # MR jobs - only PG 17 and PG 18 (latest stable versions)
 bash-test-17:
@@ -688,8 +812,13 @@ integration-test:
     - name: docker:24-dind
       alias: docker
       command: [ "--tls=false" ]
-  <<: *only_feature
-  stage: integration-test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - engine/**/*
+    - if: $CI_COMMIT_TAG =~ /^v[0-9.]+$/
+    - if: $CI_COMMIT_TAG =~ /^v[0-9.]+[\-_]*[a-zA-Z]+[a-zA-Z0-9.\-_]*[a-zA-Z0-9]+$/
+  stage: e2e
   retry:
     max: 2
     when: script_failure
