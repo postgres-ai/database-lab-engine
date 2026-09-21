@@ -63,3 +63,5 @@ export const RenewableIcon = React.forwardRef<SVGSVGElement, Props>(
     )
   },
 )
+
+RenewableIcon.displayName = 'RenewableIcon'

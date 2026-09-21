@@ -19,9 +19,9 @@ type DockerImagesConfig = Record<string, string[]>
 
 export const uniqueChipValue = (values: string) => {
   const splitChipArray = values.split(/[,(\s)(\n)(\r)(\t)(\r\n)]/)
-  let databaseArray = []
+  const databaseArray = []
 
-  for (let i in splitChipArray) {
+  for (const i in splitChipArray) {
     if (
       splitChipArray[i] !== '' &&
       databaseArray.indexOf(splitChipArray[i]) === -1
@@ -54,20 +54,23 @@ const createDockerImages = (
   const dockerImages: DockerImage[] = []
 
   for (const pg_major_version in dockerImagesConfig) {
-    if (dockerImagesConfig.hasOwnProperty(pg_major_version)) {
-      const customTags = dockerImagesConfig[pg_major_version]
+    const hasVersion = Object.prototype.hasOwnProperty.call(
+      dockerImagesConfig,
+      pg_major_version,
+    )
 
-      customTags.forEach((tag) => {
-        const image: DockerImage = {
-          package_group: 'postgresai',
-          pg_major_version,
-          tag: `${pg_major_version}-${tag}`,
-          location: `${genericImagePrefix}:${pg_major_version}-${tag}`,
-        }
+    if (!hasVersion) continue
 
-        dockerImages.push(image)
-      })
-    }
+    dockerImagesConfig[pg_major_version].forEach((tag) => {
+      const image: DockerImage = {
+        package_group: 'postgresai',
+        pg_major_version,
+        tag: `${pg_major_version}-${tag}`,
+        location: `${genericImagePrefix}:${pg_major_version}-${tag}`,
+      }
+
+      dockerImages.push(image)
+    })
   }
 
   return dockerImages
@@ -110,7 +113,7 @@ export const getImageMajorVersion = (pgImage: string | undefined) => {
     return pgServerVersion.includes('.')
       ? pgServerVersion.split('.')[0]
       : pgServerVersion
-  } catch (error) {
+  } catch {
     // Return undefined for malformed image strings
     return undefined
   }
@@ -170,7 +173,7 @@ export const createEnhancedDockerImages = (
   configDockerPath?: string,
   configDockerTag?: string,
 ): DockerImage[] => {
-  let enhancedImages = [...genericDockerImages]
+  const enhancedImages = [...genericDockerImages]
 
   // If there's an image in config, check if we need to add it
   if (configDockerPath && configDockerTag) {

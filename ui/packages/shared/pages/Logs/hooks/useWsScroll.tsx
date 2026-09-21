@@ -6,7 +6,9 @@ export const useWsScroll = (isLoading: boolean, simpleInstall?: boolean) => {
   const [isAtBottom, setIsAtBottom] = useState(true)
 
   useEffect(() => {
-    !isLoading && wsSnackbar(isAtBottom, isNewData)
+    if (!isLoading) {
+      wsSnackbar(isAtBottom, isNewData)
+    }
 
     const contentElement = document.getElementById('content-container')
     const targetNode = simpleInstall
@@ -17,31 +19,42 @@ export const useWsScroll = (isLoading: boolean, simpleInstall?: boolean) => {
       element.scrollHeight - element.scrollTop - 50 < element.clientHeight
 
     const handleScroll = (e: Event) => {
-      if (clientAtBottom(e.target as HTMLElement)) {
-        setIsAtBottom(true)
-        setIsNewData(false)
-      } else {
+      if (!clientAtBottom(e.target as HTMLElement)) {
         setIsAtBottom(false)
+        return
       }
+
+      setIsAtBottom(true)
+      setIsNewData(false)
     }
 
-    const handleInsert = (e: Event | any) => {
-      if (e.srcElement?.tagName !== 'DIV') {
-        isAtBottom && targetNode?.scrollIntoView(false)
-        setIsNewData(true)
+    // Log lines arrive as <p> nodes; a <div> is page chrome. The filter keeps the tagName
+    // guard the removed DOMNodeInserted listener used.
+    const handleInsert = (mutations: MutationRecord[]) => {
+      const hasNewLine = mutations.some((mutation) =>
+        Array.from(mutation.addedNodes).some((node) => node.nodeName !== 'DIV'),
+      )
+
+      if (!hasNewLine) return
+
+      if (isAtBottom) {
+        targetNode?.scrollIntoView(false)
       }
+
+      setIsNewData(true)
     }
+
+    const observer = new MutationObserver(handleInsert)
 
     contentElement?.addEventListener('scroll', handleScroll, false)
-    contentElement?.addEventListener('DOMNodeInserted', handleInsert, false)
+
+    if (contentElement) {
+      observer.observe(contentElement, { childList: true, subtree: true })
+    }
 
     return () => {
       contentElement?.removeEventListener('scroll', handleScroll, false)
-      contentElement?.removeEventListener(
-        'DOMNodeInserted',
-        handleInsert,
-        false,
-      )
+      observer.disconnect()
     }
-  }, [isAtBottom, isNewData, isLoading])
+  }, [isAtBottom, isNewData, isLoading, simpleInstall])
 }

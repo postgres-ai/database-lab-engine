@@ -22,7 +22,7 @@ export const formatTuningParams = (
   let formattedTuningParams = ''
 
   if (tuningParams && Object.keys(tuningParams).length > 0) {
-    Object.entries(tuningParams).forEach(([key, value], index) => {
+    Object.entries(tuningParams).forEach(([key, value]) => {
       if (key !== 'shared_preload_libraries' && key !== 'shared_buffers') {
         formattedTuningParams += `${key}=${value}\n`
       }
@@ -43,7 +43,7 @@ export const formatTuningParamsToObj = (
     return tuningParams
   }
 
-  let formattedTuningParams: { [key: string]: string } = {}
+  const formattedTuningParams: { [key: string]: string } = {}
 
   if (tuningParams) {
     const tuningParamsArr = tuningParams.split('\n')

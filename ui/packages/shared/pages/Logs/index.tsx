@@ -6,11 +6,13 @@ import React, { useEffect, useReducer } from 'react'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { Api } from '@postgres.ai/shared/pages/Instance/stores/Main'
 import {
+  closeConnection,
   establishConnection,
   restartConnection,
 } from '@postgres.ai/shared/pages/Logs/wsLogs'
 import { useWsScroll } from '@postgres.ai/shared/pages/Logs/hooks/useWsScroll'
 
+import { LOGS_FILTER_KEY, readLogsFilterState } from './utils'
 import { LAPTOP_WIDTH_PX } from './constants'
 import { PlusIcon } from './Icons/PlusIcon'
 
@@ -120,17 +122,6 @@ export const Logs = ({ api, instanceId }: { api: Api; instanceId: string }) => {
   const targetNode = document.getElementById('logs-container')
   useWsScroll(isLoading)
 
-  const logsFilterState =
-    localStorage?.getItem('logsFilter') &&
-    JSON?.parse(localStorage?.getItem('logsFilter') || '')
-
-  const isEmpty = (obj: Record<string, boolean>) => {
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) return false
-    }
-    return true
-  }
-
   const initialState = (obj: Record<string, boolean>) => {
     const filters = {
       '[DEBUG]': true,
@@ -146,7 +137,7 @@ export const Logs = ({ api, instanceId }: { api: Api; instanceId: string }) => {
     }
 
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         filters[key as keyof typeof filters] = obj[key]
       }
     }
@@ -183,7 +174,10 @@ export const Logs = ({ api, instanceId }: { api: Api; instanceId: string }) => {
     }
   }
 
-  const [state, dispatch] = useReducer(reducer, initialState(logsFilterState))
+  const [state, dispatch] = useReducer(
+    reducer,
+    initialState(readLogsFilterState()),
+  )
 
   const FormCheckbox = ({ type }: { type: string }) => {
     const filterType = (state as Record<string, boolean>)[`[${type}]`]
@@ -214,13 +208,15 @@ export const Logs = ({ api, instanceId }: { api: Api; instanceId: string }) => {
   }
 
   useEffect(() => {
-    if (api.initWS != undefined) {
-      establishConnection(api, instanceId)
-    }
-  }, [api])
+    if (api.initWS == undefined) return
+
+    establishConnection(api, instanceId)
+
+    return closeConnection
+  }, [api, instanceId])
 
   useEffect(() => {
-    localStorage.setItem('logsFilter', JSON.stringify(state))
+    localStorage.setItem(LOGS_FILTER_KEY, JSON.stringify(state))
   }, [state])
 
   useEffect(() => {
@@ -238,8 +234,12 @@ export const Logs = ({ api, instanceId }: { api: Api; instanceId: string }) => {
       }
     }
 
+    if (!targetNode) return
+
     const observer = new MutationObserver(callback)
-    targetNode && observer.observe(targetNode, config)
+    observer.observe(targetNode, config)
+
+    return () => observer.disconnect()
   }, [isLoading, targetNode])
 
   return (
@@ -247,7 +247,7 @@ export const Logs = ({ api, instanceId }: { api: Api; instanceId: string }) => {
       <Alert severity="info">
         <AlertTitle>Sensitive values are masked.</AlertTitle>
         You can see the raw log data connecting to the machine and running{' '}
-        <strong>'docker logs --since 5m -f dblab_server'</strong>.
+        <strong>&apos;docker logs --since 5m -f dblab_server&apos;</strong>.
       </Alert>
       {window.innerWidth > LAPTOP_WIDTH_PX && (
         <>

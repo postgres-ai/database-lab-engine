@@ -232,7 +232,7 @@ export const SimpleMode = observer(
           <Box>
             <Typography variant="h6">Simple configuration</Typography>
             <Typography variant="body2">
-              Paste your source connection string and password. We'll probe
+              Paste your source connection string and password. We&apos;ll probe
               the source, propose a configuration, and let you review before
               starting retrieval.
             </Typography>

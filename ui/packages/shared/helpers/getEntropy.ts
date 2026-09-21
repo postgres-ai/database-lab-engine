@@ -7,7 +7,7 @@ const digitsChars = '0123456789'
 export const MIN_ENTROPY = 60
 
 function getBase(password: string): number {
-  let uniqueChars: string[] = []
+  const uniqueChars: string[] = []
   for (const c of password) {
     if (!uniqueChars.includes(c)) {
       uniqueChars.push(c)
@@ -73,7 +73,7 @@ const seqKeyboard2 = 'zxcvbnm'
 const seqAlphabet = 'abcdefghijklmnopqrstuvwxyz'
 function removeMoreThanTwoFromSequence(s: string, seq: string): string {
   const seqRunes: string[] = Array.from(seq)
-  let runes: string[] = Array.from(s)
+  const runes: string[] = Array.from(s)
   let matches = 0
   for (let i = 0; i < runes.length; i++) {
     for (let j = 0; j < seqRunes.length; j++) {

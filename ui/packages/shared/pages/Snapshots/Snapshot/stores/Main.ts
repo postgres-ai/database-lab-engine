@@ -58,7 +58,7 @@ export class MainStore {
     this.isSnapshotsLoading = true
 
     await this.snapshots.load(instanceId).then((loaded) => {
-      loaded && this.getSnapshot(snapshotId, instanceId)
+      if (loaded) this.getSnapshot(snapshotId, instanceId)
     })
   }
   getSnapshot = async (snapshotId: string, instanceId: string) => {

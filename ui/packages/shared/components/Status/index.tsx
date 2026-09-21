@@ -59,3 +59,5 @@ export const Status = React.forwardRef<HTMLDivElement, Props>((props, ref) => {
     </span>
   )
 })
+
+Status.displayName = 'Status'

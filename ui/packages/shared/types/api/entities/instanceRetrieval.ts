@@ -8,7 +8,7 @@ export interface ActivityType {
 
 export type InstanceRetrieval = {
   mode: string
-  alerts: Object | null
+  alerts: object | null
   lastRefresh: string | null
   nextRefresh: string | null
   status: string

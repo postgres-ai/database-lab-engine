@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import { ThemeProvider } from '@material-ui/core'
 
+import { ErrorBoundary } from '@postgres.ai/shared/components/ErrorBoundary'
 import { theme } from '@postgres.ai/shared/styles/theme'
 
 import './index.scss'
@@ -11,7 +12,9 @@ import { App } from './App'
 ReactDOM.render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </ThemeProvider>
   </React.StrictMode>,
   document.getElementById('root'),

@@ -38,7 +38,7 @@ export const request = async (path: string, options?: RequestOptions) => {
         ...requestInit?.headers,
       },
     })
-  } catch (e) {
+  } catch {
     return new Response(null, {
       status: 500,
       statusText: `Unknown error`,

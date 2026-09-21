@@ -135,9 +135,9 @@ export const PreviewCard = ({
           </Callout>
         ) : (
           <Callout>
-            We'll ship <code>{preloadLibraries}</code>. If the chosen image
+            We&apos;ll ship <code>{preloadLibraries}</code>. If the chosen image
             does not bundle one of these libraries, the clone container will
-            fail to start with a "could not load library" error — check{' '}
+            fail to start with a &quot;could not load library&quot; error — check{' '}
             <code>docker logs dblab_server</code> after Apply.
           </Callout>
         )}

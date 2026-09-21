@@ -212,7 +212,7 @@ export const useForm = (onSubmit: (values: FormValues) => void) => {
   const omitPortOnSubmit = originalPortWasUnset && !portDirty
 
   const formatDatabaseArray = (database: string) => {
-    let databases = []
+    const databases = []
     const splitDatabaseArray = database.split(/[,(\s)(\n)(\r)(\t)(\r\n)]/)
 
     for (let i = 0; i < splitDatabaseArray.length; i++) {

@@ -15,6 +15,10 @@ export type CloneDto = {
   createdAt: string
   id: string
   branch: string
+  // Bumped by every reset; identifies which generation of the branch the clone runs.
+  revision: number
+  // Set when the clone is scheduled for automatic deletion; null when it is not.
+  deleteAt: string | null
   status: {
     code:
       | 'OK'
@@ -35,7 +39,9 @@ export type CloneDto = {
   protectedTill?: string
   metadata: {
     cloneDiffSize: number
+    logicalSize: number
     cloningTime: number
+    maxIdleMinutes: number
     protectionLeaseDurationMinutes?: number
     protectionMaxDurationMinutes?: number
   }
@@ -53,6 +59,7 @@ export const formatCloneDto = (dto: CloneDto) => ({
   createdAt: dto.createdAt,
   createdAtDate: parseDate(dto.createdAt),
   protectedTillDate: dto.protectedTill ? parseDate(dto.protectedTill) : null,
+  deleteAtDate: dto.deleteAt ? parseDate(dto.deleteAt) : null,
   snapshot: dto.snapshot ? formatSnapshotDto(dto.snapshot) : null,
 })
 

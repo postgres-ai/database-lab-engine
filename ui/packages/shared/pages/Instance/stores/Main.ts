@@ -305,10 +305,10 @@ export class MainStore {
         ?.replace(/['"]+/g, '')
     }
 
-    if (error)
-      this.getFullConfigError = await error
-        .json()
-        .then((err: Error) => err.message)
+    if (error) {
+      const failure = (await error.json()) as { message?: string }
+      this.getFullConfigError = failure.message ?? null
+    }
 
     return response
   }

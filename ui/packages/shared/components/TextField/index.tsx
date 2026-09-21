@@ -104,7 +104,6 @@ export const TextField = (props: TextFieldProps) => {
         }
       }}
       onChange={props.onChange}
-      children={props.children}
       select={props.select}
       type={props.type}
       error={props.error}
@@ -114,6 +113,8 @@ export const TextField = (props: TextFieldProps) => {
       name={props.name}
       helperText={props.helperText}
       style={props.style}
-    />
+    >
+      {props.children}
+    </TextFieldBase>
   )
 }

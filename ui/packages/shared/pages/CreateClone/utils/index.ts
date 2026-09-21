@@ -29,7 +29,7 @@ export const getCliCreateCloneCommand = (values: FormValues, showPassword?: bool
 
   ${protectedFlag} \
 
-  --id ${cloneIdDisplay} \ `
+  --id ${cloneIdDisplay}`
 }
 
 export const getCliCloneStatus = (cloneId: string) => {

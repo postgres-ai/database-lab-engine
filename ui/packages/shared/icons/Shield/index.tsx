@@ -31,3 +31,5 @@ export const ShieldIcon = React.forwardRef<SVGSVGElement, Props>(
     )
   },
 )
+
+ShieldIcon.displayName = 'ShieldIcon'

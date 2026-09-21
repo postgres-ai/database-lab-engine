@@ -693,7 +693,7 @@ export const icons = {
     >
       <mask
         id="mask0"
-        mask-type="alpha"
+        style={{ maskType: 'alpha' }}
         maskUnits="userSpaceOnUse"
         x="0"
         y="0"

@@ -81,7 +81,7 @@ export const Instance = observer((props: Props) => {
     load,
   } = stores.main
 
-  const switchTab = (_: React.ChangeEvent<{}> | null, tabID: number) => {
+  const switchTab = (_: React.ChangeEvent<object> | null, tabID: number) => {
     const contentElement = document.getElementById('content-container')
     setActiveTab(tabID)
 
@@ -212,7 +212,13 @@ export const Instance = observer((props: Props) => {
           <TabPanel value={activeTab} index={activeTab}>
             <InactiveInstance
               instance={instance}
-              org={(props.elements.breadcrumbs as any)?.props.org}
+              org={
+                (
+                  props.elements.breadcrumbs as React.ReactElement<{
+                    org?: string
+                  }>
+                )?.props.org ?? ''
+              }
             />
           </TabPanel>
         ) : (
