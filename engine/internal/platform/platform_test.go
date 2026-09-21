@@ -7,8 +7,10 @@ package platform
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,7 +73,7 @@ func TestAuthenticatePersonalToken(t *testing.T) {
 			client, err := platform.NewClient(platform.ClientConfig{URL: server.URL, AccessToken: "test"})
 			require.NoError(t, err)
 
-			s := &Service{Client: client}
+			s := &Service{client: client}
 			s.cfg.EnablePersonalToken = tc.enabled
 			s.token.OrganizationID = 1
 
@@ -80,4 +82,63 @@ func TestAuthenticatePersonalToken(t *testing.T) {
 			assert.Equal(t, tc.wantEmail, identity.Email)
 		})
 	}
+}
+
+func TestReloadRacesWithServiceReaders(t *testing.T) {
+	t.Parallel()
+
+	s := &Service{cfg: Config{URL: "https://example.com", EnableTelemetry: true}, token: Token{OrganizationID: 1}}
+
+	const iterations = 200
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			s.Reload(&Service{
+				cfg:   Config{URL: fmt.Sprintf("https://example-%d.com", i), AccessToken: "token", EnablePersonalToken: true},
+				token: Token{OrganizationID: uint(i)},
+			})
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			_ = s.IsTelemetryEnabled()
+			_ = s.IsPersonalTokenEnabled()
+			_ = s.BindClonesToUser()
+			_ = s.AccessToken()
+			_ = s.OrgKey()
+			_ = s.OriginURL()
+			_ = s.Token()
+			_ = s.Client()
+			_ = s.isAllowedOrganization(1)
+		}
+	}()
+
+	wg.Wait()
+}
+
+func TestReloadCopiesEveryField(t *testing.T) {
+	s := &Service{cfg: Config{URL: "https://before.example.com", OrgKey: "before"}, token: Token{OrganizationID: 1}}
+	client, err := platform.NewClient(platform.ClientConfig{URL: "https://after.example.com", AccessToken: "token"})
+	require.NoError(t, err)
+
+	s.Reload(&Service{
+		cfg:    Config{URL: "https://after.example.com", OrgKey: "after", EnableTelemetry: true},
+		token:  Token{OrganizationID: 2},
+		client: client,
+	})
+
+	assert.Equal(t, "https://after.example.com", s.OriginURL())
+	assert.Equal(t, "after", s.OrgKey())
+	assert.True(t, s.IsTelemetryEnabled())
+	assert.Equal(t, uint(2), s.Token().OrganizationID)
+	assert.Same(t, client, s.Client())
 }

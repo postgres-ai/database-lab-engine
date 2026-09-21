@@ -82,7 +82,7 @@ func (a *Agent) SendEvent(ctx context.Context, eventType string, payload interfa
 		return
 	}
 
-	_, err := a.platform.Client.SendTelemetryEvent(ctx, platform.TelemetryEvent{
+	_, err := a.platform.Client().SendTelemetryEvent(ctx, platform.TelemetryEvent{
 		InstanceID: a.instanceID,
 		EventType:  eventType,
 		Payload:    payload,

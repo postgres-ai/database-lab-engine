@@ -528,16 +528,16 @@ func TestAbortPreparedUpgrade(t *testing.T) {
 }
 
 func TestUpgradeTimeout(t *testing.T) {
-	assert.Equal(t, defaultUpgradeTimeout, (&Provisioner{config: &Config{}}).upgradeTimeout())
-	assert.Equal(t, time.Hour, (&Provisioner{config: &Config{PgUpgradeTimeout: time.Hour}}).upgradeTimeout())
+	assert.Equal(t, defaultUpgradeTimeout, (&Provisioner{config: Config{}}).upgradeTimeout())
+	assert.Equal(t, time.Hour, (&Provisioner{config: Config{PgUpgradeTimeout: time.Hour}}).upgradeTimeout())
 }
 
 func TestUpgradePullTimeout(t *testing.T) {
-	assert.Equal(t, defaultUpgradePullTimeout, (&Provisioner{config: &Config{}}).upgradePullTimeout())
-	assert.Equal(t, time.Minute, (&Provisioner{config: &Config{PgUpgradePullTimeout: time.Minute}}).upgradePullTimeout())
+	assert.Equal(t, defaultUpgradePullTimeout, (&Provisioner{config: Config{}}).upgradePullTimeout())
+	assert.Equal(t, time.Minute, (&Provisioner{config: Config{PgUpgradePullTimeout: time.Minute}}).upgradePullTimeout())
 
 	// the two budgets are independent: raising the conversion budget must not widen the pull.
-	both := &Provisioner{config: &Config{PgUpgradeTimeout: 5 * time.Hour}}
+	both := &Provisioner{config: Config{PgUpgradeTimeout: 5 * time.Hour}}
 	assert.Equal(t, defaultUpgradePullTimeout, both.upgradePullTimeout())
 }
 
@@ -702,7 +702,7 @@ func TestUpgradeTargetVersion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Provisioner{config: &Config{PgUpgradeImage: tt.image}}
+			p := &Provisioner{config: Config{PgUpgradeImage: tt.image}}
 
 			version, err := p.UpgradeTargetVersion()
 
@@ -724,7 +724,7 @@ func TestUpgradeTargetVersion(t *testing.T) {
 func TestUpgradeTargetVersionFromCache(t *testing.T) {
 	const image = "registry.gitlab.com/postgres-ai/database-lab/pg-upgrade:17-my-branch"
 
-	p := &Provisioner{config: &Config{PgUpgradeImage: image}}
+	p := &Provisioner{config: Config{PgUpgradeImage: image}}
 	p.upgradeTarget.set(image, 17)
 
 	version, err := p.UpgradeTargetVersion()
@@ -739,7 +739,7 @@ func TestUpgradeTargetVersionFromCache(t *testing.T) {
 
 	t.Run("a release tag wins over a stale entry", func(t *testing.T) {
 		p.upgradeTarget.set("postgresai/pg-upgrade:18", 17)
-		p.config.PgUpgradeImage = "postgresai/pg-upgrade:18"
+		p.config = Config{PgUpgradeImage: "postgresai/pg-upgrade:18"}
 
 		version, err := p.UpgradeTargetVersion()
 		require.NoError(t, err)

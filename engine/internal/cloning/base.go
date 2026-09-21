@@ -51,8 +51,9 @@ type Config struct {
 
 // Base provides cloning service.
 type Base struct {
-	config      *Config
-	global      *global.Config
+	cfgMu       sync.RWMutex
+	config      Config
+	global      global.Config
 	cloneMutex  sync.RWMutex
 	clones      map[string]*CloneWrapper
 	snapshotBox SnapshotBox
@@ -63,11 +64,12 @@ type Base struct {
 }
 
 // NewBase instances a new Base service.
+// The service keeps its own copy of cfg and global, so both must be non-nil.
 func NewBase(cfg *Config, global *global.Config, provision *provision.Provisioner, tm *telemetry.Agent,
 	observingCh chan string, whCh chan webhooks.EventTyper) *Base {
 	return &Base{
-		config:      cfg,
-		global:      global,
+		config:      *cfg,
+		global:      *global,
 		clones:      make(map[string]*CloneWrapper),
 		provision:   provision,
 		tm:          tm,
@@ -81,8 +83,27 @@ func NewBase(cfg *Config, global *global.Config, provision *provision.Provisione
 
 // Reload reloads base cloning configuration.
 func (c *Base) Reload(cfg Config, global global.Config) {
-	*c.config = cfg
-	*c.global = global
+	c.cfgMu.Lock()
+	c.config = cfg
+	c.global = global
+	c.cfgMu.Unlock()
+}
+
+// Config returns a snapshot of the cloning configuration. Reload swaps the whole value, so the
+// copy stays consistent after the lock is released.
+func (c *Base) Config() Config {
+	c.cfgMu.RLock()
+	defer c.cfgMu.RUnlock()
+
+	return c.config
+}
+
+// GlobalConfig returns a snapshot of the global configuration the service was reloaded with.
+func (c *Base) GlobalConfig() global.Config {
+	c.cfgMu.RLock()
+	defer c.cfgMu.RUnlock()
+
+	return c.global
 }
 
 // Run initializes and runs cloning component.
@@ -253,7 +274,7 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 				EventType: webhooks.CloneCreatedEvent,
 				EntityID:  cloneID,
 			},
-			Host:          c.config.AccessHost,
+			Host:          c.Config().AccessHost,
 			Port:          session.Port,
 			Username:      clone.DB.Username,
 			DBName:        clone.DB.DBName,
@@ -266,6 +287,9 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 }
 
 func (c *Base) fillCloneSession(cloneID string, session *resources.Session) {
+	cfg := c.Config()
+	globalCfg := c.GlobalConfig()
+
 	c.cloneMutex.Lock()
 	defer c.cloneMutex.Unlock()
 
@@ -285,19 +309,19 @@ func (c *Base) fillCloneSession(cloneID string, session *resources.Session) {
 	}
 
 	if dbName := clone.DB.DBName; dbName == "" {
-		clone.DB.DBName = c.global.Database.Name()
+		clone.DB.DBName = globalCfg.Database.Name()
 	}
 
 	clone.DB.Port = strconv.FormatUint(uint64(session.Port), 10)
-	clone.DB.Host = c.config.AccessHost
+	clone.DB.Host = cfg.AccessHost
 	clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s user=%s dbname=%s",
 		clone.DB.Host, clone.DB.Port, clone.DB.Username, clone.DB.DBName)
 
 	clone.Metadata = models.CloneMetadata{
 		CloningTime:                    w.TimeStartedAt.Sub(w.TimeCreatedAt).Seconds(),
-		MaxIdleMinutes:                 c.config.MaxIdleMinutes,
-		ProtectionLeaseDurationMinutes: c.config.ProtectionLeaseDurationMinutes,
-		ProtectionMaxDurationMinutes:   c.config.ProtectionMaxDurationMinutes,
+		MaxIdleMinutes:                 cfg.MaxIdleMinutes,
+		ProtectionLeaseDurationMinutes: cfg.ProtectionLeaseDurationMinutes,
+		ProtectionMaxDurationMinutes:   cfg.ProtectionMaxDurationMinutes,
 	}
 }
 
@@ -435,7 +459,7 @@ func (c *Base) destroyClone(cloneID string, w *CloneWrapper) {
 			EventType: webhooks.CloneDeleteEvent,
 			EntityID:  cloneID,
 		},
-		Host:          c.config.AccessHost,
+		Host:          c.Config().AccessHost,
 		Port:          w.Session.Port,
 		Username:      w.Clone.DB.Username,
 		DBName:        w.Clone.DB.DBName,
@@ -508,8 +532,9 @@ func (c *Base) UpdateClone(id string, patch types.CloneUpdateRequest) (*models.C
 // duration, using the clone protection lease as the default and the configured maximum as
 // the cap. The shared logic lives in models.CalculateProtectionTime.
 func (c *Base) calculateProtectionTime(durationMinutes *uint) *models.LocalTime {
-	return models.CalculateProtectionTime(durationMinutes,
-		c.config.ProtectionLeaseDurationMinutes, c.config.ProtectionMaxDurationMinutes)
+	cfg := c.Config()
+
+	return models.CalculateProtectionTime(durationMinutes, cfg.ProtectionLeaseDurationMinutes, cfg.ProtectionMaxDurationMinutes)
 }
 
 // UpdateCloneStatus updates the clone status.
@@ -635,7 +660,7 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 				EventType: webhooks.CloneResetEvent,
 				EntityID:  cloneID,
 			},
-			Host:          c.config.AccessHost,
+			Host:          c.Config().AccessHost,
 			Port:          w.Session.Port,
 			Username:      w.Clone.DB.Username,
 			DBName:        w.Clone.DB.DBName,
@@ -655,12 +680,13 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 // GetCloningState returns the current state of instance.
 func (c *Base) GetCloningState() models.Cloning {
 	clones := c.GetClones()
+	cfg := c.Config()
 	cloning := models.Cloning{
 		ExpectedCloningTime:            c.getExpectedCloningTime(),
 		Clones:                         clones,
 		NumClones:                      uint64(len(clones)),
-		ProtectionLeaseDurationMinutes: c.config.ProtectionLeaseDurationMinutes,
-		ProtectionMaxDurationMinutes:   c.config.ProtectionMaxDurationMinutes,
+		ProtectionLeaseDurationMinutes: cfg.ProtectionLeaseDurationMinutes,
+		ProtectionMaxDurationMinutes:   cfg.ProtectionMaxDurationMinutes,
 	}
 
 	return cloning
@@ -858,7 +884,7 @@ func (c *Base) getExpectedCloningTime() float64 {
 }
 
 func (c *Base) runIdleCheck(ctx context.Context) {
-	if c.config.MaxIdleMinutes == 0 {
+	if c.Config().MaxIdleMinutes == 0 {
 		return
 	}
 
@@ -906,7 +932,7 @@ func (c *Base) destroyIdleClones(ctx context.Context) {
 func (c *Base) isIdleClone(wrapper *CloneWrapper) (bool, error) {
 	currentTime := time.Now()
 
-	idleDuration := time.Duration(c.config.MaxIdleMinutes) * time.Minute
+	idleDuration := time.Duration(c.Config().MaxIdleMinutes) * time.Minute
 	minimumTime := currentTime.Add(-idleDuration)
 
 	if wrapper.Clone.IsProtected() || wrapper.Clone.Status.Code == models.StatusExporting ||
@@ -979,7 +1005,8 @@ func checkActiveQueryNotExists(db *sql.DB) (bool, error) {
 }
 
 func (c *Base) runProtectionLeaseCheck(ctx context.Context) {
-	if c.config.ProtectionLeaseDurationMinutes == 0 && c.config.ProtectionMaxDurationMinutes == 0 {
+	cfg := c.Config()
+	if cfg.ProtectionLeaseDurationMinutes == 0 && cfg.ProtectionMaxDurationMinutes == 0 {
 		return
 	}
 
@@ -999,7 +1026,7 @@ func (c *Base) runProtectionLeaseCheck(ctx context.Context) {
 }
 
 func (c *Base) checkProtectionLeases(ctx context.Context) {
-	warningMinutes := c.config.ProtectionExpiryWarningMinutes
+	warningMinutes := c.Config().ProtectionExpiryWarningMinutes
 	if warningMinutes == 0 {
 		warningMinutes = defaultWarningMinutes
 	}
@@ -1065,7 +1092,7 @@ func (c *Base) handleExpiredProtection(wrapper *CloneWrapper) {
 			EventType: webhooks.CloneProtectionExpiredEvent,
 			EntityID:  clone.ID,
 		},
-		Host:          c.config.AccessHost,
+		Host:          c.Config().AccessHost,
 		Port:          wrapper.Session.Port,
 		Username:      clone.DB.Username,
 		DBName:        clone.DB.DBName,
@@ -1106,7 +1133,7 @@ func (c *Base) sendProtectionExpiryWarning(wrapper *CloneWrapper, expiresIn time
 			EventType: webhooks.CloneProtectionExpiringEvent,
 			EntityID:  clone.ID,
 		},
-		Host:           c.config.AccessHost,
+		Host:           c.Config().AccessHost,
 		Port:           wrapper.Session.Port,
 		Username:       clone.DB.Username,
 		DBName:         clone.DB.DBName,

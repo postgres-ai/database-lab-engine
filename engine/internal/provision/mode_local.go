@@ -77,8 +77,9 @@ type Config struct {
 
 // Provisioner describes a struct for ports and clones management.
 type Provisioner struct {
-	config         *Config
-	dbCfg          *resources.DB
+	cfgMu          sync.RWMutex
+	config         Config
+	dbCfg          resources.DB
 	ctx            context.Context
 	dockerClient   *client.Client
 	runner         runners.Runner
@@ -124,7 +125,8 @@ func (c *upgradeTargetCache) set(image string, major int) {
 	c.image, c.major = image, major
 }
 
-// New creates a new Provisioner instance.
+// New creates a new Provisioner instance. The provisioner keeps its own copy of cfg and dbCfg, so
+// both must be non-nil.
 func New(ctx context.Context, cfg *Config, dbCfg *resources.DB, docker *client.Client, pm *pool.Manager,
 	instanceID, networkID, gateway string) (*Provisioner, error) {
 	if err := IsValidConfig(*cfg); err != nil {
@@ -135,8 +137,8 @@ func New(ctx context.Context, cfg *Config, dbCfg *resources.DB, docker *client.C
 		runner:       runners.NewLocalRunner(cfg.UseSudo),
 		mu:           &sync.Mutex{},
 		dockerClient: docker,
-		config:       cfg,
-		dbCfg:        dbCfg,
+		config:       *cfg,
+		dbCfg:        *dbCfg,
 		ctx:          ctx,
 		portChecker:  &localPortChecker{},
 		pm:           pm,
@@ -174,8 +176,10 @@ func isValidConfigModeLocal(config Config) error {
 
 // Init inits provision.
 func (p *Provisioner) Init() error {
-	if err := docker.PrepareImage(p.ctx, p.dockerClient, p.config.DockerImage); err != nil {
-		return fmt.Errorf("cannot prepare docker image %s: %w", p.config.DockerImage, err)
+	dockerImage := p.Config().DockerImage
+
+	if err := docker.PrepareImage(p.ctx, p.dockerClient, dockerImage); err != nil {
+		return fmt.Errorf("cannot prepare docker image %s: %w", dockerImage, err)
 	}
 
 	return nil
@@ -184,17 +188,39 @@ func (p *Provisioner) Init() error {
 // Reload reloads provision configuration. A repointed pgUpgradeImage needs its target resolved
 // again, and the fetch that may involve must not block the reload.
 func (p *Provisioner) Reload(cfg Config, dbCfg resources.DB) {
-	*p.config = cfg
-	*p.dbCfg = dbCfg
+	p.cfgMu.Lock()
+	p.config = cfg
+	p.dbCfg = dbCfg
+	p.cfgMu.Unlock()
 
 	go p.ResolveUpgradeTarget()
 }
 
+// Config returns a snapshot of the provisioning configuration. Reload swaps the whole value, and
+// neither the container config map nor the allow-list slice is ever mutated in place, so the copy
+// stays consistent after the lock is released.
+func (p *Provisioner) Config() Config {
+	p.cfgMu.RLock()
+	defer p.cfgMu.RUnlock()
+
+	return p.config
+}
+
+// DBConfig returns a snapshot of the default database configuration.
+func (p *Provisioner) DBConfig() resources.DB {
+	p.cfgMu.RLock()
+	defer p.cfgMu.RUnlock()
+
+	return p.dbCfg
+}
+
 // ContainerOptions returns provisioner configuration for running containers.
 func (p *Provisioner) ContainerOptions() models.ContainerOptions {
+	cfg := p.Config()
+
 	return models.ContainerOptions{
-		DockerImage:     p.config.DockerImage,
-		ContainerConfig: p.config.ContainerConfig,
+		DockerImage:     cfg.DockerImage,
+		ContainerConfig: cfg.ContainerConfig,
 	}
 }
 
@@ -235,7 +261,7 @@ func (p *Provisioner) StartSession(clone *models.Clone, user resources.Ephemeral
 	}
 
 	appConfig := p.getAppConfig(fsm.Pool(), clone.Branch, name, clone.Revision, port)
-	appConfig.DockerImage = resolveCloneImage(p.config.DockerImage, clone.DockerImage)
+	appConfig.DockerImage = resolveCloneImage(p.Config().DockerImage, clone.DockerImage)
 	appConfig.SetExtraConf(extraConfig)
 
 	if err := fs.CleanupLogsDir(appConfig.DataDir()); err != nil {
@@ -535,7 +561,9 @@ func getLatestSnapshot(snapshots []resources.Snapshot) (*resources.Snapshot, err
 
 // RevisePortPool checks and aligns availability of the port range.
 func (p *Provisioner) RevisePortPool() error {
-	log.Msg(fmt.Sprintf("Revising availability of the port range [%d - %d]", p.config.PortPool.From, p.config.PortPool.To))
+	portOpts := p.Config().PortPool
+
+	log.Msg(fmt.Sprintf("Revising availability of the port range [%d - %d]", portOpts.From, portOpts.To))
 
 	host, err := hostIP(p.gateway)
 	if err != nil {
@@ -547,7 +575,7 @@ func (p *Provisioner) RevisePortPool() error {
 
 	availablePorts := 0
 
-	for port := p.config.PortPool.From; port <= p.config.PortPool.To; port++ {
+	for port := portOpts.From; port <= portOpts.To; port++ {
 		if err := p.portChecker.checkPortAvailability(host, port); err != nil {
 			log.Msg(fmt.Sprintf("port %d is not available, marking as busy", port))
 
@@ -580,7 +608,7 @@ func hostIP(gateway string) (string, error) {
 
 // allocatePort tries to find a free port and occupy it.
 func (p *Provisioner) allocatePort() (uint, error) {
-	portOpts := p.config.PortPool
+	portOpts := p.Config().PortPool
 
 	attempts := 0
 
@@ -643,7 +671,7 @@ func (p *Provisioner) FreePort(port uint) error {
 // setPortStatus updates the port status.
 // It's not safe to invoke without ports mutex locking. Use allocatePort and FreePort methods.
 func (p *Provisioner) setPortStatus(port uint, bind bool) error {
-	portOpts := p.config.PortPool
+	portOpts := p.Config().PortPool
 
 	if port < portOpts.From || port > portOpts.To {
 		return errors.Errorf("port %d is out of bounds of the port pool", port)
@@ -752,17 +780,19 @@ func (p *Provisioner) stopPoolSessions(fsm pool.FSManager, exceptClones map[stri
 
 func (p *Provisioner) getAppConfig(pool *resources.Pool, branch, name string, rev int, port uint) *resources.AppConfig {
 	provisionHosts := p.getProvisionHosts()
+	cfg := p.Config()
+	dbCfg := p.DBConfig()
 
 	appConfig := &resources.AppConfig{
 		CloneName:      name,
 		Branch:         branch,
 		Revision:       rev,
-		DockerImage:    p.config.DockerImage,
+		DockerImage:    cfg.DockerImage,
 		Host:           pool.SocketCloneDir(name),
 		Port:           port,
-		DB:             p.dbCfg,
+		DB:             &dbCfg,
 		Pool:           pool,
-		ContainerConf:  p.config.ContainerConfig,
+		ContainerConf:  cfg.ContainerConfig,
 		NetworkID:      p.networkID,
 		ProvisionHosts: provisionHosts,
 	}
@@ -774,7 +804,7 @@ func (p *Provisioner) getAppConfig(pool *resources.Pool, branch, name string, re
 // configured. An empty list stands for the repository of the clone image, which the upgrade
 // endpoint resolves per clone; a "*" entry allows any repository.
 func (p *Provisioner) UpgradeImageAllowList() []string {
-	return p.config.UpgradeImageAllowList
+	return p.Config().UpgradeImageAllowList
 }
 
 // resolveCloneImage picks the image a clone container must run. A clone carries an override only
@@ -790,7 +820,7 @@ func resolveCloneImage(defaultImage, cloneImage string) string {
 
 // getProvisionHosts adds an internal Docker gateway to the hosts rule if the user restricts access to IP addresses.
 func (p *Provisioner) getProvisionHosts() string {
-	provisionHosts := p.config.CloneAccessAddresses
+	provisionHosts := p.Config().CloneAccessAddresses
 
 	if provisionHosts == "" || provisionHosts == wildcardIP {
 		return provisionHosts
@@ -928,8 +958,8 @@ func (p *Provisioner) scanCSVLogFile(ctx context.Context, filename string, avail
 }
 
 func (p *Provisioner) prepareDB(pgConf *resources.AppConfig, user resources.EphemeralUser) error {
-	if !p.config.KeepUserPasswords {
-		whitelist := []string{p.dbCfg.Username}
+	if !p.Config().KeepUserPasswords {
+		whitelist := []string{p.DBConfig().Username}
 
 		if err := postgres.ResetAllPasswords(pgConf, whitelist); err != nil {
 			return errors.Wrap(err, "failed to reset all passwords")
@@ -974,7 +1004,7 @@ func (p *Provisioner) DetectDBVersion() string {
 
 	pgVersion, err := tools.DetectPGVersion(fsManager.Pool().DataDir())
 	if err != nil {
-		return parseImageVersion(p.config.DockerImage)
+		return parseImageVersion(p.Config().DockerImage)
 	}
 
 	return strconv.FormatFloat(pgVersion, 'g', -1, 64)

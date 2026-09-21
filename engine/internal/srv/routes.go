@@ -19,9 +19,9 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/observer"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
-	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/api"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/mw"
@@ -56,13 +56,13 @@ func (s *Server) getInstanceStatus(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) retrievalState(w http.ResponseWriter, r *http.Request) {
 	retrieving := models.Retrieving{
-		Mode:        s.Retrieval.State.Mode,
-		Status:      s.Retrieval.State.Status,
+		Mode:        s.Retrieval.State.Mode(),
+		Status:      s.Retrieval.State.Status(),
 		Alerts:      s.Retrieval.State.Alerts(),
-		LastRefresh: s.Retrieval.State.LastRefresh,
+		LastRefresh: s.Retrieval.State.LastRefresh(),
 	}
 
-	if spec := s.Retrieval.Scheduler.Spec; spec != nil {
+	if spec := s.Retrieval.ScheduleSpec(); spec != nil {
 		retrieving.NextRefresh = models.NewLocalTime(spec.Next(time.Now()))
 	}
 
@@ -78,12 +78,12 @@ func (s *Server) retrievalState(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) jobActivity(ctx context.Context) *models.Activity {
-	currentJob := s.Retrieval.State.CurrentJob
+	currentJob := s.Retrieval.State.CurrentJob()
 	if currentJob == nil {
 		return nil
 	}
 
-	if s.Retrieval.State.Status != models.Refreshing {
+	if s.Retrieval.State.Status() != models.Refreshing {
 		return nil
 	}
 
@@ -187,8 +187,7 @@ func (s *Server) createSnapshot(w http.ResponseWriter, r *http.Request) {
 
 	fsManager.RefreshSnapshotList()
 
-	// copy the list: the manager hands out its internal slice, so sorting in place would race with other readers.
-	snapshotList := append([]resources.Snapshot(nil), fsManager.SnapshotList()...)
+	snapshotList := fsManager.SnapshotList()
 
 	if len(snapshotList) == 0 {
 		api.SendBadRequestError(w, r, "No snapshots at pool: "+poolName)
@@ -1051,7 +1050,7 @@ func (s *Server) resetClone(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
-	if s.Platform.Client == nil {
+	if s.Platform.Client() == nil {
 		api.SendBadRequestError(w, r, "cannot start the session observation because a Platform client is not configured")
 		return
 	}
@@ -1073,7 +1072,9 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clone.DB.Username = s.Global.Database.User()
+	globalCfg := s.GlobalConfig()
+
+	clone.DB.Username = globalCfg.Database.User()
 
 	db, err := observer.InitConnection(clone, s.pm.First().Pool().SocketDir())
 	if err != nil {
@@ -1101,7 +1102,7 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 		Tags:       observationRequest.Tags,
 	}
 
-	platformResponse, err := s.Platform.Client.StartObservationSession(context.Background(), platformRequest)
+	platformResponse, err := s.Platform.Client().StartObservationSession(context.Background(), platformRequest)
 	if err != nil {
 		api.SendBadRequestError(w, r, "Failed to start observation session on the Platform")
 		return
@@ -1130,7 +1131,7 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
-	if s.Platform.Client == nil {
+	if s.Platform.Client() == nil {
 		api.SendBadRequestError(w, r, "cannot stop the session observation because a Platform client is not configured")
 		return
 	}
@@ -1191,7 +1192,7 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 		Result:     *session.Result,
 	}
 
-	if _, err := s.Platform.Client.StopObservationSession(context.Background(), platformRequest); err != nil {
+	if _, err := s.Platform.Client().StopObservationSession(context.Background(), platformRequest); err != nil {
 		api.SendBadRequestError(w, r, "Failed to start observation session on the Platform")
 		return
 	}
@@ -1204,7 +1205,7 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(logs) > 0 {
-		if err := s.Platform.Client.UploadObservationLogs(context.Background(), logs, sessionID); err != nil {
+		if err := s.Platform.Client().UploadObservationLogs(context.Background(), logs, sessionID); err != nil {
 			log.Err("failed to upload observation logs", err)
 		}
 	}
@@ -1218,7 +1219,7 @@ func (s *Server) stopObservation(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if err := s.Platform.Client.UploadObservationArtifact(context.Background(), data, sessionID, artifactType); err != nil {
+		if err := s.Platform.Client().UploadObservationArtifact(context.Background(), data, sessionID, artifactType); err != nil {
 			log.Err("failed to upload observation artifact", err)
 		}
 	}
@@ -1304,6 +1305,8 @@ func (s *Server) healthCheck(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) refresh(w http.ResponseWriter, r *http.Request) {
+	// advisory only: it reports a busy pipeline to the client without claiming the slot, so
+	// FullRefresh below still has to take it and may reject a request that passed this check.
 	if err := s.Retrieval.CanStartRefresh(); err != nil {
 		api.SendBadRequestError(w, r, err.Error())
 		return
@@ -1315,7 +1318,7 @@ func (s *Server) refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go func() {
-		if err := s.Retrieval.FullRefresh(context.Background()); err != nil {
+		if err := s.Retrieval.FullRefresh(context.Background()); err != nil && !retrieval.IsRefreshSkipped(err) {
 			log.Err("failed to initiate full refresh", err)
 		}
 	}()

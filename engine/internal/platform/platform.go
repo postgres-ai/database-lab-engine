@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sync"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
@@ -38,9 +39,11 @@ type Config struct {
 	BindClonesToUser    bool   `yaml:"bindClonesToUser"`
 }
 
-// Service defines a Platform service.
+// Service defines a Platform service. Reload replaces the config, the verified token and the
+// API client while request handlers read them, so mu guards all three.
 type Service struct {
-	Client *platform.Client
+	mu     sync.RWMutex
+	client *platform.Client
 	cfg    Config
 	token  Token
 }
@@ -66,7 +69,7 @@ func New(ctx context.Context, cfg Config, instanceID string) (*Service, error) {
 		if errors.As(err, &cvWarning) {
 			log.Warn(err)
 
-			s.Client = client
+			s.client = client
 
 			return s, nil
 		}
@@ -74,7 +77,7 @@ func New(ctx context.Context, cfg Config, instanceID string) (*Service, error) {
 		return nil, fmt.Errorf("failed to create new Platform Client: %w", err)
 	}
 
-	s.Client = client
+	s.client = client
 
 	if s.cfg.AccessToken != "" {
 		platformToken, err := client.CheckPlatformToken(ctx, platform.TokenCheckRequest{Token: s.cfg.AccessToken})
@@ -94,9 +97,31 @@ func New(ctx context.Context, cfg Config, instanceID string) (*Service, error) {
 	return s, nil
 }
 
-// Reload reloads service configuration.
+// Reload reloads service configuration. It copies the fields one by one rather than replacing
+// the whole struct, because the struct carries a mutex and must not be copied.
 func (s *Service) Reload(newService *Service) {
-	*s = *newService
+	cfg, token, client := newService.snapshot()
+
+	s.mu.Lock()
+	s.cfg = cfg
+	s.token = token
+	s.client = client
+	s.mu.Unlock()
+}
+
+func (s *Service) snapshot() (Config, Token, *platform.Client) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.cfg, s.token, s.client
+}
+
+// Client returns the Platform API client the service is configured with.
+func (s *Service) Client() *platform.Client {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.client
 }
 
 // IsAllowedToken checks if the Platform Personal Token is allowed.
@@ -112,7 +137,7 @@ func (s *Service) AuthenticatePersonalToken(ctx context.Context, personalToken s
 		return UserIdentity{}, false
 	}
 
-	platformToken, err := s.Client.CheckPlatformToken(ctx, platform.TokenCheckRequest{Token: personalToken})
+	platformToken, err := s.Client().CheckPlatformToken(ctx, platform.TokenCheckRequest{Token: personalToken})
 	if err != nil {
 		return UserIdentity{}, false
 	}
@@ -134,27 +159,43 @@ func (s *Service) AuthenticatePersonalToken(ctx context.Context, personalToken s
 // value derived from the authenticated user identity; the clone's Postgres username is
 // left unchanged.
 func (s *Service) BindClonesToUser() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	return s.cfg.BindClonesToUser
 }
 
 // IsPersonalTokenEnabled checks if the Platform Personal Token is enabled.
 func (s *Service) IsPersonalTokenEnabled() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	return s.cfg.EnablePersonalToken
 }
 
 // isAllowedOrganization checks if organization is associated to the current Platform service.
 func (s *Service) isAllowedOrganization(organizationID uint) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	return organizationID != 0 && organizationID == s.token.OrganizationID
 }
 
 // IsTelemetryEnabled checks if the Platform Telemetry is enabled.
 func (s *Service) IsTelemetryEnabled() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	return s.cfg.EnableTelemetry
 }
 
 // OriginURL reports the origin Platform hostname.
 func (s *Service) OriginURL() string {
-	parsedURL, err := url.Parse(s.cfg.URL)
+	s.mu.RLock()
+	configuredURL := s.cfg.URL
+	s.mu.RUnlock()
+
+	parsedURL, err := url.Parse(configuredURL)
 	if err != nil {
 		log.Dbg("Cannot parse Platform URL")
 	}
@@ -166,15 +207,24 @@ func (s *Service) OriginURL() string {
 
 // AccessToken returns Platform AccessToken.
 func (s *Service) AccessToken() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	return s.cfg.AccessToken
 }
 
 // Token returns verified Platform Token.
 func (s *Service) Token() Token {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	return s.token
 }
 
 // OrgKey returns the organization key of the instance.
 func (s *Service) OrgKey() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	return s.cfg.OrgKey
 }

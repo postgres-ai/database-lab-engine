@@ -6,12 +6,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/srv/mw"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
@@ -104,4 +106,60 @@ func TestObservation_NullBodyIsBadRequest(t *testing.T) {
 			assert.Equal(t, errEmptyRequestBody, apiErr.Message)
 		})
 	}
+}
+
+func TestRefresh_PrecheckDoesNotConsumeTheSlot(t *testing.T) {
+	s := &Server{Retrieval: &retrieval.Retrieval{}}
+
+	// A refresh already holds the slot, so the handler must reject the request.
+	require.NoError(t, s.Retrieval.State.TryStartRefresh())
+
+	rec := httptest.NewRecorder()
+	s.refresh(rec, httptest.NewRequest(http.MethodPost, "/full-refresh", nil))
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	var apiErr models.Error
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &apiErr))
+	assert.Equal(t, retrieval.ErrRefreshInProgress.Error(), apiErr.Message)
+
+	// The rejected request left the slot alone: releasing it lets the running refresh finish
+	// and the next one claim it.
+	s.Retrieval.State.FinishRefresh()
+	assert.NoError(t, s.Retrieval.State.TryStartRefresh())
+}
+
+func TestRefresh_ConcurrentRequestsLeaveTheSlotIntact(t *testing.T) {
+	s := &Server{Retrieval: &retrieval.Retrieval{}}
+
+	// A refresh already holds the slot, so none of the concurrent requests may start one.
+	require.NoError(t, s.Retrieval.State.TryStartRefresh())
+
+	const requests = 16
+
+	codes := make([]int, requests)
+
+	var wg sync.WaitGroup
+
+	wg.Add(requests)
+
+	for i := range codes {
+		go func() {
+			defer wg.Done()
+
+			rec := httptest.NewRecorder()
+			s.refresh(rec, httptest.NewRequest(http.MethodPost, "/full-refresh", nil))
+			codes[i] = rec.Code
+		}()
+	}
+
+	wg.Wait()
+
+	for i, code := range codes {
+		assert.Equal(t, http.StatusBadRequest, code, "request %d must be rejected", i)
+	}
+
+	// The rejected requests neither claimed nor released the slot: one release frees it.
+	s.Retrieval.State.FinishRefresh()
+	assert.NoError(t, s.Retrieval.State.CanStartRefresh())
 }

@@ -351,7 +351,7 @@ func (c *Base) applyUpgradeResult(w *CloneWrapper, result provision.UpgradeResul
 			EventType: webhooks.CloneUpgradeEvent,
 			EntityID:  cloneID,
 		},
-		Host:          c.config.AccessHost,
+		Host:          c.Config().AccessHost,
 		Port:          w.Session.Port,
 		Username:      w.Clone.DB.Username,
 		DBName:        w.Clone.DB.DBName,

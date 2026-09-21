@@ -5,6 +5,8 @@
 package cloning
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
@@ -163,7 +166,7 @@ func TestCalculateProtectionTime(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			base := &Base{config: &tt.config}
+			base := &Base{config: tt.config}
 			result := base.calculateProtectionTime(tt.durationMinutes)
 
 			if tt.expectNil {
@@ -180,7 +183,7 @@ func TestCalculateProtectionTime(t *testing.T) {
 
 func TestCalculateProtectionTime_EdgeCases(t *testing.T) {
 	t.Run("max equals requested duration", func(t *testing.T) {
-		base := &Base{config: &Config{ProtectionMaxDurationMinutes: 60}}
+		base := &Base{config: Config{ProtectionMaxDurationMinutes: 60}}
 		result := base.calculateProtectionTime(ptrUint(60))
 
 		require.NotNil(t, result)
@@ -190,7 +193,7 @@ func TestCalculateProtectionTime_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("max is 1 minute and request is 1 minute", func(t *testing.T) {
-		base := &Base{config: &Config{ProtectionMaxDurationMinutes: 1}}
+		base := &Base{config: Config{ProtectionMaxDurationMinutes: 1}}
 		result := base.calculateProtectionTime(ptrUint(1))
 
 		require.NotNil(t, result)
@@ -200,7 +203,7 @@ func TestCalculateProtectionTime_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("very large duration is capped by max", func(t *testing.T) {
-		base := &Base{config: &Config{ProtectionMaxDurationMinutes: 60}}
+		base := &Base{config: Config{ProtectionMaxDurationMinutes: 60}}
 		result := base.calculateProtectionTime(ptrUint(999999))
 
 		require.NotNil(t, result)
@@ -210,7 +213,7 @@ func TestCalculateProtectionTime_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("nil config protection lease with explicit duration", func(t *testing.T) {
-		base := &Base{config: &Config{}}
+		base := &Base{config: Config{}}
 		result := base.calculateProtectionTime(ptrUint(30))
 
 		require.NotNil(t, result)
@@ -320,9 +323,8 @@ func TestConnectionString(t *testing.T) {
 }
 
 func TestGetCloningState(t *testing.T) {
-	cfg := &Config{ProtectionLeaseDurationMinutes: 60, ProtectionMaxDurationMinutes: 120}
 	base := &Base{
-		config:      cfg,
+		config:      Config{ProtectionLeaseDurationMinutes: 60, ProtectionMaxDurationMinutes: 120},
 		clones:      make(map[string]*CloneWrapper),
 		snapshotBox: SnapshotBox{items: make(map[string]*models.Snapshot)},
 	}
@@ -471,7 +473,7 @@ func (s *BaseCloningSuite) TestIdleSweeperSkipsUpgradingClones() {
 	wrapper := startedWrapper("upgradingClone", models.StatusUpgrading)
 	wrapper.TimeStartedAt = time.Now().Add(-24 * time.Hour)
 
-	s.cloning.config = &Config{MaxIdleMinutes: 10}
+	s.cloning.config = Config{MaxIdleMinutes: 10}
 
 	isIdle, err := s.cloning.isIdleClone(wrapper)
 
@@ -501,4 +503,52 @@ func startedWrapper(cloneID string, code models.StatusCode) *CloneWrapper {
 		Session:       &resources.Session{Pool: "testPool"},
 		TimeStartedAt: time.Now(),
 	}
+}
+
+func TestReloadRacesWithCloneReaders(t *testing.T) {
+	t.Parallel()
+
+	base := &Base{
+		config:      Config{AccessHost: "localhost", MaxIdleMinutes: 10, ProtectionLeaseDurationMinutes: 60},
+		global:      global.Config{Database: global.Database{Username: "postgres", DBName: "postgres"}},
+		clones:      make(map[string]*CloneWrapper),
+		snapshotBox: SnapshotBox{items: make(map[string]*models.Snapshot)},
+	}
+
+	base.setWrapper("clone1", &CloneWrapper{Clone: &models.Clone{
+		ID:        "clone1",
+		CreatedAt: &models.LocalTime{Time: time.Now()},
+		Status:    models.Status{Code: models.StatusOK},
+	}})
+
+	const iterations = 200
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			base.Reload(
+				Config{AccessHost: fmt.Sprintf("host-%d", i), MaxIdleMinutes: uint(i), ProtectionLeaseDurationMinutes: uint(i)},
+				global.Config{Database: global.Database{Username: "postgres", DBName: fmt.Sprintf("db-%d", i)}},
+			)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			_, err := base.GetClone("clone1")
+			assert.NoError(t, err)
+
+			_ = base.GetCloningState()
+			_ = base.calculateProtectionTime(nil)
+		}
+	}()
+
+	wg.Wait()
 }

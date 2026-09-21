@@ -165,7 +165,7 @@ func main() {
 	}
 
 	obs := observer.NewObserver(docker, &cfg.Observer, pm)
-	billingSvc := billing.New(platformSvc.Client, &engProps, pm)
+	billingSvc := billing.New(platformSvc.Client(), &engProps, pm)
 
 	goroutine.Loop(ctx, "observing clones removal", func() { removeObservingClones(observingChan, obs) })
 
@@ -374,11 +374,12 @@ func reloadConfig(ctx context.Context, engProp global.EngineProps, provisionSvc 
 	}
 
 	provisionSvc.Reload(cfg.Provision, dbCfg)
-	retrievalSvc.Reload(ctx, newRetrievalConfig)
+	retrievalSvc.Reload(ctx, newRetrievalConfig, cfg.Global)
 	cloningSvc.Reload(cfg.Cloning, cfg.Global)
 	platformSvc.Reload(newPlatformSvc)
-	billingSvc.Reload(newPlatformSvc.Client)
+	billingSvc.Reload(newPlatformSvc.Client())
 	server.Reload(cfg.Server)
+	server.SetGlobal(cfg.Global)
 	server.SetRetention(cfg.Retention)
 	whs.Reload(&cfg.Webhooks)
 

@@ -1,6 +1,8 @@
 package embeddedui
 
 import (
+	"context"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -144,8 +146,7 @@ func TestUIManager_IsConfigChanged(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ui := &UIManager{cfg: tc.newCfg}
-			assert.Equal(t, tc.changed, ui.isConfigChanged(baseCfg))
+			assert.Equal(t, tc.changed, isConfigChanged(baseCfg, tc.newCfg))
 		})
 	}
 }
@@ -178,4 +179,42 @@ func TestUIManager_OriginURL_HighPort(t *testing.T) {
 
 	ui := &UIManager{cfg: Config{Host: "10.0.0.1", Port: 65535}}
 	assert.Equal(t, "http://10.0.0.1:65535", ui.OriginURL())
+}
+
+func TestReloadRacesWithConfigReaders(t *testing.T) {
+	t.Parallel()
+
+	cfg := Config{Enabled: true, DockerImage: "nginx:1.23", Host: "0.0.0.0", Port: 2345}
+	ui := &UIManager{cfg: cfg}
+
+	const iterations = 200
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			// Reload writes ui.cfg before it decides what to do. An unchanged config stops it
+			// there, which keeps the test off the container paths that need a Docker daemon.
+			assert.NoError(t, ui.Reload(context.Background(), cfg))
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			_ = ui.IsEnabled()
+			_ = ui.GetHost()
+			_ = ui.OriginURL()
+			_ = ui.Config()
+		}
+	}()
+
+	wg.Wait()
+
+	assert.Equal(t, cfg, ui.Config())
 }

@@ -3,9 +3,11 @@ package zfs
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -990,4 +992,88 @@ func countSetCmds(cmds []string) int {
 	}
 
 	return count
+}
+
+func TestUpdateConfigRacesWithConfigReaders(t *testing.T) {
+	t.Parallel()
+
+	m := NewFSManager(runnerMock{}, Config{Pool: resources.NewPool("dblab_pool"), PreSnapshotSuffix: "_pre", OSUsername: "postgres"})
+
+	const iterations = 200
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			m.UpdateConfig(Config{
+				Pool:              resources.NewPool(fmt.Sprintf("dblab_pool_%d", i)),
+				PreSnapshotSuffix: "_pre",
+				OSUsername:        "postgres",
+			})
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			_ = m.Pool().Name
+			_ = m.Config().PreSnapshotSuffix
+			_ = m.Config().OSUsername
+		}
+	}()
+
+	wg.Wait()
+}
+
+func TestSnapshotListReturnsACopy(t *testing.T) {
+	m := NewFSManager(runnerMock{}, Config{Pool: resources.NewPool("dblab_pool")})
+	m.snapshots = []resources.Snapshot{{ID: "dblab_pool@snapshot_1"}, {ID: "dblab_pool@snapshot_2"}}
+
+	list := m.SnapshotList()
+	list[0] = resources.Snapshot{ID: "injected"}
+
+	assert.Equal(t, "dblab_pool@snapshot_1", m.SnapshotList()[0].ID, "mutating the returned list must not affect the manager")
+}
+
+func TestSnapshotListSurvivesConcurrentRemoval(t *testing.T) {
+	t.Parallel()
+
+	m := NewFSManager(runnerMock{}, Config{Pool: resources.NewPool("dblab_pool")})
+
+	const snapshots = 100
+
+	for i := 0; i < snapshots; i++ {
+		m.addSnapshotToList(resources.Snapshot{ID: fmt.Sprintf("dblab_pool@snapshot_%d", i)})
+	}
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < snapshots; i++ {
+			m.removeSnapshotFromList(fmt.Sprintf("dblab_pool@snapshot_%d", i))
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < snapshots; i++ {
+			for _, snapshot := range m.SnapshotList() {
+				_ = snapshot.ID
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	assert.Empty(t, m.SnapshotList())
 }

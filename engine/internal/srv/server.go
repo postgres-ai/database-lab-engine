@@ -57,7 +57,8 @@ type Server struct {
 	configMu         sync.RWMutex
 	retention        srvCfg.Retention
 	retentionMu      sync.RWMutex
-	Global           *global.Config
+	globalCfg        global.Config
+	globalMu         sync.RWMutex
 	engProps         *global.EngineProps
 	Retrieval        *retrieval.Retrieval
 	Platform         *platform.Service
@@ -103,7 +104,7 @@ func NewServer(cfg *srvCfg.Config, globalCfg *global.Config, engineProps *global
 
 	server := &Server{
 		Config:      cfg,
-		Global:      globalCfg,
+		globalCfg:   *globalCfg,
 		engProps:    engineProps,
 		Cloning:     cloning,
 		provisioner: provisioner,
@@ -166,15 +167,15 @@ func (s *Server) instanceStatus() *models.InstanceStatus {
 		Provisioner:  s.provisioner.ContainerOptions(),
 		CloneUpgrade: s.cloneUpgradeStatus(),
 		Retrieving: models.Retrieving{
-			Mode:        s.Retrieval.State.Mode,
-			Status:      s.Retrieval.State.Status,
+			Mode:        s.Retrieval.State.Mode(),
+			Status:      s.Retrieval.State.Status(),
 			Alerts:      s.Retrieval.State.Alerts(),
-			LastRefresh: s.Retrieval.State.LastRefresh,
+			LastRefresh: s.Retrieval.State.LastRefresh(),
 		},
 	}
 
-	if s.Retrieval.Scheduler.Spec != nil {
-		instanceStatus.Retrieving.NextRefresh = models.NewLocalTime(s.Retrieval.Scheduler.Spec.Next(time.Now()))
+	if spec := s.Retrieval.ScheduleSpec(); spec != nil {
+		instanceStatus.Retrieving.NextRefresh = models.NewLocalTime(spec.Next(time.Now()))
 	}
 
 	s.summarizeStatus(instanceStatus)
@@ -261,6 +262,22 @@ func (s *Server) Retention() srvCfg.Retention {
 	defer s.retentionMu.RUnlock()
 
 	return s.retention
+}
+
+// GlobalConfig returns a copy of the global config. The copy is safe to read after the lock is
+// released because global.Config holds only value-type fields.
+func (s *Server) GlobalConfig() global.Config {
+	s.globalMu.RLock()
+	defer s.globalMu.RUnlock()
+
+	return s.globalCfg
+}
+
+// SetGlobal replaces the global config under the write lock; called on config reload.
+func (s *Server) SetGlobal(g global.Config) {
+	s.globalMu.Lock()
+	s.globalCfg = g
+	s.globalMu.Unlock()
 }
 
 // SetRetention replaces the retention config under the write lock; called on config reload.
