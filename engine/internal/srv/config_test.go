@@ -74,7 +74,8 @@ func TestProbeSource_InvalidJSON(t *testing.T) {
 
 func TestTestDBSource_PhysicalModeRejected(t *testing.T) {
 	srv := newProbeTestServer(t, false)
-	srv.Retrieval = &retrieval.Retrieval{State: retrieval.State{Mode: models.Physical}}
+	srv.Retrieval = &retrieval.Retrieval{}
+	srv.Retrieval.State.SetMode(models.Physical)
 
 	body := `{"host":"db.example.com","port":"5432","dbname":"shop","username":"app","password":"p"}`
 	req := httptest.NewRequest(http.MethodPost, "/admin/test-db-source", strings.NewReader(body))
@@ -306,7 +307,8 @@ func TestValidateSourceConnectionString(t *testing.T) {
 
 func TestSetProjectedAdminConfig_RejectsEmbeddedPasswordConnectionString(t *testing.T) {
 	srv := newProbeTestServer(t, false)
-	srv.Retrieval = &retrieval.Retrieval{State: retrieval.State{Mode: models.Logical}}
+	srv.Retrieval = &retrieval.Retrieval{}
+	srv.Retrieval.State.SetMode(models.Logical)
 
 	body := `{
 		"retrievalMode": "logical",
@@ -608,7 +610,8 @@ retrieval:
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "configs", "server.yml"), configData, 0600))
 
 	srv := newProbeTestServer(t, false)
-	srv.Retrieval = &retrieval.Retrieval{State: retrieval.State{Mode: models.Logical}}
+	srv.Retrieval = &retrieval.Retrieval{}
+	srv.Retrieval.State.SetMode(models.Logical)
 	srv.reloadFn = func(*Server) error { return nil }
 
 	return srv
@@ -787,7 +790,8 @@ func TestProjectedAdminConfig_MasksPhysicalEnvs(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join("configs", "server.yml"), []byte(physicalEnvsConfig), 0600))
 
 	srv := newProbeTestServer(t, false)
-	srv.Retrieval = &retrieval.Retrieval{State: retrieval.State{Mode: models.Physical}}
+	srv.Retrieval = &retrieval.Retrieval{}
+	srv.Retrieval.State.SetMode(models.Physical)
 
 	result, err := srv.projectedAdminConfig()
 	require.NoError(t, err)
@@ -823,7 +827,8 @@ func TestProjectedAdminConfig_KeepsOtherSensitiveFieldsOut(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join("configs", "server.yml"), []byte(cfg), 0600))
 
 	srv := newProbeTestServer(t, false)
-	srv.Retrieval = &retrieval.Retrieval{State: retrieval.State{Mode: models.Physical}}
+	srv.Retrieval = &retrieval.Retrieval{}
+	srv.Retrieval.State.SetMode(models.Physical)
 
 	result, err := srv.projectedAdminConfig()
 	require.NoError(t, err)

@@ -84,7 +84,7 @@ func (s *Server) setProjectedAdminConfig(w http.ResponseWriter, r *http.Request)
 
 	s.tm.SendEvent(context.Background(), telemetry.ConfigUpdatedEvent, telemetry.ConfigUpdated{})
 
-	retrievalStatus := s.Retrieval.State.Status
+	retrievalStatus := s.Retrieval.State.Status()
 
 	if err := s.Retrieval.RemovePendingMarker(); err != nil {
 		api.SendError(w, r, err)
@@ -93,7 +93,7 @@ func (s *Server) setProjectedAdminConfig(w http.ResponseWriter, r *http.Request)
 
 	if retrievalStatus == models.Pending {
 		go func() {
-			if err := s.Retrieval.FullRefresh(context.Background()); err != nil {
+			if err := s.Retrieval.FullRefresh(context.Background()); err != nil && !retrieval.IsRefreshSkipped(err) {
 				log.Err(fmt.Errorf("failed to refresh data: %w", err))
 			}
 		}()
@@ -111,7 +111,7 @@ func (s *Server) testDBSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.Retrieval.State.Mode != models.Logical {
+	if s.Retrieval.State.Mode() != models.Logical {
 		api.SendBadRequestError(w, r, "the endpoint is only available in the Logical mode of the data retrieval")
 		return
 	}
@@ -482,7 +482,7 @@ func (s *Server) projectedAdminConfig() (interface{}, error) {
 	// projection layer never writes it. The UI needs it to choose the initial
 	// tab and the right Expert sub-form, so populate it from the running
 	// retrieval state.
-	obj["retrievalMode"] = string(s.Retrieval.State.Mode)
+	obj["retrievalMode"] = string(s.Retrieval.State.Mode())
 
 	return obj, nil
 }
@@ -493,13 +493,13 @@ func (s *Server) applyProjectedAdminConfig(ctx context.Context, obj interface{})
 		return nil, fmt.Errorf("config must be an object: %T", obj)
 	}
 
-	mode := requestedRetrievalMode(objMap, s.Retrieval.State.Mode)
+	mode := requestedRetrievalMode(objMap, s.Retrieval.State.Mode())
 
 	completeLogicalPipeline := false
 
 	switch mode {
 	case models.Logical:
-		if s.Retrieval.State.Mode == models.Physical {
+		if s.Retrieval.State.Mode() == models.Physical {
 			return nil, fmt.Errorf("cannot apply a logical config: the instance is configured for physical " +
 				"retrieval; switch modes by editing the config manually")
 		}

@@ -6,10 +6,12 @@ package retrieval
 
 import (
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
@@ -17,7 +19,6 @@ import (
 
 func TestState(t *testing.T) {
 	state := State{
-		mu:     sync.Mutex{},
 		alerts: make(map[models.AlertType]models.Alert),
 	}
 
@@ -138,4 +139,131 @@ func TestState_AlertsGetReturnsCopy(t *testing.T) {
 	assert.Equal(t, 1, len(original), "modifying copy must not affect original")
 	_, hasInjected := original[models.RefreshSkipped]
 	assert.False(t, hasInjected, "injected key must not appear in original")
+}
+
+func TestState_AccessorsConcurrent(t *testing.T) {
+	t.Parallel()
+
+	// Every accessor takes s.mu, so a reload racing a running pipeline is safe.
+	state := &State{alerts: make(map[models.AlertType]models.Alert)}
+
+	const goroutines = 8
+	const itersEach = 50
+
+	var wg sync.WaitGroup
+
+	wg.Add(2 * goroutines)
+
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+
+			for j := 0; j < itersEach; j++ {
+				state.SetMode(models.Logical)
+				state.SetStatus(models.Refreshing)
+				state.SetLastRefresh(models.NewLocalTime(time.Now()))
+				state.SetCurrentJob(nil)
+			}
+		}()
+
+		go func() {
+			defer wg.Done()
+
+			for j := 0; j < itersEach; j++ {
+				_ = state.Mode()
+				_ = state.Status()
+				_ = state.LastRefresh()
+				_ = state.CurrentJob()
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	assert.Equal(t, models.Logical, state.Mode())
+	assert.Equal(t, models.Refreshing, state.Status())
+}
+
+func TestState_TryStartRefreshIsExclusive(t *testing.T) {
+	t.Parallel()
+
+	state := &State{alerts: make(map[models.AlertType]models.Alert)}
+
+	const goroutines = 16
+
+	var claimed atomic.Int64
+
+	var wg sync.WaitGroup
+
+	start := make(chan struct{})
+
+	wg.Add(goroutines)
+
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+
+			<-start
+
+			if err := state.TryStartRefresh(); err == nil {
+				claimed.Add(1)
+			}
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+
+	assert.Equal(t, int64(1), claimed.Load(), "the refresh slot must be claimed exactly once")
+}
+
+func TestState_FinishRefreshReleasesTheSlot(t *testing.T) {
+	state := &State{alerts: make(map[models.AlertType]models.Alert)}
+
+	require.NoError(t, state.TryStartRefresh())
+	require.ErrorIs(t, state.TryStartRefresh(), ErrRefreshInProgress)
+	require.ErrorIs(t, state.CanStartRefresh(), ErrRefreshInProgress)
+
+	state.FinishRefresh()
+
+	require.NoError(t, state.CanStartRefresh())
+	assert.NoError(t, state.TryStartRefresh())
+}
+
+func TestState_CanStartRefreshDoesNotClaim(t *testing.T) {
+	state := &State{alerts: make(map[models.AlertType]models.Alert)}
+
+	require.NoError(t, state.CanStartRefresh())
+	require.NoError(t, state.CanStartRefresh())
+
+	assert.NoError(t, state.TryStartRefresh())
+}
+
+func TestState_TryStartRefreshRespectsStatus(t *testing.T) {
+	testCases := []struct {
+		name    string
+		status  models.RetrievalStatus
+		wantErr error
+	}{
+		{name: "inactive", status: models.Inactive},
+		{name: "finished", status: models.Finished},
+		{name: "failed", status: models.Failed},
+		{name: "renewed", status: models.Renewed},
+		{name: "refreshing", status: models.Refreshing, wantErr: ErrRefreshInProgress},
+		{name: "snapshotting", status: models.Snapshotting, wantErr: ErrRefreshInProgress},
+		{name: "pending", status: models.Pending, wantErr: ErrRefreshPending},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			state := &State{status: tc.status, alerts: make(map[models.AlertType]models.Alert)}
+
+			if tc.wantErr != nil {
+				assert.ErrorIs(t, state.TryStartRefresh(), tc.wantErr)
+				return
+			}
+
+			assert.NoError(t, state.TryStartRefresh())
+		})
+	}
 }

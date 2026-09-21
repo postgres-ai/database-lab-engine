@@ -11,8 +11,10 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
 
@@ -88,7 +90,7 @@ func newProvisioner() (*provision.Provisioner, error) {
 			From: 1,
 			To:   5,
 		},
-	}, nil, nil, pool.NewPoolManager(&pool.Config{}, runners.NewLocalRunner(false)), "instID", "nwID", "")
+	}, &resources.DB{}, nil, pool.NewPoolManager(&pool.Config{}, runners.NewLocalRunner(false)), "instID", "nwID", "")
 }
 
 func TestLoadingSessionState(t *testing.T) {
@@ -129,7 +131,7 @@ func TestSavingSessionState(t *testing.T) {
 		prov, err := newProvisioner()
 		assert.NoError(t, err)
 
-		s := NewBase(nil, nil, prov, &telemetry.Agent{}, nil, nil)
+		s := NewBase(&Config{}, &global.Config{}, prov, &telemetry.Agent{}, nil, nil)
 		err = s.saveClonesState(f.Name())
 		assert.NoError(t, err)
 
@@ -147,7 +149,7 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 	prov, err := newProvisioner()
 	require.NoError(t, err)
 
-	base := NewBase(nil, nil, prov, &telemetry.Agent{}, nil, nil)
+	base := NewBase(&Config{}, &global.Config{}, prov, &telemetry.Agent{}, nil, nil)
 	base.setWrapper("clone1", &CloneWrapper{
 		Clone: &models.Clone{
 			ID:       "clone1",
@@ -215,7 +217,7 @@ func TestSaveClonesStateIsAtomic(t *testing.T) {
 		tmpDir := t.TempDir()
 		sessionsPath := filepath.Join(tmpDir, "sessions.json")
 
-		base := NewBase(nil, nil, prov, &telemetry.Agent{}, nil, nil)
+		base := NewBase(&Config{}, &global.Config{}, prov, &telemetry.Agent{}, nil, nil)
 		require.NoError(t, base.saveClonesState(sessionsPath))
 
 		entries, err := os.ReadDir(tmpDir)
@@ -236,7 +238,7 @@ func TestSaveClonesStateIsAtomic(t *testing.T) {
 
 		t.Cleanup(func() { _ = os.Chmod(tmpDir, 0700) })
 
-		base := NewBase(nil, nil, prov, &telemetry.Agent{}, nil, nil)
+		base := NewBase(&Config{}, &global.Config{}, prov, &telemetry.Agent{}, nil, nil)
 		require.Error(t, base.saveClonesState(sessionsPath))
 
 		data, err := os.ReadFile(sessionsPath)
@@ -252,7 +254,7 @@ func TestSaveClonesStateIsAtomic(t *testing.T) {
 		tmpDir := t.TempDir()
 		sessionsPath := filepath.Join(tmpDir, "missing", "sessions.json")
 
-		base := NewBase(nil, nil, prov, &telemetry.Agent{}, nil, nil)
+		base := NewBase(&Config{}, &global.Config{}, prov, &telemetry.Agent{}, nil, nil)
 		require.Error(t, base.saveClonesState(sessionsPath))
 
 		entries, err := os.ReadDir(tmpDir)
@@ -268,7 +270,7 @@ func TestSaveClonesStateFilePermissions(t *testing.T) {
 	prov, err := newProvisioner()
 	require.NoError(t, err)
 
-	base := NewBase(nil, nil, prov, &telemetry.Agent{}, nil, nil)
+	base := NewBase(&Config{}, &global.Config{}, prov, &telemetry.Agent{}, nil, nil)
 	err = base.saveClonesState(sessionsPath)
 	require.NoError(t, err)
 
@@ -310,7 +312,7 @@ func TestFilter(t *testing.T) {
 				assert.NoError(t, err)
 				defer func() { _ = os.Remove(filepath) }()
 
-				s := NewBase(nil, nil, prov, &telemetry.Agent{}, nil, nil)
+				s := NewBase(&Config{}, &global.Config{}, prov, &telemetry.Agent{}, nil, nil)
 
 				s.filterRunningClones(context.Background())
 				assert.Equal(t, 0, s.lenClones())

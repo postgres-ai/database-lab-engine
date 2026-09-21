@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	srvCfg "gitlab.com/postgres-ai/database-lab/v3/internal/srv/config"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 )
 
 func TestRouter_BranchAndSnapshotRoutes(t *testing.T) {
@@ -56,4 +57,12 @@ func TestRouter_BranchAndSnapshotRoutes(t *testing.T) {
 			assert.Equal(t, tc.vars, match.Vars)
 		})
 	}
+}
+
+func TestSetGlobalReplacesTheGlobalConfig(t *testing.T) {
+	s := &Server{globalCfg: global.Config{Database: global.Database{DBName: "before"}}}
+	require.Equal(t, "before", s.GlobalConfig().Database.DBName)
+
+	s.SetGlobal(global.Config{Database: global.Database{DBName: "after"}})
+	assert.Equal(t, "after", s.GlobalConfig().Database.DBName)
 }

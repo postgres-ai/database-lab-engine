@@ -2,8 +2,10 @@ package provision
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
 )
 
 type mockPortChecker struct{}
@@ -43,8 +46,8 @@ func TestPortAllocation(t *testing.T) {
 	port, err := p.allocatePort()
 	require.NoError(t, err)
 
-	assert.GreaterOrEqual(t, port, p.config.PortPool.From)
-	assert.LessOrEqual(t, port, p.config.PortPool.To)
+	assert.GreaterOrEqual(t, port, p.Config().PortPool.From)
+	assert.LessOrEqual(t, port, p.Config().PortPool.To)
 
 	// Allocate one more port.
 	_, err = p.allocatePort()
@@ -63,8 +66,8 @@ func TestPortAllocation(t *testing.T) {
 	require.NoError(t, p.FreePort(port))
 	port, err = p.allocatePort()
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, port, p.config.PortPool.From)
-	assert.LessOrEqual(t, port, p.config.PortPool.To)
+	assert.GreaterOrEqual(t, port, p.Config().PortPool.From)
+	assert.LessOrEqual(t, port, p.Config().PortPool.To)
 
 	// Try to free a non-existing port.
 	err = p.FreePort(1)
@@ -573,9 +576,7 @@ func TestProvisionHosts(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			p := Provisioner{
-				config: &Config{
-					CloneAccessAddresses: tt.udAddresses,
-				},
+				config:  Config{CloneAccessAddresses: tt.udAddresses},
 				gateway: tt.gateway,
 			}
 
@@ -630,4 +631,65 @@ func TestConfigPgUpgradeImageIsNotRequired(t *testing.T) {
 	cfg := Config{PortPool: PortPool{From: 6000, To: 6100}}
 
 	require.NoError(t, IsValidConfig(cfg), "an unconfigured upgrade image must not block engine startup")
+}
+
+func TestReloadRacesWithTheCloneCreatePath(t *testing.T) {
+	t.Parallel()
+
+	p := &Provisioner{
+		config:  Config{DockerImage: "postgresai/extended-postgres:16", PortPool: PortPool{From: 6000, To: 6100}},
+		dbCfg:   resources.DB{Username: "postgres", DBName: "postgres"},
+		gateway: "172.17.0.1",
+		mu:      &sync.Mutex{},
+		ports:   make([]bool, 101),
+	}
+
+	const iterations = 200
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			p.Reload(Config{
+				DockerImage:           fmt.Sprintf("postgresai/extended-postgres:%d", i),
+				PortPool:              PortPool{From: 6000, To: 6100},
+				ContainerConfig:       map[string]string{"shared_buffers": "1GB"},
+				UpgradeImageAllowList: []string{"postgresai/pg-upgrade"},
+				CloneAccessAddresses:  "10.0.0.1",
+			}, resources.DB{Username: "postgres", DBName: "postgres"})
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		pool := resources.NewPool("dblab_pool")
+
+		for i := 0; i < iterations; i++ {
+			_ = p.ContainerOptions()
+			_ = p.UpgradeImageAllowList()
+			_ = p.getProvisionHosts()
+			_ = p.getAppConfig(pool, branching.DefaultBranch, "clone", branching.DefaultRevision, 6000)
+		}
+	}()
+
+	wg.Wait()
+}
+
+func TestAppConfigKeepsItsDatabaseSnapshot(t *testing.T) {
+	p := &Provisioner{
+		config: Config{DockerImage: "postgresai/extended-postgres:16"},
+		dbCfg:  resources.DB{Username: "postgres", DBName: "postgres"},
+	}
+
+	appConfig := p.getAppConfig(resources.NewPool("dblab_pool"), branching.DefaultBranch, "clone", branching.DefaultRevision, 6000)
+
+	p.Reload(Config{DockerImage: "postgresai/extended-postgres:17"}, resources.DB{Username: "reloaded", DBName: "reloaded"})
+
+	assert.Equal(t, "postgres", appConfig.DB.Username, "a reload must not rewrite a config handed to a running clone")
+	assert.Equal(t, "reloaded", p.DBConfig().Username)
 }

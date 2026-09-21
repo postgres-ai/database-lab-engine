@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -157,6 +158,7 @@ func (e *EmptyPoolError) Error() string {
 // Manager describes a filesystem manager for ZFS.
 type Manager struct {
 	runner    runners.Runner
+	cfgMu     sync.RWMutex
 	config    Config
 	mu        *sync.Mutex
 	snapshots []resources.Snapshot
@@ -183,17 +185,32 @@ func NewFSManager(runner runners.Runner, config Config) *Manager {
 
 // Pool gets a storage pool.
 func (m *Manager) Pool() *resources.Pool {
+	m.cfgMu.RLock()
+	defer m.cfgMu.RUnlock()
+
 	return m.config.Pool
+}
+
+// Config returns a snapshot of the manager's configuration. UpdateConfig swaps the whole value,
+// so the copy stays consistent after the lock is released; the pool it points to is shared on
+// purpose, because its status is updated in place.
+func (m *Manager) Config() Config {
+	m.cfgMu.RLock()
+	defer m.cfgMu.RUnlock()
+
+	return m.config
 }
 
 // UpdateConfig updates the manager's configuration.
 func (m *Manager) UpdateConfig(cfg Config) {
+	m.cfgMu.Lock()
 	m.config = cfg
+	m.cfgMu.Unlock()
 }
 
 // CreateClone creates a new ZFS clone.
 func (m *Manager) CreateClone(branchName, cloneName, snapshotID string, revision int) error {
-	cloneMountName := m.config.Pool.CloneName(branchName, cloneName, revision)
+	cloneMountName := m.Pool().CloneName(branchName, cloneName, revision)
 
 	log.Dbg(cloneMountName)
 
@@ -206,12 +223,12 @@ func (m *Manager) CreateClone(branchName, cloneName, snapshotID string, revision
 		return fmt.Errorf("clone %q is already exists; skipping", cloneName)
 	}
 
-	cloneMountLocation := m.config.Pool.CloneLocation(branchName, cloneName, revision)
-	cloneDataDir := m.config.Pool.ClonePath(branchName, cloneName, revision)
+	cloneMountLocation := m.Pool().CloneLocation(branchName, cloneName, revision)
+	cloneDataDir := m.Pool().ClonePath(branchName, cloneName, revision)
 
 	cmd := fmt.Sprintf("zfs clone -p -o mountpoint=%s %s %s && %s",
 		cloneMountLocation, snapshotID, cloneMountName,
-		chownCloneCommand(cloneDataDir, cloneMountLocation, m.config.OSUsername))
+		chownCloneCommand(cloneDataDir, cloneMountLocation, m.Config().OSUsername))
 
 	log.Dbg(cmd)
 
@@ -227,7 +244,7 @@ func (m *Manager) CreateClone(branchName, cloneName, snapshotID string, revision
 // only when it is not already owned by that user. Running it once while preparing a snapshot lets
 // every clone created from that snapshot inherit correct ownership and skip the recursive walk.
 func (m *Manager) EnsureDataOwnership(dataDir string) error {
-	cmd := ensureOwnershipCommand(dataDir, m.config.OSUsername)
+	cmd := ensureOwnershipCommand(dataDir, m.Config().OSUsername)
 
 	log.Dbg(cmd)
 
@@ -268,7 +285,7 @@ func ensureOwnershipCommand(dataDir, osUsername string) string {
 
 // DestroyClone destroys a ZFS clone.
 func (m *Manager) DestroyClone(branchName, cloneName string, revision int) error {
-	cloneMountName := m.config.Pool.CloneName(branchName, cloneName, revision)
+	cloneMountName := m.Pool().CloneName(branchName, cloneName, revision)
 
 	log.Dbg(cloneMountName)
 
@@ -282,7 +299,7 @@ func (m *Manager) DestroyClone(branchName, cloneName string, revision int) error
 		return nil
 	}
 
-	cloneDataset := m.config.Pool.CloneDataset(branchName, cloneName)
+	cloneDataset := m.Pool().CloneDataset(branchName, cloneName)
 	cloneOrigins := m.GetDatasetOrigins(cloneDataset)
 
 	if m.hasDependentSnapshots(cloneOrigins, cloneMountName) {
@@ -330,7 +347,7 @@ func (m *Manager) GetDatasetOrigins(cloneDataset string) []string {
 }
 
 func (m *Manager) GetActiveDatasets(cloneDataset string) ([]string, error) {
-	listZfsClonesCmd := fmt.Sprintf("zfs list -t snapshot -H -o name -r %s | grep %s", m.config.Pool.Name, cloneDataset)
+	listZfsClonesCmd := fmt.Sprintf("zfs list -t snapshot -H -o name -r %s | grep %s", m.Pool().Name, cloneDataset)
 
 	out, err := m.runner.Run(listZfsClonesCmd, false)
 	if err != nil {
@@ -370,7 +387,7 @@ func (m *Manager) hasDependentSnapshots(origins []string, cloneMountName string)
 
 // cloneExists checks whether a ZFS clone exists.
 func (m *Manager) cloneExists(name string) (bool, error) {
-	listZfsClonesCmd := "zfs list -r " + m.config.Pool.Name
+	listZfsClonesCmd := "zfs list -r " + m.Pool().Name
 
 	out, err := m.runner.Run(listZfsClonesCmd, false)
 	if err != nil {
@@ -406,7 +423,7 @@ func (m *Manager) ListCloneDatasets() ([]thinclones.CloneDataset, error) {
 	}
 
 	datasets := []thinclones.CloneDataset{}
-	branchPrefix := m.config.Pool.Name + "/" + branching.BranchDir + "/"
+	branchPrefix := m.Pool().Name + "/" + branching.BranchDir + "/"
 
 	for _, line := range strings.Split(strings.TrimSpace(cmdOutput), "\n") {
 		bcr, found := strings.CutPrefix(line, branchPrefix)
@@ -469,10 +486,10 @@ func (m *Manager) CreateDataset(datasetName string) error {
 
 // CreateSnapshot creates a new snapshot.
 func (m *Manager) CreateSnapshot(poolSuffix, dataStateAt string) (string, error) {
-	poolName := m.config.Pool.Name
+	poolName := m.Pool().Name
 
 	if poolSuffix != "" {
-		poolName = util.GetPoolName(m.config.Pool.Name, poolSuffix)
+		poolName = util.GetPoolName(m.Pool().Name, poolSuffix)
 	}
 
 	originalDSA := dataStateAt
@@ -503,7 +520,9 @@ func (m *Manager) CreateSnapshot(poolSuffix, dataStateAt string) (string, error)
 		return "", errors.Wrap(err, "failed to create snapshot")
 	}
 
-	cmd = fmt.Sprintf("zfs set %s=%q %s", dataStateAtLabel, strings.TrimSuffix(dataStateAt, m.config.PreSnapshotSuffix), snapshotName)
+	preSnapshotSuffix := m.Config().PreSnapshotSuffix
+
+	cmd = fmt.Sprintf("zfs set %s=%q %s", dataStateAtLabel, strings.TrimSuffix(dataStateAt, preSnapshotSuffix), snapshotName)
 
 	if _, err := m.runner.Run(cmd, true); err != nil {
 		return "", errors.Wrap(err, "failed to set the dataStateAt option for snapshot")
@@ -517,7 +536,7 @@ func (m *Manager) CreateSnapshot(poolSuffix, dataStateAt string) (string, error)
 		}
 	}
 
-	dataStateTime, err := util.ParseCustomTime(strings.TrimSuffix(dataStateAt, m.config.PreSnapshotSuffix))
+	dataStateTime, err := util.ParseCustomTime(strings.TrimSuffix(dataStateAt, preSnapshotSuffix))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse dataStateAt: %w", err)
 	}
@@ -531,11 +550,11 @@ func (m *Manager) CreateSnapshot(poolSuffix, dataStateAt string) (string, error)
 		ID:          snapshotName,
 		CreatedAt:   time.Now(),
 		DataStateAt: dataStateTime,
-		Pool:        m.config.Pool.Name,
+		Pool:        m.Pool().Name,
 		Branch:      branch,
 	}
 
-	if !strings.HasSuffix(snapshotName, m.config.PreSnapshotSuffix) {
+	if !strings.HasSuffix(snapshotName, preSnapshotSuffix) {
 		m.addSnapshotToList(newSnapshot)
 
 		log.Dbg("New snapshot:", newSnapshot)
@@ -671,7 +690,7 @@ func (m *Manager) checkDependentClones(snapshotName string) (string, error) {
 
 // CleanupSnapshots destroys old snapshots considering retention limit and related clones.
 func (m *Manager) CleanupSnapshots(retentionLimit int, mode models.RetrievalMode) ([]string, error) {
-	clonesCmd := fmt.Sprintf("zfs list -S clones -o name,origin -H -r %s", m.config.Pool.Name)
+	clonesCmd := fmt.Sprintf("zfs list -S clones -o name,origin -H -r %s", m.Pool().Name)
 
 	clonesOutput, err := m.runner.Run(clonesCmd)
 	if err != nil {
@@ -703,7 +722,7 @@ func (m *Manager) CleanupSnapshots(retentionLimit int, mode models.RetrievalMode
 	cleanupCmd := fmt.Sprintf(
 		"zfs list -t snapshot -H -o name -s %s -s creation -r %s | grep -v clone %s | head -n -%d %s"+
 			"| xargs -n1 --no-run-if-empty zfs destroy -R ",
-		dataStateAtLabel, m.config.Pool.Name, modeFilter, retentionLimit, excludeBusySnapshots(busySnapshots))
+		dataStateAtLabel, m.Pool().Name, modeFilter, retentionLimit, excludeBusySnapshots(busySnapshots))
 
 	out, err := m.runner.Run(cleanupCmd)
 	if err != nil {
@@ -838,7 +857,7 @@ func (m *Manager) getBusySnapshotList(clonesOutput string) []string {
 	systemClones := make(map[string]string)
 	branchingSnapshotDatasets := []string{}
 
-	systemDatasetPrefix := fmt.Sprintf("%s/%s/%s/clone_pre_", m.config.Pool.Name, branching.BranchDir, branching.DefaultBranch)
+	systemDatasetPrefix := fmt.Sprintf("%s/%s/%s/clone_pre_", m.Pool().Name, branching.BranchDir, branching.DefaultBranch)
 
 	for _, line := range strings.Split(clonesOutput, "\n") {
 		cloneLine := strings.FieldsFunc(line, unicode.IsSpace)
@@ -952,14 +971,14 @@ func (m *Manager) getProtectedSnapshots() ([]string, error) {
 
 // GetSessionState returns a state of a session.
 func (m *Manager) GetSessionState(branch, name string) (*resources.SessionState, error) {
-	entries, err := m.listFilesystems(m.config.Pool.Name)
+	entries, err := m.listFilesystems(m.Pool().Name)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list filesystems")
 	}
 
 	var sEntry *ListEntry
 
-	entryName := branching.CloneDataset(m.config.Pool.Name, branch, name)
+	entryName := branching.CloneDataset(m.Pool().Name, branch, name)
 
 	for _, entry := range entries {
 		if entry.Name == entryName {
@@ -982,7 +1001,7 @@ func (m *Manager) GetSessionState(branch, name string) (*resources.SessionState,
 
 // GetBatchSessionState returns session states for multiple clones in a single ZFS query.
 func (m *Manager) GetBatchSessionState(requests []resources.SessionStateRequest) (map[string]resources.SessionState, error) {
-	entries, err := m.listFilesystems(m.config.Pool.Name)
+	entries, err := m.listFilesystems(m.Pool().Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list filesystems: %w", err)
 	}
@@ -995,7 +1014,7 @@ func (m *Manager) GetBatchSessionState(requests []resources.SessionStateRequest)
 	sessionStates := make(map[string]resources.SessionState, len(requests))
 
 	for _, req := range requests {
-		entryName := branching.CloneDataset(m.config.Pool.Name, req.Branch, req.CloneID)
+		entryName := branching.CloneDataset(m.Pool().Name, req.Branch, req.CloneID)
 
 		if entry, ok := entryMap[entryName]; ok {
 			sessionStates[req.CloneID] = resources.SessionState{
@@ -1010,7 +1029,7 @@ func (m *Manager) GetBatchSessionState(requests []resources.SessionStateRequest)
 
 // GetFilesystemState returns a disk state.
 func (m *Manager) GetFilesystemState() (models.FileSystem, error) {
-	parts := strings.SplitN(m.config.Pool.Name, "/", 2)
+	parts := strings.SplitN(m.Pool().Name, "/", 2)
 	if len(parts) == 0 {
 		return models.FileSystem{}, errors.New("failed to get a storage pool name")
 	}
@@ -1029,7 +1048,7 @@ func (m *Manager) GetFilesystemState() (models.FileSystem, error) {
 			parentPoolEntry = entry
 		}
 
-		if entry.Name == m.config.Pool.Name {
+		if entry.Name == m.Pool().Name {
 			poolEntry = entry
 		}
 
@@ -1056,13 +1075,14 @@ func (m *Manager) GetFilesystemState() (models.FileSystem, error) {
 	return fileSystem, nil
 }
 
-// SnapshotList returns a list of snapshots.
+// SnapshotList returns a copy of the snapshot list. The copy matters: removeSnapshotFromList
+// shifts the internal slice in place under m.mu, so a caller iterating the internal slice would
+// race with a snapshot destruction.
 func (m *Manager) SnapshotList() []resources.Snapshot {
 	m.mu.Lock()
-	snapshots := m.snapshots
-	m.mu.Unlock()
+	defer m.mu.Unlock()
 
-	return snapshots
+	return slices.Clone(m.snapshots)
 }
 
 // RefreshSnapshotList updates the list of snapshots.
@@ -1081,7 +1101,10 @@ func (m *Manager) RefreshSnapshotList() {
 }
 
 func (m *Manager) getSnapshots() ([]resources.Snapshot, error) {
-	entries, err := m.listSnapshots(m.config.Pool.Name)
+	cfg := m.Config()
+	poolName := cfg.Pool.Name
+
+	entries, err := m.listSnapshots(poolName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list snapshots: %w", err)
 	}
@@ -1090,14 +1113,14 @@ func (m *Manager) getSnapshots() ([]resources.Snapshot, error) {
 
 	for _, entry := range entries {
 		// Filter pre-snapshots, they will not be allowed to be used for cloning.
-		if strings.HasSuffix(entry.Name, m.config.PreSnapshotSuffix) {
+		if strings.HasSuffix(entry.Name, cfg.PreSnapshotSuffix) {
 			continue
 		}
 
 		branch := entry.Branch
 
 		if branch == empty {
-			if parsedBranch := branching.ParseBranchNameFromSnapshot(entry.Name, m.config.Pool.Name); parsedBranch != "" {
+			if parsedBranch := branching.ParseBranchNameFromSnapshot(entry.Name, poolName); parsedBranch != "" {
 				branch = parsedBranch
 			} else {
 				branch = branching.DefaultBranch
@@ -1110,7 +1133,7 @@ func (m *Manager) getSnapshots() ([]resources.Snapshot, error) {
 			DataStateAt:       entry.DataStateAt,
 			Used:              entry.Used,
 			LogicalReferenced: entry.LogicalReferenced,
-			Pool:              m.config.Pool.Name,
+			Pool:              poolName,
 			Branch:            branch,
 			Message:           entry.Message,
 		}

@@ -12,6 +12,7 @@ import (
 	"net/netip"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/moby/moby/api/types/container"
@@ -53,6 +54,7 @@ type Config struct {
 type UIManager struct {
 	runner   runners.Runner
 	docker   *client.Client
+	cfgMu    sync.RWMutex
 	cfg      Config
 	engProps global.EngineProps
 }
@@ -64,10 +66,12 @@ func New(cfg Config, engProps global.EngineProps, runner runners.Runner, docker 
 
 // Reload reloads configuration of UI manager and adjusts a UI container according to it.
 func (ui *UIManager) Reload(ctx context.Context, cfg Config) error {
+	ui.cfgMu.Lock()
 	originalConfig := ui.cfg
 	ui.cfg = cfg
+	ui.cfgMu.Unlock()
 
-	if !ui.isConfigChanged(originalConfig) {
+	if !isConfigChanged(originalConfig, cfg) {
 		return nil
 	}
 
@@ -83,25 +87,36 @@ func (ui *UIManager) Reload(ctx context.Context, cfg Config) error {
 	return ui.Restart(ctx)
 }
 
-func (ui *UIManager) isConfigChanged(cfg Config) bool {
-	return ui.cfg.Enabled != cfg.Enabled ||
-		ui.cfg.DockerImage != cfg.DockerImage ||
-		ui.cfg.Host != cfg.Host ||
-		ui.cfg.Port != cfg.Port
+// Config returns a snapshot of the UI container configuration. Reload swaps the whole value, so
+// the copy stays consistent after the lock is released.
+func (ui *UIManager) Config() Config {
+	ui.cfgMu.RLock()
+	defer ui.cfgMu.RUnlock()
+
+	return ui.cfg
+}
+
+func isConfigChanged(oldCfg, newCfg Config) bool {
+	return oldCfg.Enabled != newCfg.Enabled ||
+		oldCfg.DockerImage != newCfg.DockerImage ||
+		oldCfg.Host != newCfg.Host ||
+		oldCfg.Port != newCfg.Port
 }
 
 // Run creates a new embedded UI container.
 func (ui *UIManager) Run(ctx context.Context) error {
-	if err := docker.PrepareImage(ctx, ui.docker, ui.cfg.DockerImage); err != nil {
+	cfg := ui.Config()
+
+	if err := docker.PrepareImage(ctx, ui.docker, cfg.DockerImage); err != nil {
 		return fmt.Errorf("failed to prepare Docker image: %w", err)
 	}
 
 	var hostIP netip.Addr
 
-	if ui.cfg.Host != "" {
-		parsedIP, err := netip.ParseAddr(ui.cfg.Host)
+	if cfg.Host != "" {
+		parsedIP, err := netip.ParseAddr(cfg.Host)
 		if err != nil {
-			return fmt.Errorf("invalid embedded UI host %q: %w", ui.cfg.Host, err)
+			return fmt.Errorf("invalid embedded UI host %q: %w", cfg.Host, err)
 		}
 
 		hostIP = parsedIP
@@ -114,7 +129,7 @@ func (ui *UIManager) Run(ctx context.Context) error {
 				cont.DBLabInstanceIDLabel: ui.engProps.InstanceID,
 				cont.DBLabEngineNameLabel: ui.engProps.ContainerName,
 			},
-			Image: ui.cfg.DockerImage,
+			Image: cfg.DockerImage,
 			Env: []string{
 				EnvEngineName + "=" + ui.engProps.ContainerName,
 				EnvEnginePort + "=" + strconv.FormatUint(uint64(ui.engProps.EnginePort), 10),
@@ -130,7 +145,7 @@ func (ui *UIManager) Run(ctx context.Context) error {
 				network.MustParsePort("80/tcp"): {
 					{
 						HostIP:   hostIP,
-						HostPort: strconv.Itoa(ui.cfg.Port),
+						HostPort: strconv.Itoa(cfg.Port),
 					},
 				},
 			},
@@ -148,7 +163,7 @@ func (ui *UIManager) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to start container %q: %w", containerID, err)
 	}
 
-	reportLaunching(ui.cfg)
+	reportLaunching(cfg)
 
 	return nil
 }
@@ -186,22 +201,24 @@ func reportLaunching(cfg Config) {
 
 // IsEnabled reports if the embedded UI container is enabled.
 func (ui *UIManager) IsEnabled() bool {
-	return ui.cfg.Enabled
+	return ui.Config().Enabled
 }
 
 // GetHost provides a host name from the UI container configuration.
 func (ui *UIManager) GetHost() string {
-	return ui.cfg.Host
+	return ui.Config().Host
 }
 
 // OriginURL reports the URL of the embedded UI container.
 func (ui *UIManager) OriginURL() string {
-	uiHost := ui.cfg.Host
+	cfg := ui.Config()
+
+	uiHost := cfg.Host
 	if uiHost == "" || uiHost == engine.DefaultListenerHost {
 		uiHost = engine.Localhost
 	}
 
-	localURL := url.URL{Scheme: engine.HTTPScheme, Host: net.JoinHostPort(uiHost, strconv.Itoa(ui.cfg.Port))}
+	localURL := url.URL{Scheme: engine.HTTPScheme, Host: net.JoinHostPort(uiHost, strconv.Itoa(cfg.Port))}
 
 	return localURL.String()
 }

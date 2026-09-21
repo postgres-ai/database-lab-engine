@@ -234,7 +234,7 @@ func (p *Provisioner) UpgradeSession(
 	state := UpgradeState{
 		OldVersion:  formatPGVersion(currentVersion),
 		NewVersion:  strconv.Itoa(req.TargetVersion),
-		OldImage:    resolveCloneImage(p.config.DockerImage, clone.DockerImage),
+		OldImage:    resolveCloneImage(p.Config().DockerImage, clone.DockerImage),
 		TargetImage: req.TargetImage,
 		SnapshotID:  clone.Snapshot.ID,
 	}
@@ -246,7 +246,7 @@ func (p *Provisioner) UpgradeSession(
 	// Both images are pulled while the clone still serves traffic: a multi-gigabyte download
 	// inside the downtime window is indistinguishable from a hang. A pull failure here leaves
 	// the clone untouched, so it is an aborted upgrade rather than a broken clone.
-	for _, image := range []string{p.config.PgUpgradeImage, req.TargetImage} {
+	for _, image := range []string{p.Config().PgUpgradeImage, req.TargetImage} {
 		if err := p.prepareUpgradeImage(image); err != nil {
 			return abortedUpgradeFrom(state, err.Error()), nil
 		}
@@ -292,7 +292,7 @@ func (p *Provisioner) UpgradeSession(
 	defer cancel()
 
 	exitCode, runErr := docker.RunUpgradeContainer(ctx, p.dockerClient, p.runner, appConfig, docker.UpgradeContainerConfig{
-		Image: p.config.PgUpgradeImage,
+		Image: p.Config().PgUpgradeImage,
 		Name:  containerName,
 		User:  owner,
 		Env:   upgradeContainerEnv(appConfig.CloneDir(), appConfig.Pool.DataSubDir, state, req),
@@ -319,8 +319,8 @@ func (p *Provisioner) UpgradeSession(
 
 // upgradeTimeout is how long a single upgrade container may run.
 func (p *Provisioner) upgradeTimeout() time.Duration {
-	if p.config.PgUpgradeTimeout > 0 {
-		return p.config.PgUpgradeTimeout
+	if timeout := p.Config().PgUpgradeTimeout; timeout > 0 {
+		return timeout
 	}
 
 	return defaultUpgradeTimeout
@@ -328,8 +328,8 @@ func (p *Provisioner) upgradeTimeout() time.Duration {
 
 // upgradePullTimeout is how long a single image pull made for an upgrade may take.
 func (p *Provisioner) upgradePullTimeout() time.Duration {
-	if p.config.PgUpgradePullTimeout > 0 {
-		return p.config.PgUpgradePullTimeout
+	if timeout := p.Config().PgUpgradePullTimeout; timeout > 0 {
+		return timeout
 	}
 
 	return defaultUpgradePullTimeout
@@ -345,7 +345,7 @@ func (p *Provisioner) upgradePullTimeout() time.Duration {
 // ResolveUpgradeTarget fetches it in the background so that is a delay after startup rather than
 // a standing refusal.
 func (p *Provisioner) UpgradeTargetVersion() (int, error) {
-	image := p.config.PgUpgradeImage
+	image := p.Config().PgUpgradeImage
 	if image == "" {
 		return 0, errors.New("clone upgrade is not configured on this instance; set provision.pgUpgradeImage")
 	}
@@ -381,7 +381,7 @@ func (p *Provisioner) UpgradeTargetVersion() (int, error) {
 // It reports nothing back: an image that cannot be fetched leaves the upgrade unavailable, which
 // is what the status endpoint already says, and must not hold up engine startup.
 func (p *Provisioner) ResolveUpgradeTarget() {
-	image := p.config.PgUpgradeImage
+	image := p.Config().PgUpgradeImage
 	if image == "" {
 		return
 	}
@@ -439,7 +439,9 @@ func (p *Provisioner) inspectUpgradeMajor(image string) (int, error) {
 // failing on a missing bindir - and the re-read refreshes what the status endpoint reports. An
 // image that declares no major of its own is left to pg_upgrade to reject.
 func (p *Provisioner) verifyUpgradeImageMajor(targetVersion int) error {
-	major, err := p.inspectUpgradeMajor(p.config.PgUpgradeImage)
+	image := p.Config().PgUpgradeImage
+
+	major, err := p.inspectUpgradeMajor(image)
 	if err != nil {
 		return fmt.Errorf("failed to check the upgrade image: %w", err)
 	}
@@ -449,7 +451,7 @@ func (p *Provisioner) verifyUpgradeImageMajor(targetVersion int) error {
 	}
 
 	return fmt.Errorf("upgrade image %q carries PostgreSQL %d, not %d; check provision.pgUpgradeImage",
-		p.config.PgUpgradeImage, major, targetVersion)
+		image, major, targetVersion)
 }
 
 // prepareUpgradeImage makes sure an image is present locally, bounding the pull it may need.

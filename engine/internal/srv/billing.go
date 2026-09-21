@@ -78,5 +78,5 @@ func (s *Server) billingUsage(ctx context.Context) (*platform.EditionResponse, e
 		},
 	}
 
-	return s.Platform.Client.SendUsage(ctx, s.engProps, instanceUsage)
+	return s.Platform.Client().SendUsage(ctx, s.engProps, instanceUsage)
 }

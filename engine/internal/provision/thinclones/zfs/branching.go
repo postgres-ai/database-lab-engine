@@ -46,9 +46,11 @@ func (m *Manager) InitBranching() error {
 
 	latest := snapshots[0]
 
-	if getPoolPrefix(latest.ID) != m.config.Pool.Name {
+	poolName := m.Pool().Name
+
+	if getPoolPrefix(latest.ID) != poolName {
 		for _, s := range snapshots {
-			if s.Pool == m.config.Pool.Name {
+			if s.Pool == poolName {
 				latest = s
 				break
 			}
@@ -100,7 +102,8 @@ func (m *Manager) InitBranching() error {
 	}
 
 	// If not exists pool/branch/main, init main branch dataset.
-	brName := m.Pool().BranchName(m.Pool().Name, branching.DefaultBranch)
+	pool := m.Pool()
+	brName := pool.BranchName(pool.Name, branching.DefaultBranch)
 
 	if err := m.CreateDataset(brName); err != nil {
 		return fmt.Errorf("failed to init main branch dataset: %w", err)
@@ -247,7 +250,7 @@ type parentChild struct {
 
 // readParentChildProperties reads dle:parent and dle:child for all snapshots in one zfs call.
 func (m *Manager) readParentChildProperties() (map[string]parentChild, error) {
-	cmd := fmt.Sprintf("zfs list -H -t snapshot -o name,%s,%s -r %s", parentProp, childProp, m.config.Pool.Name)
+	cmd := fmt.Sprintf("zfs list -H -t snapshot -o name,%s,%s -r %s", parentProp, childProp, m.Pool().Name)
 
 	out, err := m.runner.Run(cmd)
 	if err != nil {
@@ -275,7 +278,7 @@ func (m *Manager) readParentChildProperties() (map[string]parentChild, error) {
 
 // readRootProperties reads dle:root for all snapshots in the pool.
 func (m *Manager) readRootProperties() (map[string][]string, error) {
-	cmd := fmt.Sprintf("zfs list -H -t snapshot -o name,%s -r %s", rootProp, m.config.Pool.Name)
+	cmd := fmt.Sprintf("zfs list -H -t snapshot -o name,%s -r %s", rootProp, m.Pool().Name)
 
 	out, err := m.runner.Run(cmd)
 	if err != nil {
@@ -473,7 +476,7 @@ func (m *Manager) listBranches() (map[string]string, error) {
 	cmd := fmt.Sprintf(
 		// Get ZFS snapshots (-t) with options (-o) without output headers (-H) filtered by pool (-r).
 		// Excluding snapshots without "dle:branch" property ("grep -v").
-		`zfs list -H -t snapshot -o %s,name -r %s | grep -v "^-" | cat`, branchProp, m.config.Pool.Name,
+		`zfs list -H -t snapshot -o %s,name -r %s | grep -v "^-" | cat`, branchProp, m.Pool().Name,
 	)
 
 	out, err := m.runner.Run(cmd)
@@ -513,7 +516,7 @@ var repoFields = []any{
 
 // GetRepo provides repository details about snapshots and branches filtered by data pool.
 func (m *Manager) GetRepo() (*models.Repo, error) {
-	return m.getRepo(cmdCfg{pool: m.config.Pool.Name})
+	return m.getRepo(cmdCfg{pool: m.Pool().Name})
 }
 
 // GetAllRepo provides all repository details about snapshots and branches.
@@ -883,7 +886,7 @@ func (m *Manager) GetProtection(target string) (thinclones.ProtectionProperties,
 // (-s local), so callers do not read each entity separately.
 func (m *Manager) ListProtection() (map[string]thinclones.ProtectionProperties, error) {
 	cmd := fmt.Sprintf("zfs get -H -o name,property,value -s local -t snapshot -r %s,%s %s",
-		protectedTillProp, deleteAtProp, m.config.Pool.Name)
+		protectedTillProp, deleteAtProp, m.Pool().Name)
 
 	out, err := m.runner.Run(cmd)
 	if err != nil {

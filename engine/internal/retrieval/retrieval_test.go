@@ -6,14 +6,20 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/logical"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 )
@@ -81,7 +87,7 @@ func TestPendingMarker(t *testing.T) {
 
 		err = checkPendingMarker(r)
 		require.Nil(t, err)
-		assert.Equal(t, models.Pending, r.State.Status)
+		assert.Equal(t, models.Pending, r.State.Status())
 	})
 
 	t.Run("check the deletion of the pending marker", func(t *testing.T) {
@@ -108,26 +114,26 @@ func TestPendingMarker(t *testing.T) {
 
 		r := &Retrieval{
 			State: State{
-				Status: models.Pending,
+				status: models.Pending,
 			},
 		}
 
 		err = r.RemovePendingMarker()
 		require.Nil(t, err)
-		assert.Equal(t, models.Inactive, r.State.Status)
+		assert.Equal(t, models.Inactive, r.State.Status())
 
-		r.State.Status = models.Finished
+		r.State.SetStatus(models.Finished)
 
 		err = r.RemovePendingMarker()
 		require.Nil(t, err)
-		assert.Equal(t, models.Finished, r.State.Status)
+		assert.Equal(t, models.Finished, r.State.Status())
 	})
 }
 
 func TestSyncStatusNotReportedForLogicalMode(t *testing.T) {
 	var r = Retrieval{
 		State: State{
-			Mode: models.Logical,
+			mode: models.Logical,
 		},
 	}
 	status, err := r.ReportSyncStatus(context.TODO())
@@ -148,7 +154,7 @@ func TestGetRetrievalMode(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			r := &Retrieval{State: State{Mode: tc.mode}}
+			r := &Retrieval{State: State{mode: tc.mode}}
 			assert.Equal(t, tc.mode, r.GetRetrievalMode())
 		})
 	}
@@ -170,7 +176,7 @@ func TestGetRetrievalStatus(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			r := &Retrieval{State: State{Status: tc.status}}
+			r := &Retrieval{State: State{status: tc.status}}
 			assert.Equal(t, tc.status, r.GetRetrievalStatus())
 		})
 	}
@@ -182,7 +188,7 @@ func TestDefineRetrievalMode(t *testing.T) {
 			JobsSpec: map[string]config.JobSpec{"physicalRestore": {}, "physicalSnapshot": {}},
 		}}
 		r.defineRetrievalMode()
-		assert.Equal(t, models.Physical, r.State.Mode)
+		assert.Equal(t, models.Physical, r.State.Mode())
 	})
 
 	t.Run("logical mode when logical jobs present", func(t *testing.T) {
@@ -190,13 +196,13 @@ func TestDefineRetrievalMode(t *testing.T) {
 			JobsSpec: map[string]config.JobSpec{"logicalDump": {}, "logicalRestore": {}},
 		}}
 		r.defineRetrievalMode()
-		assert.Equal(t, models.Logical, r.State.Mode)
+		assert.Equal(t, models.Logical, r.State.Mode())
 	})
 
 	t.Run("unknown mode when no recognized jobs", func(t *testing.T) {
 		r := &Retrieval{cfg: &config.Config{JobsSpec: map[string]config.JobSpec{}}}
 		r.defineRetrievalMode()
-		assert.Equal(t, models.Unknown, r.State.Mode)
+		assert.Equal(t, models.Unknown, r.State.Mode())
 	})
 
 	t.Run("physical takes precedence over logical", func(t *testing.T) {
@@ -204,38 +210,38 @@ func TestDefineRetrievalMode(t *testing.T) {
 			JobsSpec: map[string]config.JobSpec{"physicalRestore": {}, "logicalDump": {}},
 		}}
 		r.defineRetrievalMode()
-		assert.Equal(t, models.Physical, r.State.Mode)
+		assert.Equal(t, models.Physical, r.State.Mode())
 	})
 }
 
 func TestCanStartRefresh(t *testing.T) {
 	t.Run("allows when inactive", func(t *testing.T) {
-		r := &Retrieval{State: State{Status: models.Inactive}}
+		r := &Retrieval{State: State{status: models.Inactive}}
 		assert.NoError(t, r.CanStartRefresh())
 	})
 
 	t.Run("allows when finished", func(t *testing.T) {
-		r := &Retrieval{State: State{Status: models.Finished}}
+		r := &Retrieval{State: State{status: models.Finished}}
 		assert.NoError(t, r.CanStartRefresh())
 	})
 
 	t.Run("allows when failed", func(t *testing.T) {
-		r := &Retrieval{State: State{Status: models.Failed}}
+		r := &Retrieval{State: State{status: models.Failed}}
 		assert.NoError(t, r.CanStartRefresh())
 	})
 
 	t.Run("blocks when refreshing", func(t *testing.T) {
-		r := &Retrieval{State: State{Status: models.Refreshing}}
+		r := &Retrieval{State: State{status: models.Refreshing}}
 		assert.ErrorIs(t, r.CanStartRefresh(), ErrRefreshInProgress)
 	})
 
 	t.Run("blocks when snapshotting", func(t *testing.T) {
-		r := &Retrieval{State: State{Status: models.Snapshotting}}
+		r := &Retrieval{State: State{status: models.Snapshotting}}
 		assert.ErrorIs(t, r.CanStartRefresh(), ErrRefreshInProgress)
 	})
 
 	t.Run("blocks when pending", func(t *testing.T) {
-		r := &Retrieval{State: State{Status: models.Pending}}
+		r := &Retrieval{State: State{status: models.Pending}}
 		assert.ErrorIs(t, r.CanStartRefresh(), ErrRefreshPending)
 	})
 }
@@ -243,7 +249,7 @@ func TestCanStartRefresh(t *testing.T) {
 func TestReportState(t *testing.T) {
 	t.Run("with refresh timetable", func(t *testing.T) {
 		r := &Retrieval{
-			State: State{Mode: models.Physical},
+			State: State{mode: models.Physical},
 			cfg: &config.Config{
 				Refresh: &config.Refresh{Timetable: "0 3 * * *"},
 				Jobs:    []string{"physicalRestore", "physicalSnapshot"},
@@ -258,7 +264,7 @@ func TestReportState(t *testing.T) {
 
 	t.Run("without refresh config", func(t *testing.T) {
 		r := &Retrieval{
-			State: State{Mode: models.Logical},
+			State: State{mode: models.Logical},
 			cfg:   &config.Config{Jobs: []string{"logicalDump"}},
 		}
 
@@ -328,4 +334,234 @@ func TestIsSnapshotExempt(t *testing.T) {
 			assert.Equal(t, tc.exempt, isSnapshotExempt(tc.err))
 		})
 	}
+}
+
+func newRefreshTestRetrieval() *Retrieval {
+	return &Retrieval{
+		State:       State{alerts: make(map[models.AlertType]models.Alert)},
+		tm:          telemetry.New(&platform.Service{}, "instanceID"),
+		poolManager: pool.NewPoolManager(&pool.Config{}, nil),
+	}
+}
+
+func TestFullRefreshRejectsASecondRefresh(t *testing.T) {
+	r := newRefreshTestRetrieval()
+
+	// Hold the slot as a running refresh would.
+	require.NoError(t, r.State.TryStartRefresh())
+
+	const callers = 8
+
+	errs := make([]error, callers)
+
+	var wg sync.WaitGroup
+
+	wg.Add(callers)
+
+	for i := 0; i < callers; i++ {
+		go func(i int) {
+			defer wg.Done()
+
+			errs[i] = r.FullRefresh(context.Background())
+		}(i)
+	}
+
+	wg.Wait()
+
+	for i, err := range errs {
+		assert.ErrorIs(t, err, ErrRefreshInProgress, "caller %d must not start a concurrent refresh", i)
+	}
+
+	r.State.FinishRefresh()
+
+	// The released slot lets the next refresh run: it gets as far as the pool check.
+	require.NoError(t, r.FullRefresh(context.Background()))
+	assert.Equal(t, ErrNoAvailablePool.Error(), r.State.Alerts()[models.RefreshSkipped].Message)
+}
+
+func TestCanStartRefreshDoesNotConsumeTheSlot(t *testing.T) {
+	r := newRefreshTestRetrieval()
+
+	// The handler precheck runs before FullRefresh and must leave the slot free for it.
+	require.NoError(t, r.CanStartRefresh())
+	require.NoError(t, r.CanStartRefresh())
+
+	require.NoError(t, r.FullRefresh(context.Background()))
+	assert.Equal(t, ErrNoAvailablePool.Error(), r.State.Alerts()[models.RefreshSkipped].Message)
+}
+
+func TestFullRefreshReleasesTheSlotOnEveryReturn(t *testing.T) {
+	r := newRefreshTestRetrieval()
+
+	for i := 0; i < 3; i++ {
+		require.NoError(t, r.FullRefresh(context.Background()))
+		require.NoError(t, r.State.CanStartRefresh(), "the slot must be free after run %d", i)
+	}
+}
+
+func TestFullRefreshReportsPendingState(t *testing.T) {
+	r := newRefreshTestRetrieval()
+	r.State.SetStatus(models.Pending)
+
+	assert.ErrorIs(t, r.FullRefresh(context.Background()), ErrRefreshPending)
+}
+
+func TestIsRefreshSkipped(t *testing.T) {
+	assert.True(t, IsRefreshSkipped(ErrRefreshInProgress))
+	assert.True(t, IsRefreshSkipped(fmt.Errorf("wrapped: %w", ErrRefreshPending)))
+	assert.False(t, IsRefreshSkipped(ErrNoAvailablePool))
+}
+
+func TestReloadRacesWithConfigReaders(t *testing.T) {
+	t.Parallel()
+
+	r := newRefreshTestRetrieval()
+	r.setup(&config.Config{Jobs: []string{logical.DumpJobType}, JobsSpec: map[string]config.JobSpec{logical.DumpJobType: {}}},
+		global.Config{Database: global.Database{Username: "postgres", DBName: "postgres"}})
+
+	const iterations = 200
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			r.Reload(context.Background(), &config.Config{
+				Jobs:     []string{logical.DumpJobType},
+				JobsSpec: map[string]config.JobSpec{logical.DumpJobType: {}},
+				Refresh:  &config.Refresh{Timetable: "0 3 * * *"},
+			}, global.Config{Database: global.Database{Username: "postgres", DBName: fmt.Sprintf("db-%d", i)}})
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			_ = r.GetRetrievalMode()
+			_ = r.GetRetrievalStatus()
+			_ = r.ReportState()
+			_ = r.GlobalConfig()
+			_, _ = r.GetStageSpec(logical.DumpJobType)
+		}
+	}()
+
+	wg.Wait()
+
+	r.Stop()
+}
+
+func TestReloadUpdatesTheGlobalConfig(t *testing.T) {
+	r := newRefreshTestRetrieval()
+	r.setup(&config.Config{}, global.Config{Database: global.Database{DBName: "before"}})
+	require.Equal(t, "before", r.GlobalConfig().Database.DBName)
+
+	r.Reload(context.Background(), &config.Config{}, global.Config{Database: global.Database{DBName: "after"}})
+	assert.Equal(t, "after", r.GlobalConfig().Database.DBName)
+
+	r.Stop()
+}
+
+func TestScheduleSpecRacesWithSchedulerReload(t *testing.T) {
+	t.Parallel()
+
+	r := newRefreshTestRetrieval()
+	r.setup(&config.Config{Refresh: &config.Refresh{Timetable: "0 3 * * *"}}, global.Config{})
+
+	const iterations = 200
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			r.setupScheduler(context.Background())
+			r.stopScheduler()
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		// The status handlers must never observe a schedule that a reload has already dropped.
+		for i := 0; i < iterations; i++ {
+			if spec := r.ScheduleSpec(); spec != nil {
+				_ = spec.Next(time.Now())
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	r.Stop()
+	assert.Nil(t, r.ScheduleSpec())
+}
+
+func TestStatefulJobsRaceWithReload(t *testing.T) {
+	t.Parallel()
+
+	r := newRefreshTestRetrieval()
+	r.setup(&config.Config{JobsSpec: map[string]config.JobSpec{}}, global.Config{})
+
+	const iterations = 200
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		// The snapshot pipeline replaces the stateful jobs while a reload walks them.
+		for i := 0; i < iterations; i++ {
+			r.setStatefulJobs(nil)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			r.reloadStatefulJobs()
+		}
+	}()
+
+	wg.Wait()
+}
+
+func TestRestartRunContextCancelsThePreviousRun(t *testing.T) {
+	t.Parallel()
+
+	r := newRefreshTestRetrieval()
+
+	previous := r.restartRunContext(context.Background())
+	require.NoError(t, previous.Err())
+
+	current := r.restartRunContext(context.Background())
+	assert.ErrorIs(t, previous.Err(), context.Canceled)
+	assert.NoError(t, current.Err())
+
+	const iterations = 100
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	for i := 0; i < 2; i++ {
+		go func() {
+			defer wg.Done()
+
+			for j := 0; j < iterations; j++ {
+				r.restartRunContext(context.Background())
+			}
+		}()
+	}
+
+	wg.Wait()
 }

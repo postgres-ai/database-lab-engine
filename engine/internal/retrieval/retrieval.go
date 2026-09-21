@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"sync"
 	"time"
 
 	"github.com/moby/moby/api/types/container"
@@ -57,21 +59,24 @@ type jobGroup string
 
 // Retrieval describes a data retrieval.
 type Retrieval struct {
-	Scheduler    Scheduler
 	State        State
 	imageState   *db.ImageContent
+	cfgMu        sync.RWMutex
 	cfg          *config.Config
-	global       *global.Config
+	global       global.Config
 	engineProps  *global.EngineProps
 	docker       *client.Client
 	poolManager  *pool.Manager
 	tm           *telemetry.Agent
 	runner       runners.Runner
+	runMu        sync.RWMutex
+	scheduler    Scheduler
 	ctxCancel    context.CancelFunc
 	statefulJobs []components.JobRunner
 }
 
-// Scheduler defines a refresh scheduler.
+// Scheduler defines a refresh scheduler. Reload rebuilds it while HTTP handlers report the next
+// refresh time, so it is kept private and guarded by runMu.
 type Scheduler struct {
 	Cron *cron.Cron
 	Spec cron.Schedule
@@ -87,14 +92,14 @@ var (
 func New(cfg *dblabCfg.Config, engineProps *global.EngineProps, docker *client.Client, pm *pool.Manager, tm *telemetry.Agent,
 	runner runners.Runner) (*Retrieval, error) {
 	r := &Retrieval{
-		global:      &cfg.Global,
+		global:      cfg.Global,
 		engineProps: engineProps,
 		docker:      docker,
 		poolManager: pm,
 		tm:          tm,
 		runner:      runner,
 		State: State{
-			Status: models.Inactive,
+			status: models.Inactive,
 			alerts: make(map[models.AlertType]models.Alert),
 		},
 		imageState: db.NewImageContent(*engineProps),
@@ -105,7 +110,7 @@ func New(cfg *dblabCfg.Config, engineProps *global.EngineProps, docker *client.C
 		return nil, err
 	}
 
-	r.setup(retrievalCfg)
+	r.setup(retrievalCfg, cfg.Global)
 
 	if err := checkPendingMarker(r); err != nil {
 		return nil, fmt.Errorf("failed to check pending marker: %w", err)
@@ -121,12 +126,12 @@ func (r *Retrieval) ImageContent() *db.ImageContent {
 
 // GetRetrievalMode returns the current retrieval mode.
 func (r *Retrieval) GetRetrievalMode() models.RetrievalMode {
-	return r.State.Mode
+	return r.State.Mode()
 }
 
 // GetRetrievalStatus returns the current retrieval status.
 func (r *Retrieval) GetRetrievalStatus() models.RetrievalStatus {
-	return r.State.Status
+	return r.State.Status()
 }
 
 func checkPendingMarker(r *Retrieval) error {
@@ -143,7 +148,7 @@ func checkPendingMarker(r *Retrieval) error {
 		return fmt.Errorf("failed to get pending file info: %w", err)
 	}
 
-	r.State.Status = models.Pending
+	r.State.SetStatus(models.Pending)
 
 	return nil
 }
@@ -163,28 +168,50 @@ func (r *Retrieval) RemovePendingMarker() error {
 		return err
 	}
 
-	r.State.Status = models.Inactive
+	r.State.SetStatus(models.Inactive)
 
 	return nil
 }
 
 // Reload reloads retrieval configuration.
-func (r *Retrieval) Reload(ctx context.Context, retrievalCfg *config.Config) {
-	r.setup(retrievalCfg)
+func (r *Retrieval) Reload(ctx context.Context, retrievalCfg *config.Config, globalCfg global.Config) {
+	r.setup(retrievalCfg, globalCfg)
 	r.reloadStatefulJobs()
 	r.stopScheduler()
 	r.setupScheduler(ctx)
 }
 
-func (r *Retrieval) setup(retrievalCfg *config.Config) {
+func (r *Retrieval) setup(retrievalCfg *config.Config, globalCfg global.Config) {
+	r.cfgMu.Lock()
 	r.cfg = retrievalCfg
+	r.global = globalCfg
+	r.cfgMu.Unlock()
 
 	r.defineRetrievalMode()
 }
 
+// Config returns the retrieval configuration. Reload swaps the whole struct rather than writing
+// into it, so the returned pointer stays consistent after the lock is released.
+func (r *Retrieval) Config() *config.Config {
+	r.cfgMu.RLock()
+	defer r.cfgMu.RUnlock()
+
+	return r.cfg
+}
+
+// GlobalConfig returns a snapshot of the global configuration.
+func (r *Retrieval) GlobalConfig() global.Config {
+	r.cfgMu.RLock()
+	defer r.cfgMu.RUnlock()
+
+	return r.global
+}
+
 func (r *Retrieval) reloadStatefulJobs() {
-	for _, job := range r.statefulJobs {
-		cfg, ok := r.cfg.JobsSpec[job.Name()]
+	jobsSpec := r.Config().JobsSpec
+
+	for _, job := range r.statefulJobList() {
+		cfg, ok := jobsSpec[job.Name()]
 		if !ok {
 			log.Msg("Skip reloading of the stateful retrieval job. Spec not found", job.Name())
 			continue
@@ -197,18 +224,50 @@ func (r *Retrieval) reloadStatefulJobs() {
 	}
 }
 
+// statefulJobList returns a copy of the jobs that survive a configuration reload. The snapshot
+// pipeline replaces the slice while a reload walks it, so the caller must not iterate the
+// original.
+func (r *Retrieval) statefulJobList() []components.JobRunner {
+	r.runMu.RLock()
+	defer r.runMu.RUnlock()
+
+	return slices.Clone(r.statefulJobs)
+}
+
+func (r *Retrieval) setStatefulJobs(jobs []components.JobRunner) {
+	r.runMu.Lock()
+	r.statefulJobs = jobs
+	r.runMu.Unlock()
+}
+
+// restartRunContext cancels the context of the previous pipeline run and installs a fresh one.
+// The old cancel is invoked after the lock is released, so it never runs under runMu.
+func (r *Retrieval) restartRunContext(ctx context.Context) context.Context {
+	runCtx, cancel := context.WithCancel(ctx)
+
+	r.runMu.Lock()
+	previousCancel := r.ctxCancel
+	r.ctxCancel = cancel
+	r.runMu.Unlock()
+
+	if previousCancel != nil {
+		previousCancel()
+	}
+
+	return runCtx
+}
+
 // Run start retrieving process.
 func (r *Retrieval) Run(ctx context.Context) error {
-	runCtx, cancel := context.WithCancel(ctx)
-	r.ctxCancel = cancel
+	runCtx := r.restartRunContext(ctx)
 
-	log.Msg("Retrieval mode:", r.State.Mode)
+	log.Msg("Retrieval mode:", r.State.Mode())
 
 	if err := r.collectFoundationImageContent(); err != nil {
 		return fmt.Errorf("failed to collect content lists from the foundation Docker image of the logicalDump job: %w", err)
 	}
 
-	if r.cfg.Refresh != nil && r.cfg.Refresh.SkipStartRefresh {
+	if refresh := r.Config().Refresh; refresh != nil && refresh.SkipStartRefresh {
 		log.Msg("Continue without performing initial data refresh because the `skipStartRefresh` option is enabled")
 		r.setupScheduler(ctx)
 
@@ -219,7 +278,7 @@ func (r *Retrieval) Run(ctx context.Context) error {
 	if err != nil {
 		var skipError *SkipRefreshingError
 		if errors.As(err, &skipError) {
-			r.State.Status = models.Finished
+			r.State.SetStatus(models.Finished)
 
 			log.Msg("Continue without performing a full refresh:", skipError.Error())
 			r.setupScheduler(ctx)
@@ -231,7 +290,8 @@ func (r *Retrieval) Run(ctx context.Context) error {
 			Level:   models.RefreshFailed,
 			Message: "Pool to perform data refresh not found",
 		}
-		r.State.Status = models.Failed
+
+		r.State.SetStatus(models.Failed)
 		r.State.addAlert(alert)
 		r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
 
@@ -240,7 +300,7 @@ func (r *Retrieval) Run(ctx context.Context) error {
 
 	log.Msg("Pool to perform data retrieving: ", fsManager.Pool().Name)
 
-	if r.State.Status == models.Pending {
+	if r.State.Status() == models.Pending {
 		log.Msg("Data retrieving suspended because Retrieval state is pending")
 
 		return nil
@@ -250,7 +310,7 @@ func (r *Retrieval) Run(ctx context.Context) error {
 		r.State.addAlert(telemetry.Alert{Level: models.RefreshFailed, Message: err.Error()})
 		// Build a generic message to avoid sending sensitive data.
 		r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{Level: models.RefreshFailed,
-			Message: fmt.Sprintf("Failed to perform initial data retrieving: %s", r.State.Mode)})
+			Message: fmt.Sprintf("Failed to perform initial data retrieving: %s", r.State.Mode())})
 
 		return err
 	}
@@ -261,8 +321,8 @@ func (r *Retrieval) Run(ctx context.Context) error {
 }
 
 func (r *Retrieval) collectFoundationImageContent() error {
-	if _, ok := r.cfg.JobsSpec[logical.DumpJobType]; !ok {
-		if r.State.Mode == models.Logical {
+	if _, ok := r.Config().JobsSpec[logical.DumpJobType]; !ok {
+		if r.State.Mode() == models.Logical {
 			log.Msg("logicalDump job is not enabled. Docker image extensions and locales will not be checked")
 		}
 
@@ -318,7 +378,7 @@ func (r *Retrieval) getNextPoolToDataRetrieving() (pool.FSManager, error) {
 	}
 
 	// For physical or unknown modes, changing the pool is possible only by the refresh timetable.
-	if r.State.Mode != models.Logical {
+	if r.State.Mode() != models.Logical {
 		return firstPool, nil
 	}
 
@@ -364,7 +424,7 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 		return err
 	}
 
-	if r.State.Status == models.Renewed {
+	if r.State.Status() == models.Renewed {
 		r.State.cleanAlerts()
 	}
 
@@ -372,7 +432,7 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 		return err
 	}
 
-	if r.State.Status == models.Finished {
+	if r.State.Status() == models.Finished {
 		r.poolManager.MakeActive(poolElement)
 		r.State.cleanAlerts()
 	}
@@ -403,8 +463,8 @@ func (r *Retrieval) RefreshData(ctx context.Context, poolName string) error {
 		return fmt.Errorf("failed to get %q FSManager: %w", poolName, err)
 	}
 
-	if r.State.Status == models.Refreshing || r.State.Status == models.Snapshotting {
-		return fmt.Errorf("skip refreshing the data because the pool is still busy: %s", r.State.Status)
+	if status := r.State.Status(); status == models.Refreshing || status == models.Snapshotting {
+		return fmt.Errorf("skip refreshing the data because the pool is still busy: %s", status)
 	}
 
 	jobs, err := r.buildJobs(fsm, refreshJobs)
@@ -421,14 +481,14 @@ func (r *Retrieval) RefreshData(ctx context.Context, poolName string) error {
 
 	fsm.Pool().SetStatus(resources.RefreshingPool)
 
-	r.State.Status = models.Refreshing
-	r.State.LastRefresh = models.NewLocalTime(time.Now().Truncate(time.Second))
+	r.State.SetStatus(models.Refreshing)
+	r.State.SetLastRefresh(models.NewLocalTime(time.Now().Truncate(time.Second)))
 
 	defer func() {
-		r.State.Status = models.Renewed
+		r.State.SetStatus(models.Renewed)
 
 		if err != nil {
-			r.State.Status = models.Failed
+			r.State.SetStatus(models.Failed)
 			r.State.addAlert(telemetry.Alert{
 				Level:   models.RefreshFailed,
 				Message: err.Error(),
@@ -437,18 +497,18 @@ func (r *Retrieval) RefreshData(ctx context.Context, poolName string) error {
 			fsm.Pool().SetStatus(resources.EmptyPool)
 		}
 
-		r.State.CurrentJob = nil
+		r.State.SetCurrentJob(nil)
 	}()
 
 	for _, j := range jobs {
-		r.State.CurrentJob = j
+		r.State.SetCurrentJob(j)
 
 		if err = j.Run(ctx); err != nil {
 			return err
 		}
 	}
 
-	r.State.CurrentJob = nil
+	r.State.SetCurrentJob(nil)
 
 	return nil
 }
@@ -460,8 +520,8 @@ func (r *Retrieval) SnapshotData(ctx context.Context, poolName string) error {
 		return fmt.Errorf("failed to get %q FSManager: %w", poolName, err)
 	}
 
-	if r.State.Status != models.Inactive && r.State.Status != models.Renewed && r.State.Status != models.Finished {
-		return fmt.Errorf("pool is not ready to take a snapshot: %s", r.State.Status)
+	if status := r.State.Status(); status != models.Inactive && status != models.Renewed && status != models.Finished {
+		return fmt.Errorf("pool is not ready to take a snapshot: %s", status)
 	}
 
 	jobs, err := r.buildJobs(fsm, snapshotJobs)
@@ -469,8 +529,8 @@ func (r *Retrieval) SnapshotData(ctx context.Context, poolName string) error {
 		return fmt.Errorf("failed to build snapshot jobs for %s: %w", poolName, err)
 	}
 
-	if r.State.Mode == models.Physical {
-		r.statefulJobs = jobs
+	if r.State.Mode() == models.Physical {
+		r.setStatefulJobs(jobs)
 	}
 
 	if len(jobs) == 0 {
@@ -480,15 +540,15 @@ func (r *Retrieval) SnapshotData(ctx context.Context, poolName string) error {
 
 	log.Dbg("Taking a snapshot on the pool: ", fsm.Pool())
 
-	r.State.Status = models.Snapshotting
+	r.State.SetStatus(models.Snapshotting)
 
 	defer func() {
-		r.State.Status = models.Finished
+		r.State.SetStatus(models.Finished)
 
 		var existsErr *thinclones.SnapshotExistsError
 
 		if err != nil && !errors.As(err, &existsErr) {
-			r.State.Status = models.Failed
+			r.State.SetStatus(models.Failed)
 			r.State.addAlert(telemetry.Alert{
 				Level:   models.RefreshFailed,
 				Message: err.Error(),
@@ -497,11 +557,11 @@ func (r *Retrieval) SnapshotData(ctx context.Context, poolName string) error {
 			fsm.Pool().SetStatus(resources.EmptyPool)
 		}
 
-		r.State.CurrentJob = nil
+		r.State.SetCurrentJob(nil)
 	}()
 
 	for _, j := range jobs {
-		r.State.CurrentJob = j
+		r.State.SetCurrentJob(j)
 
 		if err = j.Run(ctx); err != nil {
 			return err
@@ -513,16 +573,19 @@ func (r *Retrieval) SnapshotData(ctx context.Context, poolName string) error {
 
 // buildJobs processes the configuration spec to build data retrieval jobs.
 func (r *Retrieval) buildJobs(fsm pool.FSManager, groupName jobGroup) ([]components.JobRunner, error) {
-	retrievalRunner, err := engine.JobBuilder(r.global, r.engineProps, fsm, r.tm)
+	globalCfg := r.GlobalConfig()
+
+	retrievalRunner, err := engine.JobBuilder(&globalCfg, r.engineProps, fsm, r.tm)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get a job builder")
 	}
 
 	dbMarker := dbmarker.NewMarker(fsm.Pool().DataDir())
 	jobs := make([]components.JobRunner, 0)
+	cfg := r.Config()
 
-	for _, jobName := range r.cfg.Jobs {
-		jobSpec, ok := r.cfg.JobsSpec[jobName]
+	for _, jobName := range cfg.Jobs {
+		jobSpec, ok := cfg.JobsSpec[jobName]
 		if !ok {
 			return nil, errors.Errorf("job %q not found", jobName)
 		}
@@ -563,56 +626,85 @@ func getJobGroup(name string) jobGroup {
 }
 
 func (r *Retrieval) defineRetrievalMode() {
-	if hasPhysicalJob(r.cfg.JobsSpec) {
-		r.State.Mode = models.Physical
+	jobsSpec := r.Config().JobsSpec
+
+	if hasPhysicalJob(jobsSpec) {
+		r.State.SetMode(models.Physical)
 		return
 	}
 
-	if hasLogicalJob(r.cfg.JobsSpec) {
-		r.State.Mode = models.Logical
+	if hasLogicalJob(jobsSpec) {
+		r.State.SetMode(models.Logical)
 		return
 	}
 
-	r.State.Mode = models.Unknown
+	r.State.SetMode(models.Unknown)
+}
+
+// ScheduleSpec returns the schedule of the full-refresh timetable, or nil when no timetable is
+// configured. Callers must use the returned value rather than reading the schedule twice, because
+// a concurrent reload may drop it in between.
+func (r *Retrieval) ScheduleSpec() cron.Schedule {
+	r.runMu.RLock()
+	defer r.runMu.RUnlock()
+
+	return r.scheduler.Spec
 }
 
 func (r *Retrieval) setupScheduler(ctx context.Context) {
 	r.stopScheduler()
 
-	if r.cfg.Refresh == nil || r.cfg.Refresh.Timetable == "" {
+	refresh := r.Config().Refresh
+	if refresh == nil || refresh.Timetable == "" {
 		return
 	}
 
 	specParser := cron.NewParser(parseOption)
 
-	spec, err := specParser.Parse(r.cfg.Refresh.Timetable)
+	spec, err := specParser.Parse(refresh.Timetable)
 	if err != nil {
-		log.Err(errors.Wrapf(err, "failed to parse schedule timetable %q", r.cfg.Refresh.Timetable))
+		log.Err(errors.Wrapf(err, "failed to parse schedule timetable %q", refresh.Timetable))
 		return
 	}
 
-	r.Scheduler.Cron = cron.New()
-	r.Scheduler.Spec = spec
-	r.Scheduler.Cron.Schedule(r.Scheduler.Spec, cron.FuncJob(func() {
+	scheduler := cron.New()
+	scheduler.Schedule(spec, cron.FuncJob(func() {
 		goroutine.Run("scheduled full refresh", r.refreshFunc(ctx))
 	}))
-	r.Scheduler.Cron.Start()
+	scheduler.Start()
+
+	r.runMu.Lock()
+	r.scheduler.Cron = scheduler
+	r.scheduler.Spec = spec
+	r.runMu.Unlock()
 }
 
 func (r *Retrieval) refreshFunc(ctx context.Context) func() {
 	return func() {
-		if err := r.FullRefresh(ctx); err != nil {
-			alert := telemetry.Alert{Level: models.RefreshFailed, Message: err.Error()}
-			r.State.addAlert(alert)
-			r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{Level: models.RefreshFailed, Message: "Failed to run full-refresh"})
-			log.Err(alert.Message)
+		err := r.FullRefresh(ctx)
+		if err == nil || IsRefreshSkipped(err) {
+			return
 		}
+
+		alert := telemetry.Alert{Level: models.RefreshFailed, Message: err.Error()}
+		r.State.addAlert(alert)
+		r.tm.SendEvent(ctx, telemetry.AlertEvent, telemetry.Alert{Level: models.RefreshFailed, Message: "Failed to run full-refresh"})
+		log.Err(alert.Message)
 	}
 }
 
-// FullRefresh performs full refresh for an unused storage pool and makes it active.
+// IsRefreshSkipped reports whether the error means the refresh never started. FullRefresh has
+// already alerted and logged in that case, so the caller must not report it as a failure.
+func IsRefreshSkipped(err error) bool {
+	return errors.Is(err, ErrRefreshInProgress) || errors.Is(err, ErrRefreshPending)
+}
+
+// FullRefresh performs full refresh for an unused storage pool and makes it active. It claims the
+// single refresh slot and releases it on every return path. When the slot cannot be claimed it
+// returns ErrRefreshInProgress or ErrRefreshPending, having already alerted and logged; callers
+// must filter those with IsRefreshSkipped instead of reporting them as failures.
 func (r *Retrieval) FullRefresh(ctx context.Context) error {
-	if err := r.CanStartRefresh(); err != nil {
+	if err := r.State.TryStartRefresh(); err != nil {
 		switch {
 		case errors.Is(err, ErrRefreshInProgress):
 			alert := telemetry.Alert{
@@ -627,16 +719,14 @@ func (r *Retrieval) FullRefresh(ctx context.Context) error {
 			log.Msg(err.Error())
 		}
 
-		return nil
+		return err
 	}
+
+	// Release the slot on every return path, including the early ones below.
+	defer r.State.FinishRefresh()
 
 	// Stop previous runs and snapshot schedulers.
-	if r.ctxCancel != nil {
-		r.ctxCancel()
-	}
-
-	runCtx, cancel := context.WithCancel(ctx)
-	r.ctxCancel = cancel
+	runCtx := r.restartRunContext(ctx)
 
 	if err := r.HasAvailablePool(); err != nil {
 		alert := telemetry.Alert{
@@ -683,9 +773,14 @@ func (r *Retrieval) Stop() {
 }
 
 func (r *Retrieval) stopScheduler() {
-	if r.Scheduler.Cron != nil {
-		r.Scheduler.Cron.Stop()
-		r.Scheduler.Spec = nil
+	r.runMu.Lock()
+	scheduler := r.scheduler.Cron
+	r.scheduler.Cron = nil
+	r.scheduler.Spec = nil
+	r.runMu.Unlock()
+
+	if scheduler != nil {
+		scheduler.Stop()
 	}
 }
 
@@ -693,14 +788,16 @@ func (r *Retrieval) stopScheduler() {
 func (r *Retrieval) ReportState() telemetry.Restore {
 	var refreshingTimetable string
 
-	if r.cfg.Refresh != nil {
-		refreshingTimetable = r.cfg.Refresh.Timetable
+	cfg := r.Config()
+
+	if cfg.Refresh != nil {
+		refreshingTimetable = cfg.Refresh.Timetable
 	}
 
 	return telemetry.Restore{
-		Mode:       r.State.Mode,
+		Mode:       r.State.Mode(),
 		Refreshing: refreshingTimetable,
-		Jobs:       r.cfg.Jobs,
+		Jobs:       cfg.Jobs,
 	}
 }
 
@@ -723,7 +820,7 @@ func (r *Retrieval) JobConfig(stage string, jobCfg any) error {
 
 // GetStageSpec returns the stage spec if exists.
 func (r *Retrieval) GetStageSpec(stage string) (config.JobSpec, error) {
-	stageSpec, ok := r.cfg.JobsSpec[stage]
+	stageSpec, ok := r.Config().JobsSpec[stage]
 	if !ok {
 		return config.JobSpec{}, ErrStageNotFound
 	}
@@ -733,7 +830,7 @@ func (r *Retrieval) GetStageSpec(stage string) (config.JobSpec, error) {
 
 // ReportSyncStatus return status of sync containers.
 func (r *Retrieval) ReportSyncStatus(ctx context.Context) (*models.Sync, error) {
-	if r.State.Mode != models.Physical {
+	if r.State.Mode() != models.Physical {
 		return &models.Sync{
 			Status: models.Status{Code: models.SyncStatusNotAvailable},
 		}, nil
@@ -805,7 +902,9 @@ func (r *Retrieval) reportContainerSyncStatus(ctx context.Context, containerID s
 	}
 
 	socketPath := filepath.Join(firstPool.Pool().SocketDir(), resp.Container.Name)
-	value, err := status.FetchSyncMetrics(ctx, r.global, socketPath)
+	globalCfg := r.GlobalConfig()
+
+	value, err := status.FetchSyncMetrics(ctx, &globalCfg, socketPath)
 
 	if err != nil {
 		log.Warn("Failed to fetch synchronization metrics", err)
@@ -823,16 +922,10 @@ func (r *Retrieval) reportContainerSyncStatus(ctx context.Context, containerID s
 	return value, nil
 }
 
+// CanStartRefresh reports whether a full refresh may start. It claims nothing: FullRefresh takes
+// the slot itself, so a handler precheck cannot consume it and leave the refresh a no-op.
 func (r *Retrieval) CanStartRefresh() error {
-	if r.State.Status == models.Refreshing || r.State.Status == models.Snapshotting {
-		return ErrRefreshInProgress
-	}
-
-	if r.State.Status == models.Pending {
-		return ErrRefreshPending
-	}
-
-	return nil
+	return r.State.CanStartRefresh()
 }
 
 func (r *Retrieval) HasAvailablePool() error {
