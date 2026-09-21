@@ -69,7 +69,7 @@ export const EnvsEditor = ({
       {envs.length === 0 ? (
         <Box mt={1} mb={1}>
           <Typography variant="caption" color="textSecondary">
-            No environment variables set. Use suggestions below or click "Add".
+            No environment variables set. Use suggestions below or click &quot;Add&quot;.
           </Typography>
         </Box>
       ) : (

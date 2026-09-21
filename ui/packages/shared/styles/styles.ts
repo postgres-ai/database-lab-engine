@@ -8,6 +8,9 @@
 import { colors } from './colors'
 import { theme } from './theme'
 
+// The sheet mixes JSS rules (nested selectors, `!important` strings) with plain objects fed
+// straight into `style` props, so no single CSS type covers both consumers.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const styles: Record<string, any> = {
   root: {
     'minHeight': '100%',

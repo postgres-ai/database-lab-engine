@@ -1,14 +1,40 @@
 import moment from 'moment'
 import { Api } from '../Instance/stores/Main'
-import { stringContainsPattern, stringWithoutBrackets } from './utils'
+import {
+  readLogsFilterState,
+  stringContainsPattern,
+  stringWithoutBrackets,
+} from './utils'
 
 const logsEndpoint = '/instance/logs'
 
 const LOGS_TIME_LIMIT = 20
 const LOGS_LINE_LIMIT = 1000
 
+// The page keeps at most one log socket open. `generation` invalidates a connection attempt
+// that is still awaiting its token when the caller reconnects or unmounts, so a socket opened
+// after that point is closed instead of left dangling.
+let activeSocket: WebSocket | null = null
+let generation = 0
+
+export const closeConnection = () => {
+  generation++
+
+  if (!activeSocket) return
+
+  // Detach the handler first: it reports a server-side drop to the user, which an
+  // intentional close is not.
+  activeSocket.onclose = null
+  activeSocket.close()
+  activeSocket = null
+}
+
 export const establishConnection = async (api: Api, instanceId: string) => {
   if (!api.getWSToken) return
+
+  closeConnection()
+
+  const currentGeneration = generation
 
   const logElement = document.getElementById('logs-container')
 
@@ -21,7 +47,7 @@ export const establishConnection = async (api: Api, instanceId: string) => {
     const tag = document.createElement('p')
     const logLevel = logEntry.split(' ')[3]
     const logInitiator = logEntry.split(' ')[2]
-    const logsFilterState = JSON.parse(localStorage.getItem('logsFilter') || '')
+    const logsFilterState = readLogsFilterState()
 
     const filterInitiators = Object.keys(logsFilterState).some((state) => {
       if (logsFilterState[state]) {
@@ -48,9 +74,13 @@ export const establishConnection = async (api: Api, instanceId: string) => {
       tag.classList.add('error-log')
     }
 
-    if (logType === 'message') {
+    // The container is empty whenever the active filters drop every line received so far,
+    // so the oldest entry the trim is measured against may not exist.
+    const oldestEntry = logElement.children[0]
+
+    if (logType === 'message' && oldestEntry) {
       const logEntryTime = moment.utc(
-        logElement.children[0].innerHTML.split(' ').slice(0, 2).join(' '),
+        oldestEntry.innerHTML.split(' ').slice(0, 2).join(' '),
       )
 
       const timeDifference =
@@ -91,13 +121,24 @@ export const establishConnection = async (api: Api, instanceId: string) => {
 
   const socket = api.initWS(logsEndpoint, response.token)
 
+  if (currentGeneration !== generation) {
+    socket.close()
+    return
+  }
+
+  activeSocket = socket
+
   socket.onopen = () => {
     console.log('Successfully Connected')
   }
 
   socket.onclose = (event) => {
     console.log('Socket Closed Connection: ', event)
-    socket.send('Client Closed')
+
+    if (activeSocket === socket) {
+      activeSocket = null
+    }
+
     appendLogElement('DBLab Connection Closed')
   }
 

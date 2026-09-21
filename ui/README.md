@@ -46,6 +46,16 @@ Set the `VITE_DEV_PROXY_TARGET` environment variable to override the proxy targe
 - `pnpm install` – install dependencies for all packages (run once).
 - `pnpm --filter @postgres.ai/ce build` – build the Community Edition UI.
 
+### How to lint and test
+
+- `cd ui`
+- `pnpm -r run lint` – lint every package that defines a `lint` script. `@postgres.ai/shared` runs
+  ESLint over the whole package; `@postgres.ai/ce` runs it over `src/` plus stylelint and cspell.
+- `pnpm -r run test` – run the Vitest suite of every package that defines a `test` script.
+
+Packages share the flat ESLint base in `ui/eslint.config.base.mjs`. A package config spreads it
+and appends only its own overrides, so a rule change lands everywhere at once.
+
 ### CI pipelines for UI code
 
 To deploy UI changes, tag the commit with a `ui/` prefix and push it. For example:

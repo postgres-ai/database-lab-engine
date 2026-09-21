@@ -22,7 +22,7 @@ const loadDateFnsLocale = async () => {
     const locale = await import(`date-fns/locale/${userLocale}`)
     config.dateFnsLocale = locale.default
     return
-  } catch (e) {
+  } catch {
     // Unavailable locale.
   }
 }

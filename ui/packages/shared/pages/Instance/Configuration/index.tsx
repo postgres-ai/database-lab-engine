@@ -38,9 +38,6 @@ import {
   FormValuesKey,
   uniqueChipValue,
   customOrGenericImage,
-  genericDockerImages,
-  getImageMajorVersion,
-  createFallbackDockerImage,
   createEnhancedDockerImages,
 } from './utils'
 import {
@@ -108,8 +105,14 @@ export const Configuration = observer(
       getEngine,
     } = stores.main
 
-    const configData: MainStore['config'] =
-      config && JSON.parse(JSON.stringify(config))
+    // The form mutates its working copy, so the store's config is cloned rather than read
+    // directly. The store replaces the whole object on every fetch, so keying the clone on
+    // its identity keeps the copy — and everything that depends on it — stable between
+    // fetches instead of changing on every render.
+    const configData: MainStore['config'] = useMemo(
+      () => config && JSON.parse(JSON.stringify(config)),
+      [config],
+    )
     const isConfigurationDisabled = disableConfigModification
 
     const [dleEdition, setDledition] = useState('')
@@ -128,13 +131,14 @@ export const Configuration = observer(
     // Prevents the Simple/Expert default from flipping mid-session when an
     // Apply triggers a refetch and the recomputed default would differ.
     const [initialMode, setInitialMode] = useState<ConfigMode | null>(null)
+    const defaultMode = configData
+      ? getInitialConfigMode(configData.host, configData.retrievalMode)
+      : null
     useEffect(() => {
-      if (initialMode === null && configData) {
-        setInitialMode(
-          getInitialConfigMode(configData.host, configData.retrievalMode),
-        )
-      }
-    }, [configData, initialMode])
+      if (initialMode !== null || defaultMode === null) return
+
+      setInitialMode(defaultMode)
+    }, [defaultMode, initialMode])
     const configMode: ConfigMode =
       userPickedMode ?? initialMode ?? 'simple'
     const setConfigMode = setUserPickedMode
@@ -394,7 +398,7 @@ export const Configuration = observer(
         const curDividers = String(formik.values[id as FormValuesKey]).match(
           /[,(\s)(\n)(\r)(\t)(\r\n)]/gm,
         )
-        for (let i in splitValues) {
+        for (const i in splitValues) {
           if (curDividers && splitValues[i] !== uniqueValue) {
             newValues =
               newValues +
@@ -706,12 +710,12 @@ export const Configuration = observer(
       <div className={styles.root}>
         <Snackbar
           onClick={() => {
-            Boolean(dockerState.error)
-              ? setDockerState({
-                  ...dockerState,
-                  error: '',
-                })
-              : undefined
+            if (!dockerState.error) return
+
+            setDockerState({
+              ...dockerState,
+              error: '',
+            })
           }}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           open={
@@ -719,7 +723,7 @@ export const Configuration = observer(
             !isModalOpen
           }
           message={
-            Boolean(dockerState.error)
+            dockerState.error
               ? dockerState.error
               : PREVENT_MODIFYING_MESSAGE
           }
@@ -824,7 +828,7 @@ export const Configuration = observer(
                 {formik.values.retrievalMode === 'logical' && (
                 <Box mt={1}>
                   <Typography className={styles.subsection}>
-                    Subsection "retrieval.spec.logicalDump"
+                    Subsection &quot;retrieval.spec.logicalDump&quot;
                   </Typography>
                   <span className={classes.grayText}>
                     Source database credentials and dumping options.
@@ -1097,6 +1101,7 @@ export const Configuration = observer(
                       href={'https://postgres.ai/contact'}
                       target="_blank"
                       className={styles.externalLink}
+                      rel="noreferrer"
                     >
                       https://postgres.ai/contact
                       <ExternalIcon className={styles.externalIcon} />
@@ -1192,7 +1197,7 @@ export const Configuration = observer(
               <Box>
                 <Box>
                   <Typography className={styles.subsection}>
-                    Subsection "retrieval.spec.logicalRestore"
+                    Subsection &quot;retrieval.spec.logicalRestore&quot;
                   </Typography>
                   <span className={classes.grayText}>Restoring options.</span>
                 </Box>
@@ -1253,7 +1258,7 @@ export const Configuration = observer(
               )}
               <Box mt={1}>
                 <Typography className={styles.subsection}>
-                  Subsection "retrieval.refresh"
+                  Subsection &quot;retrieval.refresh&quot;
                 </Typography>
               </Box>
               <span className={classes.grayText}>
@@ -1264,6 +1269,7 @@ export const Configuration = observer(
                   href="https://en.wikipedia.org/wiki/Cron#Overview"
                   target="_blank"
                   className={styles.externalLink}
+                  rel="noreferrer"
                 >
                   crontab format
                   <ExternalIcon className={styles.externalIcon} />

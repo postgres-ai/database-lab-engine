@@ -34,7 +34,7 @@ check-code-style:
 
   script:
     - pnpm --dir ui/ i
-    - pnpm --dir ui/ --filter @postgres.ai/ce lint
+    - pnpm --dir ui/ -r run lint
   interruptible: true
   cache:
     <<: *cache
@@ -46,7 +46,7 @@ check-code-style:
   - export PNPM_HOME=/usr/local/bin
   - pnpm config set store-dir /builds/postgres-ai/database-lab/.pnpm-store/
 
-ce-unit-tests:
+ui-unit-tests:
   <<: *ui_checks
   <<: *ui_cache
   stage: test
@@ -55,7 +55,7 @@ ce-unit-tests:
   before_script: *ui_pnpm_setup
   script:
     - pnpm --dir ui/ install --frozen-lockfile
-    - pnpm --dir ui/ --filter @postgres.ai/ce test
+    - pnpm --dir ui/ -r run test
   interruptible: true
 
 # The result depends on the advisory database at run time, not on the commit,

@@ -9,7 +9,7 @@ export const tooltipText = {
   ),
   dockerImage: () => (
     <div>
-      Major PostgreSQL version (e.g., "9.6", "15"). For logical provisioning
+      Major PostgreSQL version (e.g., &quot;9.6&quot;, &quot;15&quot;). For logical provisioning
       mode, the version used by DBLab does not need to match the version on the
       source, although matching versions is recommended. <br />
       If you need a version that is not listed here, contact support.
@@ -27,6 +27,7 @@ export const tooltipText = {
         target={'_blank'}
         href={'https://postgres.ai/docs/database-lab/supported-databases'}
         className={styles.externalLink}
+        rel="noreferrer"
       >
         the docs
       </a>
@@ -38,7 +39,7 @@ export const tooltipText = {
       Defines the default buffer pool size for each PostgreSQL instance managed by
       DBLab. Note that this amount of RAM is immediately allocated at PostgreSQL
       startup time. For example, if the machine running DBLab has 32 GiB of RAM and
-      the value used here is '1GB', then the theoretical limit of clones is 32.
+      the value used here is &apos;1GB&apos;, then the theoretical limit of clones is 32.
       Practically, this limit is even lower because some memory is consumed by
       other processes. If you need more clones, reduce the value of{' '}
       <span className={styles.firaCodeFont}>configs.shared_buffers</span>.
@@ -52,6 +53,7 @@ export const tooltipText = {
         target={'_blank'}
         href={'https://postgresqlco.nf/doc/en/param/shared_preload_libraries/'}
         className={styles.externalLink}
+        rel="noreferrer"
       >
         details
       </a>
@@ -112,7 +114,7 @@ export const tooltipText = {
   pgDumpCustomOptions: () => (
     <div>
       pg_dump options to be used to create a database dump, for example:
-      '--exclude-schema=repack --exclude-schema="camelStyleSchemaName"'. Note
+      &apos;--exclude-schema=repack --exclude-schema=&quot;camelStyleSchemaName&quot;&apos;. Note
       that due to security reasons, the current implementation supports only
       letters, numbers, hyphen, underscore, equal sign, and double quotes.
     </div>
@@ -132,8 +134,8 @@ export const tooltipText = {
   pgRestoreCustomOptions: () => (
     <div>
       pg_restore options to be used to restore from a database dump, for
-      example: '--exclude-schema=repack
-      --exclude-schema="camelStyleSchemaName"'. Note that due to security
+      example: &apos;--exclude-schema=repack
+      --exclude-schema=&quot;camelStyleSchemaName&quot;&apos;. Note that due to security
       reasons, the current implementation supports only letters, numbers,
       hyphen, underscore, equal sign, and double quotes.
     </div>
@@ -165,6 +167,7 @@ export const tooltipText = {
         target={'_blank'}
         href={'https://en.wikipedia.org/wiki/Cron#Overview'}
         className={styles.externalLink}
+        rel="noreferrer"
       >
         crontab format
       </a>
@@ -181,6 +184,7 @@ export const tooltipText = {
         target={'_blank'}
         href={'https://postgres.ai/docs/how-to-guides/administration/postgresql-configuration#postgresql-configuration-in-clones'}
         className={styles.externalLink}
+        rel="noreferrer"
       >
         docs
       </a>

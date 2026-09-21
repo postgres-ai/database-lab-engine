@@ -20,7 +20,7 @@ export const getTextFromUnknownApiError = async (error: Response) => {
     }
 
     return JSON.stringify(result)
-  } catch (e) {
+  } catch {
     // not a json
   }
 
@@ -28,7 +28,7 @@ export const getTextFromUnknownApiError = async (error: Response) => {
     const result = await error.text()
     log(result)
     return result
-  } catch (e) {
+  } catch {
     // not a text
   }
 

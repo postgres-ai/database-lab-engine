@@ -15,7 +15,7 @@ import { PostgresSQLIcon } from '@postgres.ai/shared/icons/PostgresSQL'
 
 type Props = {
   value: number
-  handleChange: (event: React.ChangeEvent<{}>, newValue: number) => void
+  handleChange: (event: React.ChangeEvent<object>, newValue: number) => void
   hasLogs: boolean
   isPlatform?: boolean
   hideInstanceTabs?: boolean
@@ -24,7 +24,6 @@ type Props = {
 export const PlatformTabs = ({
   value,
   handleChange,
-  hasLogs,
   hideInstanceTabs,
 }: Props) => {
   const classes = useTabsStyles()

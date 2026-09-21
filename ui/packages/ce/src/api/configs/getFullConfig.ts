@@ -9,6 +9,6 @@ export const getFullConfig = async () => {
 
   return {
     response: response ? response : null,
-    error: response && null,
+    error: null,
   }
 }

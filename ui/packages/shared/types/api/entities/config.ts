@@ -8,7 +8,7 @@ import {
 import { formatTuningParams } from '../endpoints/testDbSource'
 
 export interface DatabaseType {
-  [name: string]: string | Object
+  [name: string]: string | object
 }
 
 export type RetrievalMode = 'logical' | 'physical' | 'unknown' | ''

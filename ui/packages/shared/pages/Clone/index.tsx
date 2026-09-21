@@ -570,7 +570,7 @@ export const Clone = observer((props: Props) => {
                       className={classes.textField}
                       margin="normal"
                       fullWidth
-                      // @ts-ignore
+                      // @ts-expect-error TextField forwards readOnly to the input but does not declare it
                       readOnly
                       InputLabelProps={{
                         shrink: true,
@@ -602,7 +602,7 @@ export const Clone = observer((props: Props) => {
                       className={classes.textField}
                       margin="normal"
                       fullWidth
-                      // @ts-ignore
+                      // @ts-expect-error TextField forwards readOnly to the input but does not declare it
                       readOnly
                       InputLabelProps={{
                         shrink: true,
@@ -648,7 +648,7 @@ export const Clone = observer((props: Props) => {
                       className={classes.textField}
                       margin="normal"
                       fullWidth
-                      // @ts-ignore
+                      // @ts-expect-error TextField forwards readOnly to the input but does not declare it
                       readOnly
                       InputLabelProps={{
                         shrink: true,

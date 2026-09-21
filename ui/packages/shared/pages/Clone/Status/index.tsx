@@ -74,3 +74,5 @@ export const Status = React.memo((props: Props) => {
     </div>
   )
 })
+
+Status.displayName = 'CloneStatus'

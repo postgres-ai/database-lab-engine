@@ -69,7 +69,7 @@ export const Branches: React.FC<BranchesProps> = observer(({ instanceId }) => {
   const loadBranches = () => {
     getBranches(instanceId)
       .then((response) => {
-        response && setBranches(response)
+        if (response) setBranches(response)
       })
       .finally(() => setIsLoading(false))
   }
@@ -79,7 +79,7 @@ export const Branches: React.FC<BranchesProps> = observer(({ instanceId }) => {
 
     const intervalId = setInterval(() => {
       getBranches(instanceId, true).then((response) => {
-        response && setBranches(response)
+        if (response) setBranches(response)
       })
     }, listRefreshIntervalMs)
 

@@ -25,7 +25,7 @@ export const ConfigSectionTitle = ({ tag }: { tag: string }) => (
     text={
       <div className={styles.sectionTitle}>
         <p>Section</p>
-        <p>"{tag}"</p>
+        <p>&quot;{tag}&quot;</p>
       </div>
     }
   />
@@ -51,7 +51,12 @@ export const Header = (props: Props) => (
           the full config
         </Link>
         . For details, read{' '}
-        <a href={DOCS_URL} target="_blank" className={styles.externalLink}>
+        <a
+          href={DOCS_URL}
+          target="_blank"
+          rel="noreferrer"
+          className={styles.externalLink}
+        >
           the docs
           <ExternalIcon className={styles.externalIcon} />
         </a>
@@ -72,7 +77,12 @@ export const ModalTitle = () => (
     </Typography>
     <Typography variant="h3">
       Sensitive values are masked. For details, read{' '}
-      <a href={DOCS_URL} target="_blank" className={styles.externalLink}>
+      <a
+        href={DOCS_URL}
+        target="_blank"
+        rel="noreferrer"
+        className={styles.externalLink}
+      >
         the docs
         <ExternalIcon
           className={classNames(styles.externalIcon, styles.largeIcon)}

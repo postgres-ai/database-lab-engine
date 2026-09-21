@@ -139,7 +139,7 @@ export const CreateClone = observer((props: Props) => {
         const allSnapshots = stores.main?.snapshots?.data ?? []
         const sortedSnapshots = allSnapshots.slice().sort(compareSnapshotsDesc)
         setSnapshots(sortedSnapshots)
-        let selectedSnapshot = allSnapshots.find(s => s.id === initialSnapshotId) || allSnapshots[0]
+        const selectedSnapshot = allSnapshots.find(s => s.id === initialSnapshotId) || allSnapshots[0]
         formik.setFieldValue('snapshotId', selectedSnapshot?.id)
       }
     } catch (error) {
@@ -308,7 +308,7 @@ export const CreateClone = observer((props: Props) => {
 
             <p className={styles.text}>
               Set custom credentials for the new clone. Save the password in
-              reliable place, it can't be read later.
+              reliable place, it can&apos;t be read later.
             </p>
 
             <TextField

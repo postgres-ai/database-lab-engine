@@ -26,7 +26,7 @@ export const TABS_INDEX = {
 }
 export interface TabsProps {
   value: number
-  handleChange: (event: React.ChangeEvent<{}>, newValue: number) => void
+  handleChange: (event: React.ChangeEvent<object>, newValue: number) => void
   hasLogs: boolean
   isPlatform?: boolean
   hideInstanceTabs?: boolean
@@ -116,7 +116,7 @@ export const InstanceTabs = (props: InstanceTabProps) => {
     load,
   } = stores.main
 
-  const switchTab = (_: React.ChangeEvent<{}> | null, tabID: number) => {
+  const switchTab = (_: React.ChangeEvent<object> | null, tabID: number) => {
     const contentElement = document.getElementById('content-container')
     if (onTabChange) {
       onTabChange(tabID)

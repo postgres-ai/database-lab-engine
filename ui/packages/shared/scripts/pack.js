@@ -21,15 +21,6 @@ function copyDistToTmp() {
   run(`rsync -a ${DIST_DIR}/ ${TMP_DIR}/`);
 }
 
-function copyExtraFiles() {
-  const extras = ['react-app-env.d.ts'];
-  extras.forEach((file) => {
-    if (fs.existsSync(file)) {
-      fs.copyFileSync(file, path.join(TMP_DIR, file));
-    }
-  });
-}
-
 function sanitizePackageJson() {
   const original = JSON.parse(fs.readFileSync(PACKAGE_JSON, 'utf8'));
   const cleaned = {

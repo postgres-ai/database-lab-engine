@@ -10,7 +10,6 @@ import { createTheme } from '@material-ui/core'
 import { colors } from './colors'
 
 export const theme = createTheme({
-  // @ts-ignore
   fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
   palette: {
     primary: {
@@ -27,7 +26,7 @@ export const theme = createTheme({
   typography: {
     htmlFontSize: 14,
     fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    // @ts-ignore
+    // @ts-expect-error typography.fontSize is typed as a number
     fontSize: '14px!important',
     h1: {
       fontSize: '16px!important',

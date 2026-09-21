@@ -68,11 +68,9 @@ const toLocal = (date: Date) =>
 
 const inUTC =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-
-
-    <T extends (date: Date, ...otherArgs: any[]) => Date>(func: T) =>
-    (date: Date, ...otherArgs: unknown[]) =>
-      toLocal(func(toUTCf(date), ...otherArgs))
+  <T extends (date: Date, ...otherArgs: any[]) => Date>(func: T) =>
+  (date: Date, ...otherArgs: unknown[]) =>
+    toLocal(func(toUTCf(date), ...otherArgs))
 
 export const startOfMonthUTC = inUTC(startOfMonth)
 
