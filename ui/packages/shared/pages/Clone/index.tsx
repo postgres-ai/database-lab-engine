@@ -126,7 +126,9 @@ const useStyles = makeStyles(
       rowGap: '16px',
       marginBottom: '20px',
     },
+    // the tooltip anchor around the upgrade button shares this class, so it lays out like a button
     actionButton: {
+      display: 'inline-flex',
       marginRight: '10px',
     },
     remark: {
@@ -222,6 +224,7 @@ export const Clone = observer((props: Props) => {
     isCloneStable,
     isUpgradeSupported,
     upgradeTargetVersion,
+    upgradeUnavailableReason,
   } = stores.main
 
   const headRendered = (
@@ -383,19 +386,29 @@ export const Clone = observer((props: Props) => {
               )}
             </Button>
             {isUpgradeSupported && (
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={requestUpgradeClone}
-                disabled={isDisabledControls}
-                title={'Upgrade clone to a newer PostgreSQL major version'}
-                className={classes.actionButton}
+              <Tooltip
+                content={
+                  upgradeUnavailableReason ??
+                  'Upgrade clone to a newer PostgreSQL major version'
+                }
               >
-                Upgrade clone
-                {isUpgradingClone && (
-                  <Spinner size="sm" className={classes.spinner} />
-                )}
-              </Button>
+                {/* a disabled button emits no pointer events, so the wrapper anchors the tooltip */}
+                <span className={classes.actionButton}>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={requestUpgradeClone}
+                    disabled={
+                      isDisabledControls || Boolean(upgradeUnavailableReason)
+                    }
+                  >
+                    Upgrade clone
+                    {isUpgradingClone && (
+                      <Spinner size="sm" className={classes.spinner} />
+                    )}
+                  </Button>
+                </span>
+              </Tooltip>
             )}
             <Button
               variant="contained"
