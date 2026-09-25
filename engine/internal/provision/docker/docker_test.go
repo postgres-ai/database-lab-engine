@@ -5,6 +5,7 @@
 package docker
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/moby/moby/api/types/container"
@@ -287,4 +288,72 @@ func TestPgMajorFromEnv(t *testing.T) {
 			assert.Equal(t, tt.expected, pgMajorFromEnv(tt.env))
 		})
 	}
+}
+
+func TestContainerConfigFlags(t *testing.T) {
+	assert.Empty(t, containerConfigFlags(nil))
+
+	assert.Equal(t, []string{
+		"--shm-size=1gb",
+		"--volume=/var/lib/dblab/cert:/var/lib/postgresql/cert",
+	}, containerConfigFlags(map[string]string{
+		"volume":   "/var/lib/dblab/cert:/var/lib/postgresql/cert",
+		"shm-size": "1gb",
+	}))
+}
+
+func TestUpgradeRunCommandCarriesContainerConfig(t *testing.T) {
+	pool := resources.NewPool("test")
+	pool.MountDir = "/tmp/test"
+	pool.PoolDirName = "default"
+
+	appConfig := &resources.AppConfig{
+		Pool:   pool,
+		Branch: "main",
+		ContainerConf: map[string]string{
+			"volume":   "/var/lib/dblab/cert:/var/lib/postgresql/cert",
+			"shm-size": "1gb",
+		},
+	}
+
+	cmd := buildUpgradeRunCommand(appConfig, UpgradeContainerConfig{
+		Image: "postgresai/pg-upgrade:17",
+		Name:  "dblab_upgrade_test-clone",
+		User:  "999:999",
+		Env:   []string{"OLD_VERSION=16"},
+	}, []string{"--volume /tmp/test/default/branch/main/r0:/tmp/test/default/branch/main/r0"})
+
+	// Without the cert mount the old-major postmaster pg_upgrade starts cannot load its TLS
+	// certificate and the check stage fails before anything is converted (#792).
+	assert.Contains(t, cmd, "--volume=/var/lib/dblab/cert:/var/lib/postgresql/cert")
+	assert.Contains(t, cmd, "--shm-size=1gb")
+
+	// The upgrade container's own flags come last so a free-form containerConfig cannot take
+	// over the ones pg_upgrade depends on.
+	assert.Less(t, strings.Index(cmd, "--shm-size=1gb"), strings.Index(cmd, "--user 999:999"))
+	assert.Less(t, strings.Index(cmd, "--volume=/var/lib/dblab"), strings.Index(cmd, "--workdir"))
+}
+
+func TestUpgradeRunCommandWithoutContainerConfig(t *testing.T) {
+	pool := resources.NewPool("test")
+	pool.MountDir = "/tmp/test"
+	pool.PoolDirName = "default"
+
+	appConfig := &resources.AppConfig{Pool: pool, Branch: "main"}
+	env := []string{"OLD_VERSION=16"}
+
+	cmd := buildUpgradeRunCommand(appConfig, UpgradeContainerConfig{
+		Image: "postgresai/pg-upgrade:17",
+		Name:  "dblab_upgrade_test-clone",
+		User:  "999:999",
+		Env:   env,
+	}, nil)
+
+	assert.Contains(t, cmd, "--env 'OLD_VERSION=16'")
+	assert.Contains(t, cmd, "--env 'HOME=/tmp/test/default/branch/main/r0'")
+	assert.Contains(t, cmd, "--workdir '/tmp/test/default/branch/main/r0'")
+	assert.Contains(t, cmd, "'postgresai/pg-upgrade:17'")
+
+	// The caller's slice must not pick up the HOME pair appended for the container.
+	assert.Equal(t, []string{"OLD_VERSION=16"}, env)
 }
