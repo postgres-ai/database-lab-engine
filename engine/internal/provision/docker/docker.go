@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -66,10 +67,7 @@ func RunContainer(r runners.Runner, c *resources.AppConfig) error {
 		return errors.Wrap(err, "failed to create socket clone directory")
 	}
 
-	containerFlags := make([]string, 0, len(c.ContainerConf))
-	for flagName, flagValue := range c.ContainerConf {
-		containerFlags = append(containerFlags, fmt.Sprintf("--%s=%s", flagName, flagValue))
-	}
+	containerFlags := containerConfigFlags(c.ContainerConf)
 
 	// TODO (akartasov): use Docker client instead of command execution.
 	instancePort := strconv.Itoa(int(c.Port))
@@ -141,25 +139,7 @@ func RunUpgradeContainer(ctx context.Context, dockerClient *client.Client, r run
 		}
 	}
 
-	envFlags := make([]string, 0, len(cfg.Env)+1)
-	for _, envPair := range append(cfg.Env, "HOME="+c.CloneDir()) {
-		envFlags = append(envFlags, "--env "+runners.Quote(envPair))
-	}
-
-	// pg_upgrade writes pg_upgrade_output.d and its temporary sockets into the working
-	// directory, which would otherwise be the image's "/".
-	dockerRunCmd := strings.Join([]string{
-		"docker run",
-		"--detach",
-		"--name", cfg.Name,
-		"--user", cfg.User,
-		"--workdir", runners.Quote(c.CloneDir()),
-		strings.Join(envFlags, " "),
-		strings.Join(volumes, " "),
-		runners.Quote(cfg.Image),
-	}, " ")
-
-	if _, err := r.Run(dockerRunCmd, true); err != nil {
+	if _, err := r.Run(buildUpgradeRunCommand(c, cfg, volumes), true); err != nil {
 		return 0, errors.Wrap(err, "failed to run the upgrade container")
 	}
 
@@ -170,6 +150,36 @@ func RunUpgradeContainer(ctx context.Context, dockerClient *client.Client, r run
 	}()
 
 	return waitForUpgradeContainer(ctx, dockerClient, cfg.Name)
+}
+
+// buildUpgradeRunCommand renders the docker run command of the upgrade container.
+func buildUpgradeRunCommand(c *resources.AppConfig, cfg UpgradeContainerConfig, volumes []string) string {
+	envPairs := make([]string, 0, len(cfg.Env)+1)
+	envPairs = append(envPairs, cfg.Env...)
+	envPairs = append(envPairs, "HOME="+c.CloneDir())
+
+	envFlags := make([]string, 0, len(envPairs))
+	for _, envPair := range envPairs {
+		envFlags = append(envFlags, "--env "+runners.Quote(envPair))
+	}
+
+	// The working directory is set because pg_upgrade writes pg_upgrade_output.d and its temporary
+	// sockets into it, which would otherwise be the image's "/".
+	return strings.Join([]string{
+		"docker run",
+		// pg_upgrade starts the old-major postmaster inside this container, and that postmaster
+		// reads the clone's own config: a TLS certificate mounted only by containerConfig is
+		// missing without this and stops it from starting (#792). Rendered before the flags below
+		// so those keep the last word, since docker resolves a repeated flag to its last value.
+		strings.Join(containerConfigFlags(c.ContainerConf), " "),
+		"--detach",
+		"--name", cfg.Name,
+		"--user", cfg.User,
+		"--workdir", runners.Quote(c.CloneDir()),
+		strings.Join(envFlags, " "),
+		strings.Join(volumes, " "),
+		runners.Quote(cfg.Image),
+	}, " ")
 }
 
 // waitForUpgradeContainer blocks until the upgrade container exits or ctx ends. The condition has
@@ -204,6 +214,20 @@ func publishPorts(provisionHosts string, instancePort string) string {
 	}
 
 	return strings.Join(pub, " ")
+}
+
+// containerConfigFlags renders the databaseContainer.containerConfig map as docker run flags.
+// They are sorted so that the rendered command does not depend on Go's map iteration order.
+func containerConfigFlags(containerConf map[string]string) []string {
+	flags := make([]string, 0, len(containerConf))
+
+	for flagName, flagValue := range containerConf {
+		flags = append(flags, fmt.Sprintf("--%s=%s", flagName, flagValue))
+	}
+
+	slices.Sort(flags)
+
+	return flags
 }
 
 func createDefaultVolumes(c *resources.AppConfig) (string, []string) {
