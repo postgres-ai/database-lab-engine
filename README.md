@@ -157,7 +157,9 @@ release tag (`:17`, `:17-0.8.0`, `:17-0.8.0-glibc236`), and re-reads it from the
 moves. A tag outside that grammar — a digest pin, `latest`, a CI build — states no major, so the
 engine fetches the image in the background at startup and reads it from there; until that lands
 the upgrade reports itself unavailable. When `pgUpgradeImage` is unset the feature is simply
-unavailable and the endpoint says so; nothing else about the instance changes.
+unavailable and the endpoint says so; nothing else about the instance changes. The UI keeps the
+"Upgrade clone" button visible but disabled in that state, and its tooltip carries the reason
+reported on `/status`, so an unset image is one hover away from being diagnosed.
 
 ```yaml
 provision:

@@ -73,11 +73,15 @@ export class MainStore {
     makeAutoObservable(this)
   }
 
-  // The closed Platform app implements the same Api and may not provide the endpoint, and the
-  // engine only accepts an upgrade once one is configured, so the action is hidden rather than
-  // offered and then refused.
+  // The closed Platform app implements the same Api and may not provide the endpoint, and an
+  // engine without the action does not report it on the instance state. In both cases there is
+  // nothing to show. An engine that reports the action as unavailable still gets the button, so
+  // an admin learns what to configure instead of wondering whether the feature exists.
   get isUpgradeSupported() {
-    return Boolean(this.api.upgradeClone) && Boolean(this.upgradeTargetVersion)
+    return (
+      Boolean(this.api.upgradeClone) &&
+      Boolean(this.instance?.state?.cloneUpgrade)
+    )
   }
 
   // The major an upgrade lands on. It follows from the instance's upgrade image, so the UI reads
@@ -86,6 +90,17 @@ export class MainStore {
     const cloneUpgrade = this.instance?.state?.cloneUpgrade
 
     return cloneUpgrade?.available ? cloneUpgrade.targetVersion : undefined
+  }
+
+  // Why the engine refuses an upgrade right now. It is always an instance configuration matter,
+  // so it is shown on the disabled action rather than as a clone error.
+  get upgradeUnavailableReason() {
+    const cloneUpgrade = this.instance?.state?.cloneUpgrade
+    if (!cloneUpgrade || cloneUpgrade.available) return undefined
+
+    return (
+      cloneUpgrade.reason ?? 'Clone upgrade is not available on this instance'
+    )
   }
 
   get isCloneStable() {
