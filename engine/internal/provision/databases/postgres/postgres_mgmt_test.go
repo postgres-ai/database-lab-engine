@@ -5,9 +5,11 @@
 package postgres
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuperuserQuery(t *testing.T) {
@@ -160,6 +162,21 @@ func TestRestrictedObjectsQuery_ContainsAllObjectTypes(t *testing.T) {
 	assert.Contains(t, query, "pg_class")
 	assert.Contains(t, query, "pg_proc")
 	assert.Contains(t, query, "pg_ts_dict")
+}
+
+func TestRestrictedObjectsQuery_FinalizesPendingDetach(t *testing.T) {
+	query := restrictedObjectsQuery("testuser")
+
+	versionGuard := strings.Index(query, "current_setting('server_version_num')::int >= 140000")
+	pendingFilter := strings.Index(query, "where i.inhdetachpending")
+	finalize := strings.Index(query, "detach partition %I.%I finalize")
+	changeOwner := strings.Index(query, "'alter %s %I.%I owner to %I;'")
+
+	require.NotEqual(t, -1, versionGuard)
+	require.NotEqual(t, -1, changeOwner)
+	assert.Less(t, versionGuard, pendingFilter, "the pending detach lookup must stay behind the version guard")
+	assert.Less(t, pendingFilter, finalize)
+	assert.Less(t, finalize, changeOwner, "the detach must be completed before relation ownership is changed")
 }
 
 func TestRestrictedUserOwnershipQuery_ContainsDatabaseIteration(t *testing.T) {

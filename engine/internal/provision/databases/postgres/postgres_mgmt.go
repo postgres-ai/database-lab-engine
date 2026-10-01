@@ -236,6 +236,38 @@ begin
       );
   end loop;
 
+  -- Partitions with an incomplete detach (PG14+)
+  -- Postgres rejects any ALTER on such a partition, so the detach is completed
+  -- before the ownership of relations is changed.
+  if current_setting('server_version_num')::int >= 140000 then
+    for r in
+      select
+        pn.nspname as parent_nspname,
+        pc.relname as parent_relname,
+        n.nspname,
+        c.relname
+      from pg_inherits i
+      join pg_class c on c.oid = i.inhrelid and c.relkind in ('r', 'p')
+      join pg_namespace n on
+        n.oid = c.relnamespace
+        and not n.nspname in ('pg_catalog', 'information_schema', '_timescaledb_internal')
+      join pg_class pc on pc.oid = i.inhparent
+      join pg_namespace pn on pn.oid = pc.relnamespace
+      where i.inhdetachpending
+      order by c.relname
+    loop
+      raise debug 'Completing detach of partition %.% from %.%',
+                   r.nspname, r.relname, r.parent_nspname, r.parent_relname;
+      execute format(
+        'alter table %I.%I detach partition %I.%I finalize;',
+        r.parent_nspname,
+        r.parent_relname,
+        r.nspname,
+        r.relname
+      );
+    end loop;
+  end if;
+
   -- Relations
   -- c: composite type
   -- p: partitioned table
