@@ -1,7 +1,7 @@
 {
 	"info": {
 		"_postman_id": "ed8af9f0-1cde-4633-8a57-a47e10d12bfa",
-		"name": "DBLab API 4.0.0-beta.2",
+		"name": "DBLab API 4.2.1",
 		"description": "This page provides the OpenAPI specification for the Database Lab (DBLab) API, previously recognized as the DLE API (Database Lab Engine API).\n\nContact Support:\n Name: DBLab API Support\n Email: api@postgres.ai",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "34026417"
