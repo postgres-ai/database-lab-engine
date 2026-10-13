@@ -163,8 +163,8 @@ func buildUpgradeRunCommand(c *resources.AppConfig, cfg UpgradeContainerConfig, 
 		envFlags = append(envFlags, "--env "+runners.Quote(envPair))
 	}
 
-	// The working directory is set because pg_upgrade writes pg_upgrade_output.d and its temporary
-	// sockets into it, which would otherwise be the image's "/".
+	// The working directory is set because pg_upgrade writes its temporary sockets into it, which
+	// would otherwise be the image's "/". Its own logs go into the new cluster instead.
 	return strings.Join([]string{
 		"docker run",
 		// pg_upgrade starts the old-major postmaster inside this container, and that postmaster

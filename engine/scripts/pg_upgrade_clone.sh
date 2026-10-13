@@ -19,7 +19,8 @@
 # UPGRADE_DIR is that working area:
 #   stage          the stage reached so far, reported by the engine for diagnostics
 #   state.json     written by the engine, never touched here
-#   logs/          this script's log and pg_upgrade's own output directory
+#   logs/          this script's log; the engine also moves pg_upgrade's own output directory
+#                  here from a failed <data>_new before discarding it
 #
 # On success this script also writes <data>_new/.dblab_upgrade_done. That marker is the engine's
 # only proof that the conversion completed - see the comment at the transfer stage below.
@@ -215,7 +216,9 @@ init_new_cluster
 copy_snapshot_conf
 copy_auto_conf
 
-# pg_upgrade writes pg_upgrade_output.d and its temporary sockets into the current directory.
+# pg_upgrade writes its temporary sockets into the current directory. Its own logs go to
+# pg_upgrade_output.d inside NEW_DATA (PostgreSQL 15 and later), which the engine moves next to
+# this script's log when it discards a failed cluster.
 cd "${LOG_DIR}"
 
 # A killed run (docker kill, OOM, engine timeout) leaves the socket and lock file of the server
