@@ -201,7 +201,7 @@ that must now set the list to `["*"]`.
 | Status | Meaning |
 |---|---|
 | `OK` | The clone runs the target version; `dbVersion` reports it. |
-| `WARNING` | The upgrade was not applied. Either nothing had been converted and the clone still runs its original version, or conversion had begun and the clone was rebuilt from its origin snapshot — in which case data written since the clone was created is lost. The message says which, and points at the `pg_upgrade` log under `<clone dir>/upgrade/logs/`. |
+| `WARNING` | The upgrade was not applied. Either nothing had been converted and the clone still runs its original version, or conversion had begun and the clone was rebuilt from its origin snapshot — in which case data written since the clone was created is lost. The message says which, and points at the `pg_upgrade` log under `<clone dir>/upgrade/logs/`. When the postmaster that `pg_upgrade` started failed, its own fatal error, with the `DETAIL` and `HINT` lines that follow it, is appended to the cause, and the run's `pg_upgrade_output.d/<timestamp>/` directory (server log, internal log, schema dumps) is preserved under the same `logs/` directory; the five most recent failed runs are kept. |
 | `WARNING`, clone not running | The upgrade settled on disk but the clone container did not come back up. The data directory is intact and the upgrade is still recorded as pending, so the next engine start finishes or undoes it and brings the clone back. |
 | `FATAL` | Recovery itself failed and there is nothing left to finish. Reset or delete the clone. |
 

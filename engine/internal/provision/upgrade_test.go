@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -562,28 +561,54 @@ func TestClearUpgradeArtifactsOnMissingFiles(t *testing.T) {
 	assert.NotPanics(t, func() { clearUpgradeArtifacts(t.TempDir()) })
 }
 
-func TestReadLogTail(t *testing.T) {
-	t.Run("missing log yields an empty tail", func(t *testing.T) {
-		assert.Empty(t, readLogTail(t.TempDir()))
+func TestRecover(t *testing.T) {
+	state := UpgradeState{OldVersion: "16", NewVersion: "17", OldImage: "postgres:16", TargetImage: "postgres:17", SnapshotID: "snap"}
+	serverLog := "2026-01-02 00:00:00.001 UTC [12] FATAL:  could not load server certificate file \"server.crt\": No such file\n"
+
+	t.Run("reprovision preserves the output and reports the postmaster error", func(t *testing.T) {
+		appConfig := testAppConfig(t)
+		prepareUpgradeLogs(t, appConfig.CloneDir())
+		writeServerLog(t, path.Join(newDataDir(appConfig), upgradeOutputDirName), "20260102T000000.000", serverLog)
+
+		p := &Provisioner{runner: &stubRunner{}}
+
+		result, err := p.recover(recoveryReprovision, appConfig, state, "pg_upgrade failed with exit code 20")
+		require.NoError(t, err)
+
+		assert.Equal(t, UpgradeRequiresReprovision, result.Outcome)
+		assert.Equal(t, "snap", result.SnapshotID)
+		assert.Equal(t, "pg_upgrade failed with exit code 20; the postmaster started by pg_upgrade reported: "+
+			"FATAL:  could not load server certificate file \"server.crt\": No such file", result.Cause)
+		assert.FileExists(t, path.Join(upgradeOutputPath(appConfig.CloneDir()), "20260102T000000.000", upgradeServerLogDirName, upgradeServerLogName))
 	})
 
-	t.Run("keeps only the last lines", func(t *testing.T) {
-		cloneDir := t.TempDir()
-		logDir := path.Join(upgradeDirPath(cloneDir), upgradeLogsDirName)
-		require.NoError(t, os.MkdirAll(logDir, 0755))
+	t.Run("rollback moves the output before discarding the new cluster and carries the cause into a restart failure", func(t *testing.T) {
+		appConfig := testAppConfig(t)
+		prepareUpgradeLogs(t, appConfig.CloneDir())
+		writeServerLog(t, path.Join(newDataDir(appConfig), upgradeOutputDirName), "20260102T000000.000", serverLog)
 
-		content := ""
-		for i := 0; i < logTailLines+15; i++ {
-			content += "line" + strconv.Itoa(i) + "\n"
-		}
+		p := &Provisioner{runner: &stubRunner{err: errors.New("docker run failed")}}
 
-		require.NoError(t, os.WriteFile(path.Join(logDir, upgradeLogFileName), []byte(content), 0600))
+		result, err := p.recover(recoveryRollback, appConfig, state, "pg_upgrade failed with exit code 10")
+		require.Error(t, err)
 
-		tail := readLogTail(cloneDir)
+		assert.Contains(t, err.Error(), "the postmaster started by pg_upgrade reported: FATAL:  could not load server certificate file")
+		assert.Contains(t, err.Error(), "the clone could not be restarted on PostgreSQL 16 either: ")
+		assert.NoDirExists(t, newDataDir(appConfig))
+		assert.FileExists(t, path.Join(upgradeOutputPath(appConfig.CloneDir()), "20260102T000000.000", upgradeServerLogDirName, upgradeServerLogName))
+		assert.Equal(t, "postgres:16", result.Image)
+	})
 
-		assert.Equal(t, logTailLines, len(strings.Split(tail, "\n")))
-		assert.Contains(t, tail, "line34")
-		assert.NotContains(t, tail, "line0\n")
+	t.Run("an attempt without output does not report an earlier attempt's error", func(t *testing.T) {
+		appConfig := testAppConfig(t)
+		writeServerLog(t, upgradeOutputPath(appConfig.CloneDir()), "20260101T000000.000", "FATAL:  older attempt\n")
+
+		p := &Provisioner{runner: &stubRunner{}}
+
+		result, err := p.recover(recoveryReprovision, appConfig, state, "upgrade was interrupted by an engine restart")
+		require.NoError(t, err)
+
+		assert.Equal(t, "upgrade was interrupted by an engine restart", result.Cause)
 	})
 }
 

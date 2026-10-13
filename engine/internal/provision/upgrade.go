@@ -43,6 +43,19 @@ const (
 	upgradeLogsDirName   = "logs"
 	upgradeLogFileName   = "pg_upgrade_clone.log"
 
+	// upgradeOutputDirName is the directory pg_upgrade keeps its own logs in. Since PostgreSQL 15
+	// it is created inside the new cluster, one timestamped subdirectory per run, and it is
+	// removed on success and kept on failure. The postmaster log in it is what explains a failed
+	// check, so the engine moves it next to the script log before it discards a failed cluster.
+	upgradeOutputDirName    = "pg_upgrade_output.d"
+	upgradeServerLogDirName = "log"
+	upgradeServerLogName    = "pg_upgrade_server.log"
+
+	// preservedUpgradeRuns bounds how many failed pg_upgrade runs stay under the clone's log
+	// directory. A run holds schema dumps of every database besides its logs, and a preserved
+	// run is otherwise never removed.
+	preservedUpgradeRuns = 5
+
 	// upgradeDoneMarkerName is written by scripts/pg_upgrade_clone.sh into the new data directory
 	// once pg_upgrade has returned 0, and is the only proof this engine accepts that the
 	// conversion finished. It lives inside the cluster directory so that it survives swapDataDirs.
@@ -181,7 +194,9 @@ type UpgradeResult struct {
 	Image string
 	// SnapshotID is the origin snapshot a reprovision has to rebuild from.
 	SnapshotID string
-	// Cause is the original failure when the outcome is not UpgradeSucceeded.
+	// Cause is the original failure when the outcome is not UpgradeSucceeded. When the postmaster
+	// pg_upgrade started left a fatal error in its log, that error, along with the DETAIL and
+	// HINT lines that follow it, is appended after a semicolon.
 	Cause string
 	// LogPath points at the pg_upgrade log inside the clone dataset. Empty when the dataset is
 	// about to be re-created, because the log goes with it.
@@ -728,21 +743,25 @@ func (p *Provisioner) completeUpgrade(appConfig *resources.AppConfig, state Upgr
 // recover undoes an upgrade that did not finish.
 func (p *Provisioner) recover(
 	action recoveryAction, appConfig *resources.AppConfig, state UpgradeState, cause string) (UpgradeResult, error) {
+	if action == recoveryComplete {
+		// Reached when the swap completed but the script was killed before reporting success.
+		return p.completeUpgrade(appConfig, state)
+	}
+
+	// Both paths below destroy the new cluster, and with it the only log that says why the
+	// postmaster pg_upgrade started did not come up.
+	preserved := preserveUpgradeOutput(appConfig)
+
 	result := UpgradeResult{
 		Version:         state.OldVersion,
 		PreviousVersion: state.OldVersion,
 		Image:           state.OldImage,
 		SnapshotID:      state.SnapshotID,
-		Cause:           cause,
+		Cause:           describeFailure(cause, readServerLogError(appConfig.CloneDir(), preserved)),
 		LogTail:         readLogTail(appConfig.CloneDir()),
 	}
 
-	switch action {
-	case recoveryComplete:
-		// Reached when the swap completed but the script was killed before reporting success.
-		return p.completeUpgrade(appConfig, state)
-
-	case recoveryReprovision:
+	if action == recoveryReprovision {
 		// The dataset has to go, so the log goes with it; the tail above is what survives.
 		// Re-provisioning itself belongs to the cloning layer, which handles dependent
 		// snapshots and the revision bump.
@@ -767,7 +786,7 @@ func (p *Provisioner) recover(
 
 	if err := postgres.Start(p.runner, appConfig); err != nil {
 		return result, fmt.Errorf("%s; the clone could not be restarted on PostgreSQL %s either: %w",
-			cause, state.OldVersion, err)
+			result.Cause, state.OldVersion, err)
 	}
 
 	clearUpgradeArtifacts(appConfig.CloneDir())
@@ -998,6 +1017,12 @@ func upgradeLogPath(cloneDir string) string {
 	return path.Join(upgradeDirPath(cloneDir), upgradeLogsDirName, upgradeLogFileName)
 }
 
+// upgradeOutputPath is where pg_upgrade's output directory is kept once it has been moved out of
+// a failed new cluster.
+func upgradeOutputPath(cloneDir string) string {
+	return path.Join(upgradeDirPath(cloneDir), upgradeLogsDirName, upgradeOutputDirName)
+}
+
 func formatPGVersion(version float64) string {
 	return strconv.FormatFloat(version, 'g', -1, 64)
 }
@@ -1061,18 +1086,4 @@ func clearUpgradeArtifacts(cloneDir string) {
 			log.Err("failed to remove the upgrade artifact "+name+":", err)
 		}
 	}
-}
-
-func readLogTail(cloneDir string) string {
-	data, err := os.ReadFile(upgradeLogPath(cloneDir))
-	if err != nil {
-		return ""
-	}
-
-	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
-	if len(lines) > logTailLines {
-		lines = lines[len(lines)-logTailLines:]
-	}
-
-	return strings.Join(lines, "\n")
 }
