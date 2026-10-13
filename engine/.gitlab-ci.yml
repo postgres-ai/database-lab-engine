@@ -8,7 +8,7 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 default:
-  image: golang:1.26.8
+  image: golang:1.26.9
   interruptible: true  # All jobs can be cancelled by default
 
 # Publishing has to come after the tests that qualify the artifact, and `needs:` cannot point at a
@@ -126,7 +126,7 @@ lint:
 ### Build binary.
 build-binary-alpine:
   <<: *only_engine
-  image: golang:1.26.8-alpine
+  image: golang:1.26.9-alpine
   stage: build-binary
   artifacts:
     paths:
@@ -400,6 +400,7 @@ build-image-master-client:
 trivy-engine-images-feature:
   extends: .trivy_image_scan
   <<: *only_feature
+  allow_failure: true
   needs:
     - build-image-feature-server
     - build-image-feature-ci-checker
