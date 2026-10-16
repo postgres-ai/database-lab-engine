@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -565,6 +566,66 @@ func TestDumpLocation(t *testing.T) {
 		r.isDumpLocationDir = tc.isDumpLocationDir
 		dumpLocation := r.getDumpLocation(tc.format, tc.dbname)
 		assert.Equal(t, tc.expectedLocation, dumpLocation)
+	}
+}
+
+func TestPolicyListCommandBuilding(t *testing.T) {
+	testCases := []struct {
+		name              string
+		dbName            string
+		definition        DumpDefinition
+		dumpLocation      string
+		isDumpLocationDir bool
+		expectedArchive   string
+	}{
+		{name: "explicit database", dbName: "app", definition: DumpDefinition{}, dumpLocation: "/dump", isDumpLocationDir: true, expectedArchive: "/dump/app"},
+		{name: "discovered directory", dbName: "app", definition: DumpDefinition{Format: directoryFormat, dbName: "app"}, dumpLocation: "/dump", isDumpLocationDir: true, expectedArchive: "/dump/app"},
+		{name: "root directory dump", dbName: "", definition: DumpDefinition{Format: directoryFormat, dbName: "app"}, dumpLocation: "/dump", isDumpLocationDir: true, expectedArchive: "/dump"},
+		{name: "custom file in directory", dbName: "app.dump", definition: DumpDefinition{Format: customFormat, dbName: "app"}, dumpLocation: "/dump", isDumpLocationDir: true, expectedArchive: "/dump/app.dump"},
+		{name: "single custom file", dbName: "app.dump", definition: DumpDefinition{Format: customFormat, dbName: "app"}, dumpLocation: "/dump/app.dump", expectedArchive: "/dump/app.dump"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := &RestoreJob{isDumpLocationDir: tc.isDumpLocationDir, globalCfg: &global.Config{Database: global.Database{Username: "john"}}}
+			r.RestoreOptions.DumpLocation = tc.dumpLocation
+
+			restoreCmd := r.buildLogicalRestoreCommand(tc.dbName, tc.definition, nil)
+			assert.Equal(t, tc.expectedArchive, restoreCmd[len(restoreCmd)-1])
+
+			listCmd := r.buildPolicyListCommand(tc.dbName, tc.definition, "/dump/app-list-file")
+			assert.Equal(t, []string{"bash", "-c", "pg_restore -l '" + tc.expectedArchive + "' | grep -v POLICY > '/dump/app-list-file'"}, listCmd)
+		})
+	}
+}
+
+func TestListFileDir(t *testing.T) {
+	dumpDir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dumpDir, "app"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dumpDir, "app.dump"), []byte("dump"), 0644))
+
+	testCases := []struct {
+		name              string
+		dbName            string
+		definition        DumpDefinition
+		dumpLocation      string
+		isDumpLocationDir bool
+		expectedDir       string
+	}{
+		{name: "directory dump", dbName: "app", definition: DumpDefinition{Format: directoryFormat}, dumpLocation: dumpDir, isDumpLocationDir: true, expectedDir: filepath.Join(dumpDir, "app")},
+		{name: "explicit database", dbName: "app", definition: DumpDefinition{}, dumpLocation: dumpDir, isDumpLocationDir: true, expectedDir: filepath.Join(dumpDir, "app")},
+		{name: "missing archive", dbName: "absent", definition: DumpDefinition{}, dumpLocation: dumpDir, isDumpLocationDir: true, expectedDir: dumpDir},
+		{name: "custom file in directory", dbName: "app.dump", definition: DumpDefinition{Format: customFormat}, dumpLocation: dumpDir, isDumpLocationDir: true, expectedDir: dumpDir},
+		{name: "single custom file", dbName: "app.dump", definition: DumpDefinition{Format: customFormat}, dumpLocation: filepath.Join(dumpDir, "app.dump"), expectedDir: dumpDir},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := &RestoreJob{isDumpLocationDir: tc.isDumpLocationDir}
+			r.RestoreOptions.DumpLocation = tc.dumpLocation
+
+			assert.Equal(t, tc.expectedDir, r.listFileDir(tc.dbName, tc.definition))
+		})
 	}
 }
 

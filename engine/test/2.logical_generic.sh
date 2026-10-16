@@ -221,7 +221,10 @@ PATCH_CONFIG_DATA=$(jq -n -c \
       },
       "logicalRestore": {
         "options": {
-          "parallelJobs": 2
+          "parallelJobs": 2,
+          "databases": {
+            "test": {}
+          }
         }
       }
     }

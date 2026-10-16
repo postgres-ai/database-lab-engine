@@ -161,7 +161,7 @@ retrieval:  # Data retrieval: initial sync and ongoing updates. Two methods:
           - "--no-owner"
           - "--exit-on-error"
         
-        skipPolicies: true # Skip policies during restore
+        skipPolicies: true # Skip policies during restore; custom and directory dumps only, plain-text dumps restore policies
 
     logicalSnapshot: # Final snapshot configuration
       options:

@@ -545,45 +545,27 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 		}
 	}
 
-	var (
-		tmpListFile *os.File
-		err         error
-	)
+	var tmpListFile *os.File
 
-	if r.RestoreOptions.SkipPolicies {
-		tmpListFile, err = os.CreateTemp(r.getDumpLocation(dbDefinition.Format, dbDefinition.dbName), dbName+"-list-file*")
+	if r.RestoreOptions.SkipPolicies && dbDefinition.Format == plainFormat {
+		log.Msg("Skipping policies is not available for plain-text dump. Policies will be restored for " + dbName)
+	}
+
+	if r.RestoreOptions.SkipPolicies && dbDefinition.Format != plainFormat {
+		listFile, err := r.createPolicyListFile(ctx, contID, dbName, dbDefinition)
 		if err != nil {
-			return fmt.Errorf("failed to create temporary list file: %w", err)
+			return err
 		}
 
 		defer func() {
-			if err := os.Remove(tmpListFile.Name()); err != nil {
+			_ = listFile.Close()
+
+			if err := os.Remove(listFile.Name()); err != nil {
 				log.Dbg("Cannot remove temporary file:", err)
 			}
 		}()
-		defer func() { _ = tmpListFile.Close() }()
 
-		dumpLocation := r.getDumpLocation(dbDefinition.Format, dbDefinition.dbName)
-
-		if dbDefinition.Format != directoryFormat {
-			dumpLocation = r.RestoreOptions.DumpLocation
-		}
-
-		preCmd := []string{"bash", "-c", `pg_restore -l ` + dumpLocation + " | grep -v POLICY > " + tmpListFile.Name()}
-
-		log.Msg("Running preparatory command to create list file for "+dbName, preCmd)
-
-		output, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, client.ExecCreateOptions{
-			TTY: true,
-			Cmd: preCmd,
-			Env: []string{"PGAPPNAME=" + dleRetrieval},
-		})
-
-		if err != nil {
-			log.Dbg(output)
-
-			return fmt.Errorf("failed to perform preparatory command: %w", err)
-		}
+		tmpListFile = listFile
 	}
 
 	restoreCommand := r.buildLogicalRestoreCommand(dbName, dbDefinition, tmpListFile)
@@ -614,6 +596,55 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 	}
 
 	return nil
+}
+
+// createPolicyListFile writes a pg_restore list of the archive with POLICY entries removed.
+// The list and restore commands run in the same container, so the file only has to be reachable there;
+// a directory dumpLocation is bind-mounted as a whole and the container writes the host file directly.
+func (r *RestoreJob) createPolicyListFile(ctx context.Context, contID, dbName string, dbDefinition DumpDefinition) (*os.File, error) {
+	tmpListFile, err := os.CreateTemp(r.listFileDir(dbName, dbDefinition), dbName+"-list-file*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temporary list file: %w", err)
+	}
+
+	preCmd := r.buildPolicyListCommand(dbName, dbDefinition, tmpListFile.Name())
+
+	log.Msg("Running preparatory command to create list file for "+dbName, preCmd)
+
+	output, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, client.ExecCreateOptions{
+		TTY: true,
+		Cmd: preCmd,
+		Env: []string{"PGAPPNAME=" + dleRetrieval},
+	})
+	if err != nil {
+		_ = tmpListFile.Close()
+		_ = os.Remove(tmpListFile.Name())
+
+		log.Dbg(output)
+
+		return nil, fmt.Errorf("failed to perform preparatory command: %w", err)
+	}
+
+	return tmpListFile, nil
+}
+
+// buildPolicyListCommand lists the same archive the restore command reads and drops POLICY entries.
+func (r *RestoreJob) buildPolicyListCommand(dbName string, dbDefinition DumpDefinition, listFile string) []string {
+	dumpLocation := r.getDumpLocation(dbDefinition.Format, dbName)
+
+	return []string{"bash", "-c", "pg_restore -l " + shellQuote(dumpLocation) + " | grep -v POLICY > " + shellQuote(listFile)}
+}
+
+// listFileDir returns the directory for the temporary list file: the archive itself when it is a directory dump,
+// so the dump job removes leftovers together with the archive, otherwise the directory holding the dump file.
+func (r *RestoreJob) listFileDir(dbName string, dbDefinition DumpDefinition) string {
+	dumpLocation := r.getDumpLocation(dbDefinition.Format, dbName)
+
+	if stat, err := os.Stat(dumpLocation); err == nil && stat.IsDir() {
+		return dumpLocation
+	}
+
+	return filepath.Dir(dumpLocation)
 }
 
 // prepareDB creates a new database if it does not exist in the dump file.
