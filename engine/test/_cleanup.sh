@@ -14,6 +14,14 @@ sudo docker ps -aq --filter label="dblab_clone=test_dblab_pool" | xargs --no-run
 sudo docker ps -aq --filter label="dblab_test" | xargs --no-run-if-empty sudo docker rm -f \
   || echo "Failed to remove dblab_test Docker containers, continuing..."
 
+# Remove engine internal networks nothing uses any more. The engine removes its network only on a
+# graceful shutdown, and every run starts with a fresh meta directory and so a new instance ID, so
+# each engine killed above leaves one behind until they exhaust the daemon's address pools, which
+# the Go integration suite on the same host also needs. The age filter spares a network a
+# concurrent job has just created and not yet attached a container to.
+sudo docker network prune --force --filter label=app=DLE --filter label=type=internal --filter until=10m \
+  || echo "Failed to prune engine networks, continuing..."
+
 # Remove unused Docker images
 sudo docker images --filter=reference='registry.gitlab.com/postgres-ai/database-lab/dblab-server:*' -q | xargs --no-run-if-empty sudo docker rmi \
   || echo "Docker image removal finished with errors but it is OK to ignore them."
@@ -48,11 +56,12 @@ sudo rm -f "${ZFS_FILE}" \
 dblab config remove test \
   || echo "Removing CLI configuration finished with errors but it is OK to ignore them."
 
-# The source database directories under ${DLE_TEST_DATA_DIR:-/var/tmp/dle_test} are intentionally
-# left in place: 2.logical_generic.sh and 4.physical_basebackup.sh reuse them across jobs instead of
-# reloading pgbench every run. They are bounded (one per script per PG major) and disk-backed.
-# Because nothing removes them here, each of those scripts validates its own directory on start via
-# _source_data.sh and discards one an interrupted run left unusable.
+# Remove the source database directories of 2.logical_generic.sh and 4.physical_basebackup.sh. They
+# are rebuilt on every run and must not outlive the job. Only these subdirectories go: the override
+# can point at a directory that holds other data.
+DLE_TEST_DATA_ROOT="${DLE_TEST_DATA_DIR:-/var/lib/dle_test}"
+sudo rm -rf "${DLE_TEST_DATA_ROOT}/logical_generic" "${DLE_TEST_DATA_ROOT}/physical_basebackup" \
+  || echo "Cleaning up source data directory finished with errors but it is OK to ignore them."
 
 # Clean up engine meta directory, which every test mounts into the container. A sessions.json or
 # pending.retrieval left by an earlier run is read back by the engine on start.
