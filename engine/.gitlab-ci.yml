@@ -719,8 +719,12 @@ publish-binary-client-rc:
       fi
   after_script:
     - bash engine/test/_cleanup.sh
+  # A dedicated shell runner per host with `limit = 1`. The scripts own the host while they run - one
+  # pool name, fixed container names and ports, and a cleanup that removes every dblab_test container -
+  # so two of these jobs on one host destroy each other. The shared `dle-test` shell runners run
+  # other projects' jobs concurrently and must not pick these up.
   tags:
-    - dle-test
+    - dle-e2e
 
 # MR pipelines: Only run PG 17 and PG 18 to reduce queue time
 # (10 jobs competing for 2 runners was causing 35+ min queue times)
@@ -840,7 +844,7 @@ integration-test:
     # These tests read a clone directory that containers write, so they need a daemon that shares
     # this job's filesystem. The docker:dind service below does not provide that, so the upgrade
     # tests currently SKIP here rather than run - `make test-ci-integration` passes -v so the trace
-    # says so plainly. Moving this job to a runner whose daemon is local (the dle-test shell
+    # says so plainly. Moving this job to a runner whose daemon is local (the dle-e2e shell
     # runners are) and setting DBLAB_UPGRADE_TESTS_REQUIRED: "true" turns those skips into
     # failures and makes the coverage real; until then this job does not exercise pg_upgrade.
     DBLAB_PG_UPGRADE_IMAGE: "${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/pg-upgrade:17-${CI_COMMIT_REF_SLUG}"
@@ -852,6 +856,6 @@ integration-test:
     # runners bind-mount - the dind service above is not reachable that way, and DOCKER_HOST stays
     # commented out above for the filesystem-sharing reason already noted. Instance runners expose
     # no such socket, so every test that starts a container fails there. Both tags are required so
-    # this lands on hetzner-gitlab-runner-01/02 and not on the dle-test shell runners.
+    # this lands on the gitlab-runner-03/04-socket runners and not on the shell runners.
     - hetzner-runner
     - docker

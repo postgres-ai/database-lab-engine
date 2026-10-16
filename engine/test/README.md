@@ -1,9 +1,13 @@
 # End-to-end test scripts
 
 Each script provisions a ZFS pool, starts `dblab-server` from a built image, drives it through the
-CLI, and cleans up after itself. They run on the `dle-test` shell runners in the `e2e` stage of
+CLI, and cleans up after itself. They run on the `dle-e2e` shell runners in the `e2e` stage of
 `engine/.gitlab-ci.yml` — on merge requests, on `master`, and on `v*` tags, which must pass the full
 matrix before any publish job runs.
+
+The scripts share host-wide state: the `test_dblab_pool` pool, fixed container names and ports,
+`~/.dblab/engine/meta`, and a cleanup that removes every container labeled `dblab_test`. Two runs
+on one host destroy each other, so the `dle-e2e` runner on each host is configured with `limit = 1`.
 
 | Script | Retrieval mode | Run by |
 |---|---|---|

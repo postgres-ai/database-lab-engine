@@ -4,7 +4,7 @@ Verifies that the engine can build a pool from a WAL-G base backup, that it tole
 `postgresql.conf` raises parameters constrained by `pg_controldata`, and that both the clone and the
 main data directory shut down cleanly.
 
-This runs by hand. CI cannot: the `dle-test` jobs use the shell executor, where GitLab `services:`
+This runs by hand. CI cannot: the `dle-e2e` jobs use the shell executor, where GitLab `services:`
 are unavailable, and the procedure needs a WAL-G archive that already holds a base backup — nothing
 in this repository produces one.
 

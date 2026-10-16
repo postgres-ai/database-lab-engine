@@ -28,7 +28,7 @@ DIR=${0%/*}
 if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
 ### Step 0. Create source database
   # A fresh source cluster per run, on disk. _cleanup.sh removes the whole data tree before and after
-  # every job, so nothing in it outlives the job. Not under /tmp: on the dle-test runners it is a
+  # every job, so nothing in it outlives the job. Not under /tmp: on the dle-e2e runners it is a
   # tmpfs sized at half of RAM.
   SOURCE_DATA_DIR="${DLE_TEST_DATA_DIR:-/var/lib/dle_test}/logical_generic/postgresql/${POSTGRES_VERSION}"
   sudo rm -rf "${SOURCE_DATA_DIR}"
