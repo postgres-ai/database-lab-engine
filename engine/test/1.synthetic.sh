@@ -119,8 +119,12 @@ sudo docker run \
   --detach \
   "${IMAGE2TEST}"
 
-# Check the Database Lab Engine logs
+# Check the Database Lab Engine logs. The follower inherits the job's output, which the runner
+# waits on, so it has to die with the script or a failing run sits at the job timeout instead of
+# failing.
 sudo docker logs ${DLE_SERVER_NAME} -f 2>&1 | awk '{print "[CONTAINER ${DLE_SERVER_PORT}]: "$0}' &
+LOG_FOLLOWER_PID=$!
+trap 'kill "${LOG_FOLLOWER_PID}" 2>/dev/null || true' EXIT
 
 check_dle_readiness(){
   if [[ $(curl --silent --header 'Verification-Token: secret_token' --header 'Content-Type: application/json' http://localhost:${DLE_SERVER_PORT}/status | jq -r .retrieving.status) ==  "finished" ]] ; then

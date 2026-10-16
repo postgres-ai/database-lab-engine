@@ -27,12 +27,11 @@ DIR=${0%/*}
 
 if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
 ### Step 0. Create source database
-  # Deliberately disk-backed, not under /tmp: check_data_existence below reuses this source cluster
-  # across jobs, and on Ubuntu >= 25.04 - which the dle-test runners run - /tmp is a tmpfs sized at
-  # half of RAM. A full PG matrix leaves ~0.6-1 GB per major here and exhausts it mid-run.
-  TMP_DATA_DIR="${DLE_TEST_DATA_DIR:-/var/tmp/dle_test}/logical_generic"
-  SOURCE_DATA_DIR="${TMP_DATA_DIR}/postgresql/${POSTGRES_VERSION}/test"
-  source "${DIR}/_source_data.sh"
+  # A fresh source cluster per run, on disk. _cleanup.sh removes the whole data tree before and after
+  # every job, so nothing in it outlives the job. Not under /tmp: on the dle-test runners it is a
+  # tmpfs sized at half of RAM.
+  SOURCE_DATA_DIR="${DLE_TEST_DATA_DIR:-/var/lib/dle_test}/logical_generic/postgresql/${POSTGRES_VERSION}"
+  sudo rm -rf "${SOURCE_DATA_DIR}"
 
   sudo docker rm postgres"${POSTGRES_VERSION}" || true
 
@@ -62,32 +61,18 @@ if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
   done
 
   # Without this the loop above just falls through and pgbench runs against a dead server, which
-  # reports the failure far from its cause. The source data is dropped on the way out so the next
-  # job rebuilds it: a cluster the entrypoint considers initialized but an interrupted run left
-  # half-built is inherited by every later run for this major on this runner, and with release tags
-  # gated on the matrix one such directory blocks the release.
+  # reports the failure far from its cause.
   if ! check_database_readiness; then
-    sudo docker rm -f postgres"${POSTGRES_VERSION}" || true
-    discard_source_data "the source database did not become ready"
     echo "ERROR: the source database is not ready" >&2
     exit 1
   fi
 
-  check_data_existence(){
-    sudo docker exec postgres"${POSTGRES_VERSION}" psql -d "${SOURCE_DBNAME}" -U postgres --command 'select from pgbench_accounts' > /dev/null 2>&1
-    return $?
-  }
+  # Generate data in the test database using pgbench
+  # 1,000,000 accounts, ~0.14 GiB of data.
+  sudo docker exec postgres"${POSTGRES_VERSION}" pgbench -U postgres -i -s 10 "${SOURCE_DBNAME}"
 
-  generate_data(){
-    # Generate data in the test database using pgbench
-    # 1,000,000 accounts, ~0.14 GiB of data.
-    sudo docker exec postgres"${POSTGRES_VERSION}" pgbench -U postgres -i -s 10 "${SOURCE_DBNAME}"
-
-    # Database info
-    sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c "\l+ ${SOURCE_DBNAME}"
-  }
-
-  check_data_existence || generate_data
+  # Database info
+  sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c "\l+ ${SOURCE_DBNAME}"
 fi
 
 ### Step 1. Prepare a machine with disk, Docker, and ZFS
@@ -153,8 +138,12 @@ sudo docker run \
   --detach \
   "${IMAGE2TEST}"
 
-# Check the Database Lab Engine logs
+# Check the Database Lab Engine logs. The follower inherits the job's output, which the runner
+# waits on, so it has to die with the script or a failing run sits at the job timeout instead of
+# failing.
 sudo docker logs ${DLE_SERVER_NAME} -f 2>&1 | awk '{print "[CONTAINER dblab_server]: "$0}' &
+LOG_FOLLOWER_PID=$!
+trap 'kill "${LOG_FOLLOWER_PID}" 2>/dev/null || true' EXIT
 
 check_dle_running(){
   if [[ $(curl --silent --header 'Verification-Token: secret_token' --header 'Content-Type: application/json' http://localhost:${DLE_SERVER_PORT}/status | jq -r .status.code) ==  "OK" ]] ; then

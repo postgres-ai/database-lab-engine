@@ -54,7 +54,17 @@ func TestContainerOutputCollection(t *testing.T) {
 
 	ctx := context.Background()
 
-	networks.Setup(ctx, docker, engProps.InstanceID, id)
+	// only the network is needed: embeddedUI.Run connects its container to it. Setup's own connect
+	// step fails because no container is named id, and the network outlives that error.
+	_, _ = networks.Setup(ctx, docker, engProps.InstanceID, id)
+
+	// the instance ID is unique per run, so a network left behind is never reused and every run
+	// would take another subnet from the daemon's address pools. t.Cleanup runs after the deferred
+	// container removal below, once nothing is attached to the network.
+	t.Cleanup(func() {
+		_, err := docker.NetworkRemove(context.Background(), networks.NetworkPrefix+engProps.InstanceID, client.NetworkRemoveOptions{})
+		assert.NoError(t, err)
+	})
 
 	defer func() {
 		tools.StopContainer(ctx, docker, "dblab_embedded_ui_"+id, 10)

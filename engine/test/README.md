@@ -13,8 +13,8 @@ matrix before any publish job runs.
 | `6.clone_upgrade.sh` | clone major-version upgrade | `.bash-test-base` |
 
 The helpers are shared: `_prerequisites.ubuntu.sh` installs Docker, ZFS and the CLI tools,
-`_zfs.file.sh` creates a file-backed pool, `_cleanup.sh` tears containers and datasets down, and
-`_source_data.sh` validates the reusable source-database directory before it is bound as PGDATA.
+`_zfs.file.sh` creates a file-backed pool, and `_cleanup.sh` tears containers, datasets and source
+data down.
 
 ## The gaps at 3 and 5
 
@@ -30,8 +30,10 @@ searchable.
 
 ## Source data directories
 
-`2.logical_generic.sh` and `4.physical_basebackup.sh` keep their source cluster under
-`${DLE_TEST_DATA_DIR:-/var/tmp/dle_test}/<script>` and reuse it across jobs instead of reloading
-pgbench every run. The default is deliberately disk-backed: on Ubuntu >= 25.04 `/tmp` is a tmpfs
-sized at half of RAM, and a full PG matrix exhausts it (#781). Override `DLE_TEST_DATA_DIR` to move
-the data elsewhere.
+`2.logical_generic.sh` and `4.physical_basebackup.sh` build a fresh source cluster on every run
+under `${DLE_TEST_DATA_DIR:-/var/lib/dle_test}/<script>`, and `_cleanup.sh` removes that tree
+before and after every job. The cluster is deliberately not reused across jobs: loading pgbench
+takes seconds, while a kept directory inherits whatever an interrupted run or the host's cleanup
+policy did to it. The default is on disk rather than under `/tmp`, which on Ubuntu >= 25.04 is a
+tmpfs sized at half of RAM (#781). Override `DLE_TEST_DATA_DIR` to put the data elsewhere; only the
+`<script>` subdirectories under it are removed.

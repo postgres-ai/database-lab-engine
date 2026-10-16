@@ -26,11 +26,11 @@ DIR=${0%/*}
 
 if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
 ### Step 0. Create source database
-  # Disk-backed for the same reason as 2.logical_generic.sh: the source cluster is reused across
-  # jobs and /tmp is a half-of-RAM tmpfs on the dle-test runners.
-  TMP_DATA_DIR="${DLE_TEST_DATA_DIR:-/var/tmp/dle_test}/physical_basebackup"
-  SOURCE_DATA_DIR="${TMP_DATA_DIR}/postgresql/${POSTGRES_VERSION}/test"
-  source "${DIR}/_source_data.sh"
+  # A fresh source cluster per run, on disk. _cleanup.sh removes the whole data tree before and after
+  # every job, so nothing in it outlives the job. Not under /tmp: on the dle-test runners it is a
+  # tmpfs sized at half of RAM.
+  SOURCE_DATA_DIR="${DLE_TEST_DATA_DIR:-/var/lib/dle_test}/physical_basebackup/postgresql/${POSTGRES_VERSION}"
+  sudo rm -rf "${SOURCE_DATA_DIR}"
 
   sudo docker rm postgres"${POSTGRES_VERSION}" || true
 
@@ -60,13 +60,8 @@ if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
   done
 
   # Without this the loop above just falls through and the pg_hba.conf edit below runs against a
-  # dead server, which reports the failure far from its cause. The source data is dropped on the way
-  # out so the next job rebuilds it: a cluster the entrypoint considers initialized but an
-  # interrupted run left half-built is inherited by every later run for this major on this runner,
-  # and with release tags gated on the matrix one such directory blocks the release.
+  # dead server, which reports the failure far from its cause.
   if ! check_database_readiness; then
-    sudo docker rm -f postgres"${POSTGRES_VERSION}" || true
-    discard_source_data "the source database did not become ready"
     echo "ERROR: the source database is not ready" >&2
     exit 1
   fi
@@ -76,21 +71,12 @@ if [[ "${SOURCE_HOST}" = "172.17.0.1" ]]; then
   # reload conf
   sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c 'select pg_reload_conf()'
 
-  check_data_existence(){
-    sudo docker exec postgres"${POSTGRES_VERSION}" psql -d test -U postgres --command 'select from pgbench_accounts' > /dev/null 2>&1
-    return $?
-  }
+  # Generate data in the test database using pgbench
+  # 1,000,000 accounts, ~0.14 GiB of data.
+  sudo docker exec postgres"${POSTGRES_VERSION}" pgbench -U postgres -i -s 10 test
 
-  generate_data(){
-    # Generate data in the test database using pgbench
-    # 1,000,000 accounts, ~0.14 GiB of data.
-    sudo docker exec postgres"${POSTGRES_VERSION}" pgbench -U postgres -i -s 10 test
-
-    # Database info
-    sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c "\l+ test"
-  }
-
-  check_data_existence || generate_data
+  # Database info
+  sudo docker exec postgres"${POSTGRES_VERSION}" psql -U postgres -c "\l+ test"
 fi
 
 ### Step 1. Prepare a machine with disk, Docker, and ZFS
@@ -155,14 +141,22 @@ sudo docker run \
   --detach \
   "${IMAGE2TEST}"
 
-cleanup_service_containers() {
+LOG_FOLLOWER_PID=""
+
+cleanup_on_exit() {
   sudo docker ps -aq --filter label="dblab_engine_name=${DLE_SERVER_NAME}" | xargs --no-run-if-empty sudo docker rm -f
+  if [[ -n "${LOG_FOLLOWER_PID}" ]]; then
+    kill "${LOG_FOLLOWER_PID}" 2>/dev/null || true
+  fi
 }
 
-trap cleanup_service_containers EXIT
+trap cleanup_on_exit EXIT
 
-# Check the Database Lab Engine logs
+# Check the Database Lab Engine logs. The follower inherits the job's output, which the runner
+# waits on, so it has to die with the script or a failing run sits at the job timeout instead of
+# failing.
 sudo docker logs ${DLE_SERVER_NAME} -f 2>&1 | awk '{print "[CONTAINER dblab_server]: "$0}' &
+LOG_FOLLOWER_PID=$!
 
 check_dle_readiness(){
   if [[ $(curl --silent --header 'Verification-Token: secret_token' --header 'Content-Type: application/json' http://localhost:${DLE_SERVER_PORT}/status | jq -r .retrieving.status) ==  "finished" ]] ; then
@@ -265,8 +259,8 @@ else
   echo "ERROR: the log directory \"$LOG_DIR\" does not exist" && exit 1
 fi
 
-## Stop control containers.
-cleanup_service_containers
+## Stop control containers and the log follower.
+cleanup_on_exit
 
 ### Finish. clean up
 source "${DIR}/_cleanup.sh"
