@@ -359,7 +359,7 @@ func (r *RestoreJob) getDBList(ctx context.Context, contID string) (map[string]D
 	return r.discoverDumpLocation(ctx, contID)
 }
 
-// discoverDumpLocation explores dump file to identify its type.
+// exploreDumpFile explores dump file to identify its type.
 func (r *RestoreJob) exploreDumpFile(ctx context.Context, contID, dumpPath string) (*DumpDefinition, error) {
 	// Detect if dump is custom.
 	dbName, err := r.extractDBNameFromDump(ctx, contID, dumpPath)
@@ -405,7 +405,7 @@ func (r *RestoreJob) exploreDumpFile(ctx context.Context, contID, dumpPath strin
 
 // extractDBNameFromDump discovers dump to extract the database name.
 func (r *RestoreJob) extractDBNameFromDump(ctx context.Context, contID, dumpPath string) (string, error) {
-	extractDBNameCmd := fmt.Sprintf("pg_restore --list %s | grep %s | tr -d '[;]'", dumpPath, prefixDBName)
+	extractDBNameCmd := buildExtractDBNameCommand(dumpPath)
 	log.Msg("Extract database name: ", extractDBNameCmd)
 
 	outputLine, err := tools.ExecCommandWithOutput(ctx, r.dockerClient, contID, client.ExecCreateOptions{
@@ -422,6 +422,12 @@ func (r *RestoreJob) extractDBNameFromDump(ctx context.Context, contID, dumpPath
 	dbName := strings.TrimSpace(strings.TrimPrefix(outputLine, prefixDBName))
 
 	return dbName, nil
+}
+
+// buildExtractDBNameCommand reads the database name from an archive TOC.
+// pipefail makes a pg_restore failure on a non-archive file fail the whole pipeline instead of being masked by tr.
+func buildExtractDBNameCommand(dumpPath string) string {
+	return fmt.Sprintf("set -o pipefail; pg_restore --list %s | grep %s | tr -d '[;]'", shellQuote(dumpPath), prefixDBName)
 }
 
 func (r *RestoreJob) parsePlainFile(dumpPath string) (string, error) {
@@ -551,6 +557,7 @@ func (r *RestoreJob) restoreDB(ctx context.Context, contID, dbName string, dbDef
 		log.Msg("Skipping policies is not available for plain-text dump. Policies will be restored for " + dbName)
 	}
 
+	// pg_restore cannot list a plain-text dump, so the list file is built for archive formats only.
 	if r.RestoreOptions.SkipPolicies && dbDefinition.Format != plainFormat {
 		listFile, err := r.createPolicyListFile(ctx, contID, dbName, dbDefinition)
 		if err != nil {
@@ -866,16 +873,26 @@ func (r *RestoreJob) buildPlainTextCommand(dumpName string, definition DumpDefin
 
 	return []string{
 		"sh", "-c", fmt.Sprintf("%s %s | psql --username %s --dbname %s", getReadingArchiveCommand(definition.Compression),
-			r.getDumpLocation(definition.Format, dumpName), r.globalCfg.Database.User(), dbName),
+			shellQuote(r.getDumpLocation(definition.Format, dumpName)), r.globalCfg.Database.User(), dbName),
 	}
+}
+
+// restoreTargetName returns the name used to decide whether pg_restore needs --create: the TOC name when known,
+// otherwise the database-list key of an explicit `databases` entry. pg_restore itself takes the target from the TOC.
+func restoreTargetName(dumpName string, definition DumpDefinition) string {
+	if definition.dbName != "" {
+		return definition.dbName
+	}
+
+	return dumpName
 }
 
 func (r *RestoreJob) buildPGRestoreCommand(dumpName string, definition DumpDefinition, listFile *os.File) []string {
 	// Using the default database name because the database for connection must exist.
 	restoreCmd := []string{"pg_restore", "--username", r.globalCfg.Database.User(), "--dbname", defaults.DBName}
 
-	if definition.dbName != defaults.DBName {
-		// To avoid recreating of the default database.
+	if restoreTargetName(dumpName, definition) != defaults.DBName {
+		// --create is skipped for the default database because it already exists.
 		restoreCmd = append(restoreCmd, "--create")
 	}
 
