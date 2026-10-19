@@ -313,6 +313,24 @@ func TestRestoreCommandBuilding(t *testing.T) {
 		},
 		{
 			copyOptions: RestoreOptions{
+				ParallelJobs:  2,
+				Databases:     map[string]DumpDefinition{"postgres": {}},
+				DumpLocation:  "/tmp/db.dump",
+				CustomOptions: []string{"--exit-on-error"},
+			},
+			command: []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--jobs", "2", "/tmp/db.dump/postgres", "--exit-on-error"},
+		},
+		{
+			copyOptions: RestoreOptions{
+				ParallelJobs: 2,
+				Databases:    map[string]DumpDefinition{"postgres.dump": {Format: customFormat, dbName: "postgres"}},
+				DumpLocation: "/tmp/db.dump",
+			},
+			isDumpLocationDir: true,
+			command:           []string{"pg_restore", "--username", "john", "--dbname", "postgres", "--jobs", "2", "/tmp/db.dump/postgres.dump"},
+		},
+		{
+			copyOptions: RestoreOptions{
 				ParallelJobs: 1,
 				Databases: map[string]DumpDefinition{
 					"testDB": {
@@ -336,7 +354,7 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				DumpLocation: "/tmp/db.dump",
 			},
 			isDumpLocationDir: true,
-			command:           []string{"sh", "-c", "cat /tmp/db.dump/testDB.dump | psql --username john --dbname postgres"},
+			command:           []string{"sh", "-c", "cat '/tmp/db.dump/testDB.dump' | psql --username john --dbname postgres"},
 		},
 		{
 			copyOptions: RestoreOptions{
@@ -348,7 +366,7 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				DumpLocation: "/tmp/db.dump",
 			},
 			isDumpLocationDir: true,
-			command:           []string{"sh", "-c", "cat /tmp/db.dump/testDB.dump | psql --username john --dbname testDB"},
+			command:           []string{"sh", "-c", "cat '/tmp/db.dump/testDB.dump' | psql --username john --dbname testDB"},
 		},
 		{
 			copyOptions: RestoreOptions{
@@ -360,7 +378,15 @@ func TestRestoreCommandBuilding(t *testing.T) {
 				DumpLocation: "/tmp/db.dump",
 			},
 			isDumpLocationDir: false,
-			command:           []string{"sh", "-c", "cat /tmp/db.dump | psql --username john --dbname testDB"},
+			command:           []string{"sh", "-c", "cat '/tmp/db.dump' | psql --username john --dbname testDB"},
+		},
+		{
+			copyOptions: RestoreOptions{
+				Databases:    map[string]DumpDefinition{"my app.sql.gz": {Format: plainFormat, Compression: gzipCompression}},
+				DumpLocation: "/tmp/db.dump",
+			},
+			isDumpLocationDir: true,
+			command:           []string{"sh", "-c", "gunzip -c '/tmp/db.dump/my app.sql.gz' | psql --username john --dbname my_app_sql"},
 		},
 	}
 
@@ -544,6 +570,17 @@ func TestDiscoverDumpDirectories(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, expectedMap, dumpDirectories)
+}
+
+func TestExtractDBNameCommandBuilding(t *testing.T) {
+	testCases := []struct{ dumpPath, expected string }{
+		{dumpPath: "/dump/app", expected: "set -o pipefail; pg_restore --list '/dump/app' | grep dbname: | tr -d '[;]'"},
+		{dumpPath: "/dump/my app.dump", expected: "set -o pipefail; pg_restore --list '/dump/my app.dump' | grep dbname: | tr -d '[;]'"},
+	}
+
+	for _, tc := range testCases {
+		assert.Equal(t, tc.expected, buildExtractDBNameCommand(tc.dumpPath))
+	}
 }
 
 func TestDumpLocation(t *testing.T) {
