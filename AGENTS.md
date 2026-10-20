@@ -15,4 +15,8 @@ The skill lives in [postgres-ai/air](https://gitlab.com/postgres-ai/air/-/tree/m
 claude plugin install feature-loop --marketplace git@gitlab.com:postgres-ai/air.git
 ```
 
+Then turn on auto-update, which Claude Code leaves off for this marketplace: run `/plugin`, open
+**Marketplaces**, select `air`, and choose **Enable auto-update**. Without it you keep the version
+you first installed.
+
 If the skill isn't installed, carry on without it.
