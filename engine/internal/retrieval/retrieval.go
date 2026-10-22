@@ -725,9 +725,6 @@ func (r *Retrieval) FullRefresh(ctx context.Context) error {
 	// Release the slot on every return path, including the early ones below.
 	defer r.State.FinishRefresh()
 
-	// Stop previous runs and snapshot schedulers.
-	runCtx := r.restartRunContext(ctx)
-
 	if err := r.HasAvailablePool(); err != nil {
 		alert := telemetry.Alert{
 			Level:   models.RefreshSkipped,
@@ -749,6 +746,10 @@ func (r *Retrieval) FullRefresh(ctx context.Context) error {
 	}
 
 	log.Msg("Pool selected to perform full refresh: ", poolToUpdate.Pool())
+
+	// stop previous runs and snapshot schedulers only once the refresh is going to happen:
+	// a skipped refresh must leave the sync instance monitor and the snapshot scheduler running.
+	runCtx := r.restartRunContext(ctx)
 
 	// Stop service containers: sync-instance, etc.
 	if cleanUpErr := cont.CleanUpControlContainers(runCtx, r.docker, r.engineProps.InstanceID); cleanUpErr != nil {

@@ -399,6 +399,15 @@ func TestFullRefreshReleasesTheSlotOnEveryReturn(t *testing.T) {
 	}
 }
 
+func TestSkippedFullRefreshKeepsTheCurrentRun(t *testing.T) {
+	r := newRefreshTestRetrieval()
+	current := r.restartRunContext(context.Background())
+
+	require.NoError(t, r.FullRefresh(context.Background()))
+	assert.Equal(t, ErrNoAvailablePool.Error(), r.State.Alerts()[models.RefreshSkipped].Message)
+	assert.NoError(t, current.Err())
+}
+
 func TestFullRefreshReportsPendingState(t *testing.T) {
 	r := newRefreshTestRetrieval()
 	r.State.SetStatus(models.Pending)
