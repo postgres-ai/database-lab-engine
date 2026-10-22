@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 )
 
 func TestInitParamsExtraction(t *testing.T) {
@@ -84,6 +85,19 @@ some_other_param setting:             value
 	settings, err := extractControlDataParams(context.Background(), controlDataOutput)
 	require.NoError(t, err)
 	assert.Empty(t, settings)
+}
+
+func TestBuildSyncInstanceConfig_HealthCheckTargetsLocalSocket(t *testing.T) {
+	r := &RestoreJob{
+		fsPool:      &resources.Pool{MountDir: "/", PoolDirName: "pgdata"},
+		globalCfg:   &global.Config{},
+		engineProps: &global.EngineProps{},
+		CopyOptions: CopyOptions{Envs: map[string]string{"PGHOST": "source.example.com", "PGPORT": "7432"}},
+	}
+
+	cfg, err := r.buildSyncInstanceConfig()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"CMD-SHELL", "pg_isready -h /var/run/postgresql -p 5432 -U postgres -d postgres"}, cfg.Healthcheck.Test)
 }
 
 func TestRestoreJobReload_CustomOptions(t *testing.T) {

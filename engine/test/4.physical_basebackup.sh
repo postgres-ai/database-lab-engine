@@ -241,6 +241,45 @@ PGPASSWORD=secret_password psql \
 dblab clone destroy testclone
 dblab clone list
 
+### Step 5. Kill Postgres in the sync instance and check that the engine restarts it
+check_sync_readiness(){
+  if [[ $(curl --silent --header 'Verification-Token: secret_token' http://localhost:${DLE_SERVER_PORT}/status | jq -r .synchronization.status.code) == "OK" ]] ; then
+      return 0
+  fi
+  return 1
+}
+
+for i in {1..60}; do
+  check_sync_readiness && break || echo "sync instance is not ready yet"
+  sleep 5
+done
+
+check_sync_readiness || (echo "ERROR: sync instance is not ready" && exit 1)
+
+SYNC_CONTAINER=$(sudo docker ps --quiet --filter label="dblab_engine_name=${DLE_SERVER_NAME}" --filter label="dblab_control=dblab_sync")
+
+sudo docker exec --user postgres "${SYNC_CONTAINER}" \
+  bash -c "/usr/lib/postgresql/${POSTGRES_VERSION}/bin/pg_ctl -D \"\${PGDATA}\" stop -m immediate"
+
+# the engine restarts the container after 30 seconds of "no response" from the health check
+check_sync_restarted(){
+  sudo docker logs ${DLE_SERVER_NAME} 2>&1 | grep "is not responding, restarting it, attempt 1 of 3" > /dev/null && check_sync_readiness
+}
+
+for i in {1..36}; do
+  check_sync_restarted && break || echo "sync instance has not been restarted yet"
+  sleep 5
+done
+
+check_sync_restarted || (echo "ERROR: sync instance has not been restarted" && exit 1)
+
+# the container is restarted in place, not recreated
+if [[ $(sudo docker ps --quiet --filter label="dblab_engine_name=${DLE_SERVER_NAME}" --filter label="dblab_control=dblab_sync") != "${SYNC_CONTAINER}" ]]; then
+  echo "ERROR: sync container has been replaced" && exit 1
+fi
+
+echo "INFO: sync instance has been restarted - OK"
+
 ## Stop DLE.
 sudo docker stop ${DLE_SERVER_NAME}
 

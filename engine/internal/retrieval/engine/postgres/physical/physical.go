@@ -29,6 +29,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/activity"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/cont"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/pgtool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
@@ -184,7 +185,11 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 					}
 
 					tools.StopContainer(ctx, r.dockerClient, r.syncInstanceName(), 1)
+
+					return
 				}
+
+				r.monitorSyncInstance(ctx)
 			}()
 		}
 	}()
@@ -340,14 +345,7 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) (err error) {
 
 	defer func() {
 		if err != nil {
-			tools.PrintContainerLogs(ctx, r.dockerClient, r.syncInstanceName())
-			tools.PrintLastPostgresLogs(ctx, r.dockerClient, r.syncInstanceName(), r.fsPool.DataDir())
-
-			filterArgs := make(client.Filters).Add("label", fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabSyncLabel))
-
-			if err := diagnostic.CollectDiagnostics(ctx, r.dockerClient, filterArgs, r.syncInstanceName(), r.fsPool.DataDir()); err != nil {
-				log.Err("failed to collect container diagnostics", err)
-			}
+			r.collectSyncDiagnostics(ctx)
 		}
 	}()
 
@@ -387,6 +385,18 @@ func (r *RestoreJob) runSyncInstance(ctx context.Context) (err error) {
 	return nil
 }
 
+// collectSyncDiagnostics prints the recent sync instance output and saves container and Postgres logs to the diagnostics directory.
+func (r *RestoreJob) collectSyncDiagnostics(ctx context.Context) {
+	tools.PrintContainerLogs(ctx, r.dockerClient, r.syncInstanceName())
+	tools.PrintLastPostgresLogs(ctx, r.dockerClient, r.syncInstanceName(), r.fsPool.DataDir())
+
+	filterArgs := make(client.Filters).Add("label", fmt.Sprintf("%s=%s", cont.DBLabControlLabel, cont.DBLabSyncLabel))
+
+	if err := diagnostic.CollectDiagnostics(ctx, r.dockerClient, filterArgs, r.syncInstanceName(), r.fsPool.DataDir()); err != nil {
+		log.Err("failed to collect container diagnostics", err)
+	}
+}
+
 func (r *RestoreJob) buildSyncInstanceConfig() (*container.Config, error) {
 	pwd, err := tools.GeneratePassword()
 	if err != nil {
@@ -404,8 +414,13 @@ func (r *RestoreJob) buildSyncInstanceConfig() (*container.Config, error) {
 		hcRetries = r.CopyOptions.Sync.HealthCheck.MaxRetries
 	}
 
+	// user-defined envs may point PGHOST and PGPORT at the source for the restore tool,
+	// so the health check targets the local socket the engine connects to.
+	hcTest := fmt.Sprintf("pg_isready -h %s -p %d -U %s -d %s",
+		cont.DefaultPostgresSocket, defaults.Port, r.globalCfg.Database.User(), r.globalCfg.Database.Name())
+
 	return r.buildContainerConfigWithHealthCheck(cont.DBLabSyncLabel, pwd,
-		health.OptionInterval(hcInterval), health.OptionRetries(hcRetries)), nil
+		health.OptionInterval(hcInterval), health.OptionRetries(hcRetries), health.OptionTest(hcTest)), nil
 }
 
 func (r *RestoreJob) buildContainerConfigWithHealthCheck(label, password string, hcOptions ...health.ContainerOption) *container.Config {
