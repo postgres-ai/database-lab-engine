@@ -1,6 +1,8 @@
 package physical
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -125,6 +127,123 @@ func TestWALGRecoveryConfig_VersionBoundary(t *testing.T) {
 				_, exists := cfg["recovery_target_timeline"]
 				assert.False(t, exists)
 			}
+		})
+	}
+}
+
+const walgDetailOutput = `INFO: 2026/10/21 11:17:27.000000 List backups from storages: [default]
+name                                                     modified             wal_segment_backup_start start_time finish_time hostname data_dir
+base_000000010000000000000004                            2026-10-20T10:00:00Z 000000010000000000000004 2026-10-20T10:00:00Z 2026-10-20T10:05:00Z db1 /var/lib/postgresql/base
+base_000000010000000000000009_D_000000010000000000000004 2026-10-21T10:00:00Z 000000010000000000000009 2026-10-21T10:00:00Z 2026-10-21T10:01:00Z db1 /var/lib/postgresql/base
+`
+
+const walgListOutput = `name                          modified             wal_segment_backup_start
+base_00000002000000000000000A 2026-10-21T10:00:00Z 00000002000000000000000A
+base_000000010000000000000004 2026-10-20T10:00:00Z 000000010000000000000004
+`
+
+func TestWALGBackupNames(t *testing.T) {
+	testCases := []struct {
+		name            string
+		output          string
+		expectedNames   []string
+		expectedLast    string
+		expectedHighest string
+	}{
+		{name: "empty output", output: ""},
+		{name: "no backups found", output: "INFO: 2026/10/21 11:17:27.000000 No backups found"},
+		{name: "header only", output: "name modified wal_segment_backup_start"},
+		{
+			name: "detail output with log line", output: walgDetailOutput,
+			expectedNames:   []string{"base_000000010000000000000004", "base_000000010000000000000009_D_000000010000000000000004"},
+			expectedLast:    "base_000000010000000000000009_D_000000010000000000000004",
+			expectedHighest: "base_000000010000000000000009_D_000000010000000000000004",
+		},
+		{
+			name: "list output out of order", output: walgListOutput,
+			expectedNames:   []string{"base_00000002000000000000000A", "base_000000010000000000000004"},
+			expectedLast:    "base_000000010000000000000004",
+			expectedHighest: "base_00000002000000000000000A",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expectedNames, backupNames(tc.output))
+			assert.Equal(t, tc.expectedLast, lastListedBackup(tc.output))
+			assert.Equal(t, tc.expectedHighest, highestBackupName(tc.output))
+		})
+	}
+}
+
+type execResult struct {
+	output string
+	err    error
+}
+
+func TestWALGInitLatestBackup(t *testing.T) {
+	const (
+		v2       = "wal-g version v2.0.0\t1eb88a5\t2022.05.20_10:45:57\tPostgreSQL"
+		v0       = "wal-g version v0.2.19\t1eb88a5\t2021.01.01_10:00:00\tPostgreSQL"
+		detail   = "wal-g backup-list --detail 2>&1"
+		list     = "wal-g backup-list 2>&1"
+		denied   = "ERROR: 2026/10/21 11:17:27.000000 AccessDenied: Access Denied status code: 403"
+		noBackup = "INFO: 2026/10/21 11:17:27.000000 No backups found"
+	)
+
+	exitErr := errors.New("exit code: 1")
+
+	testCases := []struct {
+		name          string
+		results       map[string]execResult
+		expectedName  string
+		expectedError string
+	}{
+		{
+			name:         "detail output gives the last listed backup",
+			results:      map[string]execResult{detail: {output: walgDetailOutput}},
+			expectedName: "base_000000010000000000000009_D_000000010000000000000004",
+		},
+		{
+			name:         "detail failure falls back to the plain list",
+			results:      map[string]execResult{detail: {output: "unknown flag: --detail", err: exitErr}, list: {output: walgListOutput}},
+			expectedName: "base_00000002000000000000000A",
+		},
+		{
+			name:          "wal-g error output reaches the caller",
+			results:       map[string]execResult{"wal-g --version": {output: v0}, list: {output: denied, err: exitErr}},
+			expectedError: "failed to list wal-g backups: exit code: 1: " + denied,
+		},
+		{
+			name:          "empty storage reports no backups",
+			results:       map[string]execResult{detail: {output: noBackup}},
+			expectedError: "no backups found in the configured storage",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			results := map[string]execResult{"wal-g --version": {output: v2}}
+			for cmd, res := range tc.results {
+				results[cmd] = res
+			}
+
+			w := newWALG(nil, "dataDir", walgOptions{BackupName: "latest"})
+			w.exec = func(_ context.Context, containerID, cmd string) (string, error) {
+				res, ok := results[cmd]
+				require.True(t, ok, "unexpected command %q in container %q", cmd, containerID)
+
+				return res.output, res.err
+			}
+
+			err := w.Init(context.Background(), "containerID")
+			if tc.expectedError != "" {
+				require.ErrorContains(t, err, tc.expectedError)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedName, w.parsedBackupName)
 		})
 	}
 }
