@@ -73,7 +73,7 @@
     "cypress": "^15.21.1",
     "eslint": "^9.27.0",
     "eslint-plugin-cypress": "^6.2.2",
-    "happy-dom": "^20.9.0",
+    "happy-dom": "^21.0.4",
     "monaco-editor": "^0.55.0",
     "postcss": "8.5.23",
     "prettier": "^2.8.8",
@@ -81,9 +81,9 @@
     "stylelint": "^14.0.1",
     "stylelint-config-standard-scss": "^2.0.1",
     "stylelint-prettier": "^2.0.0",
-    "vite": "6.4.3",
+    "vite": "6.4.4",
     "vite-plugin-checker": "^0.9.1",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.11"
   }
 }
