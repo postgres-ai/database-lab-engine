@@ -55,7 +55,7 @@ func getFieldTag(value reflect.StructField) (*fieldTag, error) {
 		groups = strings.Split(groupTag, ",")
 	}
 
-	if value.Type.Kind() == reflect.Ptr {
+	if value.Type.Kind() == reflect.Pointer {
 		isPtr = true
 		fType = ptypes.MapKindToType(value.Type.Elem().Kind())
 	} else {

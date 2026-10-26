@@ -8,7 +8,9 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 default:
-  image: golang:1.26.9
+  image:
+    name: golang:1.27
+    pull_policy: always
   interruptible: true  # All jobs can be cancelled by default
 
 # Publishing has to come after the tests that qualify the artifact, and `needs:` cannot point at a
@@ -126,7 +128,9 @@ lint:
 ### Build binary.
 build-binary-alpine:
   <<: *only_engine
-  image: golang:1.26.9-alpine
+  image:
+    name: golang:1.27-alpine
+    pull_policy: always
   stage: build-binary
   artifacts:
     paths:

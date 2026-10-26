@@ -11,6 +11,7 @@ import (
 
 const (
 	namespace = "dblab"
+	poolLabel = "pool"
 )
 
 // Status codes for numeric status gauges.
@@ -120,7 +121,7 @@ func NewMetrics() *Metrics {
 				Name:      "disk_total_bytes",
 				Help:      "Total disk space in bytes",
 			},
-			[]string{"pool"},
+			[]string{poolLabel},
 		),
 		DiskFree: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -128,7 +129,7 @@ func NewMetrics() *Metrics {
 				Name:      "disk_free_bytes",
 				Help:      "Free disk space in bytes",
 			},
-			[]string{"pool"},
+			[]string{poolLabel},
 		),
 		DiskUsed: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -136,7 +137,7 @@ func NewMetrics() *Metrics {
 				Name:      "disk_used_bytes",
 				Help:      "Used disk space in bytes",
 			},
-			[]string{"pool"},
+			[]string{poolLabel},
 		),
 		DiskUsedBySnapshots: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -144,7 +145,7 @@ func NewMetrics() *Metrics {
 				Name:      "disk_used_by_snapshots_bytes",
 				Help:      "Disk space used by snapshots in bytes",
 			},
-			[]string{"pool"},
+			[]string{poolLabel},
 		),
 		DiskUsedByClones: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -152,7 +153,7 @@ func NewMetrics() *Metrics {
 				Name:      "disk_used_by_clones_bytes",
 				Help:      "Disk space used by clones in bytes",
 			},
-			[]string{"pool"},
+			[]string{poolLabel},
 		),
 		DiskDataSize: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -160,7 +161,7 @@ func NewMetrics() *Metrics {
 				Name:      "disk_data_size_bytes",
 				Help:      "Size of the data directory in bytes",
 			},
-			[]string{"pool"},
+			[]string{poolLabel},
 		),
 		DiskCompressRatio: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -168,7 +169,7 @@ func NewMetrics() *Metrics {
 				Name:      "disk_compress_ratio",
 				Help:      "Compression ratio of the filesystem",
 			},
-			[]string{"pool"},
+			[]string{poolLabel},
 		),
 		PoolStatus: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -176,7 +177,7 @@ func NewMetrics() *Metrics {
 				Name:      "pool_status",
 				Help:      "Status of the pool (1=active for status)",
 			},
-			[]string{"pool", "mode", "status"},
+			[]string{poolLabel, "mode", "status"},
 		),
 
 		// clone aggregate metrics
@@ -266,7 +267,7 @@ func NewMetrics() *Metrics {
 				Name:      "snapshots_by_pool",
 				Help:      "Number of snapshots by pool",
 			},
-			[]string{"pool"},
+			[]string{poolLabel},
 		),
 		SnapshotMaxAgeSeconds: prometheus.NewGauge(
 			prometheus.GaugeOpts{
@@ -320,7 +321,7 @@ func NewMetrics() *Metrics {
 				Name:      "datasets_total",
 				Help:      "Total number of datasets (slots) in the pool",
 			},
-			[]string{"pool"},
+			[]string{poolLabel},
 		),
 		DatasetsAvailable: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -328,7 +329,7 @@ func NewMetrics() *Metrics {
 				Name:      "datasets_available",
 				Help:      "Number of available (non-busy) dataset slots for reuse",
 			},
-			[]string{"pool"},
+			[]string{poolLabel},
 		),
 
 		// sync instance metrics (physical mode)

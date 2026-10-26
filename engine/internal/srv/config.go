@@ -31,6 +31,7 @@ import (
 const (
 	connectionCheckTimeout = 10 * time.Second
 	configManagementDenied = "configuration management via UI/API disabled by admin"
+	sensitiveGroup         = "sensitive"
 )
 
 func (s *Server) getProjectedAdminConfig(w http.ResponseWriter, r *http.Request) {
@@ -296,7 +297,7 @@ func restoreMaskedEnvs(proj *models.ConfigProjection, node *yaml.Node) error {
 
 	stored := &models.ConfigProjection{}
 
-	if err := projection.LoadYaml(stored, node, projection.LoadOptions{Groups: []string{"sensitive"}}); err != nil {
+	if err := projection.LoadYaml(stored, node, projection.LoadOptions{Groups: []string{sensitiveGroup}}); err != nil {
 		return fmt.Errorf("failed to load stored config projection: %w", err)
 	}
 
@@ -388,7 +389,7 @@ func connectionPassword(connection *models.ConnectionTest) error {
 	}
 
 	if err = projection.LoadYaml(proj, node, projection.LoadOptions{
-		Groups: []string{"sensitive"},
+		Groups: []string{sensitiveGroup},
 	}); err != nil {
 		return fmt.Errorf("failed to load config projection: %w", err)
 	}
@@ -461,7 +462,7 @@ func (s *Server) projectedAdminConfig() (interface{}, error) {
 	sensitive := &models.ConfigProjection{}
 
 	err = projection.LoadYaml(sensitive, document, projection.LoadOptions{
-		Groups: []string{"sensitive"},
+		Groups: []string{sensitiveGroup},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to load sensitive config projection: %w", err)
@@ -472,7 +473,7 @@ func (s *Server) projectedAdminConfig() (interface{}, error) {
 	obj := map[string]interface{}{}
 
 	err = projection.StoreJSON(proj, obj, projection.StoreOptions{
-		Groups: []string{"default", "sensitive"},
+		Groups: []string{"default", sensitiveGroup},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to jsonify config projection: %w", err)
@@ -518,7 +519,7 @@ func (s *Server) applyProjectedAdminConfig(ctx context.Context, obj interface{})
 	proj := &models.ConfigProjection{}
 
 	err := projection.LoadJSON(proj, objMap, projection.LoadOptions{
-		Groups: []string{"default", "sensitive"},
+		Groups: []string{"default", sensitiveGroup},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to load json config projection: %w", err)
@@ -557,7 +558,7 @@ func (s *Server) applyProjectedAdminConfig(ctx context.Context, obj interface{})
 	}
 
 	err = projection.StoreYaml(proj, node, projection.StoreOptions{
-		Groups: []string{"default", "sensitive"},
+		Groups: []string{"default", sensitiveGroup},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare yaml config projection: %w", err)

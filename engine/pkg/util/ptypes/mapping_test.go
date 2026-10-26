@@ -316,7 +316,7 @@ func TestMapKindToType(t *testing.T) {
 		{name: "map kind", kind: reflect.Map, expected: Map},
 		{name: "slice kind", kind: reflect.Slice, expected: Slice},
 		{name: "int kind returns invalid", kind: reflect.Int, expected: Invalid},
-		{name: "ptr kind returns invalid", kind: reflect.Ptr, expected: Invalid},
+		{name: "ptr kind returns invalid", kind: reflect.Pointer, expected: Invalid},
 		{name: "struct kind returns invalid", kind: reflect.Struct, expected: Invalid},
 		{name: "chan kind returns invalid", kind: reflect.Chan, expected: Invalid},
 	}
@@ -332,28 +332,28 @@ func TestNewPtr(t *testing.T) {
 	t.Run("string pointer", func(t *testing.T) {
 		result := NewPtr("hello")
 		require.True(t, result.IsValid())
-		assert.Equal(t, reflect.Ptr, result.Kind())
+		assert.Equal(t, reflect.Pointer, result.Kind())
 		assert.Equal(t, "hello", result.Elem().Interface())
 	})
 
 	t.Run("int64 pointer", func(t *testing.T) {
 		result := NewPtr(int64(42))
 		require.True(t, result.IsValid())
-		assert.Equal(t, reflect.Ptr, result.Kind())
+		assert.Equal(t, reflect.Pointer, result.Kind())
 		assert.Equal(t, int64(42), result.Elem().Interface())
 	})
 
 	t.Run("float64 pointer", func(t *testing.T) {
 		result := NewPtr(float64(3.14))
 		require.True(t, result.IsValid())
-		assert.Equal(t, reflect.Ptr, result.Kind())
+		assert.Equal(t, reflect.Pointer, result.Kind())
 		assert.Equal(t, float64(3.14), result.Elem().Interface())
 	})
 
 	t.Run("bool pointer", func(t *testing.T) {
 		result := NewPtr(true)
 		require.True(t, result.IsValid())
-		assert.Equal(t, reflect.Ptr, result.Kind())
+		assert.Equal(t, reflect.Pointer, result.Kind())
 		assert.Equal(t, true, result.Elem().Interface())
 	})
 
@@ -361,7 +361,7 @@ func TestNewPtr(t *testing.T) {
 		input := map[string]interface{}{"key": "value"}
 		result := NewPtr(input)
 		require.True(t, result.IsValid())
-		assert.Equal(t, reflect.Ptr, result.Kind())
+		assert.Equal(t, reflect.Pointer, result.Kind())
 		assert.Equal(t, input, result.Elem().Interface())
 	})
 
@@ -369,7 +369,7 @@ func TestNewPtr(t *testing.T) {
 		input := []interface{}{"a", 1}
 		result := NewPtr(input)
 		require.True(t, result.IsValid())
-		assert.Equal(t, reflect.Ptr, result.Kind())
+		assert.Equal(t, reflect.Pointer, result.Kind())
 		assert.Equal(t, input, result.Elem().Interface())
 	})
 

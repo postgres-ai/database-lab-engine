@@ -5,6 +5,7 @@ RUN_CI_BINARY = run-ci
 CLI_BINARY = dblab
 RDS_REFRESH_BINARY = rds-refresh
 GOARCH = amd64
+GOLANGCI_LINT_VERSION = v2.14.0
 
 PWD= $(shell pwd)
 
@@ -35,7 +36,7 @@ help: ## Display the help message
 all: clean build ## Build all binary components of the project
 
 install-lint: ## Install the linter to $GOPATH/bin which is expected to be in $PATH
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.11.4
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/$(GOLANGCI_LINT_VERSION)/install.sh | sh -s -- -b $$(go env GOPATH)/bin $(GOLANGCI_LINT_VERSION)
 
 run-lint: ## Run linters
 	golangci-lint run
