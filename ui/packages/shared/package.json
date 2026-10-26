@@ -56,8 +56,8 @@
     "eslint": "^9.27.0",
     "glob": "^11.1.0",
     "globals": "^16.2.0",
-    "happy-dom": "^20.9.0",
+    "happy-dom": "^21.0.4",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.11"
   }
 }

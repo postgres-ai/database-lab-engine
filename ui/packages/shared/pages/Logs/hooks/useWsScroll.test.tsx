@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
 import { render, act } from '@testing-library/react'
 
 const { wsSnackbarMock } = vi.hoisted(() => ({ wsSnackbarMock: vi.fn() }))
@@ -23,7 +23,7 @@ const flushObserver = async (mutate: () => void) => {
 
 describe('useWsScroll', () => {
   let logsContainer: HTMLElement
-  let scrollIntoView: ReturnType<typeof vi.fn>
+  let scrollIntoView: Mock<HTMLElement['scrollIntoView']>
 
   beforeEach(() => {
     const contentContainer = document.createElement('div')
@@ -31,7 +31,7 @@ describe('useWsScroll', () => {
 
     logsContainer = document.createElement('div')
     logsContainer.id = 'logs-container'
-    scrollIntoView = vi.fn()
+    scrollIntoView = vi.fn<HTMLElement['scrollIntoView']>()
     logsContainer.scrollIntoView = scrollIntoView
 
     contentContainer.appendChild(logsContainer)
