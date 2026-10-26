@@ -15,6 +15,8 @@ const (
 	cloneResetSnapshotIDFlag = "snapshot-id"
 
 	cloneUpgradeDockerImageFlag = "docker-image"
+
+	cloneIDArgsUsage = "CLONE_ID"
 )
 
 // CommandList returns available commands for a clones management.
@@ -31,7 +33,7 @@ func CommandList() []*cli.Command {
 			{
 				Name:      "status",
 				Usage:     "display clone's information",
-				ArgsUsage: "CLONE_ID",
+				ArgsUsage: cloneIDArgsUsage,
 				Before:    checkCloneIDBefore,
 				Action:    status,
 			},
@@ -89,7 +91,7 @@ func CommandList() []*cli.Command {
 			{
 				Name:      "update",
 				Usage:     "update existing clone",
-				ArgsUsage: "CLONE_ID",
+				ArgsUsage: cloneIDArgsUsage,
 				Before:    checkCloneIDBefore,
 				Action:    update,
 				Flags: []cli.Flag{
@@ -103,7 +105,7 @@ func CommandList() []*cli.Command {
 			{
 				Name:      "reset",
 				Usage:     "reset clone's state",
-				ArgsUsage: "CLONE_ID",
+				ArgsUsage: cloneIDArgsUsage,
 				Before:    checkCloneIDBefore,
 				Action:    reset,
 				Flags: []cli.Flag{
@@ -126,7 +128,7 @@ func CommandList() []*cli.Command {
 				Name: "upgrade",
 				Usage: "upgrade clone to the PostgreSQL major version the instance is configured " +
 					"to upgrade to",
-				ArgsUsage: "CLONE_ID",
+				ArgsUsage: cloneIDArgsUsage,
 				Before:    checkCloneIDBefore,
 				Action:    upgrade,
 				Flags: []cli.Flag{
@@ -145,7 +147,7 @@ func CommandList() []*cli.Command {
 			{
 				Name:      "destroy",
 				Usage:     "destroy clone",
-				ArgsUsage: "CLONE_ID",
+				ArgsUsage: cloneIDArgsUsage,
 				Before:    checkCloneIDBefore,
 				Action:    destroy,
 				Flags: []cli.Flag{
@@ -159,7 +161,7 @@ func CommandList() []*cli.Command {
 			{
 				Name:      "start-observation",
 				Usage:     "[EXPERIMENTAL] start clone state monitoring",
-				ArgsUsage: "CLONE_ID",
+				ArgsUsage: cloneIDArgsUsage,
 				Before:    checkCloneIDBefore,
 				Action:    startObservation,
 				Flags: []cli.Flag{
@@ -191,7 +193,7 @@ func CommandList() []*cli.Command {
 			{
 				Name:      "stop-observation",
 				Usage:     "[EXPERIMENTAL] summarize clone monitoring and check results",
-				ArgsUsage: "CLONE_ID",
+				ArgsUsage: cloneIDArgsUsage,
 				Before:    checkCloneIDBefore,
 				Action:    stopObservation,
 			},

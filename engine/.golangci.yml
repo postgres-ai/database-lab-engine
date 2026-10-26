@@ -89,6 +89,7 @@ linters:
       - linters:
           - dupl
           - errcheck
+          - goconst
           - gocyclo
           - lll
           - mnd

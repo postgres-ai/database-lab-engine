@@ -9,6 +9,8 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/ptypes"
 )
 
+const mapTag = "!!map"
+
 type yamlSoft struct {
 	root     *yaml.Node
 	document *yaml.Node
@@ -60,7 +62,7 @@ func (y *yamlSoft) Set(set FieldSet) error {
 			if set.CreateKey && isLastSegment {
 				child = &yaml.Node{
 					Kind: yaml.ScalarNode,
-					Tag:  "!!map",
+					Tag:  mapTag,
 				}
 				keyNode := &yaml.Node{
 					Kind:  yaml.ScalarNode,
@@ -134,7 +136,7 @@ func (y *yamlSoft) Get(get FieldGet) (interface{}, error) {
 		return nil, nil
 	}
 
-	if node.Tag == "!!map" {
+	if node.Tag == mapTag {
 		return convertMap(node)
 	}
 
@@ -205,7 +207,7 @@ func convertMap(node *yaml.Node) (map[string]interface{}, error) {
 		case "!!null":
 			convertedMap[node.Content[i].Value] = struct{}{}
 
-		case "!!map":
+		case mapTag:
 			nestedMap, err := convertMap(node.Content[i+1])
 			if err != nil {
 				return nil, err
@@ -260,7 +262,7 @@ func ptypeToNodeTag(t ptypes.Type) string {
 	case ptypes.Bool:
 		return "!!bool"
 	case ptypes.Map:
-		return "!!map"
+		return mapTag
 	case ptypes.Slice:
 		return "!!seq"
 	default:
@@ -278,7 +280,7 @@ func nodeTagToPType(nodeTag string) ptypes.Type {
 		return ptypes.Float64
 	case "!!bool":
 		return ptypes.Bool
-	case "!!map":
+	case mapTag:
 		return ptypes.Map
 	case "!!seq":
 		return ptypes.Slice
