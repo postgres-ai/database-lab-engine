@@ -30,7 +30,7 @@ import { HorizontalScrollContainer } from '@postgres.ai/shared/components/Horizo
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
 import { icons } from '@postgres.ai/shared/styles/icons'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
-import { parseDate } from '@postgres.ai/shared/utils/date'
+import { parseDate, formatDataLag } from '@postgres.ai/shared/utils/date'
 import {
   protectionOptions,
   getProtectionSelectValue,
@@ -313,6 +313,10 @@ export const SnapshotPage = observer((props: Props) => {
                 {snapshot?.physicalSize
                   ? formatBytesIEC(snapshot.physicalSize)
                   : '-'}
+              </p>
+              <p className={classes.text}>
+                <span className={classes.paramTitle}>Data lag:</span>
+                {formatDataLag(snapshot?.dataStateAt)}
               </p>
               {branchSnapshot?.message && (
                 <p className={classes.text}>

@@ -26,7 +26,7 @@ import { SectionTitle } from '@postgres.ai/shared/components/SectionTitle'
 import { Select } from '@postgres.ai/shared/components/Select'
 import { Spinner } from '@postgres.ai/shared/components/Spinner'
 import { Tooltip } from '@postgres.ai/shared/components/Tooltip'
-import { parseDate } from '@postgres.ai/shared/utils/date'
+import { parseDate, formatDataLag } from '@postgres.ai/shared/utils/date'
 import {
   protectionOptions,
   getProtectionSelectValue,
@@ -317,6 +317,10 @@ export const BranchesPage = observer((props: Props) => {
               <p className={classes.text}>
                 <span className={classes.paramTitle}>Parent branch:</span>
                 {branch?.parent}
+              </p>
+              <p className={classes.text}>
+                <span className={classes.paramTitle}>Data lag:</span>
+                {formatDataLag(branch?.dataStateAt)}
               </p>
             </div>
             <div className={classes.summary}>

@@ -19,6 +19,8 @@ import {
   isSameMonth,
   format,
   formatDistanceToNowStrict,
+  differenceInMinutes,
+  formatDuration,
 } from 'date-fns'
 
 const compactDatePattern = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/
@@ -136,4 +138,25 @@ export const formatDistanceSafe = (dateObject: Date) => {
     console.warn('Error formatting distance:', error, 'date:', dateObject)
     return '-'
   }
+}
+
+// formatDataLag describes how far the data state time is behind now, e.g. '2 hours 3 minutes'.
+export const formatDataLag = (dataStateAt?: string, now: Date = new Date()) => {
+  if (!dataStateAt) return '-'
+
+  const dataStateAtDate = parseDate(dataStateAt)
+  if (!isValidDate(dataStateAtDate)) return '-'
+
+  // elapsed minutes, not calendar units: months, years and dst shifts must not change the value.
+  const lagMinutes = differenceInMinutes(now, dataStateAtDate)
+  if (lagMinutes < 1) return 'less than a minute'
+
+  return formatDuration(
+    {
+      days: Math.floor(lagMinutes / 1440),
+      hours: Math.floor((lagMinutes % 1440) / 60),
+      minutes: lagMinutes % 60,
+    },
+    { format: ['days', 'hours', 'minutes'] },
+  )
 }
