@@ -25,6 +25,10 @@ export const request = async (
     },
   )
 
+  // admin routes accept only the instance verification token, so a 401 there does not invalidate
+  // a personal token that the rest of the API accepts.
+  if (response.status === 401 && path.startsWith('/admin/')) return response
+
   if (response.status === 401) {
     appStore.setIsInvalidAuthToken()
     localStorage.removeAuthToken()

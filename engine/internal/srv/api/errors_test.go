@@ -115,6 +115,20 @@ func TestSendUnauthorizedError(t *testing.T) {
 	assert.Contains(t, errResp.Message, "verification token")
 }
 
+func TestSendAdminUnauthorizedError(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/admin/config", nil)
+	rec := httptest.NewRecorder()
+
+	SendAdminUnauthorizedError(rec, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+
+	var errResp models.Error
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &errResp))
+	assert.Equal(t, models.ErrCodeUnauthorized, errResp.Code)
+	assert.Contains(t, errResp.Message, "personal tokens are not accepted")
+}
+
 func TestSendNotFoundError(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/clone/missing", nil)
 	rec := httptest.NewRecorder()

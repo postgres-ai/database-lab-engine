@@ -62,6 +62,13 @@ func SendUnauthorizedError(w http.ResponseWriter, r *http.Request) {
 	SendError(w, r, models.New(models.ErrCodeUnauthorized, "Check your verification token."))
 }
 
+// SendAdminUnauthorizedError sends an unauthorized error for the admin routes, which accept only
+// the instance verification token.
+func SendAdminUnauthorizedError(w http.ResponseWriter, r *http.Request) {
+	SendError(w, r, models.New(models.ErrCodeUnauthorized,
+		"Admin routes require the instance verification token; personal tokens are not accepted."))
+}
+
 // SendNotFoundError sends a not found error.
 func SendNotFoundError(w http.ResponseWriter, r *http.Request) {
 	SendError(w, r, models.New(models.ErrCodeNotFound, "Requested object does not exist. Specify your request."))
