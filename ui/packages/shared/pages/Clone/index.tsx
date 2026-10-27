@@ -24,6 +24,7 @@ import {
   getJdbcConnectionStr,
 } from '@postgres.ai/shared/utils/connection'
 import { formatBytesIEC } from '@postgres.ai/shared/utils/units'
+import { formatDataLag } from '@postgres.ai/shared/utils/date'
 import { ErrorStub } from '@postgres.ai/shared/components/ErrorStub'
 import { PageSpinner } from '@postgres.ai/shared/components/PageSpinner'
 import { DestroyCloneRestrictionModal } from '@postgres.ai/shared/components/DestroyCloneRestrictionModal'
@@ -532,6 +533,10 @@ export const Clone = observer((props: Props) => {
                     <br />
                     <strong>Clone creation time</strong> is time which was&nbsp;
                     spent to provision the clone.
+                    <br />
+                    <br />
+                    <strong>Data lag</strong> is how far the clone data
+                    is&nbsp; behind the current time.
                   </>
                 }
               >
@@ -560,6 +565,11 @@ export const Clone = observer((props: Props) => {
               {clone.metadata.cloningTime
                 ? `${round(clone.metadata.cloningTime, 2)} s`
                 : '-'}
+            </p>
+
+            <p className={classes.text}>
+              <span className={classes.paramTitle}>Data lag:</span>
+              {formatDataLag(clone.snapshot?.dataStateAt)}
             </p>
           </div>
 
