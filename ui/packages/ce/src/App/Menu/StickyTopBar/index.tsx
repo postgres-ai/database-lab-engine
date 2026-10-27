@@ -116,6 +116,9 @@ export const StickyTopBar = () => {
 
   useEffect(() => {
     getBillingStatus().then((res) => {
+      // a personal token is refused on admin routes, which says nothing about billing.
+      if (res.error?.code === 'UNAUTHORIZED') return
+
       if (!res.response?.billing_active && res.response?.recognized_org) {
         setState({
           type: 'billingInactive',

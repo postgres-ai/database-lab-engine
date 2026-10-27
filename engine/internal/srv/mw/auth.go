@@ -63,13 +63,14 @@ func (a *Auth) Authorized(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// AdminMW checks if the user has permission to access to admin sub-route.
-// TODO: check admin permissions.
+// AdminMW restricts the admin sub-route to the shared verification token. Personal tokens are
+// rejected: the Platform token check proves organization membership only, not an admin role,
+// and admin routes rewrite the engine configuration, including the container images it runs.
 func (a *Auth) AdminMW(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := r.Header.Get(VerificationTokenHeader)
-		if !a.isAccessAllowed(r.Context(), token) {
-			api.SendUnauthorizedError(w, r)
+		verificationToken := a.verificationToken()
+		if verificationToken != "" && !isVerificationToken(verificationToken, r.Header.Get(VerificationTokenHeader)) {
+			api.SendAdminUnauthorizedError(w, r)
 			return
 		}
 
@@ -77,10 +78,8 @@ func (a *Auth) AdminMW(h http.Handler) http.Handler {
 	})
 }
 
-func (a *Auth) isAccessAllowed(ctx context.Context, token string) bool {
-	_, ok := a.authenticate(ctx, token, "")
-
-	return ok
+func isVerificationToken(verificationToken, token string) bool {
+	return subtle.ConstantTimeCompare([]byte(verificationToken), []byte(token)) == 1
 }
 
 // authenticate validates the token and, for a valid personal token, returns a
@@ -94,7 +93,7 @@ func (a *Auth) authenticate(ctx context.Context, token, forwardedEmail string) (
 		return ctx, true
 	}
 
-	if subtle.ConstantTimeCompare([]byte(verificationToken), []byte(token)) == 1 {
+	if isVerificationToken(verificationToken, token) {
 		return withForwardedIdentity(ctx, forwardedEmail), true
 	}
 

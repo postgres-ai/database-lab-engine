@@ -71,7 +71,7 @@ func TestAccess(t *testing.T) {
 		t.Log(tc.name)
 		mw.personalTokenVerifier = MockPersonalTokenVerifier{isPersonalTokenEnabled: tc.result}
 
-		isAllowed := mw.isAccessAllowed(context.Background(), tc.requestToken)
+		_, isAllowed := mw.authenticate(context.Background(), tc.requestToken, "")
 		assert.Equal(t, tc.result, isAllowed)
 	}
 }
@@ -79,15 +79,21 @@ func TestAccess(t *testing.T) {
 func TestAccess_EmptyVerificationToken(t *testing.T) {
 	mw := Auth{verificationToken: StaticToken("")}
 
-	assert.True(t, mw.isAccessAllowed(context.Background(), ""))
-	assert.True(t, mw.isAccessAllowed(context.Background(), "anything"))
+	_, ok := mw.authenticate(context.Background(), "", "")
+	assert.True(t, ok)
+
+	_, ok = mw.authenticate(context.Background(), "anything", "")
+	assert.True(t, ok)
 }
 
 func TestAccess_NilPersonalTokenVerifier(t *testing.T) {
 	mw := Auth{verificationToken: StaticToken(testVerificationToken), personalTokenVerifier: nil}
 
-	assert.False(t, mw.isAccessAllowed(context.Background(), "WrongToken"))
-	assert.True(t, mw.isAccessAllowed(context.Background(), testVerificationToken))
+	_, ok := mw.authenticate(context.Background(), "WrongToken", "")
+	assert.False(t, ok)
+
+	_, ok = mw.authenticate(context.Background(), testVerificationToken, "")
+	assert.True(t, ok)
 }
 
 func TestAuthorized(t *testing.T) {
@@ -250,18 +256,62 @@ func TestAdminMW(t *testing.T) {
 	}
 }
 
-func TestAdminMW_WithPersonalToken(t *testing.T) {
-	auth := NewAuth(StaticToken(testVerificationToken), MockPersonalTokenVerifier{isPersonalTokenEnabled: true})
+func TestAdminMW_WithoutVerificationToken(t *testing.T) {
+	auth := NewAuth(StaticToken(""), MockPersonalTokenVerifier{isPersonalTokenEnabled: true})
 	handler := auth.AdminMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/admin/test", nil)
-	req.Header.Set(VerificationTokenHeader, testPlatformAccessToken)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestAdminMW_RejectsPersonalToken(t *testing.T) {
+	auth := NewAuth(StaticToken(testVerificationToken), MockPersonalTokenVerifier{isPersonalTokenEnabled: true})
+	okHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	testCases := []struct {
+		name       string
+		handler    http.Handler
+		wantStatus int
+	}{
+		{name: "admin route rejects personal token", handler: auth.AdminMW(okHandler), wantStatus: http.StatusUnauthorized},
+		{name: "regular route accepts personal token", handler: auth.Authorized(okHandler), wantStatus: http.StatusOK},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/admin/test", nil)
+			req.Header.Set(VerificationTokenHeader, testPlatformAccessToken)
+			rec := httptest.NewRecorder()
+
+			tc.handler.ServeHTTP(rec, req)
+			assert.Equal(t, tc.wantStatus, rec.Code)
+		})
+	}
+}
+
+func TestAdminMW_ResponseBody(t *testing.T) {
+	auth := NewAuth(StaticToken(testVerificationToken), MockPersonalTokenVerifier{isPersonalTokenEnabled: true})
+	handler := auth.AdminMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/config", nil)
+	req.Header.Set(VerificationTokenHeader, testPlatformAccessToken)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	var errResp models.Error
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &errResp))
+	assert.Equal(t, models.ErrCodeUnauthorized, errResp.Code)
+	assert.Contains(t, errResp.Message, "personal tokens are not accepted")
 }
 
 func TestWebSocketsMW(t *testing.T) {
