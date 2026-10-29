@@ -1141,6 +1141,8 @@ func (p *PhysicalInitial) markDatabaseData() error {
 }
 
 // updateDataStateAt updates dataStateAt for in-memory representation of a storage pool.
+// A config reload replaces the manager's pool while this job keeps running, so the value goes
+// to the pool the manager serves now, not to the one the job was built with.
 func (p *PhysicalInitial) updateDataStateAt() {
 	dsaTime, err := time.Parse(util.DataStateAtFormat, p.dbMark.DataStateAt)
 	if err != nil {
@@ -1148,7 +1150,7 @@ func (p *PhysicalInitial) updateDataStateAt() {
 		return
 	}
 
-	p.fsPool.SetDSA(dsaTime)
+	p.cloneManager.Pool().SetDSA(dsaTime)
 }
 
 func (p *PhysicalInitial) cleanupSnapshots(retentionLimit int) error {
