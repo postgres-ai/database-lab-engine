@@ -49,7 +49,7 @@ func (s *JobBuilder) BuildJob(jobCfg config.JobConfig) (components.JobRunner, er
 		return logical.NewDumpJob(jobCfg, s.globalCfg, s.engineProps)
 
 	case logical.RestoreJobType:
-		return logical.NewJob(jobCfg, s.globalCfg, s.engineProps)
+		return logical.NewJob(jobCfg, s.globalCfg, s.engineProps, s.cloneManager)
 
 	case physical.RestoreJobType:
 		return physical.NewJob(jobCfg, s.globalCfg, s.engineProps)

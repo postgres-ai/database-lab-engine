@@ -12,11 +12,15 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/zfs"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 )
 
@@ -874,4 +878,19 @@ func TestCreateTarArchive(t *testing.T) {
 	// verify no more files in the tar
 	_, err = tarReader.Next()
 	assert.Equal(t, io.EOF, err)
+}
+
+func TestRestoreJob_UpdateDataStateAtWritesPoolServedAfterReload(t *testing.T) {
+	startupPool := &resources.Pool{Name: "dblab_pool", Mode: zfs.PoolMode, DataSubDir: "data"}
+	reloadedPool := &resources.Pool{Name: "dblab_pool", Mode: zfs.PoolMode, DataSubDir: "data", DSA: time.Date(2026, 10, 8, 11, 55, 58, 0, time.UTC)}
+
+	fsm := zfs.NewFSManager(nil, zfs.Config{Pool: startupPool})
+	job := &RestoreJob{fsPool: startupPool, cloneManager: fsm, dbMark: &dbmarker.Config{DataStateAt: "20261027212755"}}
+
+	_, err := pool.BuildFromExistingManager(fsm, pool.ManagerConfig{Pool: reloadedPool})
+	require.NoError(t, err)
+
+	job.updateDataStateAt()
+
+	assert.Equal(t, time.Date(2026, 10, 27, 21, 27, 55, 0, time.UTC), fsm.Pool().DSA)
 }

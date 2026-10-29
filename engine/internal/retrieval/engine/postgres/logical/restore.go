@@ -26,6 +26,7 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
@@ -87,6 +88,7 @@ type RestoreJob struct {
 	name              string
 	dockerClient      *client.Client
 	fsPool            *resources.Pool
+	cloneManager      pool.FSManager
 	globalCfg         *global.Config
 	engineProps       *global.EngineProps
 	dbMarker          *dbmarker.Marker
@@ -116,11 +118,14 @@ type Partial struct {
 }
 
 // NewJob create a new logical restore job.
-func NewJob(cfg config.JobConfig, global *global.Config, engineProps *global.EngineProps) (*RestoreJob, error) {
+func NewJob(
+	cfg config.JobConfig, global *global.Config, engineProps *global.EngineProps, cloneManager pool.FSManager,
+) (*RestoreJob, error) {
 	restoreJob := &RestoreJob{
 		name:         cfg.Spec.Name,
 		dockerClient: cfg.Docker,
 		fsPool:       cfg.FSPool,
+		cloneManager: cloneManager,
 		globalCfg:    global,
 		engineProps:  engineProps,
 		dbMarker:     cfg.Marker,
@@ -837,6 +842,8 @@ func (r *RestoreJob) markDatabase() error {
 }
 
 // updateDataStateAt updates dataStateAt for in-memory representation of a storage pool.
+// A config reload can replace the manager's pool during a restore, so the value goes to the pool
+// the manager serves now, not to the one the job was built with.
 func (r *RestoreJob) updateDataStateAt() {
 	dsaTime, err := time.Parse(util.DataStateAtFormat, r.dbMark.DataStateAt)
 	if err != nil {
@@ -844,7 +851,7 @@ func (r *RestoreJob) updateDataStateAt() {
 		return
 	}
 
-	r.fsPool.SetDSA(dsaTime)
+	r.cloneManager.Pool().SetDSA(dsaTime)
 }
 
 func (r *RestoreJob) buildLogicalRestoreCommand(dumpName string, definition DumpDefinition, listFile *os.File) []string {
