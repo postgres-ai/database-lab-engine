@@ -24,6 +24,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/envvar"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/projection"
 	yamlUtils "gitlab.com/postgres-ai/database-lab/v3/pkg/util/yaml"
 )
@@ -93,11 +94,11 @@ func (s *Server) setProjectedAdminConfig(w http.ResponseWriter, r *http.Request)
 	}
 
 	if retrievalStatus == models.Pending {
-		go func() {
+		goroutine.Go("full refresh after config update", func() {
 			if err := s.Retrieval.FullRefresh(context.Background()); err != nil && !retrieval.IsRefreshSkipped(err) {
 				log.Err(fmt.Errorf("failed to refresh data: %w", err))
 			}
-		}()
+		})
 	}
 
 	if err := api.WriteJSON(w, http.StatusOK, applied); err != nil {

@@ -490,15 +490,10 @@ func buildPoolEntry(fsm pool.FSManager) (models.PoolEntry, error) {
 		log.Err(fmt.Sprintf("failed to get disk stats for the pool %s", fsmPool.Name))
 	}
 
-	var dataStateAt time.Time
-	if !fsmPool.DSA.IsZero() {
-		dataStateAt = fsmPool.DSA
-	}
-
 	poolEntry := models.PoolEntry{
 		Name:        fsmPool.Name,
 		Mode:        fsmPool.Mode,
-		DataStateAt: models.NewLocalTime(dataStateAt),
+		DataStateAt: models.NewLocalTime(fsmPool.DataStateAt()),
 		CloneList:   listClones,
 		FileSystem:  fileSystem,
 		Status:      fsm.Pool().Status(),

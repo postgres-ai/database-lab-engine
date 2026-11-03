@@ -15,7 +15,9 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/platform"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/pool"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/lvm"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/config"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/logical"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
@@ -573,4 +575,91 @@ func TestRestartRunContextCancelsThePreviousRun(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+// refreshProbe runs a callback in place of InitBranching, the last step of a run that the pool
+// manager does not perform itself.
+type refreshProbe struct {
+	pool.FSManager
+	onInitBranching func() error
+}
+
+func (p *refreshProbe) InitBranching() error {
+	return p.onInitBranching()
+}
+
+func newRunTestRetrieval(t *testing.T, poolName string) (*Retrieval, *pool.Manager) {
+	t.Helper()
+
+	mountDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(path.Join(mountDir, poolName, "data"), 0700))
+
+	pm := pool.NewPoolManager(&pool.Config{MountDir: mountDir, DataSubDir: "data"}, nil,
+		pool.WithFSInfo(func(string) (string, error) { return lvm.PoolMode, nil }))
+	require.NoError(t, pm.ReloadPools())
+
+	r := &Retrieval{
+		State:       State{alerts: make(map[models.AlertType]models.Alert), status: models.Inactive},
+		tm:          telemetry.New(&platform.Service{}, "instanceID"),
+		poolManager: pm,
+		engineProps: &global.EngineProps{Infrastructure: global.LocalInfra},
+		cfg:         &config.Config{},
+		global:      global.Config{Engine: "postgres"},
+	}
+
+	return r, pm
+}
+
+func poolStatus(t *testing.T, pm *pool.Manager, poolName string) resources.PoolStatus {
+	t.Helper()
+
+	fsm, err := pm.GetFSManager(poolName)
+	require.NoError(t, err)
+
+	return fsm.Pool().Status()
+}
+
+func TestRunKeepsRefreshStateAcrossReloads(t *testing.T) {
+	const poolName = "vg-lv1"
+
+	testCases := []struct {
+		name    string
+		initErr error
+	}{
+		{name: "successful run"},
+		{name: "failed run", initErr: errors.New("init branching failed")},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r, pm := newRunTestRetrieval(t, poolName)
+
+			fsm, err := pm.GetFSManager(poolName)
+			require.NoError(t, err)
+
+			var statusDuringRun resources.PoolStatus
+
+			probe := &refreshProbe{FSManager: fsm, onInitBranching: func() error {
+				fsm.Pool().SetStatus(resources.RefreshingPool)
+
+				if err := pm.ReloadPools(); err != nil {
+					return err
+				}
+
+				statusDuringRun = poolStatus(t, pm, poolName)
+
+				return tc.initErr
+			}}
+
+			err = r.run(context.Background(), probe)
+			require.ErrorIs(t, err, tc.initErr)
+			assert.Equal(t, resources.RefreshingPool, statusDuringRun, "a reload during the run must keep the pool refreshing")
+
+			refreshed, err := pm.GetFSManager(poolName)
+			require.NoError(t, err)
+			refreshed.Pool().SetStatus(resources.RefreshingPool)
+			require.NoError(t, pm.ReloadPools())
+			assert.Equal(t, resources.EmptyPool, poolStatus(t, pm, poolName), "a reload after the run must reset a stale status")
+		})
+	}
 }

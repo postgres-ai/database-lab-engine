@@ -8,7 +8,7 @@
 // Package pool provides components to work with storage pools.
 package pool
 
-func (pm *Manager) getFSInfo(path string) (string, error) {
+func getFSInfo(_ string) (string, error) {
 	// Not supported for windows.
 	return "", nil
 }

@@ -34,6 +34,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
@@ -1317,11 +1318,11 @@ func (s *Server) refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go func() {
+	goroutine.Go("full refresh", func() {
 		if err := s.Retrieval.FullRefresh(context.Background()); err != nil && !retrieval.IsRefreshSkipped(err) {
 			log.Err("failed to initiate full refresh", err)
 		}
-	}()
+	})
 
 	if err := api.WriteJSON(w, http.StatusOK, models.Response{
 		Status:  models.ResponseOK,

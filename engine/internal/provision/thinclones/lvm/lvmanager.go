@@ -6,6 +6,7 @@ package lvm
 
 import (
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -25,6 +26,7 @@ const (
 // LVManager describes an LVM2 filesystem manager.
 type LVManager struct {
 	runner        runners.Runner
+	cfgMu         sync.RWMutex
 	pool          *resources.Pool
 	volumeGroup   string
 	logicalVolume string
@@ -46,22 +48,27 @@ func NewFSManager(runner runners.Runner, pool *resources.Pool) (*LVManager, erro
 
 // Pool gets a storage pool.
 func (m *LVManager) Pool() *resources.Pool {
+	m.cfgMu.RLock()
+	defer m.cfgMu.RUnlock()
+
 	return m.pool
 }
 
 // UpdateConfig updates the manager's pool.
 func (m *LVManager) UpdateConfig(pool *resources.Pool) {
+	m.cfgMu.Lock()
 	m.pool = pool
+	m.cfgMu.Unlock()
 }
 
 // CreateClone creates a new volume.
 func (m *LVManager) CreateClone(branch, name, _ string, _ int) error {
-	return CreateVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir(branch))
+	return CreateVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.Pool().ClonesDir(branch))
 }
 
 // DestroyClone destroys volumes.
 func (m *LVManager) DestroyClone(branch, name string, _ int) error {
-	return RemoveVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.pool.ClonesDir(branch))
+	return RemoveVolume(m.runner, m.volumeGroup, m.logicalVolume, name, m.Pool().ClonesDir(branch))
 }
 
 // ListCloneDatasets returns the LVM volumes as clone datasets of the default branch.
@@ -142,7 +149,7 @@ func (m *LVManager) SnapshotList() []resources.Snapshot {
 			ID:          "TechnicalSnapshot",
 			CreatedAt:   time.Now(),
 			DataStateAt: time.Now(),
-			Pool:        m.pool.Name,
+			Pool:        m.Pool().Name,
 		},
 	}
 }

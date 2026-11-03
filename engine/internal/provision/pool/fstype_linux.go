@@ -21,7 +21,7 @@ var fsTypeToString = map[string]string{
 	"2fc12fc1": zfs.PoolMode,
 }
 
-func (pm *Manager) getFSInfo(path string) (string, error) {
+func getFSInfo(path string) (string, error) {
 	fs := syscall.Statfs_t{}
 	if err := syscall.Statfs(path, &fs); err != nil {
 		return "", err

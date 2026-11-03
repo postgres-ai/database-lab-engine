@@ -7,14 +7,20 @@ package pool
 import (
 	"container/list"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/lvm"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/dbmarker"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/telemetry"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 )
@@ -99,6 +105,29 @@ func newTestManager(pools map[string]FSManager, poolList *list.List) *Manager {
 	}
 }
 
+// newReloadTestManager serves LVM pools from a temporary mount directory. The pool mode is fixed
+// because the test directory is on tmpfs or overlayfs, which the manager does not support.
+func newReloadTestManager(t *testing.T, poolNames ...string) *Manager {
+	t.Helper()
+
+	mountDir := t.TempDir()
+
+	for _, name := range poolNames {
+		require.NoError(t, os.MkdirAll(filepath.Join(mountDir, name, "data"), 0700))
+	}
+
+	return NewPoolManager(&Config{MountDir: mountDir, DataSubDir: "data"}, nil,
+		WithFSInfo(func(string) (string, error) { return lvm.PoolMode, nil }))
+}
+
+func writeDataStateAt(t *testing.T, dataDir string, dsa time.Time) {
+	t.Helper()
+
+	marker := dbmarker.NewMarker(dataDir)
+	require.NoError(t, marker.CreateConfig())
+	require.NoError(t, marker.SaveConfig(&dbmarker.Config{DataStateAt: dsa.Format(tools.DataStateAtFormat)}))
+}
+
 func buildPoolList(names ...string) *list.List {
 	l := list.New()
 	for _, name := range names {
@@ -156,6 +185,235 @@ func TestManager_MakeActive(t *testing.T) {
 		assert.Equal(t, "pool2", first.Pool().Name)
 		assert.Equal(t, resources.ActivePool, first.Pool().Status())
 	})
+
+	t.Run("activates the pool of an element held across a reload", func(t *testing.T) {
+		mock1 := &mockFSManager{pool: &resources.Pool{Name: "pool1"}}
+		mock2 := &mockFSManager{pool: &resources.Pool{Name: "pool2"}}
+		pools := map[string]FSManager{"pool1": mock1, "pool2": mock2}
+		pm := newTestManager(pools, buildPoolList("pool1", "pool2"))
+
+		elem := pm.GetPoolByName("pool2")
+		pm.setPools(pools, buildPoolList("pool1", "pool2"))
+		pm.MakeActive(elem)
+
+		first := pm.First()
+		require.NotNil(t, first)
+		assert.Equal(t, "pool2", first.Pool().Name)
+		assert.Equal(t, resources.ActivePool, first.Pool().Status())
+	})
+
+	t.Run("keeps the current order when the pool is gone after a reload", func(t *testing.T) {
+		mock1 := &mockFSManager{pool: &resources.Pool{Name: "pool1"}}
+		mock2 := &mockFSManager{pool: &resources.Pool{Name: "pool2"}}
+		pm := newTestManager(map[string]FSManager{"pool1": mock1, "pool2": mock2}, buildPoolList("pool1", "pool2"))
+
+		elem := pm.GetPoolByName("pool2")
+		pm.setPools(map[string]FSManager{"pool1": mock1}, buildPoolList("pool1"))
+		pm.MakeActive(elem)
+
+		first := pm.First()
+		require.NotNil(t, first)
+		assert.Equal(t, "pool1", first.Pool().Name)
+		assert.Equal(t, resources.ActivePool, first.Pool().Status())
+	})
+}
+
+func TestManager_keepRefreshState(t *testing.T) {
+	dsa := time.Date(2026, 10, 8, 11, 55, 58, 0, time.UTC)
+
+	testCases := []struct {
+		name           string
+		refreshingPool string
+		previousStatus resources.PoolStatus
+		wantStatus     resources.PoolStatus
+		wantDSA        time.Time
+	}{
+		{name: "keeps the state of a running refresh", refreshingPool: "pool1", previousStatus: resources.RefreshingPool,
+			wantStatus: resources.RefreshingPool, wantDSA: dsa},
+		{name: "drops a stale status with no running refresh", previousStatus: resources.RefreshingPool, wantStatus: resources.EmptyPool},
+		{name: "ignores a refresh of another pool", refreshingPool: "pool2", previousStatus: resources.RefreshingPool,
+			wantStatus: resources.EmptyPool},
+		{name: "ignores a pool whose refresh jobs have not started", refreshingPool: "pool1", previousStatus: resources.ActivePool,
+			wantStatus: resources.EmptyPool},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pm := newTestManager(map[string]FSManager{}, list.New())
+			pm.BeginRefresh(tc.refreshingPool)
+
+			previous := &resources.Pool{Name: "pool1", DSA: dsa}
+			previous.SetStatus(tc.previousStatus)
+
+			pool := resources.NewPool("pool1")
+			pm.keepRefreshState(pool, previous)
+
+			assert.Equal(t, tc.wantStatus, pool.Status())
+			assert.Equal(t, tc.wantDSA, pool.DataStateAt())
+		})
+	}
+
+	t.Run("drops the state once the refresh has ended", func(t *testing.T) {
+		pm := newTestManager(map[string]FSManager{}, list.New())
+		pm.BeginRefresh("pool1")
+		pm.EndRefresh()
+
+		previous := resources.NewPool("pool1")
+		previous.SetStatus(resources.RefreshingPool)
+
+		pool := resources.NewPool("pool1")
+		pm.keepRefreshState(pool, previous)
+
+		assert.Equal(t, resources.EmptyPool, pool.Status())
+	})
+
+	t.Run("handles a manager without a pool", func(t *testing.T) {
+		pm := newTestManager(map[string]FSManager{}, list.New())
+		pm.BeginRefresh("pool1")
+
+		pool := resources.NewPool("pool1")
+		pm.keepRefreshState(pool, nil)
+
+		assert.Equal(t, resources.EmptyPool, pool.Status())
+	})
+}
+
+func TestManager_ReloadDuringRefresh(t *testing.T) {
+	activeDSA := time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC)
+	refreshedDSA := time.Date(2026, 10, 8, 11, 55, 58, 0, time.UTC)
+
+	testCases := []struct {
+		name       string
+		refreshing bool
+		wantStatus resources.PoolStatus
+		wantDSA    time.Time
+	}{
+		{name: "keeps the state of the pool under refresh", refreshing: true, wantStatus: resources.RefreshingPool,
+			wantDSA: refreshedDSA},
+		{name: "rebuilds a pool with no running refresh from its marker", wantStatus: resources.EmptyPool},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pm := newReloadTestManager(t, "vg-lv1", "vg-lv2")
+			writeDataStateAt(t, filepath.Join(pm.cfg.MountDir, "vg-lv1", "data"), activeDSA)
+			require.NoError(t, pm.ReloadPools())
+
+			refreshed, err := pm.GetFSManager("vg-lv2")
+			require.NoError(t, err)
+
+			if tc.refreshing {
+				pm.BeginRefresh("vg-lv2")
+			}
+
+			refreshed.Pool().SetStatus(resources.RefreshingPool)
+			refreshed.Pool().SetDSA(refreshedDSA)
+
+			element := pm.GetPoolByName("vg-lv2")
+			require.NotNil(t, element)
+			require.NoError(t, pm.ReloadPools())
+
+			reloaded, err := pm.GetFSManager("vg-lv2")
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantStatus, reloaded.Pool().Status())
+			assert.Equal(t, tc.wantDSA, reloaded.Pool().DataStateAt())
+
+			pm.MakeActive(element)
+
+			first := pm.First()
+			require.NotNil(t, first)
+			assert.Equal(t, "vg-lv2", first.Pool().Name)
+			assert.Equal(t, resources.ActivePool, first.Pool().Status())
+			assert.Equal(t, tc.wantDSA, first.Pool().DataStateAt())
+		})
+	}
+}
+
+func TestManager_ReloadRacesWithPoolReload(t *testing.T) {
+	pm := newReloadTestManager(t, "vg-lv1")
+	require.NoError(t, pm.ReloadPools())
+
+	cfg := *pm.cfg
+
+	const iterations = 20
+
+	var wg sync.WaitGroup
+
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			assert.NoError(t, pm.Reload(cfg))
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			assert.NoError(t, pm.ReloadPools())
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			pm.MakeActive(pm.GetPoolByName("vg-lv1"))
+		}
+	}()
+
+	wg.Wait()
+}
+
+func TestManager_ReloadRacesWithListReaders(t *testing.T) {
+	t.Parallel()
+
+	mock1 := &mockFSManager{pool: &resources.Pool{Name: "pool1"}}
+	mock2 := &mockFSManager{pool: &resources.Pool{Name: "pool2"}}
+	pools := map[string]FSManager{"pool1": mock1, "pool2": mock2}
+	pm := newTestManager(pools, buildPoolList("pool1", "pool2"))
+
+	const iterations = 1000
+
+	var wg sync.WaitGroup
+
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			pm.setPools(pools, buildPoolList("pool1", "pool2"))
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			pm.MakeActive(pm.GetPoolByName("pool2"))
+			pm.MakeActive(pm.GetPoolByName("pool1"))
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < iterations; i++ {
+			assert.NotNil(t, pm.First())
+			assert.NotNil(t, pm.GetPoolByName("pool2"))
+			_, err := pm.GetFSManager("pool1")
+			assert.NoError(t, err)
+			assert.Len(t, pm.GetFSManagerOrderedList(), 2)
+			assert.Len(t, pm.describeAvailablePools(), 2)
+			assert.NotNil(t, pm.GetPoolToUpdate())
+		}
+	}()
+
+	wg.Wait()
 }
 
 func TestManager_GetPoolByName(t *testing.T) {

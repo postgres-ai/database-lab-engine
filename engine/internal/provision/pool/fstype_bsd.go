@@ -14,7 +14,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/thinclones/lvm"
 )
 
-func (pm *Manager) getFSInfo(path string) (string, error) {
+func getFSInfo(path string) (string, error) {
 	fs := syscall.Statfs_t{}
 	if err := syscall.Statfs(path, &fs); err != nil {
 		return "", err
