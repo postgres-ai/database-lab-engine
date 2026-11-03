@@ -38,6 +38,8 @@ const (
 	idleCheckDuration     = 5 * time.Minute
 	leaseCheckDuration    = 5 * time.Minute
 	defaultWarningMinutes = 24 * 60 // 24 hours
+
+	clonePanicMessage = "The operation failed unexpectedly. See the engine log."
 )
 
 // Config contains a cloning configuration.
@@ -250,7 +252,7 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 
 	c.IncrementCloneNumber(clone.Snapshot.ID)
 
-	go func() {
+	goroutine.GoOnPanic("clone creation", func() {
 		session, err := c.provision.StartSession(clone, ephemeralUser, cloneRequest.ExtraConf)
 		if err != nil {
 			// TODO(anatoly): Empty room case.
@@ -281,7 +283,7 @@ func (c *Base) CreateClone(cloneRequest *types.CloneCreateRequest) (*models.Clon
 			OwnerUser:     clone.DB.OwnerUser,
 			ContainerName: cloneID,
 		}
-	}()
+	}, func() { c.settleAfterPanic(cloneID, models.StatusCreating, models.StatusFatal) })
 
 	return clone, nil
 }
@@ -365,7 +367,9 @@ func (c *Base) DestroyClone(cloneID string) error {
 		return err
 	}
 
-	go c.destroyClone(cloneID, w)
+	goroutine.GoOnPanic("clone destruction", func() { c.destroyClone(cloneID, w) }, func() {
+		c.settleAfterPanic(cloneID, models.StatusDeleting, models.StatusFatal)
+	})
 
 	return nil
 }
@@ -552,6 +556,26 @@ func (c *Base) UpdateCloneStatus(cloneID string, status models.Status) error {
 	return nil
 }
 
+// settleAfterPanic moves a clone out of the transient status of a background operation that
+// panicked, because nothing else would. The status is replaced only if it is still the transient
+// one: past that point the operation has finished, and a clone that is up must not be marked FATAL.
+func (c *Base) settleAfterPanic(cloneID string, transient, settled models.StatusCode) {
+	c.cloneMutex.Lock()
+
+	w, ok := c.clones[cloneID]
+
+	replaced := ok && w.Clone.Status.Code == transient
+	if replaced {
+		w.Clone.Status = models.Status{Code: settled, Message: clonePanicMessage}
+	}
+
+	c.cloneMutex.Unlock()
+
+	if replaced {
+		c.SaveClonesState()
+	}
+}
+
 // UpdateCloneSnapshot updates clone snapshot.
 func (c *Base) UpdateCloneSnapshot(cloneID string, snapshot *models.Snapshot) error {
 	c.cloneMutex.Lock()
@@ -612,7 +636,7 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 		c.cloneMutex.Unlock()
 	}
 
-	go func() {
+	goroutine.GoOnPanic("clone reset", func() {
 		var originalSnapshotID string
 
 		if w.Clone.Snapshot != nil {
@@ -672,7 +696,11 @@ func (c *Base) ResetClone(cloneID string, resetOptions types.ResetCloneRequest) 
 			CloningTime: w.Clone.Metadata.CloningTime,
 			DSADiff:     util.GetDataFreshness(snapshot.DataStateAt.Time),
 		})
-	}()
+	}, func() {
+		// a panic says nothing about the clone, which may still be running, and FATAL would cost
+		// a running clone its dataset on the next restart.
+		c.settleAfterPanic(cloneID, models.StatusResetting, models.StatusWarning)
+	})
 
 	return nil
 }

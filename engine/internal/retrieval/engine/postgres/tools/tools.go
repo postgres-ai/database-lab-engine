@@ -37,6 +37,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/health"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 )
 
 const (
@@ -713,13 +714,17 @@ func execCommandWithResponse(
 func processAttachResponse(ctx context.Context, reader io.Reader) ([]byte, error) {
 	var outBuf, errBuf bytes.Buffer
 
-	outputDone := make(chan error)
+	// buffered, because nobody receives the result of a copy that outlives a canceled ctx.
+	outputDone := make(chan error, 1)
 
-	go func() {
-		// StdCopy de-multiplexes the stream into two writers.
-		_, err := stdcopy.StdCopy(&outBuf, &errBuf, reader)
-		outputDone <- err
-	}()
+	goroutine.Go("container output copy", func() {
+		outputDone <- goroutine.Try("container output copy", func() error {
+			// StdCopy de-multiplexes the stream into two writers.
+			_, err := stdcopy.StdCopy(&outBuf, &errBuf, reader)
+
+			return err
+		})
+	})
 
 	select {
 	case err := <-outputDone:

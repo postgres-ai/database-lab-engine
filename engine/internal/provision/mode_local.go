@@ -35,6 +35,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/networks"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/pglog"
 )
@@ -193,7 +194,7 @@ func (p *Provisioner) Reload(cfg Config, dbCfg resources.DB) {
 	p.dbCfg = dbCfg
 	p.cfgMu.Unlock()
 
-	go p.ResolveUpgradeTarget()
+	goroutine.Go("upgrade target resolution", p.ResolveUpgradeTarget)
 }
 
 // Config returns a snapshot of the provisioning configuration. Reload swaps the whole value, and
@@ -232,6 +233,18 @@ func (p *Provisioner) StartSession(clone *models.Clone, user resources.Ephemeral
 		return nil, errors.Wrap(err, "failed to get snapshots")
 	}
 
+	fsm, err := p.pm.GetFSManager(snapshot.Pool)
+	if err != nil {
+		return nil, fmt.Errorf("cannot work with pool %s: %w", snapshot.Pool, err)
+	}
+
+	return p.startSession(fsm, clone, snapshot.ID, user, extraConfig)
+}
+
+// startSession provisions a clone on fsm. Whatever it set up is reverted unless it finishes, which
+// covers a panic as well as an error: nobody else knows about the port and the clone until it returns.
+func (p *Provisioner) startSession(fsm pool.FSManager, clone *models.Clone, snapshotID string, user resources.EphemeralUser,
+	extraConfig map[string]string) (*resources.Session, error) {
 	port, err := p.allocatePort()
 	if err != nil {
 		return nil, errors.New("failed to get a free port")
@@ -239,24 +252,23 @@ func (p *Provisioner) StartSession(clone *models.Clone, user resources.Ephemeral
 
 	name := clone.ID
 
-	fsm, err := p.pm.GetFSManager(snapshot.Pool)
-	if err != nil {
-		return nil, fmt.Errorf("cannot work with pool %s: %w", snapshot.Pool, err)
-	}
-
 	log.Dbg(fmt.Sprintf(`Starting session for port: %d.`, port))
 
-	defer func() {
-		if err != nil {
-			p.revertSession(fsm, clone.Branch, name, strconv.FormatUint(uint64(port), 10), clone.Revision)
+	started := false
 
-			if portErr := p.FreePort(port); portErr != nil {
-				log.Err(portErr)
-			}
+	defer func() {
+		if started {
+			return
+		}
+
+		p.revertSession(fsm, clone.Branch, name, strconv.FormatUint(uint64(port), 10), clone.Revision)
+
+		if portErr := p.FreePort(port); portErr != nil {
+			log.Err(portErr)
 		}
 	}()
 
-	if err = fsm.CreateClone(clone.Branch, name, snapshot.ID, clone.Revision); err != nil {
+	if err = fsm.CreateClone(clone.Branch, name, snapshotID, clone.Revision); err != nil {
 		return nil, errors.Wrap(err, "failed to create clone")
 	}
 
@@ -287,6 +299,8 @@ func (p *Provisioner) StartSession(clone *models.Clone, user resources.Ephemeral
 		EphemeralUser: user,
 		ExtraConfig:   extraConfig,
 	}
+
+	started = true
 
 	return session, nil
 }

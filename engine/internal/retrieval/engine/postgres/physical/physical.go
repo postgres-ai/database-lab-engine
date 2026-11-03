@@ -35,6 +35,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/options"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 )
 
 const (
@@ -173,7 +174,9 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 
 	defer func() {
 		if err == nil && r.CopyOptions.Sync.Enabled {
-			go func() {
+			// a panic restarts both steps: runSyncInstance keeps a running instance, and without the
+			// monitor a sync instance that stops responding would never be restarted.
+			goroutine.Loop(ctx, "sync instance", func() {
 				if syncErr := r.runSyncInstance(ctx); syncErr != nil {
 					log.Err("failed to run sync instance: ", syncErr)
 
@@ -190,7 +193,7 @@ func (r *RestoreJob) Run(ctx context.Context) (err error) {
 				}
 
 				r.monitorSyncInstance(ctx)
-			}()
+			})
 		}
 	}()
 

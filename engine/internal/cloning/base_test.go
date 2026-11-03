@@ -5,6 +5,7 @@
 package cloning
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/provision"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi/types"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
@@ -551,4 +553,77 @@ func TestReloadRacesWithCloneReaders(t *testing.T) {
 	}()
 
 	wg.Wait()
+}
+
+func TestSettleAfterPanic(t *testing.T) {
+	testCases := []struct {
+		name       string
+		status     models.StatusCode
+		transient  models.StatusCode
+		settled    models.StatusCode
+		wantStatus models.StatusCode
+	}{
+		{name: "fails a clone still being created", status: models.StatusCreating, transient: models.StatusCreating,
+			settled: models.StatusFatal, wantStatus: models.StatusFatal},
+		{name: "warns about a clone still being reset", status: models.StatusResetting, transient: models.StatusResetting,
+			settled: models.StatusWarning, wantStatus: models.StatusWarning},
+		{name: "keeps a clone whose operation has finished", status: models.StatusOK, transient: models.StatusCreating,
+			settled: models.StatusFatal, wantStatus: models.StatusOK},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			clone := &models.Clone{ID: "c1", Status: models.Status{Code: tc.status}}
+			base := &Base{clones: map[string]*CloneWrapper{"c1": {Clone: clone}}}
+
+			base.settleAfterPanic("c1", tc.transient, tc.settled)
+
+			assert.Equal(t, tc.wantStatus, clone.Status.Code)
+		})
+	}
+
+	t.Run("ignores a clone that is already gone", func(t *testing.T) {
+		base := &Base{clones: make(map[string]*CloneWrapper)}
+
+		assert.NotPanics(t, func() { base.settleAfterPanic("c1", models.StatusDeleting, models.StatusFatal) })
+	})
+}
+
+func TestBackgroundCloneOperationsSettleAfterPanic(t *testing.T) {
+	// without a pool manager the provisioner panics as soon as an operation reaches the pool.
+	prov, err := provision.New(context.Background(), &provision.Config{PortPool: provision.PortPool{From: 1, To: 5}},
+		&resources.DB{}, nil, nil, "instID", "nwID", "")
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name       string
+		run        func(c *Base) error
+		wantStatus models.StatusCode
+	}{
+		{name: "destroy fails the clone", run: func(c *Base) error { return c.DestroyClone("c1") }, wantStatus: models.StatusFatal},
+		{name: "reset warns about the clone", run: func(c *Base) error { return c.ResetClone("c1", types.ResetCloneRequest{}) },
+			wantStatus: models.StatusWarning},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			clone := &models.Clone{ID: "c1", Snapshot: &models.Snapshot{ID: "snap1"}, Status: models.Status{Code: models.StatusOK}}
+			base := &Base{
+				clones:    map[string]*CloneWrapper{"c1": {Clone: clone, Session: &resources.Session{Pool: "pool1"}}},
+				provision: prov,
+			}
+
+			require.NoError(t, tc.run(base))
+
+			status := func() models.Status {
+				base.cloneMutex.RLock()
+				defer base.cloneMutex.RUnlock()
+
+				return clone.Status
+			}
+
+			assert.Eventually(t, func() bool { return status().Code == tc.wantStatus }, 5*time.Second, 10*time.Millisecond)
+			assert.Equal(t, clonePanicMessage, status().Message)
+		})
+	}
 }

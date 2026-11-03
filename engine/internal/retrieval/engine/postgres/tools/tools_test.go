@@ -13,8 +13,10 @@ import (
 	"iter"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
@@ -420,4 +422,34 @@ func TestPullImage(t *testing.T) {
 			assert.Equal(t, tc.wantPullCalled, puller.pullCalled)
 		})
 	}
+}
+
+type panicReader struct{}
+
+func (panicReader) Read([]byte) (int, error) { panic("broken stream") }
+
+func TestProcessAttachResponse_ReturnsErrorOnPanic(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := processAttachResponse(ctx, panicReader{})
+
+	assert.ErrorContains(t, err, "panic in")
+}
+
+func TestProcessAttachResponse_CopyEndsAfterCancel(t *testing.T) {
+	reader, writer := io.Pipe()
+	defer func() { _ = writer.Close() }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := processAttachResponse(ctx, reader)
+	require.ErrorIs(t, err, context.Canceled)
+
+	assert.Eventually(t, func() bool {
+		stacks := make([]byte, 1<<20)
+
+		return !strings.Contains(string(stacks[:runtime.Stack(stacks, true)]), "tools.processAttachResponse")
+	}, 5*time.Second, 10*time.Millisecond)
 }

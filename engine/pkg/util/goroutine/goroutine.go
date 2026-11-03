@@ -26,6 +26,17 @@ func Go(name string, fn func()) {
 	go Run(name, fn)
 }
 
+// GoOnPanic runs fn like Go and calls onPanic if fn panicked, so the caller can settle the state
+// fn left behind. onPanic runs in the same goroutine, after the deferred calls of fn, and a panic
+// inside it is recovered and logged as well.
+func GoOnPanic(name string, fn, onPanic func()) {
+	go func() {
+		if Run(name, fn) {
+			Run(name+" panic handler", onPanic)
+		}
+	}()
+}
+
 // Loop runs fn in a new goroutine and restarts it with exponential backoff every time it panics,
 // until ctx is done. The backoff starts over after a run that lasted at least the maximum delay,
 // so a rare panic does not keep a long-running goroutine at the slowest restart rate.
@@ -75,4 +86,15 @@ func Run(name string, fn func()) (panicked bool) {
 	fn()
 
 	return false
+}
+
+// Try calls fn synchronously and returns its error. A panic is recovered and logged like in Run and
+// comes back as an error, for callers that act on the outcome of fn: there a recovered panic must
+// not look like success.
+func Try(name string, fn func() error) (err error) {
+	if Run(name, func() { err = fn() }) {
+		return fmt.Errorf("panic in %q, see the engine log for the stack", name)
+	}
+
+	return err
 }

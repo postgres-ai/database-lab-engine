@@ -18,6 +18,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 )
 
 // emptyPreloadLibraries scopes the old server that pg_upgrade starts on its own. Old-major
@@ -92,9 +93,50 @@ func (c *Base) UpgradeClone(cloneID string, req UpgradeRequest) error {
 	// and the container is about to be removed.
 	c.SaveClonesState()
 
-	go c.runUpgrade(w, req)
+	goroutine.GoOnPanic("clone upgrade", func() { c.runUpgrade(w, req) }, func() { c.recoverPanickedUpgrade(w) })
 
 	return nil
+}
+
+// recoverPanickedUpgrade settles a clone the way the next engine start would, from the state on
+// disk: RecoverUpgrade handles an upgrade interrupted at any point, and UPGRADING keeps destroy,
+// reset and snapshots away meanwhile. It targets this clone alone, because other upgrades may still
+// be running.
+//
+// A recovery that fails without a recoverable state on disk leaves the clone UPGRADING for the next
+// engine start, as does a panic inside it. Such a failure proves nothing about the clone, which
+// is still running if the panic came before the upgrade stopped it, and recording it would mark
+// the clone FATAL.
+func (c *Base) recoverPanickedUpgrade(w *CloneWrapper) {
+	if !c.HasUnsettledUpgrade(w.Clone.ID) {
+		return
+	}
+
+	log.Msg("Recovering an upgrade interrupted by a panic, clone:", w.Clone.ID)
+
+	result, err := c.provision.RecoverUpgrade(w.Session, w.Clone)
+
+	c.settlePanickedUpgrade(w, result, err)
+}
+
+// settlePanickedUpgrade records what recovery found after an upgrade panicked. Finding nothing in
+// flight means the panic came before the upgrade touched the clone or after it settled the data
+// directory. Either way the clone runs what its data directory holds, but a plain OK would hide that
+// the requested upgrade failed, so the clone gets a WARNING.
+func (c *Base) settlePanickedUpgrade(w *CloneWrapper, result provision.UpgradeResult, err error) {
+	if err != nil && !result.Recoverable {
+		log.Errf("failed to recover the upgrade of clone %s, leaving it for the next engine start: %v", w.Clone.ID, err)
+		return
+	}
+
+	if err == nil && result.Outcome == provision.UpgradeUnchanged {
+		c.applyUpgradeVersion(w, result)
+		c.finishUpgrade(w.Clone.ID, models.Status{Code: models.StatusWarning, Message: clonePanicMessage})
+
+		return
+	}
+
+	c.applyUpgradeResult(w, result, err)
 }
 
 // markUpgrading claims a clone for an upgrade, refusing one that is not idle. WARNING counts as

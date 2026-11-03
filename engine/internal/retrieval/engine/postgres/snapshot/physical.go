@@ -48,6 +48,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 )
 
 const (
@@ -532,7 +533,7 @@ func (p *PhysicalInitial) startScheduler(ctx context.Context) {
 
 	log.Msg("Snapshot scheduler has been started")
 
-	go p.waitToStopScheduler()
+	goroutine.Go("snapshot scheduler stop", p.waitToStopScheduler)
 }
 
 func (p *PhysicalInitial) waitToStopScheduler() {

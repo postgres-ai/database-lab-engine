@@ -24,6 +24,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/client/dblabapi"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 )
 
 const (
@@ -242,7 +243,7 @@ func serveAction(c *cli.Context) error {
 		IdleTimeout:  httpIdleTimeout,
 	}
 
-	go svc.runReconcileLoop(ctx)
+	goroutine.Loop(ctx, "teleport reconcile", func() { svc.runReconcileLoop(ctx) })
 
 	go func() {
 		<-ctx.Done()
@@ -335,11 +336,7 @@ func (s *service) handleCloneCreate(ctx context.Context, p *WebhookPayload) erro
 
 	res := dbResource{Name: name, Port: int(p.Port), EnvID: s.cfg.EnvironmentID, CloneID: p.EntityID, OwnerUser: p.OwnerUser}
 
-	s.mu.Lock()
-	err := createDB(ctx, s.cfg, res)
-	s.mu.Unlock()
-
-	if err != nil {
+	if err := s.registerDB(ctx, res); err != nil {
 		log.Errf("webhook clone_create: failed to register db %s: %v", name, err)
 		return err
 	}
@@ -357,11 +354,7 @@ func (s *service) handleCloneDelete(ctx context.Context, p *WebhookPayload) erro
 
 	name := CloneServiceName(s.cfg.EnvironmentID, p.EntityID, int(p.Port))
 
-	s.mu.Lock()
-	err := removeDB(ctx, s.cfg, name)
-	s.mu.Unlock()
-
-	if err != nil {
+	if err := s.deregisterDB(ctx, name); err != nil {
 		log.Errf("webhook clone_delete: failed to remove db %s: %v", name, err)
 		return err
 	}
@@ -369,6 +362,24 @@ func (s *service) handleCloneDelete(ctx context.Context, p *WebhookPayload) erro
 	log.Msg(fmt.Sprintf("webhook clone_delete: removed db %s", name))
 
 	return nil
+}
+
+// registerDB runs createDB under mu. The unlock is deferred because both callers survive a panic:
+// the HTTP server recovers handlers and goroutine.Loop restarts the reconcile loop, and a mutex left
+// locked would block every later webhook and reconcile.
+func (s *service) registerDB(ctx context.Context, res dbResource) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return createDB(ctx, s.cfg, res)
+}
+
+// deregisterDB runs removeDB under mu, unlocking it the same way as registerDB.
+func (s *service) deregisterDB(ctx context.Context, name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return removeDB(ctx, s.cfg, name)
 }
 
 // checkEdition verifies that the connected DBLab Engine instance is running
