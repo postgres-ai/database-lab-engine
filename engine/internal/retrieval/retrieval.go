@@ -420,6 +420,9 @@ func (r *Retrieval) run(ctx context.Context, fsm pool.FSManager) (err error) {
 		return errors.Errorf("pool %s not found", poolName)
 	}
 
+	r.poolManager.BeginRefresh(poolName)
+	defer r.poolManager.EndRefresh()
+
 	if err := r.RefreshData(ctx, poolName); err != nil {
 		return err
 	}
@@ -725,20 +728,19 @@ func (r *Retrieval) FullRefresh(ctx context.Context) error {
 	// Release the slot on every return path, including the early ones below.
 	defer r.State.FinishRefresh()
 
-	if err := r.HasAvailablePool(); err != nil {
+	elementToUpdate := r.poolManager.GetPoolToUpdate()
+	if elementToUpdate == nil || elementToUpdate.Value == nil {
 		alert := telemetry.Alert{
 			Level:   models.RefreshSkipped,
-			Message: err.Error(),
+			Message: ErrNoAvailablePool.Error(),
 		}
 		r.State.addAlert(alert)
 		r.tm.SendEvent(ctx, telemetry.AlertEvent, alert)
-		log.Msg(err.Error() + ". Hint: Check that there is at least one pool that does not have clones running. " +
+		log.Msg(ErrNoAvailablePool.Error() + ". Hint: Check that there is at least one pool that does not have clones running. " +
 			"Refresh can be performed only to a pool without clones.")
 
 		return nil
 	}
-
-	elementToUpdate := r.poolManager.GetPoolToUpdate()
 
 	poolToUpdate, err := r.poolManager.GetFSManager(elementToUpdate.Value.(string))
 	if err != nil {

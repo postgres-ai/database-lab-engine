@@ -5,6 +5,7 @@
 package resources
 
 import (
+	"fmt"
 	"path"
 	"sync"
 	"time"
@@ -24,7 +25,8 @@ const (
 	EmptyPool PoolStatus = "empty"
 )
 
-// Pool describes a storage pool.
+// Pool describes a storage pool. Once a manager serves the pool, DSA is accessed only through SetDSA
+// and DataStateAt; a manager sets the field directly while it builds a pool it has not served yet.
 type Pool struct {
 	Name           string
 	Mode           string
@@ -51,7 +53,25 @@ func (p *Pool) IsEmpty() bool {
 
 // SetDSA sets a dataStateAt value.
 func (p *Pool) SetDSA(dsa time.Time) {
+	p.mu.Lock()
 	p.DSA = dsa
+	p.mu.Unlock()
+}
+
+// DataStateAt gets a dataStateAt value.
+func (p *Pool) DataStateAt() time.Time {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	return p.DSA
+}
+
+// String describes the pool for logs. Without it fmt reads the struct through reflection, bypassing mu.
+func (p *Pool) String() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	return fmt.Sprintf("%s (mode: %s, status: %s, dataStateAt: %s)", p.Name, p.Mode, p.status, p.DSA)
 }
 
 // DataDir returns a path to the data directory of the storage pool.

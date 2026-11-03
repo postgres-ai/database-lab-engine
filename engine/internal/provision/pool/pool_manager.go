@@ -35,12 +35,27 @@ var ErrNoPools = errors.New("no available pools")
 
 // Manager describes a pool manager.
 type Manager struct {
+	// reloadMu serializes reloads, which arrive from both SIGHUP and the admin API. It guards cfg and
+	// blockDeviceTypes, which are used only while reloading.
+	reloadMu         sync.Mutex
 	cfg              *Config
-	mu               *sync.Mutex
-	fsManagerList    *list.List
-	fsManagerPool    map[string]FSManager
-	runner           runners.Runner
 	blockDeviceTypes map[string]string
+	// mu guards fsManagerList, fsManagerPool and refreshingPool. A reload swaps the list and the map
+	// together, and the elements of the list are moved under mu as well.
+	mu             *sync.Mutex
+	fsManagerList  *list.List
+	fsManagerPool  map[string]FSManager
+	refreshingPool string
+
+	runner runners.Runner
+	// fsInfo reports the pool mode of a mount directory.
+	fsInfo func(path string) (string, error)
+}
+
+// updateCandidate is a pool that may be selected for a data update.
+type updateCandidate struct {
+	element *list.Element
+	fsm     FSManager
 }
 
 // Config defines a config of a pool manager.
@@ -54,55 +69,103 @@ type Config struct {
 	SelectedPool      string `yaml:"selectedPool"`
 }
 
+// Option configures a pool manager.
+type Option func(*Manager)
+
+// WithFSInfo sets the function that reports the pool mode of a mount directory. By default the mode
+// is derived from the filesystem type of the directory.
+func WithFSInfo(fsInfo func(path string) (string, error)) Option {
+	return func(pm *Manager) {
+		pm.fsInfo = fsInfo
+	}
+}
+
 // NewPoolManager creates a new pool manager.
-func NewPoolManager(cfg *Config, runner runners.Runner) *Manager {
-	return &Manager{
+func NewPoolManager(cfg *Config, runner runners.Runner, opts ...Option) *Manager {
+	pm := &Manager{
 		cfg:              cfg,
 		mu:               &sync.Mutex{},
 		fsManagerPool:    make(map[string]FSManager),
 		runner:           runner,
+		fsInfo:           getFSInfo,
 		blockDeviceTypes: make(map[string]string),
 		fsManagerList:    list.New(),
 	}
+
+	for _, opt := range opts {
+		opt(pm)
+	}
+
+	return pm
 }
 
 // Reload reloads pool manager configuration.
 func (pm *Manager) Reload(cfg Config) error {
+	pm.reloadMu.Lock()
+	defer pm.reloadMu.Unlock()
+
 	*pm.cfg = cfg
 
-	return pm.ReloadPools()
+	return pm.reloadPools()
 }
 
-// MakeActive marks element as active pool and moves it to the head of the pool list.
+// MakeActive marks element as active pool and moves it to the head of the pool list. A refresh can
+// outlive a reload, which replaces the list, so the pool is looked up by name in the current list:
+// moving an element of the replaced list would be a silent no-op.
 func (pm *Manager) MakeActive(element *list.Element) {
-	pm.fsManagerList.MoveToFront(element)
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
 
-	if first := pm.First(); first != nil {
+	if current := pm.findElement(element.Value.(string)); current != nil {
+		pm.fsManagerList.MoveToFront(current)
+	}
+
+	if first := pm.first(); first != nil {
 		first.Pool().SetStatus(resources.ActivePool)
 	}
 }
 
+// BeginRefresh records the pool a data refresh runs on, so a reload keeps its state.
+func (pm *Manager) BeginRefresh(poolName string) {
+	pm.mu.Lock()
+	pm.refreshingPool = poolName
+	pm.mu.Unlock()
+}
+
+// EndRefresh clears the pool recorded by BeginRefresh.
+func (pm *Manager) EndRefresh() {
+	pm.mu.Lock()
+	pm.refreshingPool = ""
+	pm.mu.Unlock()
+}
+
 // First returns the first active storage pool manager.
 func (pm *Manager) First() FSManager {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	return pm.first()
+}
+
+func (pm *Manager) first() FSManager {
 	active := pm.fsManagerList.Front()
 
 	if active == nil || active.Value == nil {
 		return nil
 	}
 
-	return pm.getFSManager(active.Value.(string))
-}
-
-func (pm *Manager) getFSManager(pool string) FSManager {
-	pm.mu.Lock()
-	fsm := pm.fsManagerPool[pool]
-	pm.mu.Unlock()
-
-	return fsm
+	return pm.fsManagerPool[active.Value.(string)]
 }
 
 // GetPoolByName returns element by pool name.
 func (pm *Manager) GetPoolByName(poolName string) *list.Element {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	return pm.findElement(poolName)
+}
+
+func (pm *Manager) findElement(poolName string) *list.Element {
 	for element := pm.fsManagerList.Front(); element != nil; element = element.Next() {
 		if element.Value == nil {
 			return nil
@@ -119,25 +182,38 @@ func (pm *Manager) GetPoolByName(poolName string) *list.Element {
 
 // GetPoolToUpdate returns element to update.
 func (pm *Manager) GetPoolToUpdate() *list.Element {
-	for element := pm.fsManagerList.Back(); element != nil; element = element.Prev() {
-		if element.Value == nil {
-			return nil
-		}
-
-		fsm := pm.getFSManager(element.Value.(string))
-
-		clones, err := fsm.ListClonesNames()
+	for _, candidate := range pm.updateCandidates() {
+		clones, err := candidate.fsm.ListClonesNames()
 		if err != nil {
 			log.Err("failed to list clones", err)
 			return nil
 		}
 
 		if len(clones) == 0 {
-			return element
+			return candidate.element
 		}
 	}
 
 	return nil
+}
+
+// updateCandidates lists pools from the back of the queue. The result outlives the lock because
+// listing clones runs an external command.
+func (pm *Manager) updateCandidates() []updateCandidate {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	candidates := make([]updateCandidate, 0, pm.fsManagerList.Len())
+
+	for element := pm.fsManagerList.Back(); element != nil; element = element.Prev() {
+		if element.Value == nil {
+			break
+		}
+
+		candidates = append(candidates, updateCandidate{element: element, fsm: pm.fsManagerPool[element.Value.(string)]})
+	}
+
+	return candidates
 }
 
 // GetFSManager returns a filesystem manager by name if exists.
@@ -218,12 +294,15 @@ func (pm *Manager) GetAvailableFSManagers() []FSManager {
 func (pm *Manager) GetFSManagerOrderedList() []FSManager {
 	fs := []FSManager{}
 
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
 	for element := pm.fsManagerList.Front(); element != nil; element = element.Next() {
 		if element.Value == nil {
 			continue
 		}
 
-		fs = append(fs, pm.getFSManager(element.Value.(string)))
+		fs = append(fs, pm.fsManagerPool[element.Value.(string)])
 	}
 
 	return fs
@@ -231,6 +310,13 @@ func (pm *Manager) GetFSManagerOrderedList() []FSManager {
 
 // ReloadPools updates available pool managers.
 func (pm *Manager) ReloadPools() error {
+	pm.reloadMu.Lock()
+	defer pm.reloadMu.Unlock()
+
+	return pm.reloadPools()
+}
+
+func (pm *Manager) reloadPools() error {
 	dirEntries, err := os.ReadDir(pm.cfg.MountDir)
 	if err != nil {
 		return err
@@ -246,15 +332,19 @@ func (pm *Manager) ReloadPools() error {
 		return ErrNoPools
 	}
 
-	pm.mu.Lock()
-	pm.fsManagerPool = fsPools
-	pm.fsManagerList = fsManagerList
-	pm.mu.Unlock()
+	pm.setPools(fsPools, fsManagerList)
 
 	log.Msg("Available storage pools: ", pm.describeAvailablePools())
 	log.Msg("Active pool: ", pm.First().Pool().Name)
 
 	return nil
+}
+
+func (pm *Manager) setPools(fsPools map[string]FSManager, fsManagerList *list.List) {
+	pm.mu.Lock()
+	pm.fsManagerPool = fsPools
+	pm.fsManagerList = fsManagerList
+	pm.mu.Unlock()
 }
 
 func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, *list.List) {
@@ -281,7 +371,7 @@ func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, 
 			continue
 		}
 
-		fsType, err := pm.getFSInfo(dataPath)
+		fsType, err := pm.fsInfo(dataPath)
 		if err != nil {
 			log.Msg("failed to get a filesystem info: ", err.Error())
 			continue
@@ -339,6 +429,7 @@ func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, 
 		}
 
 		if originalFSM, ok := originalPools[pool.Name]; ok {
+			pm.keepRefreshState(pool, originalFSM.Pool())
 			fsm, err = BuildFromExistingManager(originalFSM, managerConfig)
 		} else {
 			fsm, err = NewManager(pm.runner, managerConfig)
@@ -359,7 +450,7 @@ func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, 
 		fsManagers[pool.Name] = fsm
 
 		front := poolList.Front()
-		if front == nil || front.Value == nil || fsManagers[front.Value.(string)].Pool().DSA.Before(pool.DSA) {
+		if front == nil || front.Value == nil || fsManagers[front.Value.(string)].Pool().DataStateAt().Before(pool.DataStateAt()) {
 			poolList.PushFront(fsm.Pool().Name)
 			continue
 		}
@@ -368,6 +459,23 @@ func (pm *Manager) examineEntries(entries []os.DirEntry) (map[string]FSManager, 
 	}
 
 	return fsManagers, poolList
+}
+
+// keepRefreshState carries the state of a pool under a running refresh over a reload. The marker
+// cannot describe that pool: it reports the old data as active until the restore wipes the data
+// directory, and empty afterwards. A stale refreshing status with no running refresh is not carried,
+// so a reload still corrects it.
+func (pm *Manager) keepRefreshState(pool, previous *resources.Pool) {
+	pm.mu.Lock()
+	refreshing := pm.refreshingPool == pool.Name
+	pm.mu.Unlock()
+
+	if !refreshing || previous == nil || previous.Status() != resources.RefreshingPool {
+		return
+	}
+
+	pool.DSA = previous.DataStateAt()
+	pool.SetStatus(resources.RefreshingPool)
 }
 
 // reloadBlockDevices gets filesystem types of block devices.
@@ -424,6 +532,9 @@ func preparePoolDirectories(fsm FSManager) error {
 
 func (pm *Manager) describeAvailablePools() []string {
 	availablePools := []string{}
+
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
 
 	for el := pm.fsManagerList.Front(); el != nil; el = el.Next() {
 		if el.Value == nil {
