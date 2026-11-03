@@ -19,6 +19,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
@@ -346,14 +347,14 @@ func (c *Collector) getContainerStats(ctx context.Context, clones []*models.Clon
 	for i := 0; i < workerCount; i++ {
 		wg.Add(1)
 
-		go func() {
+		goroutine.Go("container stats worker", func() {
 			defer wg.Done()
 
 			for job := range jobs {
 				data, ok := c.fetchSingleContainerStats(ctx, job.clone)
 				results <- statsResult{cloneID: job.clone.ID, data: data, ok: ok}
 			}
-		}()
+		})
 	}
 
 	for _, clone := range activeClones {
@@ -362,10 +363,10 @@ func (c *Collector) getContainerStats(ctx context.Context, clones []*models.Clon
 
 	close(jobs)
 
-	go func() {
+	goroutine.Go("container stats collector", func() {
 		wg.Wait()
 		close(results)
-	}()
+	})
 
 	activeCloneIDs := make(map[string]struct{})
 

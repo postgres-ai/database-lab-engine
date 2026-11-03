@@ -6,6 +6,7 @@ package teleport
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -717,4 +718,24 @@ func TestWebhookHandler_CloneDeleteValidation(t *testing.T) {
 	handler(rr, req)
 
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestService_TctlCallsReleaseTheLockOnPanic(t *testing.T) {
+	testCases := []struct {
+		name string
+		call func(s *service)
+	}{
+		{name: "register", call: func(s *service) { _ = s.registerDB(context.Background(), dbResource{Name: "db1", Port: 6000}) }},
+		{name: "deregister", call: func(s *service) { _ = s.deregisterDB(context.Background(), "db1") }},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := &service{}
+
+			require.Panics(t, func() { tc.call(svc) })
+
+			assert.True(t, svc.mu.TryLock())
+		})
+	}
 }

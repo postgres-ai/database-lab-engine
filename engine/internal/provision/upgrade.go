@@ -534,7 +534,7 @@ func (p *Provisioner) RecoverUpgrade(session *resources.Session, clone *models.C
 		return markRecoverable(appConfig, result, err)
 	}
 
-	result, err := p.recover(action, appConfig, state, "upgrade was interrupted by an engine restart")
+	result, err := p.recover(action, appConfig, state, "upgrade was interrupted")
 
 	return markRecoverable(appConfig, result, err)
 }

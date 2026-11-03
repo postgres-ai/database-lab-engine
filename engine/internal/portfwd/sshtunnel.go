@@ -17,7 +17,11 @@ import (
 	"golang.org/x/crypto/ssh/agent"
 
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 )
+
+// copyDirections is the number of copies that serve a forwarded connection, one per direction.
+const copyDirections = 2
 
 // SSHTunnel describes a tunnel structure.
 type SSHTunnel struct {
@@ -136,18 +140,26 @@ func (tunnel *SSHTunnel) forward(localConn, remoteConn net.Conn) {
 		}
 	}()
 
-	chWait := make(chan struct{})
+	defer func() {
+		if err := localConn.Close(); err != nil && err != io.EOF {
+			log.Errf("failed to close local connection: %v", err)
+		}
+	}()
+
+	// forward returns after the first copy, so the buffer lets the second one finish. Closing the
+	// connections is what ends it, which makes net.ErrClosed its normal outcome.
+	chWait := make(chan struct{}, copyDirections)
 
 	copyConn := func(writer, reader net.Conn) {
-		if _, err := io.Copy(writer, reader); err != nil {
+		defer func() { chWait <- struct{}{} }()
+
+		if _, err := io.Copy(writer, reader); err != nil && !errors.Is(err, net.ErrClosed) {
 			log.Errf("io.Copy error: %s", err)
 		}
-
-		chWait <- struct{}{}
 	}
 
-	go copyConn(localConn, remoteConn)
-	go copyConn(remoteConn, localConn)
+	goroutine.Go("ssh tunnel copy to local", func() { copyConn(localConn, remoteConn) })
+	goroutine.Go("ssh tunnel copy to remote", func() { copyConn(remoteConn, localConn) })
 
 	<-chWait
 }

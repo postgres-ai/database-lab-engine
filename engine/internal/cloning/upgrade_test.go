@@ -287,3 +287,50 @@ func TestHasUnsettledUpgrade(t *testing.T) {
 		assert.False(t, newBase(w).HasUnsettledUpgrade("c1"))
 	})
 }
+
+func TestRecoverPanickedUpgrade(t *testing.T) {
+	t.Run("leaves a settled clone alone", func(t *testing.T) {
+		clone := &models.Clone{ID: "c1", Status: models.Status{Code: models.StatusOK}}
+		w := &CloneWrapper{Clone: clone}
+		base := &Base{clones: map[string]*CloneWrapper{"c1": w}}
+
+		assert.NotPanics(t, func() { base.recoverPanickedUpgrade(w) })
+		assert.Equal(t, models.StatusOK, clone.Status.Code)
+	})
+
+	t.Run("keeps a clone it cannot inspect out of FATAL", func(t *testing.T) {
+		prov, err := newProvisioner()
+		require.NoError(t, err)
+
+		clone := &models.Clone{ID: "c1", Status: models.Status{Code: models.StatusUpgrading}}
+		w := &CloneWrapper{Clone: clone, Session: &resources.Session{Pool: "removed_pool"}}
+		base := &Base{clones: map[string]*CloneWrapper{"c1": w}, provision: prov}
+
+		base.recoverPanickedUpgrade(w)
+
+		assert.Equal(t, models.StatusUpgrading, clone.Status.Code)
+	})
+}
+
+func TestSettlePanickedUpgrade(t *testing.T) {
+	t.Run("warns about an upgrade that left nothing in flight", func(t *testing.T) {
+		clone := &models.Clone{ID: "c1", DBVersion: "16", Status: models.Status{Code: models.StatusUpgrading}}
+		w := &CloneWrapper{Clone: clone}
+		base := &Base{clones: map[string]*CloneWrapper{"c1": w}}
+
+		base.settlePanickedUpgrade(w, provision.UpgradeResult{Outcome: provision.UpgradeUnchanged, Version: "17"}, nil)
+
+		assert.Equal(t, models.Status{Code: models.StatusWarning, Message: clonePanicMessage}, clone.Status)
+		assert.Equal(t, "17", clone.DBVersion)
+	})
+
+	t.Run("leaves a clone whose recovery failed for the next engine start", func(t *testing.T) {
+		clone := &models.Clone{ID: "c1", Status: models.Status{Code: models.StatusUpgrading}}
+		w := &CloneWrapper{Clone: clone}
+		base := &Base{clones: map[string]*CloneWrapper{"c1": w}}
+
+		base.settlePanickedUpgrade(w, provision.UpgradeResult{}, errors.New("no pool"))
+
+		assert.Equal(t, models.StatusUpgrading, clone.Status.Code)
+	})
+}

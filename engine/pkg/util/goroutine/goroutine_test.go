@@ -3,6 +3,7 @@ package goroutine
 import (
 	"bytes"
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -184,4 +185,74 @@ func (b *syncBuffer) String() string {
 	defer b.mu.Unlock()
 
 	return b.buf.String()
+}
+
+func TestGoOnPanic(t *testing.T) {
+	t.Run("calls the handler after the deferred calls of the panicking function", func(t *testing.T) {
+		captureLog(t)
+
+		var deferred atomic.Bool
+
+		handled := make(chan bool, 1)
+
+		GoOnPanic("worker", func() {
+			defer deferred.Store(true)
+
+			panic("something broke")
+		}, func() { handled <- deferred.Load() })
+
+		select {
+		case deferredRan := <-handled:
+			assert.True(t, deferredRan)
+		case <-time.After(waitTimeout):
+			t.Fatal("the panic handler was not called")
+		}
+	})
+
+	t.Run("skips the handler when the function returns", func(t *testing.T) {
+		var handled atomic.Bool
+
+		done := make(chan struct{})
+
+		GoOnPanic("worker", func() { close(done) }, func() { handled.Store(true) })
+
+		select {
+		case <-done:
+		case <-time.After(waitTimeout):
+			t.Fatal("the function was not called")
+		}
+
+		assert.Never(t, handled.Load, 50*time.Millisecond, 5*time.Millisecond)
+	})
+
+	t.Run("recovers a panic in the handler", func(t *testing.T) {
+		buf := captureLog(t)
+
+		GoOnPanic("worker", func() { panic("first") }, func() { panic("second") })
+
+		assert.Eventually(t, func() bool {
+			return strings.Contains(buf.String(), `recovered panic in goroutine "worker panic handler": second`)
+		}, waitTimeout, 5*time.Millisecond)
+	})
+}
+
+func TestTry(t *testing.T) {
+	t.Run("returns the error of the function", func(t *testing.T) {
+		wantErr := errors.New("failed")
+
+		assert.ErrorIs(t, Try("worker", func() error { return wantErr }), wantErr)
+	})
+
+	t.Run("returns nil on success", func(t *testing.T) {
+		assert.NoError(t, Try("worker", func() error { return nil }))
+	})
+
+	t.Run("turns a panic into an error", func(t *testing.T) {
+		buf := captureLog(t)
+
+		err := Try("worker", func() error { panic("something broke") })
+
+		assert.ErrorContains(t, err, `panic in "worker"`)
+		assert.Contains(t, buf.String(), `recovered panic in goroutine "worker": something broke`)
+	})
 }

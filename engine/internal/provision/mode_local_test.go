@@ -75,13 +75,18 @@ func TestPortAllocation(t *testing.T) {
 }
 
 type mockFSManager struct {
-	pool      *resources.Pool
-	cloneList []string
-	datasets  []thinclones.CloneDataset
-	destroyed *[]thinclones.CloneDataset
+	pool        *resources.Pool
+	cloneList   []string
+	datasets    []thinclones.CloneDataset
+	destroyed   *[]thinclones.CloneDataset
+	createClone func() error
 }
 
 func (m mockFSManager) CreateClone(_, _, _ string, _ int) error {
+	if m.createClone != nil {
+		return m.createClone()
+	}
+
 	return nil
 }
 
@@ -293,6 +298,47 @@ func TestStopPoolSessionsDestroysClonesByDataset(t *testing.T) {
 		{Branch: "main", Name: "clone_main", Revision: 0},
 		{Branch: "dev", Name: "clone_dev", Revision: 2},
 	}, destroyed)
+}
+
+func TestStartSessionRevertsAnUnfinishedSession(t *testing.T) {
+	testCases := []struct {
+		name        string
+		createClone func() error
+	}{
+		{name: "an error", createClone: func() error { return errors.New("no space left on device") }},
+		{name: "a panic", createClone: func() error { panic("broken pool") }},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			destroyed := []thinclones.CloneDataset{}
+			fsm := mockFSManager{pool: &resources.Pool{Name: "test_pool"}, destroyed: &destroyed, createClone: tc.createClone}
+
+			cfg := &Config{PortPool: PortPool{From: 6000, To: 6000}}
+
+			p, err := New(context.Background(), cfg, &resources.DB{}, &client.Client{}, &pool.Manager{}, "instanceID", "networkID", "127.0.0.1")
+			require.NoError(t, err)
+
+			p.portChecker = &mockPortChecker{}
+			p.runner = noopRunner{}
+
+			clone := &models.Clone{ID: "clone", Branch: "main", Revision: 1}
+
+			func() {
+				defer func() { _ = recover() }()
+
+				session, err := p.startSession(fsm, clone, "snapshot", resources.EphemeralUser{}, nil)
+				assert.Nil(t, session)
+				assert.Error(t, err)
+			}()
+
+			assert.Equal(t, []thinclones.CloneDataset{{Branch: "main", Name: "clone", Revision: 1}}, destroyed)
+
+			port, err := p.allocatePort()
+			require.NoError(t, err, "the only port of the pool must be free again")
+			assert.Equal(t, uint(6000), port)
+		})
+	}
 }
 
 func TestBuildPoolEntry(t *testing.T) {

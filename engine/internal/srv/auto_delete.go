@@ -19,6 +19,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 )
 
 const (
@@ -163,7 +164,9 @@ func (s *Server) runRetentionSweep(ctx context.Context) {
 	// the telemetry POST is synchronous and the webhook channel is buffer-1, so inline or
 	// per-entity-goroutine emission of a bulk sweep would stall or flood.
 	if len(sw.deletedSnapshots) > 0 || len(sw.deletedBranches) > 0 {
-		go s.emitAutoDeleteEvents(sw.deletedSnapshots, mapKeys(sw.deletedBranches))
+		deletedBranches := mapKeys(sw.deletedBranches)
+
+		goroutine.Go("auto-deletion events", func() { s.emitAutoDeleteEvents(sw.deletedSnapshots, deletedBranches) })
 	}
 }
 

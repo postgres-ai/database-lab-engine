@@ -16,6 +16,7 @@ import (
 
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 )
 
 const defaultWorkerCount = 2
@@ -126,24 +127,29 @@ func (q *Processor) runParallel(ctx context.Context, containerID, parallelDir st
 
 		wg.Add(1)
 
-		go func() {
+		goroutine.Go("preprocessing query", func() {
 			defer func() {
 				wg.Done()
 				<-tickets
 			}()
 
-			out, err := q.runSQLFile(parallelCtx, containerID, infoName)
+			err := goroutine.Try("preprocessing query "+infoName, func() error {
+				out, err := q.runSQLFile(parallelCtx, containerID, infoName)
+				if err != nil {
+					return err
+				}
+
+				log.Msg(fmt.Sprintf("Result: %s\n", infoName), out)
+
+				return nil
+			})
 			if err != nil {
 				errCh <- err
 
 				cancel()
 				log.Err("preprocessing query: ", err)
-
-				return
 			}
-
-			log.Msg(fmt.Sprintf("Result: %s\n", infoName), out)
-		}()
+		})
 	}
 
 	wg.Wait()

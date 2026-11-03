@@ -34,6 +34,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/models"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/branching"
+	"gitlab.com/postgres-ai/database-lab/v3/pkg/util/goroutine"
 	"gitlab.com/postgres-ai/database-lab/v3/version"
 )
 
@@ -1117,12 +1118,12 @@ func (s *Server) startObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go func() {
+	goroutine.Go("clone observation", func() {
 		if err := observingClone.RunSession(); err != nil {
 			// TODO(akartasov): Update observation (add a request to Platform) with an error.
 			log.Err("failed to observe clone: ", err)
 		}
-	}()
+	})
 
 	if err := api.WriteJSON(w, http.StatusOK, observingClone.Session()); err != nil {
 		api.SendError(w, r, err)

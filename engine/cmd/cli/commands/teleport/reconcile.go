@@ -123,11 +123,7 @@ func (s *service) reconcile(ctx context.Context) {
 
 		res := dbResource{Name: name, Port: port, EnvID: s.cfg.EnvironmentID, CloneID: clone.ID, OwnerUser: clone.DB.OwnerUser}
 
-		s.mu.Lock()
-		err = createDB(ctx, s.cfg, res)
-		s.mu.Unlock()
-
-		if err != nil {
+		if err = s.registerDB(ctx, res); err != nil {
 			log.Errf("reconcile: failed to register db %s: %v", name, err)
 		} else {
 			log.Msg("reconcile: registered db", name)
@@ -135,11 +131,7 @@ func (s *service) reconcile(ctx context.Context) {
 	}
 
 	for name := range toRemove {
-		s.mu.Lock()
-		err := removeDB(ctx, s.cfg, name)
-		s.mu.Unlock()
-
-		if err != nil {
+		if err := s.deregisterDB(ctx, name); err != nil {
 			log.Errf("reconcile: failed to remove db %s: %v", name, err)
 		} else {
 			log.Msg("reconcile: removed db", name)
