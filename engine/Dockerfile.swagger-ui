@@ -1,3 +1,7 @@
-FROM nginx:1.29-alpine
+FROM nginx:1.30.6-alpine
+
+# Pull fixed Alpine package versions instead of the ones baked into the nginx base tag.
+RUN apk update && apk upgrade --no-cache && rm -rf /var/cache/apk/*
+
 COPY ./api/swagger-spec/ /usr/share/nginx/html/api/swagger-spec/
 COPY ./api/swagger-ui /usr/share/nginx/html

@@ -19,11 +19,11 @@ RUN apk add --no-cache --update git && \
     find /app/packages/ce/build -name '*.map' -delete
 
 # Run phase.
-FROM nginx:1.29.7-alpine as run
+FROM nginx:1.30.6-alpine as run
 
 # Pull latest Alpine package versions before adding application files.
 # Without this, the published image inherits whatever package versions were
-# baked into the nginx:1.29.7-alpine tag at the time it was built — which
+# baked into the nginx base tag at the time it was built — which
 # accumulates CVEs (notably libcrypto3) until the upstream nginx tag is
 # refreshed. Apk upgrade pulls fixed versions from the Alpine stable feed.
 RUN apk update && apk upgrade --no-cache && rm -rf /var/cache/apk/*
