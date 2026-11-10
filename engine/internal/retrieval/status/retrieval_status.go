@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/db"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/defaults"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/config/global"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
@@ -96,19 +97,17 @@ func FetchSyncMetrics(ctx context.Context, config *global.Config, socketPath str
 }
 
 func openConnection(ctx context.Context, username, dbname, socketPath string) (*pgx.Conn, error) {
-	connectionStr := fmt.Sprintf(`host=%s port=%d user=%s dbname=%s`,
-		socketPath,
-		defaults.Port,
-		username,
-		dbname,
-	)
-
-	conn, err := pgx.Connect(ctx, connectionStr)
+	conn, err := pgx.Connect(ctx, connectionString(username, dbname, socketPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open db connection: %w", err)
 	}
 
 	return conn, nil
+}
+
+func connectionString(username, dbname, socketPath string) string {
+	return fmt.Sprintf(`host='%s' port=%d user='%s' dbname='%s'`,
+		db.EscapeLibpqValue(socketPath), defaults.Port, db.EscapeLibpqValue(username), db.EscapeLibpqValue(dbname))
 }
 
 func lag(ctx context.Context, conn *pgx.Conn) (int, error) {

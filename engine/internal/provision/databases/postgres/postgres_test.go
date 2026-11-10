@@ -39,10 +39,11 @@ func TestGetPgConnStr(t *testing.T) {
 		port     uint
 		expected string
 	}{
-		{host: "localhost", dbname: "testdb", username: "postgres", port: 5432, expected: "host=localhost port=5432 dbname=testdb user=postgres "},
-		{host: "", dbname: "mydb", username: "admin", port: 6000, expected: "port=6000 dbname=mydb user=admin "},
-		{host: "127.0.0.1", dbname: "postgres", username: "user1", port: 6100, expected: "host=127.0.0.1 port=6100 dbname=postgres user=user1 "},
-		{host: "/var/run/postgresql", dbname: "db", username: "u", port: 5433, expected: "host=/var/run/postgresql port=5433 dbname=db user=u "},
+		{host: "localhost", dbname: "testdb", username: "postgres", port: 5432, expected: "host='localhost' port=5432 dbname='testdb' user='postgres' "},
+		{host: "", dbname: "mydb", username: "admin", port: 6000, expected: "port=6000 dbname='mydb' user='admin' "},
+		{host: "127.0.0.1", dbname: "postgres", username: "user1", port: 6100, expected: "host='127.0.0.1' port=6100 dbname='postgres' user='user1' "},
+		{host: "/var/run/postgresql", dbname: "db", username: "u", port: 5433, expected: "host='/var/run/postgresql' port=5433 dbname='db' user='u' "},
+		{host: "h", dbname: "my db", username: `it's`, port: 5432, expected: `host='h' port=5432 dbname='my db' user='it\'s' `},
 	}
 
 	for _, tc := range testCases {
@@ -55,8 +56,8 @@ func TestGetPgConnStr_EmptyHostOmitted(t *testing.T) {
 	result := getPgConnStr("", "db", "user", 5432)
 	assert.NotContains(t, result, "host=")
 	assert.Contains(t, result, "port=5432")
-	assert.Contains(t, result, "dbname=db")
-	assert.Contains(t, result, "user=user")
+	assert.Contains(t, result, "dbname='db'")
+	assert.Contains(t, result, "user='user'")
 }
 
 func TestGetPgConnStr_ComponentOrder(t *testing.T) {
@@ -197,5 +198,18 @@ func TestStartTimeoutError(t *testing.T) {
 				assert.ErrorIs(t, err, tc.queryErr)
 			}
 		})
+	}
+}
+
+func TestQuoteConnValue(t *testing.T) {
+	testCases := []struct{ value, expected string }{
+		{value: "app.24", expected: `'app.24'`},
+		{value: "my db", expected: `'my db'`},
+		{value: `it's`, expected: `'it\'s'`},
+		{value: `back\slash`, expected: `'back\\slash'`},
+	}
+
+	for _, tc := range testCases {
+		assert.Equal(t, tc.expected, quoteConnValue(tc.value))
 	}
 }

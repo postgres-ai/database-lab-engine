@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -307,13 +309,13 @@ func TestConnectionString(t *testing.T) {
 		{name: "custom host and port", host: "10.0.0.1", port: "6000", username: "admin", dbname: "mydb", expected: "host='10.0.0.1' port=6000 user='admin' database='mydb'"},
 		{name: "socket path host", host: "/var/run/postgres", port: "5433", username: "user1", dbname: "db1", expected: "host='/var/run/postgres' port=5433 user='user1' database='db1'"},
 		{name: "empty dbname", host: "localhost", port: "5432", username: "postgres", dbname: "", expected: "host='localhost' port=5432 user='postgres' database=''"},
-		{name: "dbname with single quote", host: "localhost", port: "5432", username: "postgres", dbname: "test'db", expected: "host='localhost' port=5432 user='postgres' database='test''db'"},
+		{name: "dbname with single quote", host: "localhost", port: "5432", username: "postgres", dbname: "test'db", expected: "host='localhost' port=5432 user='postgres' database='test\\'db'"},
 		{name: "dbname with spaces", host: "localhost", port: "5432", username: "postgres", dbname: "my database", expected: "host='localhost' port=5432 user='postgres' database='my database'"},
 		{name: "dbname with backslash", host: "localhost", port: "5432", username: "postgres", dbname: `test\db`, expected: `host='localhost' port=5432 user='postgres' database='test\\db'`},
-		{name: "username with single quote", host: "localhost", port: "5432", username: "user'name", dbname: "testdb", expected: `host='localhost' port=5432 user='user''name' database='testdb'`},
+		{name: "username with single quote", host: "localhost", port: "5432", username: "user'name", dbname: "testdb", expected: `host='localhost' port=5432 user='user\'name' database='testdb'`},
 		{name: "username with backslash", host: "localhost", port: "5432", username: `user\name`, dbname: "testdb", expected: `host='localhost' port=5432 user='user\\name' database='testdb'`},
-		{name: "combined quote and backslash in dbname", host: "localhost", port: "5432", username: "postgres", dbname: `test\'db`, expected: `host='localhost' port=5432 user='postgres' database='test\\''db'`},
-		{name: "host with single quote", host: "host'name", port: "5432", username: "postgres", dbname: "testdb", expected: `host='host''name' port=5432 user='postgres' database='testdb'`},
+		{name: "combined quote and backslash in dbname", host: "localhost", port: "5432", username: "postgres", dbname: `test\'db`, expected: `host='localhost' port=5432 user='postgres' database='test\\\'db'`},
+		{name: "host with single quote", host: "host'name", port: "5432", username: "postgres", dbname: "testdb", expected: `host='host\'name' port=5432 user='postgres' database='testdb'`},
 	}
 
 	for _, tt := range tests {
@@ -624,6 +626,39 @@ func TestBackgroundCloneOperationsSettleAfterPanic(t *testing.T) {
 
 			assert.Eventually(t, func() bool { return status().Code == tc.wantStatus }, 5*time.Second, 10*time.Millisecond)
 			assert.Equal(t, clonePanicMessage, status().Message)
+		})
+	}
+}
+
+func TestCloneConnStr(t *testing.T) {
+	t.Run("plain values stay unquoted", func(t *testing.T) {
+		cloneDB := models.Database{Host: "10.0.0.1", Port: "6000", Username: "alice", DBName: "shop"}
+		assert.Equal(t, "host=10.0.0.1 port=6000 user=alice dbname=shop", cloneConnStr(cloneDB))
+	})
+
+	for _, value := range []string{"app.24", "with space", "it's", `back\slash`, `double"quote`, ""} {
+		t.Run("parses back "+value, func(t *testing.T) {
+			cfg, err := pgconn.ParseConfig(cloneConnStr(models.Database{Host: "10.0.0.1", Port: "6000", Username: "u" + value, DBName: "d" + value}))
+			require.NoError(t, err)
+			assert.Equal(t, "u"+value, cfg.User)
+			assert.Equal(t, "d"+value, cfg.Database)
+		})
+	}
+}
+
+func TestGetSocketConnStr(t *testing.T) {
+	for _, value := range []string{"plain", "with space", "it's", `back\slash`} {
+		t.Run(value, func(t *testing.T) {
+			connStr := getSocketConnStr(&resources.Session{SocketHost: "/sockets/" + value, User: value, Port: 6000})
+
+			_, err := pq.NewConnector(connStr)
+			require.NoError(t, err)
+
+			cfg, err := pgconn.ParseConfig(connStr)
+			require.NoError(t, err)
+			assert.Equal(t, "/sockets/"+value, cfg.Host)
+			assert.Equal(t, value, cfg.User)
+			assert.Equal(t, "postgres", cfg.Database)
 		})
 	}
 }

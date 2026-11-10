@@ -69,13 +69,23 @@ type tuningParam struct {
 	setting string
 }
 
-// EscapeLibpqValue escapes a value for use in a libpq connection string
-// by doubling backslashes and single quotes.
+// EscapeLibpqValue escapes a value for use inside single quotes in a libpq connection string
+// by putting a backslash before every backslash and single quote.
 func EscapeLibpqValue(val string) string {
 	val = strings.ReplaceAll(val, `\`, `\\`)
-	val = strings.ReplaceAll(val, "'", "''")
+	val = strings.ReplaceAll(val, "'", `\'`)
 
 	return val
+}
+
+// QuoteLibpqValue returns a value ready for a libpq connection string, quoting it only when
+// it is empty or contains whitespace, a single quote or a backslash.
+func QuoteLibpqValue(val string) string {
+	if val != "" && !strings.ContainsAny(val, " \t\r\n'\\") {
+		return val
+	}
+
+	return "'" + EscapeLibpqValue(val) + "'"
 }
 
 // ConnectionString builds PostgreSQL connection string.

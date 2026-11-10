@@ -10,10 +10,12 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -39,6 +41,8 @@ select count(*) from pg_class
 where relname like 'measurements%' and relkind in ('r', 'p', 'S') and relowner <> $1::regrole`
 
 	restrictionTestAttachedQuery = `select count(*) from pg_inherits where inhparent = 'measurements'::regclass`
+
+	restrictionTestDBOwnerQuery = `select pg_get_userbyid(datdba) from pg_database where datname = $1`
 
 	restrictionTestPendingQuery = `select inhdetachpending from pg_inherits where inhrelid = 'measurements_1'::regclass`
 )
@@ -148,6 +152,39 @@ func TestCreateUser_RestrictedOwnsPartitions_Integration(t *testing.T) {
 
 			require.NoError(t, db.QueryRowContext(ctx, restrictionTestAttachedQuery).Scan(&attached))
 			assert.Equal(t, tc.attached, attached)
+		})
+	}
+}
+
+func TestCreateUser_RestrictedAwkwardDatabaseNames_Integration(t *testing.T) {
+	databases := []string{"app.24", "app-24", "MixedCase", "APP_24_12", "with space", "select", `quote"and'apostrophe`}
+
+	t.Setenv("PGSSLMODE", "disable")
+
+	for _, image := range []string{"postgres:13", "postgres:17"} {
+		t.Run(image, func(t *testing.T) {
+			ctx := context.Background()
+			appConfig := startRestrictionPostgres(ctx, t, image)
+
+			db, err := sql.Open("postgres", getPgConnStr(appConfig.Host, appConfig.DB.DBName, appConfig.DB.Username, appConfig.Port))
+			require.NoError(t, err)
+
+			defer func() { _ = db.Close() }()
+
+			for _, name := range databases {
+				_, err = db.ExecContext(ctx, fmt.Sprintf("create database %s", pq.QuoteIdentifier(name)))
+				require.NoError(t, err)
+			}
+
+			user := resources.EphemeralUser{Name: restrictionTestUser, Password: "restriction-test-pw", Restricted: true, AvailableDB: "with space"}
+			require.NoError(t, CreateUser(appConfig, user))
+
+			for _, name := range databases {
+				var owner string
+
+				require.NoError(t, db.QueryRowContext(ctx, restrictionTestDBOwnerQuery, name).Scan(&owner))
+				assert.Equal(t, restrictionTestUser, owner, "database %q must belong to the restricted user", name)
+			}
 		})
 	}
 }

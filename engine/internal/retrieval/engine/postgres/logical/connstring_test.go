@@ -29,7 +29,7 @@ func TestWithDatabase(t *testing.T) {
 		{name: "kv appends dbname last-wins", connStr: "host=db.example.com port=5433 user=alice dbname=shop", dbName: "other", want: "host=db.example.com port=5433 user=alice dbname=shop dbname='other'"},
 		{name: "kv preserves extra params", connStr: "host=db sslmode=require dbname=shop", dbName: "other", want: "host=db sslmode=require dbname=shop dbname='other'"},
 		{name: "kv missing dbname gets one", connStr: "host=db.example.com user=alice", dbName: "other", want: "host=db.example.com user=alice dbname='other'"},
-		{name: "kv escapes single quote", connStr: "host=db user=alice", dbName: "a'b", want: "host=db user=alice dbname='a''b'"},
+		{name: "kv escapes single quote", connStr: "host=db user=alice", dbName: "a'b", want: `host=db user=alice dbname='a\'b'`},
 		{name: "kv trailing space trimmed", connStr: "host=db ", dbName: "other", want: "host=db dbname='other'"},
 		{name: "empty dbName leaves uri untouched", connStr: "postgres://alice@db:5432/orig?sslmode=require", dbName: "", want: "postgres://alice@db:5432/orig?sslmode=require"},
 		{name: "empty dbName leaves kv untouched", connStr: "host=db dbname=orig sslmode=require", dbName: "", want: "host=db dbname=orig sslmode=require"},
