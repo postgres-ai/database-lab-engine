@@ -24,6 +24,7 @@ import (
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/docker"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/resources"
 	"gitlab.com/postgres-ai/database-lab/v3/internal/provision/runners"
+	"gitlab.com/postgres-ai/database-lab/v3/internal/retrieval/engine/postgres/tools/db"
 	"gitlab.com/postgres-ai/database-lab/v3/pkg/log"
 )
 
@@ -181,19 +182,24 @@ func pgctlPromote(r runners.Runner, c *resources.AppConfig) (string, error) {
 	return docker.Exec(r, c, promoteCmd)
 }
 
-// Generate postgres connection string.
+// getPgConnStr generates a postgres connection string.
 func getPgConnStr(host, dbname, username string, port uint) string {
 	var sb strings.Builder
 
 	if host != "" {
-		sb.WriteString("host=" + host + " ")
+		sb.WriteString("host=" + quoteConnValue(host) + " ")
 	}
 
 	sb.WriteString("port=" + strconv.Itoa(int(port)) + " ")
-	sb.WriteString("dbname=" + dbname + " ")
-	sb.WriteString("user=" + username + " ")
+	sb.WriteString("dbname=" + quoteConnValue(dbname) + " ")
+	sb.WriteString("user=" + quoteConnValue(username) + " ")
 
 	return sb.String()
+}
+
+// quoteConnValue quotes a value for a key/value connection string so that spaces, quotes and backslashes survive parsing.
+func quoteConnValue(value string) string {
+	return "'" + db.EscapeLibpqValue(value) + "'"
 }
 
 // runExistsSQL executes simple SQL commands which returns one bool value.

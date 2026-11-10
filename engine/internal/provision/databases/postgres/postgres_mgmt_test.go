@@ -183,4 +183,6 @@ func TestRestrictedUserOwnershipQuery_ContainsDatabaseIteration(t *testing.T) {
 	query := restrictedUserOwnershipQuery("user1", "pwd")
 	assert.Contains(t, query, "pg_catalog.pg_database")
 	assert.Contains(t, query, "alter database")
+	assert.Contains(t, query, `'alter database %I owner to %I;'`)
+	assert.NotContains(t, query, `"%s"`)
 }

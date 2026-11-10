@@ -182,7 +182,7 @@ begin
   for r in select datname from pg_catalog.pg_database where not datistemplate loop
     raise debug 'Changing owner of %', r.datname;
     execute format(
-      'alter database %s owner to "%s";',
+      'alter database %I owner to %I;',
       r.datname,
       new_owner
     );

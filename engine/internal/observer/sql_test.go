@@ -41,7 +41,7 @@ func TestBuildConnectionString(t *testing.T) {
 				},
 			},
 			socketDir: "/tmp",
-			want:      "host=/tmp port=5432 user='user''name' database='mydb' application_name='observer'",
+			want:      "host=/tmp port=5432 user='user\\'name' database='mydb' application_name='observer'",
 		},
 		{
 			name: "dbname with backslash",
@@ -65,7 +65,7 @@ func TestBuildConnectionString(t *testing.T) {
 				},
 			},
 			socketDir: "/run/pg",
-			want:      `host=/run/pg port=6432 user='o''bri\\en' database='te''st\\db' application_name='observer'`,
+			want:      `host=/run/pg port=6432 user='o\'bri\\en' database='te\'st\\db' application_name='observer'`,
 		},
 		{
 			name: "empty dbname falls back to default",

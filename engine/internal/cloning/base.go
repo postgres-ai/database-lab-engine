@@ -316,8 +316,7 @@ func (c *Base) fillCloneSession(cloneID string, session *resources.Session) {
 
 	clone.DB.Port = strconv.FormatUint(uint64(session.Port), 10)
 	clone.DB.Host = cfg.AccessHost
-	clone.DB.ConnStr = fmt.Sprintf("host=%s port=%s user=%s dbname=%s",
-		clone.DB.Host, clone.DB.Port, clone.DB.Username, clone.DB.DBName)
+	clone.DB.ConnStr = cloneConnStr(clone.DB)
 
 	clone.Metadata = models.CloneMetadata{
 		CloningTime:                    w.TimeStartedAt.Sub(w.TimeCreatedAt).Seconds(),
@@ -343,6 +342,12 @@ func (c *Base) ConnectToClone(ctx context.Context, cloneID string) (*pgx.Conn, e
 	}
 
 	return db, nil
+}
+
+// cloneConnStr builds the connection string reported to the clone's users.
+func cloneConnStr(cloneDB models.Database) string {
+	return fmt.Sprintf("host=%s port=%s user=%s dbname=%s",
+		db.QuoteLibpqValue(cloneDB.Host), cloneDB.Port, db.QuoteLibpqValue(cloneDB.Username), db.QuoteLibpqValue(cloneDB.DBName))
 }
 
 func connectionString(host, port, username, dbname string) string {
@@ -1016,7 +1021,8 @@ func hasNotQueryActivity(session *resources.Session) (bool, error) {
 }
 
 func getSocketConnStr(session *resources.Session) string {
-	return fmt.Sprintf("host=%s user=%s port=%d dbname=postgres", session.SocketHost, session.User, session.Port)
+	return fmt.Sprintf("host='%s' user='%s' port=%d dbname=postgres",
+		db.EscapeLibpqValue(session.SocketHost), db.EscapeLibpqValue(session.User), session.Port)
 }
 
 // checkActiveQueryNotExists runs query to check a user activity.
